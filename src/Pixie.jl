@@ -1,5 +1,5 @@
 module Pixie
 
-greet() = print("Hello World!")
+using SciMLBase: ODEProblem
 
 end # module
