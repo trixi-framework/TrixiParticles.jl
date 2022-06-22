@@ -26,8 +26,22 @@ function smoothing_kernel(r, h)
 end
 
 
+function smoothing_kernel_der_r(r, h)
+    inner_deriv = 0.5 / h
+    q = 0.5 * r / h
+
+    if q > 1
+        return 0
+    elseif 0.5 <= q <= 1
+        return -2 * 3 * (1 - q)^2 * inner_deriv
+    else
+        return -12 * q + 18 * q^2 * inner_deriv
+    end
+end
+
 
 function rhs!(du, u, non_integrated_quantities, t)
+    h = 1 # smoothing length TODO
     # Compute non-integrated quantites first
     for particle in axes(u, 2)
         r = SVector(u[1, particle], u[2, particle], u[3, particle])
@@ -35,9 +49,8 @@ function rhs!(du, u, non_integrated_quantities, t)
         # Mass and entropy are assumed to be constant per particle
         # Density
         non_integrated_quantities[3, particle] = sum(axes(u, 2)) do neighbor
-            distance = r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
+            distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
             m = non_integrated_quantities[1, neighbor]
-            h = 1 # smoothing length TODO
             return m * smoothing_kernel(distance, h)
         end
 
@@ -58,14 +71,29 @@ function rhs!(du, u, non_integrated_quantities, t)
         du[3, particle] = u[6, particle]
 
         # dv (constant smoothing length, Price (31))
-        du[4, particle] = -sum(axes(u, 2)) do neighbor
+        density1 = non_integrated_quantities[3, particle]
+        pressure1 = non_integrated_quantities[4, particle]
+        r1 = SVector(u[1, particle], u[2, particle], u[3, particle])
+        dv = -sum(axes(u, 2)) do neighbor
             m = non_integrated_quantities[1, neighbor]
-            density1 = non_integrated_quantities[3, particle]
             density2 = non_integrated_quantities[3, neighbor]
-            pressure1 = non_integrated_quantities[4, particle]
             pressure2 = non_integrated_quantities[4, neighbor]
+            r2 = SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
 
-            return # TODO what the hell is that derivative!?
+            result = m * (pressure1 / density1^2 + pressure2 / density2^2) *
+                smoothing_kernel_der_r(norm(r1 - r2), h) * (r1 - r2)
+
+            if norm(result) > eps()
+                # Avoid dividing by zero
+                # TODO The derivative does not exist for r1 = r2
+                result /= norm(r1 - r2)
+            end
+
+            return result
         end
+
+        du[4, particle] = dv[1]
+        du[5, particle] = dv[2]
+        du[6, particle] = dv[3]
     end
 end
