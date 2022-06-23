@@ -2,11 +2,22 @@ function semidiscretize(u0, tspan)
     n_particles = size(u0, 2)
 
     # For mass, entropy, density, pressure
-    non_integrated_quantities = Array{Float64, 2}(undef, 4, n_particles)
+    non_integrated_quantities = Array{Float64, 2}(undef, 5, n_particles)
 
     for particle in axes(u0, 2)
+        h = 1 # smoothing length TODO
+        r = SVector(u0[1, particle], u0[2, particle], u0[3, particle])
+
         non_integrated_quantities[1, particle] = 1 # mass TODO
         non_integrated_quantities[2, particle] = 1 # entropy TODO
+        non_integrated_quantities[3, particle] = sum(axes(u0, 2)) do neighbor
+            distance = norm(r - SVector(u0[1, neighbor], u0[2, neighbor], u0[3, neighbor]))
+            m = 1 # TODO
+            return m * smoothing_kernel(distance, h)
+        end # density
+
+        # Rest density
+        non_integrated_quantities[5, particle] = non_integrated_quantities[3, particle]
     end
 
     return ODEProblem(rhs!, u0, tspan, non_integrated_quantities)
@@ -46,6 +57,12 @@ function rhs!(du, u, non_integrated_quantities, t)
     for particle in axes(u, 2)
         r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
+        # Boundary conditions
+        if r[3] < 0
+            u[3, particle] = 0
+            u[6, particle] *= -0.5
+        end
+
         # Mass and entropy are assumed to be constant per particle
         # Density
         non_integrated_quantities[3, particle] = sum(axes(u, 2)) do neighbor
@@ -55,10 +72,11 @@ function rhs!(du, u, non_integrated_quantities, t)
         end
 
         # Pressure
-        gamma = 1.4
+        gamma = 1
+        rest_density = non_integrated_quantities[5, particle]
         non_integrated_quantities[4, particle] = (
             non_integrated_quantities[2, particle] *
-            non_integrated_quantities[3, particle]^gamma)
+            (non_integrated_quantities[3, particle] - rest_density)^gamma)
     end
 
     # u[1:3] = coordinates
