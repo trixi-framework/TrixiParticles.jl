@@ -1,8 +1,9 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (6, 6, 30)
-u0 = Array{Float64, 2}(undef, 7, prod(n_particles_per_dimension))
+n_particles_per_dimension = (3, 3, 15)
+u0 = Array{Float64, 2}(undef, 6, prod(n_particles_per_dimension))
+mass = ones(Float64, prod(n_particles_per_dimension))
 
 for z in 1:n_particles_per_dimension[3],
         y in 1:n_particles_per_dimension[2],
@@ -19,12 +20,11 @@ for z in 1:n_particles_per_dimension[3],
     u0[4, particle] = 0
     u0[5, particle] = 0
     u0[6, particle] = -1
-
-    # Mass
-    u0[7, particle] = 1
 end
 
 tspan = (0.0, 20.0)
-ode = Pixie.semidiscretize(u0, tspan)
+ode = Pixie.semidiscretize(u0, mass, tspan)
 
-sol = solve(ode, Euler(), dt=0.05);
+callbacks = CallbackSet(Pixie.ComputeQuantitiesCallback())
+
+sol = solve(ode, Euler(), dt=0.05, save_everystep=true, callback=callbacks);

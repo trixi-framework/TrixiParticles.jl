@@ -1,26 +1,66 @@
-function semidiscretize(u0, tspan)
+struct ParticleContainer{uEltype<:Real}
+    mass            ::Vector{uEltype}
+    density         ::Vector{uEltype}
+    pressure        ::Vector{uEltype}
+    entropy         ::Vector{uEltype}
+    smoothing_length::Vector{uEltype}
+    rest_density    ::Vector{uEltype}
+end
+
+
+function semidiscretize(u0::Array{uEltype}, mass, tspan) where uEltype
     n_particles = size(u0, 2)
 
-    # For mass, entropy, density, pressure
-    non_integrated_quantities = Array{Float64, 2}(undef, 5, n_particles)
+    density             = Vector{uEltype}(undef, n_particles)
+    pressure            = Vector{uEltype}(undef, n_particles)
+    entropy             = Vector{uEltype}(undef, n_particles)
+    smoothing_length    = Vector{uEltype}(undef, n_particles)
+    rest_density        = Vector{uEltype}(undef, n_particles)
 
-    for particle in axes(u0, 2)
+    container = ParticleContainer{uEltype}(
+        mass, density, pressure, entropy, smoothing_length, rest_density
+    )
+
+    return ODEProblem(rhs!, u0, tspan, container)
+end
+
+
+# condition
+compute_quantities_callback(integrator, u, t) = true
+# affect!
+function compute_quantities_callback(integrator; compute_rest_density=false)
+    @unpack u = integrator
+    @unpack mass, density, pressure, entropy, smoothing_length, rest_density = integrator.p
+
+    for particle in axes(u, 2)
         h = 1 # smoothing length TODO
-        r = SVector(u0[1, particle], u0[2, particle], u0[3, particle])
+        r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
-        non_integrated_quantities[1, particle] = 1 # mass TODO
-        non_integrated_quantities[2, particle] = 1 # entropy TODO
-        non_integrated_quantities[3, particle] = sum(axes(u0, 2)) do neighbor
-            distance = norm(r - SVector(u0[1, neighbor], u0[2, neighbor], u0[3, neighbor]))
-            m = 1 # TODO
-            return m * smoothing_kernel(distance, h)
-        end # density
+        density[particle] = sum(axes(u, 2)) do neighbor
+            distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
+            return mass[neighbor] * smoothing_kernel(distance, h)
+        end
 
-        # Rest density
-        non_integrated_quantities[5, particle] = non_integrated_quantities[3, particle]
+        if compute_rest_density
+            rest_density[particle] = density[particle]
+        end
+
+        entropy[particle] = 1
+
+        gamma = 1
+        pressure[particle] = entropy[particle] * (density[particle] - rest_density[particle])^gamma
+
+        smoothing_length[particle] = h
     end
+end
 
-    return ODEProblem(rhs!, u0, tspan, non_integrated_quantities)
+initialize_callback(c, u, t, integrator) = compute_quantities_callback(integrator, compute_rest_density=true)
+
+
+function ComputeQuantitiesCallback()
+    DiscreteCallback(compute_quantities_callback, compute_quantities_callback,
+                     save_positions=(false, false),
+                     initialize=initialize_callback)
 end
 
 
@@ -51,54 +91,37 @@ function smoothing_kernel_der_r(r, h)
 end
 
 
-function rhs!(du, u, non_integrated_quantities, t)
-    h = 1 # smoothing length TODO
-    # Compute non-integrated quantites first
+function rhs!(du, u, container, t)
+    @unpack mass, density, pressure, entropy, smoothing_length = container
+
+    # Boundary conditions
     for particle in axes(u, 2)
         r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
-        # Boundary conditions
         if r[3] < 0
             u[3, particle] = 0
             u[6, particle] *= -0.5
         end
-
-        # Mass and entropy are assumed to be constant per particle
-        # Density
-        non_integrated_quantities[3, particle] = sum(axes(u, 2)) do neighbor
-            distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
-            m = non_integrated_quantities[1, neighbor]
-            return m * smoothing_kernel(distance, h)
-        end
-
-        # Pressure
-        gamma = 1
-        rest_density = non_integrated_quantities[5, particle]
-        non_integrated_quantities[4, particle] = (
-            non_integrated_quantities[2, particle] *
-            (non_integrated_quantities[3, particle] - rest_density)^gamma)
     end
 
     # u[1:3] = coordinates
     # u[4:6] = velocity
-    # u[7] = mass
     for particle in axes(du, 2)
+        h = smoothing_length[particle] # TODO constant so far
+
         # dr = v
         du[1, particle] = u[4, particle]
         du[2, particle] = u[5, particle]
         du[3, particle] = u[6, particle]
 
         # dv (constant smoothing length, Price (31))
-        density1 = non_integrated_quantities[3, particle]
-        pressure1 = non_integrated_quantities[4, particle]
         r1 = SVector(u[1, particle], u[2, particle], u[3, particle])
         dv = -sum(axes(u, 2)) do neighbor
-            m = non_integrated_quantities[1, neighbor]
-            density2 = non_integrated_quantities[3, neighbor]
-            pressure2 = non_integrated_quantities[4, neighbor]
+            m = mass[neighbor]
             r2 = SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
 
-            result = m * (pressure1 / density1^2 + pressure2 / density2^2) *
+            result = m * (pressure[particle] / density[particle]^2 +
+                          pressure[neighbor] / density[neighbor]^2) *
                 smoothing_kernel_der_r(norm(r1 - r2), h) * (r1 - r2)
 
             if norm(result) > eps()

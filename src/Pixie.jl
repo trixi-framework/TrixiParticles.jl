@@ -1,8 +1,9 @@
 module Pixie
 
 using LinearAlgebra: norm
-using SciMLBase: ODEProblem
+using SciMLBase: DiscreteCallback, ODEProblem
 using StaticArrays: SVector
+using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("sph/sph.jl")
