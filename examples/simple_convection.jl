@@ -25,6 +25,4 @@ end
 tspan = (0.0, 20.0)
 ode = Pixie.semidiscretize(u0, mass, tspan)
 
-callbacks = CallbackSet(Pixie.ComputeQuantitiesCallback())
-
-sol = solve(ode, Euler(), dt=0.05, save_everystep=true, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL49(), saveat=0.2);

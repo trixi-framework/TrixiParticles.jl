@@ -8,29 +8,8 @@ struct ParticleContainer{uEltype<:Real}
 end
 
 
-function semidiscretize(u0::Array{uEltype}, mass, tspan) where uEltype
-    n_particles = size(u0, 2)
-
-    density             = Vector{uEltype}(undef, n_particles)
-    pressure            = Vector{uEltype}(undef, n_particles)
-    entropy             = Vector{uEltype}(undef, n_particles)
-    smoothing_length    = Vector{uEltype}(undef, n_particles)
-    rest_density        = Vector{uEltype}(undef, n_particles)
-
-    container = ParticleContainer{uEltype}(
-        mass, density, pressure, entropy, smoothing_length, rest_density
-    )
-
-    return ODEProblem(rhs!, u0, tspan, container)
-end
-
-
-# condition
-compute_quantities_callback(integrator, u, t) = true
-# affect!
-function compute_quantities_callback(integrator; compute_rest_density=false)
-    @unpack u = integrator
-    @unpack mass, density, pressure, entropy, smoothing_length, rest_density = integrator.p
+function compute_quantities!(u, container; compute_rest_density=false)
+    @unpack mass, density, pressure, entropy, smoothing_length, rest_density = container
 
     for particle in axes(u, 2)
         h = 1 # smoothing length TODO
@@ -54,13 +33,23 @@ function compute_quantities_callback(integrator; compute_rest_density=false)
     end
 end
 
-initialize_callback(c, u, t, integrator) = compute_quantities_callback(integrator, compute_rest_density=true)
 
+function semidiscretize(u0::Array{uEltype}, mass, tspan) where uEltype
+    n_particles = size(u0, 2)
 
-function ComputeQuantitiesCallback()
-    DiscreteCallback(compute_quantities_callback, compute_quantities_callback,
-                     save_positions=(false, false),
-                     initialize=initialize_callback)
+    density             = Vector{uEltype}(undef, n_particles)
+    pressure            = Vector{uEltype}(undef, n_particles)
+    entropy             = Vector{uEltype}(undef, n_particles)
+    smoothing_length    = Vector{uEltype}(undef, n_particles)
+    rest_density        = Vector{uEltype}(undef, n_particles)
+
+    container = ParticleContainer{uEltype}(
+        mass, density, pressure, entropy, smoothing_length, rest_density
+    )
+
+    compute_quantities!(u0, container, compute_rest_density=true)
+
+    return ODEProblem(rhs!, u0, tspan, container)
 end
 
 
@@ -93,6 +82,8 @@ end
 
 function rhs!(du, u, container, t)
     @unpack mass, density, pressure, entropy, smoothing_length = container
+
+    compute_quantities!(u, container)
 
     # Boundary conditions
     for particle in axes(u, 2)
