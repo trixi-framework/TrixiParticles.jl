@@ -25,4 +25,6 @@ end
 tspan = (0.0, 20.0)
 ode = Pixie.semidiscretize(u0, mass, tspan)
 
-sol = solve(ode, RDPK3SpFSAL49(), saveat=0.2);
+alive_callback = Pixie.AliveCallback(alive_interval=20)
+
+sol = solve(ode, RDPK3SpFSAL49(), saveat=0.2, callback=alive_callback);
