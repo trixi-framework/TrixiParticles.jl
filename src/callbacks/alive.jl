@@ -30,11 +30,21 @@ function (alive_callback::AliveCallback)(integrator)
                 "  Time steps: ", integrator.destats.naccept, " (accepted), ", integrator.iter, " (total)")
         println("─"^100)
         println()
+
+        # Print timer
+        TimerOutputs.complement!(timer())
+        print_timer(timer(), title="Pixie.jl",
+                    allocations=true, linechars=:unicode, compact=false)
+        println()
     else
         runtime_absolute = 1.0e-9 * (time_ns() - alive_callback.start_time)
         @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
                 integrator.destats.naccept, integrator.dt, integrator.t, runtime_absolute)
     end
+
+    # Tell OrdinaryDiffEq that u has not been modified
+    u_modified!(integrator, false)
+    return nothing
 end
 
 
@@ -42,6 +52,10 @@ function initialize(discrete_callback, u, t, integrator)
     # Save current time as start_time
     alive_callback = discrete_callback.affect!
     alive_callback.start_time = time_ns()
+
+    reset_timer!(timer())
+
+    print_startup_message()
 
     return nothing
 end

@@ -15,9 +15,11 @@ function compute_quantities!(u, container; compute_rest_density=false)
         h = 1 # smoothing length TODO
         r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
-        density[particle] = sum(axes(u, 2)) do neighbor
-            distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
-            return mass[neighbor] * smoothing_kernel(distance, h)
+        @pixie_timeit timer() "Compute density" begin
+            density[particle] = sum(axes(u, 2)) do neighbor
+                distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
+                return mass[neighbor] * smoothing_kernel(distance, h)
+            end
         end
 
         if compute_rest_density
@@ -81,51 +83,55 @@ end
 
 
 function rhs!(du, u, container, t)
-    @unpack mass, density, pressure, entropy, smoothing_length = container
+    @pixie_timeit timer() "rhs!" begin
+        @unpack mass, density, pressure, entropy, smoothing_length = container
 
-    compute_quantities!(u, container)
+        compute_quantities!(u, container)
 
-    # Boundary conditions
-    for particle in axes(u, 2)
-        r = SVector(u[1, particle], u[2, particle], u[3, particle])
+        # Boundary conditions
+        for particle in axes(u, 2)
+            r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
-        if r[3] < 0
-            u[3, particle] = 0
-            u[6, particle] *= -0.5
+            if r[3] < 0
+                u[3, particle] = 0
+                u[6, particle] *= -0.5
+            end
         end
-    end
 
-    # u[1:3] = coordinates
-    # u[4:6] = velocity
-    for particle in axes(du, 2)
-        h = smoothing_length[particle] # TODO constant so far
+        # u[1:3] = coordinates
+        # u[4:6] = velocity
+        for particle in axes(du, 2)
+            h = smoothing_length[particle] # TODO constant so far
 
-        # dr = v
-        du[1, particle] = u[4, particle]
-        du[2, particle] = u[5, particle]
-        du[3, particle] = u[6, particle]
+            # dr = v
+            du[1, particle] = u[4, particle]
+            du[2, particle] = u[5, particle]
+            du[3, particle] = u[6, particle]
 
-        # dv (constant smoothing length, Price (31))
-        r1 = SVector(u[1, particle], u[2, particle], u[3, particle])
-        dv = -sum(axes(u, 2)) do neighbor
-            m = mass[neighbor]
-            r2 = SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
+            # dv (constant smoothing length, Price (31))
+            r1 = SVector(u[1, particle], u[2, particle], u[3, particle])
+            @pixie_timeit timer() "Compute dv" begin
+                dv = -sum(axes(u, 2)) do neighbor
+                    m = mass[neighbor]
+                    r2 = SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
 
-            result = m * (pressure[particle] / density[particle]^2 +
-                          pressure[neighbor] / density[neighbor]^2) *
-                smoothing_kernel_der_r(norm(r1 - r2), h) * (r1 - r2)
+                    result = m * (pressure[particle] / density[particle]^2 +
+                                pressure[neighbor] / density[neighbor]^2) *
+                        smoothing_kernel_der_r(norm(r1 - r2), h) * (r1 - r2)
 
-            if norm(result) > eps()
-                # Avoid dividing by zero
-                # TODO The derivative does not exist for r1 = r2
-                result /= norm(r1 - r2)
+                    if norm(result) > eps()
+                        # Avoid dividing by zero
+                        # TODO The derivative does not exist for r1 = r2
+                        result /= norm(r1 - r2)
+                    end
+
+                    return result
+                end
             end
 
-            return result
+            du[4, particle] = dv[1]
+            du[5, particle] = dv[2]
+            du[6, particle] = dv[3]
         end
-
-        du[4, particle] = dv[1]
-        du[5, particle] = dv[2]
-        du[6, particle] = dv[3]
     end
 end
