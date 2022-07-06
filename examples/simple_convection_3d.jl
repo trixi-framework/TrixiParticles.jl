@@ -2,8 +2,9 @@ using Pixie
 using OrdinaryDiffEq
 
 n_particles_per_dimension = (15, 3, 3)
-u0 = Array{Float64, 2}(undef, 6, prod(n_particles_per_dimension))
-mass = ones(Float64, prod(n_particles_per_dimension))
+particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+particle_masses = ones(Float64, prod(n_particles_per_dimension))
 
 for z in 1:n_particles_per_dimension[3],
         y in 1:n_particles_per_dimension[2],
@@ -12,18 +13,20 @@ for z in 1:n_particles_per_dimension[3],
         (y - 1) * n_particles_per_dimension[3] + z
 
     # Coordinates
-    u0[1, particle] = x / 2 + 3
-    u0[2, particle] = y / 2
-    u0[3, particle] = z / 2
+    particle_coordinates[1, particle] = x / 2 + 3
+    particle_coordinates[2, particle] = y / 2
+    particle_coordinates[3, particle] = z / 2
 
     # Velocity
-    u0[4, particle] = -1
-    u0[5, particle] = 0
-    u0[6, particle] = 0
+    particle_velocities[1, particle] = -1
+    particle_velocities[2, particle] = 0
+    particle_velocities[3, particle] = 0
 end
 
+semi = Pixie.SPHSemidiscretization{3}(particle_masses)
+
 tspan = (0.0, 20.0)
-ode = Pixie.semidiscretize(u0, mass, tspan)
+ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
 
 alive_callback = Pixie.AliveCallback(alive_interval=20)
 
