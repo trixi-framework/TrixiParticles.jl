@@ -1,23 +1,23 @@
-struct ParticleContainer{uEltype<:Real}
-    mass            ::Vector{uEltype}
-    density         ::Vector{uEltype}
-    pressure        ::Vector{uEltype}
-    entropy         ::Vector{uEltype}
-    smoothing_length::Vector{uEltype}
-    rest_density    ::Vector{uEltype}
+struct ParticleContainer{ELTYPE<:Real, NDIMS}
+    mass            ::Vector{ELTYPE}
+    density         ::Vector{ELTYPE}
+    pressure        ::Vector{ELTYPE}
+    entropy         ::Vector{ELTYPE}
+    smoothing_length::Vector{ELTYPE}
+    rest_density    ::Vector{ELTYPE}
 end
 
 
 function compute_quantities!(u, container; compute_rest_density=false)
     @unpack mass, density, pressure, entropy, smoothing_length, rest_density = container
 
-    for particle in axes(u, 2)
+    for particle in eachparticle(container)
         h = 1 # smoothing length TODO
-        r = SVector(u[1, particle], u[2, particle], u[3, particle])
 
         @pixie_timeit timer() "Compute density" begin
-            density[particle] = sum(axes(u, 2)) do neighbor
-                distance = norm(r - SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor]))
+            density[particle] = sum(eachparticle(container)) do neighbor
+                distance = norm(get_particle_coords(u, container, particle) -
+                                get_particle_coords(u, container, neighbor))
                 return mass[neighbor] * smoothing_kernel(distance, h)
             end
         end
@@ -36,16 +36,17 @@ function compute_quantities!(u, container; compute_rest_density=false)
 end
 
 
-function semidiscretize(u0::Array{uEltype}, mass, tspan) where uEltype
-    n_particles = size(u0, 2)
+function semidiscretize(u0::Array{ELTYPE}, mass, tspan) where ELTYPE
+    nparticles = size(u0, 2)
+    ndims = size(u0, 1) ÷ 2
 
-    density             = Vector{uEltype}(undef, n_particles)
-    pressure            = Vector{uEltype}(undef, n_particles)
-    entropy             = Vector{uEltype}(undef, n_particles)
-    smoothing_length    = Vector{uEltype}(undef, n_particles)
-    rest_density        = Vector{uEltype}(undef, n_particles)
+    density             = Vector{ELTYPE}(undef, nparticles)
+    pressure            = Vector{ELTYPE}(undef, nparticles)
+    entropy             = Vector{ELTYPE}(undef, nparticles)
+    smoothing_length    = Vector{ELTYPE}(undef, nparticles)
+    rest_density        = Vector{ELTYPE}(undef, nparticles)
 
-    container = ParticleContainer{uEltype}(
+    container = ParticleContainer{ELTYPE, ndims}(
         mass, density, pressure, entropy, smoothing_length, rest_density
     )
 
@@ -89,31 +90,31 @@ function rhs!(du, u, container, t)
         compute_quantities!(u, container)
 
         # Boundary conditions
-        for particle in axes(u, 2)
-            r = SVector(u[1, particle], u[2, particle], u[3, particle])
+        for particle in eachparticle(container)
+            r = get_particle_coords(u, container, particle)
 
-            if r[3] < 0
-                u[3, particle] = 0
-                u[6, particle] *= -0.5
+            if r[1] < 0
+                u[1, particle] = 0
+                u[length(r) + 1, particle] *= -0.5
             end
         end
 
         # u[1:3] = coordinates
         # u[4:6] = velocity
-        for particle in axes(du, 2)
+        for particle in eachparticle(container)
             h = smoothing_length[particle] # TODO constant so far
 
             # dr = v
-            du[1, particle] = u[4, particle]
-            du[2, particle] = u[5, particle]
-            du[3, particle] = u[6, particle]
+            for i in 1:ndims(container)
+                du[i, particle] = u[i + ndims(container), particle]
+            end
 
             # dv (constant smoothing length, Price (31))
-            r1 = SVector(u[1, particle], u[2, particle], u[3, particle])
+            r1 = get_particle_coords(u, container, particle)
             @pixie_timeit timer() "Compute dv" begin
-                dv = -sum(axes(u, 2)) do neighbor
+                dv = -sum(eachparticle(container)) do neighbor
                     m = mass[neighbor]
-                    r2 = SVector(u[1, neighbor], u[2, neighbor], u[3, neighbor])
+                    r2 = get_particle_coords(u, container, neighbor)
 
                     result = m * (pressure[particle] / density[particle]^2 +
                                 pressure[neighbor] / density[neighbor]^2) *
@@ -129,9 +130,19 @@ function rhs!(du, u, container, t)
                 end
             end
 
-            du[4, particle] = dv[1]
-            du[5, particle] = dv[2]
-            du[6, particle] = dv[3]
+            for i in 1:ndims(container)
+                du[i + ndims(container), particle] = dv[i]
+            end
         end
     end
 end
+
+
+@inline function get_particle_coords(u, container, particle)
+    SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(container))))
+end
+
+
+@inline eachparticle(container) = Base.OneTo(nparticles(container))
+@inline nparticles(container) = length(container.density)
+@inline Base.ndims(::ParticleContainer{ELTYPE, NDIMS}) where {ELTYPE, NDIMS} = NDIMS
