@@ -116,9 +116,16 @@ function rhs!(du, u, container, t)
                     m = mass[neighbor]
                     r2 = get_particle_coords(u, container, neighbor)
 
-                    result = m * (pressure[particle] / density[particle]^2 +
-                                pressure[neighbor] / density[neighbor]^2) *
-                        smoothing_kernel_der_r(norm(r1 - r2), h) * (r1 - r2)
+                    kernel_result = smoothing_kernel_der_r(norm(r1 - r2), h)
+
+                    if kernel_result != 0
+                        result = m * (pressure[particle] / density[particle]^2 +
+                                      pressure[neighbor] / density[neighbor]^2) *
+                            kernel_result * (r1 - r2)
+                    else
+                        # Don't compute pressure and density terms, just return zero
+                        result = zeros(SVector{ndims(container), eltype(container.density)})
+                    end
 
                     if norm(result) > eps()
                         # Avoid dividing by zero
