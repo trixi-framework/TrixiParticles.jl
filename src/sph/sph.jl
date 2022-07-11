@@ -106,7 +106,8 @@ function compute_quantities!(u, container; compute_rest_density=false)
         entropy[particle] = 1
 
         gamma = 1
-        pressure[particle] = entropy[particle] * (density[particle]^7 - rest_density[particle]^7)^gamma
+        # pressure[particle] = entropy[particle] * (density[particle] - rest_density[particle])^gamma
+        pressure[particle] = rest_density[particle] * 10^2 / 7 * ((density[particle]/rest_density[particle])^7 - 1)
 
         smoothing_length[particle] = h
     end
@@ -197,7 +198,7 @@ function rhs!(du, u, semi, t)
 
                             if kernel_result != 0
                                 m_b = boundaries.mass[boundary_particle]
-                                K = 10 # TODO experiment with this constant
+                                K = 100 # TODO experiment with this constant
                                 return K * boundaries.spacing[boundary_particle] * diff / distance^2 *
                                     kernel_result * 2 * m_b / (mass[particle] + m_b)
                             else
@@ -209,7 +210,8 @@ function rhs!(du, u, semi, t)
             end
 
             for i in 1:ndims(particles)
-                du[i + ndims(particles), particle] = dv[i]
+                # Gravity
+                du[i + ndims(particles), particle] = i == 2 ? dv[i] - 9.81 : dv[i]
             end
         end
     end
