@@ -11,6 +11,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 include("util.jl")
 include("callbacks/alive.jl")
 include("sph/sph.jl")
+include("sph/state_equations.jl")
 include("visualization/write2vtk.jl")
 
 end # module
