@@ -35,7 +35,8 @@ for y in 1:n_boundaries_per_dimension[1]
 end
 
 
-state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
+state_equation = Pixie.StateEquationTait(10.0, 7, 3.0, 10.0, background_pressure=10.0)
+# state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 semi = Pixie.SPHSemidiscretization(particle_masses, boundary_coordinates,
                                    boundary_masses, boundary_spacings,
                                    Pixie.ContinuityDensity(), state_equation)

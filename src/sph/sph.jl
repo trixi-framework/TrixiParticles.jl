@@ -177,8 +177,8 @@ end
 function rhs!(du, u, semi, t)
     @unpack particles, boundaries = semi
 
-    # viscosity(vij, diff, distance, h, density) = 0.0
-    viscosity = viscosity_springel
+    viscosity(vij, diff, distance, h, density) = 0.0
+    # viscosity = viscosity_springel
 
     @pixie_timeit timer() "rhs!" begin
         @unpack mass, pressure = particles
