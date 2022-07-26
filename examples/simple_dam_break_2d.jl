@@ -4,8 +4,8 @@ using OrdinaryDiffEq
 n_particles_per_dimension = (20, 50)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = ones(Float64, prod(n_particles_per_dimension))
-particle_densities = 3 * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
 for y in 1:n_particles_per_dimension[2],
         x in 1:n_particles_per_dimension[1]
@@ -25,7 +25,7 @@ spacing = 0.02
 
 boundary_coordinates = Array{Float64, 2}(undef, 2, prod(n_boundaries_per_dimension))
 boundary_spacings = spacing * ones(Float64, prod(n_boundaries_per_dimension))
-boundary_masses = ones(Float64, prod(n_boundaries_per_dimension))
+boundary_masses = 10 * ones(Float64, prod(n_boundaries_per_dimension))
 
 for y in 1:n_boundaries_per_dimension[1]
     boundary_particle = y
@@ -35,11 +35,13 @@ for y in 1:n_boundaries_per_dimension[1]
 end
 
 
-state_equation = Pixie.StateEquationTait(10.0, 7, 3.0, 10.0, background_pressure=10.0)
+state_equation = Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 semi = Pixie.SPHSemidiscretization(particle_masses, boundary_coordinates,
                                    boundary_masses, boundary_spacings,
-                                   Pixie.ContinuityDensity(), state_equation)
+                                   Pixie.ContinuityDensity(), state_equation,
+                                   Pixie.CubicSplineKernel{2}(),
+                                   viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0))
 
 tspan = (0.0, 5.0)
 ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
