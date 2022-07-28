@@ -188,7 +188,7 @@ function rhs!(du, u, semi, t)
                     pos_diff = r1 - r2
                     distance = norm(pos_diff)
 
-                    if eps() < distance <= 2 * h
+                    if eps() < distance <= compact_support(smoothing_kernel, h)
                         # Viscosity
                         v_diff = get_particle_vel(u, particles, particle) -
                                  get_particle_vel(u, particles, neighbor)
@@ -215,7 +215,7 @@ function rhs!(du, u, semi, t)
                                        get_boundary_coords(boundaries, boundary_particle)
                             distance = norm(pos_diff)
 
-                            if eps() < distance <= 2 * h
+                            if eps() < distance <= compact_support(smoothing_kernel, h)
                                 m_b = boundaries.mass[boundary_particle]
                                 K = 500 # TODO experiment with this constant
 
@@ -267,17 +267,11 @@ function continuity_equation!(du, u, semi::SPHSemidiscretization{NDIMS, ELTYPE, 
                 diff = r1 - r2
                 distance = norm(diff)
 
-                if distance <= 2 * h
+                if eps() < distance <= compact_support(smoothing_kernel, h)
                     vdiff = get_particle_vel(u, particles, particle) -
                             get_particle_vel(u, particles, neighbor)
 
-                    result = sum(m * vdiff * kernel_deriv(smoothing_kernel, distance, h) .* diff)
-
-                    if abs(result) > eps()
-                        # Avoid dividing by zero
-                        # TODO The derivative does not exist for r1 = r2
-                        result /= distance
-                    end
+                    result = sum(m * vdiff * kernel_deriv(smoothing_kernel, distance, h) .* diff) / distance
                 else
                     # Don't compute pressure and density terms, just return zero
                     result = 0.0
