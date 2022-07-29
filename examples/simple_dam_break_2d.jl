@@ -37,10 +37,12 @@ end
 
 state_equation = Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
+
+smoothing_length = 0.12
 semi = Pixie.SPHSemidiscretization(particle_masses, boundary_coordinates,
                                    boundary_masses, boundary_spacings,
                                    Pixie.ContinuityDensity(), state_equation,
-                                   Pixie.CubicSplineKernel{2}(),
+                                   Pixie.CubicSplineKernel{2}(), smoothing_length,
                                    viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0))
 
 tspan = (0.0, 5.0)

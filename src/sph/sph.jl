@@ -13,13 +13,14 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, C}
     density_calculator  ::DC
     state_equation      ::SE
     smoothing_kernel    ::K
+    smoothing_length    ::ELTYPE
     viscosity           ::V
     cache               ::C
 
     function SPHSemidiscretization{NDIMS}(particle_masses, boundary_coordinates,
                                           boundary_masses, boundary_spacings,
                                           density_calculator, state_equation,
-                                          smoothing_kernel;
+                                          smoothing_kernel, smoothing_length;
                                           viscosity=NoViscosity()) where NDIMS
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -31,13 +32,13 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, C}
         cache = (; create_cache(particle_masses, density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
-            boundaries, density_calculator, state_equation, smoothing_kernel, viscosity, cache)
+            boundaries, density_calculator, state_equation, smoothing_kernel, smoothing_length, viscosity, cache)
     end
 
     function SPHSemidiscretization(particle_masses, boundary_coordinates,
                                    boundary_masses, boundary_spacings,
                                    density_calculator, state_equation,
-                                   smoothing_kernel;
+                                   smoothing_kernel, smoothing_length;
                                    viscosity=NoViscosity())
         NDIMS = size(boundary_coordinates, 1)
 
@@ -48,11 +49,12 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, C}
         return SPHSemidiscretization{NDIMS}(particle_masses, boundary_coordinates,
                                             boundary_masses, boundary_spacings,
                                             density_calculator, state_equation,
-                                            smoothing_kernel,
+                                            smoothing_kernel, smoothing_length,
                                             viscosity=viscosity)
     end
 
-    function SPHSemidiscretization{NDIMS}(particle_masses, density_calculator, state_equation, smoothing_kernel;
+    function SPHSemidiscretization{NDIMS}(particle_masses, density_calculator, state_equation,
+                                          smoothing_kernel, smoothing_length;
                                           viscosity=NoViscosity()) where NDIMS
         boundary_coordinates = Array{Float64, 2}(undef, 0, 0)
         boundary_masses      = Vector{Float64}(undef, 0)
@@ -61,7 +63,7 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, C}
         return SPHSemidiscretization{NDIMS}(particle_masses, boundary_coordinates,
                                             boundary_masses, boundary_spacings,
                                             density_calculator, state_equation,
-                                            smoothing_kernel,
+                                            smoothing_kernel, smoothing_length,
                                             viscosity=viscosity)
     end
 end
@@ -131,10 +133,8 @@ end
 
 
 function compute_quantities!(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
-    @unpack smoothing_kernel, state_equation, cache = semi
+    @unpack smoothing_kernel, smoothing_length, state_equation, cache = semi
     @unpack mass, density, pressure = cache
-
-    h = 0.12 # smoothing length TODO
 
     for particle in eachparticle(semi)
         @pixie_timeit timer() "Compute density" begin
@@ -142,11 +142,11 @@ function compute_quantities!(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, Summa
                 distance = norm(get_particle_coords(u, semi, particle) -
                                 get_particle_coords(u, semi, neighbor))
 
-                if distance > 2 * h
+                if distance > 2 * smoothing_length
                     return 0
                 end
 
-                return mass[neighbor] * kernel(smoothing_kernel, distance, h)
+                return mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
             end
         end
 
@@ -165,7 +165,8 @@ end
 
 
 function rhs!(du, u, semi, t)
-    @unpack boundaries, smoothing_kernel, density_calculator, state_equation, viscosity, cache = semi
+    @unpack boundaries, smoothing_kernel, smoothing_length,
+            density_calculator, state_equation, viscosity, cache = semi
 
     @pixie_timeit timer() "rhs!" begin
         @unpack mass, pressure = cache
@@ -175,8 +176,6 @@ function rhs!(du, u, semi, t)
         # u[1:3] = coordinates
         # u[4:6] = velocity
         for particle in eachparticle(semi)
-            h = 0.12 # smoothing length TODO
-
             # dr = v
             for i in 1:ndims(semi)
                 du[i, particle] = u[i + ndims(semi), particle]
@@ -192,7 +191,7 @@ function rhs!(du, u, semi, t)
                     pos_diff = r1 - r2
                     distance = norm(pos_diff)
 
-                    if eps() < distance <= compact_support(smoothing_kernel, h)
+                    if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
                         density_particle = get_particle_density(u, cache, density_calculator, particle)
                         density_neighbor = get_particle_density(u, cache, density_calculator, particle)
 
@@ -200,11 +199,11 @@ function rhs!(du, u, semi, t)
                         v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
                         density_diff = (density_particle + density_neighbor) / 2
                         pi_ij = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                                          distance, density_diff, h)
+                                          distance, density_diff, smoothing_length)
 
                         result = -m * (pressure[particle] / density_particle^2 +
                                       pressure[neighbor] / density_neighbor^2 + pi_ij) *
-                            kernel_deriv(smoothing_kernel, distance, h) * pos_diff / distance
+                            kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
                     else
                         # Don't compute pressure and density terms, just return zero
                         result = zeros(SVector{ndims(semi), eltype(pressure)})
@@ -221,18 +220,18 @@ function rhs!(du, u, semi, t)
                                        get_boundary_coords(boundaries, boundary_particle)
                             distance = norm(pos_diff)
 
-                            if eps() < distance <= compact_support(smoothing_kernel, h)
+                            if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
                                 m_b = boundaries.mass[boundary_particle]
                                 K = 500 # TODO experiment with this constant
 
                                 # Viscosity
                                 v_diff = get_particle_vel(u, semi, particle)
                                 pi_ij = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                                                  get_particle_density(u, cache, density_calculator, particle), h)
+                                                  get_particle_density(u, cache, density_calculator, particle), smoothing_length)
 
                                 return K * boundaries.spacing[boundary_particle] * pos_diff / distance^2 *
-                                    kernel(smoothing_kernel, distance, h) * 2 * m_b / (mass[particle] + m_b) -
-                                    kernel_deriv(smoothing_kernel, distance, h) * m_b * pi_ij * pos_diff / distance
+                                    kernel(smoothing_kernel, distance, smoothing_length) * 2 * m_b / (mass[particle] + m_b) -
+                                    kernel_deriv(smoothing_kernel, distance, smoothing_length) * m_b * pi_ij * pos_diff / distance
                             else
                                 return zeros(SVector{ndims(semi), eltype(pressure)})
                             end
@@ -258,12 +257,10 @@ end
 
 
 function continuity_equation!(du, u, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
-    @unpack smoothing_kernel, cache = semi
+    @unpack smoothing_kernel, smoothing_length, cache = semi
     @unpack mass = cache
 
     for particle in eachparticle(semi)
-        h = 0.12 # smoothing length TODO
-
         r1 = get_particle_coords(u, semi, particle)
         @pixie_timeit timer() "Compute drho" begin
             du[2 * ndims(semi) + 1, particle] = sum(eachparticle(semi)) do neighbor
@@ -273,11 +270,11 @@ function continuity_equation!(du, u, semi::SPHSemidiscretization{NDIMS, ELTYPE, 
                 diff = r1 - r2
                 distance = norm(diff)
 
-                if eps() < distance <= compact_support(smoothing_kernel, h)
+                if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
                     vdiff = get_particle_vel(u, semi, particle) -
                             get_particle_vel(u, semi, neighbor)
 
-                    result = sum(m * vdiff * kernel_deriv(smoothing_kernel, distance, h) .* diff) / distance
+                    result = sum(m * vdiff * kernel_deriv(smoothing_kernel, distance, smoothing_length) .* diff) / distance
                 else
                     # Don't compute pressure and density terms, just return zero
                     result = 0.0
@@ -291,7 +288,7 @@ function continuity_equation!(du, u, semi::SPHSemidiscretization{NDIMS, ELTYPE, 
     return du
 end
 
-function continuity_equation!(du, u, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+function continuity_equation!(du, u, ::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     return du
 end
 

@@ -19,9 +19,10 @@ for y in 1:n_particles_per_dimension[2],
     particle_velocities[2, particle] = 0
 end
 
+smoothing_length = 0.12
 semi = Pixie.SPHSemidiscretization{2}(particle_masses, Pixie.SummationDensity(),
                                       Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
-                                      Pixie.CubicSplineKernel{2}(),
+                                      Pixie.CubicSplineKernel{2}(), smoothing_length,
                                       viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0))
 
 tspan = (0.0, 5.0)
