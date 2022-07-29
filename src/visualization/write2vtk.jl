@@ -1,5 +1,5 @@
 function write2vtk(u, semi::SPHSemidiscretization{2}, timestep; show_boundaries=true)
-    @unpack particles, boundaries = semi
+    @unpack boundaries, cache = semi
 
     mkpath("out")
     filename = timestep === nothing ? "out/data" : "out/data_$timestep"
@@ -16,7 +16,7 @@ function write2vtk(u, semi::SPHSemidiscretization{2}, timestep; show_boundaries=
 end
 
 function write2vtk(u, semi::SPHSemidiscretization{3}, timestep; show_boundaries=true)
-    @unpack particles, boundaries = semi
+    @unpack boundaries = semi
 
     mkpath("out")
     filename = timestep === nothing ? "out/data" : "out/data_$timestep"

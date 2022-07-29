@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (20, 50)
+n_particles_per_dimension = (10, 30)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
@@ -48,4 +48,4 @@ ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, part
 
 alive_callback = Pixie.AliveCallback(alive_interval=100)
 
-sol = solve(ode, RDPK3SpFSAL49(), saveat=0.02, callback=alive_callback);
+sol = solve(ode, RDPK3SpFSAL49(), dt=1e-5, saveat=0.02, callback=alive_callback);
