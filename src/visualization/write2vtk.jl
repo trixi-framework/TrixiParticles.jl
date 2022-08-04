@@ -1,12 +1,12 @@
 function write2vtk(u, semi::SPHSemidiscretization{2}, timestep; show_boundaries=true)
-    @unpack boundaries, cache = semi
+    @unpack boundary_conditions, cache = semi
 
     mkpath("out")
     filename = timestep === nothing ? "out/data" : "out/data_$timestep"
 
     points = view(u, 1:2, :)
-    if show_boundaries && size(boundaries.coordinates, 1) != 0
-        points = hcat(points, boundaries.coordinates)
+    if show_boundaries
+        points = hcat(points, (boundary.coordinates for boundary in boundary_conditions)...)
     end
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
@@ -22,8 +22,8 @@ function write2vtk(u, semi::SPHSemidiscretization{3}, timestep; show_boundaries=
     filename = timestep === nothing ? "out/data" : "out/data_$timestep"
 
     points = view(u, 1:3, :)
-    if show_boundaries && size(boundaries.coordinates, 1) != 0
-        points = hcat(points, boundaries.coordinates)
+    if show_boundaries
+        points = hcat(points, (boundary.coordinates for boundary in boundary_conditions)...)
     end
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 

@@ -1,6 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
+# Particle data
 n_particles_per_dimension = (10, 30)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -20,6 +21,7 @@ for y in 1:n_particles_per_dimension[2],
     particle_velocities[2, particle] = 0
 end
 
+# Boundary particle data
 n_boundaries_per_dimension = (400,)
 spacing = 0.02
 
@@ -34,16 +36,20 @@ for y in 1:n_boundaries_per_dimension[1]
     boundary_coordinates[2, boundary_particle] = -0.1
 end
 
+K = 1000.0
+boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
+                                                            boundary_masses, boundary_spacings)
 
+# Create semidiscretization
 state_equation = Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 smoothing_length = 0.12
-semi = Pixie.SPHSemidiscretization(particle_masses, boundary_coordinates,
-                                   boundary_masses, boundary_spacings,
-                                   Pixie.ContinuityDensity(), state_equation,
-                                   Pixie.CubicSplineKernel{2}(), smoothing_length,
-                                   viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0))
+semi = Pixie.SPHSemidiscretization{2}(particle_masses,
+                                      Pixie.ContinuityDensity(), state_equation,
+                                      Pixie.CubicSplineKernel{2}(), smoothing_length,
+                                      viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0),
+                                      boundary_conditions=boundary_conditions)
 
 tspan = (0.0, 5.0)
 ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
