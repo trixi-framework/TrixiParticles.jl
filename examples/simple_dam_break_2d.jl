@@ -41,14 +41,14 @@ boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordina
                                                             boundary_masses, boundary_spacings)
 
 # Create semidiscretization
-state_equation = Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0)
+state_equation = Pixie.StateEquationTait(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 smoothing_length = 0.12
 semi = Pixie.SPHSemidiscretization{2}(particle_masses,
                                       Pixie.ContinuityDensity(), state_equation,
                                       Pixie.CubicSplineKernel{2}(), smoothing_length,
-                                      viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0),
+                                      viscosity=Pixie.ArtificialViscosityMonaghan(0.5, 1.0),
                                       boundary_conditions=boundary_conditions,
                                       gravity=(0.0, -9.81))
 

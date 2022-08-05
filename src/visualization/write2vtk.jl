@@ -11,7 +11,10 @@ function write2vtk(u, semi::SPHSemidiscretization{2}, timestep; show_boundaries=
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(filename, points, cells) do vtk
-        vtk["v"] = view(u, 3:4, :)
+        vtk["v"] = hcat(view(u, 3:4, :), zeros(2, size(points, 2) - size(u, 2)))
+        if size(u, 1) >= 5
+            vtk["density"] = vcat(view(u, 5, :), zeros(size(points, 2) - size(u, 2)))
+        end
     end
 end
 
