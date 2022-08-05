@@ -9,25 +9,31 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, C}
     smoothing_length    ::ELTYPE
     viscosity           ::V
     boundary_conditions ::BC
+    gravity             ::SVector{NDIMS, ELTYPE}
     cache               ::C
 
     function SPHSemidiscretization{NDIMS}(particle_masses,
                                           density_calculator, state_equation,
                                           smoothing_kernel, smoothing_length;
                                           viscosity=NoViscosity(),
-                                          boundary_conditions=nothing) where NDIMS
+                                          boundary_conditions=nothing,
+                                          gravity=ntuple(_ -> 0.0, Val(NDIMS))) where NDIMS
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
+        # Make boundary_conditions a tuple
         boundary_conditions_ = digest_boundary_conditions(boundary_conditions)
+
+        # Make gravity an SVector
+        gravity_ = SVector(gravity...)
 
         cache = (; create_cache(particle_masses, density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(boundary_conditions_), typeof(cache)}(
-            density_calculator, state_equation, smoothing_kernel,
-            smoothing_length, viscosity, boundary_conditions_, cache)
+            density_calculator, state_equation, smoothing_kernel, smoothing_length,
+            viscosity, boundary_conditions_,  gravity_, cache)
     end
 end
 
@@ -135,7 +141,7 @@ end
 function rhs!(du, u, semi, t)
     @unpack smoothing_kernel, smoothing_length,
             density_calculator, state_equation, viscosity,
-            boundary_conditions, cache = semi
+            boundary_conditions, gravity, cache = semi
 
     @pixie_timeit timer() "rhs!" begin
         @unpack mass, pressure = cache
@@ -184,9 +190,7 @@ function rhs!(du, u, semi, t)
 
             for i in 1:ndims(semi)
                 # Gravity
-                du[i + ndims(semi), particle] = i == 2 ? dv[i] - 9.81 : dv[i]
-
-                # du[i + ndims(semi), particle] = dv[i]
+                du[i + ndims(semi), particle] = dv[i] + gravity[i]
             end
         end
 

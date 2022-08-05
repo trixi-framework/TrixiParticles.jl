@@ -49,7 +49,8 @@ semi = Pixie.SPHSemidiscretization{2}(particle_masses,
                                       Pixie.ContinuityDensity(), state_equation,
                                       Pixie.CubicSplineKernel{2}(), smoothing_length,
                                       viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0),
-                                      boundary_conditions=boundary_conditions)
+                                      boundary_conditions=boundary_conditions,
+                                      gravity=(0.0, -9.81))
 
 tspan = (0.0, 5.0)
 ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
