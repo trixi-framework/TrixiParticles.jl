@@ -1,6 +1,7 @@
 module Pixie
 
 using LinearAlgebra: norm
+using Polyester: @batch
 using Printf: @printf
 using SciMLBase: DiscreteCallback, ODEProblem, u_modified!
 using StaticArrays: SVector

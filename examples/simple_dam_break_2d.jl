@@ -57,4 +57,6 @@ ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, part
 
 alive_callback = Pixie.AliveCallback(alive_interval=100)
 
-sol = solve(ode, RDPK3SpFSAL49(), dt=1e-5, saveat=0.02, callback=alive_callback);
+# Use a Runge-Kutta method with automatic (error based) time step size control
+# Enable threading of the RK method for better performance on multiple threads
+sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, saveat=0.02, callback=alive_callback);
