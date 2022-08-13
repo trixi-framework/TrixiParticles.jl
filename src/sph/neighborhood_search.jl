@@ -1,4 +1,5 @@
 @inline initialize!(neighborhood_search, u, semi) = nothing
+@inline update!(neighborhood_search, u, semi) = nothing
 
 # Without neighborhood search iterate over all particles
 @inline eachneighbor(particle, u, neighborhood_search::Nothing, semi) = eachparticle(semi)
@@ -19,9 +20,13 @@ end
 
 
 function initialize!(neighborhood_search::SpatialHashingSearch, u, semi)
-    @unpack hashtable, search_distance = neighborhood_search
+    @unpack hashtable = neighborhood_search
 
     empty!(hashtable)
+
+    # This is needed to prevent lagging on macOS ARM.
+    # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
+    ThreadingUtilities.sleep_all_tasks()
 
     for particle in eachparticle(semi)
         cell_coords = get_cell_coords(u, neighborhood_search, semi, particle)
@@ -32,6 +37,45 @@ function initialize!(neighborhood_search::SpatialHashingSearch, u, semi)
             hashtable[cell_coords] = [particle]
         end
     end
+
+    return neighborhood_search
+end
+
+
+function update!(neighborhood_search::SpatialHashingSearch, u, semi)
+    @unpack hashtable = neighborhood_search
+
+    # This is needed to prevent lagging on macOS ARM.
+    # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
+    ThreadingUtilities.sleep_all_tasks()
+
+    for (cell_coords, particles) in hashtable
+        # Find all particles whose coordinates do not match this cell
+        moved_particle_indices = (i for i in eachindex(particles)
+                                  if get_cell_coords(u, neighborhood_search, semi, particles[i]) != cell_coords)
+
+        # Add moved particles to new cell
+        for i in moved_particle_indices
+            particle = particles[i]
+            new_cell_coords = get_cell_coords(u, neighborhood_search, semi, particle)
+
+            if haskey(hashtable, new_cell_coords)
+                append!(hashtable[new_cell_coords], particle)
+            else
+                hashtable[new_cell_coords] = [particle]
+            end
+        end
+
+        if count(_ -> true, moved_particle_indices) == length(particles)
+            # Delete this cell if all particles moved out of it
+            delete!(hashtable, cell_coords)
+        else
+            # Remove moved particles from this cell
+            deleteat!(particles, moved_particle_indices)
+        end
+    end
+
+    return neighborhood_search
 end
 
 
@@ -67,5 +111,5 @@ end
 @inline function get_cell_coords(u, neighborhood_search, semi, particle)
     @unpack search_distance = neighborhood_search
 
-    return Tuple(floor.(Int, get_particle_coords(u, semi, particle) / search_distance))
+    return Tuple(floor.(Int64, get_particle_coords(u, semi, particle) / search_distance))
 end

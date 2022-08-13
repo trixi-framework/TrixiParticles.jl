@@ -83,6 +83,7 @@ end
 
 function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity},
                         particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS, ELTYPE}
+    @unpack neighborhood_search = semi
 
     u0 = Array{eltype(particle_coordinates), 2}(undef, 2 * ndims(semi) + 1, nparticles(semi))
 
@@ -101,6 +102,9 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDen
         u0[2 * ndims(semi) + 1, particle] = particle_densities[particle]
     end
 
+    # Initialize neighborhood search
+    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+
     # Compute quantities like pressure
     compute_quantities(u0, semi)
 
@@ -109,7 +113,8 @@ end
 
 
 function compute_quantities(u, semi)
-    @threaded for particle in eachparticle(semi)
+    # Note that @threaded makes this slower with ContinuityDensity
+    for particle in eachparticle(semi)
         compute_quantities_per_particle(u, particle, semi)
     end
 end
@@ -117,7 +122,7 @@ end
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+@inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     @unpack smoothing_kernel, smoothing_length, state_equation,
             neighborhood_search, cache = semi
     @unpack mass, density, pressure = cache
@@ -136,7 +141,7 @@ function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretizatio
     pressure[particle] = state_equation(density[particle])
 end
 
-function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+@inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack density_calculator, state_equation, cache = semi
     @unpack pressure = cache
 
@@ -150,7 +155,7 @@ function rhs!(du, u, semi, t)
             neighborhood_search = semi
 
     @pixie_timeit timer() "rhs!" begin
-        @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u, semi)
+        @pixie_timeit timer() "update neighborhood search" update!(neighborhood_search, u, semi)
 
         # Reset du
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du)
@@ -238,8 +243,8 @@ end
             get_particle_vel(u, semi, neighbor)
 
     du[2 * ndims(semi) + 1, particle] += sum(mass[particle] * vdiff *
-                                            kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
-                                            pos_diff) / distance
+                                             kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+                                             pos_diff) / distance
 
     return du
 end
