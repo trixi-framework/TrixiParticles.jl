@@ -1,10 +1,11 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (20, 20)
+n_particles_per_dimension = (30, 30)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
 for y in 1:n_particles_per_dimension[2],
         x in 1:n_particles_per_dimension[1]
@@ -20,14 +21,20 @@ for y in 1:n_particles_per_dimension[2],
 end
 
 smoothing_length = 0.12
-semi = Pixie.SPHSemidiscretization{2}(particle_masses, Pixie.SummationDensity(),
+smoothing_kernel = Pixie.CubicSplineKernel{2}()
+search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
+semi = Pixie.SPHSemidiscretization{2}(particle_masses, Pixie.ContinuityDensity(),
                                       Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
-                                      Pixie.CubicSplineKernel{2}(), smoothing_length,
-                                      viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0))
+                                      smoothing_kernel, smoothing_length,
+                                      viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0),
+                                    #   neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
+                                      neighborhood_search=nothing)
 
-tspan = (0.0, 5.0)
-ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+tspan = (0.0, 20.0)
+ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = Pixie.AliveCallback(alive_interval=100)
 
-sol = solve(ode, RDPK3SpFSAL49(), saveat=0.02, callback=alive_callback);
+# Use a Runge-Kutta method with automatic (error based) time step size control
+# Enable threading of the RK method for better performance on multiple threads
+sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), saveat=0.02, callback=alive_callback);

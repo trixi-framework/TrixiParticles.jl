@@ -13,6 +13,7 @@ include("util.jl")
 include("callbacks/alive.jl")
 include("sph/boundary_conditions.jl") # TODO load before sph.jl
 include("sph/viscosity.jl") # TODO load before sph.jl
+include("sph/neighborhood_search.jl")
 include("sph/sph.jl")
 include("sph/smoothing_kernels.jl")
 include("sph/state_equations.jl")

@@ -45,12 +45,16 @@ state_equation = Pixie.StateEquationTait(100.0, 7, 1000.0, 1.0, background_press
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 smoothing_length = 0.12
+smoothing_kernel = Pixie.CubicSplineKernel{2}()
+search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
 semi = Pixie.SPHSemidiscretization{2}(particle_masses,
                                       Pixie.ContinuityDensity(), state_equation,
-                                      Pixie.CubicSplineKernel{2}(), smoothing_length,
+                                      smoothing_kernel, smoothing_length,
                                       viscosity=Pixie.ArtificialViscosityMonaghan(0.5, 1.0),
                                       boundary_conditions=boundary_conditions,
-                                      gravity=(0.0, -9.81))
+                                      gravity=(0.0, -9.81),
+                                      neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
+                                    #   neighborhood_search=nothing)
 
 tspan = (0.0, 5.0)
 ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
@@ -59,4 +63,4 @@ alive_callback = Pixie.AliveCallback(alive_interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, saveat=0.02, callback=alive_callback);
+sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-4, saveat=0.02, callback=alive_callback);

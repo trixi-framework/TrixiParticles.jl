@@ -2,7 +2,7 @@ struct SummationDensity end
 
 struct ContinuityDensity end
 
-struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, C}
+struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
     density_calculator  ::DC
     state_equation      ::SE
     smoothing_kernel    ::K
@@ -10,6 +10,7 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, C}
     viscosity           ::V
     boundary_conditions ::BC
     gravity             ::SVector{NDIMS, ELTYPE}
+    neighborhood_search ::NS
     cache               ::C
 
     function SPHSemidiscretization{NDIMS}(particle_masses,
@@ -17,7 +18,8 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, C}
                                           smoothing_kernel, smoothing_length;
                                           viscosity=NoViscosity(),
                                           boundary_conditions=nothing,
-                                          gravity=ntuple(_ -> 0.0, Val(NDIMS))) where NDIMS
+                                          gravity=ntuple(_ -> 0.0, Val(NDIMS)),
+                                          neighborhood_search=nothing) where NDIMS
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
@@ -30,10 +32,10 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, C}
         cache = (; create_cache(particle_masses, density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(boundary_conditions_), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(boundary_conditions_),
+                   typeof(neighborhood_search), typeof(cache)}(
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, boundary_conditions_,  gravity_, cache)
+            viscosity, boundary_conditions_,  gravity_, neighborhood_search, cache)
     end
 end
 
@@ -116,12 +118,13 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
-    @unpack smoothing_kernel, smoothing_length, state_equation, cache = semi
+    @unpack smoothing_kernel, smoothing_length, state_equation,
+            neighborhood_search, cache = semi
     @unpack mass, density, pressure = cache
 
     density[particle] = zero(eltype(density))
 
-    for neighbor in eachparticle(semi)
+    for neighbor in eachneighbor(particle, u, neighborhood_search, semi)
         distance = norm(get_particle_coords(u, semi, particle) -
                         get_particle_coords(u, semi, neighbor))
 
@@ -143,9 +146,12 @@ end
 
 function rhs!(du, u, semi, t)
     @unpack smoothing_kernel, smoothing_length,
-            boundary_conditions, gravity = semi
+            boundary_conditions, gravity,
+            neighborhood_search = semi
 
     @pixie_timeit timer() "rhs!" begin
+        @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u, semi)
+
         # Reset du
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du)
 
@@ -161,7 +167,7 @@ function rhs!(du, u, semi, t)
             end
 
             particle_coords = get_particle_coords(u, semi, particle)
-            for neighbor in eachparticle(semi)
+            for neighbor in eachneighbor(particle, u, neighborhood_search, semi)
                 neighbor_coords = get_particle_coords(u, semi, neighbor)
 
                 pos_diff = particle_coords - neighbor_coords
