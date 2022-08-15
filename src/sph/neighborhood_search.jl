@@ -1,8 +1,8 @@
-@inline initialize!(neighborhood_search, u, semi) = nothing
+@inline initialize!(neighborhood_search, u, semi; particles=nothing) = nothing
 @inline update!(neighborhood_search, u, semi) = nothing
 
 # Without neighborhood search iterate over all particles
-@inline eachneighbor(particle, u, neighborhood_search::Nothing, semi) = eachparticle(semi)
+@inline eachneighbor(particle, u, neighborhood_search::Nothing, semi; particles=eachparticle(semi)) = particles
 
 
 struct SpatialHashingSearch{NDIMS, ELTYPE}
@@ -19,7 +19,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
 end
 
 
-function initialize!(neighborhood_search::SpatialHashingSearch, u, semi)
+function initialize!(neighborhood_search::SpatialHashingSearch, u, semi; particles=eachparticle(semi))
     @unpack hashtable = neighborhood_search
 
     empty!(hashtable)
@@ -28,7 +28,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, u, semi)
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
     ThreadingUtilities.sleep_all_tasks()
 
-    for particle in eachparticle(semi)
+    for particle in particles
         cell_coords = get_cell_coords(u, neighborhood_search, semi, particle)
 
         if haskey(hashtable, cell_coords)
@@ -79,7 +79,7 @@ function update!(neighborhood_search::SpatialHashingSearch, u, semi)
 end
 
 
-@inline function eachneighbor(particle, u, neighborhood_search::SpatialHashingSearch{2}, semi)
+@inline function eachneighbor(particle, u, neighborhood_search::SpatialHashingSearch{2}, semi; particles=nothing)
     cell_coords = get_cell_coords(u, neighborhood_search, semi, particle)
     x, y = cell_coords
     neighboring_cells = ((x + i, y + j) for i = -1:1, j = -1:1)
@@ -87,7 +87,7 @@ end
     Iterators.flatten(particles_in_cell(cell, neighborhood_search) for cell in neighboring_cells)
 end
 
-@inline function eachneighbor(particle, u, neighborhood_search::SpatialHashingSearch{3}, semi)
+@inline function eachneighbor(particle, u, neighborhood_search::SpatialHashingSearch{3}, semi; particles=nothing)
     cell_coords = get_cell_coords(u, neighborhood_search, semi, particle)
     x, y, z = cell_coords
     neighboring_cells = ((x + i, y + j, z + k) for i = -1:1, j = -1:1, k = -1:1)

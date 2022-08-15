@@ -59,6 +59,7 @@ end
 
 function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity},
                         particle_coordinates, particle_velocities, tspan) where {NDIMS, ELTYPE}
+    @unpack neighborhood_search, boundary_conditions = semi
 
     u0 = Array{eltype(particle_coordinates), 2}(undef, 2 * ndims(semi), nparticles(semi))
 
@@ -74,6 +75,14 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDens
         end
     end
 
+    # Initialize neighborhood search
+    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+
+    # Initialize boundary conditions
+    @pixie_timeit timer() "initialize boundary conditions" for bc in boundary_conditions
+        initialize!(bc, semi)
+    end
+
     # Compute quantities like density and pressure
     compute_quantities(u0, semi)
 
@@ -83,7 +92,7 @@ end
 
 function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity},
                         particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS, ELTYPE}
-    @unpack neighborhood_search = semi
+    @unpack neighborhood_search, boundary_conditions = semi
 
     u0 = Array{eltype(particle_coordinates), 2}(undef, 2 * ndims(semi) + 1, nparticles(semi))
 
@@ -104,6 +113,11 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDen
 
     # Initialize neighborhood search
     @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+
+    # Initialize boundary conditions
+    @pixie_timeit timer() "initialize boundary conditions" for bc in boundary_conditions
+        initialize!(bc, semi)
+    end
 
     # Compute quantities like pressure
     compute_quantities(u0, semi)
@@ -192,7 +206,7 @@ function rhs!(du, u, semi, t)
         end
 
         # Boundary conditions
-        @pixie_timeit timer() "Boundary conditions" for bc in boundary_conditions
+        @pixie_timeit timer() "boundary conditions" for bc in boundary_conditions
             calc_boundary_condition!(du, u, bc, semi)
         end
     end
@@ -271,11 +285,11 @@ end
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
         density_calculator, state_equation, viscosity, cache = semi
-    @unpack K, coordinates, mass, spacing = boundary_condition
+    @unpack K, coordinates, mass, spacing, neighborhood_search = boundary_condition
 
-    for boundary_particle in eachparticle(boundary_condition)
+    for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
-                   get_boundary_coords(boundary_condition, semi, boundary_particle)
+                   get_particle_coords(boundary_condition, semi, boundary_particle)
         distance = norm(pos_diff)
 
         if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
@@ -316,7 +330,7 @@ end
 end
 
 
-@inline function get_boundary_coords(boundary_container, semi, particle)
+@inline function get_particle_coords(boundary_container::BoundaryConditionMonaghanKajtar, semi, particle)
     @unpack coordinates = boundary_container
     SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
 end

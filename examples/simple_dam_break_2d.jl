@@ -36,17 +36,19 @@ for y in 1:n_boundaries_per_dimension[1]
     boundary_coordinates[2, boundary_particle] = -0.1
 end
 
+smoothing_length = 0.12
+smoothing_kernel = Pixie.CubicSplineKernel{2}()
+search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
+
 K = 1000.0
 boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                            boundary_masses, boundary_spacings)
+                                                            boundary_masses, boundary_spacings,
+                                                            neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
 
 # Create semidiscretization
 state_equation = Pixie.StateEquationTait(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-smoothing_length = 0.12
-smoothing_kernel = Pixie.CubicSplineKernel{2}()
-search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
 semi = Pixie.SPHSemidiscretization{2}(particle_masses,
                                       Pixie.ContinuityDensity(), state_equation,
                                       smoothing_kernel, smoothing_length,
@@ -66,4 +68,4 @@ alive_callback = Pixie.AliveCallback(alive_interval=100)
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
-            callback=alive_callback);
+            saveat=0.02, callback=alive_callback);
