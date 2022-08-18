@@ -3,9 +3,10 @@ using OrdinaryDiffEq
 
 # Particle data
 n_particles_per_dimension = (10, 30)
+spacing = 0.1
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = 1000 * spacing^2 * ones(Float64, prod(n_particles_per_dimension))
 particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
 for y in 1:n_particles_per_dimension[2],
@@ -13,8 +14,8 @@ for y in 1:n_particles_per_dimension[2],
     particle = (x - 1) * n_particles_per_dimension[2] + y
 
     # Coordinates
-    particle_coordinates[1, particle] = (x - 1 - 0.5 * (n_particles_per_dimension[1] - 1)) * 0.1
-    particle_coordinates[2, particle] = y * 0.1 + 1.0
+    particle_coordinates[1, particle] = (x - 1 - 0.5 * (n_particles_per_dimension[1] - 1)) * spacing
+    particle_coordinates[2, particle] = y * spacing + 10 * spacing
 
     # Velocity
     particle_velocities[1, particle] = 0
@@ -23,17 +24,16 @@ end
 
 # Boundary particle data
 n_boundaries_per_dimension = (400,)
-spacing = 0.02
+beta = 5
 
 boundary_coordinates = Array{Float64, 2}(undef, 2, prod(n_boundaries_per_dimension))
-boundary_spacings = spacing * ones(Float64, prod(n_boundaries_per_dimension))
 boundary_masses = 10 * ones(Float64, prod(n_boundaries_per_dimension))
 
 for y in 1:n_boundaries_per_dimension[1]
     boundary_particle = y
 
-    boundary_coordinates[1, boundary_particle] = spacing * (y - 1 - 0.5 * (n_boundaries_per_dimension[1] - 1))
-    boundary_coordinates[2, boundary_particle] = -0.1
+    boundary_coordinates[1, boundary_particle] = spacing / beta * (y - 1 - 0.5 * (n_boundaries_per_dimension[1] - 1))
+    boundary_coordinates[2, boundary_particle] = -spacing
 end
 
 smoothing_length = 0.12
@@ -42,8 +42,8 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 1000.0
 boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                            boundary_masses, boundary_spacings,
-                                                            neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
+                                                            boundary_masses, beta,
+                                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)

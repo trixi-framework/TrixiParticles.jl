@@ -305,8 +305,8 @@ end
                                                        boundary_condition::BoundaryConditionMonaghanKajtar,
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
-        density_calculator, state_equation, viscosity, cache = semi
-    @unpack K, coordinates, mass, spacing, neighborhood_search = boundary_condition
+            density_calculator, state_equation, viscosity, cache = semi
+    @unpack K, coordinates, mass, beta, neighborhood_search = boundary_condition
 
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
@@ -316,14 +316,16 @@ end
         if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
             # Viscosity
             v_diff = get_particle_vel(u, semi, particle)
-            pi_ij = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                              get_particle_density(u, cache, density_calculator, particle), smoothing_length)
+            pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
+                              get_particle_density(u, cache, density_calculator, particle),
+                              smoothing_length)
 
             m_b = mass[boundary_particle]
 
-            dv = K * spacing[boundary_particle] * pos_diff / distance^2 *
-                kernel(smoothing_kernel, distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b) -
-                kernel_deriv(smoothing_kernel, distance, smoothing_length) * m_b * pi_ij * pos_diff / distance
+            f_ab = K / beta * pos_diff / distance^2 *
+                kernel(smoothing_kernel, distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
+
+            dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
             for i in 1:ndims(semi)
                 du[ndims(semi) + i, particle] += dv[i]

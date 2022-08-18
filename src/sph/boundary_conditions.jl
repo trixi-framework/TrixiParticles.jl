@@ -8,11 +8,13 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
     K                   ::ELTYPE
     coordinates         ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
-    spacing             ::Vector{ELTYPE} # 1/β in Monaghan, Kajtar (2009). TODO ELTYPE or hardcoded float?
+    beta                ::Float64
     neighborhood_search ::NS
 
-    function BoundaryConditionMonaghanKajtar(K, coordinates, masses, spacings; neighborhood_search=nothing)
-        new{typeof(K), typeof(neighborhood_search)}(K, coordinates, masses, spacings, neighborhood_search)
+    function BoundaryConditionMonaghanKajtar(K, coordinates, masses, beta;
+                                             neighborhood_search=nothing)
+        new{typeof(K), typeof(neighborhood_search)}(K, coordinates, masses,
+                                                    beta, neighborhood_search)
     end
 end
 

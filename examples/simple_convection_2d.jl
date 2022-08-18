@@ -31,9 +31,9 @@ semi = SPHSemidiscretization{2}(particle_masses, ContinuityDensity(),
                               #   neighborhood_search=nothing)
 
 tspan = (0.0, 20.0)
-ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
-alive_callback = Pixie.AliveCallback(alive_interval=100)
+alive_callback = AliveCallback(alive_interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
