@@ -21,14 +21,14 @@ for y in 1:n_particles_per_dimension[2],
 end
 
 smoothing_length = 0.12
-smoothing_kernel = Pixie.CubicSplineKernel{2}()
-search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
-semi = Pixie.SPHSemidiscretization{2}(particle_masses, Pixie.ContinuityDensity(),
-                                      Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
-                                      smoothing_kernel, smoothing_length,
-                                      viscosity=Pixie.ArtificialViscosityMonaghan(1.0, 2.0),
-                                    #   neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
-                                      neighborhood_search=nothing)
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+semi = SPHSemidiscretization{2}(particle_masses, ContinuityDensity(),
+                                StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
+                                smoothing_kernel, smoothing_length,
+                                viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
+                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                              #   neighborhood_search=nothing)
 
 tspan = (0.0, 20.0)
 ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)

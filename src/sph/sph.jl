@@ -1,5 +1,26 @@
+@doc raw"""
+    SummationDensity()
+
+Density calculator to use the summation formula
+```math
+\rho(r) = \sum_{b} m_b W(\Vert r - r_b \Vert, h),
+```
+for the density estimation,
+where ``r_b`` denotes the coordinates and ``m_b`` the mass of particle ``b``.
+"""
 struct SummationDensity end
 
+@doc raw"""
+    ContinuityDensity()
+
+Density calculator to integrate the density from the continuity equation
+```math
+\frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
+```
+where ``\rho_a`` denotes the density of particle ``a``, ``r_a`` and ``r_b`` denote the coordinates
+of particles ``a`` and ``b`` respectively, and ``v_{ab} = v_a - v_b`` is the difference of the
+velocities of particles ``a`` and ``b``.
+"""
 struct ContinuityDensity end
 
 struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
@@ -35,7 +56,7 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
                    typeof(smoothing_kernel), typeof(viscosity), typeof(boundary_conditions_),
                    typeof(neighborhood_search), typeof(cache)}(
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, boundary_conditions_,  gravity_, neighborhood_search, cache)
+            viscosity, boundary_conditions_, gravity_, neighborhood_search, cache)
     end
 end
 
@@ -232,12 +253,12 @@ end
 
     # Viscosity
     v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
-    density_diff = (density_particle + density_neighbor) / 2
-    pi_ij = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                        distance, density_diff, smoothing_length)
+    density_mean = (density_particle + density_neighbor) / 2
+    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
+                      distance, density_mean, smoothing_length)
 
     dv = -mass[particle] * (pressure[particle] / density_particle^2 +
-                            pressure[neighbor] / density_neighbor^2 + pi_ij) *
+                            pressure[neighbor] / density_neighbor^2 + pi_ab) *
         kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
     for i in 1:ndims(semi)

@@ -37,8 +37,8 @@ for y in 1:n_boundaries_per_dimension[1]
 end
 
 smoothing_length = 0.12
-smoothing_kernel = Pixie.CubicSplineKernel{2}()
-search_distance = Pixie.compact_support(smoothing_kernel, smoothing_length)
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 1000.0
 boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
@@ -46,22 +46,22 @@ boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordina
                                                             neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
 
 # Create semidiscretization
-state_equation = Pixie.StateEquationTait(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
-# state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
+state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
+# state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-semi = Pixie.SPHSemidiscretization{2}(particle_masses,
-                                      Pixie.ContinuityDensity(), state_equation,
-                                      smoothing_kernel, smoothing_length,
-                                      viscosity=Pixie.ArtificialViscosityMonaghan(0.5, 1.0),
-                                      boundary_conditions=boundary_conditions,
-                                      gravity=(0.0, -9.81),
-                                      neighborhood_search=Pixie.SpatialHashingSearch{2}(search_distance))
-                                    #   neighborhood_search=nothing)
+semi = SPHSemidiscretization{2}(particle_masses,
+                                ContinuityDensity(), state_equation,
+                                smoothing_kernel, smoothing_length,
+                                viscosity=ArtificialViscosityMonaghan(0.5, 1.0),
+                                boundary_conditions=boundary_conditions,
+                                gravity=(0.0, -9.81),
+                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                            #   neighborhood_search=nothing)
 
 tspan = (0.0, 5.0)
-ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
-alive_callback = Pixie.AliveCallback(alive_interval=100)
+alive_callback = AliveCallback(alive_interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads

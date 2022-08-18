@@ -20,4 +20,11 @@ include("sph/smoothing_kernels.jl")
 include("sph/state_equations.jl")
 include("visualization/write2vtk.jl")
 
+export SPHSemidiscretization, semidiscretize, AliveCallback
+export ContinuityDensity, SummationDensity
+export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel
+export StateEquationIdealGas, StateEquationCole
+export ArtificialViscosityMonaghan
+export SpatialHashingSearch
+
 end # module

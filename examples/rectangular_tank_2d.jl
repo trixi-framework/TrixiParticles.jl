@@ -70,8 +70,8 @@ boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordina
                                                             boundary_masses, boundary_spacings)
 
 # Create semidiscretization
-state_equation = Pixie.StateEquationTait(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-# state_equation = Pixie.StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
+state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
+# state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 smoothing_length = 1.2 * particle_spacing
 semi = Pixie.SPHSemidiscretization{2}(particle_masses,

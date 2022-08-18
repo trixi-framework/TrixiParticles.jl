@@ -24,13 +24,13 @@ for z in 1:n_particles_per_dimension[3],
 end
 
 smoothing_length = 0.12
-semi = Pixie.SPHSemidiscretization{3}(particle_masses, Pixie.SummationDensity(),
-                                      Pixie.StateEquationTait(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
-                                      Pixie.CubicSplineKernel{3}(), smoothing_length)
+semi = SPHSemidiscretization{3}(particle_masses, SummationDensity(),
+                                StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
+                                SchoenbergCubicSplineKernel{3}(), smoothing_length)
 
 tspan = (0.0, 5.0)
-ode = Pixie.semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
 
-alive_callback = Pixie.AliveCallback(alive_interval=20)
+alive_callback = AliveCallback(alive_interval=20)
 
 sol = solve(ode, RDPK3SpFSAL49(), saveat=0.04, callback=alive_callback);
