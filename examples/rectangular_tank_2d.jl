@@ -5,11 +5,14 @@ width = 2.0
 water_height = 0.9
 container_height = 1.0
 particle_spacing = 0.02
+boundary_distance = 3
+boundary_offset = boundary_distance - 1
 
 mass = 1000 * particle_spacing^2
 
 # Particle data
-n_particles_per_dimension = (Int(width / particle_spacing) - 6, Int(water_height / particle_spacing) - 3)
+n_particles_per_dimension = (Int(width / particle_spacing) - 2 * boundary_offset,
+                             Int(water_height / particle_spacing) - boundary_offset)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = mass * ones(Float64, prod(n_particles_per_dimension))
@@ -20,8 +23,8 @@ for y in 1:n_particles_per_dimension[2],
     particle = (x - 1) * n_particles_per_dimension[2] + y
 
     # Coordinates
-    particle_coordinates[1, particle] = (x + 2) * particle_spacing
-    particle_coordinates[2, particle] = (y + 2) * particle_spacing
+    particle_coordinates[1, particle] = (x + boundary_offset) * particle_spacing
+    particle_coordinates[2, particle] = (y + boundary_offset) * particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0
@@ -66,7 +69,7 @@ c = 10 * sqrt(9.81 * water_height)
 
 K = 9.81 * water_height
 boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                            boundary_masses, beta)
+                                                      boundary_masses, beta)
 
 # Create semidiscretization
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
@@ -77,12 +80,12 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 semi = SPHSemidiscretization{2}(particle_masses,
-                                      ContinuityDensity(), state_equation,
-                                      smoothing_kernel, smoothing_length,
-                                      viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
-                                      boundary_conditions=boundary_conditions,
-                                      gravity=(0.0, -9.81),
-                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                ContinuityDensity(), state_equation,
+                                smoothing_kernel, smoothing_length,
+                                viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
+                                boundary_conditions=boundary_conditions,
+                                gravity=(0.0, -9.81),
+                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 tspan = (0.0, 5.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
