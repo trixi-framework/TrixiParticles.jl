@@ -25,6 +25,7 @@ export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
+export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
 
 end # module

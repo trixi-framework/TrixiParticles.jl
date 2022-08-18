@@ -65,7 +65,7 @@ c = 10 * sqrt(9.81 * water_height)
 # c = 148.2
 
 K = 9.81 * water_height
-boundary_conditions = Pixie.BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
+boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
                                                             boundary_masses, beta)
 
 # Create semidiscretization
