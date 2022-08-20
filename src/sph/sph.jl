@@ -257,7 +257,7 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
 
-    dv = -mass[particle] * (pressure[particle] / density_particle^2 +
+    dv = -mass[neighbor] * (pressure[particle] / density_particle^2 +
                             pressure[neighbor] / density_neighbor^2 + pi_ab) *
         kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
