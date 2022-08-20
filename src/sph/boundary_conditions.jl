@@ -66,14 +66,14 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
 end
 
 @inline function boundary_kernel(r, h)
-  q = r / h
+    q = r / h
 
-  if q >= 2
-    return 0.0
-  end
+    if q >= 2
+        return 0.0
+    end
 
-  # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
-  return 1.77/32 * (1 + 5/2 * q + 2 * q^2) * (2 - q)^5
+    # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
+    return 1.77/32 * (1 + 5/2 * q + 2 * q^2) * (2 - q)^5
 end
 
 function initialize!(boundary_conditions::BoundaryConditionMonaghanKajtar, semi)
@@ -84,3 +84,48 @@ function initialize!(boundary_conditions::BoundaryConditionMonaghanKajtar, semi)
 end
 
 @inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
+
+
+function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMonaghanKajtar, semi)
+    @threaded for particle in eachparticle(semi)
+        calc_boundary_condition_per_particle!(du, u, particle, boundary_condition, semi)
+    end
+
+    return du
+end
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
+# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function calc_boundary_condition_per_particle!(du, u, particle,
+                                                       boundary_condition::BoundaryConditionMonaghanKajtar,
+                                                       semi)
+    @unpack smoothing_kernel, smoothing_length,
+            density_calculator, state_equation, viscosity, cache = semi
+    @unpack K, coordinates, mass, beta, neighborhood_search = boundary_condition
+
+    for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
+        pos_diff = get_particle_coords(u, semi, particle) -
+                   get_particle_coords(boundary_condition, semi, boundary_particle)
+        distance = norm(pos_diff)
+
+        if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
+            # Viscosity
+            v_diff = get_particle_vel(u, semi, particle)
+            pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
+                              get_particle_density(u, cache, density_calculator, particle),
+                              smoothing_length)
+
+            m_b = mass[boundary_particle]
+
+            f_ab = K / beta * pos_diff / distance^2 *
+                boundary_kernel(distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
+
+            dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+            for i in 1:ndims(semi)
+                du[ndims(semi) + i, particle] += dv[i]
+            end
+        end
+    end
+end

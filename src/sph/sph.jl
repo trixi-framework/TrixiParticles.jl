@@ -290,51 +290,6 @@ end
 end
 
 
-function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMonaghanKajtar, semi)
-    @threaded for particle in eachparticle(semi)
-        calc_boundary_condition_per_particle!(du, u, particle, boundary_condition, semi)
-    end
-
-    return du
-end
-
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function calc_boundary_condition_per_particle!(du, u, particle,
-                                                       boundary_condition::BoundaryConditionMonaghanKajtar,
-                                                       semi)
-    @unpack smoothing_kernel, smoothing_length,
-            density_calculator, state_equation, viscosity, cache = semi
-    @unpack K, coordinates, mass, beta, neighborhood_search = boundary_condition
-
-    for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
-        pos_diff = get_particle_coords(u, semi, particle) -
-                   get_particle_coords(boundary_condition, semi, boundary_particle)
-        distance = norm(pos_diff)
-
-        if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
-            # Viscosity
-            v_diff = get_particle_vel(u, semi, particle)
-            pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                              get_particle_density(u, cache, density_calculator, particle),
-                              smoothing_length)
-
-            m_b = mass[boundary_particle]
-
-            f_ab = K / beta * pos_diff / distance^2 *
-                boundary_kernel(distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
-
-            dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-
-            for i in 1:ndims(semi)
-                du[ndims(semi) + i, particle] += dv[i]
-            end
-        end
-    end
-end
-
-
 @inline function get_particle_coords(u, semi, particle)
     return SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(semi))))
 end
