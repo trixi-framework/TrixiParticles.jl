@@ -5,13 +5,12 @@ width = 2.0
 water_height = 0.9
 container_height = 1.0
 particle_spacing = 0.01
-boundary_distance = 2
-boundary_offset = boundary_distance - 1
 
 mass = 1000 * particle_spacing^2
 
 # Particle data
-n_particles_per_dimension = (Int(width / 2 / particle_spacing) - boundary_offset, Int(water_height / particle_spacing) - boundary_offset)
+n_particles_per_dimension = (Int(width / 2 / particle_spacing),
+                             Int(water_height / particle_spacing))
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = mass * ones(Float64, prod(n_particles_per_dimension))
@@ -22,8 +21,8 @@ for y in 1:n_particles_per_dimension[2],
     particle = (x - 1) * n_particles_per_dimension[2] + y
 
     # Coordinates
-    particle_coordinates[1, particle] = (x + boundary_offset) * particle_spacing
-    particle_coordinates[2, particle] = (y + boundary_offset) * particle_spacing
+    particle_coordinates[1, particle] = x * particle_spacing
+    particle_coordinates[2, particle] = y * particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0

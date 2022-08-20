@@ -323,7 +323,7 @@ end
             m_b = mass[boundary_particle]
 
             f_ab = K / beta * pos_diff / distance^2 *
-                kernel(smoothing_kernel, distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
+                boundary_kernel(distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
 
             dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 

@@ -6,15 +6,13 @@ length = 1.0
 water_height = 0.9
 container_height = 1.0
 particle_spacing = 0.05
-boundary_distance = 3
-boundary_offset = boundary_distance - 1
 
 mass = 1000 * particle_spacing^3
 
 # Particle data
-n_particles_per_dimension = (Int(width / 2 / particle_spacing) - boundary_offset,
-                             Int(water_height / particle_spacing) - boundary_offset,
-                             Int(length / particle_spacing) - 2 * boundary_offset)
+n_particles_per_dimension = (Int(width / 2 / particle_spacing),
+                             Int(water_height / particle_spacing),
+                             Int(length / particle_spacing))
 particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
 particle_masses = mass * ones(Float64, prod(n_particles_per_dimension))
@@ -27,9 +25,9 @@ for z in 1:n_particles_per_dimension[3],
         (y - 1) * n_particles_per_dimension[3] + z
 
     # Coordinates
-    particle_coordinates[2, particle] = (y + boundary_offset) * particle_spacing
-    particle_coordinates[3, particle] = (z + boundary_offset) * particle_spacing
-    particle_coordinates[1, particle] = (x + boundary_offset) * particle_spacing
+    particle_coordinates[2, particle] = y * particle_spacing
+    particle_coordinates[3, particle] = z * particle_spacing
+    particle_coordinates[1, particle] = x * particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0
@@ -38,7 +36,7 @@ for z in 1:n_particles_per_dimension[3],
 end
 
 # Boundary particle data
-beta = 2
+beta = 3
 
 n_boundaries_x = ceil(Int, (width + particle_spacing) / particle_spacing * beta) - 1
 n_boundaries_y = Int(container_height / particle_spacing * beta) + 1
@@ -99,7 +97,10 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
-K = 9.81 * water_height
+# This factor of 2 should not be necessary.
+# However, without it, the particles are pushed off the wall at the beginning
+# of the simulation.
+K = 9.81 * water_height / 2
 boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
                                                       boundary_masses, beta,
                                                       neighborhood_search=SpatialHashingSearch{3}(search_radius))

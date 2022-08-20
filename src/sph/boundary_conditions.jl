@@ -15,19 +15,28 @@ f_a = m_a \sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \V
 ```
 with
 ```math
-f_{ab} = \frac{K}{\beta} \frac{r_{ab}}{\Vert r_{ab} \Vert^2} W(\Vert r_{ab} \Vert, h)
+f_{ab} = \frac{K}{\beta} \frac{r_{ab}}{\Vert r_{ab} \Vert^2} \Phi(\Vert r_{ab} \Vert, h)
 \frac{2 m_b}{m_a + m_b},
 ```
 where ``B`` denotes the set of boundary particles, ``m_a`` and ``m_b`` are the masses of
 fluid particle ``a`` and boundary particle ``b`` respectively, and
 ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``.
+Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
+(Monaghan, Kajtar, 2009, Section 4), with ``\Phi(r, h) = w(r/h)`` and
+```math
+w(q) =
+\begin{cases}
+  (1.77/32) (1 + (5/2)q + 2q^2)(2 - q)^5  & \text{if } 0 \leq q < 2 \\
+  0                                             & \text{if } q \geq 2.
+\end{cases}
+```
 
 The boundary particles are assumed to have uniform spacing by the factor ``\beta`` smaller
 than the expected fluid particle spacing.
-For example, if the fluid particles have an expected spacing of `0.1` and the boundary particles
-have a uniform spacing of `0.05`, then this parameter should be set to ``\beta = 2``.
-According to (Monaghan, Kajtar, 2009), a value of ``\beta = 3`` for cubic smoothing_kernels
-and ``\beta = 2`` for quintic kernels is reasonable for most computing purposes.
+For example, if the fluid particles have an expected spacing of ``0.3`` and the boundary particles
+have a uniform spacing of ``0.1``, then this parameter should be set to ``\beta = 3``.
+According to (Monaghan, Kajtar, 2009), a value of ``\beta = 3`` for the Wendland C4 that
+we use here is reasonable for most computing purposes.
 
 The parameter ``K`` is used to scale the force exerted by the boundary particles.
 In (Monaghan, Kajtar, 2009), a value of ``gD`` is used for static tank simulations,
@@ -54,6 +63,17 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
         new{typeof(K), typeof(neighborhood_search)}(K, coordinates, masses,
                                                     beta, neighborhood_search)
     end
+end
+
+@inline function boundary_kernel(r, h)
+  q = r / h
+
+  if q >= 2
+    return 0.0
+  end
+
+  # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
+  return 1.77/32 * (1 + 5/2 * q + 2 * q^2) * (2 - q)^5
 end
 
 function initialize!(boundary_conditions::BoundaryConditionMonaghanKajtar, semi)
