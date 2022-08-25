@@ -249,7 +249,7 @@ end
     @unpack mass, pressure = cache
 
     density_particle = get_particle_density(u, cache, density_calculator, particle)
-    density_neighbor = get_particle_density(u, cache, density_calculator, particle)
+    density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
 
     # Viscosity
     v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
