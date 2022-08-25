@@ -63,19 +63,18 @@ for x in 1:n_boundaries_horizontal
 end
 
 c = 10 * sqrt(9.81 * water_height)
-
-K = 9.81 * water_height
-boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                      boundary_masses, beta)
-
-# Create semidiscretization
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-# state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
+K = 9.81 * water_height
+boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
+                                                      boundary_masses, beta,
+                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+# Create semidiscretization
 semi = SPHSemidiscretization{2}(particle_masses,
                                 ContinuityDensity(), state_equation,
                                 smoothing_kernel, smoothing_length,
