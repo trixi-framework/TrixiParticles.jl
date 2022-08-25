@@ -69,8 +69,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 9.81 * water_height
-boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                      boundary_masses, beta,
+boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                      K, beta, particle_spacing / beta,
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization

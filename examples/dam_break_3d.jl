@@ -101,8 +101,8 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 # However, without it, the particles are pushed off the wall at the beginning
 # of the simulation.
 K = 9.81 * water_height / 2
-boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                      boundary_masses, beta,
+boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                      K, beta, particle_spacing / beta,
                                                       neighborhood_search=SpatialHashingSearch{3}(search_radius))
 
 # Create semidiscretization
@@ -126,5 +126,4 @@ alive_callback = AliveCallback(alive_interval=10)
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
             saveat=0.02, callback=alive_callback);

@@ -24,7 +24,7 @@ end
 
 # Boundary particle data
 n_boundaries_per_dimension = (400,)
-beta = 5
+beta = 3
 
 boundary_coordinates = Array{Float64, 2}(undef, 2, prod(n_boundaries_per_dimension))
 boundary_masses = 10 * ones(Float64, prod(n_boundaries_per_dimension))
@@ -41,9 +41,9 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 1000.0
-boundary_conditions = BoundaryConditionMonaghanKajtar(K, boundary_coordinates,
-                                                            boundary_masses, beta,
-                                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                      K, beta, spacing / beta,
+                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
@@ -67,5 +67,5 @@ alive_callback = AliveCallback(alive_interval=100)
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
+            # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
             saveat=0.02, callback=alive_callback);
