@@ -1,6 +1,7 @@
 module Pixie
 
 using LinearAlgebra: norm
+using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
 using SciMLBase: DiscreteCallback, ODEProblem, u_modified!
@@ -22,7 +23,7 @@ include("visualization/write2vtk.jl")
 
 export SPHSemidiscretization, semidiscretize, AliveCallback
 export ContinuityDensity, SummationDensity
-export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel
+export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryConditionMonaghanKajtar

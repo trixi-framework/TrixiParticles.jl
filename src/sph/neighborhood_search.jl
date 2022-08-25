@@ -145,3 +145,27 @@ end
 
     return Tuple(floor.(Int64, get_particle_coords(u, semi, particle) / search_radius))
 end
+
+
+# Sorting only really makes sense in longer simulations where particles
+# end up very unordered
+function z_index_sort!(u, semi, neighborhood_search)
+    @unpack cache = semi
+    @unpack mass, pressure = cache
+
+    perm = sortperm(eachparticle(semi),
+                    by=(i -> cell_z_index(u, neighborhood_search, semi, i)))
+
+    permute!(mass, perm)
+    permute!(pressure, perm)
+    Base.permutecols!!(u, perm)
+
+    return nothing
+end
+
+
+@inline function cell_z_index(u, neighborhood_search, semi, particle)
+    cell_coords = get_cell_coords(u, neighborhood_search, semi, particle) .+ 1
+
+    return cartesian2morton(SVector(cell_coords))
+end
