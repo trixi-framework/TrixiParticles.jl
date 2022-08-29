@@ -83,7 +83,7 @@ semi = SPHSemidiscretization{2}(particle_masses,
                                 gravity=(0.0, -9.81),
                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 1.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=10)

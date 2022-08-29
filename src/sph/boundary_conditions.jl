@@ -94,7 +94,7 @@ end
 
 @inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
 
-
+#=
 function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMonaghanKajtar, semi)
     @threaded for particle in eachparticle(semi)
         calc_boundary_condition_per_particle!(du, u, particle, boundary_condition, semi)
@@ -102,6 +102,32 @@ function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMo
 
     return du
 end
+=#
+
+@inline function boundary_impact(boundary_condition::BoundaryConditionMonaghanKajtar, 
+                                smoothing_length, distance, pos_diff, m_a, m_b)
+    @unpack coordinates, mass, K, beta, boundary_particle_spacing, neighborhood_search = boundary_condition
+    
+    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+    boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
+
+end
+
+#=
+struct BoundaryConditionCrespo{ELTYPE<:Real, NS}
+    coordinates                 ::Array{ELTYPE, 2}
+    mass                        ::Vector{ELTYPE}
+    c                           ::ELTYPE
+    neighborhood_search         ::NS
+
+    function BoundaryConditionMonaghanKajtar(coordinates, masses, c;
+                                             neighborhood_search=nothing)
+        new{typeof(K), typeof(neighborhood_search)}(coordinates, masses, c,
+                                                    neighborhood_search)
+    end
+end
+=#
+
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
@@ -111,9 +137,8 @@ end
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
             density_calculator, state_equation, viscosity, cache = semi
-    @unpack coordinates, mass, K, beta,
-            boundary_particle_spacing, neighborhood_search = boundary_condition
-
+    @unpack coordinates, mass, neighborhood_search = boundary_condition
+    m_a = cache.mass[particle]
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
                    get_particle_coords(boundary_condition, semi, boundary_particle)
@@ -128,8 +153,7 @@ end
 
             m_b = mass[boundary_particle]
 
-            f_ab = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-                boundary_kernel(distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
+            f_ab = boundary_impact(boundary_condition, smoothing_length, distance, pos_diff, m_a, m_b)
 
             dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 

@@ -235,11 +235,10 @@ function rhs!(du, u, semi, t)
                 # Gravity
                 du[i + ndims(semi), particle] += gravity[i]
             end
-        end
-
-        # Boundary conditions
-        @pixie_timeit timer() "boundary conditions" for bc in boundary_conditions
-            calc_boundary_condition!(du, u, bc, semi)
+            # boundary impact
+            for bc in boundary_conditions
+               calc_boundary_condition_per_particle!(du, u, particle, bc, semi)
+            end
         end
     end
 
