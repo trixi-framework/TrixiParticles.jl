@@ -6,7 +6,7 @@ function write2vtk(u, semi::SPHSemidiscretization{2}, timestep, path_name; show_
     if length(splitpath(path_out))>1
         filename = timestep === nothing ? path_out*"/$(path_name[2])_data" : path_out*"/$(path_name[2])_data_$timestep"
     else
-        filename = timestep === nothing ? "out/data" : "out/data_$timestep"
+        filename = timestep === nothing ? path_out*"/data" : path_out*"/data_$timestep"
     end
 
     points = view(u, 1:2, :)
