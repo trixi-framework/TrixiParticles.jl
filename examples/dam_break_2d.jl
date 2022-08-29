@@ -1,6 +1,21 @@
 using Pixie
 using OrdinaryDiffEq
 
+setup = [   "dam_break_2d",                     #2D_tank #2D_tank_staggered_bp
+            "BoundaryConditionMonaghanKajtar",    #BoundaryConditionMonaghanKajtar #DynamicParticles
+            "StateEquationCole",           #StateEquationIdealGas #StateEquationWater
+            "ContinuityDensity",            #SummationDensity #ContinuityDensity
+            "SchoenbergCubicSplineKernel",  #SchoenbergCubicSplineKernel
+            "ArtificialViscosityMonaghan"]     #NoViscosity #ArtificialViscosityMonaghan #ArtificialViscosityFerrari
+
+boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                      K, beta, particle_spacing / beta,
+                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+state_equation      = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
+density_calculator  = eval(Meta.parse("Pixie.$(setup[4])()"))
+smoothing_kernel    = eval(Meta.parse("Pixie.$(setup[5]){2}()"))
+viscosity           = ArtificialViscosityMonaghan(0.2, 0.0)
+
 particle_spacing = 0.01
 beta = 3
 
@@ -67,22 +82,17 @@ end
 c = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 4 * 9.81 * water_height
-boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
-                                                      K, beta, particle_spacing / beta,
-                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
 semi = SPHSemidiscretization{2}(particle_masses,
-                                ContinuityDensity(), state_equation,
+                                density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                viscosity,
                                 boundary_conditions=boundary_conditions,
                                 gravity=(0.0, -9.81),
                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
@@ -108,7 +118,17 @@ for y in 1:n_boundaries_vertical
 end
 
 # Run full simulation
+run_full_simulation = false
+if run_full_simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
+
+semi = SPHSemidiscretization{2}(particle_masses,
+                                density_calculator, state_equation,
+                                smoothing_kernel, smoothing_length,
+                                viscosit=ArtificialViscosityMonaghan(0.02, 0.0),
+                                boundary_conditions=boundary_conditions,
+                                gravity=(0.0, -9.81),
+                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
 ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), view(sol[end], 5, :), tspan)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
@@ -117,3 +137,5 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
             saveat=0.02, callback=alive_callback);
+end
+
