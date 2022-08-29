@@ -7,6 +7,16 @@ Density calculator to use the summation formula
 ```
 for the density estimation,
 where ``r_b`` denotes the coordinates and ``m_b`` the mass of particle ``b``.
+
+!!! note "Multiple fluids"
+    Note, when the systems involves multiple fluids with large density ratios (``\geq 2``) in contact, the following expression is more accurate.
+    ```math
+    \frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \rho_a \sum_{b} \frac{m_b}{\rho_a} v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
+    ```    
+    References:
+    - Joseph J. Monaghan. "Smoothed particle hydrodynamics".
+      In: Reports on Progress in Physics, Volume 68, Number 8 (2005), pages 1703–1759.
+      [doi: 10.1088/0034-4885/68/8/R01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 """
 struct SummationDensity end
 
@@ -20,6 +30,7 @@ Density calculator to integrate the density from the continuity equation
 where ``\rho_a`` denotes the density of particle ``a``, ``r_a`` and ``r_b`` denote the coordinates
 of particles ``a`` and ``b`` respectively, and ``v_{ab} = v_a - v_b`` is the difference of the
 velocities of particles ``a`` and ``b``.
+
 """
 struct ContinuityDensity end
 
