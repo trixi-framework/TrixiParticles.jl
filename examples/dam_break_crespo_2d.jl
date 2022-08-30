@@ -1,24 +1,22 @@
 using Pixie
 using OrdinaryDiffEq
 
-setup = ["dam_break_2d",                     #2D_tank #2D_tank_staggered_bp
+setup = ["dam_break_crespo_2d",                     #2D_tank #2D_tank_staggered_bp
     "alpha_2e-2"]     #NoViscosity #ArtificialViscosityMonaghan #ArtificialViscosityFerrari
 
 density_calculator = ContinuityDensity()
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 particle_spacing = 0.01
-beta = 3
-
-water_width = 2.0
+smoothing_length = 1.2 * particle_spacing
+water_width = 2.0 
 water_height = 1.0
-container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 2.0
+container_height = 2.0 
 
 mass = 1000 * particle_spacing^2
 
 # Particle data
-n_particles_per_dimension = (Int(water_width / particle_spacing),
+n_particles_per_dimension = (Int((water_width) / particle_spacing),
     Int(water_height / particle_spacing))
 particle_coordinates = Array{Float64,2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64,2}(undef, 2, prod(n_particles_per_dimension))
@@ -41,46 +39,55 @@ for y in 1:n_particles_per_dimension[2],
 end
 
 # Boundary particle data
-n_boundaries_vertical = Int(container_height / particle_spacing * beta) - 1
-n_boundaries_horizontal = Int(container_width / particle_spacing * beta) + 1
-n_boundaries = 2 * n_boundaries_vertical + n_boundaries_horizontal
-boundary_coordinates = Array{Float64,2}(undef, 2, n_boundaries)
-boundary_masses = mass * ones(Float64, n_boundaries)
+boundary_particle_spcng = smoothing_length/1.3
+container_width = floor(5.366 / boundary_particle_spcng) * boundary_particle_spcng
+function init_boundaries!(bound_spcng, HEIGHT, WIDTH; staggered=false)
+    i = 0
+    if staggered
+        x_points_staggered  = collect(-bound_spcng*3/2:bound_spcng:WIDTH+bound_spcng*6/2)
+        y_points_staggered  = collect(-bound_spcng*3/2:bound_spcng:HEIGHT+bound_spcng*6/2)
+    else
+        x_points_staggered         = Vector{Float64}(undef, 0)
+        y_points_staggered         = Vector{Float64}(undef, 0)
+    end
+    x_points = collect(-bound_spcng:bound_spcng:WIDTH+2*bound_spcng)
+    y_points = collect(-bound_spcng:bound_spcng:HEIGHT+2*bound_spcng)
+    array_length       = length(x_points)+length(y_points)*2 +length(x_points_staggered)+length(y_points_staggered)*2
+    boundary           = Array{Float64, 2}(undef, 2, array_length);
+    for x in x_points
+        i += 1
+            boundary[1, i] = x
+            boundary[2, i] = y_points[1]
+    end
+    for x = [x_points[1]; x_points[end]]
+        for y in y_points
+            i += 1
+                boundary[1, i] = x
+                boundary[2, i] = y
+        end
+    end
 
-# Left boundary
-for y in 1:n_boundaries_vertical
-    boundary_particle = y
-
-    boundary_coordinates[1, boundary_particle] = 0
-    boundary_coordinates[2, boundary_particle] = y * particle_spacing / beta
+    for x in x_points_staggered
+        i += 1
+            boundary[1, i] = x
+            boundary[2, i] =  y_points_staggered[1]
+    end
+    for x = [x_points_staggered[1]; x_points_staggered[end]]
+        for y in y_points_staggered
+            i += 1
+                boundary[1, i] = x
+                boundary[2, i] = y
+        end
+    end
+    return boundary
 end
-
-# Right boundary
-for y in 1:n_boundaries_vertical
-    boundary_particle = n_boundaries_vertical + y
-
-    # Keep water in place to run a relaxation for 3s first
-    boundary_coordinates[1, boundary_particle] = water_width + particle_spacing
-    boundary_coordinates[2, boundary_particle] = y * particle_spacing / beta
-end
-
-# Bottom boundary
-for x in 1:n_boundaries_horizontal
-    boundary_particle = 2 * n_boundaries_vertical + x
-
-    boundary_coordinates[1, boundary_particle] = (x - 1) * particle_spacing / beta
-    boundary_coordinates[2, boundary_particle] = 0
-end
+boundary_coordinates = init_boundaries!(boundary_particle_spcng, container_height, water_width; staggered=true);
+boundary_masses = mass * ones(Float64, size(boundary_coordinates, 2))
 
 c = 20 * sqrt(9.81 * water_height)
-
-smoothing_length = 1.2 * particle_spacing
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
-K = 4 * 9.81 * water_height
-boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
-    K, beta, particle_spacing / beta,
-    neighborhood_search=SpatialHashingSearch{2}(search_radius))
+boundary_conditions = Pixie.BoundaryConditionCrespo(boundary_coordinates, boundary_masses, c, neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
@@ -89,12 +96,12 @@ state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=1
 semi = SPHSemidiscretization{2}(particle_masses,
     ContinuityDensity(), state_equation,
     smoothing_kernel, smoothing_length,
-    viscosity=ArtificialViscosityMonaghan(0.8, 0.0),
+    viscosity=ArtificialViscosityMonaghan(1.5, 0.0),
     boundary_conditions=boundary_conditions,
     gravity=(0.0, -9.81),
     neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 1.5)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
@@ -107,12 +114,10 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
     saveat=0.02, callback=alive_callback);
 
 # Move right boundary
-for y in 1:n_boundaries_vertical
-    boundary_particle = n_boundaries_vertical + y
+boundary_coordinates = init_boundaries!(boundary_particle_spcng, container_height, container_width; staggered=true);
+boundary_masses = mass * ones(Float64, size(boundary_coordinates, 2))
+boundary_conditions = Pixie.BoundaryConditionCrespo(boundary_coordinates, boundary_masses, c, neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-    boundary_coordinates[1, boundary_particle] = container_width
-    boundary_coordinates[2, boundary_particle] = y * particle_spacing / beta
-end
 
 # Run full simulation
 run_full_simulation = true

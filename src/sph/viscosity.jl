@@ -36,6 +36,14 @@ References:
 - Joseph J. Monaghan. "On the Problem of Penetration in Particle Methods".
   In: Journal of Computational Physics 82.1, pages 1–15.
   [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
+
+
+  !!! note "TBD"
+  - RE> 1: Monaghan’s formulation
+  - RE< 1 Morris’ formulation 
+  References:
+  - Alexiadis, Alessio. "The Discrete Multi-Hybrid System for the Simulation of Solid-Liquid Flows "
+  doi: 10.1371/journal.pone.0124678
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
     alpha   ::ELTYPE

@@ -1,7 +1,6 @@
 using Pixie
 using OrdinaryDiffEq
-setup = ["tank_2D",                   
-        "BC_crespo"]  
+
 width = 2.0
 water_height = 0.9
 container_height = 1.0
@@ -71,7 +70,9 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 9.81 * water_height
-boundary_conditions = Pixie.BoundaryConditionCrespo(boundary_coordinates, boundary_masses, c, neighborhood_search=SpatialHashingSearch{2}(search_radius))
+boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                      K, beta, particle_spacing / beta,
+                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 semi = SPHSemidiscretization{2}(particle_masses,
@@ -82,12 +83,11 @@ semi = SPHSemidiscretization{2}(particle_masses,
                                 gravity=(0.0, -9.81),
                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 5.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=10)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, callback=alive_callback);
-#sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, saveat=0.02, callback=alive_callback);
+sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, saveat=0.02, callback=alive_callback);

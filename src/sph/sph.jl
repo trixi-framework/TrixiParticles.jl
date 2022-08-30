@@ -1,7 +1,7 @@
 @doc raw"""
     SummationDensity()
 
-Density calculator to use the summation formula
+Density calculator to use the summation formula (considering ``\rho`` as a normal scalar field)
 ```math
 \rho(r) = \sum_{b} m_b W(\Vert r - r_b \Vert, h),
 ```
@@ -23,7 +23,7 @@ struct SummationDensity end
 @doc raw"""
     ContinuityDensity()
 
-Density calculator to integrate the density from the continuity equation
+Density calculator to integrate the density from the continuity equation (SPH approximation of  continuity equation)
 ```math
 \frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
 ```
