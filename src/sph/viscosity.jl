@@ -38,12 +38,12 @@ References:
   [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
 
 
-  !!! note "TBD"
-  - RE> 1: Monaghan’s formulation
-  - RE< 1 Morris’ formulation 
-  References:
-  - Alexiadis, Alessio. "The Discrete Multi-Hybrid System for the Simulation of Solid-Liquid Flows "
-  doi: 10.1371/journal.pone.0124678
+!!! note "TBD"
+    - RE> 1: Monaghan’s formulation
+    - RE< 1 Morris’ formulation 
+    References:
+    - Alexiadis, Alessio. "The Discrete Multi-Hybrid System for the Simulation of Solid-Liquid Flows "
+    doi: 10.1371/journal.pone.0124678
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
     alpha   ::ELTYPE
@@ -55,8 +55,9 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     end
 end
 
-function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance, density_mean, h)
+function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance, density_particle, density_neighbor, h)
     @unpack alpha, beta, epsilon = viscosity
+    density_mean = (density_particle + density_neighbor) / 2
 
     # v_ab ⋅ r_ab
     vr = sum(v_diff .* pos_diff)
@@ -67,4 +68,28 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
     end
 
     return 0.0
+end
+
+@doc raw"""
+    ViscosityMorris(mu)
+References:
+- Lu Liu. "DEM–SPH coupling method for the interaction between irregularly shaped granular materials and ﬂuids".
+  In: Powder Technology 400 (2022).
+  [doi: 10.1016/j.powtec.2022.117249](https://doi.org/10.1016/j.powtec.2022.117249)
+  !!! note "TBD"
+
+"""
+struct ViscosityMorris{ELTYPE}
+    nu   ::ELTYPE
+
+    function ViscosityMorris(nu)
+        new{typeof(nu)}(nu)
+    end
+end
+
+function (viscosity::ViscosityMorris)(c, v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack nu = viscosity
+
+    vr = sum(v_diff .* pos_diff)
+
 end

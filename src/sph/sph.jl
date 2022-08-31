@@ -199,12 +199,12 @@ end
     @unpack density_calculator, state_equation, cache = semi
     @unpack pressure = cache
 
-    pressure[particle] = state_equation(get_particle_density(u, cache, density_calculator, particle))
+    pressure[particle] = pressure_poisson_equation(get_particle_density(u, cache, density_calculator, particle))
 end
 =#
 
 
-function rhs!(du, u, semi, t)
+function rhs!(du, u, semi, t)    
     @unpack smoothing_kernel, smoothing_length,
             boundary_conditions, gravity,
             neighborhood_search = semi
@@ -272,9 +272,8 @@ end
 
     # Viscosity
     v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
-    density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                      distance, density_mean, smoothing_length)
+                      distance, density_particle, density_neighbor, smoothing_length)
 
     dv = -mass[neighbor] * (pressure[particle] / density_particle^2 +
                             pressure[neighbor] / density_neighbor^2 + pi_ab) *
