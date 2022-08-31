@@ -24,6 +24,8 @@ function (pressure_poisson_equation::PPEExplicitLiu)(u, semi, particle, neighbor
     density_particle = get_particle_density(u, cache, density_calculator, particle)
     density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
 
+    u_ij            = get_intermediate_vel(u, semi, particle)
+
     dt =  integrator.dt
 
     dot_prod = sum(pos_diff .* (kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance))
@@ -32,12 +34,4 @@ function (pressure_poisson_equation::PPEExplicitLiu)(u, semi, particle, neighbor
     B_i = mass[neighbor]*
 
     return density
-end
-
-
-
-function (get_intermediate_velocity::PPEExplicitLiu)(u, semi, particle, neighbor, )
-    vel = get_particle_vel(u, semi, particle)
-    intermediate_velocity = vel + 
-
 end
