@@ -1,4 +1,4 @@
-function write2vtk(u, semi::SPHSemidiscretization{2}, timestep, path_name; show_boundaries=true)
+function write2vtk(u, semi::WCSPHSemidiscretization{2}, timestep, path_name; show_boundaries=true)
     @unpack boundary_conditions, cache = semi
     path_out = joinpath(path_name)
     isdir(path_out) || mkpath(path_out)
@@ -24,7 +24,7 @@ function write2vtk(u, semi::SPHSemidiscretization{2}, timestep, path_name; show_
     end
 end
 
-function write2vtk(u, semi::SPHSemidiscretization{3}, timestep; show_boundaries=true)
+function write2vtk(u, semi::WCSPHSemidiscretization{3}, timestep; show_boundaries=true)
     @unpack boundary_conditions, cache = semi
 
     mkpath("out")

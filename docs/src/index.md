@@ -35,3 +35,9 @@ Pages = [joinpath("sph", "state_equations.jl")]
 Modules = [Pixie]
 Pages = [joinpath("sph", "viscosity.jl")]
 ```
+
+## File pressure_poisson_equation.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "pressure_poisson_equation.jl")]
+```

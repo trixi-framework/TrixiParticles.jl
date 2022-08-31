@@ -75,7 +75,7 @@ boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boun
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
-semi = SPHSemidiscretization{2}(particle_masses,
+semi = WCSPHSemidiscretization{2}(particle_masses,
                                 ContinuityDensity(), state_equation,
                                 smoothing_kernel, smoothing_length,
                                 viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
@@ -83,7 +83,7 @@ semi = SPHSemidiscretization{2}(particle_masses,
                                 gravity=(0.0, -9.81),
                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 1.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=10)

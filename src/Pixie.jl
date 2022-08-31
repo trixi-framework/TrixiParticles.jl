@@ -19,14 +19,15 @@ include("sph/neighborhood_search.jl")
 include("sph/sph.jl")
 include("sph/smoothing_kernels.jl")
 include("sph/state_equations.jl")
+include("sph/pressure_poisson_equation.jl")
 include("visualization/write2vtk.jl")
 
-export SPHSemidiscretization, semidiscretize, AliveCallback
+export WCSPHSemidiscretization, semidiscretize, AliveCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
-export BoundaryConditionMonaghanKajtar
+export BoundaryConditionMonaghanKajtar, BoundaryConditionCrespo
 export SpatialHashingSearch
 
 end # module

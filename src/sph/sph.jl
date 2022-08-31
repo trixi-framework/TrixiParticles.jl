@@ -34,7 +34,7 @@ velocities of particles ``a`` and ``b``.
 """
 struct ContinuityDensity end
 
-struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
+struct WCSPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
     density_calculator  ::DC
     state_equation      ::SE
     smoothing_kernel    ::K
@@ -45,7 +45,7 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
     neighborhood_search ::NS
     cache               ::C
 
-    function SPHSemidiscretization{NDIMS}(particle_masses,
+    function WCSPHSemidiscretization{NDIMS}(particle_masses,
                                           density_calculator, state_equation,
                                           smoothing_kernel, smoothing_length;
                                           viscosity=NoViscosity(),
@@ -89,7 +89,7 @@ function create_cache(::ContinuityDensity, eltype, nparticles)
 end
 
 
-function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity},
+function semidiscretize(semi::WCSPHSemidiscretization{NDIMS, ELTYPE, SummationDensity},
                         particle_coordinates, particle_velocities, tspan) where {NDIMS, ELTYPE}
     @unpack neighborhood_search, boundary_conditions = semi
 
@@ -122,7 +122,7 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDens
 end
 
 
-function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity},
+function semidiscretize(semi::WCSPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity},
                         particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS, ELTYPE}
     @unpack neighborhood_search, boundary_conditions = semi
 
@@ -168,7 +168,7 @@ end
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+@inline function compute_quantities_per_particle(u, particle, semi::WCSPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     @unpack smoothing_kernel, smoothing_length, state_equation,
             neighborhood_search, cache = semi
     @unpack mass, density, pressure = cache
@@ -187,12 +187,21 @@ end
     pressure[particle] = state_equation(density[particle])
 end
 
-@inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+@inline function compute_quantities_per_particle(u, particle, semi::WCSPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack density_calculator, state_equation, cache = semi
     @unpack pressure = cache
 
     pressure[particle] = state_equation(get_particle_density(u, cache, density_calculator, particle))
 end
+
+#=
+@inline function compute_quantities_per_particle(u, particle, semi::EISPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+    @unpack density_calculator, state_equation, cache = semi
+    @unpack pressure = cache
+
+    pressure[particle] = state_equation(get_particle_density(u, cache, density_calculator, particle))
+end
+=#
 
 
 function rhs!(du, u, semi, t)
@@ -280,7 +289,7 @@ end
 
 
 @inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
-                              semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+                              semi::WCSPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack smoothing_kernel, smoothing_length, cache = semi
     @unpack mass = cache
 
@@ -295,7 +304,7 @@ end
 end
 
 @inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
-                                      semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+                                      semi::WCSPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     return du
 end
 
@@ -332,4 +341,4 @@ end
 # This can be used both for Semidiscretization or boundary container types
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline nparticles(semi) = length(semi.cache.mass)
-@inline Base.ndims(::SPHSemidiscretization{NDIMS}) where NDIMS = NDIMS
+@inline Base.ndims(::WCSPHSemidiscretization{NDIMS}) where NDIMS = NDIMS
