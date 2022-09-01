@@ -3,7 +3,8 @@ using OrdinaryDiffEq
 setup = ["test_ISPH"]
 # Particle data
 n_particles_per_dimension = (10, 10)
-spacing = 0.02
+smoothing_length = 0.01875
+spacing = smoothing_length/1.25
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 1000 * spacing^2 * ones(Float64, prod(n_particles_per_dimension))
@@ -36,7 +37,6 @@ for y in 1:n_boundaries_per_dimension[1]
     boundary_coordinates[2, boundary_particle] = -spacing
 end
 
-smoothing_length = 1.2 * spacing 
 
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
@@ -46,11 +46,12 @@ boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boun
                                                       K, beta, spacing / beta)
 
 # Create semidiscretization
-pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length, 0.0)
+dt = 1e-5
+pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length, dt)
 semi = EISPHSemidiscretization{2}(particle_masses,
-                                ContinuityDensity(), pressure_poisson_eq,
+                                SummationDensity(), pressure_poisson_eq,
                                 smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(100.0, 0.02, 0.0), #ViscosityClearyMonaghan(1e-6)
+                                viscosity=ViscosityClearyMonaghan(1e-6) , #ViscosityClearyMonaghan(1e-6) # ArtificialViscosityMonaghan(100.0, 0.02, 0.0)
                                 boundary_conditions=boundary_conditions,
                                 gravity=(0.0, -9.81))
                             #   neighborhood_search=nothing)
@@ -67,5 +68,8 @@ alive_callback = AliveCallback(alive_interval=100)
 #            # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
 #            saveat=0.02, callback=alive_callback);
 #
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-4, callback=alive_callback);
+sol = solve(ode, 
+            Euler(), #RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
+            dt=dt, 
+            saveat=0.001, 
+            callback=alive_callback);
