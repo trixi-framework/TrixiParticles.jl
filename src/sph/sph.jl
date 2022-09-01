@@ -86,11 +86,11 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,ContinuityDen
 
         # Set intermediate velocities
         for dim in 1:ndims(semi)
-            u0[dim+ndims(semi), particle] = particle_velocities[dim, particle]
+            u0[dim+2*ndims(semi), particle] = particle_velocities[dim, particle]
         end
 
         # Set particle densities
-        u0[2*ndims(semi)+1, particle] = particle_densities[particle]
+        u0[end, particle] = particle_densities[particle]
     end
 
     # Initialize neighborhood search

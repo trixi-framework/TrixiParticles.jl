@@ -113,6 +113,7 @@ end
 
 function create_cache(mass, density_calculator, eltype, nparticles)
     pressure = Vector{eltype}(undef, nparticles)
+    fill!(pressure, 0.)
 
     return (; mass, pressure, create_cache(density_calculator, eltype, nparticles)...)
 end

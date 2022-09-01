@@ -30,7 +30,7 @@ function (PressurePoissonEquation::PPEExplicitLiu)(u, semi, particle)
     term_sum_AP = 0.0
 
     # TBD get timestep from integrator.dt
-    dt = 1e-03
+    dt = 1e-05
 
     for neighbor in eachneighbor(particle, u, neighborhood_search, semi)
 
@@ -42,15 +42,21 @@ function (PressurePoissonEquation::PPEExplicitLiu)(u, semi, particle)
         pos_diff = particle_coords - neighbor_coords
         vel_diff = vel_intermediate_particle - vel_intermediate_neighbor
         
-        grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+        if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
+            grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-        dot_prod = sum(pos_diff .* grad_kernel)
-        A_ij = 8 * mass[neighbor] * dot_prod / ((density_particle + density_neighbor)^2 * (distance^2 + eta^2))
+            dot_prod = sum(pos_diff .* grad_kernel)
+            A_ij = 8 * mass[neighbor] * dot_prod / ((density_particle + density_neighbor)^2 * (distance^2 + eta^2))
         
-        term_sum_A += A_ij
-        term_sum_AP += A_ij*pressure[neighbor]
-        term_sum_B +=  -mass[neighbor] * sum(vel_diff .* grad_kernel) / density_neighbor
+            term_sum_A += A_ij
+            term_sum_AP += A_ij*pressure[neighbor]
+            term_sum_B +=  -mass[neighbor] * sum(vel_diff .* grad_kernel) / density_neighbor
+        end
+    end
 
+    # correction of intermediate velocity
+    for i in 1:ndims(semi)
+        u[i + 2*ndims(semi), particle] = u[i + ndims(semi), particle]
     end
 
     return (term_sum_AP + term_sum_B/dt)/term_sum_A

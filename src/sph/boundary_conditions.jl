@@ -171,7 +171,7 @@ end
                                                        boundary_condition,
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
-            density_calculator, state_equation, viscosity, cache = semi
+            density_calculator, viscosity, cache = semi
     @unpack coordinates, mass, neighborhood_search = boundary_condition
     m_a = cache.mass[particle]
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
