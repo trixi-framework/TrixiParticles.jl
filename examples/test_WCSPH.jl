@@ -1,6 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
+setup = ["test_WCSPH"]
 # Particle data
 n_particles_per_dimension = (10, 30)
 spacing = 0.1
