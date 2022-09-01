@@ -46,17 +46,18 @@ References:
     doi: 10.1371/journal.pone.0124678
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
+    c       ::ELTYPE
     alpha   ::ELTYPE
     beta    ::ELTYPE
     epsilon ::ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
-        new{typeof(alpha)}(alpha, beta, epsilon)
+    function ArtificialViscosityMonaghan(c, alpha, beta, epsilon=0.01)
+        new{typeof(alpha)}(c, alpha, beta, epsilon)
     end
 end
 
-function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance, density_particle, density_neighbor, h)
-    @unpack alpha, beta, epsilon = viscosity
+function (viscosity::ArtificialViscosityMonaghan)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack c, alpha, beta, epsilon = viscosity
     density_mean = (density_particle + density_neighbor) / 2
 
     # v_ab ⋅ r_ab

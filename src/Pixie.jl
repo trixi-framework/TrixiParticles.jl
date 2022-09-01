@@ -13,6 +13,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
 include("callbacks/alive.jl")
+include("sph/semidiscretization.jl") 
 include("sph/viscosity.jl") # TODO load before sph.jl
 include("sph/boundary_conditions.jl") # TODO load before sph.jl
 include("sph/neighborhood_search.jl")

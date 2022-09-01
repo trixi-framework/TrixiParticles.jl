@@ -182,7 +182,7 @@ end
         if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
             # Viscosity
             v_diff = get_particle_vel(u, semi, particle)
-            pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
+            pi_ab = viscosity(v_diff, pos_diff, distance,
                               get_particle_density(u, cache, density_calculator, particle),get_particle_density(u, cache, density_calculator, particle),
                               smoothing_length)
 

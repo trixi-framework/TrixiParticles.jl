@@ -2,7 +2,7 @@ using Pixie
 using OrdinaryDiffEq
 setup = ["test_ISPH"]
 # Particle data
-n_particles_per_dimension = (20, 60)
+n_particles_per_dimension = (10, 10)
 spacing = 0.02
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -43,18 +43,16 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 10.0
 boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
-                                                      K, beta, spacing / beta,
-                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                                      K, beta, spacing / beta)
 
 # Create semidiscretization
 pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length, 0.0)
 semi = EISPHSemidiscretization{2}(particle_masses,
                                 ContinuityDensity(), pressure_poisson_eq,
                                 smoothing_kernel, smoothing_length,
-                                viscosity=ViscosityClearyMonaghan(1e-6),
+                                viscosity=ArtificialViscosityMonaghan(100.0, 0.02, 0.0),
                                 boundary_conditions=boundary_conditions,
-                                gravity=(0.0, -9.81),
-                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                gravity=(0.0, -9.81))
                             #   neighborhood_search=nothing)
 
 tspan = (0.0, 1.0)
