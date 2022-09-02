@@ -46,3 +46,27 @@ function write2vtk(sol, semi; show_boundaries=true)
         write2vtk(sol[i], semi, i, show_boundaries=show_boundaries)
     end
 end
+
+
+function write2vtk(saving_callback)
+    @unpack saved_values = saving_callback
+    @unpack saveval = saved_values
+
+    for timestep in eachindex(saveval)
+        solution = saveval[timestep]
+
+        mkpath("out")
+        filename = timestep === nothing ? "out/data" : "out/data_$timestep"
+
+        points = solution["coordinates"]
+        cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+
+        vtk_grid(filename, points, cells) do vtk
+            for (key, value) in solution
+                if key != "coordinates"
+                    vtk[key] = value
+                end
+            end
+        end
+    end
+end
