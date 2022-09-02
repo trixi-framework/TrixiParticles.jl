@@ -367,6 +367,11 @@ end
     SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
 end
 
+@inline function get_particle_coords(boundary_container::BoundaryConditionFixedParticleLiu, semi, particle)
+    @unpack coordinates = boundary_container
+    SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
+end
+
 
 # This can be used both for Semidiscretization or boundary container types
 @inline eachparticle(container) = Base.OneTo(nparticles(container))

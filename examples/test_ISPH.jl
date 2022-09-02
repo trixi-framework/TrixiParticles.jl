@@ -28,7 +28,7 @@ n_boundaries_per_dimension = (400,)
 beta = 3
 
 boundary_coordinates = Array{Float64, 2}(undef, 2, prod(n_boundaries_per_dimension))
-boundary_masses = 10 * ones(Float64, prod(n_boundaries_per_dimension))
+boundary_masses = particle_masses[1] * ones(Float64, prod(n_boundaries_per_dimension))
 
 for y in 1:n_boundaries_per_dimension[1]
     boundary_particle = y
@@ -42,8 +42,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 10.0
-boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
-                                                      K, beta, spacing / beta)
+boundary_conditions = BoundaryConditionFixedParticleLiu(boundary_coordinates, boundary_masses, particle_densities[1])
 
 # Create semidiscretization
 dt = 1e-5
@@ -71,5 +70,5 @@ alive_callback = AliveCallback(alive_interval=100)
 sol = solve(ode, 
             Euler(), #RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=dt, 
-            saveat=0.001, 
+            saveat=0.02, 
             callback=alive_callback);

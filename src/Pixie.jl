@@ -28,7 +28,7 @@ export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityClearyMonaghan
-export BoundaryConditionMonaghanKajtar, BoundaryConditionCrespo
+export BoundaryConditionMonaghanKajtar, BoundaryConditionCrespo, BoundaryConditionFixedParticleLiu
 export SpatialHashingSearch
 export PPEExplicitLiu
 

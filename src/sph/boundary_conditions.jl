@@ -85,7 +85,7 @@ end
     return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
 end
 
-function initialize!(boundary_conditions::BoundaryConditionMonaghanKajtar, semi)
+function initialize!(boundary_conditions, semi)
     @unpack neighborhood_search = boundary_conditions
 
     initialize!(neighborhood_search, boundary_conditions,
@@ -95,7 +95,7 @@ end
 @inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
 
 @inline function boundary_impact_normal(boundary_condition::BoundaryConditionMonaghanKajtar,
-                                        semi, distance, pos_diff, m_a, m_b)
+                                        semi, distance, pos_diff, particle, m_a, m_b)
     @unpack smoothing_length = semi
     @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
 
@@ -154,17 +154,10 @@ struct BoundaryConditionCrespo{ELTYPE<:Real,NS}
     end
 end
 
-function initialize!(boundary_conditions::BoundaryConditionCrespo, semi)
-    @unpack neighborhood_search = boundary_conditions
-
-    initialize!(neighborhood_search, boundary_conditions,
-        semi, particles=eachparticle(boundary_conditions))
-end
-
 @inline nparticles(boundary_container::BoundaryConditionCrespo) = length(boundary_container.mass)
 
 @inline function boundary_impact_normal(boundary_condition::BoundaryConditionCrespo,
-    semi, distance, pos_diff, m_a, m_b)
+    semi, distance, pos_diff, particle, m_a, m_b)
     @unpack smoothing_kernel, smoothing_length = semi
     @unpack coordinates, mass, c = boundary_condition
 
@@ -176,6 +169,74 @@ end
 
 
 
+
+struct BoundaryConditionFixedParticleLiu{ELTYPE<:Real,NS}
+    coordinates::Array{ELTYPE,2}
+    mass::Vector{ELTYPE}
+    rho_0              ::ELTYPE
+    neighborhood_search::NS
+
+    function BoundaryConditionFixedParticleLiu(coordinates, masses, rho_0; neighborhood_search=nothing)
+        new{typeof(rho_0),typeof(neighborhood_search)}(coordinates, masses, rho_0, neighborhood_search)
+    end
+
+end
+@inline nparticles(boundary_container::BoundaryConditionFixedParticleLiu) = length(boundary_container.mass)
+
+@inline function boundary_impact_normal(boundary_condition::BoundaryConditionFixedParticleLiu,
+    semi, distance, pos_diff, particle, m_a, m_b)
+    @unpack smoothing_kernel, smoothing_length, cache, gravity = semi
+    @unpack rho_0 = boundary_condition
+    @unpack pressure = cache
+
+    # TBD: normal vector is set to (0,1) to test the implementation
+    n_B = SVector(0,1)
+    n_dot_g = sum(n_B .* gravity)
+    P_B = pressure[particle] - rho_0*(distance+0.5*smoothing_length)*n_dot_g
+
+
+    return m_a*(pressure[particle]+P_B)*n_B*dimensionless_contribution_normal(distance, smoothing_length)/(rho_0^2*smoothing_length^4)
+end
+
+@inline function boundary_impact_tangential(boundary_condition::BoundaryConditionFixedParticleLiu,
+                                            semi, u, particle, pos_diff, distance, m_b)
+    @unpack smoothing_kernel, smoothing_length, viscosity, cache, density_calculator = semi
+    @unpack rho_0 = boundary_condition
+    @unpack nu = viscosity
+
+    v_rel = get_particle_vel(u, semi, particle)
+    if ndims(semi) == 3
+        projection_vec = SVector(1,1,0)
+    else
+        projection_vec = SVector(1,0)
+    end
+    u_tang = v_rel.*projection_vec
+
+    return -m_b*2*nu*u_tang*dimensionless_contribution_tangential(distance, smoothing_length)/(rho_0^2*smoothing_length^5)
+end
+
+
+@inline function dimensionless_contribution_normal(r, h)
+    q = r / h
+
+    if q >= 1.45
+        return 0.0
+    end
+
+    return  -0.686*q^4 + 2.93*q^3 -3.49*q^2 -0.067*q + 1.55
+end
+
+@inline function dimensionless_contribution_tangential(r, h)
+    q = r / h
+
+    if q >= 1.43
+        return 0.0
+    end
+
+    return  -0.645*q^4 + 1.597*q^3 +0.703*q^2 -4.43*q + 2.93
+end
+
+
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
@@ -184,7 +245,8 @@ end
     semi)
     @unpack smoothing_kernel, smoothing_length,
     density_calculator, cache = semi
-    @unpack coordinates, mass, neighborhood_search = boundary_condition
+    @unpack coordinates, neighborhood_search, mass = boundary_condition
+
     m_a = mass[particle]
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
@@ -194,7 +256,7 @@ end
         if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
             # Viscosity
             m_b = mass[boundary_particle]
-            f_n = boundary_impact_normal(boundary_condition, semi, distance, pos_diff, m_a, m_b)
+            f_n = boundary_impact_normal(boundary_condition, semi, distance, pos_diff, particle, m_a, m_b)
             f_t = boundary_impact_tangential(boundary_condition, semi, u, particle, pos_diff, distance, m_b)
 
             dv = f_n + f_t
