@@ -23,7 +23,7 @@ end
 smoothing_length = 0.12
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
-semi = SPHSemidiscretization{2}(particle_masses, ContinuityDensity(),
+semi = SPHSemidiscretization{2}(particle_masses, SummationDensity(),
                                 StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
                                 smoothing_kernel, smoothing_length,
                                 viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
@@ -31,7 +31,8 @@ semi = SPHSemidiscretization{2}(particle_masses, ContinuityDensity(),
                               #   neighborhood_search=nothing)
 
 tspan = (0.0, 20.0)
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+# ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 
