@@ -16,7 +16,7 @@ for y in 1:n_particles_per_dimension[2],
 
     # Coordinates
     particle_coordinates[1, particle] = (x - 1 - 0.5 * (n_particles_per_dimension[1] - 1)) * spacing
-    particle_coordinates[2, particle] = y * spacing + 10 * spacing
+    particle_coordinates[2, particle] = y * spacing + 30 * spacing
 
     # Velocity
     particle_velocities[1, particle] = 0

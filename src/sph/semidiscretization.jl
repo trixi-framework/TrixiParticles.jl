@@ -75,7 +75,7 @@ end
 
 struct EISPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, PPE, K, V, BC, NS, C}
     density_calculator  ::DC
-    pressure_poisson_eq :: PPE
+    pressure_poisson_eq ::PPE
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     viscosity           ::V

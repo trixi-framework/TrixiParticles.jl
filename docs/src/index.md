@@ -24,6 +24,13 @@ Modules = [Pixie]
 Pages = [joinpath("sph", "sph.jl")]
 ```
 
+## File semidiscretization.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "semidiscretization.jl")]
+```
+
+
 ## File state_equations.jl
 ```@autodocs
 Modules = [Pixie]
