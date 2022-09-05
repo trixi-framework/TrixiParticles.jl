@@ -26,7 +26,7 @@ function semidiscretize(semi::WCSPHSemidiscretization{NDIMS,ELTYPE,SummationDens
     end
 
     # Compute quantities like density and pressure
-    compute_quantities(u0, semi)
+    #compute_quantities(u0, semi)
 
     return ODEProblem(rhs!, u0, tspan, semi)
 end
@@ -62,7 +62,7 @@ function semidiscretize(semi::WCSPHSemidiscretization{NDIMS,ELTYPE,ContinuityDen
     end
 
     # Compute quantities like pressure
-    compute_quantities(u0, semi)
+    #compute_quantities(u0, semi)
 
     return ODEProblem(rhs!, u0, tspan, semi)
 end
@@ -71,7 +71,7 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDens
     particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS,ELTYPE}
     @unpack neighborhood_search, boundary_conditions, cache = semi
 
-    u0 = Array{eltype(particle_coordinates),2}(undef, 4 * ndims(semi) + 1, nparticles(semi))
+    u0 = Array{eltype(particle_coordinates),2}(undef, 2 * ndims(semi) + 1, nparticles(semi))
 
     for particle in eachparticle(semi)
         # Set particle coordinates
@@ -82,22 +82,15 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDens
         # Set particle velocities
         for dim in 1:ndims(semi)
             u0[dim+ndims(semi), particle] = particle_velocities[dim, particle]
-        end
-
-        # Set intermediate position
-        for dim in 1:ndims(semi)
-            u0[dim+2*ndims(semi), particle] = particle_coordinates[dim, particle]
-        end
-
-        # Set intermediate velocities
-        for dim in 1:ndims(semi)
-            u0[dim+3*ndims(semi), particle] = particle_velocities[dim, particle]
+            cache.dv_viscosities[dim, particle] = zero(ELTYPE)
         end
 
         # Set particle densities
         u0[end, particle] = particle_densities[particle]
+
         cache.density[particle] = particle_densities[particle]
         cache.pressure[particle] = zero(ELTYPE)
+        cache.prior_pressure[particle] = zero(ELTYPE)
     end
 
     # Initialize neighborhood search
@@ -109,7 +102,7 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDens
     end
 
     # Compute quantities like pressure
-    compute_quantities(u0, semi)
+    #compute_quantities(u0, semi)
 
     return ODEProblem(rhs!, u0, tspan, semi)
 end
@@ -120,6 +113,7 @@ function compute_quantities(u, semi)
     for particle in eachparticle(semi)
         compute_quantities_per_particle(u, particle, semi)
     end
+    update_pressure(semi)
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
@@ -154,13 +148,13 @@ end
 
 @inline function compute_quantities_per_particle(u, particle, semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDensity}) where {NDIMS,ELTYPE}
     @unpack  smoothing_kernel, smoothing_length, neighborhood_search, cache, pressure_poisson_eq = semi
-    @unpack mass, density, pressure = cache
+    @unpack mass, density, pressure, dt, dv_viscosities = cache
 
     u[end, particle] = zero(eltype(density))
 
     for neighbor in eachneighbor(particle, u, neighborhood_search, semi)
-        distance = norm(get_intermediate_coords(u, semi, particle) -
-                        get_intermediate_coords(u, semi, neighbor))
+        distance = norm(get_intermediate_coords(u, semi, particle, dt[1]) -
+                        get_intermediate_coords(u, semi, neighbor, dt[1]))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
             u[end, particle] += mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
@@ -171,11 +165,23 @@ end
 end
 
 
+@inline function update_pressure(semi::EISPHSemidiscretization)
+    @unpack cache = semi
+    @unpack pressure, prior_pressure, dv_viscosities = cache
+
+    for particle in eachparticle(semi)
+        prior_pressure[particle] = pressure[particle]
+        # reset pressureless momentum eq
+        dv_viscosities[particle] = zero(eltype(dv_viscosities))
+    end    
+end
+@inline function update_pressure(semi::WCSPHSemidiscretization)
+end
+
 function rhs!(du, u, semi, t)
     @unpack smoothing_kernel, smoothing_length,
     boundary_conditions, gravity,
     neighborhood_search = semi
-
     @pixie_timeit timer() "rhs!" begin
         @pixie_timeit timer() "update neighborhood search" update!(neighborhood_search, u, semi)
 
@@ -228,7 +234,7 @@ end
 end
 
 
-@inline function add_gravity!(du, particle, semi::WCSPHSemidiscretization)
+@inline function add_gravity!(du, particle, semi)
     @unpack gravity = semi
     for i in 1:ndims(semi)
         # Gravity
@@ -236,17 +242,6 @@ end
     end
     return du
 end
-
-@inline function add_gravity!(du, particle, semi::EISPHSemidiscretization)
-    @unpack gravity = semi
-    for i in 1:ndims(semi)
-        # Gravity
-        du[i+ndims(semi), particle] += gravity[i]
-        du[i+3*ndims(semi), particle] += gravity[i]        
-    end
-    return du
-end
-
 
 @inline function calc_dv!(du, u, particle, neighbor, pos_diff, distance, semi::WCSPHSemidiscretization)
     @unpack smoothing_kernel, smoothing_length,
@@ -275,33 +270,30 @@ end
 @inline function calc_dv!(du, u, particle, neighbor, pos_diff, distance, semi::EISPHSemidiscretization)
     @unpack smoothing_kernel, smoothing_length,
     density_calculator, viscosity, cache = semi
-    @unpack mass, pressure = cache
+    @unpack mass, pressure, dv_viscosities = cache
 
     density_particle = get_particle_density(u, cache, density_calculator, particle)
     density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
 
     # Viscosity
     v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
-    pi_ab = viscosity(v_diff, pos_diff, distance, density_particle, density_neighbor, smoothing_length)
+    # viscosity() has a negativ return value.
+    pi_ab = -viscosity(v_diff, pos_diff, distance, density_particle, density_neighbor, smoothing_length)
 
-    dv = -mass[neighbor] * (pressure[particle] / density_particle^2 +
-                            pressure[neighbor] / density_neighbor^2 + pi_ab) *
-         kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv_pressure = -mass[neighbor] * (pressure[particle] / density_particle^2 +
+                                    pressure[neighbor] / density_neighbor^2) *
+                    kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-    # TBD implement viscosity by Morris (Liu 2022)
-    # negativ pi_ab because viscosity() is negativ implemented 
-    dv_intermediate = -pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv_viscosity = mass[neighbor] * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+    dv = dv_pressure + dv_viscosity
 
     for i in 1:ndims(semi)
         du[i+ndims(semi), particle] += dv[i]
-        du[i+3*ndims(semi), particle] += dv_intermediate[i]
-        # intermediate velocity
-        du[i+2*ndims(semi), particle] = u[i+3*ndims(semi), particle]
-        # correction of intermediate velocity and position
-        u[i+2*ndims(semi), particle] = u[i, particle]
-        u[i+3*ndims(semi), particle] = u[i+ndims(semi), particle]
+        dv_viscosities[i, particle] += dv_viscosity[i]
     end
 
+    
     return du
 end
 
@@ -335,18 +327,9 @@ end
     return SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(semi))))
 end
 
-@inline function get_intermediate_coords(u, semi, particle)
-    return SVector(ntuple(@inline(dim -> u[dim+2*ndims(semi), particle]), Val(ndims(semi))))
-end
-
 @inline function get_particle_vel(u, semi, particle)
     return SVector(ntuple(@inline(dim -> u[dim+ndims(semi), particle]), Val(ndims(semi))))
 end
-
-@inline function get_intermediate_vel(u, semi, particle)
-    return SVector(ntuple(@inline(dim -> u[dim+3*ndims(semi), particle]), Val(ndims(semi))))
-end
-
 
 @inline function get_particle_density(u, cache, ::SummationDensity, particle)
     return cache.density[particle]

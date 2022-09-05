@@ -104,10 +104,10 @@ end
 
 end
 
-@inline function boundary_impact_tangential(boundary_condition,
-                                            semi::WCSPHSemidiscretization, u, particle, pos_diff, distance, m_b)
+@inline function boundary_impact_tangential(boundary_condition::BoundaryConditionMonaghanKajtar,
+                                            semi, u, particle, pos_diff, distance, m_b)
     @unpack smoothing_kernel, smoothing_length, viscosity, cache, density_calculator = semi
-    @unpack boundary_particle_spacing = boundary_condition
+
     particle_density = get_particle_density(u, cache, density_calculator, particle)
     v_rel = get_particle_vel(u, semi, particle)
     pi_ab = viscosity(v_rel, pos_diff, distance, particle_density, particle_density, smoothing_length)
@@ -167,7 +167,15 @@ end
     return -2 * c^2 * W_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / (distance * (W_ab + W_0)^2)
 end
 
+@inline function boundary_impact_tangential(boundary_condition::BoundaryConditionCrespo,
+                                            semi, u, particle, pos_diff, distance, m_b)
+    @unpack smoothing_kernel, smoothing_length, viscosity, cache, density_calculator = semi
+    particle_density = get_particle_density(u, cache, density_calculator, particle)
+    v_rel = get_particle_vel(u, semi, particle)
+    pi_ab = viscosity(v_rel, pos_diff, distance, particle_density, particle_density, smoothing_length)
 
+    return - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+end
 
 
 struct BoundaryConditionFixedParticleLiu{ELTYPE<:Real,NS}
@@ -247,7 +255,7 @@ end
     density_calculator, cache = semi
     @unpack coordinates, neighborhood_search, mass = boundary_condition
 
-    m_a = mass[particle]
+    m_a = cache.mass[particle]
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
                    get_particle_coords(boundary_condition, semi, boundary_particle)

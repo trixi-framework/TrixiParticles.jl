@@ -23,6 +23,7 @@ function write2vtk(u, semi::WCSPHSemidiscretization{2}, timestep, path_name; sho
         end
     end
 end
+
 function write2vtk(u, semi::EISPHSemidiscretization{2}, timestep, path_name; show_boundaries=true)
     @unpack boundary_conditions, cache = semi
     path_out = joinpath(path_name)
@@ -43,7 +44,7 @@ function write2vtk(u, semi::EISPHSemidiscretization{2}, timestep, path_name; sho
     vtk_grid(filename, points, cells) do vtk
         vtk["v"] = hcat(view(u, 3:4, :), zeros(2, size(points, 2) - size(u, 2)))
         if size(u, 1) >= 5
-            vtk["density"] = vcat(view(u, 9, :), zeros(size(points, 2) - size(u, 2)))
+            vtk["density"] = vcat(view(u, 5, :), zeros(size(points, 2) - size(u, 2)))
             vtk["index"] = vcat(1:size(u, 2), zeros(size(points, 2) - size(u, 2)))
         end
     end
@@ -75,5 +76,29 @@ function write2vtk(sol, semi; show_boundaries=true, path_out=[""])
     pushfirst!(path_out, "out")
     for i in eachindex(sol)
         write2vtk(sol[i], semi, i, path_out,show_boundaries=show_boundaries)
+    end
+end
+
+
+function write2vtk(saving_callback)
+    @unpack saved_values = saving_callback
+    @unpack saveval = saved_values
+
+    for timestep in eachindex(saveval)
+        solution = saveval[timestep]
+
+        mkpath("out")
+        filename = timestep === nothing ? "out/data" : "out/data_$timestep"
+
+        points = solution["coordinates"]
+        cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+
+        vtk_grid(filename, points, cells) do vtk
+            for (key, value) in solution
+                if key != "coordinates"
+                    vtk[key] = value
+                end
+            end
+        end
     end
 end

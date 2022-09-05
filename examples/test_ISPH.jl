@@ -16,7 +16,7 @@ for y in 1:n_particles_per_dimension[2],
 
     # Coordinates
     particle_coordinates[1, particle] = (x - 1 - 0.5 * (n_particles_per_dimension[1] - 1)) * spacing
-    particle_coordinates[2, particle] = y * spacing + 30 * spacing
+    particle_coordinates[2, particle] = y * spacing + 10 * spacing
 
     # Velocity
     particle_velocities[1, particle] = 0
@@ -42,11 +42,14 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 10.0
+c = 100.0
+#boundary_conditions = BoundaryConditionCrespo(boundary_coordinates, boundary_masses, c)
+#boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+#                                                      K, beta, spacing / beta)
 boundary_conditions = BoundaryConditionFixedParticleLiu(boundary_coordinates, boundary_masses, particle_densities[1])
 
 # Create semidiscretization
-dt = 1e-5
-pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length, dt)
+pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length)
 semi = EISPHSemidiscretization{2}(particle_masses,
                                 SummationDensity(), pressure_poisson_eq,
                                 smoothing_kernel, smoothing_length,
@@ -55,20 +58,18 @@ semi = EISPHSemidiscretization{2}(particle_masses,
                                 gravity=(0.0, -9.81))
                             #   neighborhood_search=nothing)
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 2.)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
-
 alive_callback = AliveCallback(alive_interval=100)
+dt_callback    = StepSizeCallback(callback_interval=100)
+saving_callback = SolutionSavingCallback(saveat=0.0:0.0001:20.0)
+
+callbacks = CallbackSet(alive_callback, saving_callback.callback, dt_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
-#sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-#            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-#            # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
-#            saveat=0.02, callback=alive_callback);
-#
 sol = solve(ode, 
-            Euler(), #RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=dt, 
+            RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), #Euler(), #
+            dt=1e-4,
             saveat=0.02, 
-            callback=alive_callback);
+            callback=callbacks);

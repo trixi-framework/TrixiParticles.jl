@@ -100,7 +100,7 @@ struct EISPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, PPE, K, V, BC, NS, C}
         # Make gravity an SVector
         gravity_ = SVector(gravity...)
 
-        cache = (; create_cache(particle_masses, density_calculator, ELTYPE, nparticles)...)
+        cache = (; create_cache(pressure_poisson_eq, particle_masses, density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(pressure_poisson_eq),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(boundary_conditions_),
@@ -109,6 +109,15 @@ struct EISPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, PPE, K, V, BC, NS, C}
             viscosity, boundary_conditions_, gravity_, neighborhood_search, cache)
     end
 end
+
+function create_cache(::PPEExplicitLiu, mass, density_calculator, eltype, nparticles)
+    pressure = Vector{eltype}(undef, nparticles)
+    prior_pressure = Vector{eltype}(undef, nparticles)
+    dv_viscosities = Array{eltype, 2}(undef, 2, nparticles)
+    dt             = Vector{eltype}(undef, 1)
+    return (; mass, pressure, prior_pressure, dv_viscosities, dt, create_cache(density_calculator, eltype, nparticles)...)
+end
+
 
 
 function create_cache(mass, density_calculator, eltype, nparticles)
