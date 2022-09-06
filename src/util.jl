@@ -32,6 +32,7 @@ timer() = main_timer
 # but without `try ... finally ... end` block. Thus, it's not exception-safe,
 # but it also avoids some related performance problems. Since we do not use
 # exception handling in Pixie, that's not really an issue.
+#
 # Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 macro pixie_timeit(timer_output, label, expr)
     timeit_block = quote
@@ -68,8 +69,11 @@ might be provided by other packages such as [Polyester.jl](https://github.com/Ju
     This macro does not necessarily work for general `for` loops. For example,
     it does not necessarily support general iterables such as `eachline(filename)`.
 
-Some discussion can be found at https://discourse.julialang.org/t/overhead-of-threads-threads/53964
-and https://discourse.julialang.org/t/threads-threads-with-one-thread-how-to-remove-the-overhead/58435.
+Some discussion can be found at
+[https://discourse.julialang.org/t/overhead-of-threads-threads/53964](https://discourse.julialang.org/t/overhead-of-threads-threads/53964)
+and
+[https://discourse.julialang.org/t/threads-threads-with-one-thread-how-to-remove-the-overhead/58435](https://discourse.julialang.org/t/threads-threads-with-one-thread-how-to-remove-the-overhead/58435).
+
 Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 """
 macro threaded(expr)

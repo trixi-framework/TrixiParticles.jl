@@ -158,9 +158,8 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDen
 end
 
 
-function compute_quantities(u, semi)
-    # Note that @threaded makes this slower with ContinuityDensity
-    for particle in eachparticle(semi)
+function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+    @threaded for particle in eachparticle(semi)
         compute_quantities_per_particle(u, particle, semi)
     end
 end
@@ -187,11 +186,14 @@ end
     pressure[particle] = state_equation(density[particle])
 end
 
-@inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack density_calculator, state_equation, cache = semi
     @unpack pressure = cache
 
-    pressure[particle] = state_equation(get_particle_density(u, cache, density_calculator, particle))
+    # Note that @threaded makes this slower with ContinuityDensity
+    for particle in eachparticle(semi)
+        pressure[particle] = state_equation(get_particle_density(u, cache, density_calculator, particle))
+    end
 end
 
 
