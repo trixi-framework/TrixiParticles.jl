@@ -3,8 +3,8 @@ using OrdinaryDiffEq
 
 setup = ["test_WCSPH"]
 # Particle data
-n_particles_per_dimension = (10, 10)
-spacing = 0.02
+n_particles_per_dimension = (20, 60)
+spacing = 0.01
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 1000 * spacing^2 * ones(Float64, prod(n_particles_per_dimension))
@@ -59,14 +59,18 @@ semi = WCSPHSemidiscretization{2}(particle_masses,
                                 gravity=(0.0, -9.81))
                             #   neighborhood_search=nothing)
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 0.5)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
+saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)
+
+callbacks = CallbackSet(alive_callback, saving_callback.callback)
+
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
-            saveat=0.02, callback=alive_callback);
+            saveat=0.02, callback=callbacks);

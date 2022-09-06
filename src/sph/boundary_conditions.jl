@@ -177,7 +177,13 @@ end
     return - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 end
 
+@doc raw"""
+BoundaryConditionFixedParticleLiu(coordinates, masses, rho_0; neighborhood_search=nothing)
 
+TBD
+
+Not working proper yet!
+"""
 struct BoundaryConditionFixedParticleLiu{ELTYPE<:Real,NS}
     coordinates::Array{ELTYPE,2}
     mass::Vector{ELTYPE}
@@ -213,12 +219,9 @@ end
     @unpack nu = viscosity
 
     v_rel = get_particle_vel(u, semi, particle)
-    if ndims(semi) == 3
-        projection_vec = SVector(1,1,0)
-    else
-        projection_vec = SVector(1,0)
-    end
-    u_tang = v_rel.*projection_vec
+    # TBD: u_tang is the tangential velocity between fluid particle and solid wall
+    # to test the implementation, only the x component is consider
+    u_tang = v_rel.*SVector(1,0)
 
     return -m_b*2*nu*u_tang*dimensionless_contribution_tangential(distance, smoothing_length)/(rho_0^2*smoothing_length^5)
 end

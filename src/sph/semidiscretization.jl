@@ -111,9 +111,9 @@ struct EISPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, PPE, K, V, BC, NS, C}
 end
 
 function create_cache(::PPEExplicitLiu, mass, density_calculator, eltype, nparticles)
-    pressure = Vector{eltype}(undef, nparticles)
-    prior_pressure = Vector{eltype}(undef, nparticles)
-    dv_viscosities = Array{eltype, 2}(undef, 2, nparticles)
+    pressure = vec(zeros(eltype, nparticles))
+    prior_pressure = vec(zeros(eltype, nparticles))
+    dv_viscosities = zeros(eltype, 2, nparticles)
     dt             = Vector{eltype}(undef, 1)
     return (; mass, pressure, prior_pressure, dv_viscosities, dt, create_cache(density_calculator, eltype, nparticles)...)
 end
@@ -127,7 +127,6 @@ end
 
 function create_cache(::SummationDensity, eltype, nparticles)
     density = Vector{eltype}(undef, nparticles)
-
     return (; density)
 end
 

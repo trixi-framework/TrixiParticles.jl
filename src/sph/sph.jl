@@ -25,9 +25,6 @@ function semidiscretize(semi::WCSPHSemidiscretization{NDIMS,ELTYPE,SummationDens
         initialize!(bc, semi)
     end
 
-    # Compute quantities like density and pressure
-    #compute_quantities(u0, semi)
-
     return ODEProblem(rhs!, u0, tspan, semi)
 end
 
@@ -61,12 +58,12 @@ function semidiscretize(semi::WCSPHSemidiscretization{NDIMS,ELTYPE,ContinuityDen
         initialize!(bc, semi)
     end
 
-    # Compute quantities like pressure
-    #compute_quantities(u0, semi)
-
     return ODEProblem(rhs!, u0, tspan, semi)
 end
 
+
+
+# Maybe here is no multiple dispatch necessary to distinguish EISPH from ISPH. 
 function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDensity},
     particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS,ELTYPE}
     @unpack neighborhood_search, boundary_conditions, cache = semi
@@ -82,15 +79,12 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDens
         # Set particle velocities
         for dim in 1:ndims(semi)
             u0[dim+ndims(semi), particle] = particle_velocities[dim, particle]
-            cache.dv_viscosities[dim, particle] = zero(ELTYPE)
         end
 
         # Set particle densities
         u0[end, particle] = particle_densities[particle]
 
         cache.density[particle] = particle_densities[particle]
-        cache.pressure[particle] = zero(ELTYPE)
-        cache.prior_pressure[particle] = zero(ELTYPE)
     end
 
     # Initialize neighborhood search
@@ -100,9 +94,6 @@ function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDens
     @pixie_timeit timer() "initialize boundary conditions" for bc in boundary_conditions
         initialize!(bc, semi)
     end
-
-    # Compute quantities like pressure
-    #compute_quantities(u0, semi)
 
     return ODEProblem(rhs!, u0, tspan, semi)
 end
@@ -277,7 +268,7 @@ end
 
     # Viscosity
     v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
-    # viscosity() has a negativ return value.
+    # TBD: viscosity() has a negativ return value.
     pi_ab = -viscosity(v_diff, pos_diff, distance, density_particle, density_neighbor, smoothing_length)
 
     dv_pressure = -mass[neighbor] * (pressure[particle] / density_particle^2 +
