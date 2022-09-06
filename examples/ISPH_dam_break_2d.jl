@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 setup = ["dam_break_2d",                     #2D_tank #2D_tank_staggered_bp
-    "WCSPH"]     #NoViscosity #ArtificialViscosityMonaghan #ArtificialViscosityFerrari
+    "ISPH"]     #NoViscosity #ArtificialViscosityMonaghan #ArtificialViscosityFerrari
 
 particle_spacing = 0.01
 beta = 3
@@ -78,28 +78,31 @@ boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boun
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-# state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
+pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length)
 
-semi = WCSPHSemidiscretization{2}(particle_masses,
-                                ContinuityDensity(), state_equation,
+semi = EISPHSemidiscretization{2}(particle_masses,
+                                SummationDensity(), pressure_poisson_eq,
                                 smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(100.0, 0.02, 0.0),
+                                viscosity=ViscosityClearyMonaghan(1e-6), #ViscosityClearyMonaghan(1e-6) # ArtificialViscosityMonaghan(100.0, 0.02, 0.0)
                                 boundary_conditions=boundary_conditions,
                                 gravity=(0.0, -9.81),
                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 3.)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
+dt_callback    = StepSizeCallback(callback_interval=100)
+saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)
+
+callbacks = CallbackSet(alive_callback, saving_callback.callback, dt_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities, use 2e-5 for spacing 0.004
-            saveat=0.02, callback=alive_callback);
+            saveat=0.02, callback=callbacks);
 
 # Move right boundary
 for y in 1:n_boundaries_vertical
@@ -111,11 +114,12 @@ end
 
 # Run full simulation
 tspan = (0.0, 3.0)#5.7 / sqrt(9.81))
-ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), view(sol[end], 5, :), tspan)
+ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), particle_densities, tspan)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
-            saveat=0.02, callback=alive_callback);
+            saveat=0.02, callback=callbacks);
+

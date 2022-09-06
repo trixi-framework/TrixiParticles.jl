@@ -109,10 +109,10 @@ boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boun
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-semi = SPHSemidiscretization{3}(particle_masses,
+semi = WCSPHSemidiscretization{3}(particle_masses,
                                 ContinuityDensity(), state_equation,
                                 smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(0.1, 0.2),
+                                viscosity=ArtificialViscosityMonaghan(0.1, 0.2, 0.0),
                                 boundary_conditions=boundary_conditions,
                                 gravity=(0.0, -9.81, 0.0),
                                 neighborhood_search=SpatialHashingSearch{3}(search_radius))

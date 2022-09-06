@@ -24,6 +24,13 @@ Modules = [Pixie]
 Pages = [joinpath("sph", "sph.jl")]
 ```
 
+## File semidiscretization.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "semidiscretization.jl")]
+```
+
+
 ## File state_equations.jl
 ```@autodocs
 Modules = [Pixie]
@@ -34,4 +41,10 @@ Pages = [joinpath("sph", "state_equations.jl")]
 ```@autodocs
 Modules = [Pixie]
 Pages = [joinpath("sph", "viscosity.jl")]
+```
+
+## File pressure_poisson_equation.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "pressure_poisson_equation.jl")]
 ```

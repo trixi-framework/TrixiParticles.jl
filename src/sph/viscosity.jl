@@ -38,25 +38,27 @@ References:
   [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
 
 
-  !!! note "TBD"
-  - RE> 1: Monaghan’s formulation
-  - RE< 1 Morris’ formulation 
-  References:
-  - Alexiadis, Alessio. "The Discrete Multi-Hybrid System for the Simulation of Solid-Liquid Flows "
-  doi: 10.1371/journal.pone.0124678
+!!! note "TBD"
+    - RE> 1: Monaghan’s formulation
+    - RE< 1 Morris’ formulation 
+    References:
+    - Alexiadis, Alessio. "The Discrete Multi-Hybrid System for the Simulation of Solid-Liquid Flows "
+    doi: 10.1371/journal.pone.0124678
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
+    c       ::ELTYPE
     alpha   ::ELTYPE
     beta    ::ELTYPE
     epsilon ::ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
-        new{typeof(alpha)}(alpha, beta, epsilon)
+    function ArtificialViscosityMonaghan(c, alpha, beta, epsilon=0.01)
+        new{typeof(alpha)}(c, alpha, beta, epsilon)
     end
 end
 
-function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance, density_mean, h)
-    @unpack alpha, beta, epsilon = viscosity
+function (viscosity::ArtificialViscosityMonaghan)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack c, alpha, beta, epsilon = viscosity
+    density_mean = (density_particle + density_neighbor) / 2
 
     # v_ab ⋅ r_ab
     vr = sum(v_diff .* pos_diff)
@@ -67,4 +69,54 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
     end
 
     return 0.0
+end
+
+@doc raw"""
+    ViscosityMorris(mu)
+References:
+- Lu Liu. "DEM–SPH coupling method for the interaction between irregularly shaped granular materials and ﬂuids".
+  In: Powder Technology 400 (2022).
+  [doi: 10.1016/j.powtec.2022.117249](https://doi.org/10.1016/j.powtec.2022.117249)
+  !!! note "TBD"
+
+"""
+struct ViscosityMorris{ELTYPE}
+    nu   ::ELTYPE
+
+    function ViscosityMorris(nu)
+        new{typeof(nu)}(nu)
+    end
+end
+
+function (viscosity::ViscosityMorris)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack nu = viscosity
+
+    vr = sum(v_diff .* pos_diff)
+
+end
+
+@doc raw"""
+    ViscosityClearyMonaghan(mu)
+References:
+- P.W. Cleary, J.J. Monahgan "Conduction Modelling Using Smoothed Particle Hydrodynamics".
+  In: Powder Technology 400 (2022).
+  [doi: 10.1006/jcph.1998.6118](https://doi.org/10.1006/jcph.1998.6118)
+  !!! note "TBD"
+
+"""
+struct ViscosityClearyMonaghan{ELTYPE}
+    nu   ::ELTYPE
+
+    function ViscosityClearyMonaghan(nu)
+        new{typeof(nu)}(nu)
+    end
+end
+
+function (viscosity::ViscosityClearyMonaghan)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack nu = viscosity
+    eta = 0.1*h # to keep the denominator nonzero.
+    vr = sum(pos_diff .* v_diff)
+
+    return -16*nu*vr/((density_particle+density_neighbor)*(distance^2+eta^2))
+
 end
