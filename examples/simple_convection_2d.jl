@@ -35,9 +35,10 @@ ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
 # ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
-saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+                                                       index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
 
-callbacks = CallbackSet(alive_callback, saving_callback.callback)
+callbacks = CallbackSet(alive_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
