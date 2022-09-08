@@ -117,13 +117,6 @@ end
 
 end
 
-function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMonaghanKajtar, semi)
-    @threaded for particle in eachparticle(semi)
-        calc_boundary_condition_per_particle!(du, u, particle, boundary_condition, semi)
-    end
-
-    return du
-end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
