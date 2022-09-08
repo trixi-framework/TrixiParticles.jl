@@ -258,10 +258,13 @@ end
     density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
-
-    dv = -mass[neighbor] * (pressure[particle] / density_particle^2 +
-                            pressure[neighbor] / density_neighbor^2 + pi_ab) *
-        kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    grad_kernel =  kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance                     
+    m_b = mass[neighbor]
+    dv_pressure = - m_b * (pressure[particle] / density_particle^2 +
+                            pressure[neighbor] / density_neighbor^2) * grad_kernel
+    dv_viscosity = m_b * pi_ab * grad_kernel                 
+    
+    dv = dv_pressure + dv_viscosity
 
     for i in 1:ndims(semi)
         du[ndims(semi) + i, particle] += dv[i]

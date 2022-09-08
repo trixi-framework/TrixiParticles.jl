@@ -94,6 +94,28 @@ end
 
 @inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
 
+@inline function boundary_impact_normal(boundary_condition::BoundaryConditionMonaghanKajtar,
+                                        semi, distance, pos_diff, particle, m_a, m_b)
+    @unpack smoothing_length = semi
+    @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
+
+    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+           boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
+
+end
+
+@inline function boundary_impact_tangential(boundary_condition::BoundaryConditionMonaghanKajtar,
+                                            semi, u, particle, pos_diff, distance, m_b)
+    @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
+
+    particle_density = get_particle_density(u, cache, density_calculator, particle)
+    v_rel = get_particle_vel(u, semi, particle)
+    pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
+
+
+    return m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+end
 
 function calc_boundary_condition!(du, u, boundary_condition::BoundaryConditionMonaghanKajtar, semi)
     @threaded for particle in eachparticle(semi)
@@ -107,31 +129,27 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function calc_boundary_condition_per_particle!(du, u, particle,
-                                                       boundary_condition::BoundaryConditionMonaghanKajtar,
+                                                       boundary_condition,
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
             density_calculator, state_equation, viscosity, cache = semi
     @unpack coordinates, mass, K, beta,
             boundary_particle_spacing, neighborhood_search = boundary_condition
 
+    m_a = cache.mass[particle]
     for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
         pos_diff = get_particle_coords(u, semi, particle) -
                    get_particle_coords(boundary_condition, semi, boundary_particle)
         distance = norm(pos_diff)
 
         if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
-            # Viscosity
-            v_diff = get_particle_vel(u, semi, particle)
-            pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                              get_particle_density(u, cache, density_calculator, particle),
-                              smoothing_length)
 
             m_b = mass[boundary_particle]
 
-            f_ab = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-                boundary_kernel(distance, smoothing_length) * 2 * m_b / (cache.mass[particle] + m_b)
+            f_n = boundary_impact_normal(boundary_condition, semi, distance, pos_diff, particle, m_a, m_b)
+            f_t = boundary_impact_tangential(boundary_condition, semi, u, particle, pos_diff, distance, m_b)
 
-            dv = f_ab - m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+            dv = f_n + f_t
 
             for i in 1:ndims(semi)
                 du[ndims(semi) + i, particle] += dv[i]
