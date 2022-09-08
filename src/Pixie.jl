@@ -28,7 +28,7 @@ export SPHSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallb
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
-export ArtificialViscosityMonaghan
+export ArtificialViscosityMonaghan, ViscosityClearyMonaghan
 export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
 export examples_dir, pixie_include

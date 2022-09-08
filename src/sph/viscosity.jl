@@ -60,3 +60,35 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
 
     return 0.0
 end
+
+@doc raw"""
+    ViscosityClearyMonaghan(nu)
+Viscosity by Cleary and Monaghan, given by
+```math
+\left(\nu \nabla^2 \vec{u} \right)_i= \sum_{j=1}^N \frac{8 (\nu_i + \nu_j)}{\rho_i + \rho_j}\frac{ \vec{r_{ij}} \cdot \vec{u_{ij}} }{r_{ij}^2 + \eta^2} \nabla_i W_{ij},
+```
+where ``\vec{u_{ij}} = \vec{u_{i}} - \vec{u_{j}} ``, ``\eta = 0.1 h`` is to keep the denominator nonzero and ``\nu`` is the kinematic viscosity.
+
+References:
+- P.W. Cleary, J.J. Monahgan "Conduction Modelling Using Smoothed Particle Hydrodynamics".
+  In: Powder Technology 400 (1999).
+  [doi: 10.1006/jcph.1998.6118](https://doi.org/10.1006/jcph.1998.6118)
+  !!! note "TBD"
+
+"""
+struct ViscosityClearyMonaghan{ELTYPE}
+    nu   ::ELTYPE
+
+    function ViscosityClearyMonaghan(nu)
+        new{typeof(nu)}(nu)
+    end
+end
+
+function (viscosity::ViscosityClearyMonaghan)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+    @unpack nu = viscosity
+    eta = 0.1*h # to keep the denominator nonzero.
+    vr = sum(pos_diff .* v_diff)
+
+    return -16*nu*vr/((density_particle+density_neighbor)*(distance^2+eta^2))
+
+end
