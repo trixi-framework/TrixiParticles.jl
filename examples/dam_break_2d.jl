@@ -26,7 +26,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 K = 4 * 9.81 * water_height
 boundary_conditions = BoundaryConditionMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
                                                       K, beta, particle_spacing / beta,
-                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                                      sound_speed=c, neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)

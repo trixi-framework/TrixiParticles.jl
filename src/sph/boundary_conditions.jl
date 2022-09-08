@@ -63,14 +63,15 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
     K                           ::ELTYPE
     beta                        ::ELTYPE
     boundary_particle_spacing   ::ELTYPE
+    sound_speed                 ::ELTYPE
     neighborhood_search         ::NS
 
     function BoundaryConditionMonaghanKajtar(coordinates, masses, K, beta,
                                              boundary_particle_spacing;
-                                             neighborhood_search=nothing)
+                                             sound_speed=nothing, neighborhood_search=nothing)
         new{typeof(K), typeof(neighborhood_search)}(coordinates, masses, K, beta,
                                                     boundary_particle_spacing,
-                                                    neighborhood_search)
+                                                    sound_speed, neighborhood_search)
     end
 end
 
@@ -101,7 +102,7 @@ end
 
     particle_density = get_particle_density(u, cache, density_calculator, particle)
     v_rel = get_particle_vel(u, semi, particle)
-    pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
+    pi_ab = viscosity(sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
 
     dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
@@ -120,7 +121,7 @@ end
                                                        boundary_condition,
                                                        semi)
     @unpack smoothing_kernel, smoothing_length,
-            density_calculator, state_equation, viscosity, cache = semi
+            density_calculator, viscosity, cache = semi
     @unpack coordinates, mass, K, beta,
             boundary_particle_spacing, neighborhood_search = boundary_condition
 

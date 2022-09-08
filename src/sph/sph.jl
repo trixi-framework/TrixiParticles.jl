@@ -60,6 +60,50 @@ struct SPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C}
     end
 end
 
+struct EISPHSemidiscretization{NDIMS, ELTYPE<:Real, DC, PPE, K, V, BC, NS, C}
+    density_calculator  ::DC
+    pressure_poisson_eq ::PPE
+    smoothing_kernel    ::K
+    smoothing_length    ::ELTYPE
+    viscosity           ::V
+    boundary_conditions ::BC
+    gravity             ::SVector{NDIMS, ELTYPE}
+    neighborhood_search ::NS
+    cache               ::C
+
+    function EISPHSemidiscretization{NDIMS}(particle_masses,
+                                          density_calculator, pressure_poisson_eq,
+                                          smoothing_kernel, smoothing_length;
+                                          viscosity=NoViscosity(),
+                                          boundary_conditions=nothing,
+                                          gravity=ntuple(_ -> 0.0, Val(NDIMS)),
+                                          neighborhood_search=nothing) where NDIMS
+        ELTYPE = eltype(particle_masses)
+        nparticles = length(particle_masses)
+
+        # Make boundary_conditions a tuple
+        boundary_conditions_ = digest_boundary_conditions(boundary_conditions)
+
+        # Make gravity an SVector
+        gravity_ = SVector(gravity...)
+
+        cache = (; create_cache(pressure_poisson_eq, particle_masses, density_calculator, ELTYPE, nparticles)...)
+
+        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(pressure_poisson_eq),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(boundary_conditions_),
+                   typeof(neighborhood_search), typeof(cache)}(
+            density_calculator, pressure_poisson_eq, smoothing_kernel, smoothing_length,
+            viscosity, boundary_conditions_, gravity_, neighborhood_search, cache)
+    end
+end
+
+function create_cache(::PPEExplicitLiu, mass, density_calculator, eltype, nparticles)
+    pressure = vec(zeros(eltype, nparticles))
+    prior_pressure = vec(zeros(eltype, nparticles))
+    dv_viscosities = zeros(eltype, 2, nparticles)
+    dt             = Vector{eltype}(undef, 1)
+    return (; mass, pressure, prior_pressure, dv_viscosities, dt, create_cache(density_calculator, eltype, nparticles)...)
+end
 
 function create_cache(mass, density_calculator, eltype, nparticles)
     pressure = Vector{eltype}(undef, nparticles)
@@ -104,9 +148,6 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDens
         initialize!(bc, semi)
     end
 
-    # Compute quantities like density and pressure
-    compute_quantities(u0, semi)
-
     return ODEProblem(rhs!, u0, tspan, semi)
 end
 
@@ -140,17 +181,53 @@ function semidiscretize(semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDen
         initialize!(bc, semi)
     end
 
-    # Compute quantities like pressure
-    compute_quantities(u0, semi)
-
     return ODEProblem(rhs!, u0, tspan, semi)
 end
 
+function semidiscretize(semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDensity},
+    particle_coordinates, particle_velocities, particle_densities, tspan) where {NDIMS,ELTYPE}
+    @unpack neighborhood_search, boundary_conditions, cache = semi
+
+    u0 = Array{eltype(particle_coordinates),2}(undef, 2 * ndims(semi) + 1, nparticles(semi))
+
+    for particle in eachparticle(semi)
+        # Set particle coordinates
+        for dim in 1:ndims(semi)
+            u0[dim, particle] = particle_coordinates[dim, particle]
+        end
+
+        # Set particle velocities
+        for dim in 1:ndims(semi)
+            u0[dim+ndims(semi), particle] = particle_velocities[dim, particle]
+        end
+
+        # Set particle densities
+        u0[end, particle] = particle_densities[particle]
+
+        cache.density[particle] = particle_densities[particle]
+    end
+
+    # Initialize neighborhood search
+    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+
+    # Initialize boundary conditions
+    @pixie_timeit timer() "initialize boundary conditions" for bc in boundary_conditions
+        initialize!(bc, semi)
+    end
+
+    return ODEProblem(rhs!, u0, tspan, semi)
+end
 
 function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     @threaded for particle in eachparticle(semi)
         compute_quantities_per_particle(u, particle, semi)
     end
+end
+function compute_quantities(u, semi::EISPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
+    @threaded for particle in eachparticle(semi)
+        compute_quantities_per_particle(u, particle, semi)
+    end
+    update_pressure(semi)
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
@@ -175,6 +252,24 @@ end
     pressure[particle] = state_equation(density[particle])
 end
 
+@inline function compute_quantities_per_particle(u, particle, semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDensity}) where {NDIMS,ELTYPE}
+    @unpack  smoothing_kernel, smoothing_length, neighborhood_search, cache, pressure_poisson_eq = semi
+    @unpack mass, density, pressure, dt, dv_viscosities = cache
+
+    u[end, particle] = zero(eltype(density))
+
+    for neighbor in eachneighbor(particle, u, neighborhood_search, semi)
+        distance = norm(get_intermediate_coords(u, semi, particle, dt[1]) -
+                        get_intermediate_coords(u, semi, neighbor, dt[1]))
+
+        if distance <= compact_support(smoothing_kernel, smoothing_length)
+            u[end, particle] += mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
+        end
+    end
+
+    pressure[particle] = pressure_poisson_eq(u, semi, particle)
+end
+
 function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack density_calculator, state_equation, cache = semi
     @unpack pressure = cache
@@ -185,6 +280,17 @@ function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, Contin
     end
 end
 
+
+@inline function update_pressure(semi::EISPHSemidiscretization)
+    @unpack cache = semi
+    @unpack pressure, prior_pressure, dv_viscosities = cache
+
+    for particle in eachparticle(semi)
+        prior_pressure[particle] = pressure[particle]
+        # reset pressureless momentum eq
+        dv_viscosities[particle] = zero(eltype(dv_viscosities))
+    end    
+end
 
 function rhs!(du, u, semi, t)
     @unpack smoothing_kernel, smoothing_length,
@@ -280,6 +386,34 @@ end
     return du
 end
 
+@inline function calc_dv!(du, u, particle, neighbor, pos_diff, distance, semi::EISPHSemidiscretization)
+    @unpack smoothing_kernel, smoothing_length,
+    density_calculator, viscosity, cache = semi
+    @unpack mass, pressure, dv_viscosities = cache
+
+    density_particle = get_particle_density(u, cache, density_calculator, particle)
+    density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
+
+    # Viscosity
+    v_diff = get_particle_vel(u, semi, particle) - get_particle_vel(u, semi, neighbor)
+    pi_ab = viscosity(0.0, v_diff, pos_diff, distance, density_particle, smoothing_length)
+
+    dv_pressure = -mass[neighbor] * (pressure[particle] / density_particle^2 +
+                                    pressure[neighbor] / density_neighbor^2) *
+                    kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+    dv_viscosity = mass[neighbor] * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+    dv = dv_pressure + dv_viscosity
+
+    for i in 1:ndims(semi)
+        du[i+ndims(semi), particle] += dv[i]
+        dv_viscosities[i, particle] += dv_viscosity[i]
+    end
+
+    
+    return du
+end
 
 @inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
                               semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
@@ -301,6 +435,10 @@ end
     return du
 end
 
+@inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
+    semi::EISPHSemidiscretization{NDIMS,ELTYPE,SummationDensity}) where {NDIMS,ELTYPE}
+    return du
+end
 
 @inline function get_particle_coords(u, semi, particle)
     return SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(semi))))
@@ -330,3 +468,4 @@ end
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline nparticles(semi) = length(semi.cache.mass)
 @inline Base.ndims(::SPHSemidiscretization{NDIMS}) where NDIMS = NDIMS
+@inline Base.ndims(::EISPHSemidiscretization{NDIMS}) where {NDIMS} = NDIMS

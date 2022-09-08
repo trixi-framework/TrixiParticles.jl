@@ -84,11 +84,11 @@ struct ViscosityClearyMonaghan{ELTYPE}
     end
 end
 
-function (viscosity::ViscosityClearyMonaghan)(v_diff, pos_diff, distance, density_particle, density_neighbor, h)
+function (viscosity::ViscosityClearyMonaghan)(c, v_diff, pos_diff, distance, density_particle, h)
     @unpack nu = viscosity
     eta = 0.1*h # to keep the denominator nonzero.
     vr = sum(pos_diff .* v_diff)
 
-    return -16*nu*vr/((density_particle+density_neighbor)*(distance^2+eta^2))
+    return 8*nu*vr/((density_particle)*(distance^2+eta^2))
 
 end
