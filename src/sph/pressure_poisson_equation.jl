@@ -65,7 +65,7 @@ function (PressurePoissonEquation::PPEExplicitLiu)(u, semi, particle)
     # TBD: Better solution to store the intermediate density. 
     intermediate_density = u[end, particle]
     
-    if intermediate_density > 0.9 * density_particle
+    if intermediate_density > 0.7 * density_particle
         particle_coords = get_particle_coords(u, semi, particle)
 
         vel_intermediate_particle = get_intermediate_vel(u, semi, particle, dt[1])
