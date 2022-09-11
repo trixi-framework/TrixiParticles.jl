@@ -289,7 +289,7 @@ end
         prior_pressure[particle] = pressure[particle]
         # reset pressureless momentum eq
         dv_viscosities[particle] = zero(eltype(dv_viscosities))
-    end    
+    end
 end
 
 function rhs!(du, u, semi, t)
@@ -411,7 +411,7 @@ end
         dv_viscosities[i, particle] += dv_viscosity[i]
     end
 
-    
+
     return du
 end
 
