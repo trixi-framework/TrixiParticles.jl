@@ -222,7 +222,7 @@ function rhs!(du, u, semi, t)
                 end
             end
 
-            add_gravity!(du, particle, semi)
+            calc_gravity!(du, particle, semi)
 
             # boundary impact
             for bc in boundary_conditions
@@ -241,12 +241,17 @@ end
     return du
 end
 
-@inline function add_gravity!(du, particle, semi)
+@inline function calc_gravity!(du, particle, semi)
     @unpack gravity = semi
+
     for i in 1:ndims(semi)
+
         # Gravity
+
         du[i+ndims(semi), particle] += gravity[i]
+
     end
+
     return du
 end
 
@@ -264,12 +269,12 @@ end
     density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
-    grad_kernel =  kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance                     
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
     m_b = mass[neighbor]
     dv_pressure = - m_b * (pressure[particle] / density_particle^2 +
-                            pressure[neighbor] / density_neighbor^2) * grad_kernel
-    dv_viscosity = m_b * pi_ab * grad_kernel                 
-    
+                           pressure[neighbor] / density_neighbor^2) * grad_kernel
+    dv_viscosity = m_b * pi_ab * grad_kernel
+
     dv = dv_pressure + dv_viscosity
 
     for i in 1:ndims(semi)

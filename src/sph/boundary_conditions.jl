@@ -94,26 +94,21 @@ end
 
 @inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
 
-@inline function boundary_impact_normal(boundary_condition::BoundaryConditionMonaghanKajtar,
-                                        semi, distance, pos_diff, particle, m_a, m_b)
-    @unpack smoothing_length = semi
-    @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
-
-    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-           boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
-
-end
-
-@inline function boundary_impact_tangential(boundary_condition::BoundaryConditionMonaghanKajtar,
-                                            semi, u, particle, pos_diff, distance, m_b)
+@inline function boundary_particle_impact(boundary_condition::BoundaryConditionMonaghanKajtar,
+                                        semi, u, particle, distance, pos_diff, m_a, m_b)
     @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
+    @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
 
     particle_density = get_particle_density(u, cache, density_calculator, particle)
     v_rel = get_particle_vel(u, semi, particle)
     pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
 
+    dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-    return m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+                    boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
+
+    return dv_viscosity + dv_repulsive
 
 end
 
@@ -139,10 +134,7 @@ end
 
             m_b = mass[boundary_particle]
 
-            f_n = boundary_impact_normal(boundary_condition, semi, distance, pos_diff, particle, m_a, m_b)
-            f_t = boundary_impact_tangential(boundary_condition, semi, u, particle, pos_diff, distance, m_b)
-
-            dv = f_n + f_t
+            dv = boundary_particle_impact(boundary_condition, semi, u, particle, distance, pos_diff, m_a, m_b)
 
             for i in 1:ndims(semi)
                 du[ndims(semi) + i, particle] += dv[i]
