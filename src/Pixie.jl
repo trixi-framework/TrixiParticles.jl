@@ -30,5 +30,6 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
+export examples_dir, pixie_include
 
 end # module

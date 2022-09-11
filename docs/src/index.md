@@ -44,3 +44,10 @@ Pages = [joinpath("sph", "state_equations.jl")]
 Modules = [Pixie]
 Pages = [joinpath("sph", "viscosity.jl")]
 ```
+
+## Util
+
+```@autodocs
+Modules = [Pixie]
+Pages = ["util.jl"]
+```
