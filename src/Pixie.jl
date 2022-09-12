@@ -31,5 +31,6 @@ export ArtificialViscosityMonaghan
 export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
 export examples_dir, pixie_include
+export pixie2vtk
 
 end # module
