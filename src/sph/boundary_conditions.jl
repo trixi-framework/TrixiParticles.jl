@@ -97,8 +97,8 @@ end
 
 @inline function boundary_particle_impact(boundary_condition::BoundaryConditionMonaghanKajtar,
                                         semi, u, particle, distance, pos_diff, m_a, m_b)
-    @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
-    @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
+    @unpack smoothing_kernel, smoothing_length, viscosity, cache, density_calculator = semi
+    @unpack coordinates, mass, K, beta, boundary_particle_spacing, sound_speed = boundary_condition
 
     particle_density = get_particle_density(u, cache, density_calculator, particle)
     v_rel = get_particle_vel(u, semi, particle)
