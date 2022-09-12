@@ -55,7 +55,7 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
 
     if vr < 0
         mu = h * vr / (distance^2 + epsilon * h^2)
-        return -(alpha * c * mu + beta * mu^2) / density_mean
+        return (alpha * c * mu + beta * mu^2) / density_mean
     end
 
     return 0.0

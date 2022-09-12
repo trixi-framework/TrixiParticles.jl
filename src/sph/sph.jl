@@ -222,15 +222,12 @@ function rhs!(du, u, semi, t)
                 end
             end
 
-            for i in 1:ndims(semi)
-                # Gravity
-                du[i + ndims(semi), particle] += gravity[i]
-            end
-        end
+            calc_gravity!(du, particle, semi)
 
-        # Boundary conditions
-        @pixie_timeit timer() "boundary conditions" for bc in boundary_conditions
-            calc_boundary_condition!(du, u, bc, semi)
+            # boundary impact
+            for bc in boundary_conditions
+                calc_boundary_condition_per_particle!(du, u, particle, bc, semi)
+            end
         end
     end
 
@@ -240,6 +237,16 @@ end
 
 @inline function reset_du!(du)
     du .= zero(eltype(du))
+
+    return du
+end
+
+@inline function calc_gravity!(du, particle, semi)
+    @unpack gravity = semi
+
+    for i in 1:ndims(semi)
+        du[i+ndims(semi), particle] += gravity[i]
+    end
 
     return du
 end
@@ -258,10 +265,13 @@ end
     density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    m_b = mass[neighbor]
+    dv_pressure = - m_b * (pressure[particle] / density_particle^2 +
+                           pressure[neighbor] / density_neighbor^2) * grad_kernel
+    dv_viscosity = m_b * pi_ab * grad_kernel
 
-    dv = -mass[neighbor] * (pressure[particle] / density_particle^2 +
-                            pressure[neighbor] / density_neighbor^2 + pi_ab) *
-        kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv = dv_pressure + dv_viscosity
 
     for i in 1:ndims(semi)
         du[ndims(semi) + i, particle] += dv[i]
