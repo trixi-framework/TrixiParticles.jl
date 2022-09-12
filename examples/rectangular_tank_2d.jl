@@ -93,4 +93,4 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, save_everystep=false, callback=alive_callback);
+sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), dt=1e-5, save_everystep=false, callback=callbacks);
