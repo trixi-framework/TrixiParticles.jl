@@ -106,7 +106,7 @@ end
     dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
     dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-                    boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
+        boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
 
     return dv_viscosity + dv_repulsive
 

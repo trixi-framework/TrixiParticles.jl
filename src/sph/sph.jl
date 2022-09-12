@@ -249,7 +249,6 @@ end
         # Gravity
 
         du[i+ndims(semi), particle] += gravity[i]
-
     end
 
     return du
