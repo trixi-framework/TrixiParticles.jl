@@ -1,55 +1,104 @@
 struct RectangularTank{NDIMS, ELTYPE<:Real}
-    particle_spacing    ::ELTYPE
-    fluid_width         ::ELTYPE
-    fluid_heigth        ::ELTYPE
-    fluid_depth         ::ELTYPE
-    container_width     ::ELTYPE
-    container_height    ::ELTYPE
-    container_depth     ::ELTYPE
-    fluid_density       ::ELTYPE
+    particle_spacing            ::ELTYPE
+    boundary_particle_spacing   ::ELTYPE
+    fluid_width                 ::ELTYPE
+    fluid_heigth                ::ELTYPE
+    fluid_depth                 ::ELTYPE
+    container_width             ::ELTYPE
+    container_height            ::ELTYPE
+    container_depth             ::ELTYPE
+    fluid_density               ::ELTYPE
 
-    function RectangularTank(particle_spacing, fluid_width, fluid_heigth)
+    function RectangularTank(particle_spacing, boundary_particle_spacing, fluid_width, fluid_heigth,
+                             container_width, container_height, rest_density;
+                             init_velocity=0.0, boundary_density=rest_density)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
+        mass = rest_density * particle_spacing^2
 
         # Particle data
-        n_particles_per_dimension = (Int(water_width / particle_spacing),
-                                     Int(water_height / particle_spacing))
+        n_particles_per_dimension = (Int(fluid_width / particle_spacing),
+                                     Int(fluid_heigth / particle_spacing))
 
-        particle_coordinates = initialize_particle_coords(particle_spacing, n_particles_per_dimension)
+        particle_coordinates, particle_velocities = initialize_particles(particle_spacing, init_velocity, n_particles_per_dimension)
+        particle_densities = rest_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
-        # Make boundary_conditions a tuple
-        boundary_conditions_ = digest_boundary_conditions(boundary_conditions)
+        # Boundary particle data
+        n_boundaries_x = Int(container_width / boundary_particle_spacing) + 1
+        n_boundaries_y = Int(container_height / boundary_particle_spacing) - 1
+        n_boundaries   = 2 * n_boundaries_y + n_boundaries_x
 
-        # Make gravity an SVector
-        gravity_ = SVector(gravity...)
+        boundary_coordinates = initialize_boundaries(boundary_particle_spacing,
+                                                     n_boundaries, n_boundaries_x, n_boundaries_y)
 
-        cache = (; create_cache(particle_masses, density_calculator, ELTYPE, nparticles)...)
 
-        return new{NDIMS, ELTYPE}(
-            density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, boundary_conditions_, gravity_, neighborhood_search, cache)
+        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+
+        return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
+                                  boundary_coordinates, boundary_masses)
+    end
+
+    function RectangularTank(particle_spacing, boundary_particle_spacing,
+                             fluid_width, fluid_heigth, fluid_depth,
+                             container_width, container_height, container_depth,
+                             rest_density;
+                             init_velocity=0.0, boundary_density=rest_density)
+        NDIMS = 3
+        ELTYPE = eltype(particle_spacing)
+        mass = rest_density * particle_spacing^2
+
+        # Particle data
+        n_particles_per_dimension = (Int(fluid_width / particle_spacing),
+                                     Int(fluid_heigth / particle_spacing),
+                                     Int(fluid_depth / particle_spacing))
+
+        particle_coordinates, particle_velocities = initialize_particles(particle_spacing, init_velocity, n_particles_per_dimension)
+        particle_densities = rest_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
+
+        # Boundary particle data
+
+        n_boundaries_x = ceil(Int, (container_width + particle_spacing) / boundary_particle_spacing) - 1
+        n_boundaries_y = Int(container_height / boundary_particle_spacing) + 1
+        n_boundaries_z = Int((container_depth + particle_spacing) / boundary_particle_spacing) - 1
+        n_boundaries   = 2 * n_boundaries_y + n_boundaries_x
+
+        boundary_coordinates = initialize_boundaries(boundary_particle_spacing, n_boundaries,
+                                                     n_boundaries_x, n_boundaries_y, n_boundaries_z)
+
+
+        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+
+        return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
+                                  boundary_coordinates, boundary_masses)
     end
 end
 
 
-function  initialize_particle_coords(particle_spacing, n_particles_per_dimension::Tuple{Int64, Int64})
+function  initialize_particle_coords(particle_spacing, init_velocity, n_particles_per_dimension::Tuple{Int64, Int64})
     particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+    particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 
     for y in 1:n_particles_per_dimension[2],
             x in 1:n_particles_per_dimension[1]
         particle = (x - 1) * n_particles_per_dimension[2] + y
 
+        # Coordinates
         particle_coordinates[1, particle] = x * particle_spacing
         particle_coordinates[2, particle] = y * particle_spacing
+
+        # Velocities
+        particle_velocities[1, particle] = init_velocity
+        particle_velocities[2, particle] = init_velocity
     end
 
-    return particle_coordinates
+    return particle_coordinates, particle_velocities
 end
 
-
-function  initialize_particle_coords(particle_spacing, n_particles_per_dimension::Tuple{Int64, Int64, Int64})
+function  initialize_particle_coords(particle_spacing, init_velocity, n_particles_per_dimension::Tuple{Int64, Int64, Int64})
     particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+    particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
 
     for z in 1:n_particles_per_dimension[3],
             y in 1:n_particles_per_dimension[2],
@@ -57,10 +106,101 @@ function  initialize_particle_coords(particle_spacing, n_particles_per_dimension
         particle = (x - 1) * n_particles_per_dimension[2] * n_particles_per_dimension[3] +
             (y - 1) * n_particles_per_dimension[3] + z
 
+        # Coordinates
         particle_coordinates[1, particle] = x * particle_spacing
         particle_coordinates[2, particle] = y * particle_spacing
         particle_coordinates[3, particle] = z * particle_spacing
+
+        # Velocities
+        particle_velocities[1, particle] = init_velocity
+        particle_velocities[2, particle] = init_velocity
+        particle_velocities[3, particle] = init_velocity
     end
 
     return particle_coordinates
+end
+
+
+function initialize_boundaries(boundary_particle_spacing, n_boundaries, n_boundaries_x, n_boundaries_y)
+    boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
+
+    # Left boundary
+    for y in 1:n_boundaries_y
+        boundary_particle = y
+
+        boundary_coordinates[1, boundary_particle] = 0
+        boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+    end
+
+    # Right boundary
+    for y in 1:n_boundaries_y
+        boundary_particle = n_boundaries_y + y
+
+        # Keep water in place to run a relaxation for 3s first
+        boundary_coordinates[1, boundary_particle] = water_width + particle_spacing
+        boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+    end
+
+    # Bottom boundary
+    for x in 1:n_boundaries_x
+        boundary_particle = 2*n_boundaries_y + x
+
+        boundary_coordinates[1, boundary_particle] = (x - 1) * boundary_particle_spacing
+        boundary_coordinates[2, boundary_particle] = 0
+    end
+
+    return boundary_coordinates
+end
+
+function initialize_boundaries(boundary_particle_spacing, n_boundaries,
+                               n_boundaries_x, n_boundaries_y, n_boundaries_z)
+    boundary_coordinates = Array{Float64, 2}(undef, 3, n_boundaries)
+
+    boundary_particle = 0
+    # -x boundary
+    for z in 1:(n_boundaries_z + 1), y in 1:n_boundaries_y
+        global boundary_particle += 1
+
+        boundary_coordinates[1, boundary_particle] = 0
+        boundary_coordinates[2, boundary_particle] = (y - 1) * boundary_particle_spacing
+        boundary_coordinates[3, boundary_particle] = (z - 1) * boundary_particle_spacing
+    end
+
+    # +x boundary
+    for z in 1:(n_boundaries_z + 1), y in 1:n_boundaries_y
+        global boundary_particle += 1
+
+        boundary_coordinates[1, boundary_particle] = width + particle_spacing
+        boundary_coordinates[2, boundary_particle] = (y - 1) * boundary_particle_spacing
+        boundary_coordinates[3, boundary_particle] = (z - 1) * boundary_particle_spacing
+    end
+
+    # -z boundary
+    for y in 1:n_boundaries_y, x in 1:n_boundaries_x
+        global boundary_particle += 1
+
+        boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing
+        boundary_coordinates[2, boundary_particle] = (y - 1) * boundary_particle_spacing
+        boundary_coordinates[3, boundary_particle] = 0
+    end
+
+    # -z boundary
+    for y in 1:n_boundaries_y, x in 1:n_boundaries_x
+        global boundary_particle += 1
+
+        boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing
+        boundary_coordinates[2, boundary_particle] = (y - 1) * boundary_particle_spacing
+        boundary_coordinates[3, boundary_particle] = length + particle_spacing
+    end
+
+    # Bottom boundary
+    for z in 1:n_boundaries_z, x in 1:n_boundaries_x
+        global boundary_particle += 1
+
+        boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing
+        boundary_coordinates[2, boundary_particle] = 0
+        boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
+    end
+
+    return boundary_coordinates
 end
