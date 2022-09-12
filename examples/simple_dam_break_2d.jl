@@ -62,8 +62,7 @@ tspan = (0.0, 5.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
@@ -72,4 +71,4 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
-            saveat=0.02, callback=callbacks);
+            save_everystep=false, callback=callbacks);
