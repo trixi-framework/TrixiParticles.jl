@@ -245,9 +245,6 @@ end
     @unpack gravity = semi
 
     for i in 1:ndims(semi)
-
-        # Gravity
-
         du[i+ndims(semi), particle] += gravity[i]
     end
 
