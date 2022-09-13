@@ -32,5 +32,8 @@ tspan = (0.0, 5.0)
 ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
 
 alive_callback = AliveCallback(alive_interval=20)
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)
 
-sol = solve(ode, RDPK3SpFSAL49(), saveat=0.04, callback=alive_callback);
+callbacks = CallbackSet(alive_callback, saving_callback)
+
+sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
