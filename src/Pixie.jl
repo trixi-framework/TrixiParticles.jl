@@ -22,6 +22,7 @@ include("sph/state_equations.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
+include("setups/rectangular_tank.jl")
 
 export SPHSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
@@ -32,5 +33,6 @@ export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
+export RectangularTank
 
 end # module
