@@ -239,16 +239,22 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
 end
 
 #2D
-function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio, container_width, container_height)
+function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio, container_width, container_height;
+                          wall_position=container_width, n_layers=1)
+
+    n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
     n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
-    for y in 1:n_boundaries_y
-        boundary_particle = n_boundaries_y + y
-        boundary_coordinates[1, boundary_particle] = container_width
+    for i in collect(0:n_layers-1)
+        for y in 1:n_boundaries_y
+            boundary_particle = n_boundaries_y*(1+i) + n_boundaries_x*i + n_boundaries_y*i + y
+            boundary_coordinates[1, boundary_particle] = wall_position + i*particle_spacing/spacing_ratio
+        end
     end
 end
 
 #3D
-function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio, container_width, container_height, container_depth)
+function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio, container_width, container_height, container_depth;
+                          wall_position=container_width, n_layers=1)
     n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 1
     n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
     n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 1
@@ -256,7 +262,7 @@ function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio,
     boundary_particle = n_boundaries_z*n_boundaries_y
     for z in 1:n_boundaries_z, y in 1:n_boundaries_y
         boundary_particle += 1
-        boundary_coordinates[1, boundary_particle] = (n_boundaries_x - 1)*particle_spacing/spacing_ratio
+        boundary_coordinates[1, boundary_particle] = wall_position
     end
 end
 
