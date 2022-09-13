@@ -8,7 +8,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
 
     function RectangularTank(particle_spacing, spacing_ratio, fluid_width, fluid_heigth,
                              container_width, container_height, rest_density;
-                             init_velocity=0.0, boundary_density=rest_density)
+                             n_layers=1, init_velocity=0.0, boundary_density=rest_density)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
         mass = rest_density * particle_spacing^2
@@ -34,9 +34,9 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         # Boundary particle data
-        n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 1
+        n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
         n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
-        n_boundaries   = 2 * n_boundaries_y + n_boundaries_x
+        n_boundaries   = (2 * n_boundaries_y) * n_layers + n_boundaries_x * n_layers
 
         if rem(container_width, (particle_spacing/spacing_ratio)) > eps()
             print_warn_message("container width", container_width, "Expanding")
@@ -48,7 +48,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
 
         initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
-                               n_boundaries_x, n_boundaries_y)
+                               n_boundaries_x, n_boundaries_y, n_layers)
         boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
@@ -156,36 +156,39 @@ end
 
 
 function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
-                               n_boundaries_x, n_boundaries_y)
+                               n_boundaries_x, n_boundaries_y, n_layers)
     boundary_particle_spacing = particle_spacing/spacing_ratio
 
-    # Left boundary
-    for y in 1:n_boundaries_y
-        boundary_particle = y
+    boundary_particle = 0
+    for i in collect(0:n_layers-1)
+        # Left boundary
+        for y in 1:n_boundaries_y
+            boundary_particle += 1
 
-        boundary_coordinates[1, boundary_particle] = 0
-        boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-    end
+            boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+        end
 
-    # Right boundary
-    for y in 1:n_boundaries_y
-        boundary_particle = n_boundaries_y + y
+        # Right boundary
+        for y in 1:n_boundaries_y
+            boundary_particle += 1
 
-        boundary_coordinates[1, boundary_particle] = (n_boundaries_x-1) * boundary_particle_spacing
-        boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-    end
+            boundary_coordinates[1, boundary_particle] = (n_boundaries_x-(2*n_layers-1)) * boundary_particle_spacing + i*boundary_particle_spacing
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+        end
 
-    # Bottom boundary
-    for x in 1:n_boundaries_x
-        boundary_particle = 2*n_boundaries_y + x
+        # Bottom boundary
+        for x in 1:n_boundaries_x
+            boundary_particle += 1
 
-        boundary_coordinates[1, boundary_particle] = (x - 1) * boundary_particle_spacing
-        boundary_coordinates[2, boundary_particle] = 0
+            boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing - n_layers*boundary_particle_spacing
+            boundary_coordinates[2, boundary_particle] = -i*boundary_particle_spacing
+        end
     end
 end
 
 function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
-                                n_boundaries_x, n_boundaries_y, n_boundaries_z)
+                                n_boundaries_x, n_boundaries_y, n_boundaries_z, n_layers)
     boundary_particle_spacing = particle_spacing/spacing_ratio
 
     boundary_particle = 0
