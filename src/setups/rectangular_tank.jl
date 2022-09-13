@@ -92,7 +92,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
         n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
         n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
-        n_boundaries   = n_layers * n_boundaries_x * n_boundaries_z + 2 * n_layers * (n_boundaries_x-(2*n_layers-1)) * n_boundaries_y + 2 * n_layers * n_boundaries_z * n_boundaries_y
+        n_boundaries   = n_layers * n_boundaries_x * n_boundaries_z + 2 * n_layers * n_boundaries_x * n_boundaries_y + 2 * n_layers * (n_boundaries_x-(2*n_layers-1)) * n_boundaries_y
 
         if abs(rem(container_width, (particle_spacing/spacing_ratio))) > eps()
             print_warn_message("container width", container_width, "Expanding")
@@ -194,37 +194,37 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
     boundary_particle = 0
     for i in collect(0:n_layers-1)
         # -x boundary (y-z-plane)
-        for z in 1:n_boundaries_z, y in 1:n_boundaries_y
+        for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
             boundary_particle += 1
 
             boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
             boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing - n_layers*boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
         end
 
         # +x boundary (y-z-plane)
-        for z in 1:n_boundaries_z, y in 1:n_boundaries_y
+        for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
             boundary_particle += 1
 
             boundary_coordinates[1, boundary_particle] = (n_boundaries_x-(2*n_layers-1))*boundary_particle_spacing + i*boundary_particle_spacing
             boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing - n_layers*boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
         end
 
         # -z boundary (x-y-plane)
-        for y in 1:n_boundaries_y, x in 1:n_boundaries_x-(2*n_layers-1)
+        for y in 1:n_boundaries_y, x in 1:n_boundaries_x
             boundary_particle += 1
 
-            boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing
+            boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing - n_layers*boundary_particle_spacing
             boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
             boundary_coordinates[3, boundary_particle] = 0 - i*boundary_particle_spacing
         end
 
         # +z boundary (x-y-plane)
-        for y in 1:n_boundaries_y, x in 1:n_boundaries_x-(2*n_layers-1)
+        for y in 1:n_boundaries_y, x in 1:n_boundaries_x
             boundary_particle += 1
 
-            boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing
+            boundary_coordinates[1, boundary_particle] = x * boundary_particle_spacing - n_layers*boundary_particle_spacing
             boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
             boundary_coordinates[3, boundary_particle] = (n_boundaries_z-(2*n_layers-1))*boundary_particle_spacing + i*boundary_particle_spacing
         end
@@ -263,7 +263,7 @@ function move_right_wall!(boundary_coordinates, particle_spacing, spacing_ratio,
     n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
     # +x boundary (y-z-plane)
     for i in collect(0:n_layers-1)
-        boundary_particle = n_boundaries_z*n_boundaries_y*(1+i)+n_boundaries_z*n_boundaries_y*i + (n_boundaries_y*(n_boundaries_x-(2*n_layers-1))*2+n_boundaries_z*n_boundaries_x)*i
+        boundary_particle = (n_boundaries_z-(2*n_layers-1))*n_boundaries_y*(1+i)+(n_boundaries_z-(2*n_layers-1))*n_boundaries_y*i + (n_boundaries_y*n_boundaries_x*2+n_boundaries_z*n_boundaries_x)*i
         for z in 1:n_boundaries_z, y in 1:n_boundaries_y
             boundary_particle += 1
             boundary_coordinates[1, boundary_particle] = wall_position + i*particle_spacing/spacing_ratio
