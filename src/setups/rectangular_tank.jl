@@ -18,10 +18,10 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_particle_y = floor(Int, fluid_heigth / particle_spacing)-1
         n_particles_per_dimension = (n_particle_x, n_particle_y)
 
-        if rem(fluid_width, particle_spacing, RoundNearest) > eps()
+        if abs(rem(fluid_width, particle_spacing, RoundNearest)) > eps()
             print_warn_message("fluid width", fluid_width, "Shrinking")
         end
-        if rem(fluid_heigth, particle_spacing, RoundNearest) > eps()
+        if abs(rem(fluid_heigth, particle_spacing, RoundNearest)) > eps()
             print_warn_message("fluid height", fluid_heigth, "Shrinking")
         end
 
@@ -38,10 +38,10 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
         n_boundaries   = (2 * n_boundaries_y) * n_layers + n_boundaries_x * n_layers
 
-        if rem(container_width, (particle_spacing/spacing_ratio)) > eps()
+        if abs(rem(container_width, (particle_spacing/spacing_ratio))) > eps()
             print_warn_message("container width", container_width, "Expanding")
         end
-        if rem(container_height, (particle_spacing/spacing_ratio)) > eps()
+        if abs(rem(container_height, (particle_spacing/spacing_ratio))) > eps()
             print_warn_message("container height", container_height, "Expanding")
         end
 
@@ -59,7 +59,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
                              fluid_width, fluid_heigth, fluid_depth,
                              container_width, container_height, container_depth,
                              rest_density;
-                             init_velocity=0.0, boundary_density=rest_density)
+                             n_layers=1, init_velocity=0.0, boundary_density=rest_density)
         NDIMS = 3
         ELTYPE = eltype(particle_spacing)
         mass = rest_density * particle_spacing^2
@@ -70,13 +70,13 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_particle_z = floor(Int, fluid_depth / particle_spacing)-1
         n_particles_per_dimension = (n_particle_x, n_particle_y, n_particle_z)
 
-        if rem(fluid_width, particle_spacing, RoundNearest) > eps()
+        if abs(rem(fluid_width, particle_spacing, RoundNearest)) > eps()
             print_warn_message("fluid width", fluid_width, "Shrinking")
         end
-        if rem(fluid_heigth, particle_spacing, RoundNearest) > eps()
+        if abs(rem(fluid_heigth, particle_spacing, RoundNearest)) > eps()
             print_warn_message("fluid height", fluid_heigth, "Shrinking")
         end
-        if rem(fluid_depth, particle_spacing, RoundNearest) > eps()
+        if abs(rem(fluid_depth, particle_spacing, RoundNearest)) > eps()
             print_warn_message("fluid depth", fluid_depth, "Shrinking")
         end
 
@@ -92,22 +92,22 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 1
         n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
         n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 1
-        n_boundaries   = n_boundaries_x * n_boundaries_z + 2 * n_boundaries_x * n_boundaries_y + 2 * (n_boundaries_z + 1) * n_boundaries_y
+        n_boundaries   = n_boundaries_x * n_boundaries_z + 2 * (n_boundaries_x-1) * n_boundaries_y + 2 * n_boundaries_z * n_boundaries_y
 
-        if rem(container_width, (particle_spacing/spacing_ratio)) > eps()
+        if abs(rem(container_width, (particle_spacing/spacing_ratio))) > eps()
             print_warn_message("container width", container_width, "Expanding")
         end
-        if rem(container_height, (particle_spacing/spacing_ratio))  > eps()
+        if abs(rem(container_height, (particle_spacing/spacing_ratio)))  > eps()
             print_warn_message("container height", container_height, "Expanding")
         end
-        if rem(container_depth, (particle_spacing/spacing_ratio))  > eps()
+        if abs(rem(container_depth, (particle_spacing/spacing_ratio)))  > eps()
             print_warn_message("container depth", container_depth, "Expanding")
         end
 
         boundary_coordinates = Array{Float64, 2}(undef, 3, n_boundaries)
 
         initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
-                               n_boundaries_x, n_boundaries_y, n_boundaries_z)
+                               n_boundaries_x, n_boundaries_y, n_boundaries_z, n_layers)
         boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
@@ -236,6 +236,7 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
         boundary_coordinates[2, boundary_particle] = 0
         boundary_coordinates[3, boundary_particle] = (z - 1) * boundary_particle_spacing
     end
+    @info "boundary_particle = $boundary_particle, legth = $(size(boundary_coordinates,2))"
 end
 
 #2D
