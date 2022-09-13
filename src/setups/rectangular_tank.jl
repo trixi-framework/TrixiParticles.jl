@@ -27,7 +27,9 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
 
         particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
         particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-        initialize_particles!(particle_coordinates, particle_velocities, particle_spacing, init_velocity, n_particles_per_dimension)
+
+        initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
+                              init_velocity, n_particles_per_dimension)
         particle_densities = rest_density * ones(Float64, prod(n_particles_per_dimension))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
