@@ -263,7 +263,6 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
             boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing - n_layers*boundary_particle_spacing
         end
     end
-    @info "boundary_particle = $boundary_particle, legth = $(size(boundary_coordinates,2))"
 end
 
 #2D
