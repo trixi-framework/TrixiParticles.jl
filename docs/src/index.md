@@ -6,6 +6,12 @@
 Modules = [Pixie]
 Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
 ```
+## Setups
+
+```@autodocs
+Modules = [Pixie]
+Pages = map(file -> joinpath("setups", file), readdir(joinpath("..", "src", "setups")))
+```
 
 ## SPH
 
