@@ -5,7 +5,7 @@ using LinearAlgebra: norm
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
-using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!
+using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
 using StaticArrays: SVector
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
