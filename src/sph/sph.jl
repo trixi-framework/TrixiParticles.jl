@@ -157,7 +157,7 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function compute_quantities_per_particle(u, particle, semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
-    @unpack smoothing_kernel, smoothing_length, state_equation,
+    @unpack smoothing_kernel, smoothing_length, boundary_conditions, state_equation,
             neighborhood_search, cache = semi
     @unpack mass, density, pressure = cache
 
@@ -172,7 +172,31 @@ end
         end
     end
 
+    for bc in boundary_conditions
+        compute_boundary_density!(density, u, particle, bc, semi)
+    end
+
     pressure[particle] = state_equation(density[particle])
+end
+
+@inline function compute_boundary_density!(density, u, particle, bc, semi)
+    return density
+end
+
+@inline function compute_boundary_density!(density, u, particle, bc::BoundaryConditionFrozenMirrored, semi)
+    @unpack smoothing_kernel, smoothing_length = semi
+    @unpack mass, neighborhood_search = bc
+
+    for neighbor in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(bc))
+        distance = norm(get_particle_coords(u, semi, particle) -
+                        get_particle_coords(bc, semi, neighbor))
+
+        if distance <= compact_support(smoothing_kernel, smoothing_length)
+            density[particle] += mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
+        end
+    end
+
+    return density
 end
 
 function compute_quantities(u, semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
@@ -265,10 +289,11 @@ end
     density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
+
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
     m_b = mass[neighbor]
-    dv_pressure = - m_b * (pressure[particle] / density_particle^2 +
-                           pressure[neighbor] / density_neighbor^2) * grad_kernel
+    dv_pressure = -m_b * (pressure[particle] / density_particle^2 +
+                          pressure[neighbor] / density_neighbor^2) * grad_kernel
     dv_viscosity = m_b * pi_ab * grad_kernel
 
     dv = dv_pressure + dv_viscosity
@@ -282,7 +307,7 @@ end
 
 
 @inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
-                              semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
+                                      semi::SPHSemidiscretization{NDIMS, ELTYPE, ContinuityDensity}) where {NDIMS, ELTYPE}
     @unpack smoothing_kernel, smoothing_length, cache = semi
     @unpack mass = cache
 
@@ -299,6 +324,41 @@ end
 @inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
                                       semi::SPHSemidiscretization{NDIMS, ELTYPE, SummationDensity}) where {NDIMS, ELTYPE}
     return du
+end
+
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
+# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function calc_boundary_condition_per_particle!(du, u, particle,
+                                                       boundary_condition,
+                                                       semi)
+    @unpack smoothing_kernel, smoothing_length,
+            density_calculator, state_equation, viscosity, cache = semi
+    @unpack mass, neighborhood_search = boundary_condition
+
+    m_a = cache.mass[particle]
+    for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
+        pos_diff = get_particle_coords(u, semi, particle) -
+                   get_particle_coords(boundary_condition, semi, boundary_particle)
+        distance = norm(pos_diff)
+
+        if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
+            m_b = mass[boundary_particle]
+
+            dv = boundary_particle_impact(boundary_condition, semi, u, particle, distance, pos_diff, m_a, m_b)
+
+            for i in 1:ndims(semi)
+                du[ndims(semi) + i, particle] += dv[i]
+            end
+
+            # v_rel = get_particle_vel(u, semi, particle)
+
+            # du[2 * ndims(semi) + 1, particle] += sum(m_a * v_rel *
+            #                                          kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+            #                                          pos_diff) / distance
+        end
+    end
 end
 
 
@@ -320,7 +380,7 @@ end
 end
 
 
-@inline function get_particle_coords(boundary_container::BoundaryConditionMonaghanKajtar, semi, particle)
+@inline function get_particle_coords(boundary_container::Union{BoundaryConditionMonaghanKajtar, BoundaryConditionFrozenMirrored}, semi, particle)
     @unpack coordinates = boundary_container
     SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
 end
