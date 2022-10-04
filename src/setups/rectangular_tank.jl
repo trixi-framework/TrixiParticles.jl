@@ -28,6 +28,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
     boundary_masses         ::Vector{ELTYPE}
     particle_spacing        ::ELTYPE
     spacing_ratio           ::ELTYPE
+    n_layers                ::Int
     n_boundaries_x          ::Int
     n_boundaries_y          ::Int
     n_boundaries_z          ::Int
@@ -65,7 +66,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
-                                  boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio,
+                                  boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio, n_layers,
                                   n_boundaries_x, n_boundaries_y, 0)
     end
 
@@ -83,9 +84,10 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
             n_boundaries_y,
             n_boundaries_z = get_boundary_particles_per_dimension(container_width, container_height, container_depth,
                                                                   particle_spacing, spacing_ratio, n_layers)
-        n_boundaries   = (n_layers * n_boundaries_x * n_boundaries_z
-                          + 2 * n_layers * n_boundaries_x * n_boundaries_y
-                          + 2 * n_layers * (n_boundaries_x-(2*n_layers-1)) * n_boundaries_y)
+        n_boundaries   = n_layers *
+                         (  2 * (n_boundaries_z-(2*n_layers-1)) * n_boundaries_y   # y-z-plane
+                          + 2 * n_boundaries_x * n_boundaries_y                    # x-y-plane
+                          + n_boundaries_x * n_boundaries_z)                   # x-z plane
 
         boundary_coordinates = Array{Float64, 2}(undef, 3, n_boundaries)
 
@@ -108,7 +110,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
-                                  boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio,
+                                  boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio, n_layers,
                                   n_boundaries_x, n_boundaries_y, n_boundaries_z)
     end
 end
@@ -260,9 +262,9 @@ is the ``x`` coordinate of the desired position.
 """
 #2D
 function reset_right_wall!(rectangular_tank::RectangularTank{2}, container_width;
-                           wall_position=container_width, n_layers=1)
+                           wall_position=container_width)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-            n_boundaries_x, n_boundaries_y = rectangular_tank
+            n_layers, n_boundaries_x, n_boundaries_y = rectangular_tank
 
     for i in 0:n_layers-1
         for y in 1:n_boundaries_y
@@ -274,9 +276,9 @@ end
 
 #3D
 function reset_right_wall!(rectangular_tank::RectangularTank{3}, container_width;
-                           wall_position=container_width, n_layers=1)
+                           wall_position=container_width)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-            n_boundaries_x, n_boundaries_y, n_boundaries_z = rectangular_tank
+            n_layers, n_boundaries_x, n_boundaries_y, n_boundaries_z = rectangular_tank
 
     # +x boundary (y-z-plane)
     for i in 0:n_layers-1
@@ -353,5 +355,5 @@ end
 
 
 function print_warn_message(dimension, size, new_size)
-    @info "The desired $dimension $size is not a multiple of the particle spacing.\n $dimension is set to $new_size."
+    @info "The desired $dimension $size is not a multiple of the particle spacing.\n New $dimension is set to $new_size."
 end
