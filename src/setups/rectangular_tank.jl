@@ -1,7 +1,7 @@
 @doc raw"""
     RectangularTank(particle_spacing, spacing_ratio, fluid_width, fluid_heigth,
-    container_width, container_height, fluid_density;
-    n_layers=1, init_velocity=0.0, boundary_density=fluid_density)
+                    container_width, container_height, fluid_density;
+                    n_layers=1, init_velocity=0.0, boundary_density=fluid_density)
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
 The arguments are as follows:
@@ -38,16 +38,21 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
-        # Particle data
-        if abs(rem(fluid_width, particle_spacing, RoundNearest)) > eps()
-            print_warn_message("fluid width", fluid_width, "Shrinking")
-        end
-        if abs(rem(fluid_heigth, particle_spacing, RoundNearest)) > eps()
-            print_warn_message("fluid height", fluid_heigth, "Shrinking")
-        end
+        # Boundary particle data
+        n_boundaries_x,
+            n_boundaries_y = get_boundary_particles_per_dimension(container_width, container_height,
+                                                                  particle_spacing, spacing_ratio, n_layers)
+        n_boundaries   = (2 * n_boundaries_y) * n_layers + n_boundaries_x * n_layers
 
-        n_particles_x = floor(Int, fluid_width / particle_spacing) - 1
-        n_particles_y = floor(Int, fluid_heigth / particle_spacing) - 1
+        boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
+
+        initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
+                               n_boundaries_x, n_boundaries_y, n_layers)
+        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+
+        # Particle data
+        n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
+        n_particles_y = get_fluid_particles_per_dimension(fluid_heigth, particle_spacing, "fluid height")
         n_particles_per_dimension = (n_particles_x, n_particles_y)
 
         particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -58,24 +63,6 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
-
-        # Boundary particle data
-        n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
-        n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
-        n_boundaries   = (2 * n_boundaries_y) * n_layers + n_boundaries_x * n_layers
-
-        if abs(rem(container_width, (particle_spacing/spacing_ratio))) > eps()
-            print_warn_message("container width", container_width, "Expanding")
-        end
-        if abs(rem(container_height, (particle_spacing/spacing_ratio))) > eps()
-            print_warn_message("container height", container_height, "Expanding")
-        end
-
-        boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
-
-        initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
-                               n_boundaries_x, n_boundaries_y, n_layers)
-        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
                                   boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio,
@@ -91,44 +78,11 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         ELTYPE = eltype(particle_spacing)
         mass = fluid_density * particle_spacing^2
 
-        # Particle data
-        n_particle_x = floor(Int, fluid_width / particle_spacing)-1
-        n_particle_y = floor(Int, fluid_heigth / particle_spacing)-1
-        n_particle_z = floor(Int, fluid_depth / particle_spacing)-1
-        n_particles_per_dimension = (n_particle_x, n_particle_y, n_particle_z)
-
-        if abs(rem(fluid_width, particle_spacing, RoundNearest)) > eps()
-            print_warn_message("fluid width", fluid_width, "Shrinking")
-        end
-        if abs(rem(fluid_heigth, particle_spacing, RoundNearest)) > eps()
-            print_warn_message("fluid height", fluid_heigth, "Shrinking")
-        end
-        if abs(rem(fluid_depth, particle_spacing, RoundNearest)) > eps()
-            print_warn_message("fluid depth", fluid_depth, "Shrinking")
-        end
-
-        particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
-        particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
-
-        initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
-                              init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
-        particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
-
         # Boundary particle data
-        if abs(rem(container_width, (particle_spacing/spacing_ratio))) > eps()
-            print_warn_message("container width", container_width, "Expanding")
-        end
-        if abs(rem(container_height, (particle_spacing/spacing_ratio)))  > eps()
-            print_warn_message("container height", container_height, "Expanding")
-        end
-        if abs(rem(container_depth, (particle_spacing/spacing_ratio)))  > eps()
-            print_warn_message("container depth", container_depth, "Expanding")
-        end
-
-        n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
-        n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
-        n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
+        n_boundaries_x,
+            n_boundaries_y,
+            n_boundaries_z = get_boundary_particles_per_dimension(container_width, container_height, container_depth,
+                                                                  particle_spacing, spacing_ratio, n_layers)
         n_boundaries   = (n_layers * n_boundaries_x * n_boundaries_z
                           + 2 * n_layers * n_boundaries_x * n_boundaries_y
                           + 2 * n_layers * (n_boundaries_x-(2*n_layers-1)) * n_boundaries_y)
@@ -138,6 +92,20 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
                                n_boundaries_x, n_boundaries_y, n_boundaries_z, n_layers)
         boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+
+        # Particle data
+        n_particle_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
+        n_particle_y = get_fluid_particles_per_dimension(fluid_heigth, particle_spacing, "fluid heigth")
+        n_particle_z = get_fluid_particles_per_dimension(fluid_depth, particle_spacing, "fluid depth")
+        n_particles_per_dimension = (n_particle_x, n_particle_y, n_particle_z)
+
+        particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+        particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+
+        initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
+                              init_velocity, n_particles_per_dimension)
+        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
                                   boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio,
@@ -281,8 +249,10 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
     end
 end
 
+
 @doc raw"""
-    reset_right_wall!
+    reset_right_wall!(rectangular_tank::RectangularTank{NDIMS}, container_width;
+                      wall_position=container_width, n_layers=1)
 
 At current state, this function is not generic, so far.
 The right wall of the tank will be set to a desired position by calling the function with the keyword argument `wall_position`, which
@@ -321,6 +291,67 @@ function reset_right_wall!(rectangular_tank::RectangularTank{3}, container_width
 end
 
 
-function print_warn_message(dimension, size, action)
-    @info "The desired $dimension $size is not a multiple of the particle spacing.\n $action to the next multiple."
+function get_fluid_particles_per_dimension(size, spacing, dimension)
+    n_particles = floor(Int, size / spacing) - 1
+
+    while n_particles * spacing < size - spacing
+        n_particles += 1
+        if n_particles * spacing > size - spacing
+            n_particles -= 1
+            break
+        end
+    end
+
+    new_size = (n_particles + 1) * spacing
+    if round(new_size, digits=4) != round(size, digits=4)
+        print_warn_message(dimension, size, new_size)
+    end
+
+    return n_particles
+end
+
+function get_boundary_particles_per_dimension(container_width, container_height,
+                                              particle_spacing, spacing_ratio, n_layers)
+    n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
+    n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
+
+    new_container_width = (n_boundaries_x - 2*n_layers+1) * (particle_spacing / spacing_ratio)
+    new_container_height = n_boundaries_y * (particle_spacing / spacing_ratio)
+
+    if round(new_container_width, digits=4) != round(container_width, digits=4)
+        print_warn_message("container width", container_width, new_container_width)
+    end
+    if round(new_container_height, digits=4) != round(container_height, digits=4)
+        print_warn_message("container height", container_height, new_container_height)
+    end
+
+    return n_boundaries_x, n_boundaries_y
+end
+
+function get_boundary_particles_per_dimension(container_width, container_height, container_depth,
+                                              particle_spacing, spacing_ratio, n_layers)
+    n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
+    n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
+    n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
+
+    new_container_width = (n_boundaries_x - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
+    new_container_height = n_boundaries_y *  (particle_spacing / spacing_ratio)
+    new_container_depth = (n_boundaries_z - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
+
+    if round(new_container_width, digits=4) != round(container_width, digits=4)
+        print_warn_message("container width", container_width, new_container_width)
+    end
+    if round(new_container_height, digits=4) != round(container_height, digits=4)
+        print_warn_message("container height", container_height, new_container_height)
+    end
+    if round(new_container_depth, digits=4) != round(container_depth, digits=4)
+        print_warn_message("container depth", container_depth, new_container_depth)
+    end
+
+    return n_boundaries_x, n_boundaries_y, n_boundaries_z
+end
+
+
+function print_warn_message(dimension, size, new_size)
+    @info "The desired $dimension $size is not a multiple of the particle spacing.\n $dimension is set to $new_size."
 end
