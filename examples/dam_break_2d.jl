@@ -15,7 +15,7 @@ setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, particle_density);
 
 # Move right boundary
-move_right_wall!(setup.boundary_coordinates, particle_spacing, beta, container_width, container_height, wall_position=water_width)
+reset_right_wall!(setup, container_width, wall_position=water_width)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -53,7 +53,7 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             save_everystep=false, callback=alive_callback);
 
 # Move right boundary
-move_right_wall!(setup.boundary_coordinates, particle_spacing, beta, container_width, container_height)
+reset_right_wall!(setup, container_width)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))

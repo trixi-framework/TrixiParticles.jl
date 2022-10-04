@@ -33,6 +33,6 @@ export BoundaryConditionMonaghanKajtar
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
-export RectangularTank, move_right_wall!
+export RectangularTank, reset_right_wall!
 
 end # module
