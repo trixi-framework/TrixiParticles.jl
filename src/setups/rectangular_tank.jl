@@ -54,6 +54,12 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         # Particle data
         n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
         n_particles_y = get_fluid_particles_per_dimension(fluid_heigth, particle_spacing, "fluid height")
+
+        if container_width == fluid_width
+            n_particles_x = check_overlapping(n_particles_x, n_boundaries_x,
+                                              particle_spacing, spacing_ratio, n_layers, "width")
+        end
+
         n_particles_per_dimension = (n_particles_x, n_particles_y)
 
         particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -96,10 +102,21 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
 
         # Particle data
-        n_particle_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
-        n_particle_y = get_fluid_particles_per_dimension(fluid_heigth, particle_spacing, "fluid heigth")
-        n_particle_z = get_fluid_particles_per_dimension(fluid_depth, particle_spacing, "fluid depth")
-        n_particles_per_dimension = (n_particle_x, n_particle_y, n_particle_z)
+        n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
+        n_particles_y = get_fluid_particles_per_dimension(fluid_heigth, particle_spacing, "fluid heigth")
+        n_particles_z = get_fluid_particles_per_dimension(fluid_depth, particle_spacing, "fluid depth")
+
+        if container_width == fluid_width
+            n_particles_x = check_overlapping(n_particles_x, n_boundaries_x,
+                                              particle_spacing, spacing_ratio, n_layers, "width")
+        end
+
+        if container_depth == fluid_depth
+            n_particles_z = check_overlapping(n_particles_z, n_boundaries_z,
+                                              particle_spacing, spacing_ratio, n_layers, "depth")
+        end
+
+        n_particles_per_dimension = (n_particles_x, n_particles_y, n_particles_z)
 
         particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
         particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
@@ -312,6 +329,7 @@ function get_fluid_particles_per_dimension(size, spacing, dimension)
     return n_particles
 end
 
+
 function get_boundary_particles_per_dimension(container_width, container_height,
                                               particle_spacing, spacing_ratio, n_layers)
     n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
@@ -351,6 +369,29 @@ function get_boundary_particles_per_dimension(container_width, container_height,
     end
 
     return n_boundaries_x, n_boundaries_y, n_boundaries_z
+end
+
+
+function check_overlapping(n_particles, n_boundaries, particle_spacing, spacing_ratio, n_layers, dimension)
+    new_fluid_width = (n_particles + 1) * particle_spacing
+    new_container_width = (n_boundaries - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
+
+    if new_fluid_width > new_container_width
+        n_particles -= 1
+        @info "The fluid is overlapping.\n New fluid $dimension is set to $((n_particles + 1) * particle_spacing)"
+    end
+
+    while n_particles * particle_spacing < new_container_width - particle_spacing
+        n_particles += 1
+        if n_particles * particle_spacing > new_container_width - particle_spacing
+            n_particles -= 1
+            break
+        else
+            @info "There is a gap beetween fluid and boundary.\n New fluid $dimension is set to $((n_particles + 1) * particle_spacing)"
+        end
+    end
+
+    return n_particles
 end
 
 
