@@ -23,8 +23,6 @@ K = 9.81 * water_height
 boundary_conditions = BoundaryConditionMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
                                                       K, beta, particle_spacing / beta,
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
-# boundary_conditions = BoundaryConditionFrozenMirrored(boundary_coordinates, boundary_masses, 1000.0,
-#                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
 semi = SPHSemidiscretization{2}(setup.particle_masses,

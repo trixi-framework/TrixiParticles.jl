@@ -12,7 +12,7 @@ container_height = 2.0
 particle_density = 1000.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density);
+                        container_width, container_height, particle_density)
 
 # Move right boundary
 reset_right_wall!(setup, container_width, wall_position=water_width)
