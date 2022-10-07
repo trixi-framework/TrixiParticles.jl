@@ -315,10 +315,14 @@ end
 
 
 function get_fluid_particles_per_dimension(size, spacing, dimension)
-    n_particles = floor(Int, size / spacing) - 1
+    # remove one particle, otherwise the fluid particles are placed on a boundary particle
+    n_particles = round(Int, size / spacing) - 1
 
+    # add particle if desired size not reached
     while n_particles * spacing < size - spacing
         n_particles += 1
+
+        # remove particle if adding particle was overcharged
         if n_particles * spacing > size - spacing
             n_particles -= 1
             break
@@ -336,8 +340,8 @@ end
 
 function get_boundary_particles_per_dimension(container_width, container_height,
                                               particle_spacing, spacing_ratio, n_layers)
-    n_boundaries_x = ceil(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
-    n_boundaries_y = ceil(Int, (container_height / particle_spacing * spacing_ratio))
+    n_boundaries_x = round(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
+    n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio))
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) * (particle_spacing / spacing_ratio)
     new_container_height = n_boundaries_y * (particle_spacing / spacing_ratio)
@@ -354,9 +358,9 @@ end
 
 function get_boundary_particles_per_dimension(container_width, container_height, container_depth,
                                               particle_spacing, spacing_ratio, n_layers)
-    n_boundaries_x = ceil(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
-    n_boundaries_y = ceil(Int, container_height / particle_spacing * spacing_ratio)
-    n_boundaries_z = ceil(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
+    n_boundaries_x = round(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
+    n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio)
+    n_boundaries_z = round(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
     new_container_height = n_boundaries_y *  (particle_spacing / spacing_ratio)
@@ -385,8 +389,11 @@ function check_overlapping(n_particles, n_boundaries, particle_spacing, spacing_
         @info "The fluid is overlapping.\n New fluid $dimension is set to $((n_particles + 1) * particle_spacing)"
     end
 
+    # add particle if desired size not reached
     while n_particles * particle_spacing < new_container_width - particle_spacing
         n_particles += 1
+
+        # remove particle if adding particle was overcharged
         if n_particles * particle_spacing > new_container_width - particle_spacing
             n_particles -= 1
             break
