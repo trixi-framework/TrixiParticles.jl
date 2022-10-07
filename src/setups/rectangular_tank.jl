@@ -315,7 +315,7 @@ end
 
 
 function get_fluid_particles_per_dimension(size, spacing, dimension)
-    # remove one particle, otherwise the fluid particles are placed on a boundary particle
+    # remove one particle, otherwise the fluid particles are placed in the boundary region
     n_particles = round(Int, size / spacing) - 1
 
     new_size = (n_particles + 1) * spacing
@@ -372,9 +372,9 @@ end
 function check_overlapping(n_particles, n_boundaries, particle_spacing, spacing_ratio, n_layers, dimension)
     new_container_width = (n_boundaries - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
 
-    if n_particles * particle_spacing < new_container_width - particle_spacing - eps()
-        @info "There is a gap beetween fluid and boundary.\n New fluid $dimension is set to $((n_particles + 1) * particle_spacing)"
-        n_particles += 1
+    if n_particles * particle_spacing > new_container_width - particle_spacing + 1e-5*(particle_spacing / spacing_ratio)
+        n_particles -= 1
+        @info "The fluid was overlapping.\n New fluid $dimension is set to $((n_particles + 1) * particle_spacing)"
     end
 
     return n_particles
