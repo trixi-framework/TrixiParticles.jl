@@ -7,6 +7,13 @@ Modules = [Pixie]
 Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
 ```
 
+## Setups
+
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("setups", "rectangular_tank.jl")]
+```
+
 ## SPH
 
 ### File boundary_conditions.jl
