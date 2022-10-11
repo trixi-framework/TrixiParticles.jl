@@ -31,7 +31,7 @@ boundary_conditions = BoundaryConditionMonaghanKajtar(setup.boundary_coordinates
 # Create semidiscretization
 pressure_poisson_eq = PPEExplicitLiu(0.1*smoothing_length)
 
-semi = EISPHSemidiscretization{2}(particle_masses,
+semi = EISPHSemidiscretization{2}(setup.particle_masses,
                                   SummationDensity(), pressure_poisson_eq,
                                   smoothing_kernel, smoothing_length,
                                   viscosity=ViscosityClearyMonaghan(1e-6),
@@ -59,7 +59,7 @@ reset_right_wall!(setup, container_width)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
-ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), particle_density, tspan)
+ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), setup.particle_densities, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
                                                        index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
