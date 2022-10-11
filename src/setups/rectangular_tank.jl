@@ -18,10 +18,16 @@ The keyword arguments are as follows:
 - `boundary_density`:   Density of the boundary particles (by default set to the rest density)
 
 # Examples
+2D:
 ```julia
 setup = RectangularTank(particle_spacing, 2, water_width, water_height,
-                        container_width, container_height, particle_density;
-                        n_layers=2, init_velocity=0.0, boundary_density=particle_density)
+                        container_width, container_height, particle_density, n_layers=2)
+```
+
+3D:
+```julia
+setup = RectangularTank(particle_spacing, 2, water_width, water_height, water_depth,
+                        container_width, container_height, container_depth, particle_density, n_layers=2)
 ```
 
 See also: [`reset_right_wall!`](@ref)
