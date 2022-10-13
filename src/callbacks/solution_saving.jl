@@ -36,24 +36,27 @@ struct ExtractQuantities{CQ}
 end
 
 
-function (extract_quantities::ExtractQuantities)(u_cache, t, integrator)
+function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     semi = integrator.p
     @unpack density_calculator, cache = semi
     @unpack custom_quantities = extract_quantities
 
     # The SavingCallback does not insert tstops, so u had to be interpolated.
     # However, only u has been interpolated, but not semi.cache. To compute the correct
-    # cache, we have to call rhs! with the correct u again (u_cache).
-    # The interpolation has been done in-place by DiffEqCallbacks, using the cache
-    # first(get_tmp_cache(integrator)), which is passed as u_cache here, so we can modify
-    # u_cache without consequences.
-    # Thus, we can pass u_cache to rhs! as du.
-    # Of course, we have to save the current u before we overwrite u_cache.
+    # cache, we have to call rhs! with the correct u again (u_tmp).
+    # We need to pass some cache as du to rhs!. We can use first(get_tmp_cache(integrator))
+    # for this.
+    # However, u_tmp is either a reference to the actual integrator.u or a reference to the cache
+    # first(get_tmp_cache(integrator)).
+    # Thus, when we call rhs! with first(get_tmp_cache(integrator)) as du, we might change
+    # the contents of u_tmp.
+    # For this reason, we copy the current u_tmp before we call rhs!.
     # This allocation is not a problem, since we have to return allocated values anyway
     # (not a view to u_cache).
-    u = copy(u_cache)
+    u = copy(u_tmp)
 
     # Call rhs! to compute the correct cache (pressures, etc.)
+    u_cache = first(get_tmp_cache(integrator))
     rhs!(u_cache, u, semi, t)
 
     result = Dict(

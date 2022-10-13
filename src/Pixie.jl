@@ -5,7 +5,7 @@ using LinearAlgebra: norm
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
-using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!
+using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
 using StaticArrays: SVector
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
@@ -22,6 +22,7 @@ include("sph/state_equations.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
+include("setups/rectangular_tank.jl")
 
 export SPHSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
@@ -32,5 +33,6 @@ export BoundaryConditionMonaghanKajtar, BoundaryConditionFrozenMirrored
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
+export RectangularTank, reset_right_wall!
 
 end # module
