@@ -139,8 +139,9 @@ end
 
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
+    # Use 0 as boundary particle pressure
     dv_pressure = -m_b * (pressure[particle] / particle_density^2 +
-                          pressure[particle] / rest_density^2) * grad_kernel
+                          0 / rest_density^2) * grad_kernel
 
     dv_viscosity = m_b * pi_ab * grad_kernel
 
