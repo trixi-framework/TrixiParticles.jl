@@ -5,7 +5,7 @@ digest_boundary_conditions(::Nothing) = ()
 
 
 @doc raw"""
-    BoundaryConditionMonaghanKajtar(coordinates, masses, K, beta,
+    BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
                                     boundary_particle_spacing;
                                     neighborhood_search=nothing)
 
@@ -57,7 +57,7 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
+struct BoundaryParticlesMonaghanKajtar{ELTYPE<:Real, NS}
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     K                           ::ELTYPE
@@ -65,7 +65,7 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
     boundary_particle_spacing   ::ELTYPE
     neighborhood_search         ::NS
 
-    function BoundaryConditionMonaghanKajtar(coordinates, masses, K, beta,
+    function BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
                                              boundary_particle_spacing;
                                              neighborhood_search=nothing)
         new{typeof(K), typeof(neighborhood_search)}(coordinates, masses, K, beta,
@@ -95,7 +95,7 @@ function initialize!(boundary_conditions, semi)
 end
 
 
-@inline function boundary_particle_impact(boundary_condition::BoundaryConditionMonaghanKajtar,
+@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesMonaghanKajtar,
                                           semi, u, particle, distance, pos_diff, m_a, m_b)
     @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
     @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
@@ -113,13 +113,13 @@ end
 end
 
 
-struct BoundaryConditionFrozenMirrored{ELTYPE<:Real, NS}
+struct BoundaryParticlesFrozen{ELTYPE<:Real, NS}
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     rest_density                ::ELTYPE
     neighborhood_search         ::NS
 
-    function BoundaryConditionFrozenMirrored(coordinates, masses, rest_density;
+    function BoundaryParticlesFrozen(coordinates, masses, rest_density;
                                              neighborhood_search=nothing)
         new{eltype(coordinates), typeof(neighborhood_search)}(coordinates, masses, rest_density,
                                                               neighborhood_search)
@@ -127,7 +127,7 @@ struct BoundaryConditionFrozenMirrored{ELTYPE<:Real, NS}
 end
 
 
-@inline function boundary_particle_impact(boundary_condition::BoundaryConditionFrozenMirrored,
+@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesFrozen,
                                           semi, u, particle, distance, pos_diff, m_a, m_b)
     @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
     @unpack pressure = cache
@@ -149,4 +149,4 @@ end
 end
 
 
-@inline nparticles(boundary_container::Union{BoundaryConditionMonaghanKajtar, BoundaryConditionFrozenMirrored}) = length(boundary_container.mass)
+@inline nparticles(boundary_container::Union{BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen}) = length(boundary_container.mass)

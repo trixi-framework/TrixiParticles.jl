@@ -183,7 +183,7 @@ end
     return density
 end
 
-@inline function compute_boundary_density!(density, u, particle, bc::BoundaryConditionFrozenMirrored, semi)
+@inline function compute_boundary_density!(density, u, particle, bc::BoundaryParticlesFrozen, semi)
     @unpack smoothing_kernel, smoothing_length = semi
     @unpack mass, neighborhood_search = bc
 
@@ -380,7 +380,7 @@ end
 end
 
 
-@inline function get_particle_coords(boundary_container::Union{BoundaryConditionMonaghanKajtar, BoundaryConditionFrozenMirrored}, semi, particle)
+@inline function get_particle_coords(boundary_container::Union{BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen}, semi, particle)
     @unpack coordinates = boundary_container
     SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
 end
