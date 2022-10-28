@@ -4,8 +4,11 @@ digest_boundary_conditions(boundary_condition::Tuple) = boundary_condition
 digest_boundary_conditions(::Nothing) = ()
 
 
+abstract type BoundaryParticles end
+
+
 @doc raw"""
-    BoundaryConditionMonaghanKajtar(coordinates, masses, K, beta,
+    BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
                                     boundary_particle_spacing;
                                     neighborhood_search=nothing)
 
@@ -57,7 +60,7 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
+struct BoundaryParticlesMonaghanKajtar{ELTYPE<:Real, NS} <: BoundaryParticles
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     K                           ::ELTYPE
@@ -65,7 +68,7 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
     boundary_particle_spacing   ::ELTYPE
     neighborhood_search         ::NS
 
-    function BoundaryConditionMonaghanKajtar(coordinates, masses, K, beta,
+    function BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
                                              boundary_particle_spacing;
                                              neighborhood_search=nothing)
         new{typeof(K), typeof(neighborhood_search)}(coordinates, masses, K, beta,
@@ -73,6 +76,7 @@ struct BoundaryConditionMonaghanKajtar{ELTYPE<:Real, NS}
                                                     neighborhood_search)
     end
 end
+
 
 @inline function boundary_kernel(r, h)
     q = r / h
@@ -85,17 +89,17 @@ end
     return 1.77/32 * (1 + 5/2 * q + 2 * q^2) * (2 - q)^5
 end
 
-function initialize!(boundary_conditions::BoundaryConditionMonaghanKajtar, semi)
+
+function initialize!(boundary_conditions, semi)
     @unpack neighborhood_search = boundary_conditions
 
     initialize!(neighborhood_search, boundary_conditions,
                 semi, particles=eachparticle(boundary_conditions))
 end
 
-@inline nparticles(boundary_container::BoundaryConditionMonaghanKajtar) = length(boundary_container.mass)
 
-@inline function boundary_particle_impact(boundary_condition::BoundaryConditionMonaghanKajtar,
-                                        semi, u, particle, distance, pos_diff, m_a, m_b)
+@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesMonaghanKajtar,
+                                          semi, u, particle, distance, pos_diff, m_a, m_b)
     @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
     @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
 
@@ -109,36 +113,43 @@ end
         boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
 
     return dv_viscosity + dv_repulsive
-
 end
 
 
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function calc_boundary_condition_per_particle!(du, u, particle,
-                                                       boundary_condition,
-                                                       semi)
-    @unpack smoothing_kernel, smoothing_length,
-            density_calculator, state_equation, viscosity, cache = semi
-    @unpack coordinates, mass, K, beta,
-            boundary_particle_spacing, neighborhood_search = boundary_condition
+struct BoundaryParticlesFrozen{ELTYPE<:Real, NS} <: BoundaryParticles
+    coordinates                 ::Array{ELTYPE, 2}
+    mass                        ::Vector{ELTYPE}
+    rest_density                ::ELTYPE
+    neighborhood_search         ::NS
 
-    m_a = cache.mass[particle]
-    for boundary_particle in eachneighbor(particle, u, neighborhood_search, semi, particles=eachparticle(boundary_condition))
-        pos_diff = get_particle_coords(u, semi, particle) -
-                   get_particle_coords(boundary_condition, semi, boundary_particle)
-        distance = norm(pos_diff)
-
-        if eps() < distance <= compact_support(smoothing_kernel, smoothing_length)
-
-            m_b = mass[boundary_particle]
-
-            dv = boundary_particle_impact(boundary_condition, semi, u, particle, distance, pos_diff, m_a, m_b)
-
-            for i in 1:ndims(semi)
-                du[ndims(semi) + i, particle] += dv[i]
-            end
-        end
+    function BoundaryParticlesFrozen(coordinates, masses, rest_density;
+                                             neighborhood_search=nothing)
+        new{eltype(coordinates), typeof(neighborhood_search)}(coordinates, masses, rest_density,
+                                                              neighborhood_search)
     end
 end
+
+
+@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesFrozen,
+                                          semi, u, particle, distance, pos_diff, m_a, m_b)
+    @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
+    @unpack pressure = cache
+    @unpack coordinates, mass, rest_density = boundary_condition
+
+    particle_density = get_particle_density(u, cache, density_calculator, particle)
+    v_rel = get_particle_vel(u, semi, particle)
+    pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
+
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+    # Use 0 as boundary particle pressure
+    dv_pressure = -m_b * (pressure[particle] / particle_density^2 +
+                          0 / rest_density^2) * grad_kernel
+
+    dv_viscosity = m_b * pi_ab * grad_kernel
+
+    return dv_pressure + dv_viscosity
+end
+
+
+@inline nparticles(boundary_container::BoundaryParticles) = length(boundary_container.mass)
