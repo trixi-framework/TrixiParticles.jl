@@ -41,7 +41,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 K = 1000.0
-boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+boundary_conditions = BoundaryParticlesMonaghanKajtar(boundary_coordinates, boundary_masses,
                                                       K, beta, spacing / beta,
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 

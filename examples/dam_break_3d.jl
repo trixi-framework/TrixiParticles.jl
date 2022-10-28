@@ -101,7 +101,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 # However, without it, the particles are pushed off the wall at the beginning
 # of the simulation.
 K = 9.81 * water_height / 2
-boundary_conditions = BoundaryConditionMonaghanKajtar(boundary_coordinates, boundary_masses,
+boundary_conditions = BoundaryParticlesMonaghanKajtar(boundary_coordinates, boundary_masses,
                                                       K, beta, particle_spacing / beta,
                                                       neighborhood_search=SpatialHashingSearch{3}(search_radius))
 
