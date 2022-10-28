@@ -4,6 +4,9 @@ digest_boundary_conditions(boundary_condition::Tuple) = boundary_condition
 digest_boundary_conditions(::Nothing) = ()
 
 
+abstract type BoundaryParticles end
+
+
 @doc raw"""
     BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
                                     boundary_particle_spacing;
@@ -57,7 +60,7 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryParticlesMonaghanKajtar{ELTYPE<:Real, NS}
+struct BoundaryParticlesMonaghanKajtar{ELTYPE<:Real, NS} <: BoundaryParticles
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     K                           ::ELTYPE
@@ -113,7 +116,7 @@ end
 end
 
 
-struct BoundaryParticlesFrozen{ELTYPE<:Real, NS}
+struct BoundaryParticlesFrozen{ELTYPE<:Real, NS} <: BoundaryParticles
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     rest_density                ::ELTYPE
@@ -149,4 +152,4 @@ end
 end
 
 
-@inline nparticles(boundary_container::Union{BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen}) = length(boundary_container.mass)
+@inline nparticles(boundary_container::BoundaryParticles) = length(boundary_container.mass)

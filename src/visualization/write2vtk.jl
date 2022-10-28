@@ -26,7 +26,7 @@ function pixie2vtk(saved_values::SavedValues; output_directory="out")
     end
 end
 
-function pixie2vtk(boundary_conditions::Union{BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen}; output_directory="out")
+function pixie2vtk(boundary_conditions::BoundaryParticles; output_directory="out")
     @unpack coordinates = boundary_conditions
 
     mkpath(output_directory)

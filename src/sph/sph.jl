@@ -172,6 +172,7 @@ end
         end
     end
 
+    # Include boundary particles in the summation
     for bc in boundary_conditions
         compute_boundary_density!(density, u, particle, bc, semi)
     end
@@ -179,6 +180,7 @@ end
     pressure[particle] = state_equation(density[particle])
 end
 
+# Include the boundary particles in the density summation
 @inline function compute_boundary_density!(density, u, particle, bc, semi)
     return density
 end
@@ -351,12 +353,6 @@ end
             for i in 1:ndims(semi)
                 du[ndims(semi) + i, particle] += dv[i]
             end
-
-            # v_rel = get_particle_vel(u, semi, particle)
-
-            # du[2 * ndims(semi) + 1, particle] += sum(m_a * v_rel *
-            #                                          kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
-            #                                          pos_diff) / distance
         end
     end
 end
@@ -380,7 +376,7 @@ end
 end
 
 
-@inline function get_particle_coords(boundary_container::Union{BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen}, semi, particle)
+@inline function get_particle_coords(boundary_container::BoundaryParticles, semi, particle)
     @unpack coordinates = boundary_container
     SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
 end
