@@ -13,18 +13,13 @@ using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
-include("sph/boundary_conditions.jl") # TODO load before sph.jl
-include("sph/viscosity.jl") # TODO load before sph.jl
-include("sph/neighborhood_search.jl")
 include("sph/sph.jl")
-include("sph/smoothing_kernels.jl")
-include("sph/state_equations.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 
-export SPHSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
+export SPHFluidSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole

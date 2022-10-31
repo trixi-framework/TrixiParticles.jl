@@ -25,7 +25,7 @@ boundary_conditions = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates
                                                       neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 # Create semidiscretization
-semi = SPHSemidiscretization{2}(setup.particle_masses,
+semi = SPHFluidSemidiscretization{2}(setup.particle_masses,
                                 ContinuityDensity(), state_equation,
                                 smoothing_kernel, smoothing_length,
                                 viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
