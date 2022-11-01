@@ -24,7 +24,7 @@ for z in 1:n_particles_per_dimension[3],
 end
 
 smoothing_length = 0.12
-semi = SPHSemidiscretization{3}(particle_masses, SummationDensity(),
+semi = SPHFluidSemidiscretization{3}(particle_masses, SummationDensity(),
                                 StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
                                 SchoenbergCubicSplineKernel{3}(), smoothing_length)
 
