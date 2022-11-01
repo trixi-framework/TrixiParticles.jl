@@ -8,7 +8,8 @@ struct SPHSolidSemidiscretization{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: SPHSemid
 
     function SPHSolidSemidiscretization{NDIMS}(particle_masses, particle_densities,
                                                density_calculator,
-                                               smoothing_kernel, smoothing_length;
+                                               smoothing_kernel, smoothing_length,
+                                               young_modulus, poisson_ratio;
                                                gravity=ntuple(_ -> 0.0, Val(NDIMS)),
                                                neighborhood_search=nothing) where NDIMS
         ELTYPE = eltype(particle_masses)
@@ -17,7 +18,11 @@ struct SPHSolidSemidiscretization{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: SPHSemid
         # Make gravity an SVector
         gravity_ = SVector(gravity...)
 
-        cache = (; create_cache(particle_masses, particle_densities,
+        lame_lambda = young_modulus * poisson_ratio / ((1 + poisson_ratio) * (1 - 2*poisson_ratio))
+        lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
+
+        cache = (; lame_lambda, lame_mu,
+                   create_cache(particle_masses, particle_densities,
                                 density_calculator, ELTYPE, nparticles, NDIMS)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),

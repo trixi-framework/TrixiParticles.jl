@@ -21,3 +21,33 @@ function deformation_gradient(u, i, j, particle, semi)
         return volume * pos_diff[i] * grad_kernel
     end
 end
+
+# We cannot use a variable for the number of dimensions here, it has to be hardcoded
+@inline function deformation_gradient(u, particle, semi::SPHSemidiscretization{2})
+    return @SMatrix [deformation_gradient(u, i, j, particle, semi) for i in 1:2, j in 1:2]
+end
+
+@inline function deformation_gradient(u, particle, semi::SPHSemidiscretization{3})
+    return @SMatrix [deformation_gradient(u, i, j, particle, semi) for i in 1:3, j in 1:3]
+end
+
+
+# First Piola-Kirchhoff stress tensor
+function pk1_stress_tensor(u, particle, semi)
+    J = deformation_gradient(u, particle, semi)
+
+    S = pk2_stress_tensor(J, semi)
+
+    return J * S
+end
+
+# Second Piola-Kirchhoff stress tensor
+@inline function pk2_stress_tensor(J, semi)
+    @unpack cache = semi
+    @unpack lame_lambda, lame_mu = cache
+
+    # Compute the Green-Lagrange strain
+    E = 0.5 * (transpose(J) * J - I)
+
+    return lame_lambda * tr(E) * I + 2 * lame_mu * E
+end
