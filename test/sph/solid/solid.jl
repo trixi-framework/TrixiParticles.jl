@@ -74,7 +74,7 @@
 
         # We generate a grid of particles, apply a deformation, and verify that the computed
         # deformation gradient matches the deformation matrix.
-        @testset "Deformation Function: $(deformation[1])" for deformation in deformations
+        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
             particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -96,6 +96,7 @@
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
             semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
                                                  smoothing_kernel, smoothing_length,
+                                                 1.0, 1.0,
                                                  neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
             tspan = (0.0, 1.0)
@@ -104,15 +105,123 @@
             # Apply the deformation matrix
             u = copy(particle_coordinates)
             for particle in axes(u, 2)
-                u[:, particle] = deformation[2] * u[:, particle]
+                u[:, particle] = deformations[deformation] * u[:, particle]
             end
 
             # Compute the deformation gradient for the particle in the middle
             J = [Pixie.deformation_gradient(u, 1, 1, 41, semi) Pixie.deformation_gradient(u, 1, 2, 41, semi);
                  Pixie.deformation_gradient(u, 2, 1, 41, semi) Pixie.deformation_gradient(u, 2, 2, 41, semi)]
 
-            # Verification
-            @test J ≈ deformation[2]
+            #### Verification
+            @test J ≈ deformations[deformation]
+            @test J == Pixie.deformation_gradient(u, 41, semi)
+        end
+    end
+end
+
+
+@testset "Stress tensors" begin
+    @testset "Unit tests" begin
+        deformations = Dict(
+            "rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
+            "stretch both" => [2.0 0.0; 0.0 3.0],
+            "rotate and stretch" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
+        )
+
+        expected_pk2 = Dict(
+            "rotation" => zeros(2, 2), # No stress in rotations only
+            "stretch both" => [8.5  0.0; 0.0 13.5], # Calculated by hand
+            "rotate and stretch" => [8.5  0.0; 0.0 13.5] # Rotation doesn't change it
+        )
+
+        # Just deformation * expected_pk2
+        expected_pk1 = Dict(
+            "rotation" => zeros(2, 2),
+            "stretch both" => [17.0 0.0; 0.0 40.5],
+            "rotate and stretch" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * [8.5  0.0; 0.0 13.5]
+        )
+
+        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
+            #### Setup
+            J = deformations[deformation]
+            lame_lambda = 1.0
+            lame_mu = 1.0
+
+            #### Mocking
+            semi = Val(:mock_semi)
+
+            # All @unpack calls should return another mock object of the type Val{:mock_property_name}
+            Base.getproperty(::Val{:mock_semi}, f::Symbol) = Val(Symbol("mock_" * string(f)))
+
+            # For the cache, we want to have the actual Lamé constants as properties
+            function Base.getproperty(::Val{:mock_cache}, f::Symbol)
+                if f === :lame_lambda
+                    return lame_lambda
+                elseif f === :lame_mu
+                    return lame_mu
+                end
+            end
+
+            Pixie.deformation_gradient(_, _, ::Val{:mock_semi}) = J
+
+            #### Verification
+            @test Pixie.pk2_stress_tensor(J, semi) ≈ expected_pk2[deformation]
+            @test Pixie.pk1_stress_tensor(nothing, nothing, semi) ≈ expected_pk1[deformation]
+        end
+    end
+
+    @testset "Integration Tests" begin
+        @testset "Rotate and Stretch" begin
+            # Make both Lamé constants equal to 1
+            nu = 0.25
+            E = 2.5
+
+            # 9 x 9 grid of particles
+            n_particles_per_dimension = (9, 9)
+            particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+            particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+
+            for y in 1:n_particles_per_dimension[2],
+                    x in 1:n_particles_per_dimension[1]
+                particle = (x - 1) * n_particles_per_dimension[2] + y
+
+                # Coordinates
+                particle_coordinates[1, particle] = x * 0.1
+                particle_coordinates[2, particle] = y * 0.1
+            end
+
+            smoothing_length = 0.12
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+            semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
+                                                smoothing_kernel, smoothing_length,
+                                                E, nu,
+                                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+            tspan = (0.0, 1.0)
+            semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+
+            # Apply the deformation matrix
+            u = copy(particle_coordinates)
+            for particle in axes(u, 2)
+                # Rotate and stretch with the same deformation as in the unit test above
+                u[:, particle] = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * u[:, particle]
+            end
+
+            #### Verification for the particle in the middle
+            particle = 41
+            J_expected = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
+
+            # Deformation gradient
+            @test Pixie.deformation_gradient(u, particle, semi) ≈ J_expected
+
+            # PK2 stress tensor (same as in the unit test above)
+            @test Pixie.pk2_stress_tensor(J_expected, semi) ≈ [8.5  0.0; 0.0 13.5]
+
+            # PK1 stress tensor (same as in the unit test above)
+            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J_expected * [8.5  0.0; 0.0 13.5]
         end
     end
 end

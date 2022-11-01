@@ -1,12 +1,12 @@
 module Pixie
 
 using DiffEqCallbacks: SavedValues, SavingCallback
-using LinearAlgebra: norm, dot
+using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
-using StaticArrays: SVector
+using StaticArrays: SVector, @SMatrix
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using UnPack: @unpack
