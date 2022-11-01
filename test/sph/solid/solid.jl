@@ -218,10 +218,10 @@ end
             @test Pixie.deformation_gradient(u, particle, semi) ≈ J_expected
 
             # PK2 stress tensor (same as in the unit test above)
-            @test Pixie.pk2_stress_tensor(J_expected, semi) ≈ [8.5  0.0; 0.0 13.5]
+            @test Pixie.pk2_stress_tensor(J_expected, semi) ≈ [8.5 0.0; 0.0 13.5]
 
             # PK1 stress tensor (same as in the unit test above)
-            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J_expected * [8.5  0.0; 0.0 13.5]
+            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J_expected * [8.5 0.0; 0.0 13.5]
         end
     end
 end
