@@ -4,10 +4,10 @@
         # the need for any mocking packages or modifying source code.
 
         u = [[2 3;  0 0], # coords[neighbor] - coords[particle] = (1, 0)
-            [6 8; -1 3]] # coords[neighbor] - coords[particle] = (2, 4)
+             [6 8; -1 3]] # coords[neighbor] - coords[particle] = (2, 4)
 
         initial_coordinates = [[5  5; 3  4], # initial_coords[particle] - initial_coords[neighbor] = (0, -1)
-                            [0 -3; 0 -5]] # initial_coords[particle] - initial_coords[neighbor] = (3, 5)
+                               [0 -3; 0 -5]] # initial_coords[particle] - initial_coords[neighbor] = (3, 5)
 
         expected = [[0 -0.5; 0 0], # Tensor product of the two vectors above, multiplied by the volume of 0.5
                     [3    5; 6 10] / sqrt(34)] # Same as above but divided by the length of the vector (3, 5)
@@ -58,7 +58,6 @@
             Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
 
             #### Verification
-            # We expect the tensor product of (1, 0) and (0, -1), multiplied by the volume of 0.5
             @test Pixie.deformation_gradient(u[i], 1, 1, particle, semi) == expected[i][1, 1]
             @test Pixie.deformation_gradient(u[i], 1, 2, particle, semi) == expected[i][1, 2]
             @test Pixie.deformation_gradient(u[i], 2, 1, particle, semi) == expected[i][2, 1]
@@ -96,7 +95,8 @@
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
             semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
-                                                 smoothing_kernel, smoothing_length)
+                                                 smoothing_kernel, smoothing_length,
+                                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
             tspan = (0.0, 1.0)
             semidiscretize(semi, particle_coordinates, particle_velocities, tspan)

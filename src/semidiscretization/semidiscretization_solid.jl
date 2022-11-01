@@ -57,6 +57,10 @@ function semidiscretize(semi::SPHSolidSemidiscretization{NDIMS, ELTYPE, Summatio
         end
     end
 
+    # Initialize neighborhood search
+    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+
+    # Calculate kernel correction matrix
     for particle in eachparticle(semi)
         L = sum(eachneighbor(particle, initial_coordinates, neighborhood_search, semi)) do neighbor
             volume = mass[neighbor] / solid_density[neighbor]
@@ -77,9 +81,6 @@ function semidiscretize(semi::SPHSolidSemidiscretization{NDIMS, ELTYPE, Summatio
 
         correction_matrix[:, :, particle] = inv(L)
     end
-
-    # Initialize neighborhood search
-    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
 
     return ODEProblem(rhs!, u0, tspan, semi)
 end
