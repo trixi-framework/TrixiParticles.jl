@@ -1,7 +1,7 @@
 module Pixie
 
 using DiffEqCallbacks: SavedValues, SavingCallback
-using LinearAlgebra: norm
+using LinearAlgebra: norm, dot
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
@@ -13,13 +13,14 @@ using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
+include("semidiscretization/semidiscretization.jl")
 include("sph/sph.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 
-export SPHFluidSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
+export SPHFluidSemidiscretization, SPHSolidSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole

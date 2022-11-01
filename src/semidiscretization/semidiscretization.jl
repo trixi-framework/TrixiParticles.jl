@@ -1,6 +1,3 @@
-include("semidiscretization_fluid.jl")
-include("semidiscretization_solid.jl")
-
 abstract type SPHSemidiscretization{NDIMS} end
 
 @doc raw"""
@@ -29,6 +26,17 @@ velocities of particles ``a`` and ``b``.
 struct ContinuityDensity end
 
 
+function create_cache(::SummationDensity, eltype, nparticles)
+    density = Vector{eltype}(undef, nparticles)
+
+    return (; density)
+end
+
+function create_cache(::ContinuityDensity, eltype, nparticles)
+    return (; )
+end
+
+
 @inline function get_particle_coords(u, semi, particle)
     return SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(semi))))
 end
@@ -47,13 +55,11 @@ end
 end
 
 
-@inline function get_particle_coords(boundary_container::BoundaryParticles, semi, particle)
-    @unpack coordinates = boundary_container
-    SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
-end
-
-
 # This can be used both for Semidiscretization or boundary container types
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline nparticles(semi) = length(semi.cache.mass)
 @inline Base.ndims(::SPHSemidiscretization{NDIMS}) where NDIMS = NDIMS
+
+
+include("semidiscretization_fluid.jl")
+include("semidiscretization_solid.jl")

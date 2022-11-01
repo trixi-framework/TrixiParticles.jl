@@ -1,4 +1,4 @@
-struct SPHFluidSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C} <: SPHSemidiscretization
+struct SPHFluidSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C} <: SPHSemidiscretization{NDIMS}
     density_calculator  ::DC
     state_equation      ::SE
     smoothing_kernel    ::K
@@ -10,12 +10,12 @@ struct SPHFluidSemidiscretization{NDIMS, ELTYPE<:Real, DC, SE, K, V, BC, NS, C} 
     cache               ::C
 
     function SPHFluidSemidiscretization{NDIMS}(particle_masses,
-                                          density_calculator, state_equation,
-                                          smoothing_kernel, smoothing_length;
-                                          viscosity=NoViscosity(),
-                                          boundary_conditions=nothing,
-                                          gravity=ntuple(_ -> 0.0, Val(NDIMS)),
-                                          neighborhood_search=nothing) where NDIMS
+                                               density_calculator, state_equation,
+                                               smoothing_kernel, smoothing_length;
+                                               viscosity=NoViscosity(),
+                                               boundary_conditions=nothing,
+                                               gravity=ntuple(_ -> 0.0, Val(NDIMS)),
+                                               neighborhood_search=nothing) where NDIMS
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
@@ -40,16 +40,6 @@ function create_cache(mass, density_calculator, eltype, nparticles)
     pressure = Vector{eltype}(undef, nparticles)
 
     return (; mass, pressure, create_cache(density_calculator, eltype, nparticles)...)
-end
-
-function create_cache(::SummationDensity, eltype, nparticles)
-    density = Vector{eltype}(undef, nparticles)
-
-    return (; density)
-end
-
-function create_cache(::ContinuityDensity, eltype, nparticles)
-    return (; )
 end
 
 

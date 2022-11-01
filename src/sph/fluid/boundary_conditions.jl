@@ -6,6 +6,11 @@ digest_boundary_conditions(::Nothing) = ()
 
 abstract type BoundaryParticles end
 
+@inline function get_particle_coords(boundary_container::BoundaryParticles, semi, particle)
+    @unpack coordinates = boundary_container
+    SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(semi))))
+end
+
 
 @doc raw"""
     BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,

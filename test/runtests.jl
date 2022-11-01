@@ -1,5 +1,4 @@
 using Test
+using Pixie
 
-@testset "Tests" begin
-
-end
+include("sph/solid/solid.jl")
