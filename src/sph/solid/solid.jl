@@ -2,7 +2,9 @@ function deformation_gradient(u, i, j, particle, semi)
     @unpack cache, neighborhood_search, smoothing_kernel, smoothing_length = semi
     @unpack mass, solid_density, initial_coordinates, correction_matrix = cache
 
-    return sum(eachneighbor(particle, initial_coordinates, neighborhood_search, semi)) do neighbor
+    result = zero(eltype(mass))
+
+    for neighbor in eachneighbor(particle, initial_coordinates, neighborhood_search, semi)
         volume = mass[neighbor] / solid_density[neighbor]
         pos_diff = get_particle_coords(u, semi, neighbor) -
             get_particle_coords(u, semi, particle)
@@ -11,15 +13,15 @@ function deformation_gradient(u, i, j, particle, semi)
             get_particle_coords(initial_coordinates, semi, neighbor)
         initial_distance = norm(initial_pos_diff)
 
-        if initial_distance < eps()
-            return zero(eltype(mass))
+        if initial_distance > eps()
+            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
+                dot(view(correction_matrix, :, j, particle), initial_pos_diff) / initial_distance
+
+            result += volume * pos_diff[i] * grad_kernel
         end
-
-        grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-            dot(view(correction_matrix, :, j, particle), initial_pos_diff) / initial_distance
-
-        return volume * pos_diff[i] * grad_kernel
     end
+
+    return result
 end
 
 # We cannot use a variable for the number of dimensions here, it has to be hardcoded
