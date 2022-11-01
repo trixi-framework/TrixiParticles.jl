@@ -112,23 +112,6 @@ function rhs!(du, u, semi, t)
 end
 
 
-@inline function reset_du!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
-@inline function calc_gravity!(du, particle, semi)
-    @unpack gravity = semi
-
-    for i in 1:ndims(semi)
-        du[i+ndims(semi), particle] += gravity[i]
-    end
-
-    return du
-end
-
-
 @inline function calc_dv!(du, u, particle, neighbor, pos_diff, distance, semi)
     @unpack smoothing_kernel, smoothing_length,
             density_calculator, state_equation, viscosity, cache = semi
