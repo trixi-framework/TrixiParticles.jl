@@ -74,7 +74,7 @@
 
         # We generate a grid of particles, apply a deformation, and verify that the computed
         # deformation gradient matches the deformation matrix.
-        @testset "Deformation Function: $(deformation[1])" for deformation in deformations
+        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
             particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
@@ -105,7 +105,7 @@
             # Apply the deformation matrix
             u = copy(particle_coordinates)
             for particle in axes(u, 2)
-                u[:, particle] = deformation[2] * u[:, particle]
+                u[:, particle] = deformations[deformation] * u[:, particle]
             end
 
             # Compute the deformation gradient for the particle in the middle
@@ -113,7 +113,7 @@
                  Pixie.deformation_gradient(u, 2, 1, 41, semi) Pixie.deformation_gradient(u, 2, 2, 41, semi)]
 
             #### Verification
-            @test J ≈ deformation[2]
+            @test J ≈ deformations[deformation]
             @test J == Pixie.deformation_gradient(u, 41, semi)
         end
     end
@@ -153,7 +153,7 @@ end
             # All @unpack calls should return another mock object of the type Val{:mock_property_name}
             Base.getproperty(::Val{:mock_semi}, f::Symbol) = Val(Symbol("mock_" * string(f)))
 
-            # For the cache, we want to have some real matrices as properties as opposed to only mock objects
+            # For the cache, we want to have the actual Lamé constants as properties
             function Base.getproperty(::Val{:mock_cache}, f::Symbol)
                 if f === :lame_lambda
                     return lame_lambda
@@ -212,16 +212,16 @@ end
 
             #### Verification for the particle in the middle
             particle = 41
-            J = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
+            J_expected = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
 
             # Deformation gradient
-            @test J ≈ Pixie.deformation_gradient(u, particle, semi)
+            @test Pixie.deformation_gradient(u, particle, semi) ≈ J_expected
 
             # PK2 stress tensor (same as in the unit test above)
-            @test Pixie.pk2_stress_tensor(J, semi) ≈ [8.5  0.0; 0.0 13.5]
+            @test Pixie.pk2_stress_tensor(J_expected, semi) ≈ [8.5  0.0; 0.0 13.5]
 
             # PK1 stress tensor (same as in the unit test above)
-            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J * [8.5  0.0; 0.0 13.5]
+            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J_expected * [8.5  0.0; 0.0 13.5]
         end
     end
 end
