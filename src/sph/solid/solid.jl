@@ -53,3 +53,5 @@ end
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
+
+include("sph_rhs.jl")

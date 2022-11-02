@@ -63,7 +63,7 @@ function compute_quantities(u, semi::SPHFluidSemidiscretization{NDIMS, ELTYPE, C
 end
 
 
-function rhs!(du, u, semi, t)
+function rhs!(du, u, semi::SPHFluidSemidiscretization, t)
     @unpack smoothing_kernel, smoothing_length,
             boundary_conditions, gravity,
             neighborhood_search = semi

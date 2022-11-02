@@ -1,4 +1,8 @@
-function rhs!(du, u, semi, t)
+function rhs!(du, u, semi::SPHSolidSemidiscretization, t)
+    rhs_solid!(du, u, semi, t)
+end
+
+function rhs_solid!(du, u, semi, t)
     @unpack smoothing_kernel, smoothing_length,
             boundary_conditions, gravity,
             neighborhood_search, cache = semi
@@ -29,19 +33,14 @@ function rhs!(du, u, semi, t)
 
                 if eps() < initial_distance <= compact_support(smoothing_kernel, smoothing_length)
                     pk1_neighbor = pk1_stress_tensor(u, neighbor, semi)
-                    pk1_particle_corrected = pk1_neighbor * view(correction_matrix, :, :, neighbor)
+                    pk1_neighbor_corrected = pk1_neighbor * view(correction_matrix, :, :, neighbor)
 
-                    calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance,
+                    calc_dv!(du, u, particle, neighbor, initial_pos_diff, initial_distance,
                              pk1_particle_corrected, pk1_neighbor_corrected, semi)
                 end
             end
 
             calc_gravity!(du, particle, semi)
-
-            # boundary impact
-            for bc in boundary_conditions
-                calc_boundary_condition_per_particle!(du, u, particle, bc, semi)
-            end
         end
     end
 
@@ -49,10 +48,10 @@ function rhs!(du, u, semi, t)
 end
 
 
-@inline function calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance,
+@inline function calc_dv!(du, u, particle, neighbor, initial_pos_diff, initial_distance,
                           pk1_particle_corrected, pk1_neighbor_corrected, semi)
     @unpack smoothing_kernel, smoothing_length, density_calculator, cache = semi
-    @unpack mass, correction_matrix = cache
+    @unpack mass = cache
 
     density_particle = get_particle_density(u, cache, density_calculator, particle)
     density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
