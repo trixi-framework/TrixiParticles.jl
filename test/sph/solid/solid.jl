@@ -32,11 +32,11 @@
 
             #### Mocking
             # Mock the semidiscretization
-            semi = Val(:mock_semi)
-            Pixie.ndims(::Val{:mock_semi}) = 2
+            semi = Val(:mock_semi_tensor)
+            Pixie.ndims(::Val{:mock_semi_tensor}) = 2
 
             # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-            Base.getproperty(::Val{:mock_semi}, f::Symbol) = Val(Symbol("mock_" * string(f)))
+            Base.getproperty(::Val{:mock_semi_tensor}, f::Symbol) = Val(Symbol("mock_" * string(f)))
 
             # For the cache, we want to have some real matrices as properties as opposed to only mock objects
             function Base.getproperty(::Val{:mock_cache}, f::Symbol)
@@ -50,7 +50,7 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            Pixie.eachneighbor(_, _, _, ::Val{:mock_semi}) = neighbors
+            Pixie.eachneighbor(_, _, _, ::Val{:mock_semi_tensor}) = neighbors
             Base.eltype(::Val{:mock_mass}) = Float64
             Base.getindex(::Val{:mock_mass}, ::Int64) = mass
             Base.getindex(::Val{:mock_solid_density}, ::Int64) = density
@@ -67,9 +67,17 @@
 
     @testset "Integration Tests" begin
         deformations = Dict(
+            "stretch x" => x -> [2.0 0.0; 0.0 1.0] * x,
+            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
+            "rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
+            "nonlinear stretching" => x -> [x[1]^2, x[2]]
+        )
+
+        deformation_gradients = Dict(
             "stretch x" => [2.0 0.0; 0.0 1.0],
             "stretch both" => [2.0 0.0; 0.0 3.0],
-            "rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)]
+            "rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
+            "nonlinear stretching" => [1.0 0.0; 0.0 1.0]
         )
 
         # We generate a grid of particles, apply a deformation, and verify that the computed
@@ -105,7 +113,7 @@
             # Apply the deformation matrix
             u = copy(particle_coordinates)
             for particle in axes(u, 2)
-                u[:, particle] = deformations[deformation] * u[:, particle]
+                u[:, particle] = deformations[deformation](u[:, particle])
             end
 
             # Compute the deformation gradient for the particle in the middle
@@ -113,7 +121,7 @@
                  Pixie.deformation_gradient(u, 2, 1, 41, semi) Pixie.deformation_gradient(u, 2, 2, 41, semi)]
 
             #### Verification
-            @test J ≈ deformations[deformation]
+            @test J ≈ deformation_gradients[deformation]
             @test J == Pixie.deformation_gradient(u, 41, semi)
         end
     end
@@ -148,10 +156,10 @@ end
             lame_mu = 1.0
 
             #### Mocking
-            semi = Val(:mock_semi)
+            semi = Val(:mock_semi_deform)
 
             # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-            Base.getproperty(::Val{:mock_semi}, f::Symbol) = Val(Symbol("mock_" * string(f)))
+            Base.getproperty(::Val{:mock_semi_deform}, f::Symbol) = Val(Symbol("mock_" * string(f)))
 
             # For the cache, we want to have the actual Lamé constants as properties
             function Base.getproperty(::Val{:mock_cache}, f::Symbol)
@@ -162,7 +170,7 @@ end
                 end
             end
 
-            Pixie.deformation_gradient(_, _, ::Val{:mock_semi}) = J
+            Pixie.deformation_gradient(_, _, ::Val{:mock_semi_deform}) = J
 
             #### Verification
             @test Pixie.pk2_stress_tensor(J, semi) ≈ expected_pk2[deformation]

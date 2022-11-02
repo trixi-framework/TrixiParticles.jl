@@ -26,6 +26,9 @@
                 kernel_deriv = 1.0
                 initial_distance = norm(initial_pos_diff[i])
 
+                # Density equals the ID of the particle
+                solid_density = 1:10
+
                 #### Mocking
                 # Mock the semidiscretization
                 semi = Val(:mock_semi)
@@ -33,12 +36,18 @@
 
                 # All @unpack calls should return another mock object of the type Val{:mock_property_name}
                 Base.getproperty(::Val{:mock_semi}, f::Symbol)  = Val(Symbol("mock_" * string(f)))
-                Base.getproperty(::Val{:mock_cache}, f::Symbol) = Val(Symbol("mock_" * string(f)))
+
+                # For the cache, we want to have some real matrices as properties as opposed to only mock objects
+                function Base.getproperty(::Val{:mock_cache}, f::Symbol)
+                    if f === :solid_density
+                        return solid_density
+                    end
+
+                    # For all other properties, return mock objects
+                    return Val(Symbol("mock_" * string(f)))
+                end
 
                 Base.getindex(::Val{:mock_mass}, ::Int64) = neighbor_mass
-
-                # Density equals the ID of the particle
-                Pixie.get_particle_density(_, ::Val{:mock_cache}, _, particle) = particle * 1.0
 
                 Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
@@ -96,17 +105,20 @@
                 initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
                 initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
 
+                # Density equals the ID of the particle
+                solid_density = 1:10
+
                 # Use the same setup as in the unit test above for calc_dv!
                 neighbor_mass = 1.0
                 kernel_deriv = 1.0
 
                 #### Mocking
                 # Mock the semidiscretization
-                semi = Val{:mock_semi}()
-                Pixie.ndims(::Val{:mock_semi}) = 2
+                semi = Val{:mock_semi_rhs!}()
+                Pixie.ndims(::Val{:mock_semi_rhs!}) = 2
 
                 # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-                Base.getproperty(::Val{:mock_semi}, f::Symbol)  = Val(Symbol("mock_" * string(f)))
+                Base.getproperty(::Val{:mock_semi_rhs!}, f::Symbol)  = Val(Symbol("mock_" * string(f)))
 
                 # For the cache, we want to have some real matrices as properties as opposed to only mock objects
                 function Base.getproperty(::Val{:mock_cache}, f::Symbol)
@@ -114,17 +126,19 @@
                         return initial_coordinates
                     elseif f === :correction_matrix
                         return correction_matrix
+                    elseif f === :solid_density
+                        return solid_density
                     end
 
                     # For all other properties, return mock objects
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                Pixie.eachparticle(::Val{:mock_semi}) = eachparticle
-                Pixie.eachneighbor(_, _, _, ::Val{:mock_semi}) = eachneighbor
+                Pixie.eachparticle(::Val{:mock_semi_rhs!}) = eachparticle
+                Pixie.eachneighbor(_, _, _, ::Val{:mock_semi_rhs!}) = eachneighbor
                 Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 
-                function Pixie.pk1_stress_tensor(_, particle_, ::Val{:mock_semi})
+                function Pixie.pk1_stress_tensor(_, particle_, ::Val{:mock_semi_rhs!})
                     if particle_ == particle[i]
                         return pk1_particle_corrected[i]
                     elseif particle_ == neighbor[i]
@@ -132,11 +146,10 @@
                     end
                 end
 
-                Pixie.calc_gravity!(_, _, ::Val{:mock_semi}) = nothing
+                Pixie.calc_gravity!(_, _, ::Val{:mock_semi_rhs!}) = nothing
 
                 # Use the same mocking as in the unit test above for calc_dv!
                 Base.getindex(::Val{:mock_mass}, ::Int64) = neighbor_mass
-                Pixie.get_particle_density(_, ::Val{:mock_cache}, _, particle) = particle * 1.0
                 Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
                 #### Verification
@@ -153,6 +166,72 @@
     end
 
     @testset "Integration Tests" begin
+        deformations = Dict(
+            "rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
+            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
+            "rotate and stretch" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * x,
+            "nonlinear stretching" => x -> [x[1]^2, x[2]]
+        )
 
+        # The acceleration in the first three should be zero (linear stretching)
+        # The fourth one is calculated by hand
+        expected_du_41 = Dict(
+            "rotation" => [1.0, -2.0, 0.0, 0.0],
+            "stretch both" => [1.0, -2.0, 0.0, 0.0],
+            "rotate and stretch" => [1.0, -2.0, 0.0, 0.0],
+            "nonlinear stretching" => [1.0, -2.0, 10/1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0]
+        )
+
+        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
+            J = deformations[deformation]
+            u = zeros(4, 81)
+            u[3, :] .= 1.0
+            u[4, :] .= -2.0
+
+            # Make both Lamé constants equal to 1
+            nu = 0.25
+            E = 2.5
+
+            # 9 x 9 grid of particles
+            n_particles_per_dimension = (9, 9)
+            particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+            particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+
+            for y in 1:n_particles_per_dimension[2],
+                    x in 1:n_particles_per_dimension[1]
+                particle = (x - 1) * n_particles_per_dimension[2] + y
+
+                # Coordinates
+                particle_coordinates[1, particle] = x * 0.1
+                particle_coordinates[2, particle] = y * 0.1
+            end
+
+            smoothing_length = 0.07
+            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+            search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+            semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
+                                                smoothing_kernel, smoothing_length,
+                                                E, nu,
+                                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+            tspan = (0.0, 1.0)
+            semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+
+            # Apply the deformation matrix
+            for particle in axes(u, 2)
+                # Apply deformation
+                u[1:2, particle] = deformations[deformation](particle_coordinates[:, particle])
+            end
+
+            #### Verification for the particle in the middle
+            particle = 41
+
+            du = zeros(2 * ndims(semi), 81)
+            Pixie.rhs!(du, u, semi, 0.0)
+
+            @test du[:, particle] ≈ expected_du_41[deformation]
+        end
     end
 end

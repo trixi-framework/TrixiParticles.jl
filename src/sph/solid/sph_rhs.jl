@@ -3,8 +3,7 @@ function rhs!(du, u, semi::SPHSolidSemidiscretization, t)
 end
 
 function rhs_solid!(du, u, semi, t)
-    @unpack smoothing_kernel, smoothing_length,
-            boundary_conditions, gravity,
+    @unpack smoothing_kernel, smoothing_length, gravity,
             neighborhood_search, cache = semi
     @unpack initial_coordinates, correction_matrix = cache
 
@@ -50,11 +49,11 @@ end
 
 @inline function calc_dv!(du, u, particle, neighbor, initial_pos_diff, initial_distance,
                           pk1_particle_corrected, pk1_neighbor_corrected, semi)
-    @unpack smoothing_kernel, smoothing_length, density_calculator, cache = semi
-    @unpack mass = cache
+    @unpack smoothing_kernel, smoothing_length, cache = semi
+    @unpack mass, solid_density = cache
 
-    density_particle = get_particle_density(u, cache, density_calculator, particle)
-    density_neighbor = get_particle_density(u, cache, density_calculator, neighbor)
+    density_particle = solid_density[particle]
+    density_neighbor = solid_density[neighbor]
 
     grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
         initial_pos_diff / initial_distance
