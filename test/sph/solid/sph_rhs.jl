@@ -50,7 +50,7 @@
                 Pixie.calc_dv!(du, nothing, particle[i], neighbor[i], initial_pos_diff[i], initial_distance,
                          pk1_particle_corrected[i], pk1_neighbor_corrected[i], semi)
 
-                @test du == du_expected
+                @test du ≈ du_expected
             end
         end
 
@@ -150,5 +150,9 @@
                 @test du ≈ du_expected
             end
         end
+    end
+
+    @testset "Integration Tests" begin
+
     end
 end
