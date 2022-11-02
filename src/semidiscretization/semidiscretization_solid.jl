@@ -21,9 +21,15 @@ struct SPHSolidSemidiscretization{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: SPHSemid
         lame_lambda = young_modulus * poisson_ratio / ((1 + poisson_ratio) * (1 - 2*poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        cache = (; lame_lambda, lame_mu,
-                   create_cache(particle_masses, particle_densities,
-                                density_calculator, ELTYPE, nparticles, NDIMS)...)
+        initial_coordinates = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+        current_coordinates = similar(initial_coordinates)
+        correction_matrix   = zeros(ELTYPE, NDIMS, NDIMS, nparticles)
+        solid_density = particle_densities
+        mass = particle_masses
+
+        cache = (; lame_lambda, lame_mu, mass, solid_density,
+                   initial_coordinates, current_coordinates, correction_matrix,
+                   create_cache(density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
                    typeof(neighborhood_search), typeof(cache)}(
@@ -33,27 +39,19 @@ struct SPHSolidSemidiscretization{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: SPHSemid
 end
 
 
-function create_cache(mass, solid_density, density_calculator, eltype, nparticles, ndims)
-    initial_coordinates = Array{eltype, 2}(undef, ndims, nparticles)
-    correction_matrix   = zeros(eltype, ndims, ndims, nparticles)
-
-    return (; mass, solid_density, initial_coordinates, correction_matrix,
-              create_cache(density_calculator, eltype, nparticles)...)
-end
-
-
 function semidiscretize(semi::SPHSolidSemidiscretization{NDIMS, ELTYPE, SummationDensity},
-                        particle_coordinates, particle_velocities, tspan) where {NDIMS, ELTYPE}
+                        particle_coordinates, particle_velocities, tspan;
+                        n_fixed_particles = 0) where {NDIMS, ELTYPE}
     @unpack smoothing_kernel, smoothing_length, neighborhood_search, cache = semi
-    @unpack mass, solid_density, initial_coordinates, correction_matrix = cache
+    @unpack mass, solid_density, initial_coordinates, current_coordinates, correction_matrix = cache
 
-    u0 = Array{eltype(particle_coordinates), 2}(undef, 2 * ndims(semi), nparticles(semi))
+    # Only save the moving particle positions and velocities in u0
+    u0 = Array{eltype(particle_coordinates), 2}(undef, 2 * ndims(semi), nparticles(semi) - n_fixed_particles)
 
-    for particle in eachparticle(semi)
+    for particle in each_moving_particle(u0, semi)
         # Set particle coordinates and initial coordinates
         for dim in 1:ndims(semi)
             u0[dim, particle] = particle_coordinates[dim, particle]
-            initial_coordinates[dim, particle] = particle_coordinates[dim, particle]
         end
 
         # Set particle velocities
@@ -62,30 +60,53 @@ function semidiscretize(semi::SPHSolidSemidiscretization{NDIMS, ELTYPE, Summatio
         end
     end
 
+    # Everything in the cache like initial_coordinates should be saved for fixed particles as well
+    for particle in eachparticle(semi)
+        # Set particle coordinates and initial coordinates
+        for dim in 1:ndims(semi)
+            initial_coordinates[dim, particle] = particle_coordinates[dim, particle]
+            current_coordinates[dim, particle] = particle_coordinates[dim, particle]
+        end
+    end
+
     # Initialize neighborhood search
-    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, u0, semi)
+    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, initial_coordinates, semi)
+
+    # Calculate kernel correction matrix
+    calc_correction_matrix!(correction_matrix, semi)
+
+    return ODEProblem(rhs!, u0, tspan, semi)
+end
+
+
+function calc_correction_matrix!(correction_matrix, semi)
+    @unpack cache, smoothing_kernel, smoothing_length, neighborhood_search = semi
+    @unpack initial_coordinates, mass, solid_density = cache
 
     # Calculate kernel correction matrix
     for particle in eachparticle(semi)
-        L = sum(eachneighbor(particle, initial_coordinates, neighborhood_search, semi)) do neighbor
+        L = zeros(eltype(mass), ndims(semi), ndims(semi))
+
+        for neighbor in eachneighbor(particle, initial_coordinates, neighborhood_search, semi)
             volume = mass[neighbor] / solid_density[neighbor]
 
             initial_pos_diff = get_particle_coords(initial_coordinates, semi, particle) -
                 get_particle_coords(initial_coordinates, semi, neighbor)
             initial_distance = norm(initial_pos_diff)
 
-            if initial_distance < eps()
-                return zeros(eltype(mass), ndims(semi), ndims(semi))
+            if initial_distance > eps()
+                grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
+                    initial_pos_diff / initial_distance
+
+                L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
-
-            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                initial_pos_diff / initial_distance
-
-            return -volume * grad_kernel * transpose(initial_pos_diff)
         end
 
         correction_matrix[:, :, particle] = inv(L)
     end
 
-    return ODEProblem(rhs!, u0, tspan, semi)
+    return correction_matrix
 end
+
+
+@inline each_moving_particle(u, semi) = Base.OneTo(size(u, 2))

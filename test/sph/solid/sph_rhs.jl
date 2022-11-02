@@ -56,7 +56,7 @@
                 du_expected = copy(du)
                 du_expected[3:4, particle[i]] = dv_expected[i]
 
-                Pixie.calc_dv!(du, nothing, particle[i], neighbor[i], initial_pos_diff[i], initial_distance,
+                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i], initial_distance,
                          pk1_particle_corrected[i], pk1_neighbor_corrected[i], semi)
 
                 @test du ≈ du_expected
@@ -104,6 +104,7 @@
                 initial_coordinates = 1000 * ones(2, 10) # Just something that's not zero to catch errors
                 initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
                 initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
+                current_coordinates = zeros(2, 10)
 
                 # Density equals the ID of the particle
                 solid_density = 1:10
@@ -124,6 +125,8 @@
                 function Base.getproperty(::Val{:mock_cache}, f::Symbol)
                     if f === :initial_coordinates
                         return initial_coordinates
+                    elseif f === :current_coordinates
+                        return current_coordinates
                     elseif f === :correction_matrix
                         return correction_matrix
                     elseif f === :solid_density
@@ -134,7 +137,7 @@
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                Pixie.eachparticle(::Val{:mock_semi_rhs!}) = eachparticle
+                Pixie.each_moving_particle(_, ::Val{:mock_semi_rhs!}) = eachparticle
                 Pixie.eachneighbor(_, _, _, ::Val{:mock_semi_rhs!}) = eachneighbor
                 Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 

@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (10, 10)
+n_particles_per_dimension = (30, 5)
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
@@ -12,12 +12,12 @@ for y in 1:n_particles_per_dimension[2],
     particle = (x - 1) * n_particles_per_dimension[2] + y
 
     # Coordinates
-    particle_coordinates[1, particle] = x * 0.1
+    particle_coordinates[1, particle] = -x * 0.1
     particle_coordinates[2, particle] = y * 0.1
 
     # Velocity
-    particle_velocities[1, particle] = 1.0
-    particle_velocities[2, particle] = 1.0
+    particle_velocities[1, particle] = 0.0
+    particle_velocities[2, particle] = 0.0
 end
 
 smoothing_length = 0.12
@@ -30,11 +30,12 @@ nu = 0.4
 semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
                                      smoothing_kernel, smoothing_length,
                                      E, nu,
+                                     gravity=(0.0, -2.0),
                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 5.0)
 
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan, n_fixed_particles=10)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)

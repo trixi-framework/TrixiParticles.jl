@@ -63,7 +63,7 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
         # However, u has already been allocated above, so we can use views to u.
-        :coordinates   => view(u, 1:ndims(semi), :),
+        :coordinates   => extract_coordinates(u, semi),
         :velocity      => view(u, (ndims(semi)+1):(2*ndims(semi)), :)
     )
 
@@ -75,6 +75,16 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     end
 
     return result
+end
+
+function extract_coordinates(u, semi::SPHFluidSemidiscretization)
+    view(u, 1:ndims(semi), :)
+end
+
+function extract_coordinates(u, semi::SPHSolidSemidiscretization)
+    update_current_coordinates(u, semi)
+
+    return copy(semi.cache.current_coordinates)
 end
 
 function extract_density!(result, u, cache, ::SummationDensity, semi)
