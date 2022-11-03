@@ -57,8 +57,8 @@ nu = 0.4
 semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
                                      smoothing_kernel, smoothing_length,
                                      E, nu,
-                                     gravity=(0.0, -2.0))
-                                    #  neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                     gravity=(0.0, -2.0),
+                                     neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 tspan = (0.0, 5.0)
 
