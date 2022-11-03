@@ -24,11 +24,13 @@ struct SPHSolidSemidiscretization{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: SPHSemid
         initial_coordinates = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
         current_coordinates = similar(initial_coordinates)
         correction_matrix   = zeros(ELTYPE, NDIMS, NDIMS, nparticles)
+        pk1_corrected       = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         solid_density = particle_densities
         mass = particle_masses
 
         cache = (; lame_lambda, lame_mu, mass, solid_density,
-                   initial_coordinates, current_coordinates, correction_matrix,
+                   initial_coordinates, current_coordinates,
+                   correction_matrix, pk1_corrected,
                    create_cache(density_calculator, ELTYPE, nparticles)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
@@ -110,3 +112,11 @@ end
 
 
 @inline each_moving_particle(u, semi) = Base.OneTo(size(u, 2))
+
+@inline get_correction_matrix(semi, particle) = extract_smatrix(semi.cache.correction_matrix, particle, semi)
+@inline get_pk1_corrected(semi, particle) = extract_smatrix(semi.cache.pk1_corrected, particle, semi)
+
+@inline function extract_smatrix(array, particle, semi)
+    return SMatrix{ndims(semi), ndims(semi)}(
+        ntuple(@inline(i -> array[mod(i-1, ndims(semi))+1, div(i-1, ndims(semi))+1, particle]), Val(ndims(semi)^2)))
+end

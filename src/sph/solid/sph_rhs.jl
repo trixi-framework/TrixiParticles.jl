@@ -14,6 +14,9 @@ function rhs_solid!(du, u, semi, t)
         # Update current coordinates
         @pixie_timeit timer() "update current coordinates" update_current_coordinates(u, semi)
 
+        # Precompute PK1 stress tensor
+        @pixie_timeit timer() "precompute pk1 stress tensor" compute_pk1_corrected(semi)
+
         # u[1:3] = coordinates
         # u[4:6] = velocity
         @pixie_timeit timer() "main loop" @threaded for particle in each_moving_particle(u, semi)
@@ -21,9 +24,6 @@ function rhs_solid!(du, u, semi, t)
             for i in 1:ndims(semi)
                 du[i, particle] = u[i + ndims(semi), particle]
             end
-
-            pk1_particle = pk1_stress_tensor(current_coordinates, particle, semi)
-            pk1_particle_corrected = pk1_particle * view(correction_matrix, :, :, particle)
 
             # Everything here is done in the initial coordinates (except for the stress tensor)
             initial_particle_coords = get_particle_coords(initial_coordinates, semi, particle)
@@ -34,11 +34,7 @@ function rhs_solid!(du, u, semi, t)
                 initial_distance = norm(initial_pos_diff)
 
                 if eps() < initial_distance <= compact_support(smoothing_kernel, smoothing_length)
-                    pk1_neighbor = pk1_stress_tensor(current_coordinates, neighbor, semi)
-                    pk1_neighbor_corrected = pk1_neighbor * view(correction_matrix, :, :, neighbor)
-
-                    calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance,
-                             pk1_particle_corrected, pk1_neighbor_corrected, semi)
+                    calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance, semi)
                 end
             end
 
@@ -62,8 +58,20 @@ end
 end
 
 
-@inline function calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance,
-                          pk1_particle_corrected, pk1_neighbor_corrected, semi)
+@inline function compute_pk1_corrected(semi)
+    @unpack cache = semi
+    @unpack current_coordinates, pk1_corrected = cache
+
+    for particle in eachparticle(semi)
+        pk1_particle = pk1_stress_tensor(current_coordinates, particle, semi)
+        pk1_particle_corrected = pk1_particle * get_correction_matrix(semi, particle)
+
+        pk1_corrected[:, :, particle] = pk1_particle_corrected
+    end
+end
+
+
+@inline function calc_dv!(du, particle, neighbor, initial_pos_diff, initial_distance, semi)
     @unpack smoothing_kernel, smoothing_length, cache = semi
     @unpack mass, solid_density = cache
 
@@ -75,8 +83,8 @@ end
 
     m_b = mass[neighbor]
 
-    dv = m_b * (pk1_particle_corrected / density_particle^2 +
-                pk1_neighbor_corrected / density_neighbor^2) * grad_kernel
+    dv = m_b * (get_pk1_corrected(semi, particle) / density_particle^2 +
+                get_pk1_corrected(semi, neighbor) / density_neighbor^2) * grad_kernel
 
     for i in 1:ndims(semi)
         du[ndims(semi) + i, particle] += dv[i]

@@ -51,13 +51,19 @@
 
                 Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
+                function Pixie.get_pk1_corrected(::Val{:mock_semi}, particle_)
+                    if particle_ == particle[i]
+                        return pk1_particle_corrected[i]
+                    end
+                    return pk1_neighbor_corrected[i]
+                end
+
                 #### Verification
                 du = zeros(2 * ndims(semi), 10)
                 du_expected = copy(du)
                 du_expected[3:4, particle[i]] = dv_expected[i]
 
-                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i], initial_distance,
-                         pk1_particle_corrected[i], pk1_neighbor_corrected[i], semi)
+                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i], initial_distance, semi)
 
                 @test du ≈ du_expected
             end
@@ -96,8 +102,10 @@
 
             @testset "Test $i" for i in 1:4
                 #### Setup
-                eachparticle = [particle[i]] # Only calculate dv for this one particle
+                each_moving_particle = [particle[i]] # Only calculate dv for this one particle
+                eachparticle = [particle[i], neighbor[i]]
                 eachneighbor = [neighbor[i], particle[i]]
+
                 correction_matrix = 100 * ones(2, 2, 10) # Just something that's not zero to catch errors
                 correction_matrix[:, :, particle[i]] = Matrix(I, 2, 2)
                 correction_matrix[:, :, neighbor[i]] = Matrix(I, 2, 2)
@@ -105,6 +113,7 @@
                 initial_coordinates[:, particle[i]] = initial_coordinates_particle[i]
                 initial_coordinates[:, neighbor[i]] = initial_coordinates_neighbor[i]
                 current_coordinates = zeros(2, 10)
+                pk1_corrected = 100 * ones(2, 2, 10) # Just something that's not zero to catch errors
 
                 # Density equals the ID of the particle
                 solid_density = 1:10
@@ -131,22 +140,25 @@
                         return correction_matrix
                     elseif f === :solid_density
                         return solid_density
+                    elseif f === :pk1_corrected
+                        return pk1_corrected
                     end
 
                     # For all other properties, return mock objects
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                Pixie.each_moving_particle(_, ::Val{:mock_semi_rhs!}) = eachparticle
+                Pixie.each_moving_particle(_, ::Val{:mock_semi_rhs!}) = each_moving_particle
+                Pixie.eachparticle(::Val{:mock_semi_rhs!}) = eachparticle
                 Pixie.eachneighbor(_, _, _, ::Val{:mock_semi_rhs!}) = eachneighbor
                 Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 
                 function Pixie.pk1_stress_tensor(_, particle_, ::Val{:mock_semi_rhs!})
                     if particle_ == particle[i]
                         return pk1_particle_corrected[i]
-                    elseif particle_ == neighbor[i]
-                        return pk1_neighbor_corrected[i]
                     end
+
+                    return pk1_neighbor_corrected[i]
                 end
 
                 Pixie.calc_gravity!(_, _, ::Val{:mock_semi_rhs!}) = nothing
