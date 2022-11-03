@@ -62,11 +62,13 @@ end
     @unpack cache = semi
     @unpack current_coordinates, pk1_corrected = cache
 
-    for particle in eachparticle(semi)
+    @threaded for particle in eachparticle(semi)
         pk1_particle = pk1_stress_tensor(current_coordinates, particle, semi)
         pk1_particle_corrected = pk1_particle * get_correction_matrix(semi, particle)
 
-        pk1_corrected[:, :, particle] = pk1_particle_corrected
+        for j in 1:ndims(semi), i in 1:ndims(semi)
+            pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
+        end
     end
 end
 

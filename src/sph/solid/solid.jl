@@ -15,7 +15,7 @@ function deformation_gradient(current_coordinates, i, j, particle, semi)
 
         if initial_distance > eps()
             grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                dot(view(correction_matrix, :, j, particle), initial_pos_diff) / initial_distance
+                dot(get_correction_matrix_column(semi, j, particle), initial_pos_diff) / initial_distance
 
             result += volume * pos_diff[i] * grad_kernel
         end

@@ -120,3 +120,10 @@ end
     return SMatrix{ndims(semi), ndims(semi)}(
         ntuple(@inline(i -> array[mod(i-1, ndims(semi))+1, div(i-1, ndims(semi))+1, particle]), Val(ndims(semi)^2)))
 end
+
+@inline function get_correction_matrix_column(semi, j, particle)
+    @unpack cache = semi
+    @unpack correction_matrix = cache
+
+    return SVector(ntuple(@inline(dim -> correction_matrix[dim, j, particle]), Val(ndims(semi))))
+end
