@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (10, 5)
+n_particles_per_dimension = (100, 5)
 particle_spacing = 0.02 / 5
 
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + 24)
@@ -62,7 +62,7 @@ semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, Summat
 
 tspan = (0.0, 5.0)
 
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan, n_fixed_particles=10)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan, n_fixed_particles=24)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
