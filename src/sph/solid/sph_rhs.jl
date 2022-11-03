@@ -16,7 +16,7 @@ function rhs_solid!(du, u, semi, t)
 
         # u[1:3] = coordinates
         # u[4:6] = velocity
-        @pixie_timeit timer() "main loop" for particle in each_moving_particle(u, semi)
+        @pixie_timeit timer() "main loop" @threaded for particle in each_moving_particle(u, semi)
             # dr = v
             for i in 1:ndims(semi)
                 du[i, particle] = u[i + ndims(semi), particle]
