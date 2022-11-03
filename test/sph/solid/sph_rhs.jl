@@ -35,7 +35,7 @@
                 Pixie.ndims(::Val{:mock_semi}) = 2
 
                 # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-                Base.getproperty(::Val{:mock_semi}, f::Symbol)  = Val(Symbol("mock_" * string(f)))
+                Base.getproperty(::Val{:mock_semi}, f::Symbol) = Val(Symbol("mock_" * string(f)))
 
                 # For the cache, we want to have some real matrices as properties as opposed to only mock objects
                 function Base.getproperty(::Val{:mock_cache}, f::Symbol)

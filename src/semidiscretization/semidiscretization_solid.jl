@@ -117,10 +117,13 @@ end
 @inline get_pk1_corrected(semi, particle) = extract_smatrix(semi.cache.pk1_corrected, particle, semi)
 
 @inline function extract_smatrix(array, particle, semi)
+    # Extract the matrix elements for this particle as a tuple to pass to SMatrix
     return SMatrix{ndims(semi), ndims(semi)}(
+        # Convert linear index to Cartesian index
         ntuple(@inline(i -> array[mod(i-1, ndims(semi))+1, div(i-1, ndims(semi))+1, particle]), Val(ndims(semi)^2)))
 end
 
+# Extract the j-th column of the correction matrix for this particle as an SVector
 @inline function get_correction_matrix_column(semi, j, particle)
     @unpack cache = semi
     @unpack correction_matrix = cache
