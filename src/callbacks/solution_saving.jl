@@ -59,15 +59,16 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     u_cache = first(get_tmp_cache(integrator))
     rhs!(u_cache, u, semi, t)
 
-    result = Dict(
+    result = Dict{Symbol, Array{Float64}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
         # However, u has already been allocated above, so we can use views to u.
-        :coordinates   => view(u, 1:ndims(semi), :),
-        :velocity      => view(u, (ndims(semi)+1):(2*ndims(semi)), :),
-        :density       => extract_density(u, cache, density_calculator, semi),
-        :pressure      => copy(cache.pressure)
+        :coordinates   => extract_coordinates(u, semi),
+        :velocity      => view(u, (ndims(semi)+1):(2*ndims(semi)), :)
     )
+
+    extract_density!(result, u, cache, density_calculator, semi)
+    extract_pressure!(result, cache, semi)
 
     for (key, func) in custom_quantities
         result[key] = func(u, t, integrator)
@@ -76,5 +77,30 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     return result
 end
 
-extract_density(u, cache, ::SummationDensity, semi) = copy(cache.density)
-extract_density(u, cache, ::ContinuityDensity, semi) = view(u, 2*ndims(semi) + 1, :)
+function extract_coordinates(u, semi::SPHFluidSemidiscretization)
+    view(u, 1:ndims(semi), :)
+end
+
+function extract_coordinates(u, semi::SPHSolidSemidiscretization)
+    update_current_coordinates(u, semi)
+
+    return copy(semi.cache.current_coordinates)
+end
+
+function extract_density!(result, u, cache, ::SummationDensity, semi)
+    result[:density] = copy(cache.density)
+end
+
+function extract_density!(result, u, cache, ::ContinuityDensity, semi)
+    result[:density] = view(u, 2*ndims(semi) + 1, :)
+end
+
+function extract_density!(result, u, cache, ::SummationDensity, semi::SPHSolidSemidiscretization)
+    result[:density] = copy(cache.solid_density)
+end
+
+function extract_pressure!(result, cache, ::SPHFluidSemidiscretization)
+    result[:pressure] = copy(cache.pressure)
+end
+
+function extract_pressure!(result, cache, ::SPHSolidSemidiscretization) end

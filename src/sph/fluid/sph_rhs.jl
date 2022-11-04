@@ -63,7 +63,7 @@ function compute_quantities(u, semi::SPHFluidSemidiscretization{NDIMS, ELTYPE, C
 end
 
 
-function rhs!(du, u, semi, t)
+function rhs!(du, u, semi::SPHFluidSemidiscretization, t)
     @unpack smoothing_kernel, smoothing_length,
             boundary_conditions, gravity,
             neighborhood_search = semi
@@ -106,23 +106,6 @@ function rhs!(du, u, semi, t)
                 calc_boundary_condition_per_particle!(du, u, particle, bc, semi)
             end
         end
-    end
-
-    return du
-end
-
-
-@inline function reset_du!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
-@inline function calc_gravity!(du, particle, semi)
-    @unpack gravity = semi
-
-    for i in 1:ndims(semi)
-        du[i+ndims(semi), particle] += gravity[i]
     end
 
     return du

@@ -1,4 +1,4 @@
-function deformation_gradient(u, i, j, particle, semi)
+function deformation_gradient(current_coordinates, i, j, particle, semi)
     @unpack cache, neighborhood_search, smoothing_kernel, smoothing_length = semi
     @unpack mass, solid_density, initial_coordinates, correction_matrix = cache
 
@@ -6,8 +6,8 @@ function deformation_gradient(u, i, j, particle, semi)
 
     for neighbor in eachneighbor(particle, initial_coordinates, neighborhood_search, semi)
         volume = mass[neighbor] / solid_density[neighbor]
-        pos_diff = get_particle_coords(u, semi, neighbor) -
-            get_particle_coords(u, semi, particle)
+        pos_diff = get_particle_coords(current_coordinates, semi, neighbor) -
+            get_particle_coords(current_coordinates, semi, particle)
 
         initial_pos_diff = get_particle_coords(initial_coordinates, semi, particle) -
             get_particle_coords(initial_coordinates, semi, neighbor)
@@ -15,7 +15,7 @@ function deformation_gradient(u, i, j, particle, semi)
 
         if initial_distance > eps()
             grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                dot(view(correction_matrix, :, j, particle), initial_pos_diff) / initial_distance
+                dot(get_correction_matrix_column(semi, j, particle), initial_pos_diff) / initial_distance
 
             result += volume * pos_diff[i] * grad_kernel
         end
@@ -25,18 +25,18 @@ function deformation_gradient(u, i, j, particle, semi)
 end
 
 # We cannot use a variable for the number of dimensions here, it has to be hardcoded
-@inline function deformation_gradient(u, particle, semi::SPHSemidiscretization{2})
-    return @SMatrix [deformation_gradient(u, i, j, particle, semi) for i in 1:2, j in 1:2]
+@inline function deformation_gradient(current_coordinates, particle, semi::SPHSemidiscretization{2})
+    return @SMatrix [deformation_gradient(current_coordinates, i, j, particle, semi) for i in 1:2, j in 1:2]
 end
 
-@inline function deformation_gradient(u, particle, semi::SPHSemidiscretization{3})
-    return @SMatrix [deformation_gradient(u, i, j, particle, semi) for i in 1:3, j in 1:3]
+@inline function deformation_gradient(current_coordinates, particle, semi::SPHSemidiscretization{3})
+    return @SMatrix [deformation_gradient(current_coordinates, i, j, particle, semi) for i in 1:3, j in 1:3]
 end
 
 
 # First Piola-Kirchhoff stress tensor
-function pk1_stress_tensor(u, particle, semi)
-    J = deformation_gradient(u, particle, semi)
+function pk1_stress_tensor(current_coordinates, particle, semi)
+    J = deformation_gradient(current_coordinates, particle, semi)
 
     S = pk2_stress_tensor(J, semi)
 
@@ -53,3 +53,5 @@ end
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
+
+include("sph_rhs.jl")
