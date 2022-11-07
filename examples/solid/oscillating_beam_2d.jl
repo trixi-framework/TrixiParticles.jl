@@ -1,13 +1,24 @@
 using Pixie
 using OrdinaryDiffEq
 
-n_particles_per_dimension = (99, 5)
-particle_spacing = 0.02 / 5
+length = 0.35
+thickness = 0.02
+n_particles_y = 5
+clamp_radius = 0.05
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + 29)
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + 29)
-particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension) + 29)
-particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + 29)
+# The structure starts at the position of the first particle and ends
+# at the position of the last particle.
+particle_spacing = thickness / (n_particles_y - 1)
+
+n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
+n_particles_fixed = 2 * n_particles_clamp_x + n_particles_y + 2
+
+n_particles_per_dimension = (round(Int, length / particle_spacing) + 1 + (n_particles_clamp_x - 1), n_particles_y)
+
+particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + n_particles_fixed)
+particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + n_particles_fixed)
+particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
+particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
 
 for y in 1:n_particles_per_dimension[2],
         x in 1:n_particles_per_dimension[1]
@@ -23,12 +34,12 @@ for y in 1:n_particles_per_dimension[2],
 end
 
 # Fixed particle above the beam
-for x in 1:12
+for x in 1:n_particles_clamp_x
     particle = prod(n_particles_per_dimension) + x
 
     # Coordinates
-    particle_coordinates[1, particle] = (x - 1) * particle_spacing
-    particle_coordinates[2, particle] = 6 * particle_spacing
+    particle_coordinates[1, particle] = x * particle_spacing
+    particle_coordinates[2, particle] = (n_particles_y + 1) * particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0.0
@@ -36,11 +47,11 @@ for x in 1:12
 end
 
 # Fixed particles below the beam
-for x in 1:12
-    particle = prod(n_particles_per_dimension) + 12 + x
+for x in 1:n_particles_clamp_x
+    particle = prod(n_particles_per_dimension) + n_particles_clamp_x + x
 
     # Coordinates
-    particle_coordinates[1, particle] = (x - 1) * particle_spacing
+    particle_coordinates[1, particle] = x * particle_spacing
     particle_coordinates[2, particle] = 0.0
 
     # Velocity
@@ -49,12 +60,12 @@ for x in 1:12
 end
 
 # Fixed particles to the left of the beam
-for x in 1:5
-    particle = prod(n_particles_per_dimension) + 24 + x
+for x in 1:(n_particles_y + 2)
+    particle = prod(n_particles_per_dimension) + 2 * n_particles_clamp_x + x
 
     # Coordinates
     particle_coordinates[1, particle] = 0.0
-    particle_coordinates[2, particle] = x * particle_spacing
+    particle_coordinates[2, particle] = (x - 1) * particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0.0
@@ -79,7 +90,8 @@ tspan = (0.0, 5.0)
 
 # Make the last 29 particles fixed (24 for the support above and below the beam, 5 for
 # the first layer of particles to the left)
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan, n_fixed_particles=29)
+ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan,
+                     n_fixed_particles=n_particles_fixed)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
