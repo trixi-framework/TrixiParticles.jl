@@ -23,20 +23,22 @@ end
 smoothing_length = 0.12
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
-semi = SPHFluidSemidiscretization{2}(particle_masses, SummationDensity(),
-                                StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
-                                smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
-                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
-                              #   neighborhood_search=nothing)
+
+particle_container = FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+                                            SummationDensity(),
+                                            StateEquationCole(10.0, 7, 1000.0, 1.0, background_pressure=1.0),
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=ArtificialViscosityMonaghan(1.0, 2.0),
+                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+semi = Semidiscretization(particle_container)
 
 tspan = (0.0, 20.0)
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
-# ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
+ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
+                                                       index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 

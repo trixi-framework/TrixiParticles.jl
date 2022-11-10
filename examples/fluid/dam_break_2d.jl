@@ -1,8 +1,8 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.01
-beta = 3
+particle_spacing = 0.02
+beta = 1
 
 water_width = 2.0
 water_height = 1.0
@@ -12,7 +12,8 @@ container_height = 2.0
 particle_density = 1000.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density)
+                        container_width, container_height, particle_density,
+                        n_layers=3)
 
 # Move right boundary
 reset_right_wall!(setup, container_width, wall_position=water_width)
@@ -23,25 +24,29 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
-K = 4 * 9.81 * water_height
-boundary_conditions = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-                                                      K, beta, particle_spacing / beta,
-                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
-
-# Create semidiscretization
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-semi = SPHFluidSemidiscretization{2}(setup.particle_masses,
-                                ContinuityDensity(), state_equation,
-                                smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                boundary_conditions=boundary_conditions,
-                                gravity=(0.0, -9.81),
-                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
+particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities, setup.particle_masses,
+                                            SummationDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            acceleration=(0.0, -9.81),
+                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+# K = 4 * 9.81 * water_height
+# boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
+#                                                      K, beta, particle_spacing / beta,
+#                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
+                                             particle_density,
+                                             neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+semi = Semidiscretization(particle_container, boundary_container)
 
 tspan = (0.0, 3.0)
-ode = semidiscretize(semi, setup.particle_coordinates, setup.particle_velocities, setup.particle_densities, tspan)
+ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 
@@ -57,10 +62,16 @@ reset_right_wall!(setup, container_width)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
-ode = semidiscretize(semi, view(sol[end], 1:2, :), view(sol[end], 3:4, :), view(sol[end], 5, :), tspan)
+
+# Use solution of the relaxing step as initial coordinates
+u_end = Pixie.wrap_array(sol[end], 1, semi)
+particle_container.initial_coordinates .= view(u_end, 1:2, :)
+particle_container.initial_velocity .= view(u_end, 3:4, :)
+
+ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
+                                                       index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 

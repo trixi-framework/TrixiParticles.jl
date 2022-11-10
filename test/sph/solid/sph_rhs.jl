@@ -161,7 +161,7 @@
                     return pk1_neighbor_corrected[i]
                 end
 
-                Pixie.calc_gravity!(_, _, ::Val{:mock_semi_rhs!}) = nothing
+                Pixie.add_acceleration!(_, _, ::Val{:mock_semi_rhs!}) = nothing
 
                 # Use the same mocking as in the unit test above for calc_dv!
                 Base.getindex(::Val{:mock_mass}, ::Int64) = neighbor_mass

@@ -14,13 +14,14 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
 include("semidiscretization/semidiscretization.jl")
+include("containers/container.jl")
 include("sph/sph.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 
-export SPHFluidSemidiscretization, SPHSolidSemidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
+export Semidiscretization, FluidParticleContainer, SolidParticleContainer, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
