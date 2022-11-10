@@ -1,9 +1,9 @@
-@inline eachneighbor(particle, u, container) = eachneighbor(particle, u, container.neighborhood_search, container)
+@inline eachneighbor(coords, container) = eachneighbor(coords, container.neighborhood_search, container)
 
 # No neighborhood search (neighborhood_search == nothing)
 @inline initialize!(neighborhood_search, u, container) = nothing
 @inline update!(neighborhood_search, u, container) = nothing
-@inline eachneighbor(particle, u, neighborhood_search, container) = eachparticle(container)
+@inline eachneighbor(coords, neighborhood_search, container) = eachparticle(container)
 
 
 @doc raw"""
@@ -108,7 +108,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
 end
 
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
+@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2}, container)
     cell_coords = get_cell_coords(coords, neighborhood_search)
     x, y = cell_coords
     # Generator of all neighboring cells to consider
@@ -118,7 +118,7 @@ end
     Iterators.flatten(particles_in_cell(cell, neighborhood_search) for cell in neighboring_cells)
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
+@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3}, container)
     cell_coords = get_cell_coords(coords, neighborhood_search)
     x, y, z = cell_coords
     # Generator of all neighboring cells to consider

@@ -3,7 +3,6 @@ function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::SolidParticleContainer,
                   neighbor_container::SolidParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
-    @unpack neighborhood_search = neighbor_container
 
     # Different solids do not interact with each other (yet)
     if particle_container !== neighbor_container
@@ -14,7 +13,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         # Everything here is done in the initial coordinates
         particle_coords = get_particle_coords(particle, particle_container.initial_coordinates,
                                               particle_container)
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        for neighbor in eachneighbor(particle_coords, neighbor_container)
             neighbor_coords = get_particle_coords(neighbor, neighbor_container.initial_coordinates,
                                                   neighbor_container)
 

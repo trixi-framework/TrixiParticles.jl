@@ -3,11 +3,10 @@ function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::FluidParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
-    @unpack neighborhood_search = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        for neighbor in eachneighbor(particle_coords, neighbor_container)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
@@ -85,7 +84,6 @@ function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::BoundaryParticleContainer)
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
-    @unpack neighborhood_search = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
 
@@ -94,7 +92,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        for neighbor in eachneighbor(particle_coords, neighbor_container)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords

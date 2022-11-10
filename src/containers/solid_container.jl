@@ -94,14 +94,14 @@ end
 
 function calc_correction_matrix!(correction_matrix, container)
     @unpack initial_coordinates, mass, material_density,
-        smoothing_kernel, smoothing_length, neighborhood_search = container
+        smoothing_kernel, smoothing_length = container
 
     # Calculate kernel correction matrix
     for particle in eachparticle(container)
         L = zeros(eltype(mass), ndims(container), ndims(container))
 
         particle_coordinates = get_particle_coords(particle, initial_coordinates, container)
-        for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
+        for neighbor in eachneighbor(particle_coordinates, container)
             volume = mass[neighbor] / material_density[neighbor]
 
             initial_pos_diff = particle_coordinates - get_particle_coords(neighbor, initial_coordinates, container)
@@ -179,13 +179,13 @@ end
 
 
 function deformation_gradient(i, j, particle, container)
-    @unpack initial_coordinates, current_coordinates, correction_matrix, mass, material_density,
-        neighborhood_search, smoothing_kernel, smoothing_length = container
+    @unpack initial_coordinates, current_coordinates, correction_matrix,
+        mass, material_density, smoothing_kernel, smoothing_length = container
 
     result = zero(eltype(mass))
 
     initial_particle_coords = get_particle_coords(particle, initial_coordinates, container)
-    for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
+    for neighbor in eachneighbor(initial_particle_coords, container)
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = get_particle_coords(particle, current_coordinates, container) -
             get_particle_coords(neighbor, current_coordinates, container)
