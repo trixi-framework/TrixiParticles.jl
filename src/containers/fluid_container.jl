@@ -100,7 +100,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density"  for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
+    @pixie_timeit timer() "compute density" for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
         u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
 
         @threaded for particle in eachparticle(container)
@@ -111,6 +111,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
 
     compute_pressure!(container, u)
 end
+
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.

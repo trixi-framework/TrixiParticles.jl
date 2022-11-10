@@ -59,7 +59,7 @@ end
 @inline function get_current_coords(particle, u, container::SolidParticleContainer)
     @unpack current_coordinates = container
 
-    return get_particle_coordinates(particle, current_coordinates, container)
+    return get_particle_coords(particle, current_coordinates, container)
 end
 
 

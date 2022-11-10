@@ -51,3 +51,11 @@ end
 
     return du
 end
+
+
+# Solid-fluid interaction
+function interact!(du, u_particle_container, u_neighbor_container,
+                   particle_container::SolidParticleContainer,
+                   neighbor_container::FluidParticleContainer)
+    return du
+end

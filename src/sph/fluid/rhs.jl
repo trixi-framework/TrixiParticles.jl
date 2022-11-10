@@ -81,8 +81,8 @@ end
 
 # Fluid-boundary interaction
 function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::FluidParticleContainer,
-                  neighbor_container::BoundaryParticleContainer)
+                   particle_container::FluidParticleContainer,
+                   neighbor_container::BoundaryParticleContainer)
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -110,4 +110,60 @@ function interact!(du, u_particle_container, u_neighbor_container,
             end
         end
     end
+
+    return du
+end
+
+
+# Fluid-solid interaction
+function interact!(du, u_particle_container, u_neighbor_container,
+                  particle_container::FluidParticleContainer,
+                  neighbor_container::SolidParticleContainer)
+    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+
+    @threaded for particle in each_moving_particle(particle_container)
+
+        m_a = particle_container.mass[particle]
+        density_a = get_particle_density(particle, u_particle_container, particle_container)
+        v_a = get_particle_vel(particle, u_particle_container, particle_container)
+
+        particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+        for neighbor in eachneighbor(particle_coords, neighbor_container)
+            neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+
+            pos_diff = particle_coords - neighbor_coords
+            distance = norm(pos_diff)
+
+            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+                m_b = neighbor_container.mass[neighbor]
+
+                dv = boundary_particle_impact(particle, particle_container, neighbor_container, pos_diff, distance,
+                                              m_a, m_b, density_a, v_a)
+
+                for i in 1:ndims(particle_container)
+                    du[ndims(particle_container) + i, particle] += dv[i]
+                end
+            end
+        end
+    end
+
+    return du
+end
+
+
+@inline function boundary_particle_impact(particle, particle_container,
+                                          solid_container::SolidParticleContainer,
+                                          pos_diff, distance, m_a, m_b, density_a, v_a)
+    @unpack pressure, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+
+    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
+
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+    # Use 0 as boundary particle pressure
+    dv_pressure = -m_b * (pressure[particle] / density_a^2 + 0) * grad_kernel
+
+    dv_viscosity = m_b * pi_ab * grad_kernel
+
+    return dv_pressure + dv_viscosity
 end
