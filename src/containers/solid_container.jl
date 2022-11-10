@@ -56,6 +56,13 @@ end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
+@inline function get_current_coords(particle, u, container::SolidParticleContainer)
+    @unpack current_coordinates = container
+
+    return get_particle_coordinates(particle, current_coordinates, container)
+end
+
+
 @inline get_correction_matrix(particle, container) = extract_smatrix(container.correction_matrix, particle, container)
 @inline get_pk1_corrected(particle, container) = extract_smatrix(container.pk1_corrected, particle, container)
 

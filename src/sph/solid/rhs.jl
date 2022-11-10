@@ -13,10 +13,10 @@ function calc_du!(du, u_particle_container, u_neighbor_container,
     @threaded for particle in each_moving_particle(particle_container)
         # Everything here is done in the initial coordinates
         particle_coords = get_particle_coords(particle, particle_container.initial_coordinates,
-                                            particle_container)
+                                              particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_particle_coords(neighbor, neighbor_container.initial_coordinates,
-                                                neighbor_container)
+                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)

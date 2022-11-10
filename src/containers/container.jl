@@ -10,8 +10,10 @@ abstract type ParticleContainer{NDIMS} end
 @inline Base.eltype(container::ParticleContainer) = eltype(container.mass)
 
 
-@inline function get_particle_coords(particle, u, container)
-    return SVector(ntuple(@inline(dim -> u[dim, particle]), Val(ndims(container))))
+@inline get_current_coords(particle, u, container) = get_particle_coords(particle, u, container)
+
+@inline function get_particle_coords(particle, coords, container)
+    return SVector(ntuple(@inline(dim -> coords[dim, particle]), Val(ndims(container))))
 end
 
 @inline function get_particle_vel(particle, u, container)

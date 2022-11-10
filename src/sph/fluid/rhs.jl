@@ -6,9 +6,9 @@ function calc_du!(du, u_particle_container, u_neighbor_container,
     @unpack neighborhood_search = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        particle_coords = get_particle_coords(particle, u_particle_container, particle_container)
+        particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_particle_coords(neighbor, u_neighbor_container, neighbor_container)
+            neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -93,9 +93,9 @@ function calc_du!(du, u_particle_container, u_neighbor_container,
         density_a = get_particle_density(particle, u_particle_container, particle_container)
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
-        particle_coords = get_particle_coords(particle, u_particle_container, particle_container)
+        particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_particle_coords(neighbor, u_neighbor_container, neighbor_container)
+            neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)

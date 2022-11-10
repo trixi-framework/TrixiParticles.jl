@@ -4,10 +4,10 @@ abstract type BoundaryParticleContainer{NDIMS} <: ParticleContainer{NDIMS} end
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0
 
 
-@inline function get_particle_coords(particle, u, container::BoundaryParticleContainer)
+@inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
     @unpack coordinates = container
 
-    return SVector(ntuple(@inline(dim -> coordinates[dim, particle]), Val(ndims(container))))
+    return get_particle_coords(particle, coordinates, container)
 end
 
 

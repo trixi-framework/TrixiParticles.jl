@@ -45,7 +45,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
 end
 
 
-function initialize!(neighborhood_search::SpatialHashingSearch, u, container)
+function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, container)
     @unpack hashtable = neighborhood_search
 
     empty!(hashtable)
@@ -56,7 +56,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, u, container)
 
     for particle in eachparticle(container)
         # Get cell index of the particle's cell
-        cell_coords = get_cell_coords(get_particle_coords(particle, u, container), neighborhood_search)
+        cell_coords = get_cell_coords(get_particle_coords(particle, coordinates, container), neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell_coords)
@@ -71,7 +71,7 @@ end
 
 
 # Modify the existing hash table by moving particles into their new cells
-function update!(neighborhood_search::SpatialHashingSearch, u, container)
+function update!(neighborhood_search::SpatialHashingSearch, coordinates, container)
     @unpack hashtable = neighborhood_search
 
     # This is needed to prevent lagging on macOS ARM.
@@ -81,12 +81,12 @@ function update!(neighborhood_search::SpatialHashingSearch, u, container)
     for (cell_coords, particles) in hashtable
         # Find all particles whose coordinates do not match this cell
         moved_particle_indices = (i for i in eachindex(particles)
-                                  if get_cell_coords(get_particle_coords(particles[i], u, container), neighborhood_search) != cell_coords)
+                                  if get_cell_coords(get_particle_coords(particles[i], coordinates, container), neighborhood_search) != cell_coords)
 
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
-            new_cell_coords = get_cell_coords(get_particle_coords(particle, u, container), neighborhood_search)
+            new_cell_coords = get_cell_coords(get_particle_coords(particle, coordinates, container), neighborhood_search)
 
             # Add particle to corresponding cell or create cell if it does not exist
             if haskey(hashtable, new_cell_coords)
@@ -150,11 +150,11 @@ end
 
 # Sorting only really makes sense in longer simulations where particles
 # end up very unordered
-function z_index_sort!(u, container)
+function z_index_sort!(coordinates, container)
     @unpack mass, pressure, neighborhood_search = container
 
     perm = sortperm(eachparticle(container),
-                    by=(i -> cell_z_index(get_particle_coords(i, u, container),
+                    by=(i -> cell_z_index(get_particle_coords(i, coordinates, container),
                                           neighborhood_search)))
 
     permute!(mass, perm)

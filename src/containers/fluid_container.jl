@@ -121,9 +121,9 @@ end
     @unpack density = cache # Density is in the cache for SummationDensity
     @unpack mass, neighborhood_search = neighbor_container
 
-    particle_coords = get_particle_coords(particle, u_particle_container, particle_container)
+    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        distance = norm(particle_coords - get_particle_coords(neighbor, u_neighbor_container, neighbor_container))
+        distance = norm(particle_coords - get_current_coords(neighbor, u_neighbor_container, neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
             density[particle] += mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
