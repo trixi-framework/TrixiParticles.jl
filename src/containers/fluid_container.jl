@@ -39,11 +39,11 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: Parti
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                            density_calculator::ContinuityDensity, state_equation,
-                            smoothing_kernel, smoothing_length;
-                            viscosity=NoViscosity(),
-                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                            neighborhood_search=nothing)
+                                    density_calculator::ContinuityDensity, state_equation,
+                                    smoothing_kernel, smoothing_length;
+                                    viscosity=NoViscosity(),
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                                    neighborhood_search=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)

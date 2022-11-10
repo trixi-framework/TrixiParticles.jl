@@ -1,5 +1,5 @@
 # Fluid-fluid interaction
-function calc_du!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::FluidParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
@@ -81,7 +81,7 @@ end
 
 
 # Fluid-boundary interaction
-function calc_du!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::BoundaryParticleContainer)
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container

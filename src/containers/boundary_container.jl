@@ -29,7 +29,7 @@ end
 
 
 # Boundary-fluid interaction
-function calc_du!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::BoundaryParticleContainer,
                   neighbor_container::FluidParticleContainer)
     # No interaction (only fluid-boundary interaction)
@@ -37,7 +37,7 @@ function calc_du!(du, u_particle_container, u_neighbor_container,
 end
 
 # Boundary-boundary interaction
-function calc_du!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::BoundaryParticleContainer,
                   neighbor_container::BoundaryParticleContainer)
     # No interaction

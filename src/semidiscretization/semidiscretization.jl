@@ -84,7 +84,7 @@ function rhs!(du_ode, u_ode, semi, t)
             for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
                 u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
 
-                calc_du!(du, u_particle_container, u_neighbor_container, particle_container, neighbor_container)
+                interact!(du, u_particle_container, u_neighbor_container, particle_container, neighbor_container)
             end
         end
     end

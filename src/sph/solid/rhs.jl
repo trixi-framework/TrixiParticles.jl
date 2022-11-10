@@ -1,5 +1,5 @@
 # Solid-solid interaction
-function calc_du!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::SolidParticleContainer,
                   neighbor_container::SolidParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
