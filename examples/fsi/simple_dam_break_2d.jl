@@ -125,8 +125,8 @@ solid_particle_container = SolidParticleContainer(particle_coordinates, particle
                                                   smoothing_kernel, smoothing_length,
                                                   E, nu,
                                                   n_fixed_particles=n_particles_fixed,
-                                                  acceleration=(0.0, -2.0),
-                                                  neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                                  acceleration=(0.0, -2.0))
+                                                #   neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 
 
