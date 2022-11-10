@@ -80,22 +80,23 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 # Lamé constants
 E = 1.4e6
 nu = 0.4
-semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
-                                     smoothing_kernel, smoothing_length,
-                                     E, nu,
-                                     gravity=(0.0, -2.0),
-                                     neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
+particle_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+                                            SummationDensity(),
+                                            smoothing_kernel, smoothing_length,
+                                            E, nu,
+                                            n_fixed_particles=n_particles_fixed,
+                                            acceleration=(0.0, -2.0),
+                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+semi = Semidiscretization(particle_container)
 tspan = (0.0, 5.0)
 
-# Make the last 29 particles fixed (24 for the support above and below the beam, 5 for
-# the first layer of particles to the left)
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, tspan,
-                     n_fixed_particles=n_particles_fixed)
+ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, integrator) -> Pixie.eachparticle(integrator.p))
+                                                       index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
