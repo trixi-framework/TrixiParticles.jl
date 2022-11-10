@@ -144,5 +144,5 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
+            abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
             save_everystep=false, callback=callbacks);
