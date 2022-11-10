@@ -110,11 +110,12 @@ function (extract_quantities::ExtractQuantities)(u, container::FluidParticleCont
 end
 
 function (extract_quantities::ExtractQuantities)(u, container::SolidParticleContainer)
+    n_fixed_particles = nparticles(container) - n_moving_particles(container)
     result = Dict{Symbol, Array{Float64}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
         :coordinates        => copy(container.current_coordinates),
-        :velocity           => u[(ndims(container)+1):(2*ndims(container)), :],
+        :velocity           => hcat(u[(ndims(container)+1):(2*ndims(container)), :], zeros(ndims(container), n_fixed_particles)),
         :material_density   => container.material_density
     )
 
