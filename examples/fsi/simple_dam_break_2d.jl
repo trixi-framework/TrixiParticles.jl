@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # Particle data
 n_particles_per_dimension = (10, 30)
-spacing = 0.005
+spacing = 0.005 / 3
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_masses = 1000 * spacing^2 * ones(Float64, prod(n_particles_per_dimension))
@@ -30,8 +30,8 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-particle_container = FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
-                                            SummationDensity(), state_equation, smoothing_kernel, smoothing_length,
+particle_container = FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+                                            ContinuityDensity(), state_equation, smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.5, 1.0),
                                             acceleration=(0.0, -9.81),
                                             neighborhood_search=SpatialHashingSearch{2}(search_radius))
@@ -125,8 +125,8 @@ solid_particle_container = SolidParticleContainer(particle_coordinates, particle
                                                   smoothing_kernel, smoothing_length,
                                                   E, nu,
                                                   n_fixed_particles=n_particles_fixed,
-                                                  acceleration=(0.0, -2.0),
-                                                  neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                                  acceleration=(0.0, -2.0))
+                                                #   neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 
 
@@ -144,5 +144,5 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            # abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
+            abstol=1.0e-6, reltol=1.0e-6, # Tighter tolerance to prevent instabilities
             save_everystep=false, callback=callbacks);

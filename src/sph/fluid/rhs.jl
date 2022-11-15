@@ -2,7 +2,7 @@
 function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::FluidParticleContainer)
-    @unpack smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
@@ -17,8 +17,10 @@ function interact!(du, u_particle_container, u_neighbor_container,
                          particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
 
-                # TODO
-                # continuity_equation!(du, u, particle, neighbor, pos_diff, distance, semi)
+                continuity_equation!(du, density_calculator,
+                                     u_particle_container, u_neighbor_container,
+                                     particle, neighbor, pos_diff, distance,
+                                     particle_container, neighbor_container)
             end
         end
     end
@@ -56,25 +58,28 @@ end
 end
 
 
-# TODO
-@inline function continuity_equation!(du, u_particle_container, u_neighbor_container,
+@inline function continuity_equation!(du, density_calculator,
+                                      u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      semi)
-    @unpack smoothing_kernel, smoothing_length, cache = semi
-    @unpack mass = cache
-
-    vdiff = get_particle_vel(u, semi, particle) -
-            get_particle_vel(u, semi, neighbor)
-
-    du[2 * ndims(semi) + 1, particle] += sum(mass[particle] * vdiff *
-                                             kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
-                                             pos_diff) / distance
-
+                                      particle_container, neighbor_container)
     return du
 end
 
-@inline function continuity_equation!(du, u, particle, neighbor, pos_diff, distance,
-                                      semi)
+
+@inline function continuity_equation!(du, density_calculator::ContinuityDensity,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container,
+                                      neighbor_container::FluidParticleContainer)
+    @unpack mass, smoothing_kernel, smoothing_length = particle_container
+
+    vdiff = get_particle_vel(particle, u_particle_container, particle_container) -
+            get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+
+    du[2 * ndims(particle_container) + 1, particle] += sum(mass[particle] * vdiff *
+                                             kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+                                             pos_diff) / distance
+
     return du
 end
 
@@ -83,7 +88,7 @@ end
 function interact!(du, u_particle_container, u_neighbor_container,
                    particle_container::FluidParticleContainer,
                    neighbor_container::BoundaryParticleContainer)
-    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
 
@@ -107,9 +112,31 @@ function interact!(du, u_particle_container, u_neighbor_container,
                 for i in 1:ndims(particle_container)
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
+
+                continuity_equation!(du, density_calculator,
+                                     u_particle_container, u_neighbor_container,
+                                     particle, neighbor, pos_diff, distance,
+                                     particle_container, neighbor_container)
             end
         end
     end
+
+    return du
+end
+
+
+@inline function continuity_equation!(du, density_calculator::ContinuityDensity,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container,
+                                      neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer})
+    @unpack mass, smoothing_kernel, smoothing_length = particle_container
+
+    vdiff = get_particle_vel(particle, u_particle_container, particle_container)
+
+    du[2 * ndims(particle_container) + 1, particle] += sum(mass[particle] * vdiff *
+                                                           kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+                                                           pos_diff) / distance
 
     return du
 end
@@ -119,7 +146,7 @@ end
 function interact!(du, u_particle_container, u_neighbor_container,
                   particle_container::FluidParticleContainer,
                   neighbor_container::SolidParticleContainer)
-    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
 
@@ -143,6 +170,11 @@ function interact!(du, u_particle_container, u_neighbor_container,
                 for i in 1:ndims(particle_container)
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
+
+                continuity_equation!(du, density_calculator,
+                                     u_particle_container, u_neighbor_container,
+                                     particle, neighbor, pos_diff, distance,
+                                     particle_container, neighbor_container)
             end
         end
     end
@@ -151,19 +183,39 @@ function interact!(du, u_particle_container, u_neighbor_container,
 end
 
 
+# @inline function boundary_particle_impact(particle, particle_container,
+#                                           solid_container::SolidParticleContainer,
+#                                           pos_diff, distance, m_a, m_b, density_a, v_a)
+#     @unpack pressure, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+
+#     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
+
+#     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+#     # Use 0 as boundary particle pressure
+#     dv_pressure = -m_b * (pressure[particle] / density_a^2 + 0) * grad_kernel
+
+#     dv_viscosity = m_b * pi_ab * grad_kernel
+
+#     return dv_pressure + dv_viscosity
+# end
+
+
 @inline function boundary_particle_impact(particle, particle_container,
                                           solid_container::SolidParticleContainer,
                                           pos_diff, distance, m_a, m_b, density_a, v_a)
-    @unpack pressure, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    # @unpack K, beta, boundary_particle_spacing = boundary_container
+    K = 1000
+    beta = 3
+    boundary_particle_spacing = 0.005
 
     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-    # Use 0 as boundary particle pressure
-    dv_pressure = -m_b * (pressure[particle] / density_a^2 + 0) * grad_kernel
+    dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+        boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
 
-    dv_viscosity = m_b * pi_ab * grad_kernel
-
-    return dv_pressure + dv_viscosity
+    return dv_viscosity + dv_repulsive
 end
