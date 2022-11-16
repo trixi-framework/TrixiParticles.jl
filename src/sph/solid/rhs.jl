@@ -78,7 +78,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
                                               m_a, m_b, density_a, v_a)
 
                 for i in 1:ndims(particle_container)
-                    du[ndims(particle_container) + i, particle] += dv[i] / m_a * m_b
+                    du[ndims(particle_container) + i, particle] += dv[i] * m_a / m_b
                 end
 
                 # continuity_equation!(du, density_calculator,

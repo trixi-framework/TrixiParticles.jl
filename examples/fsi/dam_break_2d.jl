@@ -57,8 +57,9 @@ n_particles_per_dimension = (n_particles_x, round(Int, length / particle_spacing
 
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = 10 *  ones(Float64, prod(n_particles_per_dimension))
+# particle_masses = 1161.54 * particle_spacing^2 *  ones(Float64, prod(n_particles_per_dimension))
+particle_densities = 1161.54 * ones(Float64, prod(n_particles_per_dimension))
 
 for x in 1:n_particles_per_dimension[1],
         y in 1:n_particles_per_dimension[2]
