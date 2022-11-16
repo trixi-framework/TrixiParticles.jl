@@ -57,5 +57,45 @@ end
 function interact!(du, u_particle_container, u_neighbor_container,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
+    @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
+
+    @threaded for particle in each_moving_particle(particle_container)
+        particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+        for neighbor in eachneighbor(particle_coords, neighbor_container)
+            m_a = neighbor_container.mass[neighbor]
+            density_a = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
+            v_a = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+
+            neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+
+            pos_diff = particle_coords - neighbor_coords
+            distance = norm(pos_diff)
+
+            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+                m_b = particle_container.mass[particle]
+
+                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container, pos_diff, distance,
+                                              m_a, m_b, density_a, v_a)
+
+                for i in 1:ndims(particle_container)
+                    du[ndims(particle_container) + i, particle] += dv[i] / m_a * m_b
+                end
+
+                # continuity_equation!(du, density_calculator,
+                #                      u_particle_container, u_particle_container,
+                #                      particle, neighbor, pos_diff, distance,
+                #                      neighbor_container, particle_container)
+            end
+        end
+    end
+
+    return du
+end
+
+
+# Solid-boundary interaction
+function interact!(du, u_particle_container, u_neighbor_container,
+                   particle_container::SolidParticleContainer,
+                   neighbor_container::BoundaryParticleContainer)
     return du
 end
