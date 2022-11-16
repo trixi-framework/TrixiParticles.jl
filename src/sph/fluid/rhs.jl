@@ -113,10 +113,10 @@ function interact!(du, u_particle_container, u_neighbor_container,
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
 
-                continuity_equation!(du, density_calculator,
-                                     u_particle_container, u_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
+                # continuity_equation!(du, density_calculator,
+                #                      u_particle_container, u_neighbor_container,
+                #                      particle, neighbor, pos_diff, distance,
+                #                      particle_container, neighbor_container)
             end
         end
     end
@@ -171,10 +171,10 @@ function interact!(du, u_particle_container, u_neighbor_container,
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
 
-                continuity_equation!(du, density_calculator,
-                                     u_particle_container, u_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
+                # continuity_equation!(du, density_calculator,
+                #                      u_particle_container, u_neighbor_container,
+                #                      particle, neighbor, pos_diff, distance,
+                #                      particle_container, neighbor_container)
             end
         end
     end
@@ -206,9 +206,9 @@ end
                                           pos_diff, distance, m_a, m_b, density_a, v_a)
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
     # @unpack K, beta, boundary_particle_spacing = boundary_container
-    K = 1000
-    beta = 3
-    boundary_particle_spacing = 0.005
+    K = 15.696
+    beta = 20
+    boundary_particle_spacing = 0.001
 
     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
 

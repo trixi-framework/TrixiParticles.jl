@@ -28,19 +28,10 @@ function write_variables!(u0, container::BoundaryParticleContainer)
 end
 
 
-# Boundary-fluid interaction
 function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::BoundaryParticleContainer,
-                  neighbor_container::FluidParticleContainer)
-    # No interaction (only fluid-boundary interaction)
-    return du
-end
-
-# Boundary-boundary interaction
-function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::BoundaryParticleContainer,
-                  neighbor_container::BoundaryParticleContainer)
-    # No interaction
+                   particle_container::BoundaryParticleContainer,
+                   neighbor_container)
+    # No interaction towards the boundary particles
     return du
 end
 
