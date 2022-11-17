@@ -1,3 +1,13 @@
+@doc raw"""
+    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+        density_calculator::SummationDensity, state_equation,
+        smoothing_kernel, smoothing_length;
+        viscosity=NoViscosity(),
+        acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+        neighborhood_search=nothing)
+
+tbd ...
+"""
 struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]

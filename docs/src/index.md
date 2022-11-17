@@ -14,6 +14,14 @@ Modules = [Pixie]
 Pages = [joinpath("setups", "rectangular_tank.jl")]
 ```
 
+## Containers
+
+### File fluid_container.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("containers", "fluid_container.jl")]
+```
+
 ## SPH
 
 ### File boundary_container.jl

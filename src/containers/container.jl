@@ -1,3 +1,6 @@
+@doc raw"""
+    ParticleContainer
+"""
 abstract type ParticleContainer{NDIMS} end
 
 @inline Base.ndims(::ParticleContainer{NDIMS}) where NDIMS = NDIMS
