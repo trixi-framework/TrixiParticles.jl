@@ -60,6 +60,8 @@ function interact!(du, u_particle_container, u_neighbor_container,
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
+        m_b = particle_container.mass[particle]
+
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighbor_container)
             m_a = neighbor_container.mass[neighbor]
@@ -72,13 +74,11 @@ function interact!(du, u_particle_container, u_neighbor_container,
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                m_b = particle_container.mass[particle]
-
                 dv = boundary_particle_impact(neighbor, neighbor_container, particle_container, pos_diff, distance,
                                               m_a, m_b, density_a, v_a)
 
                 for i in 1:ndims(particle_container)
-                    du[ndims(particle_container) + i, particle] += dv[i] * m_a / m_b
+                    du[ndims(particle_container) + i, particle] += dv[i] * 997.0 / 1161.54
                 end
 
                 # continuity_equation!(du, density_calculator,

@@ -1,13 +1,13 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+particle_spacing = 0.003
 beta = 3
 
 water_width = 0.2
 water_height = 0.4
 container_width = 0.8
-container_height = 0.7
+container_height = 1.0
 
 particle_density = 997.0
 
@@ -57,8 +57,7 @@ n_particles_per_dimension = (n_particles_x, round(Int, length / particle_spacing
 
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 10 *  ones(Float64, prod(n_particles_per_dimension))
-# particle_masses = 1161.54 * particle_spacing^2 *  ones(Float64, prod(n_particles_per_dimension))
+particle_masses = 1161.54 * particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
 particle_densities = 1161.54 * ones(Float64, prod(n_particles_per_dimension))
 
 for x in 1:n_particles_per_dimension[1],
@@ -87,8 +86,8 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, -9.81),
-                                         neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                         acceleration=(0.0, -9.81))
+                                        #  neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 
 # Relaxing of the fluid without solid
@@ -120,7 +119,7 @@ particle_container.initial_velocity .= view(u_end, 3:4, :)
 semi = Semidiscretization(particle_container, boundary_container, solid_container)
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
