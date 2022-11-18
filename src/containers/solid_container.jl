@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     SolidParticleContainer(particle_coordinates, particle_velocities,
                            particle_masses, particle_material_densities,
                            hydrodynamic_density_calculator,
@@ -9,6 +9,66 @@
                            neighborhood_search=nothing)
 
 Container for particles of an elastic solid.
+
+A Total Lagrangian framework is used wherein the governing equations are forumlated such that
+all relevant quantities and operators are measured with respect to the
+initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
+The governing equations with respect to the initial configuration are given by:
+```math
+\frac{\mathrm{D}\bm{v}}{\mathrm{D}t} = \frac{1}{\rho_0} \nabla_0 \cdot \bm{P} + \bm{g},
+```
+where the zero subscript denotes a derivative with respect to the initial configuration
+and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
+
+The discretized version of this equation is given by (O’Connor & Rogers 2021):
+```math
+\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
+    \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
+    \cdot \nabla_{0a} W(\bm{X}_{ab}) + \bm{g},
+```
+with
+```math
+\bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
+```
+
+For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
+```math
+(\bm{J}_a)^{i,j} = \sum_b \frac{m_{0b}}{\rho_{0b}} (\bm{x}_b^i - \bm{x}_a^i) (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^j
+```
+with $1 \leq i,j \leq d$.
+From the deformation gradient, the Green-Lagrange strain
+```math
+\bm{E} = \frac{1}{2}(\bm{J}^T\bm{J} - \bm{I})
+```
+and the second Piola-Kirchhoff stress tensor
+```math
+\bm{S} = \lambda \operatorname{tr}(\bm{E}) \bm{I} + 2\mu \bm{E}
+```
+are computed to obtain the PK1 stress tensor as
+```math
+\bm{P} = \bm{J}\bm{S}.
+```
+
+Here,
+```math
+\mu = \frac{E}{2(1 + \nu)}
+```
+and
+```math
+\lambda = \frac{E\nu}{(1 + \nu)(1 - 2\nu)}
+```
+are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
+
+References:
+- Joseph O’Connor, Benedict D. Rogers.
+  "A fluid–structure interaction model for free-surface flows and flexible structures using
+  smoothed particle hydrodynamics on a GPU".
+  In: Journal of Fluids and Structures 104 (2021).
+  [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
+- Ted Belytschko, Yong Guo, Wing Kam Liu, Shao Ping Xiao.
+  "A unified stability analysis of meshless particle methods".
+  In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
+  [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
 struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
@@ -206,6 +266,7 @@ function deformation_gradient(i, j, particle, container)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
+            # TODO pull L multiplication out of the neighbor loop
             grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
                 dot(get_correction_matrix_column(j, particle, container), initial_pos_diff) / initial_distance
 
