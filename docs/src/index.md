@@ -7,6 +7,20 @@ Modules = [Pixie]
 Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
 ```
 
+## Containers
+
+```@autodocs
+Modules = [Pixie]
+Pages = map(file -> joinpath("containers", file), readdir(joinpath("..", "src", "containers")))
+```
+
+## Semidiscretization
+
+```@autodocs
+Modules = [Pixie]
+Pages = map(file -> joinpath("semidiscretization", file), readdir(joinpath("..", "src", "semidiscretization")))
+```
+
 ## Setups
 
 ```@autodocs
@@ -14,21 +28,7 @@ Modules = [Pixie]
 Pages = [joinpath("setups", "rectangular_tank.jl")]
 ```
 
-## Containers
-
-### File fluid_container.jl
-```@autodocs
-Modules = [Pixie]
-Pages = [joinpath("containers", "fluid_container.jl")]
-```
-
 ## SPH
-
-### File boundary_container.jl
-```@autodocs
-Modules = [Pixie]
-Pages = [joinpath("containers", "boundary_container.jl")]
-```
 
 ### File neighborhood_search.jl
 ```@autodocs
@@ -42,19 +42,21 @@ Modules = [Pixie]
 Pages = [joinpath("sph", "smoothing_kernels.jl")]
 ```
 
-### File sph.jl
+### Fluid Dynamics
+
+#### File density_calculators.jl
 ```@autodocs
 Modules = [Pixie]
-Pages = [joinpath("containers", "container.jl")]
+Pages = [joinpath("sph", "fluid", "density_calculators.jl")]
 ```
 
-### File state_equations.jl
+#### File state_equations.jl
 ```@autodocs
 Modules = [Pixie]
 Pages = [joinpath("sph", "fluid", "state_equations.jl")]
 ```
 
-### File viscosity.jl
+#### File viscosity.jl
 ```@autodocs
 Modules = [Pixie]
 Pages = [joinpath("sph", "fluid", "viscosity.jl")]

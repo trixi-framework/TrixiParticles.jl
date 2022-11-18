@@ -1,6 +1,7 @@
 abstract type BoundaryParticleContainer{NDIMS} <: ParticleContainer{NDIMS} end
 
 
+# No particle positions are advanced for boundary containers
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0
 
 
@@ -138,6 +139,9 @@ end
 end
 
 
+"""
+TODO
+"""
 struct BoundaryParticlesFrozen{NDIMS, ELTYPE<:Real, NS} <: BoundaryParticleContainer{NDIMS}
     coordinates                 ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}

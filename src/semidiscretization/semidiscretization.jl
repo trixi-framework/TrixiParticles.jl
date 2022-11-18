@@ -1,3 +1,8 @@
+"""
+    Semidiscretization(particle_containers...)
+
+The semidiscretization couples the passed particle containers into one simulation.
+"""
 struct Semidiscretization{PC, R}
     particle_containers::PC
     ranges::R
@@ -15,6 +20,11 @@ digest_containers(boundary_condition) = (boundary_condition, )
 digest_containers(boundary_condition::Tuple) = boundary_condition
 
 
+"""
+    semidiscretize(semi, tspan)
+
+Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
+"""
 function semidiscretize(semi, tspan)
     @unpack particle_containers, ranges = semi
 

@@ -1,3 +1,15 @@
+"""
+    SolidParticleContainer(particle_coordinates, particle_velocities,
+                           particle_masses, particle_material_densities,
+                           hydrodynamic_density_calculator,
+                           smoothing_kernel, smoothing_length,
+                           young_modulus, poisson_ratio;
+                           n_fixed_particles=0,
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                           neighborhood_search=nothing)
+
+Container for particles of an elastic solid.
+"""
 struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
@@ -9,7 +21,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleCont
     n_moving_particles  ::Int64
     lame_lambda         ::ELTYPE
     lame_mu             ::ELTYPE
-    hydrodynamic_density_calculator::DC
+    hydrodynamic_density_calculator::DC # TODO
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     acceleration        ::SVector{NDIMS, ELTYPE}

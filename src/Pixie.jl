@@ -14,6 +14,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
 include("semidiscretization/semidiscretization.jl")
+include("sph/fluid/density_calculators.jl") # containers/containers.jl depends on this
 include("containers/container.jl")
 include("sph/sph.jl")
 include("callbacks/alive.jl")
