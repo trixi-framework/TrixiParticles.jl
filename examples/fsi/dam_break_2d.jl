@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.003
+particle_spacing = 0.01
 beta = 3
 
 water_width = 0.2
@@ -32,13 +32,11 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81),
-                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                            acceleration=(0.0, -9.81))
 
 K = 4 * 9.81 * water_height
 boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-                                                     K, beta, particle_spacing / beta,
-                                                     neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                                     K, beta, particle_spacing / beta)
 
 # boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
 #                                              particle_density,
@@ -87,11 +85,10 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81))
-                                        #  neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)

@@ -32,12 +32,12 @@ end
 
 
 function pixie2vtk(container::BoundaryParticleContainer; output_directory="out")
-    @unpack coordinates = container
+    @unpack initial_coordinates = container
 
     mkpath(output_directory)
     filename = "$output_directory/boundaries"
 
-    points = coordinates
+    points = initial_coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(filename, points, cells) do vtk

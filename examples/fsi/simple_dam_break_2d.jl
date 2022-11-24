@@ -24,7 +24,6 @@ end
 
 smoothing_length = 1.2 * spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Create semidiscretization
 state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
@@ -33,8 +32,7 @@ state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.
 particle_container = FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                             ContinuityDensity(), state_equation, smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.5, 1.0),
-                                            acceleration=(0.0, -9.81),
-                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                            acceleration=(0.0, -9.81))
 
 
 
@@ -114,7 +112,6 @@ end
 
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Lamé constants
 E = 1.4e6
@@ -130,7 +127,7 @@ solid_particle_container = SolidParticleContainer(particle_coordinates, particle
 
 
 
-semi = Semidiscretization(particle_container, solid_particle_container)
+semi = Semidiscretization(particle_container, solid_particle_container, neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)

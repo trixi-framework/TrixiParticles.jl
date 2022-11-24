@@ -1,9 +1,14 @@
-@inline eachneighbor(coords, container) = eachneighbor(coords, container.neighborhood_search, container)
+struct TrivialNeighborhoodSearch{E}
+    eachparticle::E
 
-# No neighborhood search (neighborhood_search == nothing)
-@inline initialize!(neighborhood_search, u, container) = nothing
-@inline update!(neighborhood_search, u, container) = nothing
-@inline eachneighbor(coords, neighborhood_search, container) = eachparticle(container)
+    function TrivialNeighborhoodSearch(container)
+        new{typeof(eachparticle(container))}(eachparticle(container))
+    end
+end
+
+@inline initialize!(search::TrivialNeighborhoodSearch, u, container) = nothing
+@inline update!(search::TrivialNeighborhoodSearch, u, container) = nothing
+@inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
 
 
 @doc raw"""
@@ -108,7 +113,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
 end
 
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2}, container)
+@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
     cell_coords = get_cell_coords(coords, neighborhood_search)
     x, y = cell_coords
     # Generator of all neighboring cells to consider
@@ -118,7 +123,7 @@ end
     Iterators.flatten(particles_in_cell(cell, neighborhood_search) for cell in neighboring_cells)
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3}, container)
+@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
     cell_coords = get_cell_coords(coords, neighborhood_search)
     x, y, z = cell_coords
     # Generator of all neighboring cells to consider

@@ -2,7 +2,7 @@ using Pixie
 using OrdinaryDiffEq
 
 particle_spacing = 0.02
-beta = 1
+beta = 3
 
 water_width = 2.0
 water_height = 1.0
@@ -22,7 +22,6 @@ c = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
@@ -32,19 +31,16 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81),
-                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                            acceleration=(0.0, -9.81))
 
-# K = 4 * 9.81 * water_height
-# boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-#                                                      K, beta, particle_spacing / beta,
-#                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+K = 4 * 9.81 * water_height
+boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
+                                                     K, beta, particle_spacing / beta)
 
-boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
-                                             particle_density,
-                                             neighborhood_search=SpatialHashingSearch{2}(search_radius))
+# boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
+#                                              particle_density)
 
-semi = Semidiscretization(particle_container, boundary_container)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
@@ -69,6 +65,7 @@ u_end = Pixie.wrap_array(sol[end], 1, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
 
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,

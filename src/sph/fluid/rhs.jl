@@ -1,12 +1,12 @@
 # Fluid-fluid interaction
-function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::FluidParticleContainer,
-                  neighbor_container::FluidParticleContainer)
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                   particle_container::FluidParticleContainer,
+                   neighbor_container::FluidParticleContainer)
     @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighbor_container)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
@@ -85,7 +85,7 @@ end
 
 
 # Fluid-boundary interaction
-function interact!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::BoundaryParticleContainer)
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
@@ -97,7 +97,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighbor_container)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
@@ -143,7 +143,7 @@ end
 
 
 # Fluid-solid interaction
-function interact!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                   particle_container::FluidParticleContainer,
                   neighbor_container::SolidParticleContainer)
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
@@ -155,7 +155,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighbor_container)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
@@ -207,7 +207,7 @@ end
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
     # @unpack K, beta, boundary_particle_spacing = boundary_container
     K = 15.696
-    beta = 3
+    beta = 10
     boundary_particle_spacing = 0.001
 
     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)

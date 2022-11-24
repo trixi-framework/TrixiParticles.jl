@@ -7,7 +7,7 @@ container_width = 2.0
 container_height = 1.0
 particle_density = 1000.0
 particle_spacing = 0.02
-beta = 1
+beta = 3
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, particle_density, n_layers=3)
@@ -17,7 +17,6 @@ state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=1
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Create semidiscretization
 particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
@@ -25,17 +24,14 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81),
-                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+                                            acceleration=(0.0, -9.81))
 
-# K = 9.81 * water_height
-# boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-#                                                      K, beta, particle_spacing / beta,
-#                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
+K = 9.81 * water_height
+boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
+                                                     K, beta, particle_spacing / beta)
 
-boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
-                                             particle_density,
-                                             neighborhood_search=SpatialHashingSearch{2}(search_radius))
+# boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
+#                                              particle_density)
 
 semi = Semidiscretization(particle_container, boundary_container)
 

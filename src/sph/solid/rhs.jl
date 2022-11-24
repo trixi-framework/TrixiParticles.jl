@@ -1,7 +1,7 @@
 # Solid-solid interaction
-function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::SolidParticleContainer,
-                  neighbor_container::SolidParticleContainer)
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                   particle_container::SolidParticleContainer,
+                   neighbor_container::SolidParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
     # Different solids do not interact with each other (yet)
@@ -13,7 +13,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         # Everything here is done in the initial coordinates
         particle_coords = get_particle_coords(particle, particle_container.initial_coordinates,
                                               particle_container)
-        for neighbor in eachneighbor(particle_coords, neighbor_container)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_particle_coords(neighbor, neighbor_container.initial_coordinates,
                                                   neighbor_container)
 
@@ -54,7 +54,7 @@ end
 
 
 # Solid-fluid interaction
-function interact!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
@@ -63,7 +63,7 @@ function interact!(du, u_particle_container, u_neighbor_container,
         m_b = particle_container.mass[particle]
 
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-        for neighbor in eachneighbor(particle_coords, neighbor_container)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
             m_a = neighbor_container.mass[neighbor]
             density_a = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
             v_a = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
@@ -94,7 +94,7 @@ end
 
 
 # Solid-boundary interaction
-function interact!(du, u_particle_container, u_neighbor_container,
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::BoundaryParticleContainer)
     return du

@@ -24,7 +24,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
-    \cdot \nabla_{0a} W(\bm{X}_{ab}) + \bm{g},
+    \nabla_{0a} W(\bm{X}_{ab}) + \bm{g},
 ```
 with
 ```math
@@ -70,7 +70,7 @@ References:
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
@@ -85,7 +85,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleCont
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     acceleration        ::SVector{NDIMS, ELTYPE}
-    neighborhood_search ::NS
     cache               ::C
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
@@ -94,8 +93,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleCont
                                     smoothing_kernel, smoothing_length,
                                     young_modulus, poisson_ratio;
                                     n_fixed_particles=0,
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                                    neighborhood_search=nothing)
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -115,13 +113,13 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, NS, C} <: ParticleCont
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
         cache = (; )
 
-        return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator), typeof(smoothing_kernel),
-                   typeof(neighborhood_search), typeof(cache)}(
+        return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
+                   typeof(smoothing_kernel), typeof(cache)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
             hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
-            acceleration_, neighborhood_search, cache)
+            acceleration_, cache)
     end
 end
 
@@ -153,18 +151,15 @@ end
 end
 
 
-function initialize!(container::SolidParticleContainer)
-    @unpack initial_coordinates, correction_matrix, neighborhood_search = container
-
-    # Initialize neighborhood search
-    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, initial_coordinates, container)
+function initialize!(container::SolidParticleContainer, neighborhood_search)
+    @unpack correction_matrix = container
 
     # Calculate kernel correction matrix
-    calc_correction_matrix!(correction_matrix, container)
+    calc_correction_matrix!(correction_matrix, neighborhood_search, container)
 end
 
 
-function calc_correction_matrix!(correction_matrix, container)
+function calc_correction_matrix!(correction_matrix, neighborhood_search, container)
     @unpack initial_coordinates, mass, material_density,
         smoothing_kernel, smoothing_length = container
 
@@ -173,7 +168,7 @@ function calc_correction_matrix!(correction_matrix, container)
         L = zeros(eltype(mass), ndims(container), ndims(container))
 
         particle_coordinates = get_particle_coords(particle, initial_coordinates, container)
-        for neighbor in eachneighbor(particle_coordinates, container)
+        for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
             volume = mass[neighbor] / material_density[neighbor]
 
             initial_pos_diff = particle_coordinates - get_particle_coords(neighbor, initial_coordinates, container)
@@ -194,12 +189,12 @@ function calc_correction_matrix!(correction_matrix, container)
 end
 
 
-function update!(container::SolidParticleContainer, u, u_ode, semi)
+function update!(container::SolidParticleContainer, u, u_ode, neighborhood_search, semi)
     # Update current coordinates
     @pixie_timeit timer() "update current coordinates" update_current_coordinates(u, container)
 
     # Precompute PK1 stress tensor
-    @pixie_timeit timer() "precompute pk1 stress tensor" compute_pk1_corrected(container)
+    @pixie_timeit timer() "precompute pk1 stress tensor" compute_pk1_corrected(neighborhood_search, container)
 
     return container
 end
@@ -216,11 +211,11 @@ end
 end
 
 
-@inline function compute_pk1_corrected(container)
+@inline function compute_pk1_corrected(neighborhood_search, container)
     @unpack pk1_corrected = container
 
     @threaded for particle in eachparticle(container)
-        pk1_particle = pk1_stress_tensor(particle, container)
+        pk1_particle = pk1_stress_tensor(particle, neighborhood_search, container)
         pk1_particle_corrected = pk1_particle * get_correction_matrix(particle, container)
 
         for j in 1:ndims(container), i in 1:ndims(container)
@@ -231,8 +226,8 @@ end
 
 
 # First Piola-Kirchhoff stress tensor
-function pk1_stress_tensor(particle, container)
-    J = deformation_gradient(particle, container)
+function pk1_stress_tensor(particle, neighborhood_search, container)
+    J = deformation_gradient(particle, neighborhood_search, container)
 
     S = pk2_stress_tensor(J, container)
 
@@ -241,23 +236,23 @@ end
 
 
 # We cannot use a variable for the number of dimensions here, it has to be hardcoded
-@inline function deformation_gradient(particle, container::SolidParticleContainer{2})
-    return @SMatrix [deformation_gradient(i, j, particle, container) for i in 1:2, j in 1:2]
+@inline function deformation_gradient(particle, neighborhood_search, container::SolidParticleContainer{2})
+    return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:2, j in 1:2]
 end
 
 @inline function deformation_gradient(particle, container::SolidParticleContainer{3})
-    return @SMatrix [deformation_gradient(i, j, particle, container) for i in 1:3, j in 1:3]
+    return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:3, j in 1:3]
 end
 
 
-function deformation_gradient(i, j, particle, container)
+function deformation_gradient(i, j, particle, neighborhood_search, container)
     @unpack initial_coordinates, current_coordinates, correction_matrix,
         mass, material_density, smoothing_kernel, smoothing_length = container
 
     result = zero(eltype(mass))
 
     initial_particle_coords = get_particle_coords(particle, initial_coordinates, container)
-    for neighbor in eachneighbor(initial_particle_coords, container)
+    for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = get_particle_coords(particle, current_coordinates, container) -
             get_particle_coords(neighbor, current_coordinates, container)
