@@ -288,6 +288,41 @@ end
 end
 
 
+# TODO
+@inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
+                                     initial_distance, container)
+    @unpack smoothing_kernel, smoothing_length, mass,
+        material_density, current_coordinates = container
+
+    current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
+        get_particle_coords(neighbor, current_coordinates, container)
+    current_distance = norm(current_pos_diff)
+
+    volume_particle = mass[particle] / material_density[particle]
+    volume_neighbor = mass[neighbor] / material_density[neighbor]
+
+    kernel_ = kernel(smoothing_kernel, initial_distance, smoothing_length)
+
+    J_a = deformation_gradient(particle, container)
+    J_b = deformation_gradient(neighbor, container)
+
+    eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
+    delta_sum = dot(eps_sum, current_pos_diff) / current_distance
+
+    alpha = 0.001
+    young_modulus = 1.4e6
+    dv = 0.5 * alpha * volume_particle * volume_neighbor *
+        kernel_ / initial_distance^2 * young_modulus * delta_sum *
+        current_pos_diff / current_distance
+
+    for i in 1:ndims(container)
+        du[ndims(container) + i, particle] += dv[i] / mass[particle]
+    end
+
+    return du
+end
+
+
 function write_variables!(u0, container::SolidParticleContainer)
     @unpack initial_coordinates, initial_velocity = container
 
