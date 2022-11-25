@@ -74,7 +74,7 @@ References:
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
@@ -89,6 +89,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContaine
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     acceleration        ::SVector{NDIMS, ELTYPE}
+    penalty_force       ::PF
     cache               ::C
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
@@ -97,7 +98,8 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContaine
                                     smoothing_kernel, smoothing_length,
                                     young_modulus, poisson_ratio;
                                     n_fixed_particles=0,
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                                    penalty_force=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -115,10 +117,10 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContaine
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
-        cache = (; )
+        cache = (; create_cache(young_modulus, penalty_force)...)
 
         return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
-                   typeof(smoothing_kernel), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(penalty_force), typeof(cache)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
@@ -127,6 +129,14 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, C} <: ParticleContaine
     end
 end
 
+function create_cache(young_modulus, penalty_force)
+    (; )
+end
+
+function create_cache(young_modulus, penalty_force::PenaltyForce)
+    deformation_grad    = zeros(10,10)
+    return (; young_modulus, deformation_grad)
+end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 

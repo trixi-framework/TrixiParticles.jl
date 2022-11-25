@@ -23,8 +23,8 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 calc_dv!(du, particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
-                calc_penalty_force!(du, particle, neighbor, pos_diff,
-                                    distance, particle_container)
+                #calc_penalty_force!(du, particle, neighbor, pos_diff,
+                #                    distance, particle_container)
             end
         end
     end
