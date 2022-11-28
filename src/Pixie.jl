@@ -26,6 +26,7 @@ include("setups/rectangular_tank.jl")
 
 export Semidiscretization, FluidParticleContainer, SolidParticleContainer, semidiscretize, AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
+export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan

@@ -117,7 +117,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleCont
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
-        cache = (; create_cache(young_modulus, penalty_force)...)
+        cache = (; create_cache(penalty_force, young_modulus, nparticles, NDIMS, ELTYPE)...)
 
         return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
                    typeof(smoothing_kernel), typeof(penalty_force), typeof(cache)}(
@@ -125,17 +125,17 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleCont
             correction_matrix, pk1_corrected, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
             hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
-            acceleration_, cache)
+            acceleration_, penalty_force, cache)
     end
 end
 
-function create_cache(young_modulus, penalty_force)
-    (; )
+function create_cache(::Nothing, young_modulus, nparticles, NDIMS, ELTYPE)
+    return (; )
 end
 
-function create_cache(young_modulus, penalty_force::PenaltyForce)
-    deformation_grad    = zeros(10,10)
-    return (; young_modulus, deformation_grad)
+function create_cache(::PenaltyForceGanzenmueller, young_modulus, nparticles, NDIMS, ELTYPE)
+    deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+    return (; deformation_grad, young_modulus)
 end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
@@ -148,6 +148,7 @@ end
 
 
 @inline get_correction_matrix(particle, container) = extract_smatrix(container.correction_matrix, particle, container)
+@inline get_deformation_gradient(particle, container) = extract_smatrix(container.cache.deformation_grad, particle, container)
 @inline get_pk1_corrected(particle, container) = extract_smatrix(container.pk1_corrected, particle, container)
 
 @inline function extract_smatrix(array, particle, container)
@@ -226,10 +227,36 @@ end
 
 
 @inline function compute_pk1_corrected(neighborhood_search, container)
+    @unpack penalty_force = container
+    compute_pk1_corrected(penalty_force, neighborhood_search, container)
+end
+
+@inline function compute_pk1_corrected(::Nothing, neighborhood_search, container)
     @unpack pk1_corrected = container
 
     @threaded for particle in eachparticle(container)
         pk1_particle = pk1_stress_tensor(particle, neighborhood_search, container)
+        pk1_particle_corrected = pk1_particle * get_correction_matrix(particle, container)
+
+        for j in 1:ndims(container), i in 1:ndims(container)
+            pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
+        end
+    end
+end
+
+@inline function compute_pk1_corrected(::PenaltyForceGanzenmueller, neighborhood_search, container)
+    @unpack pk1_corrected, cache = container
+    @unpack deformation_grad = cache
+
+    @threaded for particle in eachparticle(container)
+        J_particle = deformation_gradient(particle, neighborhood_search, container)
+
+        # store deformation gradient
+        for j in 1:ndims(container), i in 1:ndims(container)
+            deformation_grad[i, j, particle] = J_particle[i, j]
+        end
+
+        pk1_particle = pk1_stress_tensor(J_particle, container)
         pk1_particle_corrected = pk1_particle * get_correction_matrix(particle, container)
 
         for j in 1:ndims(container), i in 1:ndims(container)
@@ -248,13 +275,18 @@ function pk1_stress_tensor(particle, neighborhood_search, container)
     return J * S
 end
 
+function pk1_stress_tensor(J, container)
+    S = pk2_stress_tensor(J, container)
+
+    return J * S
+end
 
 # We cannot use a variable for the number of dimensions here, it has to be hardcoded
 @inline function deformation_gradient(particle, neighborhood_search, container::SolidParticleContainer{2})
     return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:2, j in 1:2]
 end
 
-@inline function deformation_gradient(particle, container::SolidParticleContainer{3})
+@inline function deformation_gradient(particle, neighborhood_search, container::SolidParticleContainer{3})
     return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:3, j in 1:3]
 end
 
@@ -300,9 +332,10 @@ end
 
 # TODO
 @inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
-                                     initial_distance, container)
+                                     initial_distance, container, penalty_force::PenaltyForceGanzenmueller)
     @unpack smoothing_kernel, smoothing_length, mass,
-        material_density, current_coordinates = container
+        material_density, current_coordinates, cache = container
+    @unpack young_modulus = cache
 
     current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
         get_particle_coords(neighbor, current_coordinates, container)
@@ -313,15 +346,13 @@ end
 
     kernel_ = kernel(smoothing_kernel, initial_distance, smoothing_length)
 
-    J_a = deformation_gradient(particle, container)
-    J_b = deformation_gradient(neighbor, container)
+    J_a = get_deformation_gradient(particle, container)
+    J_b = get_deformation_gradient(neighbor, container)
 
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
-    alpha = 0.001
-    young_modulus = 1.4e6
-    dv = 0.5 * alpha * volume_particle * volume_neighbor *
+    dv = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
         kernel_ / initial_distance^2 * young_modulus * delta_sum *
         current_pos_diff / current_distance
 
@@ -332,6 +363,10 @@ end
     return du
 end
 
+@inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
+                                     initial_distance, container, ::Nothing)
+    return du
+end
 
 function write_variables!(u0, container::SolidParticleContainer)
     @unpack initial_coordinates, initial_velocity = container
