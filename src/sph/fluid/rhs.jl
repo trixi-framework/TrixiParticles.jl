@@ -113,6 +113,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
 
+                # TODO
                 # continuity_equation!(du, density_calculator,
                 #                      u_particle_container, u_neighbor_container,
                 #                      particle, neighbor, pos_diff, distance,
@@ -171,6 +172,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                     du[ndims(particle_container) + i, particle] += dv[i]
                 end
 
+                # TODO
                 # continuity_equation!(du, density_calculator,
                 #                      u_particle_container, u_neighbor_container,
                 #                      particle, neighbor, pos_diff, distance,
@@ -183,6 +185,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 end
 
 
+# TODO
 # @inline function boundary_particle_impact(particle, particle_container,
 #                                           solid_container::SolidParticleContainer,
 #                                           pos_diff, distance, m_a, m_b, density_a, v_a)
@@ -201,13 +204,14 @@ end
 # end
 
 
+# TODO
 @inline function boundary_particle_impact(particle, particle_container,
                                           solid_container::SolidParticleContainer,
                                           pos_diff, distance, m_a, m_b, density_a, v_a)
     @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
     # @unpack K, beta, boundary_particle_spacing = boundary_container
     K = 15.696
-    beta = 10
+    beta = 3
     boundary_particle_spacing = 0.001
 
     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)

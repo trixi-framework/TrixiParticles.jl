@@ -78,9 +78,11 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                                               m_a, m_b, density_a, v_a)
 
                 for i in 1:ndims(particle_container)
+                    # TODO
                     du[ndims(particle_container) + i, particle] += dv[i] * 997.0 / 1161.54
                 end
 
+                # TODO
                 # continuity_equation!(du, density_calculator,
                 #                      u_particle_container, u_particle_container,
                 #                      particle, neighbor, pos_diff, distance,
