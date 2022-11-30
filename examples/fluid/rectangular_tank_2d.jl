@@ -33,7 +33,7 @@ boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates,
 # boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
 #                                              particle_density)
 
-semi = Semidiscretization(particle_container, boundary_container)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

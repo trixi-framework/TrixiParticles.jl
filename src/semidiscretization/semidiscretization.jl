@@ -1,7 +1,15 @@
 """
-    Semidiscretization(particle_containers...)
+    Semidiscretization(particle_containers...; neighborhood_search=nothing)
 
-The semidiscretization couples the passed particle containers into one simulation.
+The semidiscretization couples the passed particle containers to one simulation.
+
+The type of neighborhood search to be used in the simulation can be specified with
+the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
+
+# Examples
+```julia
+semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch)
+```
 """
 struct Semidiscretization{PC, R, NS}
     particle_containers::PC
@@ -12,7 +20,8 @@ struct Semidiscretization{PC, R, NS}
         sizes = [nvariables(container) * n_moving_particles(container) for container in particle_containers]
         ranges = Tuple(sum(sizes[1:i-1])+1:sum(sizes[1:i]) for i in eachindex(sizes))
 
-        # Create a tuple of n neighborhood searches for each of the n containers
+        # Create (and initialize) a tuple of n neighborhood searches for each of the n containers
+        # We will need one neighborhood search for each pair of containers.
         searches = Tuple(Tuple(create_neighborhood_search(container, neighbor,
                                                           Val(neighborhood_search))
             for neighbor in particle_containers) for container in particle_containers)
@@ -73,7 +82,10 @@ function semidiscretize(semi, tspan)
     # Initialize all particle containers
     @pixie_timeit timer() "initialize particle containers" begin
         for (container_index, container) in pairs(particle_containers)
+            # Get the neighborhood search for this container
             neighborhood_search = neighborhood_searches[container_index][container_index]
+
+            # Initialize this container
             initialize!(container, neighborhood_search)
         end
     end

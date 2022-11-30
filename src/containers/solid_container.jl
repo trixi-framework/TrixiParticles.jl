@@ -30,6 +30,10 @@ with
 ```math
 \bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
 ```
+The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
+The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
+The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
+the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
 
 For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
 ```math

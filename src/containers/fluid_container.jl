@@ -11,7 +11,7 @@
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-Container for fluid particles. For [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
+Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
 struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
@@ -81,7 +81,8 @@ end
 @inline nvariables(container, ::ContinuityDensity) = 2 * ndims(container) + 1
 
 
-initialize!(::FluidParticleContainer, neighborhood_search) = nothing
+# Nothing to initialize for this container
+initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 
 function update!(container::FluidParticleContainer, u, u_ode, neighborhood_search, semi)

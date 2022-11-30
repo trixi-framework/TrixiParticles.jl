@@ -13,10 +13,12 @@ end
 
 
 function initialize!(container::BoundaryParticleContainer, neighborhood_search)
+    # Nothing to initialize for this container
     return container
 end
 
 function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
+    # Nothing to update for this container
     return container
 end
 
@@ -42,7 +44,7 @@ end
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` is given by
 ```math
-f_a = m_a \sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+f_a = m_a \left(\sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
