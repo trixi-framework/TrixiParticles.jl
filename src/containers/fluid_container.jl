@@ -1,4 +1,19 @@
-struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: ParticleContainer{NDIMS}
+"""
+    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+                           density_calculator::SummationDensity, state_equation,
+                           smoothing_kernel, smoothing_length;
+                           viscosity=NoViscosity(),
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+
+    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+                           density_calculator::ContinuityDensity, state_equation,
+                           smoothing_kernel, smoothing_length;
+                           viscosity=NoViscosity(),
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+
+Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
+"""
+struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
     mass                ::Array{ELTYPE, 1} # [particle]
@@ -9,15 +24,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: Parti
     smoothing_length    ::ELTYPE
     viscosity           ::V
     acceleration        ::SVector{NDIMS, ELTYPE}
-    neighborhood_search ::NS
     cache               ::C
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
                                     density_calculator::SummationDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                                    neighborhood_search=nothing)
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -31,19 +44,17 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: Parti
         cache = (; density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(neighborhood_search), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, neighborhood_search, cache)
+            viscosity, acceleration_, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                     density_calculator::ContinuityDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                                    neighborhood_search=nothing)
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -57,11 +68,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, NS, C} <: Parti
         cache = (; initial_density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(neighborhood_search), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, neighborhood_search, cache)
+            viscosity, acceleration_, cache)
     end
 end
 
@@ -71,18 +81,12 @@ end
 @inline nvariables(container, ::ContinuityDensity) = 2 * ndims(container) + 1
 
 
-function initialize!(container::FluidParticleContainer)
-    @unpack initial_coordinates, neighborhood_search = container
-
-    # Initialize neighborhood search
-    @pixie_timeit timer() "initialize neighborhood search" initialize!(neighborhood_search, initial_coordinates, container)
-end
+# Nothing to initialize for this container
+initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 
-function update!(container::FluidParticleContainer, u, u_ode, semi)
-    @unpack density_calculator, neighborhood_search = container
-
-    @pixie_timeit timer() "update neighborhood search" update!(neighborhood_search, u, container)
+function update!(container::FluidParticleContainer, u, u_ode, neighborhood_search, semi)
+    @unpack density_calculator = container
 
     compute_quantities(u, density_calculator, container, u_ode, semi)
 end
@@ -100,7 +104,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density"  for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
+    @pixie_timeit timer() "compute density" for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
         u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
 
         @threaded for particle in eachparticle(container)
@@ -112,6 +116,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
     compute_pressure!(container, u)
 end
 
+
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
@@ -119,10 +124,10 @@ end
                                               particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack mass, neighborhood_search = neighbor_container
+    @unpack mass = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
+    for neighbor in eachneighbor(particle_coords, neighbor_container)
         distance = norm(particle_coords - get_current_coords(neighbor, u_neighbor_container, neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)

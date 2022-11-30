@@ -1,9 +1,14 @@
-@inline eachneighbor(particle, u, container) = eachneighbor(particle, u, container.neighborhood_search, container)
+struct TrivialNeighborhoodSearch{E}
+    eachparticle::E
 
-# No neighborhood search (neighborhood_search == nothing)
-@inline initialize!(neighborhood_search, u, container) = nothing
-@inline update!(neighborhood_search, u, container) = nothing
-@inline eachneighbor(particle, u, neighborhood_search, container) = eachparticle(container)
+    function TrivialNeighborhoodSearch(container)
+        new{typeof(eachparticle(container))}(eachparticle(container))
+    end
+end
+
+@inline initialize!(search::TrivialNeighborhoodSearch, u, container) = nothing
+@inline update!(search::TrivialNeighborhoodSearch, u, container) = nothing
+@inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
 
 
 @doc raw"""

@@ -1,24 +1,24 @@
 abstract type BoundaryParticleContainer{NDIMS} <: ParticleContainer{NDIMS} end
 
 
+# No particle positions are advanced for boundary containers
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0
 
 
 @inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
-    @unpack coordinates = container
+    @unpack initial_coordinates = container
 
-    return get_particle_coords(particle, coordinates, container)
+    return get_particle_coords(particle, initial_coordinates, container)
 end
 
 
-function initialize!(container::BoundaryParticleContainer)
-    @unpack coordinates, neighborhood_search = container
-
-    # Initialize neighborhood search
-    initialize!(neighborhood_search, coordinates, container)
+function initialize!(container::BoundaryParticleContainer, neighborhood_search)
+    # Nothing to initialize for this container
+    return container
 end
 
-function update!(container::BoundaryParticleContainer, u, u_ode, semi)
+function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
+    # Nothing to update for this container
     return container
 end
 
@@ -28,19 +28,10 @@ function write_variables!(u0, container::BoundaryParticleContainer)
 end
 
 
-# Boundary-fluid interaction
-function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::BoundaryParticleContainer,
-                  neighbor_container::FluidParticleContainer)
-    # No interaction (only fluid-boundary interaction)
-    return du
-end
-
-# Boundary-boundary interaction
-function interact!(du, u_particle_container, u_neighbor_container,
-                  particle_container::BoundaryParticleContainer,
-                  neighbor_container::BoundaryParticleContainer)
-    # No interaction
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                   particle_container::BoundaryParticleContainer,
+                   neighbor_container)
+    # No interaction towards the boundary particles
     return du
 end
 
@@ -53,7 +44,7 @@ end
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` is given by
 ```math
-f_a = m_a \sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+f_a = m_a \left(\sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
@@ -98,22 +89,19 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryParticlesMonaghanKajtar{NDIMS, ELTYPE<:Real, NS} <: BoundaryParticleContainer{NDIMS}
-    coordinates                 ::Array{ELTYPE, 2}
+struct BoundaryParticlesMonaghanKajtar{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
+    initial_coordinates         ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     K                           ::ELTYPE
     beta                        ::ELTYPE
     boundary_particle_spacing   ::ELTYPE
-    neighborhood_search         ::NS
 
     function BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
-                                             boundary_particle_spacing;
-                                             neighborhood_search=nothing)
+                                             boundary_particle_spacing)
         NDIMS = size(coordinates, 1)
 
-        new{NDIMS, typeof(K), typeof(neighborhood_search)}(coordinates, masses, K, beta,
-                                                           boundary_particle_spacing,
-                                                           neighborhood_search)
+        new{NDIMS, typeof(K)}(coordinates, masses, K, beta,
+                              boundary_particle_spacing)
     end
 end
 
@@ -147,18 +135,18 @@ end
 end
 
 
-struct BoundaryParticlesFrozen{NDIMS, ELTYPE<:Real, NS} <: BoundaryParticleContainer{NDIMS}
-    coordinates                 ::Array{ELTYPE, 2}
+"""
+TODO
+"""
+struct BoundaryParticlesFrozen{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
+    initial_coordinates         ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     rest_density                ::ELTYPE
-    neighborhood_search         ::NS
 
-    function BoundaryParticlesFrozen(coordinates, masses, rest_density;
-                                     neighborhood_search=nothing)
+    function BoundaryParticlesFrozen(coordinates, masses, rest_density)
         NDIMS = size(coordinates, 1)
 
-        new{NDIMS, eltype(coordinates), typeof(neighborhood_search)}(coordinates, masses, rest_density,
-                                                                     neighborhood_search)
+        new{NDIMS, eltype(coordinates)}(coordinates, masses, rest_density)
     end
 end
 
