@@ -24,7 +24,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
-    \nabla_{0a} W(\bm{X}_{ab}) + \bm{g},
+    \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{HG}}{m_{0a}} + \bm{g},
 ```
 with
 ```math
@@ -62,6 +62,8 @@ and
 \lambda = \frac{E\nu}{(1 + \nu)(1 - 2\nu)}
 ```
 are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
+
+For the penalty force ``\bm{f}_a^{HG}`` see [`PenaltyForceGanzenmueller`](@ref)
 
 References:
 - Joseph O’Connor, Benedict D. Rogers.
