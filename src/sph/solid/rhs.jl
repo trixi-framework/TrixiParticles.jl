@@ -62,11 +62,11 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        m_b = particle_container.mass[particle]
+        m_a = particle_container.mass[particle]
 
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            m_a = neighbor_container.mass[neighbor]
+            m_b = neighbor_container.mass[neighbor]
             density_a = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
             v_a = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
 
@@ -81,7 +81,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
                 for i in 1:ndims(particle_container)
                     # TODO
-                    du[ndims(particle_container) + i, particle] += dv[i] * 997.0 / 1161.54
+                    du[ndims(particle_container) + i, particle] += m_b * dv[i]
                 end
 
                 # TODO

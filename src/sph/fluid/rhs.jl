@@ -169,7 +169,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                                               m_a, m_b, density_a, v_a)
 
                 for i in 1:ndims(particle_container)
-                    du[ndims(particle_container) + i, particle] += dv[i]
+                    du[ndims(particle_container) + i, particle] += m_b * dv[i]
                 end
 
                 # TODO
@@ -216,10 +216,10 @@ end
 
     pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
 
-    dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    dv_viscosity = pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-    dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-        boundary_kernel(distance, smoothing_length) #* 2 * m_b / (m_a + m_b)
+    dv_repulsive = K / (1161.54 * (boundary_particle_spacing * beta)^2) * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+        boundary_kernel(distance, smoothing_length)
 
     return dv_viscosity + dv_repulsive
 end
