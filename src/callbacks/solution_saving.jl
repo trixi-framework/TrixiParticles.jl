@@ -122,6 +122,16 @@ function (extract_quantities::ExtractQuantities)(u, container::SolidParticleCont
     return "solid", result
 end
 
+function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer)
+    result = Dict{Symbol, Array{Float64}}(
+        # Note that we have to allocate here and can't use views.
+        # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
+        :coordinates        => copy(container.initial_coordinates)
+    )
+
+    return "Moving boundaries", result
+end
+
 function extract_density!(result, u, cache, ::SummationDensity, container)
     result[:density] = copy(cache.density)
 end
