@@ -20,11 +20,15 @@ include("semidiscretization/semidiscretization.jl")
 include("sph/sph.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
+include("callbacks/move_particle.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
+include("setups/moving_wall.jl")
 
-export Semidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
+export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
+export Semidiscretization, semidiscretize
+export AliveCallback, SolutionSavingCallback, MoveParticleCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
@@ -33,6 +37,6 @@ export BoundaryModelMonaghanKajtar, BoundaryModelFrozen
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
-export RectangularTank, reset_right_wall!
+export RectangularTank, reset_right_wall!, VerticalWall
 
 end # module
