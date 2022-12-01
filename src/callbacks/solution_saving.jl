@@ -88,9 +88,9 @@ function write_result!(result, u, t, container, extract_quantities)
     return result
 end
 
-function write_result!(result, u, t, container::BoundaryParticleContainer, extract_quantities)
-    return result
-end
+#function write_result!(result, u, t, container::BoundaryParticleContainer, extract_quantities)
+#    return result
+#end
 
 
 function (extract_quantities::ExtractQuantities)(u, container::FluidParticleContainer)
@@ -129,7 +129,7 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
         :coordinates        => copy(container.initial_coordinates)
     )
 
-    return "Moving boundaries", result
+    return "Moving_boundaries", result
 end
 
 function extract_density!(result, u, cache, ::SummationDensity, container)
