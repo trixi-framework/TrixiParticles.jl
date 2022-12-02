@@ -23,12 +23,13 @@ include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 
-export Semidiscretization, FluidParticleContainer, SolidParticleContainer, semidiscretize, AliveCallback, SolutionSavingCallback
+export Semidiscretization, semidiscretize, AliveCallback, SolutionSavingCallback
+export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
-export BoundaryParticlesMonaghanKajtar, BoundaryParticlesFrozen
+export BoundaryModelMonaghanKajtar, BoundaryModelFrozen
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
