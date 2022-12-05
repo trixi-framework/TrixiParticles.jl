@@ -10,7 +10,7 @@ particle_spacing = 0.02
 beta = 3
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density, n_layers=3)
+                        container_width, container_height, particle_density, n_layers=1)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
@@ -27,8 +27,8 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-                                                     K, beta, particle_spacing / beta)
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
+                                               BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
 
 # boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
 #                                              particle_density)

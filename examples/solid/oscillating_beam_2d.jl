@@ -86,7 +86,8 @@ particle_container = SolidParticleContainer(particle_coordinates, particle_veloc
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
                                             n_fixed_particles=n_particles_fixed,
-                                            acceleration=(0.0, -2.0))
+                                            acceleration=(0.0, -2.0),
+                                            nothing) # No boundary model
 
 semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)
 tspan = (0.0, 5.0)

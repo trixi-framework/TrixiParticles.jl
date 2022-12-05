@@ -1,4 +1,10 @@
-# TODO docs
+"""
+    BoundaryParticleContainer(coordinates, mass, model)
+
+Container for boundaries modeled by boundary particles.
+The container is initialized with the coordinates of the particles and their masses.
+The interaction between fluid and boundary particles is specified by the boundary model.
+"""
 struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}

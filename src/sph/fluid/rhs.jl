@@ -146,24 +146,3 @@ end
 
     return du
 end
-
-
-# TODO
-@inline function boundary_particle_impact(particle, particle_container,
-                                          solid_container::SolidParticleContainer,
-                                          pos_diff, distance, m_a, m_b, density_a, v_a)
-    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
-    # @unpack K, beta, boundary_particle_spacing = boundary_container
-    K = 15.696
-    beta = 3
-    boundary_particle_spacing = 0.001
-
-    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
-
-    dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-
-    dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-        boundary_kernel(distance, smoothing_length) #* 2 * m_b / (m_a + m_b)
-
-    return dv_viscosity + dv_repulsive
-end
