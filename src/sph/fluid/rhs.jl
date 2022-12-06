@@ -89,7 +89,7 @@ end
 # Fluid-boundary and fluid-solid interaction
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
-                   neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer})
+                   neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer, MovingBoundaryParticleContainer})
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
     @unpack sound_speed = state_equation
 

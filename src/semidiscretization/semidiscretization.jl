@@ -32,12 +32,11 @@ end
 
 
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
-
-# Boundary particle do not need to search for neighbors
 create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
-create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{nothing}) = nothing
 create_neighborhood_search(::MovingBoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
+create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{nothing}) = nothing
 create_neighborhood_search(::MovingBoundaryParticleContainer, _, ::Val{nothing}) = nothing
+
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
@@ -66,20 +65,6 @@ function create_neighborhood_search(container::SolidParticleContainer,
     return search
 end
 
-function create_neighborhood_search(container::SolidParticleContainer,
-                                    neighbor::MovingBoundaryParticleContainer,
-                                    ::Val{SpatialHashingSearch})
-    # Here, we need the compact support of the fluid container's smoothing kernel
-    @unpack smoothing_kernel, smoothing_length = neighbor
-
-    radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius)
-
-    # Initialize neighborhood search
-    initialize!(search, neighbor.initial_coordinates, neighbor)
-
-    return search
-end
 
 # Create Tuple of containers for single container
 digest_containers(boundary_condition) = (boundary_condition, )
@@ -206,6 +191,10 @@ function update!(neighborhood_search, u, container::FluidParticleContainer, neig
 end
 
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::FluidParticleContainer)
+    update!(neighborhood_search, u, neighbor)
+end
+
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::MovingBoundaryParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
 

@@ -26,8 +26,7 @@ include("setups/rectangular_tank.jl")
 include("setups/moving_wall.jl")
 
 export Semidiscretization, semidiscretize
-export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
-export Semidiscretization, semidiscretize
+export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer, MovingBoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, MoveParticleCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel

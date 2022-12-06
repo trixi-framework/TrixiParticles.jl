@@ -61,7 +61,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, con
 
     for particle in eachparticle(container)
         # Get cell index of the particle's cell
-        cell_coords = get_cell_coords(get_particle_coords(particle, coordinates, container), neighborhood_search)
+        cell_coords = get_cell_coords(get_current_coords(particle, coordinates, container), neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell_coords)
@@ -86,12 +86,12 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
     for (cell_coords, particles) in hashtable
         # Find all particles whose coordinates do not match this cell
         moved_particle_indices = (i for i in eachindex(particles)
-                                  if get_cell_coords(get_particle_coords(particles[i], coordinates, container), neighborhood_search) != cell_coords)
+                                  if get_cell_coords(get_current_coords(particles[i], coordinates, container), neighborhood_search) != cell_coords)
 
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
-            new_cell_coords = get_cell_coords(get_particle_coords(particle, coordinates, container), neighborhood_search)
+            new_cell_coords = get_cell_coords(get_current_coords(particle, coordinates, container), neighborhood_search)
 
             # Add particle to corresponding cell or create cell if it does not exist
             if haskey(hashtable, new_cell_coords)
@@ -159,7 +159,7 @@ function z_index_sort!(coordinates, container)
     @unpack mass, pressure, neighborhood_search = container
 
     perm = sortperm(eachparticle(container),
-                    by=(i -> cell_z_index(get_particle_coords(i, coordinates, container),
+                    by=(i -> cell_z_index(get_current_coords(i, coordinates, container),
                                           neighborhood_search)))
 
     permute!(mass, perm)

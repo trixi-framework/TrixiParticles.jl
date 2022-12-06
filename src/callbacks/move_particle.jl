@@ -26,9 +26,14 @@ function (move_callback::MoveParticleCallback)(integrator)
     @unpack particle_containers = semi
     container = particle_containers[3]
     t = integrator.t
+
     f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t
 
-    container.current_coordinates[2,:] .+= f(t)
+    pos_1 = container.current_coordinates[2,1]
+    pos_2 = f(t)
+    diff_pos = pos_2 - pos_1
+    container.current_coordinates[2,:] .+= diff_pos
+
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
     return nothing

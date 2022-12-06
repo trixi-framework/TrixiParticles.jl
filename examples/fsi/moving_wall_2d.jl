@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+fluid_particle_spacing = 0.02
 beta = 3
 
 water_width = 0.2
@@ -12,15 +12,15 @@ wall_height = container_height
 
 particle_density = 997.0
 
-setup = RectangularTank(particle_spacing, beta, water_width, water_height,
+setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                              container_width, container_height, particle_density,
                              n_layers=1)
 
-setup_wall = VerticalWall(particle_spacing, beta, wall_height, water_width, particle_density)
+setup_wall = VerticalWall(fluid_particle_spacing, beta, wall_height, water_width, particle_density)
 
 c = 20 * sqrt(9.81 * water_height)
 
-smoothing_length = 1.2 * particle_spacing
+smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
@@ -52,13 +52,13 @@ n_particles_x = 5
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
-particle_spacing = thickness / (n_particles_x - 1)
+solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length / particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
 
 particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 1161.54 * particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = 1161.54 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
 particle_densities = 1161.54 * ones(Float64, prod(n_particles_per_dimension))
 
 for x in 1:n_particles_per_dimension[1],
@@ -66,15 +66,15 @@ for x in 1:n_particles_per_dimension[1],
     particle = (y - 1) * n_particles_per_dimension[1] + x
 
     # Coordinates
-    particle_coordinates[1, particle] = 0.6 + (x - 1) * particle_spacing
-    particle_coordinates[2, particle] = length - (y - 1) * particle_spacing
+    particle_coordinates[1, particle] = 0.6 + (x - 1) * solid_particle_spacing
+    particle_coordinates[2, particle] = length - (y - 1) * solid_particle_spacing
 
     # Velocity
     particle_velocities[1, particle] = 0.0
     particle_velocities[2, particle] = 0.0
 end
 
-smoothing_length = sqrt(2) * particle_spacing
+smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
@@ -87,7 +87,8 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, -9.81))
+                                         acceleration=(0.0, -9.81),
+                                         BoundaryModelMonaghanKajtar(K * 20, beta, solid_particle_spacing / beta))
 
 
 # Relaxing of the fluid without solid
@@ -120,7 +121,7 @@ ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
-move_wall = MoveParticleCallback(callback_interval=100)
+move_wall = MoveParticleCallback(callback_interval=1)
 
 callbacks = CallbackSet(alive_callback, saving_callback, move_wall)
 

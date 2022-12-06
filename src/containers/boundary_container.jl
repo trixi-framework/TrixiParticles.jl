@@ -27,7 +27,7 @@ struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleConta
     mass                ::Vector{ELTYPE}
     boundary_model      ::BM
 
-    function BoundaryParticleContainer(coordinates, mass, model)
+    function MovingBoundaryParticleContainer(coordinates, mass, model)
         NDIMS = size(coordinates, 1)
         current_coordinates = copy(coordinates)
 
@@ -38,6 +38,8 @@ end
 
 # No particle positions are advanced for boundary containers
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0
+# particles move due to a callback function
+@inline n_moving_particles(container::MovingBoundaryParticleContainer) = 0
 
 
 @inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
@@ -46,8 +48,19 @@ end
     return get_particle_coords(particle, initial_coordinates, container)
 end
 
+@inline function get_current_coords(particle, u, container::MovingBoundaryParticleContainer)
+    @unpack current_coordinates = container
+
+    return get_particle_coords(particle, current_coordinates, container)
+end
+
 
 function initialize!(container::BoundaryParticleContainer, neighborhood_search)
+    # Nothing to initialize for this container
+    return container
+end
+
+function initialize!(container::MovingBoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
     return container
 end
@@ -57,14 +70,28 @@ function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_se
     return container
 end
 
+function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
+    # Nothing to update for this container
+    return container
+end
 
 function write_variables!(u0, container::BoundaryParticleContainer)
     return u0
 end
 
+function write_variables!(u0, container::MovingBoundaryParticleContainer)
+    return u0
+end
 
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
+                   neighbor_container)
+    # No interaction towards the boundary particles
+    return du
+end
+
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                   particle_container::MovingBoundaryParticleContainer,
                    neighbor_container)
     # No interaction towards the boundary particles
     return du
