@@ -1,5 +1,6 @@
 using Test
+using Pixie
+using LinearAlgebra
 
-@testset "Tests" begin
-
-end
+include("sph/solid/solid.jl")
+include("sph/solid/sph_rhs.jl")

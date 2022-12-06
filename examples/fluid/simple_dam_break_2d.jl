@@ -40,26 +40,25 @@ smoothing_length = 0.12
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
-K = 1000.0
-boundary_conditions = BoundaryParticlesMonaghanKajtar(boundary_coordinates, boundary_masses,
-                                                      K, beta, spacing / beta,
-                                                      neighborhood_search=SpatialHashingSearch{2}(search_radius))
-
 # Create semidiscretization
 state_equation = StateEquationCole(100.0, 7, 1000.0, 1.0, background_pressure=1.0)
 # state_equation = StateEquationIdealGas(10.0, 3.0, 10.0, background_pressure=10.0)
 
-semi = SPHSemidiscretization{2}(particle_masses,
-                                ContinuityDensity(), state_equation,
-                                smoothing_kernel, smoothing_length,
-                                viscosity=ArtificialViscosityMonaghan(0.5, 1.0),
-                                boundary_conditions=boundary_conditions,
-                                gravity=(0.0, -9.81),
-                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
-                            #   neighborhood_search=nothing)
+particle_container = FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+                                            SummationDensity(), state_equation, smoothing_kernel, smoothing_length,
+                                            viscosity=ArtificialViscosityMonaghan(0.5, 1.0),
+                                            acceleration=(0.0, -9.81),
+                                            neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+K = 1000.0
+boundary_container = BoundaryParticlesMonaghanKajtar(boundary_coordinates, boundary_masses,
+                                                     K, beta, spacing / beta,
+                                                     neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
+semi = Semidiscretization(particle_container, boundary_container)
 
 tspan = (0.0, 5.0)
-ode = semidiscretize(semi, particle_coordinates, particle_velocities, particle_densities, tspan)
+ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0)

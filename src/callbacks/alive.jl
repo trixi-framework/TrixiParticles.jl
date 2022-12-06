@@ -4,6 +4,12 @@ mutable struct AliveCallback
 end
 
 
+"""
+    AliveCallback(; alive_interval=0)
+
+Inexpensive callback showing that a simulation is still running by printing
+some information such as the current time to the screen every `alive_interval` time steps.
+"""
 function AliveCallback(; alive_interval=0)
     alive_callback = AliveCallback(0.0, alive_interval)
 
@@ -44,6 +50,7 @@ function (alive_callback::AliveCallback)(integrator)
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
+
     return nothing
 end
 

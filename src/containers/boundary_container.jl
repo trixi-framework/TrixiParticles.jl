@@ -1,10 +1,39 @@
-# Create Tuple of BCs from single BC
-digest_boundary_conditions(boundary_condition) = (boundary_condition, )
-digest_boundary_conditions(boundary_condition::Tuple) = boundary_condition
-digest_boundary_conditions(::Nothing) = ()
+abstract type BoundaryParticleContainer{NDIMS} <: ParticleContainer{NDIMS} end
 
 
-abstract type BoundaryParticles end
+# No particle positions are advanced for boundary containers
+@inline n_moving_particles(container::BoundaryParticleContainer) = 0
+
+
+@inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
+    @unpack initial_coordinates = container
+
+    return get_particle_coords(particle, initial_coordinates, container)
+end
+
+
+function initialize!(container::BoundaryParticleContainer, neighborhood_search)
+    # Nothing to initialize for this container
+    return container
+end
+
+function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
+    # Nothing to update for this container
+    return container
+end
+
+
+function write_variables!(u0, container::BoundaryParticleContainer)
+    return u0
+end
+
+
+function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                   particle_container::BoundaryParticleContainer,
+                   neighbor_container)
+    # No interaction towards the boundary particles
+    return du
+end
 
 
 @doc raw"""
@@ -15,7 +44,7 @@ abstract type BoundaryParticles end
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` is given by
 ```math
-f_a = m_a \sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+f_a = m_a \left(\sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
@@ -60,20 +89,19 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryParticlesMonaghanKajtar{ELTYPE<:Real, NS} <: BoundaryParticles
-    coordinates                 ::Array{ELTYPE, 2}
+struct BoundaryParticlesMonaghanKajtar{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
+    initial_coordinates         ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     K                           ::ELTYPE
     beta                        ::ELTYPE
     boundary_particle_spacing   ::ELTYPE
-    neighborhood_search         ::NS
 
     function BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
-                                             boundary_particle_spacing;
-                                             neighborhood_search=nothing)
-        new{typeof(K), typeof(neighborhood_search)}(coordinates, masses, K, beta,
-                                                    boundary_particle_spacing,
-                                                    neighborhood_search)
+                                             boundary_particle_spacing)
+        NDIMS = size(coordinates, 1)
+
+        new{NDIMS, typeof(K)}(coordinates, masses, K, beta,
+                              boundary_particle_spacing)
     end
 end
 
@@ -90,22 +118,13 @@ end
 end
 
 
-function initialize!(boundary_conditions, semi)
-    @unpack neighborhood_search = boundary_conditions
+@inline function boundary_particle_impact(particle, particle_container,
+                                          boundary_container::BoundaryParticlesMonaghanKajtar,
+                                          pos_diff, distance, m_a, m_b, density_a, v_a)
+    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack K, beta, boundary_particle_spacing = boundary_container
 
-    initialize!(neighborhood_search, boundary_conditions,
-                semi, particles=eachparticle(boundary_conditions))
-end
-
-
-@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesMonaghanKajtar,
-                                          semi, u, particle, distance, pos_diff, m_a, m_b)
-    @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
-    @unpack coordinates, mass, K, beta, boundary_particle_spacing = boundary_condition
-
-    particle_density = get_particle_density(u, cache, density_calculator, particle)
-    v_rel = get_particle_vel(u, semi, particle)
-    pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
+    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
 
     dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
@@ -116,40 +135,37 @@ end
 end
 
 
-struct BoundaryParticlesFrozen{ELTYPE<:Real, NS} <: BoundaryParticles
-    coordinates                 ::Array{ELTYPE, 2}
+"""
+TODO
+"""
+struct BoundaryParticlesFrozen{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
+    initial_coordinates         ::Array{ELTYPE, 2}
     mass                        ::Vector{ELTYPE}
     rest_density                ::ELTYPE
-    neighborhood_search         ::NS
 
-    function BoundaryParticlesFrozen(coordinates, masses, rest_density;
-                                             neighborhood_search=nothing)
-        new{eltype(coordinates), typeof(neighborhood_search)}(coordinates, masses, rest_density,
-                                                              neighborhood_search)
+    function BoundaryParticlesFrozen(coordinates, masses, rest_density)
+        NDIMS = size(coordinates, 1)
+
+        new{NDIMS, eltype(coordinates)}(coordinates, masses, rest_density)
     end
 end
 
 
-@inline function boundary_particle_impact(boundary_condition::BoundaryParticlesFrozen,
-                                          semi, u, particle, distance, pos_diff, m_a, m_b)
-    @unpack smoothing_kernel, smoothing_length, viscosity, cache, state_equation, density_calculator = semi
-    @unpack pressure = cache
-    @unpack coordinates, mass, rest_density = boundary_condition
+@inline function boundary_particle_impact(particle, particle_container,
+                                          boundary_container::BoundaryParticlesFrozen,
+                                          pos_diff, distance, m_a, m_b, density_a, v_a)
+    @unpack pressure, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack rest_density = boundary_container
 
-    particle_density = get_particle_density(u, cache, density_calculator, particle)
-    v_rel = get_particle_vel(u, semi, particle)
-    pi_ab = viscosity(state_equation.sound_speed, v_rel, pos_diff, distance, particle_density, smoothing_length)
+    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
 
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
     # Use 0 as boundary particle pressure
-    dv_pressure = -m_b * (pressure[particle] / particle_density^2 +
+    dv_pressure = -m_b * (pressure[particle] / density_a^2 +
                           0 / rest_density^2) * grad_kernel
 
     dv_viscosity = m_b * pi_ab * grad_kernel
 
     return dv_pressure + dv_viscosity
 end
-
-
-@inline nparticles(boundary_container::BoundaryParticles) = length(boundary_container.mass)
