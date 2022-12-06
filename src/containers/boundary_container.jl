@@ -77,7 +77,7 @@ end
 function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack movement_function, current_coordinates = container
     container.moving[1] =  movement_function(current_coordinates, t)
-    return container.moving[1]
+    return false
 end
 
 
