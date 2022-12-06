@@ -26,14 +26,16 @@ struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleC
     current_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
     movement_function   ::MF
+    moving              ::Vector{Bool}
     boundary_model      ::BM
 
     function MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
         NDIMS = size(coordinates, 1)
         current_coordinates = copy(coordinates)
+        moving = zeros(Bool,1)
 
         return new{NDIMS, eltype(coordinates), typeof(movement_function), typeof(model)}(
-                coordinates, current_coordinates, mass, movement_function, model)
+                coordinates, current_coordinates, mass, movement_function, moving, model)
     end
 end
 
@@ -59,24 +61,25 @@ end
 
 function initialize!(container::BoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
-    return container
+    return false
 end
 
 function initialize!(container::MovingBoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
-    return container
+    return false
 end
 
 function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     # Nothing to update for this container
-    return container
+    return false
 end
 
 function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack movement_function, current_coordinates = container
-    movement_function(current_coordinates, t)
-    return container
+    container.moving[1] =  movement_function(current_coordinates, t)
+    return false
 end
+
 
 function write_variables!(u0, container::BoundaryParticleContainer)
     return u0
@@ -192,7 +195,7 @@ end
     @unpack smoothing_length = particle_container
     @unpack K, beta, boundary_particle_spacing = boundary_model
 
-    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+    return K / beta^2 / boundary_particle_spacing / 10 * pos_diff / (distance * (distance - boundary_particle_spacing)) *
         boundary_kernel(distance, smoothing_length)
 end
 

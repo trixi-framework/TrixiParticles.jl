@@ -89,6 +89,8 @@ function update!(container::FluidParticleContainer, u, u_ode, neighborhood_searc
     @unpack density_calculator = container
 
     compute_quantities(u, density_calculator, container, u_ode, semi)
+
+    return true
 end
 
 

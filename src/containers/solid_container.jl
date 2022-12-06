@@ -201,7 +201,7 @@ function update!(container::SolidParticleContainer, u, u_ode, neighborhood_searc
     # Precompute PK1 stress tensor
     @pixie_timeit timer() "precompute pk1 stress tensor" compute_pk1_corrected(neighborhood_search, container)
 
-    return container
+    return true
 end
 
 

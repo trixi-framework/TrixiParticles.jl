@@ -133,18 +133,17 @@ function rhs!(du_ode, u_ode, semi, t)
             neighborhood_search = neighborhood_searches[container_index][container_index]
             u = wrap_array(u_ode, container_index, semi)
 
-            update!(container, u, u_ode, neighborhood_search, semi, t)
-        end
+            if update!(container, u, u_ode, neighborhood_search, semi, t)
+                # Update all neighborhood searches
+                for (neighbor_index, neighbor) in pairs(particle_containers)
+                    neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+                    u_neighbor = wrap_array(u_ode, neighbor_index, semi)
 
-        # Update all neighborhood searches
-        @pixie_timeit timer() "update neighborhood searches" for (container_index, container) in pairs(particle_containers)
-            for (neighbor_index, neighbor) in pairs(particle_containers)
-                neighborhood_search = neighborhood_searches[container_index][neighbor_index]
-                u_neighbor = wrap_array(u_ode, neighbor_index, semi)
-
-                update!(neighborhood_search, u_neighbor, container, neighbor)
+                    update!(neighborhood_search, u_neighbor, container, neighbor)
+                end
             end
         end
+
 
         @pixie_timeit timer() "main loop" for (particle_container_index, particle_container) in pairs(particle_containers)
             du = wrap_array(du_ode, particle_container_index, semi)
@@ -187,7 +186,9 @@ function update!(neighborhood_search, u, container::FluidParticleContainer, neig
 end
 
 function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::MovingBoundaryParticleContainer)
-    update!(neighborhood_search, neighbor.current_coordinates, neighbor)
+    if neighbor.moving[1]
+        update!(neighborhood_search, neighbor.current_coordinates, neighbor)
+    end
 end
 
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::FluidParticleContainer)
@@ -195,7 +196,9 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
 end
 
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::MovingBoundaryParticleContainer)
-    update!(neighborhood_search, u, neighbor)
+    if neighbor.moving[1]
+        update!(neighborhood_search, u, neighbor)
+    end
 end
 
 

@@ -33,14 +33,14 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
                                             acceleration=(0.0, -9.81))
 
-K = 4 * 9.81 * water_height/20
+K = 4 * 9.81 * water_height
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
 
 function movement_function(coordinates, t)
-    return nothing
+    return false
 end
 boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.boundary_coordinates, setup_wall.boundary_masses,
                                                           movement_function,
@@ -117,13 +117,16 @@ tspan = (0.0, 1.0)
 function movement_function(coordinates, t)
 
     if t<0.1
-        f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t
+        particle_spcng = coordinates[2,2] - coordinates[2,1]
+        f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t + particle_spcng
         pos_1 = coordinates[2,1]
         pos_2 = f(t)
         diff_pos = pos_2 - pos_1
         coordinates[2,:] .+= diff_pos
+
+        return true
     end
-    return nothing
+    return false
 end
 
 # Use solution of the relaxing step as initial coordinates
