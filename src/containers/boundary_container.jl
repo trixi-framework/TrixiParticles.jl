@@ -17,6 +17,24 @@ struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{N
     end
 end
 
+"""
+    MovingBoundaryParticleContainer()
+TODO
+"""
+struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
+    initial_coordinates ::Array{ELTYPE, 2}
+    current_coordinates ::Array{ELTYPE, 2}
+    mass                ::Vector{ELTYPE}
+    boundary_model      ::BM
+
+    function BoundaryParticleContainer(coordinates, mass, model)
+        NDIMS = size(coordinates, 1)
+        current_coordinates = copy(coordinates)
+
+        return new{NDIMS, eltype(coordinates), typeof(model)}(coordinates, current_coordinates, mass, model)
+    end
+end
+
 
 # No particle positions are advanced for boundary containers
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0

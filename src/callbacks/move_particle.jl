@@ -28,7 +28,7 @@ function (move_callback::MoveParticleCallback)(integrator)
     t = integrator.t
     f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t
 
-    container.initial_coordinates[2,:] .+= f(t)
+    container.current_coordinates[2,:] .+= f(t)
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
     return nothing

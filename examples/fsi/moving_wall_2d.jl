@@ -34,11 +34,12 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             acceleration=(0.0, -9.81))
 
 K = 4 * 9.81 * water_height
-boundary_container_tank = BoundaryParticlesMonaghanKajtar(setup.boundary_coordinates, setup.boundary_masses,
-                                                     K, beta, particle_spacing / beta)
 
-boundary_container_wall = BoundaryParticlesMonaghanKajtar(setup_wall.boundary_coordinates, setup_wall.boundary_masses,
-                                                     K, beta, particle_spacing / beta)
+boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
+                                                    BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
+
+boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.boundary_coordinates, setup_wall.boundary_masses,
+                                                          BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
 # boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
 #                                              particle_density,
