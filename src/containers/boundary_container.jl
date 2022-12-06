@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     BoundaryParticleContainer(coordinates, mass, model)
 
 Container for boundaries modeled by boundary particles.
@@ -17,9 +17,22 @@ struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{N
     end
 end
 
-"""
-    MovingBoundaryParticleContainer()
-TODO
+@doc raw"""
+    MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
+
+The Container is similar to the [`BoundaryParticleContainer`](@ref) but for moving boundaries.
+The `movement_function` is to define in which way the boundary particles move over time.
+
+# Examples
+```julia
+function movement_function(coordinates, t)
+    f(t) = 0.5*t^2 + t
+    pos_1 = coordinates[2,1]
+    pos_2 = f(t)
+    diff_pos = pos_2 - pos_1
+    coordinates[2,:] .+= diff_pos
+end
+````
 """
 struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
