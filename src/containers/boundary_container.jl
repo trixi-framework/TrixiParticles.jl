@@ -21,17 +21,19 @@ end
     MovingBoundaryParticleContainer()
 TODO
 """
-struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
+struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
     current_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
+    movement_function   ::MF
     boundary_model      ::BM
 
-    function MovingBoundaryParticleContainer(coordinates, mass, model)
+    function MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
         NDIMS = size(coordinates, 1)
         current_coordinates = copy(coordinates)
 
-        return new{NDIMS, eltype(coordinates), typeof(model)}(coordinates, current_coordinates, mass, model)
+        return new{NDIMS, eltype(coordinates), typeof(movement_function), typeof(model)}(
+                coordinates, current_coordinates, mass, movement_function, model)
     end
 end
 
@@ -65,13 +67,14 @@ function initialize!(container::MovingBoundaryParticleContainer, neighborhood_se
     return container
 end
 
-function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
+function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     # Nothing to update for this container
     return container
 end
 
-function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
-    # Nothing to update for this container
+function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
+    @unpack movement_function, current_coordinates = container
+    movement_function(current_coordinates, t)
     return container
 end
 

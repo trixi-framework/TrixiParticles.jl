@@ -33,17 +33,20 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
                                             acceleration=(0.0, -9.81))
 
-K = 4 * 9.81 * water_height
+K = 4 * 9.81 * water_height/20
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
+
+function movement_function(coordinates, t)
+    return nothing
+end
 boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.boundary_coordinates, setup_wall.boundary_masses,
+                                                          movement_function,
                                                           BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
-# boundary_container = BoundaryParticlesFrozen(setup.boundary_coordinates, setup.boundary_masses,
-#                                              particle_density,
-#                                              neighborhood_search=SpatialHashingSearch{2}(search_radius))
+
 
 
 length = 0.09
@@ -88,7 +91,7 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K * 20, beta, solid_particle_spacing / beta))
+                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing / beta))
 
 
 # Relaxing of the fluid without solid
@@ -111,6 +114,18 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
 # Run full simulation
 tspan = (0.0, 1.0)
 
+function movement_function(coordinates, t)
+
+    if t<0.1
+        f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t
+        pos_1 = coordinates[2,1]
+        pos_2 = f(t)
+        diff_pos = pos_2 - pos_1
+        coordinates[2,:] .+= diff_pos
+    end
+    return nothing
+end
+
 # Use solution of the relaxing step as initial coordinates
 u_end = Pixie.wrap_array(sol[end], 1, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
@@ -121,9 +136,8 @@ ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
-move_wall = MoveParticleCallback(callback_interval=1)
 
-callbacks = CallbackSet(alive_callback, saving_callback, move_wall)
+callbacks = CallbackSet(alive_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads

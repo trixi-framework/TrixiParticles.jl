@@ -133,7 +133,7 @@ function rhs!(du_ode, u_ode, semi, t)
             neighborhood_search = neighborhood_searches[container_index][container_index]
             u = wrap_array(u_ode, container_index, semi)
 
-            update!(container, u, u_ode, neighborhood_search, semi)
+            update!(container, u, u_ode, neighborhood_search, semi, t)
         end
 
         # Update all neighborhood searches

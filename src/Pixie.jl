@@ -20,14 +20,13 @@ include("semidiscretization/semidiscretization.jl")
 include("sph/sph.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
-include("callbacks/move_particle.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 include("setups/moving_wall.jl")
 
 export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer, MovingBoundaryParticleContainer
-export AliveCallback, SolutionSavingCallback, MoveParticleCallback
+export AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
