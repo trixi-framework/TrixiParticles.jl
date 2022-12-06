@@ -1,4 +1,21 @@
-abstract type BoundaryParticleContainer{NDIMS} <: ParticleContainer{NDIMS} end
+"""
+    BoundaryParticleContainer(coordinates, mass, model)
+
+Container for boundaries modeled by boundary particles.
+The container is initialized with the coordinates of the particles and their masses.
+The interaction between fluid and boundary particles is specified by the boundary model.
+"""
+struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
+    initial_coordinates ::Array{ELTYPE, 2}
+    mass                ::Vector{ELTYPE}
+    boundary_model      ::BM
+
+    function BoundaryParticleContainer(coordinates, mass, model)
+        NDIMS = size(coordinates, 1)
+
+        return new{NDIMS, eltype(coordinates), typeof(model)}(coordinates, mass, model)
+    end
+end
 
 
 # No particle positions are advanced for boundary containers
@@ -36,10 +53,18 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 end
 
 
+@inline function boundary_particle_impact(particle, particle_container, boundary_container,
+                                          pos_diff, distance, density_a)
+    @unpack boundary_model = boundary_container
+
+    boundary_particle_impact(particle, particle_container, pos_diff, distance, density_a,
+                             boundary_model)
+end
+
+
+# TODO
 @doc raw"""
-    BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
-                                    boundary_particle_spacing;
-                                    neighborhood_search=nothing)
+    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` is given by
@@ -89,19 +114,13 @@ References:
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryParticlesMonaghanKajtar{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
-    initial_coordinates         ::Array{ELTYPE, 2}
-    mass                        ::Vector{ELTYPE}
+struct BoundaryModelMonaghanKajtar{ELTYPE<:Real}
     K                           ::ELTYPE
     beta                        ::ELTYPE
     boundary_particle_spacing   ::ELTYPE
 
-    function BoundaryParticlesMonaghanKajtar(coordinates, masses, K, beta,
-                                             boundary_particle_spacing)
-        NDIMS = size(coordinates, 1)
-
-        new{NDIMS, typeof(K)}(coordinates, masses, K, beta,
-                              boundary_particle_spacing)
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
+        new{typeof(K)}(K, beta, boundary_particle_spacing)
     end
 end
 
@@ -119,53 +138,36 @@ end
 
 
 @inline function boundary_particle_impact(particle, particle_container,
-                                          boundary_container::BoundaryParticlesMonaghanKajtar,
-                                          pos_diff, distance, m_a, m_b, density_a, v_a)
-    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
-    @unpack K, beta, boundary_particle_spacing = boundary_container
+                                          pos_diff, distance, density_a,
+                                          boundary_model::BoundaryModelMonaghanKajtar)
+    @unpack smoothing_length = particle_container
+    @unpack K, beta, boundary_particle_spacing = boundary_model
 
-    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
-
-    dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-
-    dv_repulsive = K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-        boundary_kernel(distance, smoothing_length) * 2 * m_b / (m_a + m_b)
-
-    return dv_viscosity + dv_repulsive
+    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+        boundary_kernel(distance, smoothing_length)
 end
 
 
 """
 TODO
 """
-struct BoundaryParticlesFrozen{NDIMS, ELTYPE<:Real} <: BoundaryParticleContainer{NDIMS}
-    initial_coordinates         ::Array{ELTYPE, 2}
-    mass                        ::Vector{ELTYPE}
-    rest_density                ::ELTYPE
+struct BoundaryModelFrozen{ELTYPE<:Real}
+    rest_density::ELTYPE
 
-    function BoundaryParticlesFrozen(coordinates, masses, rest_density)
-        NDIMS = size(coordinates, 1)
-
-        new{NDIMS, eltype(coordinates)}(coordinates, masses, rest_density)
+    function BoundaryModelFrozen(rest_density)
+        new{typeof(rest_density)}(rest_density)
     end
 end
 
 
 @inline function boundary_particle_impact(particle, particle_container,
-                                          boundary_container::BoundaryParticlesFrozen,
-                                          pos_diff, distance, m_a, m_b, density_a, v_a)
-    @unpack pressure, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
-    @unpack rest_density = boundary_container
-
-    pi_ab = viscosity(state_equation.sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
+                                          pos_diff, distance, density_a,
+                                          boundary_model::BoundaryModelFrozen)
+    @unpack pressure, smoothing_kernel, smoothing_length = particle_container
+    @unpack rest_density = boundary_model
 
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
     # Use 0 as boundary particle pressure
-    dv_pressure = -m_b * (pressure[particle] / density_a^2 +
-                          0 / rest_density^2) * grad_kernel
-
-    dv_viscosity = m_b * pi_ab * grad_kernel
-
-    return dv_pressure + dv_viscosity
+    return -(pressure[particle] / density_a^2 + 0 / rest_density^2) * grad_kernel
 end
