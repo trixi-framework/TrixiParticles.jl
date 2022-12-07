@@ -54,10 +54,10 @@ end
 
 
 @inline function boundary_particle_impact(particle, particle_container, boundary_container,
-                                          pos_diff, distance, density_a)
+                                          pos_diff, distance, density_a, m_b)
     @unpack boundary_model = boundary_container
 
-    boundary_particle_impact(particle, particle_container, pos_diff, distance, density_a,
+    boundary_particle_impact(particle, particle_container, pos_diff, distance, density_a, m_b,
                              boundary_model)
 end
 
@@ -128,6 +128,7 @@ end
 @inline function boundary_kernel(r, h)
     q = r / h
 
+    # TODO The neighborhood search fluid->boundary should use this search distance
     if q >= 2
         return 0.0
     end
@@ -138,7 +139,7 @@ end
 
 
 @inline function boundary_particle_impact(particle, particle_container,
-                                          pos_diff, distance, density_a,
+                                          pos_diff, distance, density_a, m_b,
                                           boundary_model::BoundaryModelMonaghanKajtar)
     @unpack smoothing_length = particle_container
     @unpack K, beta, boundary_particle_spacing = boundary_model
@@ -161,7 +162,7 @@ end
 
 
 @inline function boundary_particle_impact(particle, particle_container,
-                                          pos_diff, distance, density_a,
+                                          pos_diff, distance, density_a, m_b,
                                           boundary_model::BoundaryModelFrozen)
     @unpack pressure, smoothing_kernel, smoothing_length = particle_container
     @unpack rest_density = boundary_model
@@ -169,5 +170,5 @@ end
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
     # Use 0 as boundary particle pressure
-    return -(pressure[particle] / density_a^2 + 0 / rest_density^2) * grad_kernel
+    return -m_b * (pressure[particle] / density_a^2 + 0 / rest_density^2) * grad_kernel
 end
