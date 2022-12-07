@@ -62,7 +62,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
 
         initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_ratio,
                                n_boundaries_x, n_boundaries_y, n_layers)
-        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+        boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^2 * ones(ELTYPE, n_boundaries)
 
         # Particle data
         n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing, "fluid width")
