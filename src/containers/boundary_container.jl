@@ -208,7 +208,7 @@ end
     @unpack smoothing_length = particle_container
     @unpack K, beta, boundary_particle_spacing = boundary_model
 
-    return K / beta^2 / boundary_particle_spacing / 10 * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
         boundary_kernel(distance, smoothing_length)
 end
 
