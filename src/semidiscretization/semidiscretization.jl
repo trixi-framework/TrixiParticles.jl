@@ -186,7 +186,7 @@ function update!(neighborhood_search, u, container::FluidParticleContainer, neig
 end
 
 function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::MovingBoundaryParticleContainer)
-    if neighbor.moving[1]
+    if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.current_coordinates, neighbor)
     end
 end
@@ -196,7 +196,7 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
 end
 
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::MovingBoundaryParticleContainer)
-    if neighbor.moving[1]
+    if neighbor.ismoving[1]
         update!(neighborhood_search, u, neighbor)
     end
 end

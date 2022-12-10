@@ -39,16 +39,16 @@ struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleC
     current_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
     movement_function   ::MF
-    moving              ::Vector{Bool}
+    ismoving            ::Vector{Bool}
     boundary_model      ::BM
 
     function MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
         NDIMS = size(coordinates, 1)
         current_coordinates = copy(coordinates)
-        moving = zeros(Bool,1)
+        ismoving = zeros(Bool,1)
 
         return new{NDIMS, eltype(coordinates), typeof(movement_function), typeof(model)}(
-                coordinates, current_coordinates, mass, movement_function, moving, model)
+                coordinates, current_coordinates, mass, movement_function, ismoving, model)
     end
 end
 
@@ -89,7 +89,7 @@ end
 
 function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack movement_function, current_coordinates = container
-    container.moving[1] =  movement_function(current_coordinates, t)
+    container.ismoving[1] =  movement_function(current_coordinates, t)
     return false
 end
 

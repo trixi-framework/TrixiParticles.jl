@@ -23,7 +23,7 @@ struct VerticalWall{NDIMS, ELTYPE<:Real}
 
         initialize_wall!(boundary_coordinates, wall_position, particle_spacing, spacing_ratio,
                                n_boundaries_x, n_boundaries_y)
-        boundary_masses = boundary_density * particle_spacing^2 * ones(ELTYPE, n_boundaries)
+        boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^2 * ones(ELTYPE, n_boundaries)
 
 
         return new{NDIMS, ELTYPE}(boundary_coordinates, boundary_masses,
