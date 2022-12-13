@@ -144,7 +144,6 @@ function rhs!(du_ode, u_ode, semi, t)
             end
         end
 
-
         @pixie_timeit timer() "main loop" for (particle_container_index, particle_container) in pairs(particle_containers)
             du = wrap_array(du_ode, particle_container_index, semi)
             u_particle_container = wrap_array(u_ode, particle_container_index, semi)
@@ -197,7 +196,7 @@ end
 
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::MovingBoundaryParticleContainer)
     if neighbor.ismoving[1]
-        update!(neighborhood_search, u, neighbor)
+        update!(neighborhood_search, neighbor.current_coordinates, neighbor)
     end
 end
 

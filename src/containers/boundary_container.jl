@@ -1,4 +1,4 @@
-@doc raw"""
+"""
     BoundaryParticleContainer(coordinates, mass, model)
 
 Container for boundaries modeled by boundary particles.
@@ -21,18 +21,30 @@ end
     MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
 
 The Container is similar to the [`BoundaryParticleContainer`](@ref) but for moving boundaries.
-The `movement_function` is to define in which way the boundary particles move over time.
+The `movement_function` is to define in which way the boundary particles move over time. Its
+boolean return value is mandatory to determine in each timestep if the particles are moving or not.
+Thus, the container will be updated or not.
+In the example below the `movement_function` only returns `true` (container is moving)
+if the simulation time is lower than `0.1`.
+
 
 # Examples
 ```julia
 function movement_function(coordinates, t)
-    f(t) = 0.5*t^2 + t
-    pos_1 = coordinates[2,1]
-    pos_2 = f(t)
-    diff_pos = pos_2 - pos_1
-    coordinates[2,:] .+= diff_pos
+
+    if t < 0.1
+        f(t) = 0.5*t^2 + t
+        pos_1 = coordinates[2,1]
+        pos_2 = f(t)
+        diff_pos = pos_2 - pos_1
+        coordinates[2,:] .+= diff_pos
+
+        return true
+    end
+
+    return false
 end
-````
+```
 """
 struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
@@ -45,7 +57,7 @@ struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleC
     function MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
         NDIMS = size(coordinates, 1)
         current_coordinates = copy(coordinates)
-        ismoving = zeros(Bool,1)
+        ismoving = zeros(Bool, 1)
 
         return new{NDIMS, eltype(coordinates), typeof(movement_function), typeof(model)}(
                 coordinates, current_coordinates, mass, movement_function, ismoving, model)
@@ -90,6 +102,7 @@ end
 function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack movement_function, current_coordinates = container
     container.ismoving[1] =  movement_function(current_coordinates, t)
+
     return false
 end
 

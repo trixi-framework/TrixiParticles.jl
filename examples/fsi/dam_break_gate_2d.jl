@@ -13,10 +13,10 @@ wall_height = container_height
 particle_density = 997.0
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                             container_width, container_height, particle_density,
-                             n_layers=1)
+                        container_width, container_height, particle_density,
+                        n_layers=1)
 
-setup_wall = VerticalWall(fluid_particle_spacing, beta, wall_height, water_width, particle_density)
+setup_wall = RectangularWall(fluid_particle_spacing, beta, wall_height, water_width, particle_density)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -33,16 +33,18 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
                                             acceleration=(0.0, -9.81))
 
+# Add a factor of 4 to prevent boundary penetration
 K = 4 * 9.81 * water_height
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
-
+# No moving boundaries for the relaxing step
 function movement_function(coordinates, t)
     return false
 end
-boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.boundary_coordinates, setup_wall.boundary_masses,
+
+boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.coordinates, setup_wall.masses,
                                                           movement_function,
                                                           BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
@@ -85,20 +87,21 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 E = 3.5e6
 nu = 0.49
 
+beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                          ContinuityDensity(),
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing / beta))
+                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing))
 
 
 # Relaxing of the fluid without solid
 semi = Semidiscretization(particle_container, boundary_container_tank, boundary_container_wall,
                           neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
@@ -107,7 +110,7 @@ alive_callback = AliveCallback(alive_interval=100)
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities, use 2e-5 for spacing 0.004
+            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
             save_everystep=false, callback=alive_callback);
 
 
@@ -116,7 +119,7 @@ tspan = (0.0, 1.0)
 
 function movement_function(coordinates, t)
 
-    if t<0.1
+    if t < 0.1
         particle_spcng = coordinates[2,2] - coordinates[2,1]
         f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t + particle_spcng
         pos_1 = coordinates[2,1]
@@ -126,6 +129,7 @@ function movement_function(coordinates, t)
 
         return true
     end
+
     return false
 end
 
@@ -134,10 +138,13 @@ u_end = Pixie.wrap_array(sol[end], 1, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
 
-semi = Semidiscretization(particle_container, boundary_container_tank, boundary_container_wall, solid_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container_tank,
+                          boundary_container_wall, solid_container,
+                          neighborhood_search=SpatialHashingSearch)
+
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)

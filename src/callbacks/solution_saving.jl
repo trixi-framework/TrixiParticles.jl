@@ -126,10 +126,10 @@ function (extract_quantities::ExtractQuantities)(u, container::MovingBoundaryPar
     result = Dict{Symbol, Array{Float64}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-        :coordinates        => copy(container.current_coordinates)
+        :coordinates => copy(container.current_coordinates)
     )
 
-    return "Moving_boundaries", result
+    return "moving_boundaries", result
 end
 
 function extract_density!(result, u, cache, ::SummationDensity, container)
