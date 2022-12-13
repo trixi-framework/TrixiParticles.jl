@@ -29,17 +29,6 @@ end
 end
 
 
-function initialize!(container::BoundaryParticleContainer, neighborhood_search)
-    # Nothing to initialize for this container
-    return container
-end
-
-function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi)
-    # Nothing to update for this container
-    return container
-end
-
-
 function write_variables!(u0, container::BoundaryParticleContainer)
     return u0
 end
