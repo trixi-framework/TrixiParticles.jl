@@ -57,7 +57,6 @@ end
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack mass = particle_container
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -76,7 +75,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                dv =  m_b / mass[particle] * boundary_particle_impact(neighbor, neighbor_container, particle_container,
+                dv =  boundary_particle_impact(neighbor, neighbor_container, particle_container,
                                               pos_diff, distance, density_b, m_b)
 
                 for i in 1:ndims(particle_container)
