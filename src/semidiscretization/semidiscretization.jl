@@ -154,6 +154,7 @@ function rhs!(du_ode, u_ode, semi, t)
                 end
 
                 add_acceleration!(du, particle, particle_container)
+                add_damping_force!(u_particle_container, du, particle, particle_container)
             end
 
             # Neighbor interaction
@@ -200,6 +201,17 @@ end
 
     for i in 1:ndims(container)
         du[i+ndims(container), particle] += acceleration[i]
+    end
+
+    return du
+end
+
+@inline function add_damping_force!(u, du, particle, container)
+    @unpack damping_coefficient = container
+
+    #damping_coefficient = 1E-3
+    for i in 1:ndims(container)
+        du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
     end
 
     return du

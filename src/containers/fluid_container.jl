@@ -3,13 +3,13 @@
                            density_calculator::SummationDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
 
     FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                            density_calculator::ContinuityDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
 
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
@@ -24,13 +24,18 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
     smoothing_length    ::ELTYPE
     viscosity           ::V
     acceleration        ::SVector{NDIMS, ELTYPE}
+    damping_coefficient ::ELTYPE
     cache               ::C
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
                                     density_calculator::SummationDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+        # todo at svenb ???
+        # print_startup_message()
+        # print("SUM")
+
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -47,14 +52,18 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, cache)
+            viscosity, acceleration_, damping_coefficient, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                     density_calculator::ContinuityDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+        # todo at svenb ???
+        # print_startup_message()
+        # print("CONTI")
+
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -71,7 +80,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, cache)
+            viscosity, acceleration_, damping_coefficient, cache)
     end
 end
 

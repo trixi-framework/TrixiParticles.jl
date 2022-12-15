@@ -62,8 +62,6 @@ function initialize(discrete_callback, u, t, integrator)
 
     reset_timer!(timer())
 
-    print_startup_message()
-
     return nothing
 end
 
