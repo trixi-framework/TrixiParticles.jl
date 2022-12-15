@@ -90,6 +90,7 @@ function update!(container::FluidParticleContainer, u, u_ode, neighborhood_searc
 
     compute_quantities(u, density_calculator, container, u_ode, semi)
 
+    # return boolean to label this container for neighborhood search
     return true
 end
 
