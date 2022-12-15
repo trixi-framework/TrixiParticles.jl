@@ -4,8 +4,8 @@ struct RectangularWall{NDIMS, ELTYPE<:Real}
     particle_spacing        ::ELTYPE
     spacing_ratio           ::ELTYPE
     n_layers                ::Int
-    n_particles_x            ::Int
-    n_particles_y            ::Int
+    n_particles_x           ::Int
+    n_particles_y           ::Int
 
     function RectangularWall(particle_spacing, spacing_ratio, wall_height,
                              wall_position, boundary_density;

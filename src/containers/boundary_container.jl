@@ -86,24 +86,24 @@ end
 
 function initialize!(container::BoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
-    return false
+    return container
 end
 
 function initialize!(container::MovingBoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
-    return false
+    return container
 end
 
 function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     # Nothing to update for this container
-    return false
+    return container
 end
 
 function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack movement_function, current_coordinates = container
-    container.ismoving[1] =  movement_function(current_coordinates, t)
+    container.ismoving[1] = movement_function(current_coordinates, t)
 
-    return false
+    return container
 end
 
 
