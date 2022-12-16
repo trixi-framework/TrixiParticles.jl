@@ -1,26 +1,11 @@
 """
-    BoundaryParticleContainer(coordinates, mass, model)
+    BoundaryParticleContainer(coordinates, mass, model;
+                              movement_function=nothing)
 
 Container for boundaries modeled by boundary particles.
 The container is initialized with the coordinates of the particles and their masses.
 The interaction between fluid and boundary particles is specified by the boundary model.
-"""
-struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
-    initial_coordinates ::Array{ELTYPE, 2}
-    mass                ::Vector{ELTYPE}
-    boundary_model      ::BM
 
-    function BoundaryParticleContainer(coordinates, mass, model)
-        NDIMS = size(coordinates, 1)
-
-        return new{NDIMS, eltype(coordinates), typeof(model)}(coordinates, mass, model)
-    end
-end
-
-@doc raw"""
-    MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
-
-The Container is similar to the [`BoundaryParticleContainer`](@ref) but for moving boundaries.
 The `movement_function` is to define in which way the boundary particles move over time. Its
 boolean return value is mandatory to determine in each timestep if the particles are moving or not.
 Thus, the container will be updated or not.
@@ -46,29 +31,26 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct MovingBoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleContainer{NDIMS}
+struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, MF, BM} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
-    current_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
     movement_function   ::MF
     ismoving            ::Vector{Bool}
     boundary_model      ::BM
 
-    function MovingBoundaryParticleContainer(coordinates, mass, movement_function, model)
+    function BoundaryParticleContainer(coordinates, mass, model;
+                                       movement_function=nothing)
         NDIMS = size(coordinates, 1)
-        current_coordinates = copy(coordinates)
         ismoving = zeros(Bool, 1)
 
         return new{NDIMS, eltype(coordinates), typeof(movement_function), typeof(model)}(
-                coordinates, current_coordinates, mass, movement_function, ismoving, model)
+            coordinates, mass, movement_function, ismoving, model)
     end
 end
 
 
 # No particle positions are advanced for boundary containers
 @inline n_moving_particles(container::BoundaryParticleContainer) = 0
-# particles move due to a callback function
-@inline n_moving_particles(container::MovingBoundaryParticleContainer) = 0
 
 
 @inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
@@ -77,53 +59,35 @@ end
     return get_particle_coords(particle, initial_coordinates, container)
 end
 
-@inline function get_current_coords(particle, u, container::MovingBoundaryParticleContainer)
-    @unpack current_coordinates = container
-
-    return get_particle_coords(particle, current_coordinates, container)
-end
-
-
 function initialize!(container::BoundaryParticleContainer, neighborhood_search)
     # Nothing to initialize for this container
     return container
 end
 
-function initialize!(container::MovingBoundaryParticleContainer, neighborhood_search)
-    # Nothing to initialize for this container
-    return container
-end
-
 function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
-    # Nothing to update for this container
-    return container
-end
+    @unpack movement_function, initial_coordinates = container
 
-function update!(container::MovingBoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
-    @unpack movement_function, current_coordinates = container
-    container.ismoving[1] = movement_function(current_coordinates, t)
+    container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates, t)
 
     return container
 end
 
+function move_boundary_particles!(movement_function, coordinates, t)
+
+    return movement_function(coordinates, t)
+end
+
+function move_boundary_particles!(movement_function::Nothing, coordinates, t)
+
+    return false
+end
 
 function write_variables!(u0, container::BoundaryParticleContainer)
     return u0
 end
 
-function write_variables!(u0, container::MovingBoundaryParticleContainer)
-    return u0
-end
-
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
-                   neighbor_container)
-    # No interaction towards the boundary particles
-    return du
-end
-
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
-                   particle_container::MovingBoundaryParticleContainer,
                    neighbor_container)
     # No interaction towards the boundary particles
     return du

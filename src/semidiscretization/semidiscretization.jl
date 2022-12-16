@@ -33,9 +33,7 @@ end
 
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
 create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
-create_neighborhood_search(::MovingBoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
 create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{nothing}) = nothing
-create_neighborhood_search(::MovingBoundaryParticleContainer, _, ::Val{nothing}) = nothing
 
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
@@ -186,9 +184,9 @@ function update!(neighborhood_search, u, container::FluidParticleContainer, neig
     update!(neighborhood_search, neighbor.current_coordinates, neighbor)
 end
 
-function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::MovingBoundaryParticleContainer)
+function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
-        update!(neighborhood_search, neighbor.current_coordinates, neighbor)
+        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
     end
 end
 
@@ -196,9 +194,9 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     update!(neighborhood_search, u, neighbor)
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::MovingBoundaryParticleContainer)
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
-        update!(neighborhood_search, neighbor.current_coordinates, neighbor)
+        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
     end
 end
 

@@ -81,7 +81,7 @@ end
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::FluidParticleContainer,
-                                      neighbor_container::Union{BoundaryParticleContainer, MovingBoundaryParticleContainer})
+                                      neighbor_container::BoundaryParticleContainer)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
     vdiff = get_particle_vel(particle, u_particle_container, particle_container)
@@ -97,7 +97,7 @@ end
 # Fluid-boundary and fluid-solid interaction
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
-                   neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer, MovingBoundaryParticleContainer})
+                   neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer})
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
     @unpack sound_speed = state_equation
 

@@ -40,13 +40,10 @@ boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, 
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
 # No moving boundaries for the relaxing step
-function movement_function(coordinates, t)
-    return false
-end
-
-boundary_container_wall = MovingBoundaryParticleContainer(setup_wall.coordinates, setup_wall.masses,
-                                                          movement_function,
-                                                          BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
+movement_function(coordinates, t) = false
+boundary_container_wall = BoundaryParticleContainer(setup_wall.coordinates, setup_wall.masses,
+                                                    BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta),
+                                                    movement_function=movement_function)
 
 
 

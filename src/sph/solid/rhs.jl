@@ -101,10 +101,3 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                    neighbor_container::BoundaryParticleContainer)
     return du
 end
-
-
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
-                   particle_container::SolidParticleContainer,
-                   neighbor_container::MovingBoundaryParticleContainer)
-    return du
-end
