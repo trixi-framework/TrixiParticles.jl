@@ -24,6 +24,8 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             end
         end
     end
+
+    return du
 end
 
 
@@ -84,15 +86,14 @@ end
 end
 
 
-# Fluid-boundary interaction
+# Fluid-boundary and fluid-solid interaction
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
-                   neighbor_container::BoundaryParticleContainer)
+                   neighbor_container::Union{BoundaryParticleContainer, SolidParticleContainer})
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = particle_container
+    @unpack sound_speed = state_equation
 
     @threaded for particle in each_moving_particle(particle_container)
-
-        m_a = particle_container.mass[particle]
         density_a = get_particle_density(particle, u_particle_container, particle_container)
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
@@ -106,8 +107,13 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 m_b = neighbor_container.mass[neighbor]
 
-                dv = boundary_particle_impact(particle, particle_container, neighbor_container, pos_diff, distance,
-                                              m_a, m_b, density_a, v_a)
+                pi_ab = viscosity(sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
+                dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+
+                dv_boundary = boundary_particle_impact(particle, particle_container, neighbor_container,
+                                                       pos_diff, distance, density_a, m_b)
+
+                dv = dv_boundary + dv_viscosity
 
                 for i in 1:ndims(particle_container)
                     du[ndims(particle_container) + i, particle] += dv[i]

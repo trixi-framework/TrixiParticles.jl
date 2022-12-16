@@ -87,6 +87,7 @@ particle_container = SolidParticleContainer(particle_coordinates, particle_veloc
                                             E, nu,
                                             n_fixed_particles=n_particles_fixed,
                                             acceleration=(0.0, -2.0),
+                                            nothing, # No boundary model
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.001))
 
 semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)

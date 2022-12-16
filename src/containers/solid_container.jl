@@ -76,7 +76,7 @@ References:
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
@@ -91,6 +91,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleCont
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     acceleration        ::SVector{NDIMS, ELTYPE}
+    boundary_model      ::BM
     penalty_force       ::PF
     cache               ::C
 
@@ -98,7 +99,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleCont
                                     particle_masses, particle_material_densities,
                                     hydrodynamic_density_calculator,
                                     smoothing_kernel, smoothing_length,
-                                    young_modulus, poisson_ratio;
+                                    young_modulus, poisson_ratio, boundary_model;
                                     n_fixed_particles=0,
                                     acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
                                     penalty_force=nothing)
@@ -122,12 +123,12 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, PF, C} <: ParticleCont
         cache = (; create_cache(penalty_force, young_modulus, nparticles, NDIMS, ELTYPE)...)
 
         return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
-                   typeof(smoothing_kernel), typeof(penalty_force), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(boundary_model), typeof(penalty_force), typeof(cache)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
             hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
-            acceleration_, penalty_force, cache)
+            acceleration_, boundary_model, penalty_force, cache)
     end
 end
 
