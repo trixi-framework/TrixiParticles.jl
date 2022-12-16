@@ -13,7 +13,7 @@ function print_startup_message(dic_info)
 
     println("====================")
     for (key, value) in dic_info
-        @printf("%-20s %10d \n",key, value)
+        @printf("%-20s %10s \n",key, value)
     end
     println("====================")
 end

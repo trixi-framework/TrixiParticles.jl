@@ -33,7 +33,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81))
+                                            acceleration=(0.0, -9.81), damping_coefficient=1e-3)
 
 K = 4 * 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
