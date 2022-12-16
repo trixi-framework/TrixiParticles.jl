@@ -32,13 +32,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
-        # todo at svenb ???
-        # print_startup_message()
-        # print("SUM")
 
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
+
+        dic_info = Dict([("no. particles",nparticles), ("damping coefficient", damping_coefficient)]);
+        print_startup_message(dic_info)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
@@ -60,13 +60,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
-        # todo at svenb ???
-        # print_startup_message()
-        # print("CONTI")
 
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
+
+        dic_info = Dict([("no. particles",nparticles), ("damping coefficient", damping_coefficient)]);
+        print_startup_message(dic_info)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 

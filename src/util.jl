@@ -1,5 +1,5 @@
 # Print informative message at startup
-function print_startup_message()
+function print_startup_message(dic_info)
     s = """
 
         ██████╗ ██╗██╗  ██╗██╗███████╗
@@ -10,6 +10,12 @@ function print_startup_message()
         ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚══════╝
         """
     println(s)
+
+    println("====================")
+    for (key, value) in dic_info
+        @printf("%-20s %10d \n",key, value)
+    end
+    println("====================")
 end
 
 # Enable debug timings `@pixie_timeit timer() "name" stuff...`.
