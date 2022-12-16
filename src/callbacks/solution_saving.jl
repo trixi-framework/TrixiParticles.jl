@@ -122,7 +122,7 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
     result = Dict{Symbol, Array{Float64}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-        :coordinates => copy(container.current_coordinates)
+        :coordinates => copy(container.initial_coordinates)
     )
 
     return "moving_boundaries", result
