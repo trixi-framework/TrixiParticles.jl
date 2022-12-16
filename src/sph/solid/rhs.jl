@@ -60,13 +60,10 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        m_b = particle_container.mass[particle]
-
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            m_a = neighbor_container.mass[neighbor]
-            density_a = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
-            v_a = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+            m_b = neighbor_container.mass[neighbor]
+            density_b = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
 
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
@@ -74,12 +71,15 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container, pos_diff, distance,
-                                              m_a, m_b, density_a, v_a)
+                # Apply the same force to the solid particle
+                # that the fluid particle experiences due to the soild particle.
+                # Note that the same arguments are passed here as in fluid-solid interact!,
+                # except that m_b is now the fluid mass and pos_diff has a flipped sign.
+                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container,
+                                              pos_diff, distance, density_b, m_b)
 
                 for i in 1:ndims(particle_container)
-                    # TODO
-                    du[ndims(particle_container) + i, particle] += dv[i] * 997.0 / 1161.54
+                    du[ndims(particle_container) + i, particle] += dv[i]
                 end
 
                 # TODO
