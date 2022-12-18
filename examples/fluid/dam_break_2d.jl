@@ -7,8 +7,7 @@ beta = 3
 
 water_width = 2.0
 water_height = 1.0
-container_width = 5
-# container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
+container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 container_height = 2.0
 
 particle_density = 1000.0
@@ -33,7 +32,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81), damping_coefficient=1e-3)
+                                            acceleration=(0.0, -9.81), damping_coefficient=1e-5)
 
 K = 4 * 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
@@ -41,14 +40,14 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup
 
 semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                        index=(u, t, container) -> Pixie.eachparticle(container))
-callbacks = CallbackSet(alive_callback, saving_callback)
-
+# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
+# callbacks = CallbackSet(alive_callback, saving_callback)
+callbacks = CallbackSet(alive_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
@@ -56,32 +55,33 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities, use 2e-5 for spacing 0.004
             save_everystep=false, callback=callbacks);
 
-# # Move right boundary
-# reset_right_wall!(setup, container_width)
+# Move right boundary
+reset_right_wall!(setup, container_width)
 
-# # Run full simulation
-# tspan = (0.0, 5.7 / sqrt(9.81))
+# Run full simulation
+tspan = (0.0, 5.7 / sqrt(9.81))
 
-# # Use solution of the relaxing step as initial coordinates
-# u_end = Pixie.wrap_array(sol[end], 1, semi)
-# particle_container.initial_coordinates .= view(u_end, 1:2, :)
-# particle_container.initial_velocity .= view(u_end, 3:4, :)
+# Use solution of the relaxing step as initial coordinates
+u_end = Pixie.wrap_array(sol[end], 1, semi)
+particle_container.initial_coordinates .= view(u_end, 1:2, :)
+particle_container.initial_velocity .= view(u_end, 3:4, :)
+particle_container.damping_coefficient[] = 0
 
-# semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
-# ode = semidiscretize(semi, tspan)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+ode = semidiscretize(semi, tspan)
 
-# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-#                                                        index=(u, t, container) -> Pixie.eachparticle(container))
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+                                                       index=(u, t, container) -> Pixie.eachparticle(container))
 
-# callbacks = CallbackSet(alive_callback, saving_callback)
+callbacks = CallbackSet(alive_callback, saving_callback)
 
 
-# # Use a Runge-Kutta method with automatic (error based) time step size control
-# # Enable threading of the RK method for better performance on multiple threads
-# sol = solve(ode, RDPK3SpFSAL35(thread=OrdinaryDiffEq.True()),
-#             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-#             abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
-#             save_everystep=false, callback=callbacks);
+# Use a Runge-Kutta method with automatic (error based) time step size control
+# Enable threading of the RK method for better performance on multiple threads
+sol = solve(ode, RDPK3SpFSAL35(thread=OrdinaryDiffEq.True()),
+            dt=1e-4, # Initial guess of the time step to prevent too large guesses
+            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
+            save_everystep=false, callback=callbacks);
 
 # save to vtk
 pixie2vtk(saved_values, boundary_container)

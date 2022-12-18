@@ -24,7 +24,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
     smoothing_length    ::ELTYPE
     viscosity           ::V
     acceleration        ::SVector{NDIMS, ELTYPE}
-    damping_coefficient ::ELTYPE
+    damping_coefficient ::Array{ELTYPE, 0}
     cache               ::C
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
@@ -42,6 +42,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
+        damping_coefficient_ = Array{Float64, 0}(undef)
+        damping_coefficient_[] = damping_coefficient
+
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
 
@@ -52,7 +55,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, damping_coefficient, cache)
+            viscosity, acceleration_, damping_coefficient_, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
@@ -70,6 +73,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
+        damping_coefficient_ = Array{Float64, 0}(undef)
+        damping_coefficient_[] = damping_coefficient
+
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
 
@@ -80,7 +86,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, damping_coefficient, cache)
+            viscosity, acceleration_, damping_coefficient_, cache)
     end
 end
 

@@ -56,7 +56,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_boundaries_x,
             n_boundaries_y = get_boundary_particles_per_dimension(container_width, container_height,
                                                                   particle_spacing, spacing_ratio, n_layers)
-        n_boundaries = (2 * n_boundaries_y) * n_layers + n_boundaries_x * n_layers
+        n_boundaries = (2 * n_boundaries_y) * n_layers + (2 * n_boundaries_x) * n_layers
 
         boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
 
@@ -215,6 +215,17 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
             boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
                                                           - n_layers*boundary_particle_spacing)
             boundary_coordinates[2, boundary_particle] = -i*boundary_particle_spacing
+        end
+
+        # top boundary
+        for x in 1:n_boundaries_x
+            boundary_particle += 1
+
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                            - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] =((n_boundaries_y-(2*n_layers-1))
+                                                        * boundary_particle_spacing
+                                                        + i*boundary_particle_spacing)
         end
     end
 end

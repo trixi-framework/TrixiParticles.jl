@@ -211,7 +211,7 @@ end
 
     #damping_coefficient = 1E-3
     for i in 1:ndims(container)
-        du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
+        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
     end
 
     return du
