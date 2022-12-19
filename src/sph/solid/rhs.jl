@@ -74,8 +74,8 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # Apply the same force to the solid particle
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
-                # except that m_b is now the fluid mass and pos_diff has a flipped sign.
-                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container,
+                # except that pos_diff has a flipped sign.
+                dv =  boundary_particle_impact(neighbor, neighbor_container, particle_container,
                                               pos_diff, distance, density_b, m_b)
 
                 for i in 1:ndims(particle_container)

@@ -35,6 +35,7 @@ create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSea
 create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
 create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{nothing}) = nothing
 
+
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
 
@@ -130,7 +131,7 @@ function rhs!(du_ode, u_ode, semi, t)
             neighborhood_search = neighborhood_searches[container_index][container_index]
             u = wrap_array(u_ode, container_index, semi)
 
-            update!(container, u, u_ode, neighborhood_search, semi)
+            update!(container, u, u_ode, neighborhood_search, semi, t)
         end
 
         # Update all neighborhood searches
@@ -183,8 +184,20 @@ function update!(neighborhood_search, u, container::FluidParticleContainer, neig
     update!(neighborhood_search, neighbor.current_coordinates, neighbor)
 end
 
+function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::BoundaryParticleContainer)
+    if neighbor.ismoving[1]
+        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
+    end
+end
+
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
+end
+
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
+    if neighbor.ismoving[1]
+        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
+    end
 end
 
 
