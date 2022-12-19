@@ -125,7 +125,7 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
         :coordinates => copy(container.initial_coordinates)
     )
 
-    return "moving_boundaries", result
+    return "boundary", result
 end
 
 function extract_density!(result, u, cache, ::SummationDensity, container)
