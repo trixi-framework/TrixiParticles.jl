@@ -123,7 +123,8 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: Particle
         cache = (; create_cache(penalty_force, young_modulus, nparticles, NDIMS, ELTYPE)...)
 
         return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
-                   typeof(smoothing_kernel), typeof(boundary_model), typeof(penalty_force), typeof(cache)}(
+                   typeof(smoothing_kernel), typeof(boundary_model),
+                   typeof(penalty_force), typeof(cache)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
@@ -136,6 +137,7 @@ function create_cache(::Nothing, young_modulus, nparticles, NDIMS, ELTYPE)
     return (; )
 end
 
+# We need to precalculate and store the deformation gradient for the penalty force
 function create_cache(::PenaltyForceGanzenmueller, young_modulus, nparticles, NDIMS, ELTYPE)
     deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
     return (; deformation_grad, young_modulus)
@@ -333,7 +335,6 @@ end
 end
 
 
-# TODO
 @inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
                                      initial_distance, container, penalty_force::PenaltyForceGanzenmueller)
     @unpack smoothing_kernel, smoothing_length, mass,
@@ -341,7 +342,7 @@ end
     @unpack young_modulus = cache
 
     current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
-        get_particle_coords(neighbor, current_coordinates, container)
+                       get_particle_coords(neighbor, current_coordinates, container)
     current_distance = norm(current_pos_diff)
 
     volume_particle = mass[particle] / material_density[particle]
@@ -370,6 +371,7 @@ end
                                      initial_distance, container, ::Nothing)
     return du
 end
+
 
 function write_variables!(u0, container::SolidParticleContainer)
     @unpack initial_coordinates, initial_velocity = container

@@ -23,6 +23,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 calc_dv!(du, particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
+
                 calc_penalty_force!(du, particle, neighbor, pos_diff,
                                     distance, particle_container, penalty_force)
             end
@@ -77,7 +78,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                dv =  boundary_particle_impact(neighbor, neighbor_container, particle_container,
+                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container,
                                               pos_diff, distance, density_b, m_b)
 
                 for i in 1:ndims(particle_container)
