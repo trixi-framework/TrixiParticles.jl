@@ -207,7 +207,7 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
 end
 
 
-function update!(container::SolidParticleContainer, u, u_ode, neighborhood_search, semi)
+function update!(container::SolidParticleContainer, u, u_ode, neighborhood_search, semi, t)
     # Update current coordinates
     @pixie_timeit timer() "update current coordinates" update_current_coordinates(u, container)
 
