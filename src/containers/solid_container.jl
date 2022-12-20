@@ -6,7 +6,7 @@
                            young_modulus, poisson_ratio;
                            n_fixed_particles=0,
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                           neighborhood_search=nothing)
+                           penalty_force=nothing)
 
 Container for particles of an elastic solid.
 
@@ -24,7 +24,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
 ```math
 \frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
-    \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{HG}}{m_{0a}} + \bm{g},
+    \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{PF}}{m_{0a}} + \bm{g},
 ```
 with
 ```math
@@ -63,7 +63,7 @@ and
 ```
 are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
 
-For the penalty force ``\bm{f}_a^{HG}`` see [`PenaltyForceGanzenmueller`](@ref)
+The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
 References:
 - Joseph O’Connor, Benedict D. Rogers.
@@ -76,13 +76,14 @@ References:
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
     mass                ::Array{ELTYPE, 1} # [particle]
     correction_matrix   ::Array{ELTYPE, 3} # [i, j, particle]
     pk1_corrected       ::Array{ELTYPE, 3} # [i, j, particle]
+    deformation_grad    ::Array{ELTYPE, 3} # [i, j, particle]
     material_density    ::Array{ELTYPE, 1} # [particle]
     n_moving_particles  ::Int64
     lame_lambda         ::ELTYPE
@@ -93,7 +94,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: Particle
     acceleration        ::SVector{NDIMS, ELTYPE}
     boundary_model      ::BM
     penalty_force       ::PF
-    cache               ::C
+    young_modulus       ::ELTYPE
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
@@ -113,6 +114,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: Particle
         current_coordinates = copy(particle_coordinates)
         correction_matrix   = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         pk1_corrected       = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
 
         n_moving_particles = nparticles - n_fixed_particles
 
@@ -120,28 +122,18 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF, C} <: Particle
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
-        cache = (; create_cache(penalty_force, young_modulus, nparticles, NDIMS, ELTYPE)...)
 
         return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
                    typeof(smoothing_kernel), typeof(boundary_model),
-                   typeof(penalty_force), typeof(cache)}(
+                   typeof(penalty_force)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
-            correction_matrix, pk1_corrected, particle_material_densities,
+            correction_matrix, pk1_corrected, deformation_grad, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
             hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
-            acceleration_, boundary_model, penalty_force, cache)
+            acceleration_, boundary_model, penalty_force, young_modulus)
     end
 end
 
-function create_cache(::Nothing, young_modulus, nparticles, NDIMS, ELTYPE)
-    return (; )
-end
-
-# We need to precalculate and store the deformation gradient for the penalty force
-function create_cache(::PenaltyForceGanzenmueller, young_modulus, nparticles, NDIMS, ELTYPE)
-    deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-    return (; deformation_grad, young_modulus)
-end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
@@ -153,7 +145,7 @@ end
 
 
 @inline get_correction_matrix(particle, container) = extract_smatrix(container.correction_matrix, particle, container)
-@inline get_deformation_gradient(particle, container) = extract_smatrix(container.cache.deformation_grad, particle, container)
+@inline get_deformation_gradient(particle, container) = extract_smatrix(container.deformation_grad, particle, container)
 @inline get_pk1_corrected(particle, container) = extract_smatrix(container.pk1_corrected, particle, container)
 
 @inline function extract_smatrix(array, particle, container)
@@ -232,26 +224,7 @@ end
 
 
 @inline function compute_pk1_corrected(neighborhood_search, container)
-    @unpack penalty_force = container
-    compute_pk1_corrected(penalty_force, neighborhood_search, container)
-end
-
-@inline function compute_pk1_corrected(::Nothing, neighborhood_search, container)
-    @unpack pk1_corrected = container
-
-    @threaded for particle in eachparticle(container)
-        pk1_particle = pk1_stress_tensor(particle, neighborhood_search, container)
-        pk1_particle_corrected = pk1_particle * get_correction_matrix(particle, container)
-
-        for j in 1:ndims(container), i in 1:ndims(container)
-            pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
-        end
-    end
-end
-
-@inline function compute_pk1_corrected(::PenaltyForceGanzenmueller, neighborhood_search, container)
-    @unpack pk1_corrected, cache = container
-    @unpack deformation_grad = cache
+    @unpack pk1_corrected, deformation_grad = container
 
     @threaded for particle in eachparticle(container)
         J_particle = deformation_gradient(particle, neighborhood_search, container)
@@ -272,14 +245,6 @@ end
 
 
 # First Piola-Kirchhoff stress tensor
-function pk1_stress_tensor(particle, neighborhood_search, container)
-    J = deformation_gradient(particle, neighborhood_search, container)
-
-    S = pk2_stress_tensor(J, container)
-
-    return J * S
-end
-
 function pk1_stress_tensor(J, container)
     S = pk2_stress_tensor(J, container)
 
@@ -338,8 +303,7 @@ end
 @inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
                                      initial_distance, container, penalty_force::PenaltyForceGanzenmueller)
     @unpack smoothing_kernel, smoothing_length, mass,
-        material_density, current_coordinates, cache = container
-    @unpack young_modulus = cache
+        material_density, current_coordinates, young_modulus = container
 
     current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
                        get_particle_coords(neighbor, current_coordinates, container)
@@ -353,6 +317,7 @@ end
     J_a = get_deformation_gradient(particle, container)
     J_b = get_deformation_gradient(neighbor, container)
 
+    # Use the symmetry of epsilon to simplify computations
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
@@ -361,6 +326,7 @@ end
         current_pos_diff / current_distance
 
     for i in 1:ndims(container)
+        # Divide force by mass to obtain acceleration
         du[ndims(container) + i, particle] += dv[i] / mass[particle]
     end
 
