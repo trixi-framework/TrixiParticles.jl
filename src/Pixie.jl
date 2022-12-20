@@ -15,6 +15,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 include("util.jl")
 include("sph/neighborhood_search.jl") # semidiscretization/semidiscretization.jl depends on this
 include("sph/fluid/density_calculators.jl") # containers/containers.jl depends on this
+include("sph/solid/penalty_force.jl") # containers/containers.jl depends on this
 include("containers/container.jl")
 include("semidiscretization/semidiscretization.jl")
 include("sph/sph.jl")
@@ -28,6 +29,7 @@ export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
+export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
