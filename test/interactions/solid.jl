@@ -32,7 +32,7 @@
                 material_density = 1:10
 
                 #### Mocking
-                # Mock the containe
+                # Mock the container
                 container = Val(:mock_container_dv)
                 Pixie.ndims(::Val{:mock_container_dv}) = 2
 
