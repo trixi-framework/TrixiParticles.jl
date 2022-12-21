@@ -2,7 +2,7 @@
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::SolidParticleContainer)
-    @unpack smoothing_kernel, smoothing_length = particle_container
+    @unpack smoothing_kernel, smoothing_length, penalty_force = particle_container
 
     # Different solids do not interact with each other (yet)
     if particle_container !== neighbor_container
@@ -23,6 +23,9 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 calc_dv!(du, particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
+
+                calc_penalty_force!(du, particle, neighbor, pos_diff,
+                                    distance, particle_container, penalty_force)
             end
         end
     end
@@ -74,7 +77,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # Apply the same force to the solid particle
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
-                # except that m_b is now the fluid mass and pos_diff has a flipped sign.
+                # except that pos_diff has a flipped sign.
                 dv = boundary_particle_impact(neighbor, neighbor_container, particle_container,
                                               pos_diff, distance, density_b, m_b)
 

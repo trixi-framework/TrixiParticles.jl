@@ -62,6 +62,14 @@ Modules = [Pixie]
 Pages = [joinpath("sph", "fluid", "viscosity.jl")]
 ```
 
+### Structural dynamics
+
+#### File penalty_force.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "solid", "penalty_force.jl")]
+```
+
 ## Util
 
 ```@autodocs
