@@ -2,5 +2,5 @@ using Test
 using Pixie
 using LinearAlgebra
 
-include("sph/solid/solid.jl")
-include("sph/solid/sph_rhs.jl")
+include("containers/solid_container.jl")
+include("interactions/solid.jl")
