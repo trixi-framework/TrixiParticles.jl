@@ -2,6 +2,11 @@
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::SolidParticleContainer)
+    interact_solid_solid!(du, neighborhood_search, particle_container, neighbor_container)
+end
+
+# Function barrier without dispatch for unit testing
+@inline function interact_solid_solid!(du, neighborhood_search, particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length, penalty_force = particle_container
 
     # Different solids do not interact with each other (yet)
