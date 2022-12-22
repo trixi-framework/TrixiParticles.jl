@@ -20,8 +20,7 @@ include("interactions/interactions.jl")
 include("callbacks/alive.jl")
 include("callbacks/solution_saving.jl")
 include("visualization/write2vtk.jl")
-include("setups/rectangular_tank.jl")
-include("setups/moving_wall.jl")
+include("setups/setups.jl")
 
 export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer

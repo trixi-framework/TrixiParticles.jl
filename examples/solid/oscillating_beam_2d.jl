@@ -10,7 +10,7 @@ clamp_radius = 0.05
 # at the position of the last particle.
 particle_spacing = thickness / (n_particles_y - 1)
 
-fixed_particle_coords = fill_circle_with_recess(clamp_radius+particle_spacing/2, 0.0, thickness/2,
+fixed_particle_coords = Pixie.fill_circle_with_recess(clamp_radius+particle_spacing/2, 0.0, thickness/2,
                                                   [0,clamp_radius], [0, thickness], particle_spacing)
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 n_particles_fixed = size(fixed_particle_coords, 2)
