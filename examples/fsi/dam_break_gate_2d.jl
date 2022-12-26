@@ -46,8 +46,6 @@ boundary_container_wall = BoundaryParticleContainer(setup_wall.coordinates, setu
                                                     movement_function=movement_function)
 
 
-
-
 length = 0.09
 thickness = 0.004
 n_particles_x = 5
@@ -106,8 +104,9 @@ alive_callback = AliveCallback(alive_interval=100)
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
+            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
+            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
+            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
             save_everystep=false, callback=alive_callback);
 
 
@@ -149,6 +148,7 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
+            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
+            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
+            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
             save_everystep=false, callback=callbacks);
