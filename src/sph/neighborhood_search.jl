@@ -166,7 +166,7 @@ end
 # If we threw an error here, we would prevent the time integration method from
 # retrying with a smaller time step, and we would thus crash perfectly fine simulations.
 @inline function floor_to_int(i)
-    if i > typemax(Int)
+    if isnan(i) || i > typemax(Int)
         return typemax(Int)
     elseif i < typemin(Int)
         return typemin(Int)
