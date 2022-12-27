@@ -1,3 +1,10 @@
+# 2D dam break flow against an elastic plate based on Section 6.5 of
+#
+# L. Zhan, C. Peng, B. Zhang, W. Wu.
+# "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
+# In: Journal of Fluids and Structures 86 (2019), pages 329-353.
+# https://doi.org/10.1016/j.jfluidstructs.2019.02.002
+
 using Pixie
 using OrdinaryDiffEq
 

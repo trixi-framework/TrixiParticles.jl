@@ -1,3 +1,10 @@
+# 2D dam break flow against an elastic plate based on
+#
+# P.N. Sun, D. Le Touzé, A.-M. Zhang.
+# "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
+# In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
+# https://doi.org/10.1016/j.enganabound.2019.03.033
+
 using Pixie
 using OrdinaryDiffEq
 
@@ -80,7 +87,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Young's modulus and Poisson ratio
 E = 3.5e6
-nu = 0.49
+nu = 0.45
 
 beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
@@ -116,8 +123,8 @@ tspan = (0.0, 1.0)
 function movement_function(coordinates, t)
 
     if t < 0.1
-        particle_spcng = coordinates[2,2] - coordinates[2,1]
-        f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t + particle_spcng
+        particle_spacing = coordinates[2,2] - coordinates[2,1]
+        f(t) = -285.115t^3 + 72.305t^2 + 0.1463t + particle_spacing
         pos_1 = coordinates[2,1]
         pos_2 = f(t)
         diff_pos = pos_2 - pos_1
