@@ -12,31 +12,20 @@ particle_spacing = thickness / (n_particles_y - 1)
 
 fixed_particle_coords = Pixie.fill_circle_with_recess(clamp_radius+particle_spacing/2, 0.0, thickness/2,
                                                   [0,clamp_radius], [0, thickness], particle_spacing)
+
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 n_particles_fixed = size(fixed_particle_coords, 2)
 
 # cantilever and clamped particles
 n_particles_per_dimension = (round(Int, length_beam / particle_spacing) + (n_particles_clamp_x - 1) + 2 , n_particles_y)
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
 particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
 particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
 
-for y in 0:n_particles_per_dimension[2]-1,
-        x in 0:n_particles_per_dimension[1]-1
-    particle = x * n_particles_per_dimension[2]+1 + y
+beam = RectangularShape(particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2], 0.0, 0.0)
 
-    # Coordinates
-    particle_coordinates[1, particle] = x * particle_spacing
-    particle_coordinates[2, particle] = y * particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
-
-particle_coordinates = cat(particle_coordinates, fixed_particle_coords, dims=(2,2))
+particle_coordinates = cat(beam.coordinates, fixed_particle_coords, dims=(2,2))
 particle_velocities = cat(particle_velocities, zeros(2,n_particles_fixed), dims=(2,2))
 
 smoothing_length = sqrt(2) * particle_spacing
