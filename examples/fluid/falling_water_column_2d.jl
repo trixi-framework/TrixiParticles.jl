@@ -1,16 +1,19 @@
 using Pixie
 using OrdinaryDiffEq
 
-water_width = 0.5
-water_height = 1.0
-container_width = 4.0
-container_height = 2.0
-particle_density = 1000.0
 particle_spacing = 0.02
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 3
 
+water_width = 0.5
+water_height = 1.0
+water_density = 1000.0
+
+container_width = 4.0
+container_height = 2.0
+
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density, n_layers=1)
+                        container_width, container_height, water_density, n_layers=1)
 
 # Move water column
 for i in axes(setup.particle_coordinates, 2)
@@ -18,7 +21,7 @@ for i in axes(setup.particle_coordinates, 2)
 end
 
 c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()

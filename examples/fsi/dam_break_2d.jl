@@ -9,17 +9,18 @@ using Pixie
 using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.01
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 3
 
 water_width = 0.146
 water_height = 0.292
+water_density = 1000.0
+
 container_width = 0.584
 container_height = 1.0
 
-particle_density = 1000.0
-
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density)
+                        container_width, container_height, water_density)
 
 # Move right boundary
 reset_right_wall!(setup, container_width, wall_position=water_width)
