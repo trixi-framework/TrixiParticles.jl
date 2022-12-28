@@ -59,10 +59,7 @@
             Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
 
             #### Verification
-            @test Pixie.deformation_gradient(1, 1, particle, Val(:mock_nhs), container) == expected[i][1, 1]
-            @test Pixie.deformation_gradient(1, 2, particle, Val(:mock_nhs), container) == expected[i][1, 2]
-            @test Pixie.deformation_gradient(2, 1, particle, Val(:mock_nhs), container) == expected[i][2, 1]
-            @test Pixie.deformation_gradient(2, 2, particle, Val(:mock_nhs), container) == expected[i][2, 2]
+            @test Pixie.deformation_gradient(particle, Val(:mock_nhs), container) == expected[i]
         end
     end
 
@@ -118,12 +115,10 @@
             end
 
             # Compute the deformation gradient for the particle in the middle
-            J = [Pixie.deformation_gradient(1, 1, 41, nhs, container) Pixie.deformation_gradient(1, 2, 41, nhs, container);
-                 Pixie.deformation_gradient(2, 1, 41, nhs, container) Pixie.deformation_gradient(2, 2, 41, nhs, container)]
+            J = Pixie.deformation_gradient(41, nhs, container)
 
             #### Verification
             @test J ≈ deformation_gradients[deformation]
-            @test J == Pixie.deformation_gradient(41, nhs, container)
         end
     end
 end
