@@ -203,10 +203,10 @@ end
 
 function update!(container::SolidParticleContainer, u, u_ode, neighborhood_search, semi, t)
     # Update current coordinates
-    @pixie_timeit timer() "update current coordinates" update_current_coordinates(u, container)
+    update_current_coordinates(u, container)
 
     # Precompute PK1 stress tensor
-    @pixie_timeit timer() "precompute pk1 stress tensor" compute_pk1_corrected(neighborhood_search, container)
+    @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search, container)
 
     return container
 end

@@ -7,6 +7,7 @@ using Polyester: @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
 using StaticArrays: SVector, @SMatrix, SMatrix
+using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using UnPack: @unpack
