@@ -68,6 +68,8 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
 
     @threaded for particle in each_moving_particle(particle_container)
+        m_a = particle_container.mass[particle]
+
         particle_coords = get_current_coords(particle, u_particle_container, particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             m_b = neighbor_container.mass[neighbor]
@@ -87,7 +89,9 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                                               pos_diff, distance, density_b, m_b)
 
                 for i in 1:ndims(particle_container)
-                    du[ndims(particle_container) + i, particle] += dv[i]
+                    # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
+                    # Divide by m_a to obtain the acceleration of solid particle a
+                    du[ndims(particle_container) + i, particle] += dv[i] * m_b / m_a
                 end
 
                 # TODO
