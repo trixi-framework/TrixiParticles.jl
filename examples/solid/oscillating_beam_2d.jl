@@ -30,7 +30,6 @@ particle_velocities = cat(particle_velocities, zeros(2,n_particles_fixed), dims=
 
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Lamé constants
 E = 1.4e6
