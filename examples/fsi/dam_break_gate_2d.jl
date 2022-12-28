@@ -41,7 +41,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             acceleration=(0.0, -9.81))
 
 # Add a factor of 4 to prevent boundary penetration
-K = 4 * 9.81 * water_height
+K = 9.81 * water_height
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
@@ -96,7 +96,8 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing))
+                                         # Use bigger K to prevent penetration into the solid
+                                         BoundaryModelMonaghanKajtar(5K, beta, solid_particle_spacing))
 
 
 # Relaxing of the fluid without solid
@@ -108,12 +109,18 @@ ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
-            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
-            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=alive_callback);
 
 
@@ -147,15 +154,21 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
-            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
-            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
