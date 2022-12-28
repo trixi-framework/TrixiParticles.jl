@@ -11,28 +11,33 @@ function pixie2vtk(saved_values::SavedValues; output_directory="out")
         solution = saveval[timestep]
 
         mkpath(output_directory)
-        filename = timestep === nothing ? "$output_directory/solution" : "$output_directory/solution_$timestep"
 
-        points = solution[:coordinates]
-        cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+        # For all containers
+        for key in keys(solution)
+            filename = timestep === nothing ? "$output_directory/$key" : "$output_directory/$(key)_$timestep"
 
-        vtk_grid(filename, points, cells) do vtk
-            for (key, value) in solution
-                if key != :coordinates
-                    vtk[string(key)] = value
+            points = solution[key][:coordinates]
+            cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+
+            vtk_grid(filename, points, cells) do vtk
+                for (key, value) in solution[key]
+                    if key != :coordinates
+                        vtk[string(key)] = value
+                    end
                 end
             end
         end
     end
 end
 
-function pixie2vtk(boundary_conditions::BoundaryParticles; output_directory="out")
-    @unpack coordinates = boundary_conditions
+
+function pixie2vtk(container::BoundaryParticleContainer; output_directory="out")
+    @unpack initial_coordinates = container
 
     mkpath(output_directory)
     filename = "$output_directory/boundaries"
 
-    points = coordinates
+    points = initial_coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(filename, points, cells) do vtk
