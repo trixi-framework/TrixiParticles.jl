@@ -1,3 +1,3 @@
-include("circular_setup.jl")
-include("moving_wall.jl")
+include("circular_shape.jl")
+include("rectangular_shape.jl")
 include("rectangular_tank.jl")

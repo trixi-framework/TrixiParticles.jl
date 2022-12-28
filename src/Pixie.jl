@@ -34,6 +34,6 @@ export BoundaryModelMonaghanKajtar, BoundaryModelFrozen
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
-export RectangularTank, reset_right_wall!, RectangularWall
+export RectangularTank, RectangularShape
 
 end # module
