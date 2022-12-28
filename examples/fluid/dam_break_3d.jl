@@ -8,16 +8,17 @@ beta = 3
 water_width = 2.0 # x-direction
 water_height = 1.0 # y-direction
 water_length = 1.0 # z-direction
+water_density = 1000.0
+
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 container_height = 2.0
 container_length = 1.0
 
-particle_density = 1000.0
 
 setup = RectangularTank(particle_spacing, beta,
                         water_width, water_height, water_length,
                         container_width, container_height, container_length,
-                        particle_density)
+                        water_density)
 
 # Move right boundary
 reset_right_wall!(setup, container_width, wall_position=water_width)
@@ -27,7 +28,7 @@ c = 20 * sqrt(9.81 * water_height)
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
 
 particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
@@ -47,12 +48,18 @@ ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=10)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
-            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
-            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
+            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=alive_callback);
 
 # Move right boundary
@@ -74,10 +81,16 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-5, # Small initial stepsize because the automatic choice is usually too large
-            abstol=1e-5, # Higher abstol (default is 1e-6) for performance reasons
-            reltol=1e-4, # Smaller reltol (default is 1e-3) to prevent boundary penetration
+            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
