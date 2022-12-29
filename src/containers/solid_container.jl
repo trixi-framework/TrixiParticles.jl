@@ -37,7 +37,8 @@ the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a 
 
 For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
 ```math
-(\bm{J}_a)^{i,j} = \sum_b \frac{m_{0b}}{\rho_{0b}} (\bm{x}_b^i - \bm{x}_a^i) (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^j
+\bm{J}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
+    \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
 ```
 with $1 \leq i,j \leq d$.
 From the deformation gradient, the Green-Lagrange strain
@@ -155,13 +156,6 @@ end
         ntuple(@inline(i -> array[mod(i-1, ndims(container))+1, div(i-1, ndims(container))+1, particle]), Val(ndims(container)^2)))
 end
 
-# Extract the j-th column of the correction matrix for this particle as an SVector
-@inline function get_correction_matrix_column(j, particle, container)
-    @unpack correction_matrix = container
-
-    return SVector(ntuple(@inline(dim -> correction_matrix[dim, j, particle]), Val(ndims(container))))
-end
-
 
 function initialize!(container::SolidParticleContainer, neighborhood_search)
     @unpack correction_matrix = container
@@ -251,21 +245,12 @@ function pk1_stress_tensor(J, container)
     return J * S
 end
 
-# We cannot use a variable for the number of dimensions here, it has to be hardcoded
-@inline function deformation_gradient(particle, neighborhood_search, container::SolidParticleContainer{2})
-    return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:2, j in 1:2]
-end
 
-@inline function deformation_gradient(particle, neighborhood_search, container::SolidParticleContainer{3})
-    return @SMatrix [deformation_gradient(i, j, particle, neighborhood_search, container) for i in 1:3, j in 1:3]
-end
-
-
-function deformation_gradient(i, j, particle, neighborhood_search, container)
-    @unpack initial_coordinates, current_coordinates, correction_matrix,
+function deformation_gradient(particle, neighborhood_search, container)
+    @unpack initial_coordinates, current_coordinates,
         mass, material_density, smoothing_kernel, smoothing_length = container
 
-    result = zero(eltype(mass))
+    result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
     initial_particle_coords = get_particle_coords(particle, initial_coordinates, container)
     for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
@@ -277,13 +262,15 @@ function deformation_gradient(i, j, particle, neighborhood_search, container)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
-            # TODO pull L multiplication out of the neighbor loop
-            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                dot(get_correction_matrix_column(j, particle, container), initial_pos_diff) / initial_distance
+            # Note that the multiplication by L_{0a} is done after this loop
+            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) * initial_pos_diff / initial_distance
 
-            result -= volume * pos_diff[i] * grad_kernel
+            result -= volume * pos_diff * grad_kernel'
         end
     end
+
+    # Mulitply by L_{0a}
+    result *= get_correction_matrix(particle, container)'
 
     return result
 end
