@@ -37,7 +37,8 @@ the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a 
 
 For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
 ```math
-(\bm{J}_a)^{i,j} = \sum_b \frac{m_{0b}}{\rho_{0b}} (\bm{x}_b^i - \bm{x}_a^i) (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^j
+\bm{J}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
+    \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
 ```
 with $1 \leq i,j \leq d$.
 From the deformation gradient, the Green-Lagrange strain
@@ -269,7 +270,7 @@ function deformation_gradient(particle, neighborhood_search, container)
     end
 
     # Mulitply by L_{0a}
-    result *= get_correction_matrix(particle, container)
+    result *= get_correction_matrix(particle, container)'
 
     return result
 end
