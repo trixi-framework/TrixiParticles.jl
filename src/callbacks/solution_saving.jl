@@ -59,7 +59,7 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     result = Dict{Symbol, Dict{Symbol, Array{Float64}}}()
 
     for (container_index, container) in pairs(particle_containers)
-        u = wrap_array(u_ode, container_index, semi)
+        u = wrap_array(u_ode, container_index, container, semi)
         write_result!(result, u, t, container, extract_quantities)
     end
 
