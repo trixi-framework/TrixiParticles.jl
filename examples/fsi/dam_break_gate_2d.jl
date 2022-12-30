@@ -24,7 +24,8 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=1)
 
-setup_wall = RectangularWall(fluid_particle_spacing, beta, wall_height, water_width, water_density)
+setup_wall = RectangularShape(fluid_particle_spacing/beta, 1, setup.n_boundaries_y,
+                              water_width, fluid_particle_spacing/beta, density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -56,6 +57,7 @@ boundary_container_wall = BoundaryParticleContainer(setup_wall.coordinates, setu
 
 length = 0.09
 thickness = 0.004
+solid_density = 1161.54
 n_particles_x = 5
 
 # The structure starts at the position of the first particle and ends
@@ -64,23 +66,14 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 
 n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 1161.54 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = 1161.54 * ones(Float64, prod(n_particles_per_dimension))
+plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
+                         0.6, solid_particle_spacing)
+fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1, 0.6, 0.0)
 
-for x in 1:n_particles_per_dimension[1],
-        y in 1:n_particles_per_dimension[2]
-    particle = (y - 1) * n_particles_per_dimension[1] + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = 0.6 + (x - 1) * solid_particle_spacing
-    particle_coordinates[2, particle] = length - (y - 1) * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
+particle_coordinates = cat(plate.coordinates, fixed_particles.coordinates, dims=(2,2))
+particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
+particle_masses = solid_density * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
+particle_densities = solid_density * ones(Float64, prod(n_particles_per_dimension))
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()

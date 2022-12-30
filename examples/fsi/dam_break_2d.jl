@@ -23,7 +23,7 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+Pixie.reset_right_wall!(setup, container_width, wall_position=water_width)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -47,6 +47,7 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup
 
 length = 0.08
 thickness = 0.012
+solid_density = 2500
 n_particles_x = 5
 
 # The structure starts at the position of the first particle and ends
@@ -55,23 +56,14 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 
 n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 2500 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = 2500 * ones(Float64, prod(n_particles_per_dimension))
+plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
+                         0.292, solid_particle_spacing)
+fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1, 0.292, 0.0)
 
-for x in 1:n_particles_per_dimension[1],
-        y in 1:n_particles_per_dimension[2]
-    particle = (y - 1) * n_particles_per_dimension[1] + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = 0.292 + (x - 1) * solid_particle_spacing
-    particle_coordinates[2, particle] = length - (y - 1) * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
+particle_coordinates = cat(plate.coordinates, fixed_particles.coordinates, dims=(2,2))
+particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
+particle_masses = solid_density * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
+particle_densities = solid_density * ones(Float64, prod(n_particles_per_dimension))
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -115,7 +107,7 @@ sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             save_everystep=false, callback=alive_callback);
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+Pixie.reset_right_wall!(setup, container_width)
 
 # Run full simulation
 tspan = (0.0, 1.0)
@@ -144,5 +136,5 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
