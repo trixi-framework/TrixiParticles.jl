@@ -5,15 +5,20 @@ particle_spacing = 0.02
 # Ratio of fluid particle spacing to boundary particle spacing
 beta = 3
 
-water_width = 2.0
-water_height = 0.9
+water_width = 0.5
+water_height = 1.0
 water_density = 1000.0
 
-container_width = 2.0
-container_height = 1.0
+container_width = 4.0
+container_height = 2.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density, n_layers=1)
+
+# Move water column
+for i in axes(setup.particle_coordinates, 2)
+    setup.particle_coordinates[:, i] .+= [0.5 * container_width - 0.5 * water_width, 0.2]
+end
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
@@ -38,7 +43,7 @@ semi = Semidiscretization(particle_container, boundary_container, neighborhood_s
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
-alive_callback = AliveCallback(alive_interval=10)
+alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0)
 
 callbacks = CallbackSet(alive_callback, saving_callback)

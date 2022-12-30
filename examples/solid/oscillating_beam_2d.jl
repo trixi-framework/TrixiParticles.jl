@@ -72,10 +72,8 @@ for x in 1:(n_particles_y + 2)
     particle_velocities[2, particle] = 0.0
 end
 
-
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Lamé constants
 E = 1.4e6
@@ -87,7 +85,8 @@ particle_container = SolidParticleContainer(particle_coordinates, particle_veloc
                                             E, nu,
                                             n_fixed_particles=n_particles_fixed,
                                             acceleration=(0.0, -2.0),
-                                            nothing) # No boundary model
+                                            nothing, # No boundary model
+                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.001))
 
 semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)
 tspan = (0.0, 5.0)
@@ -102,4 +101,4 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()), save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);

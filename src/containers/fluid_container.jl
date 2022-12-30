@@ -39,6 +39,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
 
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
@@ -63,6 +66,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
 
         initial_density = particle_densities
         cache = (; initial_density)
@@ -85,10 +91,12 @@ end
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 
-function update!(container::FluidParticleContainer, u, u_ode, neighborhood_search, semi)
+function update!(container::FluidParticleContainer, u, u_ode, neighborhood_search, semi, t)
     @unpack density_calculator = container
 
     compute_quantities(u, density_calculator, container, u_ode, semi)
+
+    return container
 end
 
 
@@ -105,7 +113,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
 
     # Use all other containers for the density summation
     @pixie_timeit timer() "compute density" for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
-        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
+        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,

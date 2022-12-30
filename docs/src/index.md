@@ -30,10 +30,22 @@ Pages = [joinpath("setups", "rectangular_tank.jl")]
 
 ## SPH
 
+### File density_calculators.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "density_calculators.jl")]
+```
+
 ### File neighborhood_search.jl
 ```@autodocs
 Modules = [Pixie]
 Pages = [joinpath("sph", "neighborhood_search.jl")]
+```
+
+### File penalty_force.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("sph", "penalty_force.jl")]
 ```
 
 ### File smoothing_kernels.jl
@@ -42,24 +54,16 @@ Modules = [Pixie]
 Pages = [joinpath("sph", "smoothing_kernels.jl")]
 ```
 
-### Fluid Dynamics
-
-#### File density_calculators.jl
+### File state_equations.jl
 ```@autodocs
 Modules = [Pixie]
-Pages = [joinpath("sph", "fluid", "density_calculators.jl")]
+Pages = [joinpath("sph", "state_equations.jl")]
 ```
 
-#### File state_equations.jl
+### File viscosity.jl
 ```@autodocs
 Modules = [Pixie]
-Pages = [joinpath("sph", "fluid", "state_equations.jl")]
-```
-
-#### File viscosity.jl
-```@autodocs
-Modules = [Pixie]
-Pages = [joinpath("sph", "fluid", "viscosity.jl")]
+Pages = [joinpath("sph", "viscosity.jl")]
 ```
 
 ## Util
