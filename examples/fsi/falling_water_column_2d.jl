@@ -41,7 +41,7 @@ clamp_radius = 0.05
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
 fixed_particle_coords = Pixie.fill_circle_with_recess(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2,
-                                                  [0,clamp_radius], [0, thickness], solid_particle_spacing)
+                                                      [0,clamp_radius], [0, thickness], solid_particle_spacing)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 n_particles_fixed = size(fixed_particle_coords, 2)
@@ -49,14 +49,13 @@ n_particles_fixed = size(fixed_particle_coords, 2)
 # cantilever and clamped particles
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) + n_particles_clamp_x + 1, n_particles_y)
 
-particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
-particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
+particle_masses = 1000 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
 particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2], 0.0, 0.0)
 
 particle_coordinates = cat(beam.coordinates, fixed_particle_coords, dims=(2,2))
-particle_velocities = cat(particle_velocities, zeros(2,n_particles_fixed), dims=(2,2))
+particle_velocities = zeros(Float64, size(particle_coordinates))
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -97,5 +96,5 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
