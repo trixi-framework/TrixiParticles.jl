@@ -85,7 +85,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
 
     # Iterate over the original set of keys because weird things happen
     # if keys are added during iteration.
-    for cell_coords in copy(keys(hashtable))
+    for cell_coords in collect(keys(hashtable))
         particles = hashtable[cell_coords]
 
         # Find all particles whose coordinates do not match this cell

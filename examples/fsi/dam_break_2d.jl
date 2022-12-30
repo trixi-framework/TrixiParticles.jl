@@ -100,7 +100,7 @@ alive_callback = AliveCallback(alive_interval=100)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
+sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
@@ -113,7 +113,7 @@ Pixie.reset_right_wall!(setup, container_width)
 tspan = (0.0, 1.0)
 
 # Use solution of the relaxing step as initial coordinates
-u_end = Pixie.wrap_array(sol[end], 1, semi)
+u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
 
@@ -133,7 +133,7 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
+sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
