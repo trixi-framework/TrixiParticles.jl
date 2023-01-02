@@ -1,5 +1,6 @@
 using Test
+using Pixie
+using LinearAlgebra
 
-@testset "Tests" begin
-
-end
+include("containers/solid_container.jl")
+include("interactions/solid.jl")
