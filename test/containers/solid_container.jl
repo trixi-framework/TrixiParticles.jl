@@ -3,7 +3,7 @@
         # This is a proof of concept to show that mocking in Julia unit tests works without
         # the need for any mocking packages or modifying source code.
 
-        u = [[2 3;  0 0], # coords[neighbor] - coords[particle] = (1, 0)
+        current_coordinates = [[2 3;  0 0], # coords[neighbor] - coords[particle] = (1, 0)
              [6 8; -1 3]] # coords[neighbor] - coords[particle] = (2, 4)
 
         initial_coordinates = [[5  5; 3  4], # initial_coords[particle] - initial_coords[neighbor] = (0, -1)
@@ -14,14 +14,14 @@
 
 
         # This is a true unit test where we mock all function calls and don't need
-        # a real semidiscretization object.
+        # a real container object.
         # We replace all objects that we don't need by objects of the type Val{:mock_something},
         # for which we define specific behaviour below.
         @testset "Tensor Product $i" for i in 1:2
             #### Setup
             particle = 1
             neighbors = [1, 2]
-            mass = 2.0
+            mass = [2.0, 2.0]
             density = 4.0
 
             correction_matrix = [1 0; 0 1]
@@ -31,37 +31,38 @@
             kernel_derivative = 1.0
 
             #### Mocking
-            # Mock the semidiscretization
-            semi = Val(:mock_semi_tensor)
-            Pixie.ndims(::Val{:mock_semi_tensor}) = 2
+            # Mock the container
+            container = Val(:mock_container_tensor)
+            Pixie.ndims(::Val{:mock_container_tensor}) = 2
 
-            # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-            Base.getproperty(::Val{:mock_semi_tensor}, f::Symbol) = Val(Symbol("mock_" * string(f)))
-
-            # For the cache, we want to have some real matrices as properties as opposed to only mock objects
-            function Base.getproperty(::Val{:mock_cache}, f::Symbol)
+            # All @unpack calls should return another mock object of the type Val{:mock_property_name},
+            # but we want to have some real matrices as properties as opposed to only mock objects
+            function Base.getproperty(::Val{:mock_container_tensor}, f::Symbol)
                 if f === :initial_coordinates
                     return initial_coordinates[i]
                 elseif f === :correction_matrix
                     return correction_matrix
+                elseif f === :current_coordinates
+                    return current_coordinates[i]
+                elseif f === :mass
+                    return mass
                 end
 
                 # For all other properties, return mock objects
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            Pixie.eachneighbor(_, _, _, ::Val{:mock_semi_tensor}) = neighbors
-            Base.eltype(::Val{:mock_mass}) = Float64
-            Base.getindex(::Val{:mock_mass}, ::Int64) = mass
-            Base.getindex(::Val{:mock_solid_density}, ::Int64) = density
+            Pixie.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
+
+            Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
             Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
 
             #### Verification
-            @test Pixie.deformation_gradient(u[i], 1, 1, particle, semi) == expected[i][1, 1]
-            @test Pixie.deformation_gradient(u[i], 1, 2, particle, semi) == expected[i][1, 2]
-            @test Pixie.deformation_gradient(u[i], 2, 1, particle, semi) == expected[i][2, 1]
-            @test Pixie.deformation_gradient(u[i], 2, 2, particle, semi) == expected[i][2, 2]
+            @test Pixie.deformation_gradient(1, 1, particle, Val(:mock_nhs), container) == expected[i][1, 1]
+            @test Pixie.deformation_gradient(1, 2, particle, Val(:mock_nhs), container) == expected[i][1, 2]
+            @test Pixie.deformation_gradient(2, 1, particle, Val(:mock_nhs), container) == expected[i][2, 1]
+            @test Pixie.deformation_gradient(2, 2, particle, Val(:mock_nhs), container) == expected[i][2, 2]
         end
     end
 
@@ -86,7 +87,8 @@
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
             particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-            particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            # particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_velocities = zeros(2, prod(n_particles_per_dimension))
             particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
             particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
@@ -102,27 +104,26 @@
             smoothing_length = 0.12
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
-            semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
-                                                 smoothing_kernel, smoothing_length,
-                                                 1.0, 1.0,
-                                                 neighborhood_search=SpatialHashingSearch{2}(search_radius))
 
-            tspan = (0.0, 1.0)
-            semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+            container = SolidParticleContainer(particle_coordinates, particle_velocities,
+                                               particle_masses, particle_densities, SummationDensity(),
+                                               smoothing_kernel, smoothing_length,
+                                               1.0, 1.0, nothing)
+            nhs = Pixie.TrivialNeighborhoodSearch(container)
+            Pixie.initialize!(container, nhs)
 
             # Apply the deformation matrix
-            u = copy(particle_coordinates)
-            for particle in axes(u, 2)
-                u[:, particle] = deformations[deformation](u[:, particle])
+            for particle in Pixie.eachparticle(container)
+                container.current_coordinates[:, particle] = deformations[deformation](container.initial_coordinates[:, particle])
             end
 
             # Compute the deformation gradient for the particle in the middle
-            J = [Pixie.deformation_gradient(u, 1, 1, 41, semi) Pixie.deformation_gradient(u, 1, 2, 41, semi);
-                 Pixie.deformation_gradient(u, 2, 1, 41, semi) Pixie.deformation_gradient(u, 2, 2, 41, semi)]
+            J = [Pixie.deformation_gradient(1, 1, 41, nhs, container) Pixie.deformation_gradient(1, 2, 41, nhs, container);
+                 Pixie.deformation_gradient(2, 1, 41, nhs, container) Pixie.deformation_gradient(2, 2, 41, nhs, container)]
 
             #### Verification
             @test J ≈ deformation_gradients[deformation]
-            @test J == Pixie.deformation_gradient(u, 41, semi)
+            @test J == Pixie.deformation_gradient(41, nhs, container)
         end
     end
 end
@@ -156,25 +157,26 @@ end
             lame_mu = 1.0
 
             #### Mocking
-            semi = Val(:mock_semi_deform)
+            container = Val(:mock_container_deform)
 
-            # All @unpack calls should return another mock object of the type Val{:mock_property_name}
-            Base.getproperty(::Val{:mock_semi_deform}, f::Symbol) = Val(Symbol("mock_" * string(f)))
-
-            # For the cache, we want to have the actual Lamé constants as properties
-            function Base.getproperty(::Val{:mock_cache}, f::Symbol)
+            # All @unpack calls should return another mock object of the type Val{:mock_property_name},
+            # but we want to have the actual Lamé constants as properties
+            function Base.getproperty(::Val{:mock_container_deform}, f::Symbol)
                 if f === :lame_lambda
                     return lame_lambda
                 elseif f === :lame_mu
                     return lame_mu
                 end
+
+                # For all other properties, return mock objects
+                return Val(Symbol("mock_" * string(f)))
             end
 
-            Pixie.deformation_gradient(_, _, ::Val{:mock_semi_deform}) = J
+            Pixie.deformation_gradient(_, ::Val{:mock_container_deform}) = J
 
             #### Verification
-            @test Pixie.pk2_stress_tensor(J, semi) ≈ expected_pk2[deformation]
-            @test Pixie.pk1_stress_tensor(nothing, nothing, semi) ≈ expected_pk1[deformation]
+            @test Pixie.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
+            @test Pixie.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
         end
     end
 
@@ -203,19 +205,17 @@ end
             smoothing_length = 0.12
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
-            semi = SPHSolidSemidiscretization{2}(particle_masses, particle_densities, SummationDensity(),
-                                                smoothing_kernel, smoothing_length,
-                                                E, nu,
-                                                neighborhood_search=SpatialHashingSearch{2}(search_radius))
-
-            tspan = (0.0, 1.0)
-            semidiscretize(semi, particle_coordinates, particle_velocities, tspan)
+            container = SolidParticleContainer(particle_coordinates, particle_velocities,
+                                               particle_masses, particle_densities, SummationDensity(),
+                                               smoothing_kernel, smoothing_length,
+                                               E, nu, nothing)
+            nhs = Pixie.TrivialNeighborhoodSearch(container)
+            Pixie.initialize!(container, nhs)
 
             # Apply the deformation matrix
-            u = copy(particle_coordinates)
-            for particle in axes(u, 2)
+            for particle in Pixie.eachparticle(container)
                 # Rotate and stretch with the same deformation as in the unit test above
-                u[:, particle] = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * u[:, particle]
+                container.current_coordinates[:, particle] = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * container.initial_coordinates[:, particle]
             end
 
             #### Verification for the particle in the middle
@@ -223,13 +223,13 @@ end
             J_expected = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
 
             # Deformation gradient
-            @test Pixie.deformation_gradient(u, particle, semi) ≈ J_expected
+            @test Pixie.deformation_gradient(particle, nhs, container) ≈ J_expected
 
             # PK2 stress tensor (same as in the unit test above)
-            @test Pixie.pk2_stress_tensor(J_expected, semi) ≈ [8.5 0.0; 0.0 13.5]
+            @test Pixie.pk2_stress_tensor(J_expected, container) ≈ [8.5 0.0; 0.0 13.5]
 
             # PK1 stress tensor (same as in the unit test above)
-            @test Pixie.pk1_stress_tensor(u, 41, semi) ≈ J_expected * [8.5 0.0; 0.0 13.5]
+            @test Pixie.pk1_stress_tensor(J_expected, container) ≈ J_expected * [8.5 0.0; 0.0 13.5]
         end
     end
 end

@@ -47,6 +47,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
 
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
@@ -78,6 +81,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
 
         initial_density = particle_densities
         cache = (; initial_density)

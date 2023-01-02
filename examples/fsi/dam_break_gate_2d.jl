@@ -1,22 +1,30 @@
+# 2D dam break flow against an elastic plate based on
+#
+# P.N. Sun, D. Le Touzé, A.-M. Zhang.
+# "Study of a complex fluid-structure dam-breaking benchmark problem using a multi-phase SPH method with APR".
+# In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
+# https://doi.org/10.1016/j.enganabound.2019.03.033
+
 using Pixie
 using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.02
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 3
 
 water_width = 0.2
 water_height = 0.4
+water_density = 997.0
+
 container_width = 0.8
 container_height = 1.0
 wall_height = container_height
 
-particle_density = 997.0
-
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, particle_density,
+                        container_width, container_height, water_density,
                         n_layers=1)
 
-setup_wall = RectangularWall(fluid_particle_spacing, beta, wall_height, water_width, particle_density)
+setup_wall = RectangularWall(fluid_particle_spacing, beta, wall_height, water_width, water_density)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -34,7 +42,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             acceleration=(0.0, -9.81))
 
 # Add a factor of 4 to prevent boundary penetration
-K = 4 * 9.81 * water_height
+K = 9.81 * water_height
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
@@ -44,8 +52,6 @@ movement_function(coordinates, t) = false
 boundary_container_wall = BoundaryParticleContainer(setup_wall.coordinates, setup_wall.masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta),
                                                     movement_function=movement_function)
-
-
 
 
 length = 0.09
@@ -82,7 +88,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 # Young's modulus and Poisson ratio
 E = 3.5e6
-nu = 0.49
+nu = 0.45
 
 beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
@@ -91,7 +97,8 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing))
+                                         # Use bigger K to prevent penetration into the solid
+                                         BoundaryModelMonaghanKajtar(5K, beta, solid_particle_spacing))
 
 
 # Relaxing of the fluid without solid
@@ -103,11 +110,18 @@ ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
+            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=alive_callback);
 
 
@@ -117,8 +131,8 @@ tspan = (0.0, 1.0)
 function movement_function(coordinates, t)
 
     if t < 0.1
-        particle_spcng = coordinates[2,2] - coordinates[2,1]
-        f(t) = -285.115*t^3 + 72.305*t^2 + 0.1463*t + particle_spcng
+        particle_spacing = coordinates[2,2] - coordinates[2,1]
+        f(t) = -285.115t^3 + 72.305t^2 + 0.1463t + particle_spacing
         pos_1 = coordinates[2,1]
         pos_2 = f(t)
         diff_pos = pos_2 - pos_1
@@ -141,14 +155,21 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Enable threading of the RK method for better performance on multiple threads.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+# become extremely large when fluid particles are very close to boundary particles,
+# and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(thread=OrdinaryDiffEq.True()),
-            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, reltol=1.0e-4, # Tighter tolerance to prevent instabilities
+            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
