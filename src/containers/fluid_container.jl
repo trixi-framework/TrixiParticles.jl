@@ -128,7 +128,7 @@ function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
 
     # Use all other containers for the density summation
     @pixie_timeit timer() "compute density" for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
-        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
+        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,

@@ -32,9 +32,12 @@ end
 
 
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
-create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch}) = nothing
-create_neighborhood_search(::BoundaryParticleContainer, _, ::Val{nothing}) = nothing
 
+function create_neighborhood_search(container::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch})
+    # This NHS will never be used, so we just return an empty NHS.
+    # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
+    return SpatialHashingSearch{ndims(container)}(0.0)
+end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
@@ -95,7 +98,7 @@ function semidiscretize(semi, tspan)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes))
 
     for (container_index, container) in pairs(particle_containers)
-        u0_container = wrap_array(u0_ode, container_index, semi)
+        u0_container = wrap_array(u0_ode, container_index, container, semi)
 
         write_variables!(u0_container, container)
     end
@@ -104,18 +107,18 @@ function semidiscretize(semi, tspan)
 end
 
 
-@inline function wrap_array(u_ode, i, semi)
+# We have to pass `container` here for type stability,
+# since the type of `container` determines the return type.
+@inline function wrap_array(u_ode, i, container, semi)
     @unpack particle_containers, ranges = semi
 
     range = ranges[i]
-    container = particle_containers[i]
 
     @boundscheck begin
         @assert length(range) == nvariables(container) * n_moving_particles(container)
     end
 
-    return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
-                       (nvariables(container), n_moving_particles(container)))
+    return PtrArray(pointer(view(u_ode, range)), (StaticInt(nvariables(container)), n_moving_particles(container)))
 end
 
 
@@ -123,56 +126,176 @@ function rhs!(du_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
 
     @pixie_timeit timer() "rhs!" begin
-        # Reset du
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
-        # Update all particle containers
-        @pixie_timeit timer() "update particle containers" for (container_index, container) in pairs(particle_containers)
-            neighborhood_search = neighborhood_searches[container_index][container_index]
-            u = wrap_array(u_ode, container_index, semi)
+        @pixie_timeit timer() "update containers" update_containers!(particle_containers, 1, u_ode, semi, t)
 
-            update!(container, u, u_ode, neighborhood_search, semi, t)
-        end
+        @pixie_timeit timer() "update nhs" update_nhs!(particle_containers, 1, u_ode, semi)
 
-        # Update all neighborhood searches
-        @pixie_timeit timer() "update neighborhood searches" for (container_index, container) in pairs(particle_containers)
-            for (neighbor_index, neighbor) in pairs(particle_containers)
-                neighborhood_search = neighborhood_searches[container_index][neighbor_index]
-                u_neighbor = wrap_array(u_ode, neighbor_index, semi)
-
-                update!(neighborhood_search, u_neighbor, container, neighbor)
-            end
-        end
-
-        @pixie_timeit timer() "main loop" for (particle_container_index, particle_container) in pairs(particle_containers)
-            du = wrap_array(du_ode, particle_container_index, semi)
-            u_particle_container = wrap_array(u_ode, particle_container_index, semi)
-
-            # Set velocity and add acceleration
-            @threaded for particle in each_moving_particle(particle_container)
-                for i in 1:ndims(particle_container)
-                    du[i, particle] = u_particle_container[i + ndims(particle_container), particle]
-                end
-
-                add_acceleration!(du, particle, particle_container)
-                add_damping_force!(u_particle_container, du, particle, particle_container)
-            end
-
-            # Neighbor interaction
-            for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
-                u_neighbor_container = wrap_array(u_ode, neighbor_container_index, semi)
-
-                interact!(du, u_particle_container, u_neighbor_container,
-                          neighborhood_searches[particle_container_index][neighbor_container_index],
-                          particle_container, neighbor_container)
-            end
-        end
+        @pixie_timeit timer() "container interaction" container_interaction!(particle_containers, 1, du_ode, u_ode, semi)
     end
 
     return du_ode
 end
 
 
+@inline function reset_du!(du)
+    du .= zero(eltype(du))
+
+    return du
+end
+
+
+# Iterate over tuples in a type-stable way using "lispy tuple programming",
+# similar to https://stackoverflow.com/a/55849398:
+# Iterating over tuples of different functions isn't type-stable in general
+# but accessing the first element of a tuple is type-stable. Hence, it's good
+# to process one element at a time and replace iteration by recursion here.
+# Note that you shouldn't use this with too many elements per tuple since the
+# compile times can increase otherwise - but a handful of elements per tuple
+# is definitely fine.
+function update_containers!(containers, container_index, u_ode, semi, t)
+    @unpack neighborhood_searches = semi
+
+    container = first(containers)
+    remaining_containers = Base.tail(containers)
+
+    neighborhood_search = neighborhood_searches[container_index][container_index]
+    u = wrap_array(u_ode, container_index, container, semi)
+
+    update!(container, u, u_ode, neighborhood_search, semi, t)
+
+    # Process remaining containers
+    update_containers!(remaining_containers, container_index + 1, u_ode, semi, t)
+end
+
+function update_containers!(containers::Tuple{}, container_index, u_ode, semi, t)
+    nothing
+end
+
+
+function update_nhs!(containers, container_index, u_ode, semi)
+    @unpack particle_containers = semi
+
+    container = first(containers)
+    remaining_containers = Base.tail(containers)
+
+    # Loop over the neighbor containers in the same way
+    update_nhs!(particle_containers, 1, container, container_index, u_ode, semi)
+
+    # Process remaining containers
+    update_nhs!(remaining_containers, container_index + 1, u_ode, semi)
+end
+
+function update_nhs!(containers::Tuple{}, container_index, u_ode, semi)
+    nothing
+end
+
+function update_nhs!(neighbor_containers, neighbor_index, container, container_index, u_ode, semi)
+    @unpack neighborhood_searches = semi
+
+    neighbor = first(neighbor_containers)
+    remaining_containers = Base.tail(neighbor_containers)
+
+    # Update neighborhood search
+    neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+    u_neighbor = wrap_array(u_ode, neighbor_index, neighbor, semi)
+    update!(neighborhood_search, u_neighbor, container, neighbor)
+
+    # Process remaining containers
+    update_nhs!(remaining_containers, neighbor_index + 1, container, container_index, u_ode, semi)
+end
+
+function update_nhs!(neighbor_containers::Tuple{}, neighbor_index, container, container_index, u_ode, semi)
+    nothing
+end
+
+
+function container_interaction!(containers, container_index, du_ode, u_ode, semi)
+    @unpack particle_containers = semi
+
+    container = first(containers)
+    remaining_containers = Base.tail(containers)
+
+    du = wrap_array(du_ode, container_index, container, semi)
+    u_container = wrap_array(u_ode, container_index, container, semi)
+
+    # Set velocity and add acceleration
+    velocity_and_acceleration!(du, u_container, container)
+
+    # Loop over the neighbor containers in the same way for the interaction
+    neighbor_container_interaction!(particle_containers, container_index, 1,
+                                    du, u_container, container, u_ode, semi)
+
+    # Process remaining containers
+    container_interaction!(remaining_containers, container_index + 1, du_ode, u_ode, semi)
+end
+
+function container_interaction!(containers::Tuple{}, container_index, du_ode, u_ode, semi)
+    nothing
+end
+
+
+function neighbor_container_interaction!(containers, container_index, neighbor_container_index,
+                                                 du, u_container, container, u_ode, semi)
+    @unpack neighborhood_searches = semi
+
+    neighbor_container = first(containers)
+    remaining_containers = Base.tail(containers)
+
+    u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
+
+    interact!(du, u_container, u_neighbor_container,
+              neighborhood_searches[container_index][neighbor_container_index],
+              container, neighbor_container)
+
+    # Process remaining containers
+    neighbor_container_interaction!(remaining_containers, container_index, neighbor_container_index + 1,
+                                    du, u_container, container, u_ode, semi)
+end
+
+function neighbor_container_interaction!(containers::Tuple{}, container_index, neighbor_container_index,
+                                         du, u_container, container, u_ode, semi)
+    nothing
+end
+
+
+# Set velocity and add acceleration
+@inline function velocity_and_acceleration!(du, u, container)
+    @threaded for particle in each_moving_particle(container)
+        for i in 1:ndims(container)
+            du[i, particle] = u[i + ndims(container), particle]
+        end
+
+        add_acceleration!(du, particle, container)
+        add_damping_force!(u, du, particle, container)
+    end
+end
+
+@inline function add_acceleration!(du, particle, container)
+    @unpack acceleration = container
+
+    for i in 1:ndims(container)
+        du[i+ndims(container), particle] += acceleration[i]
+    end
+
+    return du
+end
+
+
+@inline function add_damping_force!(u, du, particle, container)
+    @unpack damping_coefficient = container
+
+    #damping_coefficient = 1E-3
+    for i in 1:ndims(container)
+        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
+    end
+
+    return du
+end
+
+
+# NHS updates
 function update!(neighborhood_search, u, container, neighbor)
     return neighborhood_search
 end
@@ -201,31 +324,3 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     end
 end
 
-
-@inline function reset_du!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
-
-@inline function add_acceleration!(du, particle, container)
-    @unpack acceleration = container
-
-    for i in 1:ndims(container)
-        du[i+ndims(container), particle] += acceleration[i]
-    end
-
-    return du
-end
-
-@inline function add_damping_force!(u, du, particle, container)
-    @unpack damping_coefficient = container
-
-    #damping_coefficient = 1E-3
-    for i in 1:ndims(container)
-        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
-    end
-
-    return du
-end
