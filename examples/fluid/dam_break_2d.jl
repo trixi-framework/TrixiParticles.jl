@@ -90,14 +90,12 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control
-# Enable threading of the RK method for better performance on multiple threads
-sol = solve(ode, RDPK3SpFSAL35(thread=OrdinaryDiffEq.True()),
+# Third order RK
+sol = solve(ode, RDPK3SpFSAL35(),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4,
-	    reltol=1.0e-4, # Tighter tolerance to prevent instabilities
-            save_everystep=false,
-	    callback=callbacks);
+            abstol=1.0e-4, # Default abstol is 1e-6
+	        reltol=1.0e-4, # Default reltol is 1e-3
+            save_everystep=false, callback=callbacks);
 
 # save to vtk
 pixie2vtk(saved_values, boundary_container)
