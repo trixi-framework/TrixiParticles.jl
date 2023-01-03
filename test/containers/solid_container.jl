@@ -103,7 +103,7 @@
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
             container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                               particle_masses, particle_densities, SummationDensity(),
+                                               particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                1.0, 1.0, nothing)
             nhs = Pixie.TrivialNeighborhoodSearch(container)
@@ -201,7 +201,7 @@ end
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
             search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
             container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                               particle_masses, particle_densities, SummationDensity(),
+                                               particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                E, nu, nothing)
             nhs = Pixie.TrivialNeighborhoodSearch(container)
