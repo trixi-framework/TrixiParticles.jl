@@ -66,7 +66,7 @@ are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Po
 
 The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
-References:
+## References:
 - Joseph O’Connor, Benedict D. Rogers.
   "A fluid–structure interaction model for free-surface flows and flexible structures using
   smoothed particle hydrodynamics on a GPU".

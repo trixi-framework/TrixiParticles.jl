@@ -38,7 +38,7 @@ where the error vector is defined as
 ```
 
 
-References:
+## References:
 - Georg C. Ganzenmüller.
   "An hourglass control algorithm for Lagrangian Smooth Particle Hydrodynamics".
   In: Computer Methods in Applied Mechanics and Engineering 286 (2015).
