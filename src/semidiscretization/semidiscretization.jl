@@ -33,11 +33,6 @@ end
 
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
 
-function create_neighborhood_search(container::BoundaryParticleContainer, _, ::Val{SpatialHashingSearch})
-    # This NHS will never be used, so we just return an empty NHS.
-    # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
-    return SpatialHashingSearch{ndims(container)}(0.0)
-end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
@@ -51,11 +46,23 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     return search
 end
 
-function create_neighborhood_search(container::SolidParticleContainer,
-                                    neighbor::FluidParticleContainer,
-                                    ::Val{SpatialHashingSearch})
-    # Here, we need the compact support of the fluid container's smoothing kernel
-    @unpack smoothing_kernel, smoothing_length = neighbor
+
+function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, ::Val{SpatialHashingSearch})
+    @unpack boundary_model = container
+
+    create_neighborhood_search(container, neighbor, boundary_model)
+end
+
+function create_neighborhood_search(container::BoundaryParticleContainer, _,
+                                    boundary_model)
+    # This NHS will never be used, so we just return an empty NHS.
+    # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
+    return SpatialHashingSearch{ndims(container)}(0.0)
+end
+
+function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
+                                    boundary_model::BoundaryModelDummyParticles)
+    @unpack smoothing_kernel, smoothing_length = boundary_model
 
     radius = compact_support(smoothing_kernel, smoothing_length)
     search = SpatialHashingSearch{ndims(container)}(radius)
@@ -118,6 +125,9 @@ end
         @assert length(range) == nvariables(container) * n_moving_particles(container)
     end
 
+    # This is a non-allocation version of:
+    # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
+    #                    (nvariables(container), n_moving_particles(container)))
     return PtrArray(pointer(view(u_ode, range)), (StaticInt(nvariables(container)), n_moving_particles(container)))
 end
 
@@ -128,9 +138,7 @@ function rhs!(du_ode, u_ode, semi, t)
     @pixie_timeit timer() "rhs!" begin
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
-        @pixie_timeit timer() "update containers" update_containers(u_ode, semi, t)
-
-        @pixie_timeit timer() "update nhs" update_nhs(u_ode, semi)
+        @pixie_timeit timer() "update containers and nhs" update_containers_and_nhs(u_ode, semi, t)
 
         @pixie_timeit timer() "velocity and gravity" velocity_and_gravity!(du_ode, u_ode, semi)
 
@@ -148,14 +156,35 @@ end
 end
 
 
-function update_containers(u_ode, semi, t)
-    @unpack particle_containers, neighborhood_searches = semi
+function update_containers_and_nhs(u_ode, semi, t)
+    @unpack particle_containers = semi
 
+    # First update step before updating the NHS
+    # (for example for writing the current coordinates in the solid container)
     foreach_enumerate(particle_containers) do (container_index, container)
         u = wrap_array(u_ode, container_index, container, semi)
-        neighborhood_search = neighborhood_searches[container_index][container_index]
 
-        update!(container, u, u_ode, neighborhood_search, semi, t)
+        update1!(container, container_index, u, u_ode, semi, t)
+    end
+
+    # Update NHS
+    @pixie_timeit timer() "update nhs" update_nhs(u_ode, semi)
+
+    # Second update step.
+    # This is used to calculate density and pressure of the fluid containers
+    # before updating the boundary containers,
+    # since the fluid pressure is needed by the Adami interpolation.
+    foreach_enumerate(particle_containers) do (container_index, container)
+        u = wrap_array(u_ode, container_index, container, semi)
+
+        update2!(container, container_index, u, u_ode, semi, t)
+    end
+
+    # Final update step for all remaining containers
+    foreach_enumerate(particle_containers) do (container_index, container)
+        u = wrap_array(u_ode, container_index, container, semi)
+
+        update3!(container, container_index, u, u_ode, semi, t)
     end
 end
 
@@ -184,17 +213,25 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
         u = wrap_array(u_ode, container_index, container, semi)
 
         @threaded for particle in each_moving_particle(container)
-            for i in 1:ndims(container)
-                du[i, particle] = u[i + ndims(container), particle]
-            end
-
-            # Acceleration can be dispatched per container
+            # These can be dispatched per container
+            add_velocity!(du, u, particle, container)
             add_acceleration!(du, particle, container)
         end
     end
 
     return du_ode
 end
+
+
+@inline function add_velocity!(du, u, particle, container)
+    for i in 1:ndims(container)
+        du[i, particle] = u[i + ndims(container), particle]
+    end
+
+    return du
+end
+
+@inline add_velocity!(du, u, particle, container::BoundaryParticleContainer) = du
 
 
 @inline function add_acceleration!(du, particle, container)
@@ -206,6 +243,8 @@ end
 
     return du
 end
+
+@inline add_acceleration!(du, particle, container::BoundaryParticleContainer) = du
 
 
 function container_interaction!(du_ode, u_ode, semi)
@@ -226,6 +265,42 @@ function container_interaction!(du_ode, u_ode, semi)
     end
 
     return du_ode
+end
+
+
+##### Updates
+
+# Container update orders, see comments in update_containers_and_nhs!
+function update1!(container, container_index, u, u_ode, semi, t)
+    return container
+end
+
+function update1!(container::SolidParticleContainer, container_index, u, u_ode, semi, t)
+    u = wrap_array(u_ode, container_index, container, semi)
+
+    # Only update solid containers
+    update!(container, container_index, u, u_ode, semi, t)
+end
+
+
+function update2!(container, container_index, u, u_ode, semi, t)
+    return container
+end
+
+function update2!(container::FluidParticleContainer, container_index, u, u_ode, semi, t)
+    # Only update fluid containers
+    update!(container, container_index, u, u_ode, semi, t)
+end
+
+
+function update3!(container, container_index, u, u_ode, semi, t)
+    # Update all other containers
+    update!(container, container_index, u, u_ode, semi, t)
+end
+
+function update3!(container::Union{SolidParticleContainer, FluidParticleContainer},
+                  container_index, u, u_ode, semi, t)
+    return container
 end
 
 
@@ -256,4 +331,19 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
     end
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer)
+    @unpack boundary_model = container
+
+    update!(neighborhood_search, u, container, neighbor, boundary_model)
+end
+
+function update!(neighborhood_search, u, container, neighbor, boundary_model)
+    return neighborhood_search
+end
+
+function update!(neighborhood_search, u, container, neighbor,
+                 boundary_model::BoundaryModelDummyParticles)
+    update!(neighborhood_search, u, neighbor)
 end

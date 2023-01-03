@@ -92,7 +92,6 @@ nu = 0.45
 
 beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                                         ContinuityDensity(),
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,

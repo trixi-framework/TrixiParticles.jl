@@ -73,3 +73,12 @@ function (state_equation::StateEquationCole)(density)
     return max(reference_density * sound_speed^2 / gamma * ((density / reference_density)^gamma - 1) +
         reference_pressure - background_pressure, 0.0)
 end
+
+function inverse_state_equation(state_equation::StateEquationCole, pressure)
+    @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
+
+    tmp = gamma * (pressure + background_pressure - reference_pressure) / (reference_density * sound_speed^2) + 1
+    density = reference_density * tmp^(1/gamma)
+
+    return density
+end

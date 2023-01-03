@@ -80,7 +80,6 @@ E = 1.4e6
 nu = 0.4
 
 particle_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                                            SummationDensity(),
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
                                             n_fixed_particles=n_particles_fixed,
