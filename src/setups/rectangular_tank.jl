@@ -1,13 +1,13 @@
 @doc raw"""
     RectangularTank(particle_spacing, spacing_ratio, fluid_width, fluid_height,
                     container_width, container_height, fluid_density;
-                    n_layers=1, init_velocity=0.0, boundary_density=fluid_density)
+                    n_layers=1, init_velocity=0.0, boundary_density=fluid_density, faces=trues(4))
 
     RectangularTank(particle_spacing, spacing_ratio,
                     fluid_width, fluid_height, fluid_depth,
                     container_width, container_height, container_depth,
                     fluid_density;
-                    n_layers=1, init_velocity=0.0, boundary_density=fluid_density)
+                    n_layers=1, init_velocity=0.0, boundary_density=fluid_density, faces=trues(6))
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
 The arguments are as follows:
@@ -63,7 +63,8 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         n_boundaries_x,
             n_boundaries_y = get_boundary_particles_per_dimension(container_width, container_height,
                                                                   particle_spacing, spacing_ratio, n_layers)
-        n_boundaries = (2 * n_boundaries_y) * n_layers + (2 * n_boundaries_x) * n_layers
+        n_boundaries = (((faces[1] + faces[2]) * n_boundaries_y) * n_layers 
+                        +((faces[3] + faces[4]) * n_boundaries_x) * n_layers)
 
         boundary_coordinates = Array{Float64, 2}(undef, 2, n_boundaries)
 
@@ -110,9 +111,9 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
             n_boundaries_z = get_boundary_particles_per_dimension(container_width, container_height, container_depth,
                                                                   particle_spacing, spacing_ratio, n_layers)
         n_boundaries   = n_layers *
-                         (  2 * (n_boundaries_z-(2*n_layers-1)) * n_boundaries_y   # y-z-plane
-                          + 2 * n_boundaries_x * n_boundaries_y                    # x-y-plane
-                          + n_boundaries_x * n_boundaries_z)                   # x-z plane
+                         ((faces[1] + faces[2]) * (n_boundaries_z-(2*n_layers-1)) * n_boundaries_y     # y-z-plane
+                          + (faces[5] + faces[6]) * n_boundaries_x * n_boundaries_y                    # x-y-plane
+                          + (faces[3] + faces[4]) * n_boundaries_x * n_boundaries_z)                   # x-z plane
 
         boundary_coordinates = Array{Float64, 2}(undef, 3, n_boundaries)
 
@@ -275,7 +276,7 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
             end
         end
 
-        # - y Bottom boundary (x-z-plane)
+        # - y boundary (x-z-plane)
         if faces[3]
             for z in 1:n_boundaries_z, x in 1:n_boundaries_x
                 boundary_particle += 1
@@ -288,7 +289,7 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
             end
         end
 
-        # +y Top boundary (x-z-plane)
+        # +y boundary (x-z-plane)
         if faces[4]
             for z in 1:n_boundaries_z, x in 1:n_boundaries_x
                 boundary_particle += 1
@@ -387,10 +388,10 @@ end
 function get_boundary_particles_per_dimension(container_width, container_height,
                                               particle_spacing, spacing_ratio, n_layers)
     n_boundaries_x = round(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
-    n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio))
+    n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio)) + 2*n_layers-1
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) * (particle_spacing / spacing_ratio)
-    new_container_height = n_boundaries_y * (particle_spacing / spacing_ratio)
+    new_container_height = (n_boundaries_y -2*n_layers+1) * (particle_spacing / spacing_ratio)
 
     if round(new_container_width, digits=4) != round(container_width, digits=4)
         print_warn_message("container width", container_width, new_container_width)
@@ -405,11 +406,11 @@ end
 function get_boundary_particles_per_dimension(container_width, container_height, container_depth,
                                               particle_spacing, spacing_ratio, n_layers)
     n_boundaries_x = round(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
-    n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio)
+    n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio) + 2*n_layers-1
     n_boundaries_z = round(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
-    new_container_height = n_boundaries_y *  (particle_spacing / spacing_ratio)
+    new_container_height = (n_boundaries_y - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
     new_container_depth = (n_boundaries_z - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
 
     if round(new_container_width, digits=4) != round(container_width, digits=4)

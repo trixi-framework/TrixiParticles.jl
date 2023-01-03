@@ -51,9 +51,11 @@ ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
 
+# activate to save
 # saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
 #                                                         index=(u, t, container) -> Pixie.eachparticle(container))
 # callbacks = CallbackSet(alive_callback, saving_callback)
+
 callbacks = CallbackSet(alive_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
@@ -80,7 +82,7 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
-particle_container.damping_coefficient[] = 0
+particle_container.damping_coefficient[] = 0 # reset damping coefficient to 0 since it is only used to gain a faster rest state
 
 semi = Semidiscretization(particle_container, boundary_container)#, neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
@@ -91,11 +93,11 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 callbacks = CallbackSet(alive_callback, saving_callback)
 
 # Third order RK
-sol = solve(ode, RDPK3SpFSAL35(),
+sol = solve(ode, RDPK3SpFSAL49(),
             dt=1e-4, # Initial guess of the time step to prevent too large guesses
             abstol=1.0e-4, # Default abstol is 1e-6
 	        reltol=1.0e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);
 
-# save to vtk
-pixie2vtk(saved_values, boundary_container)
+# activate to save to vtk
+# pixie2vtk(saved_values, boundary_container)
