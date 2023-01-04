@@ -92,11 +92,10 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Third order RK
 sol = solve(ode, RDPK3SpFSAL49(),
-            dt=1e-4, # Initial guess of the time step to prevent too large guesses
-            abstol=1.0e-4, # Default abstol is 1e-6
-	        reltol=1.0e-4, # Default reltol is 1e-3
+            abstol=1.0e-6, # Default abstol is 1e-6
+	        reltol=1.0e-5, # Default reltol is 1e-3
+            dtmax=1e-2,    # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # activate to save to vtk
