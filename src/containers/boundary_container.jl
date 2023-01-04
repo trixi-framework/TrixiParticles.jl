@@ -1,19 +1,50 @@
 """
-    BoundaryParticleContainer(coordinates, mass, model)
+    BoundaryParticleContainer(coordinates, mass, model;
+                              movement_function=nothing)
 
 Container for boundaries modeled by boundary particles.
 The container is initialized with the coordinates of the particles and their masses.
 The interaction between fluid and boundary particles is specified by the boundary model.
+
+The `movement_function` is to define in which way the boundary particles move over time. Its
+boolean return value is mandatory to determine in each timestep if the particles are moving or not.
+This determines if the neighborhood search will be updated.
+In the example below the `movement_function` only returns `true` (container is moving)
+if the simulation time is lower than `0.1`.
+
+
+# Examples
+```julia
+function movement_function(coordinates, t)
+
+    if t < 0.1
+        f(t) = 0.5*t^2 + t
+        pos_1 = coordinates[2,1]
+        pos_2 = f(t)
+        diff_pos = pos_2 - pos_1
+        coordinates[2,:] .+= diff_pos
+
+        return true
+    end
+
+    return false
+end
+```
 """
-struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM} <: ParticleContainer{NDIMS}
+struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM, MF} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2}
     mass                ::Vector{ELTYPE}
     boundary_model      ::BM
+    movement_function   ::MF
+    ismoving            ::Vector{Bool}
 
-    function BoundaryParticleContainer(coordinates, mass, model)
+    function BoundaryParticleContainer(coordinates, mass, model;
+                                       movement_function=nothing)
         NDIMS = size(coordinates, 1)
+        ismoving = zeros(Bool, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(model)}(coordinates, mass, model)
+        return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(
+            coordinates, mass, model, movement_function, ismoving)
     end
 end
 
@@ -28,6 +59,23 @@ end
     return get_particle_coords(particle, initial_coordinates, container)
 end
 
+
+function initialize!(container::BoundaryParticleContainer, neighborhood_search)
+    # Nothing to initialize for this container
+    return container
+end
+
+function update!(container::BoundaryParticleContainer, u, u_ode, neighborhood_search, semi, t)
+    @unpack movement_function, initial_coordinates = container
+
+    container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates, t)
+
+    return container
+end
+
+move_boundary_particles!(movement_function, coordinates, t) = movement_function(coordinates, t)
+
+move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
 function write_variables!(u0, container::BoundaryParticleContainer)
     return u0
@@ -133,7 +181,8 @@ end
     @unpack smoothing_length = particle_container
     @unpack K, beta, boundary_particle_spacing = boundary_model
 
-    return K / beta * pos_diff / (distance * (distance - boundary_particle_spacing)) *
+    NDIMS = ndims(particle_container)
+    return K / beta^(NDIMS-1) * pos_diff / (distance * (distance - boundary_particle_spacing)) *
         boundary_kernel(distance, smoothing_length)
 end
 

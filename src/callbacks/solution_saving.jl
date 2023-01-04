@@ -59,7 +59,7 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     result = Dict{Symbol, Dict{Symbol, Array{Float64}}}()
 
     for (container_index, container) in pairs(particle_containers)
-        u = wrap_array(u_ode, container_index, semi)
+        u = wrap_array(u_ode, container_index, container, semi)
         write_result!(result, u, t, container, extract_quantities)
     end
 
@@ -85,10 +85,6 @@ function write_result!(result, u, t, container, extract_quantities)
 
     result[Symbol("$(name)_$i")] = value
 
-    return result
-end
-
-function write_result!(result, u, t, container::BoundaryParticleContainer, extract_quantities)
     return result
 end
 
@@ -120,6 +116,16 @@ function (extract_quantities::ExtractQuantities)(u, container::SolidParticleCont
     )
 
     return "solid", result
+end
+
+function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer)
+    result = Dict{Symbol, Array{Float64}}(
+        # Note that we have to allocate here and can't use views.
+        # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
+        :coordinates => copy(container.initial_coordinates)
+    )
+
+    return "boundary", result
 end
 
 function extract_density!(result, u, cache, ::SummationDensity, container)

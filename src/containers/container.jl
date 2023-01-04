@@ -21,7 +21,7 @@ function initialize!(container, neighborhood_search)
     return container
 end
 
-function update!(container, u, u_ode, neighborhood_search, semi)
+function update!(container, u, u_ode, neighborhood_search, semi, t)
     # Nothing to update for this container
     return container
 end
