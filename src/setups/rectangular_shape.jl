@@ -1,3 +1,24 @@
+"""
+    RectangularShape(particle_spacing, n_particles_x, n_particles_y,
+                     x_position, y_position; density=0.0)
+
+Rectangular shape filled with particles.
+
+The arguments are as follows:
+- `particle_spacing`:                   Spacing betweeen the particles
+- `n_particles_x`, `n_particles_y`:     Number of particles in x and y direction, respectively.
+- `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively.
+
+Specifying the density is optional since only the coordinates of the particles may be needed (see example below).
+
+# Example
+```julia
+rectangular = RectangularShape(particle_spacing,
+                               round(Int, rectangular_width/particle_spacing),
+                               round(Int, rectangular_height/particle_spacing),
+                               0.0, 0.0)
+```
+"""
 struct RectangularShape{NDIMS, ELTYPE<:Real}
     coordinates             ::Array{ELTYPE, 2}
     masses                  ::Vector{ELTYPE}
@@ -7,10 +28,8 @@ struct RectangularShape{NDIMS, ELTYPE<:Real}
     n_particles_x           ::Int
     n_particles_y           ::Int
 
-    function RectangularShape(particle_spacing,
-                              n_particles_x, n_particles_y,
-                              x_position, y_position;
-                              density=0.0)
+    function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
+                              x_position, y_position; density=0.0)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
