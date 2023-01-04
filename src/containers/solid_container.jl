@@ -96,6 +96,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
     boundary_model      ::BM
     penalty_force       ::PF
     young_modulus       ::ELTYPE
+    damping_coefficient ::Array{ELTYPE, 0}
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
@@ -116,6 +117,8 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
         correction_matrix   = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         pk1_corrected       = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        damping_coefficient_ = Array{Float64, 0}(undef)
+        damping_coefficient_[] = 0
 
         n_moving_particles = nparticles - n_fixed_particles
 
@@ -131,7 +134,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
             correction_matrix, pk1_corrected, deformation_grad, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
             hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
-            acceleration_, boundary_model, penalty_force, young_modulus)
+            acceleration_, boundary_model, penalty_force, young_modulus, damping_coefficient_)
     end
 end
 

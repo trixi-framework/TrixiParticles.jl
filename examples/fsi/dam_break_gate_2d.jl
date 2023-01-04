@@ -173,3 +173,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+# activate to save to vtk
+# pixie2vtk(saved_values, boundary_container)

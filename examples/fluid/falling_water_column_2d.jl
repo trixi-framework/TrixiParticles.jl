@@ -10,7 +10,7 @@ water_height = 1.0
 water_density = 1000.0
 
 container_width = 4.0
-container_height = 2.0
+container_height = 3.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density, n_layers=1)
@@ -61,3 +61,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+# activate to save to vtk
+# pixie2vtk(saved_values, boundary_container)

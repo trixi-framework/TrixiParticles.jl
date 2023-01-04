@@ -102,3 +102,6 @@ callbacks = CallbackSet(alive_callback, saving_callback)
 # Use a Runge-Kutta method with automatic (error based) time step size control
 # Enable threading of the RK method for better performance on multiple threads
 sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
+
+# activate to save to vtk
+# pixie2vtk(saved_values)
