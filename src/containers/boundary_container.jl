@@ -184,6 +184,12 @@ We provide three options to compute the boundary density and pressure, determine
    and the pressure is computed from the density with the state equation.
 2. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
+   Note that this causes a gap between fluid and boundary where the boundary is initialized
+   without any contact to the fluid. This is due to overestimation of the boundary density
+   as soon as the fluid comes in contact with boundary particles that initially did not have
+   contact to the fluid.
+   Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
+   See also [https://dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
 3. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
 
