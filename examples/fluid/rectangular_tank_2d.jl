@@ -27,7 +27,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81))
+                                            acceleration=(0.0, -9.81), damping_coefficient=1e-5)
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
@@ -56,3 +56,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+
+# activate to save to vtk
+# pixie2vtk(saved_values, boundary_container)
