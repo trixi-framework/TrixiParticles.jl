@@ -30,7 +30,7 @@ where ``x, y, z`` are the space coordinates.
 As opposed to (Ihmsen et al. 2011), we do not handle the hashing explicitly and use
 Julia's `Dict` data structure instead.
 
-References:
+## References:
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
   "A Parallel SPH Implementation on Multi-Core CPUs".
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.

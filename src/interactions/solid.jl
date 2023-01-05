@@ -31,6 +31,8 @@ end
 
                 calc_penalty_force!(du, particle, neighbor, pos_diff,
                                     distance, particle_container, penalty_force)
+
+                # TODO continuity equation?
             end
         end
     end
@@ -65,7 +67,8 @@ end
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
+    @unpack state_equation, viscosity, smoothing_kernel, smoothing_length = neighbor_container
+    @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         m_a = particle_container.mass[particle]
@@ -85,8 +88,10 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                dv = boundary_particle_impact(neighbor, neighbor_container, particle_container,
-                                              pos_diff, distance, density_b, m_b)
+                dv = boundary_particle_impact(neighbor, particle,
+                                              u_neighbor_container, u_particle_container,
+                                              neighbor_container, particle_container,
+                                              pos_diff, distance, m_b)
 
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
@@ -94,14 +99,53 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                     du[ndims(particle_container) + i, particle] += dv[i] * m_b / m_a
                 end
 
-                # TODO
-                # continuity_equation!(du, density_calculator,
-                #                      u_particle_container, u_particle_container,
-                #                      particle, neighbor, pos_diff, distance,
-                #                      neighbor_container, particle_container)
+                continuity_equation!(du, boundary_model,
+                                     u_particle_container, u_neighbor_container,
+                                     particle, neighbor, pos_diff, distance,
+                                     particle_container, neighbor_container)
             end
         end
     end
+
+    return du
+end
+
+
+@inline function continuity_equation!(du, boundary_model,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    return du
+end
+
+@inline function continuity_equation!(du, boundary_model::BoundaryModelDummyParticles,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    @unpack density_calculator = boundary_model
+
+    continuity_equation!(du, density_calculator,
+                         u_particle_container, u_neighbor_container,
+                         particle, neighbor, pos_diff, distance,
+                         particle_container, neighbor_container)
+end
+
+
+@inline function continuity_equation!(du, ::ContinuityDensity,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    @unpack smoothing_kernel, smoothing_length = neighbor_container
+
+    vdiff = get_particle_vel(particle, u_particle_container, particle_container) -
+            get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+
+    du[2 * ndims(particle_container) + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
+                                                           kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+                                                           pos_diff) / distance
 
     return du
 end
@@ -111,5 +155,6 @@ end
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::BoundaryParticleContainer)
+    # TODO continuity equation?
     return du
 end

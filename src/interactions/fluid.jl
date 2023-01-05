@@ -71,25 +71,17 @@ end
             get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
 
     du[2 * ndims(particle_container) + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                             kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
-                                             pos_diff) / distance
+                                                           kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
+                                                           pos_diff) / distance
 
     return du
 end
 
-@inline function continuity_equation!(du, density_calculator::ContinuityDensity,
+
+@inline function continuity_equation!(du, density_calculator::SummationDensity,
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::FluidParticleContainer,
-                                      neighbor_container::BoundaryParticleContainer)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
-    vdiff = get_particle_vel(particle, u_particle_container, particle_container)
-
-    du[2 * ndims(particle_container) + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                             kernel_deriv(smoothing_kernel, distance, smoothing_length) .*
-                                             pos_diff) / distance
-
+                                      particle_container, neighbor_container)
     return du
 end
 
@@ -123,8 +115,10 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 pi_ab = viscosity(sound_speed, v_a, pos_diff, distance, density_a, smoothing_length)
                 dv_viscosity = m_b * pi_ab * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
 
-                dv_boundary = boundary_particle_impact(particle, particle_container, neighbor_container,
-                                                       pos_diff, distance, density_a, m_b)
+                dv_boundary = boundary_particle_impact(particle, neighbor,
+                                                       u_particle_container, u_neighbor_container,
+                                                       particle_container, neighbor_container,
+                                                       pos_diff, distance, m_b)
 
                 dv = dv_boundary + dv_viscosity
 
