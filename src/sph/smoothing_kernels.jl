@@ -37,7 +37,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
     \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
     ```
 
-References:
+## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
@@ -132,7 +132,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
     \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
     ```
 
-References:
+## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
@@ -233,7 +233,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
     \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
     ```
 
-References:
+## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
