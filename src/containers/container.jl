@@ -18,18 +18,6 @@ update!(container, container_index, u, u_ode, semi, t) = container
 @inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
 @inline Base.eltype(container::ParticleContainer) = eltype(container.mass)
 
-
-function initialize!(container, neighborhood_search)
-    # Nothing to initialize for this container
-    return container
-end
-
-function update!(container, u, u_ode, neighborhood_search, semi, t)
-    # Nothing to update for this container
-    return container
-end
-
-
 # Specifically get the current coordinates of a particle for all container types.
 # This can be dispatched by container types, since for some containers, the current coordinates
 # are stored in u, for others in the container itself. By default, try to extract them from u.
