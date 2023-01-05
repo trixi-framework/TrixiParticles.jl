@@ -11,6 +11,7 @@ using OrdinaryDiffEq
 fluid_particle_spacing = 0.02
 # Ratio of fluid particle spacing to boundary particle spacing
 beta = 3
+n_layers = 1
 
 water_width = 0.2
 water_height = 0.4
@@ -22,9 +23,9 @@ wall_height = container_height
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
-                        n_layers=1)
+                        n_layers=n_layers)
 
-setup_wall = RectangularShape(fluid_particle_spacing/beta, 1, setup.n_boundaries_y,
+setup_wall = RectangularShape(fluid_particle_spacing/beta, n_layers, setup.n_boundaries_y,
                               water_width, fluid_particle_spacing/beta, density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)

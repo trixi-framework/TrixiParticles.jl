@@ -23,7 +23,7 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
 
 # Move right boundary
-Pixie.reset_right_wall!(setup, container_width, wall_position=water_width)
+reset_right_wall!(setup, container_width, wall_position=water_width)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -107,7 +107,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=alive_callback);
 
 # Move right boundary
-Pixie.reset_right_wall!(setup, container_width)
+reset_right_wall!(setup, container_width)
 
 # Run full simulation
 tspan = (0.0, 1.0)

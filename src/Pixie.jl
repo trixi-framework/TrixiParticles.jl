@@ -36,5 +36,6 @@ export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
 export RectangularTank, RectangularShape
+export draw_circle, fill_circle, fill_circle_with_recess, reset_right_wall!
 
 end # module
