@@ -128,11 +128,13 @@ function rhs!(du_ode, u_ode, semi, t)
     @pixie_timeit timer() "rhs!" begin
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
-        @pixie_timeit timer() "update containers" update_containers!(particle_containers, 1, u_ode, semi, t)
+        @pixie_timeit timer() "update containers" update_containers(u_ode, semi, t)
 
-        @pixie_timeit timer() "update nhs" update_nhs!(particle_containers, 1, u_ode, semi)
+        @pixie_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
-        @pixie_timeit timer() "container interaction" container_interaction!(particle_containers, 1, du_ode, u_ode, semi)
+        @pixie_timeit timer() "velocity and gravity" velocity_and_gravity!(du_ode, u_ode, semi)
+
+        @pixie_timeit timer() "container interaction" container_interaction!(du_ode, u_ode, semi)
     end
 
     return du_ode
@@ -146,130 +148,54 @@ end
 end
 
 
-# Iterate over tuples in a type-stable way using "lispy tuple programming",
-# similar to https://stackoverflow.com/a/55849398:
-# Iterating over tuples of different functions isn't type-stable in general
-# but accessing the first element of a tuple is type-stable. Hence, it's good
-# to process one element at a time and replace iteration by recursion here.
-# Note that you shouldn't use this with too many elements per tuple since the
-# compile times can increase otherwise - but a handful of elements per tuple
-# is definitely fine.
-function update_containers!(containers, container_index, u_ode, semi, t)
-    @unpack neighborhood_searches = semi
+function update_containers(u_ode, semi, t)
+    @unpack particle_containers, neighborhood_searches = semi
 
-    container = first(containers)
-    remaining_containers = Base.tail(containers)
+    foreach_enumerate(particle_containers) do (container_index, container)
+        u = wrap_array(u_ode, container_index, container, semi)
+        neighborhood_search = neighborhood_searches[container_index][container_index]
 
-    neighborhood_search = neighborhood_searches[container_index][container_index]
-    u = wrap_array(u_ode, container_index, container, semi)
-
-    update!(container, u, u_ode, neighborhood_search, semi, t)
-
-    # Process remaining containers
-    update_containers!(remaining_containers, container_index + 1, u_ode, semi, t)
-end
-
-function update_containers!(containers::Tuple{}, container_index, u_ode, semi, t)
-    nothing
-end
-
-
-function update_nhs!(containers, container_index, u_ode, semi)
-    @unpack particle_containers = semi
-
-    container = first(containers)
-    remaining_containers = Base.tail(containers)
-
-    # Loop over the neighbor containers in the same way
-    update_nhs!(particle_containers, 1, container, container_index, u_ode, semi)
-
-    # Process remaining containers
-    update_nhs!(remaining_containers, container_index + 1, u_ode, semi)
-end
-
-function update_nhs!(containers::Tuple{}, container_index, u_ode, semi)
-    nothing
-end
-
-function update_nhs!(neighbor_containers, neighbor_index, container, container_index, u_ode, semi)
-    @unpack neighborhood_searches = semi
-
-    neighbor = first(neighbor_containers)
-    remaining_containers = Base.tail(neighbor_containers)
-
-    # Update neighborhood search
-    neighborhood_search = neighborhood_searches[container_index][neighbor_index]
-    u_neighbor = wrap_array(u_ode, neighbor_index, neighbor, semi)
-    update!(neighborhood_search, u_neighbor, container, neighbor)
-
-    # Process remaining containers
-    update_nhs!(remaining_containers, neighbor_index + 1, container, container_index, u_ode, semi)
-end
-
-function update_nhs!(neighbor_containers::Tuple{}, neighbor_index, container, container_index, u_ode, semi)
-    nothing
-end
-
-
-function container_interaction!(containers, container_index, du_ode, u_ode, semi)
-    @unpack particle_containers = semi
-
-    container = first(containers)
-    remaining_containers = Base.tail(containers)
-
-    du = wrap_array(du_ode, container_index, container, semi)
-    u_container = wrap_array(u_ode, container_index, container, semi)
-
-    # Set velocity and add acceleration
-    velocity_and_acceleration!(du, u_container, container)
-
-    # Loop over the neighbor containers in the same way for the interaction
-    neighbor_container_interaction!(particle_containers, container_index, 1,
-                                    du, u_container, container, u_ode, semi)
-
-    # Process remaining containers
-    container_interaction!(remaining_containers, container_index + 1, du_ode, u_ode, semi)
-end
-
-function container_interaction!(containers::Tuple{}, container_index, du_ode, u_ode, semi)
-    nothing
-end
-
-
-function neighbor_container_interaction!(containers, container_index, neighbor_container_index,
-                                                 du, u_container, container, u_ode, semi)
-    @unpack neighborhood_searches = semi
-
-    neighbor_container = first(containers)
-    remaining_containers = Base.tail(containers)
-
-    u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
-
-    interact!(du, u_container, u_neighbor_container,
-              neighborhood_searches[container_index][neighbor_container_index],
-              container, neighbor_container)
-
-    # Process remaining containers
-    neighbor_container_interaction!(remaining_containers, container_index, neighbor_container_index + 1,
-                                    du, u_container, container, u_ode, semi)
-end
-
-function neighbor_container_interaction!(containers::Tuple{}, container_index, neighbor_container_index,
-                                         du, u_container, container, u_ode, semi)
-    nothing
-end
-
-
-# Set velocity and add acceleration
-@inline function velocity_and_acceleration!(du, u, container)
-    @threaded for particle in each_moving_particle(container)
-        for i in 1:ndims(container)
-            du[i, particle] = u[i + ndims(container), particle]
-        end
-
-        add_acceleration!(du, particle, container)
+        update!(container, u, u_ode, neighborhood_search, semi, t)
     end
 end
+
+
+function update_nhs(u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+
+    # Update NHS for each pair of containers
+    foreach_enumerate(particle_containers) do (container_index, container)
+        foreach_enumerate(particle_containers) do (neighbor_index, neighbor)
+            u_neighbor = wrap_array(u_ode, neighbor_index, neighbor, semi)
+            neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+
+            update!(neighborhood_search, u_neighbor, container, neighbor)
+        end
+    end
+end
+
+
+function velocity_and_gravity!(du_ode, u_ode, semi)
+    @unpack particle_containers = semi
+
+    # Set velocity and add acceleration for each container
+    foreach_enumerate(particle_containers) do (container_index, container)
+        du = wrap_array(du_ode, container_index, container, semi)
+        u = wrap_array(u_ode, container_index, container, semi)
+
+        @threaded for particle in each_moving_particle(container)
+            for i in 1:ndims(container)
+                du[i, particle] = u[i + ndims(container), particle]
+            end
+
+            # Acceleration can be dispatched per container
+            add_acceleration!(du, particle, container)
+        end
+    end
+
+    return du_ode
+end
+
 
 @inline function add_acceleration!(du, particle, container)
     @unpack acceleration = container
@@ -279,6 +205,27 @@ end
     end
 
     return du
+end
+
+
+function container_interaction!(du_ode, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+
+    # Call `interact!` for each pair of containers
+    foreach_enumerate(particle_containers) do (container_index, container)
+        du = wrap_array(du_ode, container_index, container, semi)
+        u_container = wrap_array(u_ode, container_index, container, semi)
+
+        foreach_enumerate(particle_containers) do (neighbor_index, neighbor)
+            u_neighbor = wrap_array(u_ode, neighbor_index, neighbor, semi)
+            neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+
+            interact!(du, u_container, u_neighbor,
+                      neighborhood_search, container, neighbor)
+        end
+    end
+
+    return du_ode
 end
 
 
