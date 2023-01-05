@@ -189,7 +189,7 @@ We provide three options to compute the boundary density and pressure, determine
    as soon as the fluid comes in contact with boundary particles that initially did not have
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
-   See also [https://dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
+   See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
 3. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
 
@@ -396,7 +396,7 @@ end
                                               particle_container::BoundaryParticleContainer,
                                               neighbor_container, neighborhood_search)
     @unpack boundary_model = particle_container
-    @unpack pressure, smoothing_kernel, smoothing_length, cache = boundary_model
+    @unpack smoothing_kernel, smoothing_length, cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
     @unpack mass = neighbor_container
 

@@ -88,8 +88,10 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                dv = boundary_particle_impact(neighbor, neighbor_container, particle, particle_container,
-                                              pos_diff, distance, density_b, m_b)
+                dv = boundary_particle_impact(neighbor, particle,
+                                              u_neighbor_container, u_particle_container,
+                                              neighbor_container, particle_container,
+                                              pos_diff, distance, m_b)
 
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
@@ -98,9 +100,9 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 end
 
                 continuity_equation!(du, boundary_model,
-                                     u_particle_container, u_particle_container,
+                                     u_particle_container, u_neighbor_container,
                                      particle, neighbor, pos_diff, distance,
-                                     neighbor_container, particle_container)
+                                     particle_container, neighbor_container)
             end
         end
     end

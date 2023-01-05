@@ -47,21 +47,22 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
 end
 
 
-function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, ::Val{SpatialHashingSearch})
+function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, search::Val{SpatialHashingSearch})
     @unpack boundary_model = container
 
-    create_neighborhood_search(container, neighbor, boundary_model)
+    create_neighborhood_search(container, neighbor, boundary_model, search)
 end
 
 function create_neighborhood_search(container::BoundaryParticleContainer, _,
-                                    boundary_model)
+                                    boundary_model, ::Val{SpatialHashingSearch})
     # This NHS will never be used, so we just return an empty NHS.
     # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
     return SpatialHashingSearch{ndims(container)}(0.0)
 end
 
 function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
-                                    boundary_model::BoundaryModelDummyParticles)
+                                    boundary_model::BoundaryModelDummyParticles,
+                                    ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = boundary_model
 
     radius = compact_support(smoothing_kernel, smoothing_length)
