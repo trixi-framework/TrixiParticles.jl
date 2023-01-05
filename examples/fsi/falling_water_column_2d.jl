@@ -40,8 +40,8 @@ clamp_radius = 0.05
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
-fixed_particle_coords = fill_circle_with_recess(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2,
-                                                [0,clamp_radius], [0, thickness], solid_particle_spacing)
+fixed_particle_coords = fill_circle(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
+                                    x_recess=[0,clamp_radius], y_recess=[0, thickness])
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 n_particles_fixed = size(fixed_particle_coords, 2)

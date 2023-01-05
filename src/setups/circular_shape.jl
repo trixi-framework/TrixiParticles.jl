@@ -1,25 +1,40 @@
 """
-    fill_circle(R, x_center, y_center, particle_spacing)
+    fill_circle(R, x_center, y_center, particle_spacing;
+                x_recess=[typemax(Int), typemax(Int)],
+                y_recess=[typemax(Int), typemax(Int)])
 
-Circle filled with particles.
+Particle filled circle.
 
 The arguments are as follows:
 - `R`:                      Radius of the circle
 - `x_center`, `y_center`:   Center of the circle in x and y direction, respectively.
 - `particle_spacing`:       Spacing betweeen the particles.
 
+The keyword arguments are as follows:
+- `x_recess`, `y_recess`:   Vector for recess start and end coordinates in x and y direction, respectively.
+
 The particles are arranged in an equidistiant grid
 where the distance between the points is determined by the `particle_spacing`.
 
-For only drawing the circumference see [`draw_circle`](@ref)
-and for adding a recess in the circle see [`fill_circle_with_recess`](@ref).
+For adding a recess in the circle see example below and for only drawing the circumference see [`draw_circle`](@ref).
+
+# Example
+```julia
+circle = fill_circle(2.5, 0.0, 0.0, particle_spacing,
+                     x_recess=[0.5, recess_length], y_recess=[0.0, recess_height])
+```
 """
-function fill_circle(R, x_center, y_center, particle_spacing)
+function fill_circle(R, x_center, y_center, particle_spacing;
+                     x_recess=[typemax(Int), typemax(Int)],
+                     y_recess=[typemax(Int), typemax(Int)])
 
     x_vec = Vector{Float64}(undef,0)
     y_vec = Vector{Float64}(undef,0)
 
     r(x,y) = sqrt( (x - x_center)^2 + (y - y_center)^2 )
+
+    # recess condition
+    recess(x,y) = y_recess[2] >= y >= y_recess[1] && x_recess[2] >= x >= x_recess[1]
 
     n_particles = round(Int, R/particle_spacing)
 
@@ -29,59 +44,13 @@ function fill_circle(R, x_center, y_center, particle_spacing)
             x = x_center + i * particle_spacing
             y = y_center + j * particle_spacing
 
-        if r(x,y) < R
+        if r(x,y) < R && !recess(x,y)
             append!(x_vec, x)
             append!(y_vec, y)
         end
     end
 
     particle_coords = Array{Float64, 2}(undef, 2, length(x_vec))
-    particle_coords[1,:] = x_vec
-    particle_coords[2,:] = y_vec
-
-    return particle_coords
-end
-
-
-"""
-    fill_circle_with_recess(R, x_center, y_center, x_recess, y_recess, particle_spacing)
-
-Particle filled circle with recess.
-
-The arguments are the same as in [`fill_circle`](@ref) except:
-- `x_recess`, `y_recess`:   Vector for recess start and end coordinates in x and y direction, respectively.
-
-# Example
-```julia
-circle = fill_circle_with_recess(2.5, 0.0, 0.0,
-                                 [0.5, recess_length], [0.0, recess_height],
-                                 particle_spacing)
-```
-"""
-function fill_circle_with_recess(R, x_center, y_center, x_recess, y_recess, particle_spacing)
-
-    x_vec = Vector{Float64}(undef,0)
-    y_vec = Vector{Float64}(undef,0)
-
-    r(x,y) = sqrt( (x - x_center)^2 + (y - y_center)^2 )
-
-    n_particles = round(Int, R/particle_spacing)
-
-    for j in -n_particles : n_particles,
-            i in -n_particles : n_particles
-
-            x = x_center + i * particle_spacing
-            y = y_center + j * particle_spacing
-
-        # recess conditions
-        recess     = y_recess[2] >= y >= y_recess[1] && x_recess[2] >= x >= x_recess[1]
-        if r(x,y) < R && !recess
-            append!(x_vec, x)
-            append!(y_vec, y)
-        end
-    end
-
-    particle_coords = Array{Float64, 2}(undef, 2, size(x_vec,1))
     particle_coords[1,:] = x_vec
     particle_coords[2,:] = y_vec
 
