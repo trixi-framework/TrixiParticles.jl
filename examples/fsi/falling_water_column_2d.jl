@@ -115,7 +115,6 @@ nu = 0.4
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                                         SummationDensity(),
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_fixed,

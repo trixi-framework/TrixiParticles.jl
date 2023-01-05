@@ -220,7 +220,7 @@
             smoothing_length = 0.07
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
             container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                               particle_masses, particle_densities, SummationDensity(),
+                                               particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                E, nu, nothing)
 

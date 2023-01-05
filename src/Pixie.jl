@@ -32,7 +32,7 @@ export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
-export BoundaryModelMonaghanKajtar, BoundaryModelFrozen
+export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk

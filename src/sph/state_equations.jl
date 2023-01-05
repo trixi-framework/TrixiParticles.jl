@@ -49,7 +49,7 @@ background pressure (to be used with free surfaces).
 
 For water, an average value of ``\gamma = 7.15`` is usually used (Cole 1948, p. 39).
 
-References:
+## References:
 - Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
 """
 struct StateEquationCole{ELTYPE}
@@ -72,4 +72,13 @@ function (state_equation::StateEquationCole)(density)
     # Limit pressure to be non-negative to avoid negative pressures at free surfaces
     return max(reference_density * sound_speed^2 / gamma * ((density / reference_density)^gamma - 1) +
         reference_pressure - background_pressure, 0.0)
+end
+
+function inverse_state_equation(state_equation::StateEquationCole, pressure)
+    @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
+
+    tmp = gamma * (pressure + background_pressure - reference_pressure) / (reference_density * sound_speed^2) + 1
+    density = reference_density * tmp^(1/gamma)
+
+    return density
 end

@@ -1,5 +1,8 @@
 abstract type ParticleContainer{NDIMS} end
 
+initialize!(container, neighborhood_search) = container
+update!(container, container_index, u, u_ode, semi, t) = container
+
 @inline Base.ndims(::ParticleContainer{NDIMS}) where NDIMS = NDIMS
 
 # Number of integrated variables in the ODE system (coordinates, velocity, sometimes density)
@@ -34,4 +37,4 @@ end
 
 include("fluid_container.jl")
 include("solid_container.jl")
-include("boundary_container.jl")
+include("boundary_container.jl") # This depends on fluid and solid containers
