@@ -50,20 +50,18 @@ function Pixie.interact!(du, u_particle_container, u_neighbor_container, neighbo
             neighbor_coords = Pixie.get_current_coords(neighbor, u_neighbor_container, neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
+            distance = norm(pos_diff)
 
-            if particle != neighbor
+            if sqrt(eps()) < distance
                 # Original version
                 # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3
 
                 # Multiplying by pos_diff later makes this slightly faster
                 # Multiplying by (1 / norm) is also faster than dividing by norm
-                tmp = -G * mass[neighbor] * (1 / norm(pos_diff)^3)
+                tmp = -G * mass[neighbor] * (1 / distance^3)
 
                 for i in 1:ndims(particle_container)
-                    # This is slightly faster than du[...] += tmp * pos_diff[i]
-                    du[ndims(particle_container) + i, particle] = muladd(tmp,
-                                                                         pos_diff[i],
-                                                                         du[ndims(particle_container) + i, particle])
+                    du[ndims(particle_container) + i, particle] += tmp * pos_diff[i]
                 end
             end
         end

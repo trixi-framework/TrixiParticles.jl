@@ -9,6 +9,40 @@ using Printf
 
 include("n_body_container.jl")
 
+# Redefine interact in a more optimized way
+function Pixie.interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+                         particle_container::NBodyContainer,
+                         neighbor_container::NBodyContainer)
+
+    @unpack mass, G = neighbor_container
+
+    for particle in Pixie.each_moving_particle(particle_container)
+        particle_coords = Pixie.get_current_coords(particle, u_particle_container, particle_container)
+
+        # This makes `interact!` about 20% faster than `eachneighbor` with `particle < neighbor`.
+        # Note that this doesn't work if we have multiple containers.
+        for neighbor in particle+1:Pixie.nparticles(neighbor_container)
+            neighbor_coords = Pixie.get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+            pos_diff = particle_coords - neighbor_coords
+
+            # Multiplying by pos_diff later makes this slightly faster.
+            # Multiplying by (1 / norm) is also faster than dividing by norm.
+            tmp = -G * (1 / norm(pos_diff)^3)
+            tmp1 = mass[neighbor] * tmp
+            tmp2 = mass[particle] * tmp
+
+            for i in 1:ndims(particle_container)
+                j = i + ndims(particle_container)
+                # This is slightly faster than du[...] += tmp1 * pos_diff[i]
+                du[j, particle] = muladd(tmp1,  pos_diff[i], du[j, particle])
+                du[j, neighbor] = muladd(tmp2, -pos_diff[i], du[j, neighbor])
+            end
+        end
+    end
+
+    return du
+end
+
 const SOLAR_MASS = 4 * pi * pi
 const DAYS_PER_YEAR = 365.24
 coordinates = [
@@ -56,11 +90,6 @@ end
 
 # One RHS evaluation is so fast that timers make it multiple times slower
 TimerOutputs.disable_debug_timings(Pixie)
-
-alive_callback = AliveCallback(alive_interval=100000)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:5:5e5)
-
-callbacks = CallbackSet(alive_callback, saving_callback)
 
 @printf("%.9f\n", energy(ode.u0, particle_container, semi))
 euler(ode)
