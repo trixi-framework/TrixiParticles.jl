@@ -148,6 +148,15 @@ end
 end
 
 
+@inline function get_particle_vel(particle, u, container::SolidParticleContainer)
+    if particle > n_moving_particles(container)
+        return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
+    end
+
+    return SVector(ntuple(@inline(dim -> u[dim + ndims(container), particle]), Val(ndims(container))))
+end
+
+
 @inline get_correction_matrix(particle, container) = extract_smatrix(container.correction_matrix, particle, container)
 @inline get_deformation_gradient(particle, container) = extract_smatrix(container.deformation_grad, particle, container)
 @inline get_pk1_corrected(particle, container) = extract_smatrix(container.pk1_corrected, particle, container)
