@@ -47,6 +47,20 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
 end
 
 
+function create_neighborhood_search(container::SolidParticleContainer,
+                                    neighbor::FluidParticleContainer, ::Val{SpatialHashingSearch})
+    @unpack smoothing_kernel, smoothing_length = neighbor
+
+    radius = compact_support(smoothing_kernel, smoothing_length)
+    search = SpatialHashingSearch{ndims(container)}(radius)
+
+    # Initialize neighborhood search
+    initialize!(search, neighbor.initial_coordinates, neighbor)
+
+    return search
+end
+
+
 function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, search::Val{SpatialHashingSearch})
     @unpack boundary_model = container
 
@@ -306,10 +320,6 @@ end
 
 
 # NHS updates
-function update!(neighborhood_search, u, container, neighbor)
-    return neighborhood_search
-end
-
 function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
@@ -328,6 +338,10 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     update!(neighborhood_search, u, neighbor)
 end
 
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
@@ -340,11 +354,20 @@ function update!(neighborhood_search, u, container::BoundaryParticleContainer, n
     update!(neighborhood_search, u, container, neighbor, boundary_model)
 end
 
-function update!(neighborhood_search, u, container, neighbor, boundary_model)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
+                 boundary_model)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container, neighbor,
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
                  boundary_model::BoundaryModelDummyParticles)
     update!(neighborhood_search, u, neighbor)
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::BoundaryParticleContainer)
+    return neighborhood_search
 end
