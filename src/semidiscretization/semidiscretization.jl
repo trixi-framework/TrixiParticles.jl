@@ -320,10 +320,6 @@ end
 
 
 # NHS updates
-function update!(neighborhood_search, u, container, neighbor)
-    return neighborhood_search
-end
-
 function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
@@ -342,6 +338,10 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     update!(neighborhood_search, u, neighbor)
 end
 
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
@@ -354,11 +354,20 @@ function update!(neighborhood_search, u, container::BoundaryParticleContainer, n
     update!(neighborhood_search, u, container, neighbor, boundary_model)
 end
 
-function update!(neighborhood_search, u, container, neighbor, boundary_model)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
+                 boundary_model)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container, neighbor,
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
                  boundary_model::BoundaryModelDummyParticles)
     update!(neighborhood_search, u, neighbor)
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::BoundaryParticleContainer)
+    return neighborhood_search
 end
