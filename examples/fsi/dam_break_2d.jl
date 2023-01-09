@@ -94,8 +94,8 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
 # Relaxing of the fluid without solid
 semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 3.0)
-ode = semidiscretize(semi, tspan)
+tspan_relaxing = (0.0, 3.0)
+ode = semidiscretize(semi, tspan_relaxing)
 
 alive_callback = AliveCallback(alive_interval=100)
 
