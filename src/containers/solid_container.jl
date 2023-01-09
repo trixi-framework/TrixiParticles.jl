@@ -134,6 +134,42 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
 end
 
 
+function Base.show(io::IO, container::SolidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    print(io, "SolidParticleContainer{", ndims(container), "}(")
+    print(io,       container.lame_lambda)
+    print(io, ", ", container.lame_mu)
+    print(io, ", ", container.smoothing_kernel)
+    print(io, ", ", container.acceleration)
+    print(io, ", ", container.boundary_model)
+    print(io, ", ", container.penalty_force)
+    print(io, ") with ", nparticles(container), " particles")
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, container)
+    else
+        n_fixed_particles = nparticles(container) - n_moving_particles(container)
+
+        summary_header(io, "SolidParticleContainer{$(ndims(container))}")
+        summary_line(io, "total #particles", nparticles(container))
+        summary_line(io, "#fixed particles", n_fixed_particles)
+        summary_line(io, "Lamé λ", container.lame_lambda)
+        summary_line(io, "Lamé μ", container.lame_mu)
+        summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "acceleration", container.acceleration)
+        summary_line(io, "boundary model", container.boundary_model)
+        summary_line(io, "penalty force", container.penalty_force |> typeof |> nameof)
+        summary_footer(io)
+    end
+end
+
+
 @inline nvariables(container::SolidParticleContainer) = nvariables(container, container.boundary_model)
 # This is dispatched in boundary_container.jl
 @inline nvariables(container::SolidParticleContainer, model) = 2 * ndims(container)
