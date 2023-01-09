@@ -47,6 +47,20 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
 end
 
 
+function create_neighborhood_search(container::SolidParticleContainer,
+                                    neighbor::FluidParticleContainer, ::Val{SpatialHashingSearch})
+    @unpack smoothing_kernel, smoothing_length = neighbor
+
+    radius = compact_support(smoothing_kernel, smoothing_length)
+    search = SpatialHashingSearch{ndims(container)}(radius)
+
+    # Initialize neighborhood search
+    initialize!(search, neighbor.initial_coordinates, neighbor)
+
+    return search
+end
+
+
 function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, search::Val{SpatialHashingSearch})
     @unpack boundary_model = container
 
