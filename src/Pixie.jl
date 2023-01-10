@@ -1,6 +1,6 @@
 module Pixie
 
-using DiffEqCallbacks: SavedValues, SavingCallback
+using DiffEqCallbacks: SavedValues, SavingCallback, SavingAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
@@ -18,15 +18,14 @@ include("sph/sph.jl")
 include("containers/container.jl")
 include("semidiscretization/semidiscretization.jl")
 include("interactions/interactions.jl")
-include("callbacks/alive.jl")
-include("callbacks/solution_saving.jl")
+include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
 include("setups/rectangular_tank.jl")
 include("setups/moving_wall.jl")
 
 export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
-export AliveCallback, SolutionSavingCallback
+export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
