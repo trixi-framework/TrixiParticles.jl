@@ -63,7 +63,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         # Boundary particle data
         n_boundaries_x,
             n_boundaries_y = get_boundary_particles_per_dimension(container_width, container_height,
-                                                                  particle_spacing, spacing_ratio, n_layers)
+                                                                  particle_spacing, spacing_ratio, n_layers, faces)
         n_boundaries = (((faces[1] + faces[2]) * n_boundaries_y) * n_layers 
                         +((faces[3] + faces[4]) * n_boundaries_x) * n_layers)
 
@@ -110,7 +110,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         # Boundary particle data
         n_boundaries_x, n_boundaries_y,
             n_boundaries_z = get_boundary_particles_per_dimension(container_width, container_height, container_depth,
-                                                                  particle_spacing, spacing_ratio, n_layers)
+                                                                  particle_spacing, spacing_ratio, n_layers, faces)
         n_boundaries   = n_layers *
                          ((faces[1] + faces[2]) * (n_boundaries_z-(2*n_layers-1)) * n_boundaries_y     # y-z-plane
                           + (faces[5] + faces[6]) * n_boundaries_x * n_boundaries_y                    # x-y-plane
@@ -200,49 +200,42 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
     boundary_particle = 0
     for i in 0:n_layers-1
         # Left boundary
-        if faces[1]
-            for y in 1:n_boundaries_y
-                boundary_particle += 1
+        faces[1] && for y in 1:n_boundaries_y
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-            end
+            boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
         end
 
         # Right boundary
-        if faces[2]
-            for y in 1:n_boundaries_y
-                boundary_particle += 1
+        faces[2] && for y in 1:n_boundaries_y
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = ((n_boundaries_x-(2*n_layers-1))
-                                                            * boundary_particle_spacing
-                                                            + i*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-            end
+            boundary_coordinates[1, boundary_particle] = ((n_boundaries_x-(2*n_layers-1))
+                                                        * boundary_particle_spacing
+                                                        + i*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
         end
 
-        # Bottom boundary
-        if faces[3]
-            for x in 1:n_boundaries_x
-                boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                            - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = -i*boundary_particle_spacing
-            end
+        # Bottom boundary
+        faces[3] && for x in 1:n_boundaries_x
+            boundary_particle += 1
+
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                        - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = -i*boundary_particle_spacing
         end
 
         # top boundary
-        if faces[4]
-            for x in 1:n_boundaries_x
-                boundary_particle += 1
+        faces[4] && for x in 1:n_boundaries_x
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                                - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] =((n_boundaries_y-(2*n_layers-1))
-                                                            * boundary_particle_spacing
-                                                            + i*boundary_particle_spacing)
-            end
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                            - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] =((n_boundaries_y-(2*n_layers-1))
+                                                        * boundary_particle_spacing
+                                                        + i*boundary_particle_spacing)
         end
     end
 end
@@ -254,82 +247,76 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
     boundary_particle = 0
     for i in 0:n_layers-1
         # -x boundary (y-z-plane)
-        if faces[1]
-            for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
-                boundary_particle += 1
+        faces[1] && for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-                boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
-            end
+            boundary_coordinates[1, boundary_particle] = 0 - i*boundary_particle_spacing
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
         end
+        
 
         # +x boundary (y-z-plane)
-        if faces[2]
-            for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
-                boundary_particle += 1
+        faces[2] && for z in 1:n_boundaries_z-(2*n_layers-1), y in 1:n_boundaries_y
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = ((n_boundaries_x-(2*n_layers-1))
-                                                            * boundary_particle_spacing
-                                                            + i * boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-                boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
-            end
+            boundary_coordinates[1, boundary_particle] = ((n_boundaries_x-(2*n_layers-1))
+                                                        * boundary_particle_spacing
+                                                        + i * boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = z * boundary_particle_spacing
         end
+        
 
         # - y boundary (x-z-plane)
-        if faces[3]
-            for z in 1:n_boundaries_z, x in 1:n_boundaries_x
-                boundary_particle += 1
+        faces[3] && for z in 1:n_boundaries_z, x in 1:n_boundaries_x
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                            - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = -i * boundary_particle_spacing
-                boundary_coordinates[3, boundary_particle] = (z * boundary_particle_spacing
-                                                            - n_layers*boundary_particle_spacing)
-            end
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                        - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = -i * boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = (z * boundary_particle_spacing
+                                                        - n_layers*boundary_particle_spacing)
         end
+        
 
         # +y boundary (x-z-plane)
-        if faces[4]
-            for z in 1:n_boundaries_z, x in 1:n_boundaries_x
-                boundary_particle += 1
+        faces[4] && for z in 1:n_boundaries_z, x in 1:n_boundaries_x
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                            - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = ((n_boundaries_y-(2*n_layers-1))
-                                                            * boundary_particle_spacing
-                                                            + i * boundary_particle_spacing)
-                boundary_coordinates[3, boundary_particle] = (z * boundary_particle_spacing
-                                                            - n_layers*boundary_particle_spacing)
-            end
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                        - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = ((n_boundaries_y-(2*n_layers-1))
+                                                        * boundary_particle_spacing
+                                                        + i * boundary_particle_spacing)
+            boundary_coordinates[3, boundary_particle] = (z * boundary_particle_spacing
+                                                        - n_layers*boundary_particle_spacing)
         end
+        
 
         # -z boundary (x-y-plane)
-        if faces[5]
-            for y in 1:n_boundaries_y, x in 1:n_boundaries_x
-                boundary_particle += 1
-    
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                                - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-                boundary_coordinates[3, boundary_particle] = 0 - i*boundary_particle_spacing
-            end
+        faces[5] && for y in 1:n_boundaries_y, x in 1:n_boundaries_x
+            boundary_particle += 1
+
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                            - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = 0 - i*boundary_particle_spacing
         end
+        
     
         # +z boundary (x-y-plane)
-        if faces[6]
-            for y in 1:n_boundaries_y, x in 1:n_boundaries_x
-                boundary_particle += 1
+        faces[6] && for y in 1:n_boundaries_y, x in 1:n_boundaries_x
+            boundary_particle += 1
 
-                boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
-                                                                - n_layers*boundary_particle_spacing)
-                boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
-                boundary_coordinates[3, boundary_particle] = ((n_boundaries_z-(2*n_layers-1))
-                                                                * boundary_particle_spacing
-                                                                + i*boundary_particle_spacing)
-            end
+            boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
+                                                            - n_layers*boundary_particle_spacing)
+            boundary_coordinates[2, boundary_particle] = y * boundary_particle_spacing
+            boundary_coordinates[3, boundary_particle] = ((n_boundaries_z-(2*n_layers-1))
+                                                            * boundary_particle_spacing
+                                                            + i*boundary_particle_spacing)
         end
+        
     end
 end
 
@@ -387,12 +374,12 @@ end
 
 
 function get_boundary_particles_per_dimension(container_width, container_height,
-                                              particle_spacing, spacing_ratio, n_layers)
+                                              particle_spacing, spacing_ratio, n_layers, faces)
     n_boundaries_x = round(Int, (container_width / particle_spacing * spacing_ratio)) + 2*n_layers-1
-    n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio)) + 2*n_layers-1
+    n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio)) + (faces[1]||faces[2] ? 0 : 2*n_layers-1)
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) * (particle_spacing / spacing_ratio)
-    new_container_height = (n_boundaries_y -2*n_layers+1) * (particle_spacing / spacing_ratio)
+    new_container_height = (n_boundaries_y - 2*n_layers+1) * (particle_spacing / spacing_ratio)
 
     if round(new_container_width, digits=4) != round(container_width, digits=4)
         print_warn_message("container width", container_width, new_container_width)
@@ -405,9 +392,9 @@ function get_boundary_particles_per_dimension(container_width, container_height,
 end
 
 function get_boundary_particles_per_dimension(container_width, container_height, container_depth,
-                                              particle_spacing, spacing_ratio, n_layers)
+                                              particle_spacing, spacing_ratio, n_layers, faces)
     n_boundaries_x = round(Int, container_width / particle_spacing * spacing_ratio) + 2*n_layers-1
-    n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio) + 2*n_layers-1
+    n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio) + (faces[1]||faces[2] ? 0 : 2*n_layers-1)
     n_boundaries_z = round(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
