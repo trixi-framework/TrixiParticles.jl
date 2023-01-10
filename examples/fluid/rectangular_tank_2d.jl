@@ -2,8 +2,8 @@ using Pixie
 using OrdinaryDiffEq
 
 particle_spacing = 0.02
-# Spacing ratio between fluid and boundary particles
-beta = 3
+# Ratio of fluid particle spacing to boundary particle spacing
+beta = 1
 
 water_width = 2.0
 water_height = 0.9
@@ -13,7 +13,7 @@ container_width = 2.0
 container_height = 1.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density, n_layers=1)
+                        container_width, container_height, water_density, n_layers=3)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
@@ -29,9 +29,13 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
                                             acceleration=(0.0, -9.81), damping_coefficient=1e-5)
 
-K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
+boundary_densities = water_density * ones(size(setup.boundary_masses))
+boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation, AdamiPressureExtrapolation(), smoothing_kernel, smoothing_length)
+
+# K = 9.81 * water_height
+# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
+
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses, boundary_model)
 
 semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 

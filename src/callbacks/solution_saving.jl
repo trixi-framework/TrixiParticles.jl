@@ -119,6 +119,12 @@ function (extract_quantities::ExtractQuantities)(u, container::SolidParticleCont
 end
 
 function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer)
+    @unpack boundary_model = container
+
+    extract_quantities(u, container, boundary_model)
+end
+
+function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer, boundary_model)
     result = Dict{Symbol, Array{Float64}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
@@ -127,6 +133,19 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
 
     return "boundary", result
 end
+
+function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer, boundary_model::BoundaryModelDummyParticles)
+    result = Dict{Symbol, Array{Float64}}(
+        # Note that we have to allocate here and can't use views.
+        # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
+        :coordinates => copy(container.initial_coordinates),
+        :density => [get_particle_density(particle, u, container) for particle in eachparticle(container)],
+        :pressure => copy(boundary_model.pressure)
+    )
+
+    return "boundary", result
+end
+
 
 function extract_density!(result, u, cache, ::SummationDensity, container)
     result[:density] = copy(cache.density)

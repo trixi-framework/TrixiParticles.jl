@@ -29,7 +29,7 @@ The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their
 ``\alpha = 1, \beta = 2`` (Monaghan 1992, p. 551).
 The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
 
-References:
+## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
   In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
   [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)

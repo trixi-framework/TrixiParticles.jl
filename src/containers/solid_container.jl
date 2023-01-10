@@ -66,7 +66,7 @@ are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Po
 
 The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
 
-References:
+## References:
 - Joseph O’Connor, Benedict D. Rogers.
   "A fluid–structure interaction model for free-surface flows and flexible structures using
   smoothed particle hydrodynamics on a GPU".
@@ -77,7 +77,7 @@ References:
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContainer{NDIMS}
     initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
@@ -89,7 +89,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
     n_moving_particles  ::Int64
     lame_lambda         ::ELTYPE
     lame_mu             ::ELTYPE
-    hydrodynamic_density_calculator::DC # TODO
     smoothing_kernel    ::K
     smoothing_length    ::ELTYPE
     acceleration        ::SVector{NDIMS, ELTYPE}
@@ -100,7 +99,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
-                                    hydrodynamic_density_calculator,
                                     smoothing_kernel, smoothing_length,
                                     young_modulus, poisson_ratio, boundary_model;
                                     n_fixed_particles=0,
@@ -127,16 +125,21 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, DC, K, BM, PF} <: ParticleCon
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
 
-        return new{NDIMS, ELTYPE, typeof(hydrodynamic_density_calculator),
+        return new{NDIMS, ELTYPE,
                    typeof(smoothing_kernel), typeof(boundary_model),
                    typeof(penalty_force)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, deformation_grad, particle_material_densities,
             n_moving_particles, lame_lambda, lame_mu,
-            hydrodynamic_density_calculator, smoothing_kernel, smoothing_length,
+            smoothing_kernel, smoothing_length,
             acceleration_, boundary_model, penalty_force, young_modulus, damping_coefficient_)
     end
 end
+
+
+@inline nvariables(container::SolidParticleContainer) = nvariables(container, container.boundary_model)
+# This is dispatched in boundary_container.jl
+@inline nvariables(container::SolidParticleContainer, model) = 2 * ndims(container)
 
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
@@ -198,11 +201,14 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
 end
 
 
-function update!(container::SolidParticleContainer, u, u_ode, neighborhood_search, semi, t)
+function update!(container::SolidParticleContainer, container_index, u, u_ode, semi, t)
+    @unpack neighborhood_searches = semi
+
     # Update current coordinates
     update_current_coordinates(u, container)
 
     # Precompute PK1 stress tensor
+    neighborhood_search = neighborhood_searches[container_index][container_index]
     @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search, container)
 
     return container
@@ -330,7 +336,7 @@ end
 
 
 function write_variables!(u0, container::SolidParticleContainer)
-    @unpack initial_coordinates, initial_velocity = container
+    @unpack initial_coordinates, initial_velocity, boundary_model = container
 
     for particle in each_moving_particle(container)
         # Write particle coordinates
@@ -342,6 +348,30 @@ function write_variables!(u0, container::SolidParticleContainer)
         for dim in 1:ndims(container)
             u0[dim + ndims(container), particle] = initial_velocity[dim, particle]
         end
+    end
+
+    write_variables!(u0, boundary_model, container)
+
+    return u0
+end
+
+
+# This is dispatched in boundary_container.jl
+function write_variables!(u0, boundary_model, container)
+    return u0
+end
+
+function write_variables!(u0, boundary_model, density_calculator, container)
+    return du
+end
+
+function write_variables!(u0, boundary_model, ::ContinuityDensity, container)
+    @unpack cache = boundary_model
+    @unpack initial_density = cache
+
+    for particle in eachparticle(container)
+        # Set particle densities
+        u0[2 * ndims(container) + 1, particle] = initial_density[particle]
     end
 
     return u0

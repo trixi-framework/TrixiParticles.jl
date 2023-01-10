@@ -92,41 +92,42 @@ end
 
 
 @inline nvariables(container::FluidParticleContainer) = nvariables(container, container.density_calculator)
-@inline nvariables(container, ::SummationDensity) = 2 * ndims(container)
-@inline nvariables(container, ::ContinuityDensity) = 2 * ndims(container) + 1
+@inline nvariables(container::FluidParticleContainer, ::SummationDensity) = 2 * ndims(container)
+@inline nvariables(container::FluidParticleContainer, ::ContinuityDensity) = 2 * ndims(container) + 1
 
 
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 
-function update!(container::FluidParticleContainer, u, u_ode, neighborhood_search, semi, t)
+function update!(container::FluidParticleContainer, container_index, u, u_ode, semi, t)
     @unpack density_calculator = container
 
-    compute_quantities(u, density_calculator, container, u_ode, semi)
+    compute_quantities(u, density_calculator, container, container_index, u_ode, semi)
 
     return container
 end
 
 
-function compute_quantities(u, ::ContinuityDensity, container, u_ode, semi)
+function compute_quantities(u, ::ContinuityDensity, container, container_index, u_ode, semi)
     compute_pressure!(container, u)
 end
 
-function compute_quantities(u, ::SummationDensity, container, u_ode, semi)
-    @unpack particle_containers = semi
+function compute_quantities(u, ::SummationDensity, container, container_index, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
     @unpack density = cache # Density is in the cache for SummationDensity
 
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" for (neighbor_container_index, neighbor_container) in pairs(particle_containers)
+    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index, neighbor_container)
         u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,
-                                         container, neighbor_container)
+                                         container, neighbor_container,
+                                         neighborhood_searches[container_index][neighbor_container_index])
         end
     end
 
@@ -138,13 +139,14 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function compute_density_per_particle(particle, u_particle_container, u_neighbor_container,
-                                              particle_container, neighbor_container)
+                                              particle_container::FluidParticleContainer,
+                                              neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
     @unpack mass = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-    for neighbor in eachneighbor(particle_coords, neighbor_container)
+    for neighbor in eachneighbor(particle_coords, neighborhood_search)
         distance = norm(particle_coords - get_current_coords(neighbor, u_neighbor_container, neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
@@ -185,11 +187,11 @@ function write_variables!(u0, container::FluidParticleContainer)
 end
 
 
-function write_variables!(u0, ::SummationDensity, container)
+function write_variables!(u0, ::SummationDensity, container::FluidParticleContainer)
     return u0
 end
 
-function write_variables!(u0, ::ContinuityDensity, container)
+function write_variables!(u0, ::ContinuityDensity, container::FluidParticleContainer)
     @unpack cache = container
     @unpack initial_density = cache
 
