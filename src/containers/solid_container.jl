@@ -87,6 +87,8 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
     deformation_grad    ::Array{ELTYPE, 3} # [i, j, particle]
     material_density    ::Array{ELTYPE, 1} # [particle]
     n_moving_particles  ::Int64
+    young_modulus       ::ELTYPE
+    poisson_ratio       ::ELTYPE
     lame_lambda         ::ELTYPE
     lame_mu             ::ELTYPE
     smoothing_kernel    ::K
@@ -94,7 +96,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
     acceleration        ::SVector{NDIMS, ELTYPE}
     boundary_model      ::BM
     penalty_force       ::PF
-    young_modulus       ::ELTYPE
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
@@ -127,9 +128,45 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
                    typeof(penalty_force)}(
             particle_coordinates, current_coordinates, particle_velocities, particle_masses,
             correction_matrix, pk1_corrected, deformation_grad, particle_material_densities,
-            n_moving_particles, lame_lambda, lame_mu,
+            n_moving_particles, young_modulus, poisson_ratio, lame_lambda, lame_mu,
             smoothing_kernel, smoothing_length,
-            acceleration_, boundary_model, penalty_force, young_modulus)
+            acceleration_, boundary_model, penalty_force)
+    end
+end
+
+
+function Base.show(io::IO, container::SolidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    print(io, "SolidParticleContainer{", ndims(container), "}(")
+    print(io,       container.young_modulus)
+    print(io, ", ", container.poisson_ratio)
+    print(io, ", ", container.smoothing_kernel)
+    print(io, ", ", container.acceleration)
+    print(io, ", ", container.boundary_model)
+    print(io, ", ", container.penalty_force)
+    print(io, ") with ", nparticles(container), " particles")
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, container)
+    else
+        n_fixed_particles = nparticles(container) - n_moving_particles(container)
+
+        summary_header(io, "SolidParticleContainer{$(ndims(container))}")
+        summary_line(io, "total #particles", nparticles(container))
+        summary_line(io, "#fixed particles", n_fixed_particles)
+        summary_line(io, "Young's modulus", container.young_modulus)
+        summary_line(io, "Poisson ratio", container.poisson_ratio)
+        summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "acceleration", container.acceleration)
+        summary_line(io, "boundary model", container.boundary_model)
+        summary_line(io, "penalty force", container.penalty_force |> typeof |> nameof)
+        summary_footer(io)
     end
 end
 
