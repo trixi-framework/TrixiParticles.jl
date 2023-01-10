@@ -39,18 +39,17 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
 See also: [`reset_right_wall!`](@ref)
 """
 struct RectangularTank{NDIMS, ELTYPE<:Real}
-    particle_coordinates    ::Array{ELTYPE, 2}
-    particle_velocities     ::Array{ELTYPE, 2}
-    particle_densities      ::Vector{ELTYPE}
-    particle_masses         ::Vector{ELTYPE}
-    boundary_coordinates    ::Array{ELTYPE, 2}
-    boundary_masses         ::Vector{ELTYPE}
-    particle_spacing        ::ELTYPE
-    spacing_ratio           ::ELTYPE
-    n_layers                ::Int
-    n_boundaries_x          ::Int
-    n_boundaries_y          ::Int
-    n_boundaries_z          ::Int
+    particle_coordinates        ::Array{ELTYPE, 2}
+    particle_velocities         ::Array{ELTYPE, 2}
+    particle_densities          ::Vector{ELTYPE}
+    particle_masses             ::Vector{ELTYPE}
+    boundary_coordinates        ::Array{ELTYPE, 2}
+    boundary_masses             ::Vector{ELTYPE}
+    particle_spacing            ::ELTYPE
+    spacing_ratio               ::ELTYPE
+    n_layers                    ::Int
+    n_particles_per_dimension   ::NTuple
+    n_boundaries_per_dimension  ::NTuple
 
     function RectangularTank(particle_spacing, spacing_ratio, fluid_width, fluid_height,
                              container_width, container_height, fluid_density;
@@ -80,7 +79,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         end
 
         n_particles_per_dimension = (n_particles_x, n_particles_y)
-
+        n_boundaries_per_dimension = (n_boundaries_x, n_boundaries_y)
         particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
         particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
 
@@ -92,7 +91,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
                                   boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio, n_layers,
-                                  n_boundaries_x, n_boundaries_y, 0)
+                                  n_particles_per_dimension, n_boundaries_per_dimension)
     end
 
     function RectangularTank(particle_spacing, spacing_ratio,
@@ -135,6 +134,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
         end
 
         n_particles_per_dimension = (n_particles_x, n_particles_y, n_particles_z)
+        n_boundaries_per_dimension = (n_boundaries_x, n_boundaries_y, n_boundaries_z)
 
         particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
         particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
@@ -146,7 +146,7 @@ struct RectangularTank{NDIMS, ELTYPE<:Real}
 
         return new{NDIMS, ELTYPE}(particle_coordinates, particle_velocities, particle_densities, particle_masses,
                                   boundary_coordinates, boundary_masses, particle_spacing, spacing_ratio, n_layers,
-                                  n_boundaries_x, n_boundaries_y, n_boundaries_z)
+                                  n_particles_per_dimension, n_boundaries_per_dimension)
     end
 end
 
@@ -297,7 +297,10 @@ is the ``x`` coordinate of the desired position.
 function reset_right_wall!(rectangular_tank::RectangularTank{2}, container_width;
                            wall_position=container_width)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-            n_layers, n_boundaries_x, n_boundaries_y = rectangular_tank
+            n_layers, n_boundaries_per_dimension = rectangular_tank
+
+    n_boundaries_x = n_boundaries_per_dimension[1]
+    n_boundaries_y = n_boundaries_per_dimension[2]
 
     for i in 0:n_layers-1
         for y in 1:n_boundaries_y
@@ -311,7 +314,11 @@ end
 function reset_right_wall!(rectangular_tank::RectangularTank{3}, container_width;
                            wall_position=container_width)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-            n_layers, n_boundaries_x, n_boundaries_y, n_boundaries_z = rectangular_tank
+            n_layers, n_boundaries_per_dimension = rectangular_tank
+
+    n_boundaries_x = n_boundaries_per_dimension[1]
+    n_boundaries_y = n_boundaries_per_dimension[2]
+    n_boundaries_z = n_boundaries_per_dimension[3]
 
     # +x boundary (y-z-plane)
     for i in 0:n_layers-1

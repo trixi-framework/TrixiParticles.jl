@@ -20,13 +20,11 @@ rectangular = RectangularShape(particle_spacing,
 ```
 """
 struct RectangularShape{NDIMS, ELTYPE<:Real}
-    coordinates             ::Array{ELTYPE, 2}
-    masses                  ::Vector{ELTYPE}
-    densities               ::Vector{ELTYPE}
-    particle_spacing        ::ELTYPE
-    spacing_ratio           ::ELTYPE
-    n_particles_x           ::Int
-    n_particles_y           ::Int
+    coordinates                 ::Array{ELTYPE, 2}
+    masses                      ::Vector{ELTYPE}
+    densities                   ::Vector{ELTYPE}
+    particle_spacing            ::ELTYPE
+    n_particles_per_dimension   ::NTuple
 
     function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
                               x_position, y_position; density=0.0)
@@ -43,10 +41,10 @@ struct RectangularShape{NDIMS, ELTYPE<:Real}
         initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
                                 n_particles_x, n_particles_y)
 
+        n_particles_per_dimension = (n_particles_x, n_particles_y)
 
         return new{NDIMS, ELTYPE}(coordinates, masses, densities,
-                                  particle_spacing,
-                                  n_particles_x, n_particles_y)
+                                  particle_spacing, n_particles_per_dimension)
     end
 end
 

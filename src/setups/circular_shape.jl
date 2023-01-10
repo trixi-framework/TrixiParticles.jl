@@ -24,6 +24,36 @@ circle = fill_circle(2.5, 0.0, 0.0, particle_spacing,
                      x_recess=[0.5, recess_length], y_recess=[0.0, recess_height])
 ```
 """
+struct CircularShape{NDIMS, ELTYPE<:Real}
+    coordinates             ::Array{ELTYPE, 2}
+    masses                  ::Vector{ELTYPE}
+    densities               ::Vector{ELTYPE}
+    particle_spacing        ::ELTYPE
+    spacing_ratio           ::ELTYPE
+    n_particles_x           ::Int
+    n_particles_y           ::Int
+
+    function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
+                              x_position, y_position; density=0.0)
+        NDIMS = 2
+        ELTYPE = eltype(particle_spacing)
+
+        n_particles = n_particles_y * n_particles_x
+
+        coordinates = Array{Float64, 2}(undef, 2, n_particles)
+
+        densities = density * ones(ELTYPE, n_particles)
+        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+
+        initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
+                                n_particles_x, n_particles_y)
+
+
+        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+                                  particle_spacing,
+                                  n_particles_x, n_particles_y)
+    end
+end
 function fill_circle(R, x_center, y_center, particle_spacing;
                      x_recess=[typemax(Int), typemax(Int)],
                      y_recess=[typemax(Int), typemax(Int)])
