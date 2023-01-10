@@ -31,11 +31,53 @@ struct Semidiscretization{PC, R, NS}
 end
 
 
+function Base.show(io::IO, semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    print(io, "Semidiscretization(")
+    for container in semi.particle_containers
+        print(io, container, ", ")
+    end
+    print(io, "neighborhood_search=")
+    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, semi)
+    else
+        summary_header(io, "Semidiscretization")
+        summary_line(io, "#spatial dimensions", ndims(semi.particle_containers[1]))
+        summary_line(io, "#containers", length(semi.particle_containers))
+        summary_line(io, "neighborhood_search", semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "total #particles", sum(nparticles.(semi.particle_containers)))
+        summary_footer(io)
+    end
+end
+
+
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
 
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
+
+    radius = compact_support(smoothing_kernel, smoothing_length)
+    search = SpatialHashingSearch{ndims(container)}(radius)
+
+    # Initialize neighborhood search
+    initialize!(search, neighbor.initial_coordinates, neighbor)
+
+    return search
+end
+
+
+function create_neighborhood_search(container::SolidParticleContainer,
+                                    neighbor::FluidParticleContainer, ::Val{SpatialHashingSearch})
+    @unpack smoothing_kernel, smoothing_length = neighbor
 
     radius = compact_support(smoothing_kernel, smoothing_length)
     search = SpatialHashingSearch{ndims(container)}(radius)
@@ -306,10 +348,6 @@ end
 
 
 # NHS updates
-function update!(neighborhood_search, u, container, neighbor)
-    return neighborhood_search
-end
-
 function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
@@ -328,6 +366,10 @@ function update!(neighborhood_search, u, container::SolidParticleContainer, neig
     update!(neighborhood_search, u, neighbor)
 end
 
+function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
 function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
@@ -340,11 +382,20 @@ function update!(neighborhood_search, u, container::BoundaryParticleContainer, n
     update!(neighborhood_search, u, container, neighbor, boundary_model)
 end
 
-function update!(neighborhood_search, u, container, neighbor, boundary_model)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
+                 boundary_model)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container, neighbor,
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
                  boundary_model::BoundaryModelDummyParticles)
     update!(neighborhood_search, u, neighbor)
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::SolidParticleContainer)
+    return neighborhood_search
+end
+
+function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::BoundaryParticleContainer)
+    return neighborhood_search
 end

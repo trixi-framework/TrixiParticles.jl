@@ -42,10 +42,11 @@ semi = Semidiscretization(particle_container, boundary_container, neighborhood_s
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
+summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=10)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0)
 
-callbacks = CallbackSet(alive_callback, saving_callback)
+callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -60,3 +61,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+# Print the timer summary
+summary_callback()

@@ -89,7 +89,10 @@ semi = Semidiscretization(particle_container, boundary_container, neighborhood_s
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
+summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
+
+callbacks = CallbackSet(summary_callback, alive_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -103,7 +106,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=alive_callback);
+            save_everystep=false, callback=callbacks);
+
+# Print the timer summary
+summary_callback()
 
 # Move right boundary
 reset_right_wall!(setup, container_width)
@@ -122,18 +128,14 @@ ode = semidiscretize(semi, tspan)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
                                                        index=(u, t, container) -> Pixie.eachparticle(container))
 
-callbacks = CallbackSet(alive_callback, saving_callback)
+callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
+# See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+# Print the timer summary
+summary_callback()

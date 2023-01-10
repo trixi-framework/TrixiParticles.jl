@@ -4,6 +4,29 @@ mutable struct AliveCallback
 end
 
 
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:AliveCallback})
+    @nospecialize cb # reduce precompilation time
+
+    alive_callback = cb.affect!
+    print(io, "AliveCallback(alive_interval=", alive_callback.alive_interval, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:AliveCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        alive_callback = cb.affect!
+
+        setup = [
+                "interval" => alive_callback.alive_interval,
+                ]
+        summary_box(io, "AliveCallback", setup)
+    end
+end
+
+
 """
     AliveCallback(; alive_interval=0)
 
@@ -36,12 +59,6 @@ function (alive_callback::AliveCallback)(integrator)
                 "  Time steps: ", integrator.destats.naccept, " (accepted), ", integrator.iter, " (total)")
         println("─"^100)
         println()
-
-        # Print timer
-        TimerOutputs.complement!(timer())
-        print_timer(timer(), title="Pixie.jl",
-                    allocations=true, linechars=:unicode, compact=false)
-        println()
     else
         runtime_absolute = 1.0e-9 * (time_ns() - alive_callback.start_time)
         @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
@@ -60,10 +77,6 @@ function initialize(discrete_callback, u, t, integrator)
     alive_callback = discrete_callback.affect!
     alive_callback.start_time = time_ns()
 
-    reset_timer!(timer())
-
-    print_startup_message()
-
     return nothing
 end
 
@@ -74,4 +87,4 @@ end
     return integrator.t == last(integrator.sol.prob.tspan) ||
            isempty(integrator.opts.tstops) ||
            integrator.iter == integrator.opts.maxiters
-  end
+end
