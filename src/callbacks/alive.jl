@@ -51,8 +51,6 @@ function (alive_callback::AliveCallback)(integrator)
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
 
-    print_startup_message()
-    
     return nothing
 end
 
@@ -63,6 +61,8 @@ function initialize(discrete_callback, u, t, integrator)
     alive_callback.start_time = time_ns()
 
     reset_timer!(timer())
+
+    print_startup_message()
 
     return nothing
 end
