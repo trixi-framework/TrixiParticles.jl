@@ -1,5 +1,5 @@
 """
-    Semidiscretization(particle_containers...; neighborhood_search=nothing)
+    Semidiscretization(particle_containers...; neighborhood_search=nothing, damping_coefficient=0.0)
 
 The semidiscretization couples the passed particle containers to one simulation.
 
@@ -8,15 +8,16 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch, damping_coefficient=0.0)
 ```
 """
 struct Semidiscretization{PC, R, NS}
     particle_containers::PC
     ranges::R
     neighborhood_searches::NS
+    damping_coefficient::Float64
 
-    function Semidiscretization(particle_containers...; neighborhood_search=nothing)
+    function Semidiscretization(particle_containers...; neighborhood_search=nothing,  damping_coefficient=0.0)
         sizes = [nvariables(container) * n_moving_particles(container) for container in particle_containers]
         ranges = Tuple(sum(sizes[1:i-1])+1:sum(sizes[1:i]) for i in eachindex(sizes))
 
@@ -26,7 +27,11 @@ struct Semidiscretization{PC, R, NS}
                                                           Val(neighborhood_search))
             for neighbor in particle_containers) for container in particle_containers)
 
-        new{typeof(particle_containers), typeof(ranges), typeof(searches)}(particle_containers, ranges, searches)
+        # damping_coefficient_ = Array{Float64, 0}(undef)
+        # damping_coefficient_[] = damping_coefficient
+
+
+        new{typeof(particle_containers), typeof(ranges), typeof(searches)}(particle_containers, ranges, searches, damping_coefficient)
     end
 end
 
@@ -220,7 +225,9 @@ end
 
 
 function velocity_and_gravity!(du_ode, u_ode, semi)
-    @unpack particle_containers = semi
+    @unpack particle_containers, damping_coefficient = semi
+    #@unpack damping_coefficient = semi
+    #damping_coefficient = 0.0
 
     # Set velocity and add acceleration for each container
     foreach_enumerate(particle_containers) do (container_index, container)
@@ -231,7 +238,7 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
             # These can be dispatched per container
             add_velocity!(du, u, particle, container)
             add_acceleration!(du, particle, container)
-            add_damping_force!(du, u, particle, container)
+            add_damping_force!(damping_coefficient[], du, u, particle, container)
         end
     end
 
@@ -262,12 +269,9 @@ end
 
 @inline add_acceleration!(du, particle, container::BoundaryParticleContainer) = du
 
-@inline function add_damping_force!(du, u, particle, container)
-    @unpack damping_coefficient = container
-
-    #damping_coefficient = 1E-3
+@inline function add_damping_force!(damping_coefficient, du, u, particle, container)
     for i in 1:ndims(container)
-        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
+        du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
     end
 
     return du

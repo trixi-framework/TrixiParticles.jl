@@ -3,13 +3,13 @@
                            density_calculator::SummationDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
     FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                            density_calculator::ContinuityDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
@@ -24,23 +24,19 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
     smoothing_length    ::ELTYPE
     viscosity           ::V
     acceleration        ::SVector{NDIMS, ELTYPE}
-    damping_coefficient ::Array{ELTYPE, 0}
     cache               ::C
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
                                     density_calculator::SummationDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
-
-        damping_coefficient_ = Array{Float64, 0}(undef)
-        damping_coefficient_[] = damping_coefficient
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -55,23 +51,20 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, damping_coefficient_, cache)
+            viscosity, acceleration_, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                     density_calculator::ContinuityDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)), damping_coefficient=0.0)
+                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
-
-        damping_coefficient_ = Array{Float64, 0}(undef)
-        damping_coefficient_[] = damping_coefficient
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -86,7 +79,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(
             particle_coordinates, particle_velocities, particle_masses, pressure,
             density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, damping_coefficient_, cache)
+            viscosity, acceleration_, cache)
     end
 end
 

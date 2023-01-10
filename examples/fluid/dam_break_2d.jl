@@ -38,13 +38,13 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81), damping_coefficient=1e-5)
+                                            acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
@@ -82,10 +82,9 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
-particle_container.damping_coefficient[] = 0 # reset damping coefficient to 0 since it is only used to gain a faster rest state
 
 semi = Semidiscretization(particle_container, boundary_container,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=SpatialHashingSearch, damping_coefficient=0.0)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
