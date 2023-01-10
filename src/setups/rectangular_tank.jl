@@ -22,6 +22,7 @@ The keyword arguments are as follows:
 - `n_layers`:           Number of boundary layers.
 - `init_velocity`:      Initial velocity of the fluid particles.
 - `boundary_density`:   Density of the boundary particles (by default set to the rest density)
+- `faces`:              By default all faces are generated. Set faces by passing an bit-array of length 4 (2D) or 6 (3D) to generate the faces in the normal direction: -x,+x,-y,+y,-z,+z 
 
 # Examples
 2D:
