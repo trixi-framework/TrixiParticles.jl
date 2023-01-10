@@ -2,7 +2,7 @@ using Pixie
 using OrdinaryDiffEq
 
 particle_spacing = 0.02
-# Ratio of fluid particle spacing to boundary particle spacing
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 2.0
@@ -59,4 +59,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 
 # activate to save to vtk
-# pixie2vtk(saved_values, boundary_container)
+# pixie2vtk(saved_values)

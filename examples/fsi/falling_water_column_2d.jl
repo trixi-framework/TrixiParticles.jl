@@ -2,7 +2,7 @@ using Pixie
 using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.0125 * 3
-# Ratio of fluid particle spacing to boundary particle spacing
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 0.5

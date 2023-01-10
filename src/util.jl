@@ -28,11 +28,6 @@ function print_startup_message(dic_info)
         """
     println(s)
 
-    println("====================")
-    for (key, value) in dic_info
-        @printf("%-20s %10s \n",key, value)
-    end
-    println("====================")
 end
 
 # Enable debug timings `@pixie_timeit timer() "name" stuff...`.

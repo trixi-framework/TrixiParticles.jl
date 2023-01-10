@@ -9,7 +9,7 @@ using Pixie
 using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.02
-# Ratio of fluid particle spacing to boundary particle spacing
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 0.2
@@ -160,14 +160,7 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
+# see above
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
@@ -175,4 +168,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=callbacks);
 
 # activate to save to vtk
-# pixie2vtk(saved_values, boundary_container)
+# pixie2vtk(saved_values)

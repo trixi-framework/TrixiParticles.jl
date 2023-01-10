@@ -37,9 +37,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
-        dic_info = Dict([("no. particles",nparticles), ("damping coefficient", damping_coefficient)]);
-        print_startup_message(dic_info)
-
         pressure = Vector{ELTYPE}(undef, nparticles)
 
         damping_coefficient_ = Array{Float64, 0}(undef)
@@ -70,9 +67,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
-
-        dic_info = Dict([("no. particles",nparticles), ("damping coefficient", damping_coefficient)]);
-        print_startup_message(dic_info)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 

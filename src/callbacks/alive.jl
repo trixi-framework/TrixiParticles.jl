@@ -51,6 +51,8 @@ function (alive_callback::AliveCallback)(integrator)
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
 
+    print_startup_message()
+    
     return nothing
 end
 

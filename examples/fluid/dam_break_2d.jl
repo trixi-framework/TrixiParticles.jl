@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 particle_spacing = 0.02
 
-# spacing ratio between boundary and fluid particles
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 2.0
@@ -46,7 +46,7 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup
 
 semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 alive_callback = AliveCallback(alive_interval=100)
@@ -92,6 +92,7 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 
 callbacks = CallbackSet(alive_callback, saving_callback)
 
+# see above
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1.0e-6, # Default abstol is 1e-6
 	        reltol=1.0e-5, # Default reltol is 1e-3
@@ -99,4 +100,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=callbacks);
 
 # activate to save to vtk
-# pixie2vtk(saved_values, boundary_container)
+# pixie2vtk(saved_values)
