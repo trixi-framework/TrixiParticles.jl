@@ -49,6 +49,31 @@ struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM, MF} <: ParticleContain
 end
 
 
+function Base.show(io::IO, container::BoundaryParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    print(io, "BoundaryParticleContainer{", ndims(container), "}(")
+    print(io,       container.boundary_model)
+    print(io, ", ", container.movement_function)
+    print(io, ") with ", nparticles(container), " particles")
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, container)
+    else
+        summary_header(io, "BoundaryParticleContainer{$(ndims(container))}")
+        summary_line(io, "#particles", nparticles(container))
+        summary_line(io, "boundary model", container.boundary_model)
+        summary_line(io, "movement function", container.movement_function)
+        summary_footer(io)
+    end
+end
+
+
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           u_particle_container, u_boundary_container,
                                           particle_container, boundary_container,
@@ -121,6 +146,13 @@ struct BoundaryModelMonaghanKajtar{ELTYPE<:Real}
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
         new{typeof(K)}(K, beta, boundary_particle_spacing)
     end
+end
+
+
+function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
+    @nospecialize model # reduce precompilation time
+
+    print(io, "BoundaryModelMonaghanKajtar")
 end
 
 
@@ -230,6 +262,15 @@ struct BoundaryModelDummyParticles{ELTYPE<:Real, SE, DC, K, C}
             typeof(cache)}(pressure, state_equation, density_calculator,
                            smoothing_kernel, smoothing_length, cache)
     end
+end
+
+
+function Base.show(io::IO, model::BoundaryModelDummyParticles)
+    @nospecialize model # reduce precompilation time
+
+    print(io, "BoundaryModelDummyParticles(")
+    print(io, model.density_calculator |> typeof |> nameof)
+    print(io, ")")
 end
 
 

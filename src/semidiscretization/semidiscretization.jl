@@ -36,6 +36,34 @@ struct Semidiscretization{PC, R, NS, DC}
 end
 
 
+function Base.show(io::IO, semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    print(io, "Semidiscretization(")
+    for container in semi.particle_containers
+        print(io, container, ", ")
+    end
+    print(io, "neighborhood_search=")
+    print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
+    print(io, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
+    @nospecialize semi # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, semi)
+    else
+        summary_header(io, "Semidiscretization")
+        summary_line(io, "#spatial dimensions", ndims(semi.particle_containers[1]))
+        summary_line(io, "#containers", length(semi.particle_containers))
+        summary_line(io, "neighborhood_search", semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "total #particles", sum(nparticles.(semi.particle_containers)))
+        summary_footer(io)
+    end
+end
+
+
 create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
 
 

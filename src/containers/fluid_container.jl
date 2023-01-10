@@ -84,6 +84,37 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C} <: ParticleC
 end
 
 
+function Base.show(io::IO, container::FluidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    print(io, "FluidParticleContainer{", ndims(container), "}(")
+    print(io,       container.density_calculator)
+    print(io, ", ", container.state_equation)
+    print(io, ", ", container.smoothing_kernel)
+    print(io, ", ", container.viscosity)
+    print(io, ", ", container.acceleration)
+    print(io, ") with ", nparticles(container), " particles")
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, container)
+    else
+        summary_header(io, "FluidParticleContainer{$(ndims(container))}")
+        summary_line(io, "#particles", nparticles(container))
+        summary_line(io, "density calculator", container.density_calculator |> typeof |> nameof)
+        summary_line(io, "state equation", container.state_equation |> typeof |> nameof)
+        summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "viscosity", container.viscosity)
+        summary_line(io, "acceleration", container.acceleration)
+        summary_footer(io)
+    end
+end
+
+
 @inline nvariables(container::FluidParticleContainer) = nvariables(container, container.density_calculator)
 @inline nvariables(container::FluidParticleContainer, ::SummationDensity) = 2 * ndims(container)
 @inline nvariables(container::FluidParticleContainer, ::ContinuityDensity) = 2 * ndims(container) + 1
