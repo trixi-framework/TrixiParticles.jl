@@ -36,6 +36,23 @@ struct ExtractQuantities{CQ}
 end
 
 
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SavingAffect{<:ExtractQuantities}})
+    @nospecialize cb # reduce precompilation time
+
+    print(io, "SolutionSavingCallback")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:SavingAffect{<:ExtractQuantities}})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        summary_box(io, "SolutionSavingCallback")
+  end
+end
+
+
 function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     semi = integrator.p
     @unpack particle_containers = semi
