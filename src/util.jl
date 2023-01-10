@@ -16,7 +16,7 @@ end
 
 
 # Print informative message at startup
-function print_startup_message(dic_info)
+function print_startup_message()
     s = """
 
         ██████╗ ██╗██╗  ██╗██╗███████╗
