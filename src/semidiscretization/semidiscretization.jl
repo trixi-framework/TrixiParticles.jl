@@ -190,7 +190,7 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
 
             # Acceleration can be dispatched per container
             add_acceleration!(du, particle, container)
-            add_damping_force!(u, du, particle, container)
+            add_damping_force!(du, u, particle, container)
         end
     end
 
@@ -203,6 +203,18 @@ end
 
     for i in 1:ndims(container)
         du[i+ndims(container), particle] += acceleration[i]
+    end
+
+    return du
+end
+
+
+@inline function add_damping_force!(du, u, particle, container)
+    @unpack damping_coefficient = container
+
+    #damping_coefficient = 1E-3
+    for i in 1:ndims(container)
+        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
     end
 
     return du
@@ -227,18 +239,6 @@ function container_interaction!(du_ode, u_ode, semi)
     end
 
     return du_ode
-end
-
-
-@inline function add_damping_force!(u, du, particle, container)
-    @unpack damping_coefficient = container
-
-    #damping_coefficient = 1E-3
-    for i in 1:ndims(container)
-        du[i+ndims(container), particle] -= damping_coefficient[] * u[i+ndims(container), particle]
-    end
-
-    return du
 end
 
 
