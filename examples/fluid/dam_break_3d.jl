@@ -74,7 +74,7 @@ particle_container.initial_coordinates .= view(u_end, 1:3, :)
 particle_container.initial_velocity .= view(u_end, 4:6, :)
 particle_container.damping_coefficient[] = 0 # reset damping coefficient to 0 since it is only used to gain a faster rest state
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=0.0)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
