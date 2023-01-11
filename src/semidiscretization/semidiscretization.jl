@@ -263,7 +263,7 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
             # These can be dispatched per container
             add_velocity!(du, u, particle, container)
             add_acceleration!(du, particle, container)
-            add_damping_force!(damping_coefficient, du, u, particle, container)
+            add_damping_force!(du, damping_coefficient, u, particle, container)
         end
     end
 
