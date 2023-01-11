@@ -5,14 +5,14 @@ particle_spacing = 0.08
 # Spacing ratio between fluid and boundary particles
 beta = 3
 
-water_width = 2.0 # x-direction
-water_height = 1.0 # y-direction
-water_length = 1.0 # z-direction
+water_width = floor(2.0/particle_spacing) * particle_spacing # x-direction
+water_height = floor(1.0/particle_spacing) * particle_spacing # y-direction
+water_length = floor(1.0/particle_spacing) * particle_spacing # z-direction
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 4.0
-container_length = 1.0
+container_height = floor(4.0/particle_spacing) * particle_spacing
+container_length = floor(1.0/particle_spacing) * particle_spacing
 
 
 setup = RectangularTank(particle_spacing, beta,
