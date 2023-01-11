@@ -252,8 +252,6 @@ end
 
 function velocity_and_gravity!(du_ode, u_ode, semi)
     @unpack particle_containers, damping_coefficient = semi
-    #@unpack damping_coefficient = semi
-    #damping_coefficient = 0.0
 
     # Set velocity and add acceleration for each container
     foreach_enumerate(particle_containers) do (container_index, container)
