@@ -27,8 +27,6 @@ struct Semidiscretization{PC, R, NS, DC}
                                                           Val(neighborhood_search))
             for neighbor in particle_containers) for container in particle_containers)
 
-        # damping_coefficient_ = Array{Float64, 0}(undef)
-        # damping_coefficient_[] = damping_coefficient
 
 
         new{typeof(particle_containers), typeof(ranges), typeof(searches), typeof(damping_coefficient)}(particle_containers, ranges, searches, damping_coefficient)
