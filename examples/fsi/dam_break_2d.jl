@@ -38,7 +38,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81), damping_coefficient=1e-5)
+                                            acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
@@ -92,7 +92,7 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
 
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
 
 tspan_relaxing = (0.0, 3.0)
 ode = semidiscretize(semi, tspan_relaxing)
@@ -129,7 +129,6 @@ tspan = (0.0, 1.0)
 u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
-particle_container.damping_coefficient[] = 0
 
 semi = Semidiscretization(particle_container, boundary_container, solid_container, neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
