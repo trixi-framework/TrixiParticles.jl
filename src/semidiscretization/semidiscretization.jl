@@ -294,7 +294,7 @@ end
 
 @inline add_acceleration!(du, particle, container::BoundaryParticleContainer) = du
 
-@inline function add_damping_force!(damping_coefficient::Float64, du, u, particle, container)
+@inline function add_damping_force!(du, damping_coefficient::Float64, u, particle, container)
     for i in 1:ndims(container)
         du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
     end
@@ -302,7 +302,7 @@ end
     return du
 end
 
-@inline add_damping_force!(::Nothing, du, u, particle, container) = 0
+@inline add_damping_force!(du, ::Nothing, u, particle, container) = du
 
 
 function container_interaction!(du_ode, u_ode, semi)
