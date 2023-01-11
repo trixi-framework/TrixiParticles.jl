@@ -233,7 +233,7 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
 
             boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
                                                             - n_layers*boundary_particle_spacing)
-            boundary_coordinates[2, boundary_particle] =((n_boundaries_y-(2*n_layers-1))
+            boundary_coordinates[2, boundary_particle] =((n_boundaries_y-(faces[1]||faces[2] ? 0 : 2*n_layers-1))
                                                         * boundary_particle_spacing
                                                         + i*boundary_particle_spacing)
         end
@@ -286,7 +286,7 @@ function initialize_boundaries!(boundary_coordinates, particle_spacing, spacing_
 
             boundary_coordinates[1, boundary_particle] = (x * boundary_particle_spacing
                                                         - n_layers*boundary_particle_spacing)
-            boundary_coordinates[2, boundary_particle] = ((n_boundaries_y-(2*n_layers-1))
+            boundary_coordinates[2, boundary_particle] = ((n_boundaries_y-(faces[1]||faces[2] ? 0 : 2*n_layers-1))
                                                         * boundary_particle_spacing
                                                         + i * boundary_particle_spacing)
             boundary_coordinates[3, boundary_particle] = (z * boundary_particle_spacing
@@ -379,7 +379,7 @@ function get_boundary_particles_per_dimension(container_width, container_height,
     n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio)) + (faces[1]||faces[2] ? 0 : 2*n_layers-1)
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) * (particle_spacing / spacing_ratio)
-    new_container_height = (n_boundaries_y - 2*n_layers+1) * (particle_spacing / spacing_ratio)
+    new_container_height = (n_boundaries_y - (faces[1]||faces[2] ? 0 : 2*n_layers-1)) * (particle_spacing / spacing_ratio)
 
     if round(new_container_width, digits=4) != round(container_width, digits=4)
         print_warn_message("container width", container_width, new_container_width)
@@ -398,7 +398,7 @@ function get_boundary_particles_per_dimension(container_width, container_height,
     n_boundaries_z = round(Int, container_depth / particle_spacing * spacing_ratio) + 2*n_layers-1
 
     new_container_width = (n_boundaries_x - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
-    new_container_height = (n_boundaries_y - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
+    new_container_height = (n_boundaries_y - (faces[1]||faces[2] ? 0 : 2*n_layers-1)) *  (particle_spacing / spacing_ratio)
     new_container_depth = (n_boundaries_z - 2*n_layers+1) *  (particle_spacing / spacing_ratio)
 
     if round(new_container_width, digits=4) != round(container_width, digits=4)
