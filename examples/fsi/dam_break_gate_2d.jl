@@ -25,7 +25,7 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=n_layers)
 
-setup_wall = RectangularShape(fluid_particle_spacing/beta, n_layers, setup.n_boundaries_y,
+setup_wall = RectangularShape(fluid_particle_spacing/beta, n_layers, setup.n_particles_per_dimension[2],
                               water_width, fluid_particle_spacing/beta, density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)
