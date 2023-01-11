@@ -18,7 +18,7 @@ water_height = 1.0
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 2.0
+container_height = 4
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)

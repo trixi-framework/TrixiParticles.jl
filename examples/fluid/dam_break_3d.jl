@@ -11,7 +11,7 @@ water_length = 1.0 # z-direction
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 2.0
+container_height = 4.0
 container_length = 1.0
 
 
@@ -78,7 +78,6 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:3, :)
 particle_container.initial_velocity .= view(u_end, 4:6, :)
-particle_container.damping_coefficient[] = 0 # reset damping coefficient to 0 since it is only used to gain a faster rest state
 
 semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)

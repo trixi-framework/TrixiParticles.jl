@@ -8,7 +8,7 @@ water_height = 1.0
 water_density = 1000.0
 
 container_width = 4.0
-container_height = 3.0
+container_height = 4.0
 
 setup = RectangularTank(particle_spacing, 3, water_width, water_height,
                         container_width, container_height, water_density, n_layers=1)
@@ -65,4 +65,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # activate to save to vtk
-# pixie2vtk(saved_values)
+pixie2vtk(saved_values)
