@@ -5,8 +5,8 @@ fluid_particle_spacing = 0.0125 * 3
 # Spacing ratio between fluid and boundary particles
 beta = 3
 
-water_width = 0.5
-water_height = 1.0
+water_width = 0.525
+water_height = 1.0125
 water_density = 1000.0
 
 container_width = 4.0
