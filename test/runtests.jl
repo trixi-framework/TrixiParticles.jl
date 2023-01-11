@@ -4,3 +4,4 @@ using LinearAlgebra
 
 include("containers/solid_container.jl")
 include("interactions/solid.jl")
+include("system_tests.jl")
