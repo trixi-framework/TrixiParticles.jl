@@ -27,7 +27,6 @@ function print_startup_message()
         ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚══════╝
         """
     println(s)
-
 end
 
 # Enable debug timings `@pixie_timeit timer() "name" stuff...`.
