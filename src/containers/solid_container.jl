@@ -115,8 +115,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
         correction_matrix   = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         pk1_corrected       = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        damping_coefficient_ = Array{Float64, 0}(undef)
-        damping_coefficient_[] = 0
 
         n_moving_particles = nparticles - n_fixed_particles
 
