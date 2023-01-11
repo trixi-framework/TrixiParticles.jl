@@ -39,8 +39,7 @@ clamp_radius = 0.05
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
 fixed_particles = CircularShape(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
-                                shape_function=FillCircle(),
-                                x_recess=[0, clamp_radius], y_recess=[0, thickness])
+                                shape_type=FillCircle([0, clamp_radius], [0, thickness]))
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 

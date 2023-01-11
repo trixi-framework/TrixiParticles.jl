@@ -8,7 +8,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-# Note that the effect of the gate becomes is less pronounced with lower resolutions,
+# Note that the effect of the gate is less pronounced with lower resolutions,
 # since "larger" particles don't fit through the slightly opened gate.
 fluid_particle_spacing = 0.02
 # Ratio of fluid particle spacing to boundary particle spacing
