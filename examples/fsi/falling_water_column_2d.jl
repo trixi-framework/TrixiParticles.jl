@@ -63,12 +63,15 @@ nu = 0.4
 
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
+boundary_model_solid = BoundaryModelDummyParticles(particle_densities, state_equation,
+                                                   AdamiPressureExtrapolation(), #SummationDensity(), #ContinuityDensity(), #AdamiPressureExtrapolation(),
+                                                   smoothing_kernel, smoothing_length)
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=fixed_particles.n_particles,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing),
+                                         boundary_model_solid, #BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 semi = Semidiscretization(fluid_container, solid_container, neighborhood_search=SpatialHashingSearch)

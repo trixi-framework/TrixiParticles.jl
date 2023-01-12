@@ -10,7 +10,8 @@ using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.01
 # Ratio of fluid particle spacing to boundary particle spacing
-beta = 3
+beta = 1
+n_layers = 3
 
 water_width = 0.146
 water_height = 0.292
@@ -20,10 +21,11 @@ container_width = 0.584
 container_height = 1.0
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density)
+                        container_width, container_height, water_density, n_layers=n_layers)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+reset_right_wall!(setup, container_width,
+                  wall_position=(setup.n_particles_per_dimension[1]+1)*fluid_particle_spacing)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -41,8 +43,13 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
+
+boundary_densities = water_density * ones(size(setup.boundary_masses))
+boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
+                                             AdamiPressureExtrapolation(), #SummationDensity(), #ContinuityDensity(), #AdamiPressureExtrapolation(),
+                                             smoothing_kernel, smoothing_length)
+
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses, boundary_model)
 
 
 length = 0.08
@@ -73,13 +80,17 @@ E = 1e6
 nu = 0.0
 
 beta = fluid_particle_spacing / solid_particle_spacing
+
+boundary_model_solid = BoundaryModelDummyParticles(particle_densities, state_equation,
+                                                   AdamiPressureExtrapolation(), #SummationDensity(), #ContinuityDensity(), #AdamiPressureExtrapolation(),
+                                                   smoothing_kernel, smoothing_length)
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
                                          # Use bigger K to prevent penetration into the solid
-                                         BoundaryModelMonaghanKajtar(5K, beta, solid_particle_spacing),
+                                         boundary_model_solid, #BoundaryModelMonaghanKajtar(5K, beta, solid_particle_spacing),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 
@@ -112,7 +123,8 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+reset_right_wall!(setup, container_width,
+                  wall_position=(setup.n_boundaries_per_dimension[1]-2*n_layers+1)*fluid_particle_spacing)
 
 # Run full simulation
 tspan = (0.0, 1.0)
