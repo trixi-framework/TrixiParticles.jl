@@ -29,5 +29,5 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, dx, di
     end
     C *= 32.0/(pi * smoothing_length^9)
 
-    return - surface_tension_coefficient * ma * mb * C * dx/distance
+    return (- surface_tension_coefficient * ma * mb * C * dx/distance)
 end

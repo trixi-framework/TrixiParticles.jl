@@ -8,7 +8,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 3
@@ -18,7 +18,7 @@ water_height = 1.0
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 4
+container_height = 6
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
@@ -38,7 +38,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates, setup.pa
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81), surface_tension=CohesionForceAkinci(1.0))
+                                            acceleration=(0.0, -9.81), surface_tension=CohesionForceAkinci(0.01))
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
@@ -69,7 +69,7 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
