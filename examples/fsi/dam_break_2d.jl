@@ -45,7 +45,7 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup
                                                BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
 
-length = 0.08
+length_beam = 0.08
 thickness = 0.012
 solid_density = 2500
 n_particles_x = 5
@@ -54,16 +54,18 @@ n_particles_x = 5
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x, round(Int, length_beam / solid_particle_spacing) + 1)
 
+# The bottom layer is sampled separately below.
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
-                         0.292, solid_particle_spacing)
-fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1, 0.292, 0.0)
+                         0.292, solid_particle_spacing, density=solid_density)
+fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
+                                   0.292, 0.0, density=solid_density)
 
 particle_coordinates = cat(plate.coordinates, fixed_particles.coordinates, dims=(2,2))
 particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
-particle_masses = solid_density * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = solid_density * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = cat(plate.masses, fixed_particles.masses, dims=(1,1))
+particle_densities = cat(plate.densities, fixed_particles.densities, dims=(1,1))
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()

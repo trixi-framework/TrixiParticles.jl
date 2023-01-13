@@ -27,7 +27,7 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=n_layers)
 
-setup_wall = RectangularShape(fluid_particle_spacing/beta, n_layers, setup.n_boundaries_per_dimension[2],
+setup_gate = RectangularShape(fluid_particle_spacing/beta, n_layers, setup.n_boundaries_per_dimension[2],
                               water_width, fluid_particle_spacing/beta, density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)
@@ -53,7 +53,7 @@ boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates, 
 
 # No moving boundaries for the relaxing step
 movement_function(coordinates, t) = false
-boundary_container_wall = BoundaryParticleContainer(setup_wall.coordinates, setup_wall.masses,
+boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates, setup_gate.masses,
                                                     BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta),
                                                     movement_function=movement_function)
 
@@ -97,7 +97,7 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
 
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container_tank, boundary_container_wall,
+semi = Semidiscretization(particle_container, boundary_container_tank, boundary_container_gate,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 3.0)
@@ -150,7 +150,7 @@ particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
 
 semi = Semidiscretization(particle_container, boundary_container_tank,
-                          boundary_container_wall, solid_container,
+                          boundary_container_gate, solid_container,
                           neighborhood_search=SpatialHashingSearch)
 
 ode = semidiscretize(semi, tspan)

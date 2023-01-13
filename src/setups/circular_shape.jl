@@ -58,19 +58,19 @@ For adding a recess see example below.
 
 Particle filled circle with recess:
 ```julia
-x_recess = [0.5, recess_length]
-y_recess = [0.0, recess_height]
+x_recess = (0.5, recess_length)
+y_recess = (0.0, recess_height)
 FillCircle(x_recess, y_recess)
 ```
 
 """
 struct FillCircle{ELTYPE<:Real}
-    x_recess ::Vector{ELTYPE}
-    y_recess ::Vector{ELTYPE}
+    x_recess ::NTuple
+    y_recess ::NTuple
 
     function FillCircle()
-        x_recess = [typemax(Int), typemax(Int)]
-        y_recess = [typemax(Int), typemax(Int)]
+        x_recess = (typemax(Int), typemax(Int))
+        y_recess = (typemax(Int), typemax(Int))
 
         return new{Int}(x_recess, y_recess)
     end

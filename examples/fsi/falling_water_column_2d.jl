@@ -33,26 +33,28 @@ length_beam = 0.35
 thickness = 0.05
 n_particles_y = 5
 clamp_radius = 0.05
+solid_density = 1000.0
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
 fixed_particles = CircularShape(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
-                                shape_type=FillCircle([0, clamp_radius], [0, thickness]))
+                                shape_type=FillCircle((0.0, clamp_radius), (0.0, thickness)), density=solid_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
 # cantilever and clamped particles
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) + n_particles_clamp_x + 1, n_particles_y)
 
-particle_masses = 1000 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension) + fixed_particles.n_particles)
-particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + fixed_particles.n_particles)
-
-beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2], 0.0, 0.0)
+beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2],
+                        0.0, 0.0, density=solid_density)
 
 particle_coordinates = cat(beam.coordinates, fixed_particles.coordinates, dims=(2,2))
 particle_velocities = zeros(Float64, size(particle_coordinates))
+
+particle_masses = cat(beam.masses, fixed_particles.masses, dims=(1,1))
+particle_densities = cat(beam.densities, fixed_particles.densities, dims=(1,1))
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
