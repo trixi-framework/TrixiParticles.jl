@@ -4,12 +4,18 @@
 
 Rectangular shape filled with particles.
 
-The arguments are as follows:
+# Arguments
 - `particle_spacing`:                   Spacing betweeen the particles
 - `n_particles_x`, `n_particles_y`:     Number of particles in x and y direction, respectively.
 - `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively.
 
-Specifying the density is optional since only the coordinates of the particles may be needed (see example below).
+# Keywords
+- `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
+
+# Fields
+- `coordinates::Array{ELTYPE, 2}`: Array containing the coordinates of the particles
+- `masses::Vector{ELTYPE}`: Vector containing the masses of the particles
+- `densities::Vector{ELTYPE}`: Vector containing the densities of the particles
 
 # Example
 ```julia

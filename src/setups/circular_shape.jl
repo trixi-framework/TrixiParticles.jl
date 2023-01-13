@@ -4,14 +4,19 @@
 
 Either a circle filled with particles or a circumference drawn by particles.
 
-The arguments are as follows:
+# Arguments
 - `R`:                      Radius of the circle
 - `x_center`, `y_center`:   Center of the circle in x and y direction, respectively.
 - `particle_spacing`:       Spacing betweeen the particles.
 
-The keyword arguments are as follows:
+# Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
-- `density`:           Initial particle density.
+- `density`:       Specify the density if the `densities` or `masses` fields will be used
+
+# Fields
+- `coordinates::Array{ELTYPE, 2}`: Array containing the coordinates of the particles
+- `masses::Vector{ELTYPE}`: Vector containing the masses of the particles
+- `densities::Vector{ELTYPE}`: Vector containing the densities of the particles
 
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
