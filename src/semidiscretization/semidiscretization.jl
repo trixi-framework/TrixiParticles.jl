@@ -42,7 +42,7 @@ function Base.show(io::IO, semi::Semidiscretization)
     for container in semi.particle_containers
         print(io, container, ", ")
     end
-    print(io, "neighborhood search=")
+    print(io, "neighborhood_search=")
     print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
     print(io, ")")
 end
