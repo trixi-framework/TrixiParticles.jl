@@ -34,6 +34,7 @@ struct Semidiscretization{PC, R, NS, DC}
 end
 
 
+# Inline show function e.g. Semidiscretization(neighborhood_search=...)
 function Base.show(io::IO, semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
@@ -46,6 +47,7 @@ function Base.show(io::IO, semi::Semidiscretization)
     print(io, ")")
 end
 
+# Show used during summary printout
 function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
