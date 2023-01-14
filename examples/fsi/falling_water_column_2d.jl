@@ -40,7 +40,8 @@ solid_density = 1000.0
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
 fixed_particles = CircularShape(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
-                                shape_type=FillCircle((0.0, clamp_radius), (0.0, thickness)), density=solid_density)
+                                shape_type=FillCircle(x_recess=(0.0, clamp_radius), y_recess=(0.0, thickness)),
+                                density=solid_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 

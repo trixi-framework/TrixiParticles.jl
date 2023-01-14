@@ -6,8 +6,8 @@ Rectangular shape filled with particles.
 
 # Arguments
 - `particle_spacing`:                   Spacing betweeen the particles
-- `n_particles_x`, `n_particles_y`:     Number of particles in x and y direction, respectively.
-- `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively.
+- `n_particles_x`, `n_particles_y`:     Number of particles in x and y direction, respectively
+- `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively
 
 # Keywords
 - `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
