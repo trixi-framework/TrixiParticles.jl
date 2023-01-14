@@ -37,7 +37,7 @@ boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses, boundary_model)
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
@@ -64,3 +64,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
+
+
+# activate to save to vtk
+# pixie2vtk(saved_values)

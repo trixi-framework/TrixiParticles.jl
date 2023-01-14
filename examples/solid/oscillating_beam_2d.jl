@@ -105,3 +105,6 @@ sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
 
 # Print the timer summary
 summary_callback()
+
+# activate to save to vtk
+# pixie2vtk(saved_values)

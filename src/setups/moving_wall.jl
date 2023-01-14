@@ -15,8 +15,8 @@ struct RectangularWall{NDIMS, ELTYPE<:Real}
 
         # Boundary particle data
         n_particles_x,
-            n_particles_y = get_boundary_particles_per_dimension(wall_height, particle_spacing,
-                                                                  spacing_ratio, n_layers)
+            n_particles_y = get_wall_boundary_particles_per_dimension(wall_height, particle_spacing,
+                                                                      spacing_ratio, n_layers)
         n_particles = n_particles_y * n_particles_x
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
@@ -49,7 +49,7 @@ function initialize_wall!(coordinates, wall_position, particle_spacing, spacing_
 end
 
 
-function get_boundary_particles_per_dimension(wall_height, particle_spacing, spacing_ratio, n_layers)
+function get_wall_boundary_particles_per_dimension(wall_height, particle_spacing, spacing_ratio, n_layers)
     n_particles_x = n_layers
     n_particles_y = round(Int, (wall_height / particle_spacing * spacing_ratio))
 

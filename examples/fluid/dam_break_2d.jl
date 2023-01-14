@@ -9,7 +9,8 @@ using Pixie
 using OrdinaryDiffEq
 
 particle_spacing = 0.02
-# Ratio of fluid particle spacing to boundary particle spacing
+
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 2.0
@@ -17,7 +18,7 @@ water_height = 1.0
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 2.0
+container_height = 4
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
@@ -43,13 +44,18 @@ K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
                                                BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
+
+# activate to save
+# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
+#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
+# callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
 callbacks = CallbackSet(summary_callback, alive_callback)
 
@@ -99,3 +105,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
+
+# activate to save to vtk
+# pixie2vtk(saved_values)

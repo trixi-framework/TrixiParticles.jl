@@ -11,7 +11,7 @@ using OrdinaryDiffEq
 # Note that the effect of the gate becomes is less pronounced with lower resolutions,
 # since "larger" particles don't fit through the slightly opened gate.
 fluid_particle_spacing = 0.02
-# Ratio of fluid particle spacing to boundary particle spacing
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 0.2
@@ -19,7 +19,7 @@ water_height = 0.4
 water_density = 997.0
 
 container_width = 0.8
-container_height = 1.0
+container_height = 4.0
 wall_height = container_height
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
@@ -175,3 +175,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
+
+# activate to save to vtk
+# pixie2vtk(saved_values)
