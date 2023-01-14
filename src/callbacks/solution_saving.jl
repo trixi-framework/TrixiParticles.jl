@@ -73,7 +73,7 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     u_cache = first(get_tmp_cache(integrator))
     rhs!(u_cache, u_ode, semi, t)
 
-    result = Dict{Symbol, Dict{Symbol, Array{Float64}}}()
+    result = Dict{Symbol, Dict{Symbol, Array{Float32}}}()
 
     for (container_index, container) in pairs(particle_containers)
         u = wrap_array(u_ode, container_index, container, semi)
@@ -109,7 +109,7 @@ end
 function (extract_quantities::ExtractQuantities)(u, container::FluidParticleContainer)
     @unpack density_calculator, cache = container
 
-    result = Dict{Symbol, Array{Float64}}(
+    result = Dict{Symbol, Array{Float32}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
         :coordinates    => u[1:ndims(container), :],
@@ -124,7 +124,7 @@ end
 
 function (extract_quantities::ExtractQuantities)(u, container::SolidParticleContainer)
     n_fixed_particles = nparticles(container) - n_moving_particles(container)
-    result = Dict{Symbol, Array{Float64}}(
+    result = Dict{Symbol, Array{Float32}}(
         # Note that we have to allocate here and can't use views.
         # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
         :coordinates        => copy(container.current_coordinates),
