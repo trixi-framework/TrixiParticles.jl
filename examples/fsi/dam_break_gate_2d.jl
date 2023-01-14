@@ -70,13 +70,14 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
 
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
-                         0.6, solid_particle_spacing)
-fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1, 0.6, 0.0)
+                         0.6, solid_particle_spacing, density=solid_density)
+fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
+                                   0.6, 0.0, density=solid_density)
 
-particle_coordinates = cat(plate.coordinates, fixed_particles.coordinates, dims=(2,2))
+particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
-particle_masses = solid_density * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = solid_density * ones(Float64, prod(n_particles_per_dimension))
+particle_masses = vcat(plate.masses, fixed_particles.masses)
+particle_densities = vcat(plate.densities, fixed_particles.densities)
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()

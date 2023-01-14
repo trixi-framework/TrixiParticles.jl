@@ -13,9 +13,9 @@ Rectangular shape filled with particles.
 - `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
 
 # Fields
-- `coordinates::Array{ELTYPE, 2}`: Array containing the coordinates of the particles
-- `masses::Vector{ELTYPE}`: Vector containing the masses of the particles
-- `densities::Vector{ELTYPE}`: Vector containing the densities of the particles
+- `coordinates::Matrix`: Coordinates of the particles
+- `masses::Vector`: Masses of the particles
+- `densities::Vector`: Densities of the particles
 
 # Example
 ```julia
