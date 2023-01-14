@@ -9,7 +9,7 @@ using Pixie
 using OrdinaryDiffEq
 
 fluid_particle_spacing = 0.01
-# Ratio of fluid particle spacing to boundary particle spacing
+# Spacing ratio between fluid and boundary particles
 beta = 3
 
 water_width = 0.146
@@ -17,7 +17,7 @@ water_height = 0.292
 water_density = 1000.0
 
 container_width = 0.584
-container_height = 1.0
+container_height = 4.0
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
@@ -86,7 +86,7 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
 
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
 
 tspan_relaxing = (0.0, 3.0)
 ode = semidiscretize(semi, tspan_relaxing)
@@ -141,3 +141,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
+
+# activate to save to vtk
+# pixie2vtk(saved_values)
