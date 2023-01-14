@@ -11,6 +11,7 @@ particle_density = 1000.0
 # at the position of the last particle.
 particle_spacing = thickness / (n_particles_y - 1)
 
+# Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius.
 fixed_particles = CircularShape(clamp_radius+particle_spacing/2, 0.0, thickness/2, particle_spacing,
                                 shape_type=FillCircle((0.0, clamp_radius), (0.0, thickness)), density=particle_density)
 
