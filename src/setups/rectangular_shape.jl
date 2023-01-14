@@ -30,7 +30,7 @@ struct RectangularShape{NDIMS, ELTYPE<:Real}
     masses                      ::Vector{ELTYPE}
     densities                   ::Vector{ELTYPE}
     particle_spacing            ::ELTYPE
-    n_particles_per_dimension   ::NTuple
+    n_particles_per_dimension   ::NTuple{NDIMS, Int}
 
     function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
                               x_position, y_position; density=0.0)

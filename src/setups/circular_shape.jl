@@ -26,7 +26,7 @@ struct CircularShape{NDIMS, ELTYPE<:Real}
     masses                      ::Vector{ELTYPE}
     densities                   ::Vector{ELTYPE}
     particle_spacing            ::ELTYPE
-    n_particles                 ::Int64
+    n_particles                 ::Int
 
     function CircularShape(R, x_center, y_center, particle_spacing;
                            shape_type=FillCircle(), density=0.0)
