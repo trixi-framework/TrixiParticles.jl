@@ -24,11 +24,11 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) + n_part
 beam = RectangularShape(particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2],
                         0.0, 0.0, density=particle_density)
 
-particle_coordinates = cat(beam.coordinates, fixed_particles.coordinates, dims=(2,2))
+particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
 
-particle_masses = cat(beam.masses, fixed_particles.masses, dims=(1,1))
-particle_densities = cat(beam.densities, fixed_particles.densities, dims=(1,1))
+particle_masses = vcat(beam.masses, fixed_particles.masses)
+particle_densities = vcat(beam.densities, fixed_particles.densities)
 
 smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
