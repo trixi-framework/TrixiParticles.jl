@@ -25,7 +25,7 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 reset_right_wall!(setup, container_width,
-                  wall_position=(setup.n_particles_per_dimension[1]+1)*particle_spacing)
+                  wall_position=(setup.n_particles_per_dimension[1]+1)*fluid_particle_spacing)
 
 c = 20 * sqrt(9.81 * water_height)
 
