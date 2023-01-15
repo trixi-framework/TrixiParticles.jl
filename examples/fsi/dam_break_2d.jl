@@ -23,7 +23,9 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+# Recompute the new water column width since the width has been rounded in `RectangularTank`.
+reset_right_wall!(setup, container_width,
+                  wall_position=(setup.n_particles_per_dimension[1]+1)*fluid_particle_spacing)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -45,33 +47,27 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup
                                                BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
 
 
-length = 0.08
+length_beam = 0.08
 thickness = 0.012
+solid_density = 2500
 n_particles_x = 5
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x, round(Int, length_beam / solid_particle_spacing) + 1)
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-particle_masses = 2500 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension))
-particle_densities = 2500 * ones(Float64, prod(n_particles_per_dimension))
+# The bottom layer is sampled separately below.
+plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
+                         0.292, solid_particle_spacing, density=solid_density)
+fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
+                                   0.292, 0.0, density=solid_density)
 
-for x in 1:n_particles_per_dimension[1],
-        y in 1:n_particles_per_dimension[2]
-    particle = (y - 1) * n_particles_per_dimension[1] + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = 0.292 + (x - 1) * solid_particle_spacing
-    particle_coordinates[2, particle] = length - (y - 1) * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
+particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
+particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
+particle_masses = vcat(plate.masses, fixed_particles.masses)
+particle_densities = vcat(plate.densities, fixed_particles.densities)
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -142,7 +138,7 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # Print the timer summary

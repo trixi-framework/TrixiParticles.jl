@@ -23,9 +23,22 @@ Pages = map(file -> joinpath("semidiscretization", file), readdir(joinpath("..",
 
 ## Setups
 
+### File rectangular_tank.jl
 ```@autodocs
 Modules = [Pixie]
 Pages = [joinpath("setups", "rectangular_tank.jl")]
+```
+
+### File rectangular_shape.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("setups", "rectangular_shape.jl")]
+```
+
+### File circular_shape.jl
+```@autodocs
+Modules = [Pixie]
+Pages = [joinpath("setups", "circular_shape.jl")]
 ```
 
 ## SPH
