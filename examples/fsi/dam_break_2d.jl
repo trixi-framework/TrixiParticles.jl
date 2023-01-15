@@ -23,8 +23,8 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
-
+reset_right_wall!(setup, container_width,
+                  wall_position=(setup.n_particles_per_dimension[1]+1)*particle_spacing)
 c = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * fluid_particle_spacing
