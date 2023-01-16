@@ -1,5 +1,5 @@
 """
-    Semidiscretization(particle_containers...; neighborhood_search=nothing)
+    Semidiscretization(particle_containers...; neighborhood_search=nothing, damping_coefficient=nothing)
 
 The semidiscretization couples the passed particle containers to one simulation.
 
@@ -8,15 +8,16 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{PC, R, NS}
+struct Semidiscretization{PC, R, NS, DC}
     particle_containers::PC
     ranges::R
     neighborhood_searches::NS
+    damping_coefficient::DC
 
-    function Semidiscretization(particle_containers...; neighborhood_search=nothing)
+    function Semidiscretization(particle_containers...; neighborhood_search=nothing,  damping_coefficient=nothing)
         sizes = [nvariables(container) * n_moving_particles(container) for container in particle_containers]
         ranges = Tuple(sum(sizes[1:i-1])+1:sum(sizes[1:i]) for i in eachindex(sizes))
 
@@ -26,11 +27,14 @@ struct Semidiscretization{PC, R, NS}
                                                           Val(neighborhood_search))
             for neighbor in particle_containers) for container in particle_containers)
 
-        new{typeof(particle_containers), typeof(ranges), typeof(searches)}(particle_containers, ranges, searches)
+
+
+        new{typeof(particle_containers), typeof(ranges), typeof(searches), typeof(damping_coefficient)}(particle_containers, ranges, searches, damping_coefficient)
     end
 end
 
 
+# Inline show function e.g. Semidiscretization(neighborhood_search=...)
 function Base.show(io::IO, semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
@@ -43,6 +47,7 @@ function Base.show(io::IO, semi::Semidiscretization)
     print(io, ")")
 end
 
+# Show used during summary printout
 function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
@@ -52,7 +57,8 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_header(io, "Semidiscretization")
         summary_line(io, "#spatial dimensions", ndims(semi.particle_containers[1]))
         summary_line(io, "#containers", length(semi.particle_containers))
-        summary_line(io, "neighborhood_search", semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "neighborhood search", semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "damping coefficient", semi.damping_coefficient)
         summary_line(io, "total #particles", sum(nparticles.(semi.particle_containers)))
         summary_footer(io)
     end
@@ -248,7 +254,7 @@ end
 
 
 function velocity_and_gravity!(du_ode, u_ode, semi)
-    @unpack particle_containers = semi
+    @unpack particle_containers, damping_coefficient = semi
 
     # Set velocity and add acceleration for each container
     foreach_enumerate(particle_containers) do (container_index, container)
@@ -259,6 +265,7 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
             # These can be dispatched per container
             add_velocity!(du, u, particle, container)
             add_acceleration!(du, particle, container)
+            add_damping_force!(du, damping_coefficient, u, particle, container)
         end
     end
 
@@ -288,6 +295,16 @@ end
 end
 
 @inline add_acceleration!(du, particle, container::BoundaryParticleContainer) = du
+
+@inline function add_damping_force!(du, damping_coefficient::Float64, u, particle, container)
+    for i in 1:ndims(container)
+        du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
+    end
+
+    return du
+end
+
+@inline add_damping_force!(du, ::Nothing, u, particle, container) = du
 
 
 function container_interaction!(du_ode, u_ode, semi)

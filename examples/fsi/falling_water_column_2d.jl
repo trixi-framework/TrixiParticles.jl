@@ -8,15 +8,12 @@ water_height = 1.0125
 water_density = 1000.0
 
 container_width = 4.0
-container_height = 2.0
+container_height = 4.0
 
-setup = RectangularTank(fluid_particle_spacing, 3, water_width, water_height,
-                        container_width, container_height, water_density)
-
-# Move water column
-for i in axes(setup.particle_coordinates, 2)
-    setup.particle_coordinates[:, i] .+= [0.1, 0.2]
-end
+setup = RectangularShape(fluid_particle_spacing,
+                         round(Int, (water_width / fluid_particle_spacing)),
+                         round(Int, (water_height / fluid_particle_spacing)),
+                         0.1, 0.2, density=water_density)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
@@ -25,83 +22,40 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-fluid_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
-                                         setup.particle_masses, setup.particle_densities,
+fluid_container = FluidParticleContainer(setup.coordinates, zeros(Float64, size(setup.coordinates)),
+                                         setup.masses, setup.densities,
                                          ContinuityDensity(), state_equation,
                                          smoothing_kernel, smoothing_length,
                                          viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
                                          acceleration=(0.0, -9.81))
 
-length = 0.35
+length_beam = 0.35
 thickness = 0.05
 n_particles_y = 5
 clamp_radius = 0.05
+solid_density = 1000.0
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
+fixed_particles = CircularShape(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
+                                shape_type=FillCircle(x_recess=(0.0, clamp_radius), y_recess=(0.0, thickness)),
+                                density=solid_density)
+
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
-n_particles_fixed = 2 * n_particles_clamp_x + n_particles_y + 2
 
-n_particles_per_dimension = (round(Int, length / solid_particle_spacing) + 1 + (n_particles_clamp_x - 1), n_particles_y)
+# cantilever and clamped particles
+n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) + n_particles_clamp_x + 1, n_particles_y)
 
-particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + n_particles_fixed)
-particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension) + n_particles_fixed)
-particle_masses = 1000 * solid_particle_spacing^2 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
-particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension) + n_particles_fixed)
+beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2],
+                        0.0, 0.0, density=solid_density)
 
-for y in 1:n_particles_per_dimension[2],
-        x in 1:n_particles_per_dimension[1]
-    particle = (x - 1) * n_particles_per_dimension[2] + y
+particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
+particle_velocities = zeros(Float64, size(particle_coordinates))
 
-    # Coordinates
-    particle_coordinates[1, particle] = x * solid_particle_spacing
-    particle_coordinates[2, particle] = y * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
-
-# Fixed particle above the beam
-for x in 1:n_particles_clamp_x
-    particle = prod(n_particles_per_dimension) + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = x * solid_particle_spacing
-    particle_coordinates[2, particle] = (n_particles_y + 1) * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
-
-# Fixed particles below the beam
-for x in 1:n_particles_clamp_x
-    particle = prod(n_particles_per_dimension) + n_particles_clamp_x + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = x * solid_particle_spacing
-    particle_coordinates[2, particle] = 0.0
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
-
-# Fixed particles to the left of the beam
-for x in 1:(n_particles_y + 2)
-    particle = prod(n_particles_per_dimension) + 2 * n_particles_clamp_x + x
-
-    # Coordinates
-    particle_coordinates[1, particle] = 0.0
-    particle_coordinates[2, particle] = (x - 1) * solid_particle_spacing
-
-    # Velocity
-    particle_velocities[1, particle] = 0.0
-    particle_velocities[2, particle] = 0.0
-end
+particle_masses = vcat(beam.masses, fixed_particles.masses)
+particle_densities = vcat(beam.densities, fixed_particles.densities)
 
 smoothing_length = sqrt(2) * solid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -115,7 +69,7 @@ beta = fluid_particle_spacing / solid_particle_spacing
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
-                                         n_fixed_particles=n_particles_fixed,
+                                         n_fixed_particles=fixed_particles.n_particles,
                                          acceleration=(0.0, -9.81),
                                          BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
@@ -142,8 +96,11 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # Print the timer summary
 summary_callback()
+
+# activate to save to vtk
+# pixie2vtk(saved_values)
