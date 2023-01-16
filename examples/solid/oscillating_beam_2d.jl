@@ -12,16 +12,20 @@ particle_density = 1000.0
 particle_spacing = thickness / (n_particles_y - 1)
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius.
-fixed_particles = CircularShape(clamp_radius+particle_spacing/2, 0.0, thickness/2, particle_spacing,
-                                shape_type=FillCircle(x_recess=(0.0, clamp_radius), y_recess=(0.0, thickness)),
+fixed_particles = CircularShape(clamp_radius + particle_spacing / 2, 0.0, thickness / 2,
+                                particle_spacing,
+                                shape_type=FillCircle(x_recess=(0.0, clamp_radius),
+                                                      y_recess=(0.0, thickness)),
                                 density=particle_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
 # cantilever and clamped particles
-n_particles_per_dimension = (round(Int, length_beam / particle_spacing) + n_particles_clamp_x + 1, n_particles_y)
+n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
+                             n_particles_clamp_x + 1, n_particles_y)
 
-beam = RectangularShape(particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2],
+beam = RectangularShape(particle_spacing, n_particles_per_dimension[1],
+                        n_particles_per_dimension[2],
                         0.0, 0.0, density=particle_density)
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
@@ -37,7 +41,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 E = 1.4e6
 nu = 0.4
 
-particle_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+particle_container = SolidParticleContainer(particle_coordinates, particle_velocities,
+                                            particle_masses, particle_densities,
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
                                             n_fixed_particles=fixed_particles.n_particles,

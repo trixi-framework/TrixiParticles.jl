@@ -14,7 +14,6 @@
     foreach_enumerate(func, remaining_collection, index + 1)
 end
 
-
 # Print informative message at startup
 function print_startup_message()
     s = """
@@ -71,7 +70,6 @@ macro pixie_timeit(timer_output, label, expr)
     end
 end
 
-
 """
     @threaded for ... end
 
@@ -119,9 +117,10 @@ macro threaded(expr)
     # !!! danger "Heisenbug"
     #     Look at the comments for `wrap_array` when considering to change this macro.
 
-    return esc(quote Pixie.@batch $(expr) end)
+    return esc(quote
+                   Pixie.@batch $(expr)
+               end)
 end
-
 
 """
     examples_dir()
@@ -138,7 +137,6 @@ readdir(examples_dir())
 ```
 """
 examples_dir() = joinpath(pathof(Pixie) |> dirname |> dirname, "examples")
-
 
 # Note: We can't call the method below `Pixie.include` since that is created automatically
 # inside `module Pixie` to `include` source files and evaluate them within the global scope
@@ -197,15 +195,16 @@ function insert_maxiters(expr)
                               x.args[1].args[2].value === Symbol("solve"))
 
             if is_plain_solve || is_pixie_solve
-            # Do nothing if `maxiters` is already set as keyword argument...
-            for arg in x.args
-                if arg isa Expr && arg.head === Symbol("kw") && arg.args[1] === Symbol("maxiters")
-                    return x
+                # Do nothing if `maxiters` is already set as keyword argument...
+                for arg in x.args
+                    if arg isa Expr && arg.head === Symbol("kw") &&
+                       arg.args[1] === Symbol("maxiters")
+                        return x
+                    end
                 end
-            end
 
-            # ...and insert it otherwise.
-            push!(x.args, Expr(Symbol("kw"), Symbol("maxiters"), maxiters_default))
+                # ...and insert it otherwise.
+                push!(x.args, Expr(Symbol("kw"), Symbol("maxiters"), maxiters_default))
             end
         end
         return x
@@ -219,11 +218,11 @@ function replace_assignments(expr; kwargs...)
     # replace explicit and keyword assignemnts
     expr = walkexpr(expr) do x
         if x isa Expr
-            for (key,val) in kwargs
-            if (x.head === Symbol("=") || x.head === :kw) && x.args[1] === Symbol(key)
-                x.args[2] = :( $val )
-                # dump(x)
-            end
+            for (key, val) in kwargs
+                if (x.head === Symbol("=") || x.head === :kw) && x.args[1] === Symbol(key)
+                    x.args[2] = :($val)
+                    # dump(x)
+                end
             end
         end
         return x
@@ -241,7 +240,8 @@ function find_assignment(expr, destination)
     # find explicit and keyword assignemnts
     walkexpr(expr) do x
         if x isa Expr
-            if (x.head === Symbol("=") || x.head === :kw) && x.args[1] === Symbol(destination)
+            if (x.head === Symbol("=") || x.head === :kw) &&
+               x.args[1] === Symbol(destination)
                 result = x.args[2]
                 # dump(x)
             end

@@ -17,22 +17,25 @@ struct Semidiscretization{PC, R, NS, DC}
     neighborhood_searches::NS
     damping_coefficient::DC
 
-    function Semidiscretization(particle_containers...; neighborhood_search=nothing,  damping_coefficient=nothing)
-        sizes = [nvariables(container) * n_moving_particles(container) for container in particle_containers]
-        ranges = Tuple(sum(sizes[1:i-1])+1:sum(sizes[1:i]) for i in eachindex(sizes))
+    function Semidiscretization(particle_containers...; neighborhood_search=nothing,
+                                damping_coefficient=nothing)
+        sizes = [nvariables(container) * n_moving_particles(container)
+                 for container in particle_containers]
+        ranges = Tuple((sum(sizes[1:(i - 1)]) + 1):sum(sizes[1:i])
+                       for i in eachindex(sizes))
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n containers
         # We will need one neighborhood search for each pair of containers.
         searches = Tuple(Tuple(create_neighborhood_search(container, neighbor,
                                                           Val(neighborhood_search))
-            for neighbor in particle_containers) for container in particle_containers)
+                               for neighbor in particle_containers)
+                         for container in particle_containers)
 
-
-
-        new{typeof(particle_containers), typeof(ranges), typeof(searches), typeof(damping_coefficient)}(particle_containers, ranges, searches, damping_coefficient)
+        new{typeof(particle_containers), typeof(ranges), typeof(searches),
+            typeof(damping_coefficient)}(particle_containers, ranges, searches,
+                                         damping_coefficient)
     end
 end
-
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
 function Base.show(io::IO, semi::Semidiscretization)
@@ -57,16 +60,17 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_header(io, "Semidiscretization")
         summary_line(io, "#spatial dimensions", ndims(semi.particle_containers[1]))
         summary_line(io, "#containers", length(semi.particle_containers))
-        summary_line(io, "neighborhood search", semi.neighborhood_searches |> eltype |> eltype |> nameof)
+        summary_line(io, "neighborhood search",
+                     semi.neighborhood_searches |> eltype |> eltype |> nameof)
         summary_line(io, "damping coefficient", semi.damping_coefficient)
         summary_line(io, "total #particles", sum(nparticles.(semi.particle_containers)))
         summary_footer(io)
     end
 end
 
-
-create_neighborhood_search(_, neighbor, ::Val{nothing}) = TrivialNeighborhoodSearch(neighbor)
-
+function create_neighborhood_search(_, neighbor, ::Val{nothing})
+    TrivialNeighborhoodSearch(neighbor)
+end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = container
@@ -80,9 +84,9 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     return search
 end
 
-
 function create_neighborhood_search(container::SolidParticleContainer,
-                                    neighbor::FluidParticleContainer, ::Val{SpatialHashingSearch})
+                                    neighbor::FluidParticleContainer,
+                                    ::Val{SpatialHashingSearch})
     @unpack smoothing_kernel, smoothing_length = neighbor
 
     radius = compact_support(smoothing_kernel, smoothing_length)
@@ -94,8 +98,8 @@ function create_neighborhood_search(container::SolidParticleContainer,
     return search
 end
 
-
-function create_neighborhood_search(container::BoundaryParticleContainer, neighbor, search::Val{SpatialHashingSearch})
+function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
+                                    search::Val{SpatialHashingSearch})
     @unpack boundary_model = container
 
     create_neighborhood_search(container, neighbor, boundary_model, search)
@@ -122,11 +126,9 @@ function create_neighborhood_search(container::BoundaryParticleContainer, neighb
     return search
 end
 
-
 # Create Tuple of containers for single container
-digest_containers(boundary_condition) = (boundary_condition, )
+digest_containers(boundary_condition) = (boundary_condition,)
 digest_containers(boundary_condition::Tuple) = boundary_condition
-
 
 """
     semidiscretize(semi, tspan)
@@ -136,19 +138,18 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 function semidiscretize(semi, tspan)
     @unpack particle_containers, ranges, neighborhood_searches = semi
 
-    @assert all(container -> eltype(container) === eltype(particle_containers[1]), particle_containers)
+    @assert all(container -> eltype(container) === eltype(particle_containers[1]),
+                particle_containers)
     ELTYPE = eltype(particle_containers[1])
 
     # Initialize all particle containers
-    @pixie_timeit timer() "initialize particle containers" begin
-        for (container_index, container) in pairs(particle_containers)
-            # Get the neighborhood search for this container
-            neighborhood_search = neighborhood_searches[container_index][container_index]
+    @pixie_timeit timer() "initialize particle containers" begin for (container_index, container) in pairs(particle_containers)
+        # Get the neighborhood search for this container
+        neighborhood_search = neighborhood_searches[container_index][container_index]
 
-            # Initialize this container
-            initialize!(container, neighborhood_search)
-        end
-    end
+        # Initialize this container
+        initialize!(container, neighborhood_search)
+    end end
 
     sizes = (nvariables(container) * n_moving_particles(container) for container in particle_containers)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes))
@@ -162,7 +163,6 @@ function semidiscretize(semi, tspan)
     return ODEProblem(rhs!, u0_ode, tspan, semi)
 end
 
-
 # We have to pass `container` here for type stability,
 # since the type of `container` determines the return type.
 @inline function wrap_array(u_ode, i, container, semi)
@@ -170,16 +170,15 @@ end
 
     range = ranges[i]
 
-    @boundscheck begin
-        @assert length(range) == nvariables(container) * n_moving_particles(container)
-    end
+    @boundscheck begin @assert length(range) ==
+                               nvariables(container) * n_moving_particles(container) end
 
     # This is a non-allocation version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
     #                    (nvariables(container), n_moving_particles(container)))
-    return PtrArray(pointer(view(u_ode, range)), (StaticInt(nvariables(container)), n_moving_particles(container)))
+    return PtrArray(pointer(view(u_ode, range)),
+                    (StaticInt(nvariables(container)), n_moving_particles(container)))
 end
-
 
 function rhs!(du_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
@@ -187,23 +186,24 @@ function rhs!(du_ode, u_ode, semi, t)
     @pixie_timeit timer() "rhs!" begin
         @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
-        @pixie_timeit timer() "update containers and nhs" update_containers_and_nhs(u_ode, semi, t)
+        @pixie_timeit timer() "update containers and nhs" update_containers_and_nhs(u_ode,
+                                                                                    semi, t)
 
-        @pixie_timeit timer() "velocity and gravity" velocity_and_gravity!(du_ode, u_ode, semi)
+        @pixie_timeit timer() "velocity and gravity" velocity_and_gravity!(du_ode, u_ode,
+                                                                           semi)
 
-        @pixie_timeit timer() "container interaction" container_interaction!(du_ode, u_ode, semi)
+        @pixie_timeit timer() "container interaction" container_interaction!(du_ode, u_ode,
+                                                                             semi)
     end
 
     return du_ode
 end
-
 
 @inline function reset_du!(du)
     du .= zero(eltype(du))
 
     return du
 end
-
 
 function update_containers_and_nhs(u_ode, semi, t)
     @unpack particle_containers = semi
@@ -237,7 +237,6 @@ function update_containers_and_nhs(u_ode, semi, t)
     end
 end
 
-
 function update_nhs(u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
 
@@ -251,7 +250,6 @@ function update_nhs(u_ode, semi)
         end
     end
 end
-
 
 function velocity_and_gravity!(du_ode, u_ode, semi)
     @unpack particle_containers, damping_coefficient = semi
@@ -272,7 +270,6 @@ function velocity_and_gravity!(du_ode, u_ode, semi)
     return du_ode
 end
 
-
 @inline function add_velocity!(du, u, particle, container)
     for i in 1:ndims(container)
         du[i, particle] = u[i + ndims(container), particle]
@@ -283,12 +280,11 @@ end
 
 @inline add_velocity!(du, u, particle, container::BoundaryParticleContainer) = du
 
-
 @inline function add_acceleration!(du, particle, container)
     @unpack acceleration = container
 
     for i in 1:ndims(container)
-        du[i+ndims(container), particle] += acceleration[i]
+        du[i + ndims(container), particle] += acceleration[i]
     end
 
     return du
@@ -296,16 +292,17 @@ end
 
 @inline add_acceleration!(du, particle, container::BoundaryParticleContainer) = du
 
-@inline function add_damping_force!(du, damping_coefficient::Float64, u, particle, container)
+@inline function add_damping_force!(du, damping_coefficient::Float64, u, particle,
+                                    container)
     for i in 1:ndims(container)
-        du[i+ndims(container), particle] -= damping_coefficient * u[i+ndims(container), particle]
+        du[i + ndims(container), particle] -= damping_coefficient *
+                                              u[i + ndims(container), particle]
     end
 
     return du
 end
 
 @inline add_damping_force!(du, ::Nothing, u, particle, container) = du
-
 
 function container_interaction!(du_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
@@ -327,7 +324,6 @@ function container_interaction!(du_ode, u_ode, semi)
     return du_ode
 end
 
-
 ##### Updates
 
 # Container update orders, see comments in update_containers_and_nhs!
@@ -342,7 +338,6 @@ function update1!(container::SolidParticleContainer, container_index, u, u_ode, 
     update!(container, container_index, u, u_ode, semi, t)
 end
 
-
 function update2!(container, container_index, u, u_ode, semi, t)
     return container
 end
@@ -351,7 +346,6 @@ function update2!(container::FluidParticleContainer, container_index, u, u_ode, 
     # Only update fluid containers
     update!(container, container_index, u, u_ode, semi, t)
 end
-
 
 function update3!(container, container_index, u, u_ode, semi, t)
     # Update all other containers
@@ -363,56 +357,66 @@ function update3!(container::Union{SolidParticleContainer, FluidParticleContaine
     return container
 end
 
-
 # NHS updates
-function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::FluidParticleContainer)
+function update!(neighborhood_search, u, container::FluidParticleContainer,
+                 neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
 
-function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::SolidParticleContainer)
+function update!(neighborhood_search, u, container::FluidParticleContainer,
+                 neighbor::SolidParticleContainer)
     update!(neighborhood_search, neighbor.current_coordinates, neighbor)
 end
 
-function update!(neighborhood_search, u, container::FluidParticleContainer, neighbor::BoundaryParticleContainer)
+function update!(neighborhood_search, u, container::FluidParticleContainer,
+                 neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
     end
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::FluidParticleContainer)
+function update!(neighborhood_search, u, container::SolidParticleContainer,
+                 neighbor::FluidParticleContainer)
     update!(neighborhood_search, u, neighbor)
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::SolidParticleContainer)
+function update!(neighborhood_search, u, container::SolidParticleContainer,
+                 neighbor::SolidParticleContainer)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer, neighbor::BoundaryParticleContainer)
+function update!(neighborhood_search, u, container::SolidParticleContainer,
+                 neighbor::BoundaryParticleContainer)
     if neighbor.ismoving[1]
         update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
     end
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer,
+                 neighbor::FluidParticleContainer)
     @unpack boundary_model = container
 
     update!(neighborhood_search, u, container, neighbor, boundary_model)
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
+function update!(neighborhood_search, u, container::BoundaryParticleContainer,
+                 neighbor::FluidParticleContainer,
                  boundary_model)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::FluidParticleContainer,
+function update!(neighborhood_search, u, container::BoundaryParticleContainer,
+                 neighbor::FluidParticleContainer,
                  boundary_model::BoundaryModelDummyParticles)
     update!(neighborhood_search, u, neighbor)
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::SolidParticleContainer)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer,
+                 neighbor::SolidParticleContainer)
     return neighborhood_search
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer, neighbor::BoundaryParticleContainer)
+function update!(neighborhood_search, u, container::BoundaryParticleContainer,
+                 neighbor::BoundaryParticleContainer)
     return neighborhood_search
 end
