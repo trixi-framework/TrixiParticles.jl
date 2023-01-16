@@ -4,7 +4,6 @@ function (::NoViscosity)(c, v_diff, pos_diff, distance, density_mean, h)
     return 0.0
 end
 
-
 @doc raw"""
     ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
 
@@ -38,16 +37,17 @@ The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\ep
   [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
 """
 struct ArtificialViscosityMonaghan{ELTYPE}
-    alpha   ::ELTYPE
-    beta    ::ELTYPE
-    epsilon ::ELTYPE
+    alpha   :: ELTYPE
+    beta    :: ELTYPE
+    epsilon :: ELTYPE
 
     function ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
 
-function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance, density_mean, h)
+function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
+                                                  density_mean, h)
     @unpack alpha, beta, epsilon = viscosity
 
     # v_ab ⋅ r_ab

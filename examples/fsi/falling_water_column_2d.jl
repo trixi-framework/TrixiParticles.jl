@@ -22,7 +22,8 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-fluid_container = FluidParticleContainer(setup.coordinates, zeros(Float64, size(setup.coordinates)),
+fluid_container = FluidParticleContainer(setup.coordinates,
+                                         zeros(Float64, size(setup.coordinates)),
                                          setup.masses, setup.densities,
                                          ContinuityDensity(), state_equation,
                                          smoothing_kernel, smoothing_length,
@@ -39,16 +40,20 @@ solid_density = 1000.0
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
-fixed_particles = CircularShape(clamp_radius+solid_particle_spacing/2, 0.0, thickness/2, solid_particle_spacing,
-                                shape_type=FillCircle(x_recess=(0.0, clamp_radius), y_recess=(0.0, thickness)),
+fixed_particles = CircularShape(clamp_radius + solid_particle_spacing / 2, 0.0,
+                                thickness / 2, solid_particle_spacing,
+                                shape_type=FillCircle(x_recess=(0.0, clamp_radius),
+                                                      y_recess=(0.0, thickness)),
                                 density=solid_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
 # cantilever and clamped particles
-n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) + n_particles_clamp_x + 1, n_particles_y)
+n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
+                             n_particles_clamp_x + 1, n_particles_y)
 
-beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2],
+beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
+                        n_particles_per_dimension[2],
                         0.0, 0.0, density=solid_density)
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
@@ -66,15 +71,18 @@ nu = 0.4
 
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
-solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
+                                         particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=fixed_particles.n_particles,
                                          acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing),
+                                         BoundaryModelMonaghanKajtar(K, beta,
+                                                                     solid_particle_spacing),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-semi = Semidiscretization(fluid_container, solid_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(fluid_container, solid_container,
+                          neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)

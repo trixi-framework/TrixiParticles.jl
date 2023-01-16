@@ -25,7 +25,8 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 reset_right_wall!(setup, container_width,
-                  wall_position=(setup.n_particles_per_dimension[1]+1)*fluid_particle_spacing)
+                  wall_position=(setup.n_particles_per_dimension[1] + 1) *
+                                fluid_particle_spacing)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -35,17 +36,21 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
                                             acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta))
-
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses,
+                                               BoundaryModelMonaghanKajtar(K, beta,
+                                                                           fluid_particle_spacing /
+                                                                           beta))
 
 length_beam = 0.08
 thickness = 0.012
@@ -56,10 +61,12 @@ n_particles_x = 5
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length_beam / solid_particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x,
+                             round(Int, length_beam / solid_particle_spacing) + 1)
 
 # The bottom layer is sampled separately below.
-plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], n_particles_per_dimension[2]-1,
+plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
+                         n_particles_per_dimension[2] - 1,
                          0.292, solid_particle_spacing, density=solid_density)
 fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
                                    0.292, 0.0, density=solid_density)
@@ -77,18 +84,21 @@ E = 1e6
 nu = 0.0
 
 beta = fluid_particle_spacing / solid_particle_spacing
-solid_container = SolidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
+                                         particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
                                          acceleration=(0.0, -9.81),
                                          # Use bigger K to prevent penetration into the solid
-                                         BoundaryModelMonaghanKajtar(5K, beta, solid_particle_spacing),
+                                         BoundaryModelMonaghanKajtar(5K, beta,
+                                                                     solid_particle_spacing),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
-
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch,
+                          damping_coefficient=1e-5)
 
 tspan_relaxing = (0.0, 3.0)
 ode = semidiscretize(semi, tspan_relaxing)
@@ -126,7 +136,8 @@ u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:2, :)
 particle_container.initial_velocity .= view(u_end, 3:4, :)
 
-semi = Semidiscretization(particle_container, boundary_container, solid_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container, solid_container,
+                          neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,

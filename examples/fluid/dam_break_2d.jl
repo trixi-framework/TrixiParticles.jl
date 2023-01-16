@@ -26,27 +26,35 @@ setup = RectangularTank(particle_spacing, beta, water_width, water_height,
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 reset_right_wall!(setup, container_width,
-                  wall_position=(setup.n_particles_per_dimension[1]+1)*particle_spacing)
+                  wall_position=(setup.n_particles_per_dimension[1] + 1) * particle_spacing)
 
 c = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
                                             acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses,
+                                               BoundaryModelMonaghanKajtar(K, beta,
+                                                                           particle_spacing /
+                                                                           beta))
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch,
+                          damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)

@@ -27,7 +27,8 @@ export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
-export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
+export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
+       SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation

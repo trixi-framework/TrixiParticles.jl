@@ -12,7 +12,6 @@ function SummaryCallback()
                      initialize=initialize_summary_callback)
 end
 
-
 # condition: never call the summary callback during the simulation
 summary_callback(u, t, integrator) = false
 
@@ -24,7 +23,6 @@ function summary_callback(integrator)
 
     return nothing
 end
-
 
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
@@ -62,26 +60,21 @@ function initialize_summary_callback(discrete_callback, u, t, integrator)
     end
 
     # Time integration
-    setup = Pair{String,Any}[
-            "Start time" => first(integrator.sol.prob.tspan),
-            "Final time" => last(integrator.sol.prob.tspan),
-            "time integrator" => integrator.alg |> typeof |> nameof,
-            "adaptive" => integrator.opts.adaptive,
-            ]
+    setup = Pair{String, Any}["Start time" => first(integrator.sol.prob.tspan),
+                              "Final time" => last(integrator.sol.prob.tspan),
+                              "time integrator" => integrator.alg |> typeof |> nameof,
+                              "adaptive" => integrator.opts.adaptive]
     if integrator.opts.adaptive
         push!(setup,
-        "abstol" => integrator.opts.abstol,
-        "reltol" => integrator.opts.reltol,
-        "controller" => integrator.opts.controller,
-        )
+              "abstol" => integrator.opts.abstol,
+              "reltol" => integrator.opts.reltol,
+              "controller" => integrator.opts.controller)
     end
     summary_box(io, "Time integration", setup)
     println()
 
     # Technical details
-    setup = Pair{String,Any}[
-            "#threads" => Threads.nthreads(),
-            ]
+    setup = Pair{String, Any}["#threads" => Threads.nthreads()]
     summary_box(io, "Environment information", setup)
     println()
     println()
@@ -91,9 +84,11 @@ function initialize_summary_callback(discrete_callback, u, t, integrator)
     return nothing
 end
 
-
 # When the summary callback is called directly
-function (cb::DiscreteCallback{Condition,Affect!})(io::IO=stdout) where {Condition, Affect!<:typeof(summary_callback)}
+function (cb::DiscreteCallback{Condition, Affect!})(io::IO=stdout) where {Condition,
+                                                                          Affect! <:
+                                                                          typeof(summary_callback)
+                                                                          }
     # Print timer
     TimerOutputs.complement!(timer())
     print_timer(io, timer(), title="Pixie.jl",
@@ -103,13 +98,14 @@ function (cb::DiscreteCallback{Condition,Affect!})(io::IO=stdout) where {Conditi
     return nothing
 end
 
-
 # The following are functions to format summary output.
 # This is all copied from Trixi.jl.
 #
 # Format a key/value pair for output from the SummaryCallback
-function format_key_value_line(key::AbstractString, value::AbstractString, key_width, total_width;
-                               indentation_level=0, guide='…', filler='…', prefix="│ ", suffix=" │")
+function format_key_value_line(key::AbstractString, value::AbstractString, key_width,
+                               total_width;
+                               indentation_level=0, guide='…', filler='…', prefix="│ ",
+                               suffix=" │")
     @assert key_width < total_width
     line = prefix
     # Indent the key as requested (or not at all if `indentation_level == 0`)
@@ -122,7 +118,7 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
     if short <= 1
         line *= " "
     else
-        line *= guide^(short-1) * " "
+        line *= guide^(short - 1) * " "
     end
     value_width = total_width - length(prefix) - length(suffix) - key_width - 2
     squeezed_value = squeeze(value, value_width, filler=filler)
@@ -131,28 +127,30 @@ function format_key_value_line(key::AbstractString, value::AbstractString, key_w
     line *= " "^short
     line *= suffix
 
-    @assert length(line) == total_width "should not happen: algorithm error!"
+    @assert length(line)==total_width "should not happen: algorithm error!"
 
     return line
 end
 
-format_key_value_line(key, value, args...; kwargs...) = format_key_value_line(string(key), string(value), args...; kwargs...)
+function format_key_value_line(key, value, args...; kwargs...)
+    format_key_value_line(string(key), string(value), args...; kwargs...)
+end
 
 # Squeeze a string to fit into a maximum width by deleting characters from the center
 function squeeze(message, max_width; filler::Char='…')
-    @assert max_width >= 3 "squeezing works only for a minimum `max_width` of 3"
+    @assert max_width>=3 "squeezing works only for a minimum `max_width` of 3"
 
     length(message) <= max_width && return message
 
     keep_front = div(max_width, 2)
-    keep_back  = div(max_width, 2) - (isodd(max_width) ? 0 : 1)
-    remove_back  = length(message) - keep_front
+    keep_back = div(max_width, 2) - (isodd(max_width) ? 0 : 1)
+    remove_back = length(message) - keep_front
     remove_front = length(message) - keep_back
     squeezed = (chop(message, head=0, tail=remove_back)
                 * filler *
                 chop(message, head=remove_front, tail=0))
 
-    @assert length(squeezed) == max_width "`$(length(squeezed)) != $max_width` should not happen: algorithm error!"
+    @assert length(squeezed)==max_width "`$(length(squeezed)) != $max_width` should not happen: algorithm error!"
 
     return squeezed
 end
@@ -170,13 +168,13 @@ function summary_header(io, heading; total_width=100, indentation_level=0)
     total_width = get(io, :total_width, total_width)
     indentation_level = get(io, :indentation_level, indentation_level)
 
-    @assert indentation_level >= 0 "indentation level may not be negative"
+    @assert indentation_level>=0 "indentation level may not be negative"
 
     # If indentation level is greater than zero, we assume the header has already been printed
     indentation_level > 0 && return
 
     # Print header
-    println(io, "┌" * "─"^(total_width-2) * "┐")
+    println(io, "┌" * "─"^(total_width - 2) * "┐")
     println(io, "│ " * heading * " "^(total_width - length(heading) - 4) * " │")
     println(io, "│ " * "═"^length(heading) * " "^(total_width - length(heading) - 4) * " │")
 end
@@ -200,7 +198,7 @@ function summary_footer(io; total_width=100, indentation_level=0)
     indentation_level = get(io, :indentation_level, 0)
 
     if indentation_level == 0
-        s = "└" * "─"^(total_width-2) * "┘"
+        s = "└" * "─"^(total_width - 2) * "┘"
     else
         s = ""
     end

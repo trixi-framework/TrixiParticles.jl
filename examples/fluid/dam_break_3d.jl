@@ -5,15 +5,14 @@ particle_spacing = 0.08
 # Spacing ratio between fluid and boundary particles
 beta = 3
 
-water_width = floor(2.0/particle_spacing) * particle_spacing # x-direction
-water_height = floor(1.0/particle_spacing) * particle_spacing # y-direction
-water_length = floor(1.0/particle_spacing) * particle_spacing # z-direction
+water_width = floor(2.0 / particle_spacing) * particle_spacing # x-direction
+water_height = floor(1.0 / particle_spacing) * particle_spacing # y-direction
+water_length = floor(1.0 / particle_spacing) * particle_spacing # z-direction
 water_density = 1000.0
 
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = floor(4.0/particle_spacing) * particle_spacing
-container_length = floor(1.0/particle_spacing) * particle_spacing
-
+container_height = floor(4.0 / particle_spacing) * particle_spacing
+container_length = floor(1.0 / particle_spacing) * particle_spacing
 
 setup = RectangularTank(particle_spacing, beta,
                         water_width, water_height, water_length,
@@ -28,20 +27,28 @@ c = 20 * sqrt(9.81 * water_height)
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
-state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
                                             acceleration=(0.0, -9.81, 0.0))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses,
+                                               BoundaryModelMonaghanKajtar(K, beta,
+                                                                           particle_spacing /
+                                                                           beta))
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch,
+                          damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
@@ -79,7 +86,8 @@ u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:3, :)
 particle_container.initial_velocity .= view(u_end, 4:6, :)
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
@@ -96,7 +104,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
-
 
 # activate to save to vtk
 # pixie2vtk(saved_values)

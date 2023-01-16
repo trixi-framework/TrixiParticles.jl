@@ -58,7 +58,7 @@ function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
         return 0.0
     end
 
-    result = 1/4 * (2 - q)^3
+    result = 1 / 4 * (2 - q)^3
 
     if q < 1
         result -= (1 - q)^3
@@ -68,14 +68,14 @@ function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
 end
 
 function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
-    inner_deriv = 1/h
+    inner_deriv = 1 / h
     q = r * inner_deriv
 
     if q >= 2
         return 0.0
     end
 
-    result = -3/4 * (2 - q)^2
+    result = -3 / 4 * (2 - q)^2
 
     if q < 1
         result += 3 * (1 - q)^2
@@ -88,7 +88,6 @@ end
 
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (7 * pi * h^2)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
-
 
 @doc raw"""
     SchoenbergQuarticSplineKernel{NDIMS}()
@@ -149,17 +148,17 @@ struct SchoenbergQuarticSplineKernel{NDIMS} end
 function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
 
-    if q >= 5/2
+    if q >= 5 / 2
         return 0.0
     end
 
-    result = (5/2 - q)^4
+    result = (5 / 2 - q)^4
 
-    if q < 3/2
-        result -= 5 * (3/2 - q)^4
+    if q < 3 / 2
+        result -= 5 * (3 / 2 - q)^4
 
-        if q < 1/2
-            result += 10 * (1/2 - q)^4
+        if q < 1 / 2
+            result += 10 * (1 / 2 - q)^4
         end
     end
 
@@ -167,20 +166,20 @@ function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
 end
 
 function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
-    inner_deriv = 1/h
+    inner_deriv = 1 / h
     q = r * inner_deriv
 
-    if q >= 5/2
+    if q >= 5 / 2
         return 0.0
     end
 
-    result = -4 * (5/2 - q)^3
+    result = -4 * (5 / 2 - q)^3
 
-    if q < 3/2
-        result += 20 * (3/2 - q)^3
+    if q < 3 / 2
+        result += 20 * (3 / 2 - q)^3
 
-        if q < 1/2
-            result -= 40 * (1/2 - q)^3
+        if q < 1 / 2
+            result -= 40 * (1 / 2 - q)^3
         end
     end
 
@@ -191,7 +190,6 @@ end
 
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (20 * pi * h^3)
-
 
 @doc raw"""
     SchoenbergQuinticSplineKernel{NDIMS}()
@@ -268,7 +266,7 @@ function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
 end
 
 function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
-    inner_deriv = 1/h
+    inner_deriv = 1 / h
     q = r * inner_deriv
 
     if q >= 3
