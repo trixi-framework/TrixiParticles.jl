@@ -31,23 +31,48 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct BoundaryParticleContainer{NDIMS, ELTYPE<:Real, BM, MF} <: ParticleContainer{NDIMS}
-    initial_coordinates ::Array{ELTYPE, 2}
-    mass                ::Vector{ELTYPE}
-    boundary_model      ::BM
-    movement_function   ::MF
-    ismoving            ::Vector{Bool}
+struct BoundaryParticleContainer{NDIMS, ELTYPE <: Real, BM, MF} <: ParticleContainer{NDIMS}
+    initial_coordinates :: Array{ELTYPE, 2}
+    mass                :: Vector{ELTYPE}
+    boundary_model      :: BM
+    movement_function   :: MF
+    ismoving            :: Vector{Bool}
 
     function BoundaryParticleContainer(coordinates, mass, model;
                                        movement_function=nothing)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(
-            coordinates, mass, model, movement_function, ismoving)
+        return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(coordinates,
+                                                                                         mass,
+                                                                                         model,
+                                                                                         movement_function,
+                                                                                         ismoving)
     end
 end
 
+function Base.show(io::IO, container::BoundaryParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    print(io, "BoundaryParticleContainer{", ndims(container), "}(")
+    print(io, container.boundary_model)
+    print(io, ", ", container.movement_function)
+    print(io, ") with ", nparticles(container), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContainer)
+    @nospecialize container # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, container)
+    else
+        summary_header(io, "BoundaryParticleContainer{$(ndims(container))}")
+        summary_line(io, "#particles", nparticles(container))
+        summary_line(io, "boundary model", container.boundary_model)
+        summary_line(io, "movement function", container.movement_function)
+        summary_footer(io)
+    end
+end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           u_particle_container, u_boundary_container,
@@ -60,7 +85,6 @@ end
                              particle_container, boundary_container,
                              pos_diff, distance, m_b, boundary_model)
 end
-
 
 @doc raw"""
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
@@ -113,16 +137,21 @@ identical to the density of the fluid particle.
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE<:Real}
-    K                           ::ELTYPE
-    beta                        ::ELTYPE
-    boundary_particle_spacing   ::ELTYPE
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
+    K                         :: ELTYPE
+    beta                      :: ELTYPE
+    boundary_particle_spacing :: ELTYPE
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
         new{typeof(K)}(K, beta, boundary_particle_spacing)
     end
 end
 
+function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
+    @nospecialize model # reduce precompilation time
+
+    print(io, "BoundaryModelMonaghanKajtar")
+end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           u_particle_container, u_boundary_container,
@@ -133,8 +162,9 @@ end
     @unpack K, beta, boundary_particle_spacing = boundary_model
 
     NDIMS = ndims(particle_container)
-    return K / beta^(NDIMS-1) * pos_diff / (distance * (distance - boundary_particle_spacing)) *
-        boundary_kernel(distance, smoothing_length)
+    return K / beta^(NDIMS - 1) * pos_diff /
+           (distance * (distance - boundary_particle_spacing)) *
+           boundary_kernel(distance, smoothing_length)
 end
 
 @inline function boundary_kernel(r, h)
@@ -146,9 +176,8 @@ end
     end
 
     # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
-    return 1.77/32 * (1 + 5/2 * q + 2 * q^2) * (2 - q)^5
+    return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
 end
-
 
 @doc raw"""
     BoundaryModelDummyParticles(initial_density, state_equation, density_calculator,
@@ -211,15 +240,16 @@ We provide three options to compute the boundary density and pressure, determine
   In: Computers, Materials and Continua 5 (2007), pages 173-184.
   [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
-struct BoundaryModelDummyParticles{ELTYPE<:Real, SE, DC, K, C}
-    pressure            ::Vector{ELTYPE}
-    state_equation      ::SE
-    density_calculator  ::DC
-    smoothing_kernel    ::K
-    smoothing_length    ::ELTYPE
-    cache               ::C
+struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
+    pressure           :: Vector{ELTYPE}
+    state_equation     :: SE
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    cache              :: C
 
-    function BoundaryModelDummyParticles(initial_density, state_equation, density_calculator,
+    function BoundaryModelDummyParticles(initial_density, state_equation,
+                                         density_calculator,
                                          smoothing_kernel, smoothing_length)
         pressure = similar(initial_density)
 
@@ -232,6 +262,13 @@ struct BoundaryModelDummyParticles{ELTYPE<:Real, SE, DC, K, C}
     end
 end
 
+function Base.show(io::IO, model::BoundaryModelDummyParticles)
+    @nospecialize model # reduce precompilation time
+
+    print(io, "BoundaryModelDummyParticles(")
+    print(io, model.density_calculator |> typeof |> nameof)
+    print(io, ")")
+end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           u_particle_container, u_boundary_container,
@@ -240,15 +277,20 @@ end
                                           boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle          = get_particle_density(particle, u_particle_container, particle_container)
-    density_boundary_particle = get_particle_density(boundary_particle, u_boundary_container, boundary_container)
+    density_particle = get_particle_density(particle, u_particle_container,
+                                            particle_container)
+    density_boundary_particle = get_particle_density(boundary_particle,
+                                                     u_boundary_container,
+                                                     boundary_container)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
+                  distance
 
-    return -m_b * (particle_container.pressure[particle] / density_particle^2 +
-                   boundary_model.pressure[boundary_particle] / density_boundary_particle^2) * grad_kernel
+    return -m_b *
+           (particle_container.pressure[particle] / density_particle^2 +
+            boundary_model.pressure[boundary_particle] / density_boundary_particle^2) *
+           grad_kernel
 end
-
 
 @doc raw"""
     AdamiPressureExtrapolation()
@@ -271,7 +313,6 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
-
 function create_cache(initial_density, ::SummationDensity)
     density = similar(initial_density)
 
@@ -289,21 +330,32 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-
 # No particle positions are advanced for boundary containers,
 # except when using BoundaryModelDummyParticles with ContinuityDensity.
-@inline n_moving_particles(container::BoundaryParticleContainer) = n_moving_particles(container, container.boundary_model)
+@inline function n_moving_particles(container::BoundaryParticleContainer)
+    n_moving_particles(container, container.boundary_model)
+end
 @inline n_moving_particles(container::BoundaryParticleContainer, model) = 0
-@inline n_moving_particles(container::BoundaryParticleContainer, model::BoundaryModelDummyParticles) = n_moving_particles(container, model.density_calculator)
-@inline n_moving_particles(container::BoundaryParticleContainer, ::ContinuityDensity) = nparticles(container)
+@inline function n_moving_particles(container::BoundaryParticleContainer,
+                                    model::BoundaryModelDummyParticles)
+    n_moving_particles(container, model.density_calculator)
+end
+@inline function n_moving_particles(container::BoundaryParticleContainer,
+                                    ::ContinuityDensity)
+    nparticles(container)
+end
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
 @inline nvariables(container::BoundaryParticleContainer) = 1
 
-@inline nvariables(container::SolidParticleContainer, model::BoundaryModelDummyParticles) = nvariables(container, model.density_calculator)
-@inline nvariables(container::SolidParticleContainer, ::ContinuityDensity) = 2 * ndims(container) + 1
-
+@inline function nvariables(container::SolidParticleContainer,
+                            model::BoundaryModelDummyParticles)
+    nvariables(container, model.density_calculator)
+end
+@inline function nvariables(container::SolidParticleContainer, ::ContinuityDensity)
+    2 * ndims(container) + 1
+end
 
 @inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
     @unpack initial_coordinates = container
@@ -311,12 +363,10 @@ end
     return get_particle_coords(particle, initial_coordinates, container)
 end
 
-
 @inline function get_particle_vel(particle, u, container::BoundaryParticleContainer)
     # TODO moving boundaries
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
-
 
 # This will only be called for BoundaryModelDummyParticles
 @inline function get_particle_density(particle, u, container::BoundaryParticleContainer)
@@ -326,27 +376,31 @@ end
     get_particle_density(particle, u, density_calculator, boundary_model)
 end
 
-@inline function get_particle_density(particle, u, ::AdamiPressureExtrapolation, boundary_model)
+@inline function get_particle_density(particle, u, ::AdamiPressureExtrapolation,
+                                      boundary_model)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
-
 function update!(container::BoundaryParticleContainer, container_index, u, u_ode, semi, t)
     @unpack initial_coordinates, movement_function, boundary_model = container
 
-    container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates, t)
+    container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
+                                                     t)
 
     update!(boundary_model, container, container_index, u, u_ode, semi)
 
     return container
 end
 
-move_boundary_particles!(movement_function, coordinates, t) = movement_function(coordinates, t)
+function move_boundary_particles!(movement_function, coordinates, t)
+    movement_function(coordinates, t)
+end
 move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, container, container_index, u, u_ode, semi)
+@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, container,
+                         container_index, u, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
@@ -364,7 +418,6 @@ end
     return boundary_model
 end
 
-
 function compute_quantities!(boundary_model, ::SummationDensity,
                              container, container_index, u, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
@@ -374,8 +427,10 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index, neighbor_container)
-        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
+    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                       neighbor_container)
+        u_neighbor_container = wrap_array(u_ode, neighbor_container_index,
+                                          neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,
@@ -385,14 +440,16 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     end
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, u, boundary_model))
+        pressure[particle] = state_equation(get_particle_density(particle, u,
+                                                                 boundary_model))
     end
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_density_per_particle(particle, u_particle_container, u_neighbor_container,
+@inline function compute_density_per_particle(particle, u_particle_container,
+                                              u_neighbor_container,
                                               particle_container::BoundaryParticleContainer,
                                               neighbor_container, neighborhood_search)
     @unpack boundary_model = particle_container
@@ -402,14 +459,16 @@ end
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        distance = norm(particle_coords - get_current_coords(neighbor, u_neighbor_container, neighbor_container))
+        distance = norm(particle_coords -
+                        get_current_coords(neighbor, u_neighbor_container,
+                                           neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass[neighbor] * kernel(smoothing_kernel, distance, smoothing_length)
+            density[particle] += mass[neighbor] *
+                                 kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end
-
 
 function compute_quantities!(boundary_model, ::ContinuityDensity,
                              container, container_index, u, u_ode, semi)
@@ -417,10 +476,10 @@ function compute_quantities!(boundary_model, ::ContinuityDensity,
     @unpack pressure, state_equation = boundary_model
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, u, boundary_model))
+        pressure[particle] = state_equation(get_particle_density(particle, u,
+                                                                 boundary_model))
     end
 end
-
 
 function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
                              container, container_index, u, u_ode, semi)
@@ -429,11 +488,13 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     @unpack density, volume = cache
 
     density .= zero(eltype(density))
-    volume  .= zero(eltype(volume))
+    volume .= zero(eltype(volume))
 
     # Use all other containers for the pressure summation
-    @pixie_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index, neighbor_container)
-        u_neighbor_container = wrap_array(u_ode, neighbor_container_index, neighbor_container, semi)
+    @pixie_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                 neighbor_container)
+        u_neighbor_container = wrap_array(u_ode, neighbor_container_index,
+                                          neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_pressure_per_particle(particle, u, u_neighbor_container,
@@ -450,11 +511,11 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     end
 end
 
-
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_pressure_per_particle(particle, u_particle_container, u_neighbor_container,
+@inline function compute_pressure_per_particle(particle, u_particle_container,
+                                               u_neighbor_container,
                                                particle_container,
                                                neighbor_container::FluidParticleContainer,
                                                neighborhood_search, boundary_model)
@@ -463,27 +524,31 @@ end
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        pos_diff = particle_coords - get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+        pos_diff = particle_coords -
+                   get_current_coords(neighbor, u_neighbor_container, neighbor_container)
         distance = norm(pos_diff)
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density_neighbor = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
+            density_neighbor = get_particle_density(neighbor, u_neighbor_container,
+                                                    neighbor_container)
 
             # TODO moving boundaries
             pressure[particle] += (neighbor_container.pressure[neighbor] +
-                                   dot(neighbor_container.acceleration, density_neighbor * pos_diff)
-                                  ) * kernel(smoothing_kernel, distance, smoothing_length)
+                                   dot(neighbor_container.acceleration,
+                                       density_neighbor * pos_diff)) *
+                                  kernel(smoothing_kernel, distance, smoothing_length)
             volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end
 
-@inline function compute_pressure_per_particle(particle, u_particle_container, u_neighbor_container,
-                                               particle_container, neighbor_container, neighborhood_search,
+@inline function compute_pressure_per_particle(particle, u_particle_container,
+                                               u_neighbor_container,
+                                               particle_container, neighbor_container,
+                                               neighborhood_search,
                                                boundary_model)
     return nothing
 end
-
 
 function write_variables!(u0, container::BoundaryParticleContainer)
     @unpack boundary_model = container
@@ -495,13 +560,15 @@ function write_variables!(u0, model, container::BoundaryParticleContainer)
     return u0
 end
 
-function write_variables!(u0, boundary_model::BoundaryModelDummyParticles, container::SolidParticleContainer)
+function write_variables!(u0, boundary_model::BoundaryModelDummyParticles,
+                          container::SolidParticleContainer)
     @unpack density_calculator = boundary_model
 
     write_variables!(u0, boundary_model, density_calculator, container)
 end
 
-function write_variables!(u0, model::BoundaryModelDummyParticles, container::BoundaryParticleContainer)
+function write_variables!(u0, model::BoundaryModelDummyParticles,
+                          container::BoundaryParticleContainer)
     @unpack density_calculator = model
 
     write_variables!(u0, density_calculator, container)

@@ -1,0 +1,8 @@
+# Use SciML style: https://github.com/SciML/SciMLStyle
+style = "sciml"
+
+# Align struct fields for better readability of large struct definitions
+align_struct_field = true
+
+# No whitespaces in kwargs because this is more common in Julia
+whitespace_in_kwargs = false

@@ -12,10 +12,10 @@ at the reference density, and ``p_{\text{background}}`` the atmospheric or
 background pressure (to be used with free surfaces).
 """
 struct StateEquationIdealGas{ELTYPE}
-    sound_speed         ::ELTYPE
-    reference_density   ::ELTYPE
-    reference_pressure  ::ELTYPE
-    background_pressure ::ELTYPE
+    sound_speed         :: ELTYPE
+    reference_density   :: ELTYPE
+    reference_pressure  :: ELTYPE
+    background_pressure :: ELTYPE
 
     function StateEquationIdealGas(sound_speed, reference_density, reference_pressure;
                                    background_pressure=0.0)
@@ -28,9 +28,9 @@ function (state_equation::StateEquationIdealGas)(density)
     @unpack sound_speed, reference_density, reference_pressure, background_pressure = state_equation
 
     # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    return max(sound_speed^2 * (density - reference_density) + reference_pressure - background_pressure, 0.0)
+    return max(sound_speed^2 * (density - reference_density) + reference_pressure -
+               background_pressure, 0.0)
 end
-
 
 @doc raw"""
     StateEquationCole(sound_speed, gamma, reference_density, reference_pressure;
@@ -53,14 +53,14 @@ For water, an average value of ``\gamma = 7.15`` is usually used (Cole 1948, p. 
 - Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
 """
 struct StateEquationCole{ELTYPE}
-    sound_speed         ::ELTYPE
-    gamma               ::ELTYPE
-    reference_density   ::ELTYPE
-    reference_pressure  ::ELTYPE
-    background_pressure ::ELTYPE
+    sound_speed         :: ELTYPE
+    gamma               :: ELTYPE
+    reference_density   :: ELTYPE
+    reference_pressure  :: ELTYPE
+    background_pressure :: ELTYPE
 
     function StateEquationCole(sound_speed, gamma, reference_density, reference_pressure;
-                                   background_pressure=0.0)
+                               background_pressure=0.0)
         new{typeof(sound_speed)}(sound_speed, gamma, reference_density, reference_pressure,
                                  background_pressure)
     end
@@ -70,15 +70,17 @@ function (state_equation::StateEquationCole)(density)
     @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
 
     # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    return max(reference_density * sound_speed^2 / gamma * ((density / reference_density)^gamma - 1) +
-        reference_pressure - background_pressure, 0.0)
+    return max(reference_density * sound_speed^2 / gamma *
+               ((density / reference_density)^gamma - 1) +
+               reference_pressure - background_pressure, 0.0)
 end
 
 function inverse_state_equation(state_equation::StateEquationCole, pressure)
     @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
 
-    tmp = gamma * (pressure + background_pressure - reference_pressure) / (reference_density * sound_speed^2) + 1
-    density = reference_density * tmp^(1/gamma)
+    tmp = gamma * (pressure + background_pressure - reference_pressure) /
+          (reference_density * sound_speed^2) + 1
+    density = reference_density * tmp^(1 / gamma)
 
     return density
 end

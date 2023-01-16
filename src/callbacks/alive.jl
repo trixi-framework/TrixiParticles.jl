@@ -3,6 +3,27 @@ mutable struct AliveCallback
     alive_interval::Int
 end
 
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:AliveCallback})
+    @nospecialize cb # reduce precompilation time
+
+    alive_callback = cb.affect!
+    print(io, "AliveCallback(alive_interval=", alive_callback.alive_interval, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:AliveCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        alive_callback = cb.affect!
+
+        setup = [
+            "interval" => alive_callback.alive_interval,
+        ]
+        summary_box(io, "AliveCallback", setup)
+    end
+end
 
 """
     AliveCallback(; alive_interval=0)
@@ -18,14 +39,13 @@ function AliveCallback(; alive_interval=0)
                      initialize=initialize)
 end
 
-
 # condition
 function (alive_callback::AliveCallback)(u, t, integrator)
     @unpack alive_interval = alive_callback
 
     return alive_interval == 0 ||
-        integrator.destats.naccept % alive_interval == 0 ||
-        isfinished(integrator)
+           integrator.destats.naccept % alive_interval == 0 ||
+           isfinished(integrator)
 end
 
 # affect!
@@ -33,14 +53,9 @@ function (alive_callback::AliveCallback)(integrator)
     if isfinished(integrator)
         println("─"^100)
         println("Pixie simulation finished.  Final time: ", integrator.t,
-                "  Time steps: ", integrator.destats.naccept, " (accepted), ", integrator.iter, " (total)")
+                "  Time steps: ", integrator.destats.naccept, " (accepted), ",
+                integrator.iter, " (total)")
         println("─"^100)
-        println()
-
-        # Print timer
-        TimerOutputs.complement!(timer())
-        print_timer(timer(), title="Pixie.jl",
-                    allocations=true, linechars=:unicode, compact=false)
         println()
     else
         runtime_absolute = 1.0e-9 * (time_ns() - alive_callback.start_time)
@@ -54,19 +69,13 @@ function (alive_callback::AliveCallback)(integrator)
     return nothing
 end
 
-
 function initialize(discrete_callback, u, t, integrator)
     # Save current time as start_time
     alive_callback = discrete_callback.affect!
     alive_callback.start_time = time_ns()
 
-    reset_timer!(timer())
-
-    print_startup_message()
-
     return nothing
 end
-
 
 @inline function isfinished(integrator)
     # Checking for floating point equality is OK here as `DifferentialEquations.jl`
@@ -74,4 +83,4 @@ end
     return integrator.t == last(integrator.sol.prob.tspan) ||
            isempty(integrator.opts.tstops) ||
            integrator.iter == integrator.opts.maxiters
-  end
+end

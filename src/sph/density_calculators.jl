@@ -23,9 +23,10 @@ velocities of particles ``a`` and ``b``.
 """
 struct ContinuityDensity end
 
-
 # This is dispatched in boundary_container.jl
-@inline get_particle_density(particle, u, container) = get_particle_density(particle, u, container.density_calculator, container)
+@inline function get_particle_density(particle, u, container)
+    get_particle_density(particle, u, container.density_calculator, container)
+end
 
 @inline function get_particle_density(particle, u, ::SummationDensity, container)
     @unpack cache = container

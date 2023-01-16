@@ -2,7 +2,7 @@ module Pixie
 
 using Reexport: @reexport
 
-using DiffEqCallbacks: SavedValues, SavingCallback
+using DiffEqCallbacks: SavedValues, SavingCallback, SavingAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
@@ -21,24 +21,24 @@ include("sph/sph.jl")
 include("containers/container.jl")
 include("semidiscretization/semidiscretization.jl")
 include("interactions/interactions.jl")
-include("callbacks/alive.jl")
-include("callbacks/solution_saving.jl")
+include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
-include("setups/rectangular_tank.jl")
-include("setups/moving_wall.jl")
+include("setups/setups.jl")
 
 export Semidiscretization, semidiscretize
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
-export AliveCallback, SolutionSavingCallback
+export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
-export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel, SchoenbergQuinticSplineKernel
+export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
+       SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
-export RectangularTank, reset_right_wall!, RectangularWall
+export RectangularTank, RectangularShape, CircularShape
+export DrawCircle, FillCircle, reset_right_wall!
 
 end # module
