@@ -26,10 +26,10 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, dx, di
     if 2 * distance > smoothing_length && distance <= smoothing_length
         C = (smoothing_length - distance)^3 * distance^3
     elseif distance > eps(Float64) && 2 * distance <= smoothing_length
-        C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6/64.0
+        C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
     end
-    C *= 32.0/(pi * smoothing_length^9)
+    C *= 32.0 / (pi * smoothing_length^9)
 
     # Eq. 1
-    return (- surface_tension_coefficient * ma * mb * C * dx/distance)
+    return (-surface_tension_coefficient * ma * mb * C * dx / distance)
 end

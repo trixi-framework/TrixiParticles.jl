@@ -47,13 +47,15 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-    
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
+                  distance
+
     m_a = particle_container.mass[particle]
     m_b = neighbor_container.mass[neighbor]
 
-    dv_pressure = -m_b * (particle_container.pressure[particle] / density_particle^2 +
-                          neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
+    dv_pressure = -m_b *
+                  (particle_container.pressure[particle] / density_particle^2 +
+                   neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
     dv_viscosity = m_b * pi_ab * grad_kernel
     dv_surface_tension = surface_tension(smoothing_length, m_a, m_b, pos_diff, distance)
 

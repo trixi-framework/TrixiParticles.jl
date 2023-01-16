@@ -41,8 +41,10 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                            acceleration=(0.0, -9.81), surface_tension=CohesionForceAkinci(0.01))
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
+                                            acceleration=(0.0, -9.81),
+                                            surface_tension=CohesionForceAkinci(0.01))
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,

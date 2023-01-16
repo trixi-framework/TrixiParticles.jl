@@ -13,28 +13,29 @@
 
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
-struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C, ST} <: ParticleContainer{NDIMS}
-    initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
-    initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
-    mass                ::Array{ELTYPE, 1} # [particle]
-    pressure            ::Array{ELTYPE, 1} # [particle]
-    density_calculator  ::DC
-    state_equation      ::SE
-    smoothing_kernel    ::K
-    smoothing_length    ::ELTYPE
-    viscosity           ::V
-    acceleration        ::SVector{NDIMS, ELTYPE}
-    cache               ::C
-    surface_tension     ::ST
+struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
+       ParticleContainer{NDIMS}
+    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
+    initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
+    mass                :: Array{ELTYPE, 1} # [particle]
+    pressure            :: Array{ELTYPE, 1} # [particle]
+    density_calculator  :: DC
+    state_equation      :: SE
+    smoothing_kernel    :: K
+    smoothing_length    :: ELTYPE
+    viscosity           :: V
+    acceleration        :: SVector{NDIMS, ELTYPE}
+    cache               :: C
+    surface_tension     :: ST
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses,
                                     density_calculator::SummationDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)),
                                     surface_tension=NoSurfaceTension())
-
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -51,10 +52,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C, ST} <: Parti
         cache = (; density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache), typeof(surface_tension)}(
-            particle_coordinates, particle_velocities, particle_masses, pressure,
-            density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, cache, surface_tension)
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
+                   typeof(surface_tension)}(particle_coordinates, particle_velocities,
+                                            particle_masses, pressure,
+                                            density_calculator, state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity, acceleration_, cache,
+                                            surface_tension)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
@@ -62,9 +66,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C, ST} <: Parti
                                     density_calculator::ContinuityDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)),
                                     surface_tension=NoSurfaceTension())
-
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -81,10 +85,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE<:Real, DC, SE, K, V, C, ST} <: Parti
         cache = (; initial_density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache), typeof(surface_tension)}(
-            particle_coordinates, particle_velocities, particle_masses, pressure,
-            density_calculator, state_equation, smoothing_kernel, smoothing_length,
-            viscosity, acceleration_, cache, surface_tension)
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
+                   typeof(surface_tension)}(particle_coordinates, particle_velocities,
+                                            particle_masses, pressure,
+                                            density_calculator, state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity, acceleration_, cache,
+                                            surface_tension)
     end
 end
 
