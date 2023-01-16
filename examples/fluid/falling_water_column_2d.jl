@@ -21,24 +21,31 @@ for i in axes(setup.particle_coordinates, 2)
 end
 
 c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
                                             acceleration=(0.0, -9.81))
 
 K = 9.81 * water_height
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta))
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses,
+                                               BoundaryModelMonaghanKajtar(K, beta,
+                                                                           particle_spacing /
+                                                                           beta))
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

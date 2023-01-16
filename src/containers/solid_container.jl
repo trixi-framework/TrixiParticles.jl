@@ -77,32 +77,33 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContainer{NDIMS}
-    initial_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
-    current_coordinates ::Array{ELTYPE, 2} # [dimension, particle]
-    initial_velocity    ::Array{ELTYPE, 2} # [dimension, particle]
-    mass                ::Array{ELTYPE, 1} # [particle]
-    correction_matrix   ::Array{ELTYPE, 3} # [i, j, particle]
-    pk1_corrected       ::Array{ELTYPE, 3} # [i, j, particle]
-    deformation_grad    ::Array{ELTYPE, 3} # [i, j, particle]
-    material_density    ::Array{ELTYPE, 1} # [particle]
-    n_moving_particles  ::Int64
-    young_modulus       ::ELTYPE
-    poisson_ratio       ::ELTYPE
-    lame_lambda         ::ELTYPE
-    lame_mu             ::ELTYPE
-    smoothing_kernel    ::K
-    smoothing_length    ::ELTYPE
-    acceleration        ::SVector{NDIMS, ELTYPE}
-    boundary_model      ::BM
-    penalty_force       ::PF
+struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleContainer{NDIMS}
+    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
+    current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
+    initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
+    mass                :: Array{ELTYPE, 1} # [particle]
+    correction_matrix   :: Array{ELTYPE, 3} # [i, j, particle]
+    pk1_corrected       :: Array{ELTYPE, 3} # [i, j, particle]
+    deformation_grad    :: Array{ELTYPE, 3} # [i, j, particle]
+    material_density    :: Array{ELTYPE, 1} # [particle]
+    n_moving_particles  :: Int64
+    young_modulus       :: ELTYPE
+    poisson_ratio       :: ELTYPE
+    lame_lambda         :: ELTYPE
+    lame_mu             :: ELTYPE
+    smoothing_kernel    :: K
+    smoothing_length    :: ELTYPE
+    acceleration        :: SVector{NDIMS, ELTYPE}
+    boundary_model      :: BM
+    penalty_force       :: PF
 
     function SolidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
                                     smoothing_kernel, smoothing_length,
                                     young_modulus, poisson_ratio, boundary_model;
                                     n_fixed_particles=0,
-                                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)),
                                     penalty_force=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
@@ -112,34 +113,36 @@ struct SolidParticleContainer{NDIMS, ELTYPE<:Real, K, BM, PF} <: ParticleContain
         acceleration_ = SVector(acceleration...)
 
         current_coordinates = copy(particle_coordinates)
-        correction_matrix   = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        pk1_corrected       = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        deformation_grad    = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
 
         n_moving_particles = nparticles - n_fixed_particles
 
-        lame_lambda = young_modulus * poisson_ratio / ((1 + poisson_ratio) * (1 - 2*poisson_ratio))
+        lame_lambda = young_modulus * poisson_ratio /
+                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
 
         return new{NDIMS, ELTYPE,
                    typeof(smoothing_kernel), typeof(boundary_model),
-                   typeof(penalty_force)}(
-            particle_coordinates, current_coordinates, particle_velocities, particle_masses,
-            correction_matrix, pk1_corrected, deformation_grad, particle_material_densities,
-            n_moving_particles, young_modulus, poisson_ratio, lame_lambda, lame_mu,
-            smoothing_kernel, smoothing_length,
-            acceleration_, boundary_model, penalty_force)
+                   typeof(penalty_force)}(particle_coordinates, current_coordinates,
+                                          particle_velocities, particle_masses,
+                                          correction_matrix, pk1_corrected,
+                                          deformation_grad, particle_material_densities,
+                                          n_moving_particles, young_modulus, poisson_ratio,
+                                          lame_lambda, lame_mu,
+                                          smoothing_kernel, smoothing_length,
+                                          acceleration_, boundary_model, penalty_force)
     end
 end
-
 
 function Base.show(io::IO, container::SolidParticleContainer)
     @nospecialize container # reduce precompilation time
 
     print(io, "SolidParticleContainer{", ndims(container), "}(")
-    print(io,       container.young_modulus)
+    print(io, container.young_modulus)
     print(io, ", ", container.poisson_ratio)
     print(io, ", ", container.smoothing_kernel)
     print(io, ", ", container.acceleration)
@@ -147,7 +150,6 @@ function Base.show(io::IO, container::SolidParticleContainer)
     print(io, ", ", container.penalty_force)
     print(io, ") with ", nparticles(container), " particles")
 end
-
 
 function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer)
     @nospecialize container # reduce precompilation time
@@ -170,11 +172,11 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     end
 end
 
-
-@inline nvariables(container::SolidParticleContainer) = nvariables(container, container.boundary_model)
+@inline function nvariables(container::SolidParticleContainer)
+    nvariables(container, container.boundary_model)
+end
 # This is dispatched in boundary_container.jl
 @inline nvariables(container::SolidParticleContainer, model) = 2 * ndims(container)
-
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
@@ -184,27 +186,34 @@ end
     return get_particle_coords(particle, current_coordinates, container)
 end
 
-
 @inline function get_particle_vel(particle, u, container::SolidParticleContainer)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
 
-    return SVector(ntuple(@inline(dim -> u[dim + ndims(container), particle]), Val(ndims(container))))
+    return SVector(ntuple(@inline(dim->u[dim + ndims(container), particle]),
+                          Val(ndims(container))))
 end
 
-
-@inline get_correction_matrix(particle, container) = extract_smatrix(container.correction_matrix, particle, container)
-@inline get_deformation_gradient(particle, container) = extract_smatrix(container.deformation_grad, particle, container)
-@inline get_pk1_corrected(particle, container) = extract_smatrix(container.pk1_corrected, particle, container)
+@inline function get_correction_matrix(particle, container)
+    extract_smatrix(container.correction_matrix, particle, container)
+end
+@inline function get_deformation_gradient(particle, container)
+    extract_smatrix(container.deformation_grad, particle, container)
+end
+@inline function get_pk1_corrected(particle, container)
+    extract_smatrix(container.pk1_corrected, particle, container)
+end
 
 @inline function extract_smatrix(array, particle, container)
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
     return SMatrix{ndims(container), ndims(container)}(
-        # Convert linear index to Cartesian index
-        ntuple(@inline(i -> array[mod(i-1, ndims(container))+1, div(i-1, ndims(container))+1, particle]), Val(ndims(container)^2)))
+                                                       # Convert linear index to Cartesian index
+                                                       ntuple(@inline(i->array[mod(i - 1, ndims(container)) + 1,
+                                                                               div(i - 1, ndims(container)) + 1,
+                                                                               particle]),
+                                                              Val(ndims(container)^2)))
 end
-
 
 function initialize!(container::SolidParticleContainer, neighborhood_search)
     @unpack correction_matrix = container
@@ -213,10 +222,9 @@ function initialize!(container::SolidParticleContainer, neighborhood_search)
     calc_correction_matrix!(correction_matrix, neighborhood_search, container)
 end
 
-
 function calc_correction_matrix!(correction_matrix, neighborhood_search, container)
     @unpack initial_coordinates, mass, material_density,
-        smoothing_kernel, smoothing_length = container
+    smoothing_kernel, smoothing_length = container
 
     # Calculate kernel correction matrix
     for particle in eachparticle(container)
@@ -226,12 +234,14 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
         for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
             volume = mass[neighbor] / material_density[neighbor]
 
-            initial_pos_diff = particle_coordinates - get_particle_coords(neighbor, initial_coordinates, container)
+            initial_pos_diff = particle_coordinates -
+                               get_particle_coords(neighbor, initial_coordinates, container)
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
-                grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                    initial_pos_diff / initial_distance
+                grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
+                                           smoothing_length) *
+                              initial_pos_diff / initial_distance
 
                 L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
@@ -243,7 +253,6 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
     return correction_matrix
 end
 
-
 function update!(container::SolidParticleContainer, container_index, u, u_ode, semi, t)
     @unpack neighborhood_searches = semi
 
@@ -252,11 +261,11 @@ function update!(container::SolidParticleContainer, container_index, u, u_ode, s
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[container_index][container_index]
-    @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search, container)
+    @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
+                                                                 container)
 
     return container
 end
-
 
 @inline function update_current_coordinates(u, container)
     @unpack current_coordinates = container
@@ -267,7 +276,6 @@ end
         end
     end
 end
-
 
 @inline function compute_pk1_corrected(neighborhood_search, container)
     @unpack pk1_corrected, deformation_grad = container
@@ -289,7 +297,6 @@ end
     end
 end
 
-
 # First Piola-Kirchhoff stress tensor
 function pk1_stress_tensor(J, container)
     S = pk2_stress_tensor(J, container)
@@ -297,10 +304,9 @@ function pk1_stress_tensor(J, container)
     return J * S
 end
 
-
 function deformation_gradient(particle, neighborhood_search, container)
     @unpack initial_coordinates, current_coordinates,
-        mass, material_density, smoothing_kernel, smoothing_length = container
+    mass, material_density, smoothing_kernel, smoothing_length = container
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
@@ -308,14 +314,17 @@ function deformation_gradient(particle, neighborhood_search, container)
     for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = get_particle_coords(particle, current_coordinates, container) -
-            get_particle_coords(neighbor, current_coordinates, container)
+                   get_particle_coords(neighbor, current_coordinates, container)
 
-        initial_pos_diff = initial_particle_coords - get_particle_coords(neighbor, initial_coordinates, container)
+        initial_pos_diff = initial_particle_coords -
+                           get_particle_coords(neighbor, initial_coordinates, container)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
             # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) * initial_pos_diff / initial_distance
+            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
+                                       smoothing_length) * initial_pos_diff /
+                          initial_distance
 
             result -= volume * pos_diff * grad_kernel'
         end
@@ -327,7 +336,6 @@ function deformation_gradient(particle, neighborhood_search, container)
     return result
 end
 
-
 # Second Piola-Kirchhoff stress tensor
 @inline function pk2_stress_tensor(J, container)
     @unpack lame_lambda, lame_mu = container
@@ -338,11 +346,11 @@ end
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
 
-
 @inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
-                                     initial_distance, container, penalty_force::PenaltyForceGanzenmueller)
+                                     initial_distance, container,
+                                     penalty_force::PenaltyForceGanzenmueller)
     @unpack smoothing_kernel, smoothing_length, mass,
-        material_density, current_coordinates, young_modulus = container
+    material_density, current_coordinates, young_modulus = container
 
     current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
                        get_particle_coords(neighbor, current_coordinates, container)
@@ -361,8 +369,8 @@ end
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
     dv = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-        kernel_ / initial_distance^2 * young_modulus * delta_sum *
-        current_pos_diff / current_distance
+         kernel_ / initial_distance^2 * young_modulus * delta_sum *
+         current_pos_diff / current_distance
 
     for i in 1:ndims(container)
         # Divide force by mass to obtain acceleration
@@ -376,7 +384,6 @@ end
                                      initial_distance, container, ::Nothing)
     return du
 end
-
 
 function write_variables!(u0, container::SolidParticleContainer)
     @unpack initial_coordinates, initial_velocity, boundary_model = container
@@ -397,7 +404,6 @@ function write_variables!(u0, container::SolidParticleContainer)
 
     return u0
 end
-
 
 # This is dispatched in boundary_container.jl
 function write_variables!(u0, boundary_model, container)

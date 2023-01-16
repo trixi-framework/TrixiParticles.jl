@@ -16,28 +16,36 @@ setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density, n_layers=3)
 
 c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, water_density, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-particle_container = FluidParticleContainer(setup.particle_coordinates, setup.particle_velocities,
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
                                             setup.particle_masses, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
                                             acceleration=(0.0, -9.81))
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
-boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation, AdamiPressureExtrapolation(), smoothing_kernel, smoothing_length)
+boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, setup.boundary_masses, boundary_model)
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses, boundary_model)
 
-semi = Semidiscretization(particle_container, boundary_container, neighborhood_search=SpatialHashingSearch, damping_coefficient=1e-5)
+semi = Semidiscretization(particle_container, boundary_container,
+                          neighborhood_search=SpatialHashingSearch,
+                          damping_coefficient=1e-5)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
@@ -64,7 +72,6 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Print the timer summary
 summary_callback()
-
 
 # activate to save to vtk
 # pixie2vtk(saved_values)

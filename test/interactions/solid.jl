@@ -6,12 +6,12 @@
             pk1_particle_corrected = [
                 [2.0 0.0; 0.0 3.0],
                 [0.230015 0.0526099; 0.348683 0.911251],
-                [0.364281 0.763916; 0.433868 0.9755]
+                [0.364281 0.763916; 0.433868 0.9755],
             ]
             pk1_neighbor_corrected = [
                 zeros(2, 2),
                 [0.794769 0.113958; 0.1353 0.741521],
-                [0.97936 0.302584; 0.333461 0.642575]
+                [0.97936 0.302584; 0.333461 0.642575],
             ]
             initial_pos_diff = [[0.1, 0.0], [0.5, 0.3], [1.0, 0.37]]
             particle = [1, 3, 10]
@@ -19,7 +19,7 @@
             dv_expected = [
                 [2.0, 0.0],
                 [0.07118137645953881, 0.11640973221047637],
-                [0.01870315713691948, 0.014067976038520915]
+                [0.01870315713691948, 0.014067976038520915],
             ]
 
             @testset "Test $i" for i in 1:3
@@ -63,7 +63,8 @@
                 du_expected = copy(du)
                 du_expected[3:4, particle[i]] = dv_expected[i]
 
-                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i], initial_distance,
+                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i],
+                               initial_distance,
                                container, container)
 
                 @test du ≈ du_expected
@@ -76,21 +77,21 @@
                 [2.0 0.0; 0.0 3.0],
                 [0.230015 0.0526099; 0.348683 0.911251],
                 [0.364281 0.763916; 0.433868 0.9755],
-                [0.503965 0.125224; 0.739591 0.0323651]
+                [0.503965 0.125224; 0.739591 0.0323651],
             ]
             pk1_neighbor_corrected = [
                 zeros(2, 2),
                 [0.794769 0.113958; 0.1353 0.741521],
                 [0.97936 0.302584; 0.333461 0.642575],
-                [0.503965 0.125224; 0.739591 0.0323651]
+                [0.503965 0.125224; 0.739591 0.0323651],
             ]
             # Create initial coordinates so that
             # initial_pos_diff is [[0.1, 0.0], [0.5, 0.3], [1.0, 0.37], [0.0, 0.0]]
             initial_coordinates_particle = [
-                [1.1, 2.0], [-1.5, 5.0], [-1.5, -6.43], [120.0, 32.2]
+                [1.1, 2.0], [-1.5, 5.0], [-1.5, -6.43], [120.0, 32.2],
             ]
             initial_coordinates_neighbor = [
-                [1.0, 2.0], [-2.0, 4.7], [-2.5, -6.8], [120.0, 32.2]
+                [1.0, 2.0], [-2.0, 4.7], [-2.5, -6.8], [120.0, 32.2],
             ]
             particle = [1, 3, 10, 7]
             neighbor = [10, 4, 9, 7]
@@ -98,7 +99,7 @@
                 [2.0, 0.0],
                 [0.07118137645953881, 0.11640973221047637],
                 [0.01870315713691948, 0.014067976038520915],
-                [0.0, 0.0]
+                [0.0, 0.0],
             ]
 
             @testset "Test $i" for i in 1:4
@@ -147,7 +148,9 @@
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                Pixie.each_moving_particle(::Val{:mock_container_interact}) = each_moving_particle
+                function Pixie.each_moving_particle(::Val{:mock_container_interact})
+                    each_moving_particle
+                end
                 Pixie.eachparticle(::Val{:mock_container_interact}) = eachparticle
                 Pixie.eachneighbor(_, ::Val{:nhs}) = eachneighbor
                 Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
@@ -175,21 +178,25 @@
     end
 
     @testset "Integration Tests" begin
-        deformations = Dict(
-            "rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
-            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
-            "rotate and stretch" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0] * x,
-            "nonlinear stretching" => x -> [x[1]^2, x[2]]
-        )
+        deformations = Dict("rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
+                            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
+                            "rotate and stretch" => x -> [cos(0.3) -sin(0.3);
+                                                          sin(0.3) cos(0.3)] *
+                                                         [2.0 0.0; 0.0 3.0] * x,
+                            "nonlinear stretching" => x -> [x[1]^2, x[2]])
 
         # The acceleration in the first three should be zero (linear stretching)
         # The fourth one is calculated by hand
-        expected_du_41 = Dict(
-            "rotation" => [1.0, -2.0, 0.0, 0.0],
-            "stretch both" => [1.0, -2.0, 0.0, 0.0],
-            "rotate and stretch" => [1.0, -2.0, 0.0, 0.0],
-            "nonlinear stretching" => [1.0, -2.0, 10/1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0]
-        )
+        expected_du_41 = Dict("rotation" => [1.0, -2.0, 0.0, 0.0],
+                              "stretch both" => [1.0, -2.0, 0.0, 0.0],
+                              "rotate and stretch" => [1.0, -2.0, 0.0, 0.0],
+                              "nonlinear stretching" => [
+                                  1.0,
+                                  -2.0,
+                                  10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 *
+                                  1.224,
+                                  0.0,
+                              ])
 
         @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             J = deformations[deformation]
@@ -203,13 +210,16 @@
 
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
-            particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-            particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            particle_coordinates = Array{Float64, 2}(undef, 2,
+                                                     prod(n_particles_per_dimension))
+            particle_velocities = Array{Float64, 2}(undef, 2,
+                                                    prod(n_particles_per_dimension))
             particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
             particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
             for y in 1:n_particles_per_dimension[2],
-                    x in 1:n_particles_per_dimension[1]
+                x in 1:n_particles_per_dimension[1]
+
                 particle = (x - 1) * n_particles_per_dimension[2] + y
 
                 # Coordinates
@@ -231,7 +241,8 @@
             # Apply the deformation matrix
             for particle in axes(u, 2)
                 # Apply deformation
-                u[1:2, particle] = deformations[deformation](particle_coordinates[:, particle])
+                u[1:2, particle] = deformations[deformation](particle_coordinates[:,
+                                                                                  particle])
             end
 
             #### Verification for the particle in the middle

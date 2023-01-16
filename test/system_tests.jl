@@ -2,26 +2,32 @@
 # but without checking the correctness of the solution.
 @testset "System Tests" begin
     @testset "Fluid" begin
-        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"), tspan=(0.0, 0.1))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid",
+                                            "rectangular_tank_2d.jl"), tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
 
-        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), tspan=(0.0, 0.1))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+                                   tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
 
-        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "dam_break_3d.jl"), tspan=(0.0, 0.1))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
+                                   tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
 
-        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid", "falling_water_column_2d.jl"), tspan=(0.0, 0.4))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fluid",
+                                            "falling_water_column_2d.jl"), tspan=(0.0, 0.4))
         @test sol.retcode == ReturnCode.Success
     end
 
     @testset "Solid" begin
-        @test_nowarn pixie_include(joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"), tspan=(0.0, 0.1))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "solid",
+                                            "oscillating_beam_2d.jl"), tspan=(0.0, 0.1))
         @test sol.retcode == ReturnCode.Success
     end
 
     @testset "FSI" begin
-        @test_nowarn pixie_include(joinpath(examples_dir(), "fsi", "falling_water_column_2d.jl"), tspan=(0.0, 0.4))
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fsi",
+                                            "falling_water_column_2d.jl"), tspan=(0.0, 0.4))
         @test sol.retcode == ReturnCode.Success
 
         # Use rounded dimensions to avoid warnings
