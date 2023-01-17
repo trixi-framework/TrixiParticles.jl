@@ -2,18 +2,10 @@ using Pixie
 using OrdinaryDiffEq
 
 particle_spacing = 0.05
-# Ratio of fluid particle spacing to boundary particle spacing
-#beta = 1
 
 water_width = 1.0
 water_height = 1.0
 water_density = 1000.0
-
-# container_width = 1.0
-# container_height = 1.0
-
-# setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-# 	container_width, container_height, water_density, n_layers = 3)
 
 setup = RectangularShape(particle_spacing, (0.0, 0.0), (water_width, water_height), density = water_density)
 
