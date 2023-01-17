@@ -1,7 +1,7 @@
 struct NoSurfaceTension end
 
 function (::NoSurfaceTension)(smoothing_length, ma, mb, dx, distance)
-    return 0.0
+    return 0.0 * dx
 end
 
 @doc raw"""
@@ -23,12 +23,14 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, dx, di
 
     # Eq. 2
     C = 0
-    if 2 * distance > smoothing_length && distance <= smoothing_length
-        C = (smoothing_length - distance)^3 * distance^3
-    elseif distance > eps(Float64) && 2 * distance <= smoothing_length
-        C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
+    if distance < smoothing_length
+        if distance > 0.5 * smoothing_length
+            C = (smoothing_length - distance)^3 * distance^3
+        else
+            C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
+        end
+        C *= 32.0 / (pi * smoothing_length^9)
     end
-    C *= 32.0 / (pi * smoothing_length^9)
 
     # Eq. 1
     return (-surface_tension_coefficient * ma * mb * C * dx / distance)

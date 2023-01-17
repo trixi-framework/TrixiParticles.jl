@@ -53,6 +53,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     particle_velocities        :: Array{ELTYPE, 2}
     particle_densities         :: Vector{ELTYPE}
     particle_masses            :: Vector{ELTYPE}
+    particle_radius            :: Vector{ELTYPE}
     boundary_coordinates       :: Array{ELTYPE, 2}
     boundary_masses            :: Vector{ELTYPE}
     faces_                     :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
@@ -109,9 +110,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
+        particle_radius = particle_spacing * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
+                                             particle_densities, particle_masses, particle_radius,
                                              boundary_coordinates, boundary_masses, faces,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension,
@@ -178,9 +180,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
+        particle_radius = particle_spacing * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
+                                             particle_densities, particle_masses, particle_radius,
                                              boundary_coordinates, boundary_masses, faces,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension,
