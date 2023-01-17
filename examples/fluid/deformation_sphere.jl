@@ -1,19 +1,21 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+particle_spacing = 0.05
 # Ratio of fluid particle spacing to boundary particle spacing
-beta = 1
+#beta = 1
 
 water_width = 1.0
 water_height = 1.0
 water_density = 1000.0
 
-container_width = 1.0
-container_height = 1.0
+# container_width = 1.0
+# container_height = 1.0
 
-setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-	container_width, container_height, water_density, n_layers = 3)
+# setup = RectangularTank(particle_spacing, beta, water_width, water_height,
+# 	container_width, container_height, water_density, n_layers = 3)
+
+setup = RectangularShape(particle_spacing, (0.0, 0.0), (water_width, water_height), density = water_density)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0,
@@ -32,9 +34,9 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 #                                                                                   0.0),
 #                                             acceleration=(0.0, 0.0))
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-	setup.particle_velocities,
-	setup.particle_masses, setup.particle_radius, setup.particle_densities,
+particle_container = FluidParticleContainer(setup.coordinates,
+	setup.velocity,
+	setup.masses, setup.radius, setup.densities,
 	ContinuityDensity(), state_equation,
 	smoothing_kernel, smoothing_length,
 	viscosity = ArtificialViscosityMonaghan(0.02,
