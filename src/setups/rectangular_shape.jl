@@ -66,7 +66,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         floor_int(x) = floor(Int64, x)
         diff = broadcast(abs, cornerA - cornerB)
-        n_particles_i = broadcast(floor_int, diff/particle_spacing)
+        n_particles_i = broadcast(floor_int, diff/particle_spacing) .+ 1
         n_particles = prod(n_particles_i)
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
@@ -76,7 +76,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         radius = particle_spacing * ones(ELTYPE, n_particles)
 
 
-        initialize_rectangular!(coordinates, cornerA[1], cornerB[2], particle_spacing,
+        initialize_rectangular!(coordinates, cornerA[1], cornerA[2], particle_spacing,
         n_particles_i[1], n_particles_i[2])
 
         return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,

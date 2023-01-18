@@ -17,24 +17,15 @@ smoothing_length = 2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-# particle_container = FluidParticleContainer(setup.particle_coordinates,
-#                                             setup.particle_velocities,
-#                                             setup.particle_masses, setup.particle_densities,
-#                                             ContinuityDensity(), state_equation,
-#                                             smoothing_kernel, smoothing_length,
-#                                             viscosity=ArtificialViscosityMonaghan(0.02,
-#                                                                                   0.0),
-#                                             acceleration=(0.0, 0.0))
-
 particle_container = FluidParticleContainer(setup.coordinates,
 	setup.velocity,
 	setup.masses, setup.radius, setup.densities,
 	ContinuityDensity(), state_equation,
-	smoothing_kernel, smoothing_length,
+	smoothing_kernel, smoothing_length, water_density,
 	viscosity = ArtificialViscosityMonaghan(0.02,
 		0.0),
 	acceleration = (0.0, 0.0),
-	surface_tension = CohesionForceAkinci(1.0))
+	surface_tension = CohesionForceAkinci(2e-5))
 
 semi = Semidiscretization(particle_container,
 	neighborhood_search = SpatialHashingSearch,
@@ -58,8 +49,8 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-	abstol = 1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-	reltol = 1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+	abstol = 1e-10, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+	reltol = 1e-8, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
 	dtmax = 1e-3, # Limit stepsize to prevent crashing
 	save_everystep = false, callback = callbacks);
 

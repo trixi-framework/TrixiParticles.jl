@@ -33,7 +33,7 @@ end
 @inline function calc_dv!(du, u_particle_container, u_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity, surface_tension = particle_container
+    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity, surface_tension, ref_density = particle_container
 
     density_particle = get_particle_density(particle, u_particle_container,
                                             particle_container)
@@ -53,11 +53,15 @@ end
     m_a = particle_container.mass[particle]
     m_b = neighbor_container.mass[neighbor]
 
+
+    # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+    k_ij = ref_density/density_mean
+
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / density_particle^2 +
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
-    dv_viscosity = m_b * pi_ab * grad_kernel
-    dv_surface_tension = surface_tension(smoothing_length, m_a, m_b, pos_diff, distance)
+    dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
+    dv_surface_tension = k_ij * surface_tension(smoothing_length, m_a, m_b, pos_diff, distance)
 
     dv = dv_pressure + dv_viscosity + dv_surface_tension
 
