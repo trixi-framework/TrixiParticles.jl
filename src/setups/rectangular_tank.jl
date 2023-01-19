@@ -56,6 +56,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     boundary_coordinates       :: Array{ELTYPE, 2}
     boundary_masses            :: Vector{ELTYPE}
     faces_                     :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
+    face_indices               :: NTuple{NDIMSt2, Vector{Int}}
     particle_spacing           :: ELTYPE
     spacing_ratio              :: ELTYPE
     n_layers                   :: Int
@@ -76,10 +77,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                                 particle_spacing,
                                                                 spacing_ratio)
 
-        boundary_coordinates = initialize_boundaries(particle_spacing / spacing_ratio,
-                                                     container_width, container_height,
-                                                     n_boundaries_x, n_boundaries_y,
-                                                     n_layers, faces)
+        boundary_coordinates, face_indices = initialize_boundaries(particle_spacing /
+                                                                   spacing_ratio,
+                                                                   container_width,
+                                                                   container_height,
+                                                                   n_boundaries_x,
+                                                                   n_boundaries_y,
+                                                                   n_layers, faces)
         boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^2 *
                           ones(ELTYPE, size(boundary_coordinates, 2))
 
@@ -113,6 +117,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
                                              particle_densities, particle_masses,
                                              boundary_coordinates, boundary_masses, faces,
+                                             face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension,
                                              n_boundaries_per_dimension)
@@ -243,6 +248,12 @@ function initialize_boundaries(particle_spacing,
 
     boundary_coordinates = Array{Float64, 2}(undef, 2, n_particles)
 
+    # Store each index
+    face1 = Vector{Int}(undef, 0)
+    face2 = Vector{Int}(undef, 0)
+    face3 = Vector{Int}(undef, 0)
+    face4 = Vector{Int}(undef, 0)
+
     boundary_particle = 0
     for i in 0:(n_layers - 1)
         # Left boundary
@@ -253,6 +264,8 @@ function initialize_boundaries(particle_spacing,
             # Offset explained above
             boundary_coordinates[2, boundary_particle] = (y - 1 - faces[3] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face1, boundary_particle)
         end
 
         # Right boundary
@@ -263,6 +276,8 @@ function initialize_boundaries(particle_spacing,
                                                          i * particle_spacing
             boundary_coordinates[2, boundary_particle] = (y - 1 - faces[3] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face2, boundary_particle)
         end
 
         # Bottom boundary
@@ -273,6 +288,8 @@ function initialize_boundaries(particle_spacing,
             boundary_coordinates[1, boundary_particle] = (x - 1 + faces[1]) *
                                                          particle_spacing
             boundary_coordinates[2, boundary_particle] = -i * particle_spacing
+
+            append!(face3, boundary_particle)
         end
 
         # Top boundary
@@ -283,10 +300,12 @@ function initialize_boundaries(particle_spacing,
                                                          particle_spacing
             boundary_coordinates[2, boundary_particle] = container_height +
                                                          i * particle_spacing
+
+            append!(face4, boundary_particle)
         end
     end
 
-    return boundary_coordinates
+    return boundary_coordinates, (face1, face2, face3, face4)
 end
 
 function initialize_boundaries(particle_spacing,
@@ -317,6 +336,14 @@ function initialize_boundaries(particle_spacing,
 
     boundary_coordinates = Array{Float64, 2}(undef, 3, n_particles)
 
+    # Store each index
+    face1 = Vector{Int}(undef, 0)
+    face2 = Vector{Int}(undef, 0)
+    face3 = Vector{Int}(undef, 0)
+    face4 = Vector{Int}(undef, 0)
+    face5 = Vector{Int}(undef, 0)
+    face6 = Vector{Int}(undef, 0)
+
     boundary_particle = 0
     for i in 0:(n_layers - 1)
         # -x boundary (y-z-plane). See explanation above.
@@ -330,6 +357,8 @@ function initialize_boundaries(particle_spacing,
                                                          particle_spacing
             boundary_coordinates[3, boundary_particle] = (z - 1 - faces[5] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face1, boundary_particle)
         end
 
         # +x boundary (y-z-plane)
@@ -342,6 +371,8 @@ function initialize_boundaries(particle_spacing,
                                                          particle_spacing
             boundary_coordinates[3, boundary_particle] = (z - 1 - faces[5] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face2, boundary_particle)
         end
 
         # -y boundary (x-z-plane). See explanation above.
@@ -355,6 +386,8 @@ function initialize_boundaries(particle_spacing,
             boundary_coordinates[2, boundary_particle] = -i * particle_spacing
             boundary_coordinates[3, boundary_particle] = (z - 1 - faces[5] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face3, boundary_particle)
         end
 
         # +y boundary (x-z-plane)
@@ -367,6 +400,8 @@ function initialize_boundaries(particle_spacing,
                                                          i * particle_spacing
             boundary_coordinates[3, boundary_particle] = (z - 1 - faces[5] * (n_layers - 1)) *
                                                          particle_spacing
+
+            append!(face4, boundary_particle)
         end
 
         # -z boundary (x-y-plane). See explanation above.
@@ -380,6 +415,8 @@ function initialize_boundaries(particle_spacing,
             boundary_coordinates[2, boundary_particle] = (y - 1 + faces[3]) *
                                                          particle_spacing
             boundary_coordinates[3, boundary_particle] = -i * particle_spacing
+
+            append!(face5, boundary_particle)
         end
 
         # +z boundary (x-y-plane)
@@ -392,10 +429,12 @@ function initialize_boundaries(particle_spacing,
                                                          particle_spacing
             boundary_coordinates[3, boundary_particle] = container_depth +
                                                          i * particle_spacing
+
+            append!(face6, boundary_particle)
         end
     end
 
-    return boundary_coordinates
+    return boundary_coordinates, (face1, face2, face3, face4, face5, face6)
 end
 
 @doc raw"""
@@ -405,49 +444,24 @@ end
 The right wall of the tank will be set to a desired position by calling the function with the keyword argument `wall_position`, which
 is the ``x`` coordinate of the desired position.
 """
-function reset_right_wall!(rectangular_tank::RectangularTank{2}, container_width;
-                           wall_position=container_width)
+function reset_wall!(rectangular_tank, reset_face, position)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-    n_layers, n_boundaries_per_dimension = rectangular_tank
+    n_layers, face_indices = rectangular_tank
 
-    n_boundaries_x = n_boundaries_per_dimension[1]
-    n_boundaries_y = n_boundaries_per_dimension[2]
+    dim = 1
+    for j in eachindex(reset_face)
+        sizes = [round(Int, length(face_indices[j]) / n_layers) for i in 1:n_layers]
+        ranges = Tuple((sum(sizes[1:(i - 1)]) + 1):sum(sizes[1:i])
+                       for i in eachindex(sizes))
 
-    for i in 0:(n_layers - 1)
-        for y in 1:n_boundaries_y
-            boundary_particle = n_boundaries_y * (1 + i) + n_boundaries_x * i +
-                                n_boundaries_y * i + y
-            boundary_coordinates[1, boundary_particle] = wall_position +
+        reset_face[j] && for i in 0:(n_layers - 1)
+            for bound_index in face_indices[j][ranges[i + 1]]
+                boundary_coordinates[dim, bound_index] = position[j] +
                                                          i * particle_spacing /
                                                          spacing_ratio
+            end
         end
-    end
-end
-
-#3D
-function reset_right_wall!(rectangular_tank::RectangularTank{3}, container_width;
-                           wall_position=container_width)
-    @unpack boundary_coordinates, particle_spacing, spacing_ratio,
-    n_layers, n_boundaries_per_dimension = rectangular_tank
-
-    n_boundaries_x = n_boundaries_per_dimension[1]
-    n_boundaries_y = n_boundaries_per_dimension[2]
-    n_boundaries_z = n_boundaries_per_dimension[3]
-
-    # +x boundary (y-z-plane)
-    for i in 0:(n_layers - 1)
-        boundary_particle = ((n_boundaries_z - (2 * n_layers - 1)) * n_boundaries_y *
-                             (1 + i)
-                             + (n_boundaries_z - (2 * n_layers - 1)) * n_boundaries_y * i
-                             +
-                             (n_boundaries_y * n_boundaries_x * 2 +
-                              n_boundaries_z * n_boundaries_x) * i)
-        for z in 1:n_boundaries_z, y in 1:n_boundaries_y
-            boundary_particle += 1
-            boundary_coordinates[1, boundary_particle] = wall_position +
-                                                         i * particle_spacing /
-                                                         spacing_ratio
-        end
+        dim += iseven(j)
     end
 end
 
