@@ -358,43 +358,37 @@ function initialize_boundaries(particle_spacing,
                                container_width, container_height, container_depth,
                                n_particles_x, n_particles_y, n_particles_z,
                                n_layers, faces)
-    # y-z-plane: add edges in each direction if needed
-    # If -y face exists, add layers in -y-direction. If +y face exists, add layers in +y-direction.
-    # If -z face exists, add layers in -z-direction. If +z face exists, add layers in +z-direction.
-    n_particles_y_z = (n_particles_y + (faces[3] + faces[4]) * (n_layers - 1)) *
-                      (n_particles_z + (faces[5] + faces[6]) * (n_layers - 1))
-
-    # x-z-plane: add edges in +-z direction if needed. Edges in +-x direction have been added above.
-    # If +-x face exists, remove one overlapping edge particle in +-x direction.
-    n_particles_x_z = (n_particles_x - (faces[1] + faces[2])) *
-                      (n_particles_z + (faces[5] + faces[6]) * (n_layers - 1))
-
-    # x-y-plane: All edges have already been added above.
-    # If +-x face exists, remove one overlapping edge particle in +-x direction.
-    # If +-y face exists, remove one overlapping edge particle in +-y direction.
-    n_particles_x_y = (n_particles_x - (faces[1] + faces[2])) *
-                      (n_particles_y - (faces[3] + faces[4]))
-
-    n_particles = n_layers *
-                  ((faces[1] + faces[2]) * n_particles_y_z +
-                   (faces[3] + faces[4]) * n_particles_x_z +
-                   (faces[5] + faces[6]) * n_particles_x_y)
-
-    boundary_coordinates = Array{Float64, 2}(undef, 3, n_particles)
-
     # Store each index
-    face1 = Vector{Int}(undef, 0)
-    face2 = Vector{Int}(undef, 0)
-    face3 = Vector{Int}(undef, 0)
-    face4 = Vector{Int}(undef, 0)
-    face5 = Vector{Int}(undef, 0)
-    face6 = Vector{Int}(undef, 0)
+    face1 = Array{Int, 2}(undef, n_layers, n_particles_y - 2)
+    face2 = Array{Int, 2}(undef, n_layers, n_particles_y - 2)
+    face3 = Array{Int, 2}(undef, n_layers, n_particles_x - 2)
+    face4 = Array{Int, 2}(undef, n_layers, n_particles_x - 2)
+    face5 = Array{Int, 2}(undef, n_layers, n_particles_z - 2)
+    face6 = Array{Int, 2}(undef, n_layers, n_particles_z - 2)
 
-    boundary_particle = 0
+    boundary_coordinates = Array{Float64, 2}(undef, 3, 0)
+
+    index = 0
     for i in 0:(n_layers - 1)
         # -x boundary (y-z-plane). See explanation above.
         n_particles_z_ = n_particles_z + (faces[5] + faces[6]) * (n_layers - 1)
         n_particles_y_ = n_particles_y + (faces[3] + faces[4]) * (n_layers - 1)
+
+        # Left boundary
+        if faces[1]
+            left_boundary = RectangularShape(particle_spacing, n_layers, n_particles_y - 2,
+                                             -(n_layers - 1) * particle_spacing,
+                                             particle_spacing)
+
+            boundary_coordinates = hcat(boundary_coordinates, left_boundary.coordinates)
+
+            particle_per_layer = left_boundary.n_particles_per_dimension[2]
+
+            for i in 1:n_layers
+                face1[i, :] = collect((index + 1):(particle_per_layer + index))
+                index += particle_per_layer
+            end
+        end
         faces[1] && for z in 1:n_particles_z_, y in 1:n_particles_y_
             boundary_particle += 1
 
