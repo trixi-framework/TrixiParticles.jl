@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 particle_spacing = 0.08
 # Spacing ratio between fluid and boundary particles
-beta = 3
+beta = 1
 
 water_width = floor(2.0 / particle_spacing) * particle_spacing # x-direction
 water_height = floor(1.0 / particle_spacing) * particle_spacing # y-direction
@@ -17,10 +17,14 @@ container_length = floor(1.0 / particle_spacing) * particle_spacing
 setup = RectangularTank(particle_spacing, beta,
                         water_width, water_height, water_length,
                         container_width, container_height, container_length,
-                        water_density)
+                        water_density, n_layers=3)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+reset_face = (false, true, false, false, false, false)
+position = (0, new_wall_position, 0, 0, 0, 0)
+
+reset_wall!(setup, reset_face, position)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -76,7 +80,8 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+position = (0, container_width, 0, 0)
+reset_wall!(setup, reset_face, position)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))

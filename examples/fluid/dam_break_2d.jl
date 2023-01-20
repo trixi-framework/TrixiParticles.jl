@@ -90,7 +90,8 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+position = (0, container_width, 0, 0)
+reset_wall!(setup, reset_face, position)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))

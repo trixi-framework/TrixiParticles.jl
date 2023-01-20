@@ -46,7 +46,7 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
                         container_width, container_height, container_depth, particle_density, n_layers=2)
 ```
 
-See also: [`reset_right_wall!`](@ref)
+See also: [`reset_wall!`](@ref)
 """
 struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     particle_coordinates       :: Array{ELTYPE, 2}
@@ -141,7 +141,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                                particle_spacing,
                                                                spacing_ratio)
 
-        boundary_coordinates = initialize_boundaries(particle_spacing / spacing_ratio,
+        boundary_coordinates, face_indices = initialize_boundaries(particle_spacing / spacing_ratio,
                                                      container_width, container_height,
                                                      container_depth,
                                                      n_boundaries_x, n_boundaries_y,
@@ -187,6 +187,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
                                              particle_densities, particle_masses,
                                              boundary_coordinates, boundary_masses, faces,
+                                             face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension,
                                              n_boundaries_per_dimension)
@@ -438,11 +439,13 @@ function initialize_boundaries(particle_spacing,
 end
 
 @doc raw"""
-    reset_right_wall!(rectangular_tank::RectangularTank, container_width;
-                      wall_position=container_width, n_layers=1)
+    reset_wall!(rectangular_tank::RectangularTank, reset_face, position)
 
-The right wall of the tank will be set to a desired position by calling the function with the keyword argument `wall_position`, which
-is the ``x`` coordinate of the desired position.
+The selected walls of the tank will be placed in a desired position.
+
+# Arguments
+- `reset_face`: Boolean tuple like `faces` in [`RectangularTank`](@ref).
+- `position`: Tuple for each desired position
 """
 function reset_wall!(rectangular_tank, reset_face, position)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
