@@ -11,7 +11,7 @@ using OrdinaryDiffEq
 particle_spacing = 0.02
 
 # Spacing ratio between fluid and boundary particles
-beta = 1
+beta = 3
 
 water_width = 2.0
 water_height = 1.0
@@ -21,7 +21,7 @@ container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / be
 container_height = 4
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density, n_layers=3)
+                        container_width, container_height, water_density)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
