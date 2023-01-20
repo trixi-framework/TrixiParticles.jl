@@ -439,34 +439,39 @@ function initialize_boundaries(particle_spacing,
 end
 
 @doc raw"""
-    reset_wall!(rectangular_tank::RectangularTank, reset_face, position)
+    reset_wall!(rectangular_tank::RectangularTank, reset_faces, positions)
 
-The selected walls of the tank will be placed in a desired position.
+The selected walls of the tank will be placed at the new positions.
 
 # Arguments
-- `reset_face`: Boolean tuple like `faces` in [`RectangularTank`](@ref).
-- `position`: Tuple for each desired position
+- `reset_faces`: Boolean tuple of 4 (in 2D) or 6 (in 3D) dimensions like `faces` in [`RectangularTank`](@ref).
+- `positions`: Tuple of desired positions
 
 !!! warning "Warning"
-    There are overlapping particles when adjacent walls are moved inwards simultaniously.
+    There are overlapping particles when adjacent walls are moved inwards simultaneously.
 """
-function reset_wall!(rectangular_tank, reset_face, position)
+function reset_wall!(rectangular_tank, reset_faces, positions)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
     n_layers, face_indices = rectangular_tank
 
     dim = 1
-    for j in eachindex(reset_face)
+    for j in eachindex(reset_faces)
+
+        # Create `ranges` since the wall might have multiple layers.
+        # This basically splits the `face_indices` according to the number of layers.
         sizes = [round(Int, length(face_indices[j]) / n_layers) for i in 1:n_layers]
         ranges = Tuple((sum(sizes[1:(i - 1)]) + 1):sum(sizes[1:i])
                        for i in eachindex(sizes))
 
-        reset_face[j] && for i in 0:(n_layers - 1)
+        reset_faces[j] && for i in 0:(n_layers - 1)
             for bound_index in face_indices[j][ranges[i + 1]]
-                boundary_coordinates[dim, bound_index] = position[j] +
+                boundary_coordinates[dim, bound_index] = positions[j] +
                                                          i * particle_spacing /
                                                          spacing_ratio
             end
         end
+
+        # jump to the next dimension in the `boundary_coordinates` array
         dim += iseven(j)
     end
 end
