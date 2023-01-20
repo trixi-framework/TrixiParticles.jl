@@ -446,6 +446,9 @@ The selected walls of the tank will be placed in a desired position.
 # Arguments
 - `reset_face`: Boolean tuple like `faces` in [`RectangularTank`](@ref).
 - `position`: Tuple for each desired position
+
+!!! warning "Warning"
+    There are overlapping particles when adjacent walls are moved inwards simultaniously.
 """
 function reset_wall!(rectangular_tank, reset_face, position)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
