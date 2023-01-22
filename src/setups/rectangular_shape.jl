@@ -1,6 +1,10 @@
 """
     RectangularShape(particle_spacing, n_particles_x, n_particles_y;
-                     x_position, y_position, density=0.0, loop_order=:x_first)
+                     x_position=0.0, y_position=0.0, density=0.0, loop_order=:x_first)
+
+    RectangularShape(particle_spacing, n_particles_x, n_particles_y, n_particles_z;
+                     x_position=0.0, y_position=0.0, z_position=0.0,
+                     density=0.0, loop_order=:x_first)
 
 Rectangular shape filled with particles.
 
@@ -18,12 +22,21 @@ Rectangular shape filled with particles.
 - `masses::Vector`: Masses of the particles
 - `densities::Vector`: Densities of the particles
 
-# Example
+# Examples
+2D:
 ```julia
 rectangular = RectangularShape(particle_spacing,
                                round(Int, rectangular_width/particle_spacing),
                                round(Int, rectangular_height/particle_spacing),
-                               0.0, 0.0)
+                               x_position=1.0, y_position=2.0)
+```
+3D:
+```julia
+rectangular = RectangularShape(particle_spacing,
+                               round(Int, rectangular_width/particle_spacing),
+                               round(Int, rectangular_height/particle_spacing),
+                               round(Int, rectangular_depth/particle_spacing),
+                               x_position=1.0, y_position=2.0, y_position=3.0)
 ```
 """
 struct RectangularShape{NDIMS, ELTYPE <: Real}
@@ -36,16 +49,15 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
     function RectangularShape(particle_spacing, n_particles_x, n_particles_y;
                               x_position=zero(eltype(particle_spacing)),
                               y_position=zero(eltype(particle_spacing)),
-                              density=0.0, loop_order=:x_first)
+                              density=zero(eltype(particle_spacing)), loop_order=:x_first)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
         n_particles = n_particles_y * n_particles_x
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
-
-        densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        densities = density * ones(ELTYPE, n_particles * (density > 0))
+        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles * (density > 0))
 
         initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
                                 n_particles_x, n_particles_y, loop_order)
