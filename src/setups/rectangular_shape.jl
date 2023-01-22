@@ -33,7 +33,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
-                              x_position, y_position; density=0.0, loop_order=1)
+                              x_position, y_position; density=0.0, loop_order=:x_first)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
@@ -45,7 +45,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
 
         initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
-                                n_particles_x, n_particles_y, loop_order=loop_order)
+                                n_particles_x, n_particles_y, loop_order)
 
         n_particles_per_dimension = (n_particles_x, n_particles_y)
 
@@ -54,7 +54,8 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
     end
 
     function RectangularShape(particle_spacing, n_particles_x, n_particles_y, n_particles_z,
-                              x_position, y_position, z_position; density=0.0, loop_order=1)
+                              x_position, y_position, z_position; density=0.0,
+                              loop_order=:x_first)
         NDIMS = 3
         ELTYPE = eltype(particle_spacing)
 
@@ -66,9 +67,8 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         masses = density * particle_spacing^3 * ones(ELTYPE, n_particles)
 
         initialize_rectangular!(coordinates, x_position, y_position, z_position,
-                                particle_spacing,
-                                n_particles_x, n_particles_y, n_particles_z,
-                                loop_order=loop_order)
+                                particle_spacing, n_particles_x, n_particles_y,
+                                n_particles_z, loop_order)
 
         n_particles_per_dimension = (n_particles_x, n_particles_y, n_particles_z)
 
@@ -79,91 +79,59 @@ end
 
 # 2D
 function initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
-                                 n_particles_x, n_particles_y; loop_order=1)
+                                 n_particles_x, n_particles_y, loop_order)
     boundary_particle = 0
-
-    if loop_order == 1
-        for x in 0:(n_particles_x - 1), y in 0:(n_particles_y - 1)
+    if loop_order == :x_first
+        for x in 1:n_particles_x, y in 1:n_particles_y
             boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
+            fill_coordinates!(coordinates, boundary_particle, x_position, y_position, x, y,
+                              particle_spacing)
         end
-    else
-        for y in 0:(n_particles_y - 1), x in 0:(n_particles_x - 1)
+    elseif loop_order == :y_first
+        for y in 1:n_particles_y, x in 1:n_particles_x
             boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
+            fill_coordinates!(coordinates, boundary_particle, x_position, y_position, x, y,
+                              particle_spacing)
         end
     end
 end
 
 # 3D
 function initialize_rectangular!(coordinates, x_position, y_position, z_position,
-                                 particle_spacing,
-                                 n_particles_x, n_particles_y, n_particles_z; loop_order=1)
+                                 particle_spacing, n_particles_x, n_particles_y,
+                                 n_particles_z, loop_order)
     boundary_particle = 0
 
-    if loop_order == 1
-        for x in 0:(n_particles_x - 1), y in 0:(n_particles_y - 1),
-            z in 0:(n_particles_z - 1)
-
+    if loop_order == :x_first
+        for x in 1:n_particles_x, y in 1:n_particles_y, z in 1:n_particles_z
             boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
+            fill_coordinates!(coordinates, boundary_particle, x_position, y_position,
+                              z_position, x, y, z, particle_spacing)
         end
-    elseif loop_order == 2
-        for x in 0:(n_particles_x - 1), z in 0:(n_particles_z - 1),
-            y in 0:(n_particles_y - 1)
-
+    elseif loop_order == :y_first
+        for y in 1:n_particles_y, x in 1:n_particles_x, z in 1:n_particles_z
             boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
+            fill_coordinates!(coordinates, boundary_particle, x_position, y_position,
+                              z_position, x, y, z, particle_spacing)
         end
-    elseif loop_order == 3
-        for y in 0:(n_particles_y - 1), x in 0:(n_particles_x - 1),
-            z in 0:(n_particles_z - 1)
-
+    elseif loop_order == :z_first
+        for z in 1:n_particles_z, y in 1:n_particles_y, x in 1:n_particles_x
             boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
-        end
-    elseif loop_order == 4
-        for y in 0:(n_particles_y - 1), z in 0:(n_particles_z - 1),
-            x in 0:(n_particles_x - 1)
-
-            boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
-        end
-    elseif loop_order == 5
-        for z in 0:(n_particles_z - 1), y in 0:(n_particles_y - 1),
-            x in 0:(n_particles_x - 1)
-
-            boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
-        end
-    elseif loop_order == 6
-        for z in 0:(n_particles_z - 1), x in 0:(n_particles_x - 1),
-            y in 0:(n_particles_y - 1)
-
-            boundary_particle += 1
-
-            coordinates[1, boundary_particle] = x_position + x * particle_spacing
-            coordinates[2, boundary_particle] = y_position + y * particle_spacing
-            coordinates[3, boundary_particle] = z_position + z * particle_spacing
+            fill_coordinates!(coordinates, boundary_particle, x_position, y_position,
+                              z_position, x, y, z, particle_spacing)
         end
     end
+end
+
+@inline function fill_coordinates!(coordinates, boundary_particle, x_position, y_position,
+                                   x, y, particle_spacing)
+    coordinates[1, boundary_particle] = x_position + (x - 1) * particle_spacing
+    coordinates[2, boundary_particle] = y_position + (y - 1) * particle_spacing
+end
+
+@inline function fill_coordinates!(coordinates, boundary_particle, x_position, y_position,
+                                   z_position, x, y, z, particle_spacing)
+    coordinates[1, boundary_particle] = x_position + (x - 1) * particle_spacing
+    coordinates[2, boundary_particle] = y_position + (y - 1) * particle_spacing
+    coordinates[3, boundary_particle] = z_position + (z - 1) * particle_spacing
 end

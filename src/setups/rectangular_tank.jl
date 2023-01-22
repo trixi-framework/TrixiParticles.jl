@@ -288,7 +288,8 @@ function initialize_boundaries(particle_spacing,
     #### Bottom boundary
     if faces[3]
         bottom_boundary = RectangularShape(particle_spacing, n_particles_x - 2, n_layers,
-                                           particle_spacing, layer_offset, loop_order=2)
+                                           particle_spacing, layer_offset,
+                                           loop_order=:y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary.coordinates)
@@ -304,7 +305,8 @@ function initialize_boundaries(particle_spacing,
     #### Top boundary
     if faces[4]
         top_boundary = RectangularShape(particle_spacing, n_particles_x - 2, n_layers,
-                                        particle_spacing, container_height, loop_order=2)
+                                        particle_spacing, container_height,
+                                        loop_order=:y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, top_boundary.coordinates)
@@ -410,7 +412,7 @@ function initialize_boundaries(particle_spacing,
         y_bottom_boundary = RectangularShape(particle_spacing,
                                              n_particles_x - 2, n_layers, n_particles_z - 2,
                                              particle_spacing, layer_offset,
-                                             particle_spacing, loop_order=3)
+                                             particle_spacing, loop_order=:y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_bottom_boundary.coordinates)
@@ -428,7 +430,7 @@ function initialize_boundaries(particle_spacing,
         y_top_boundary = RectangularShape(particle_spacing, n_particles_x - 2, n_layers,
                                           n_particles_z - 2,
                                           particle_spacing, container_height,
-                                          particle_spacing, loop_order=3)
+                                          particle_spacing, loop_order=:y_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, y_top_boundary.coordinates)
@@ -446,7 +448,7 @@ function initialize_boundaries(particle_spacing,
         z_left_boundary = RectangularShape(particle_spacing,
                                            n_particles_x - 2, n_particles_y - 2, n_layers,
                                            particle_spacing, particle_spacing,
-                                           layer_offset, loop_order=5)
+                                           layer_offset, loop_order=:z_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_left_boundary.coordinates)
@@ -464,7 +466,7 @@ function initialize_boundaries(particle_spacing,
         z_right_boundary = RectangularShape(particle_spacing, n_particles_x - 2,
                                             n_particles_y - 2, n_layers,
                                             particle_spacing, particle_spacing,
-                                            container_depth, loop_order=5)
+                                            container_depth, loop_order=:z_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, z_right_boundary.coordinates)
@@ -620,17 +622,17 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
 
     dim = 1
     for face in eachindex(reset_faces)
-        reset_faces[face] && for layer in 0:(n_layers - 1)
+        reset_faces[face] && for layer in 1:n_layers
 
             # `face_indices` contains the associated particle indices for each face.
-            for particle in face_indices[face][layer + 1, :]
+            for particle in face_indices[face][layer, :]
 
                 # For "odd" faces the layer direction is outwards
                 # and for "even" faces inwards.
                 layer_shift = if iseven(face)
-                    layer * particle_spacing / spacing_ratio
+                    (layer - 1) * particle_spacing / spacing_ratio
                 else
-                    -layer * particle_spacing / spacing_ratio
+                    -(layer - 1) * particle_spacing / spacing_ratio
                 end
 
                 # set position
