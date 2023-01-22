@@ -7,10 +7,10 @@ Rectangular shape filled with particles.
 # Arguments
 - `particle_spacing`:                   Spacing betweeen the particles
 - `n_particles_x`, `n_particles_y`:     Number of particles in x and y direction, respectively
-- `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively
 
 # Keywords
 - `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
+- `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -32,8 +32,10 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
     particle_spacing          :: ELTYPE
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
-    function RectangularShape(particle_spacing, n_particles_x, n_particles_y,
-                              x_position, y_position; density=0.0, loop_order=:x_first)
+    function RectangularShape(particle_spacing, n_particles_x, n_particles_y;
+                              x_position=zero(eltype(particle_spacing)),
+                              y_position=zero(eltype(particle_spacing)),
+                              density=0.0, loop_order=:x_first)
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
@@ -53,9 +55,11 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
                                   particle_spacing, n_particles_per_dimension)
     end
 
-    function RectangularShape(particle_spacing, n_particles_x, n_particles_y, n_particles_z,
-                              x_position, y_position, z_position; density=0.0,
-                              loop_order=:x_first)
+    function RectangularShape(particle_spacing, n_particles_x, n_particles_y, n_particles_z;
+                              x_position=zero(eltype(particle_spacing)),
+                              y_position=zero(eltype(particle_spacing)),
+                              z_position=zero(eltype(particle_spacing)),
+                              density=0.0, loop_order=:x_first)
         NDIMS = 3
         ELTYPE = eltype(particle_spacing)
 

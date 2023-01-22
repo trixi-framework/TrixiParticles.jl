@@ -69,9 +69,10 @@ n_particles_per_dimension = (n_particles_x,
 # The bottom layer is sampled separately below.
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
                          n_particles_per_dimension[2] - 1,
-                         0.292, solid_particle_spacing, density=solid_density)
+                         x_position=0.292, y_position=solid_particle_spacing,
+                         density=solid_density)
 fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
-                                   0.292, 0.0, density=solid_density)
+                                   x_position=0.292, y_position=0.0, density=solid_density)
 
 particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
@@ -130,7 +131,6 @@ summary_callback()
 # Move right boundary
 position = (0, container_width, 0, 0)
 reset_wall!(setup, reset_face, position)
-
 
 # Run full simulation
 tspan = (0.0, 1.0)
