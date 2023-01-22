@@ -1,6 +1,6 @@
 """
-    RectangularShape(particle_spacing, n_particles_x, n_particles_y,
-                     x_position, y_position; density=0.0)
+    RectangularShape(particle_spacing, n_particles_x, n_particles_y;
+                     x_position, y_position, density=0.0, loop_order=:x_first)
 
 Rectangular shape filled with particles.
 
@@ -11,6 +11,7 @@ Rectangular shape filled with particles.
 # Keywords
 - `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
 - `x_position`, `y_position`:           Starting point of the reactangular in x and y direction, respectively
+- `loop_order`: For a desired indexing of the particles (possible symbolic variables: `:x_first`, `:y_first`, `:z_first`)
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
