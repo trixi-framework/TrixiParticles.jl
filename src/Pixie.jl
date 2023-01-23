@@ -31,7 +31,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
-export CohesionForceAkinci
+export CohesionForceAkinci, SurfaceTensionAkinci
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
 export examples_dir, pixie_include

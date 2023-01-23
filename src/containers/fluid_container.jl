@@ -19,6 +19,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 	   ParticleContainer{NDIMS}
 	initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
 	initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
+    surface_normal      :: Array{ELTYPE, 2} # [dimension, particle]
 	mass                :: Array{ELTYPE, 1} # [particle]
 	radius              :: Array{ELTYPE, 1} # [particle]
 	pressure            :: Array{ELTYPE, 1} # [particle]
@@ -46,6 +47,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 		nparticles = length(particle_masses)
 
 		pressure = Vector{ELTYPE}(undef, nparticles)
+        surf_n = Array{ELTYPE}(undef, 1, 1)
 
 		# Make acceleration an SVector
 		acceleration_ = SVector(acceleration...)
@@ -62,7 +64,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 
 		return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
 			typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
-			typeof(surface_tension)}(particle_coordinates, particle_velocities,
+			typeof(surface_tension)}(particle_coordinates, particle_velocities, surf_n,
 			particle_masses, particle_radius, pressure,
 			density_calculator, state_equation,
 			smoothing_kernel, smoothing_length, ref_density,
@@ -85,13 +87,20 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 
 		pressure = Vector{ELTYPE}(undef, nparticles)
 
+        if need_normal(surface_tension)
+            surf_n = Array{ELTYPE, 2}(undef, nparticles, NDIMS)
+        else
+            surf_n = Array{ELTYPE, 2}(undef, 1, NDIMS)
+            surf_n[1, :] = NaN
+        end
+
 		# Make acceleration an SVector
 		acceleration_ = SVector(acceleration...)
 		if length(acceleration_) != NDIMS
 			error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
 		end
 
-		if surface_tension != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
+		if typeof(surface_tension) != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
 			error("smoothing_length must be at least $(2 * maximum(particle_radius))")
 		end
 
@@ -100,7 +109,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 
 		return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
 			typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
-			typeof(surface_tension)}(particle_coordinates, particle_velocities,
+			typeof(surface_tension)}(particle_coordinates, particle_velocities, surf_n,
 			particle_masses, particle_radius, pressure,
 			density_calculator, state_equation,
 			smoothing_kernel, smoothing_length, ref_density,
@@ -255,4 +264,17 @@ function write_variables!(u0, ::ContinuityDensity, container::FluidParticleConta
 	end
 
 	return u0
+end
+
+function get_normal(particle, particle_container::FluidParticleContainer, ::NoSurfaceTension, NDIM)
+    return zeros(NDIM)
+end
+
+function get_normal(particle, particle_container::FluidParticleContainer, ::CohesionForceAkinci, NDIM)
+    return zeros(NDIM)
+end
+
+function get_normal(particle, particle_container::FluidParticleContainer, ::SurfaceTensionAkinci, NDIM)
+    @unpack surface_normal = particle_container
+    return surface_normal[particle, :]
 end

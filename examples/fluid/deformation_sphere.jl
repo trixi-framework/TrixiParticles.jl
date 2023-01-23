@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.05
+particle_spacing = 0.25
 
 water_width = 1.0
 water_height = 1.0
@@ -25,18 +25,18 @@ particle_container = FluidParticleContainer(setup.coordinates,
 	viscosity = ArtificialViscosityMonaghan(0.02,
 		0.0),
 	acceleration = (0.0, 0.0),
-	surface_tension = CohesionForceAkinci(2e-5))
+	surface_tension = SurfaceTensionAkinci(1.0))
 
 semi = Semidiscretization(particle_container,
 	neighborhood_search = SpatialHashingSearch,
 	damping_coefficient = 0.0)
 
-tspan = (0.0, 20.0)
+tspan = (0.0, 1e-6)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval = 10)
-saved_values, saving_callback = SolutionSavingCallback(saveat = 0.0:0.02:1000.0)
+alive_callback = AliveCallback(alive_interval = 100)
+saved_values, saving_callback = SolutionSavingCallback(saveat = 0.0:0.01:1000.0)
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
@@ -48,11 +48,18 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
-	abstol = 1e-10, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-	reltol = 1e-8, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-	dtmax = 1e-3, # Limit stepsize to prevent crashing
-	save_everystep = false, callback = callbacks);
+# sol = solve(ode, RDPK3SpFSAL49(),
+# 	abstol = 1e-8, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+# 	reltol = 1e-6, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+# 	dtmax = 5e-5, # Limit stepsize to prevent crashing
+# 	save_everystep = false, callback = callbacks);
+
+
+sol = solve(ode, TRBDF2(autodiff=false),
+abstol = 1e-8, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+reltol = 1e-6, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+dtmax = 5e-5, # Limit stepsize to prevent crashing
+save_everystep = false, callback = callbacks);
 
 # Print the timer summary
 summary_callback()

@@ -2,12 +2,39 @@
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
+
+        # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+        if need_normal(surface_tension)
+            surface_normal[particle, :] .= 0.0
+            for neighbor in eachneighbor(particle_coords, neighborhood_search)
+                neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+                pos_diff = particle_coords - neighbor_coords
+                distance = norm(pos_diff)
+                if distance < eps(Float64)
+                    continue
+                end
+
+                m_b = neighbor_container.mass[neighbor]
+                density_neighbor = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
+                # bf(pd) = (m_b / density_neighbor * kernel_deriv(smoothing_kernel, pd, distance))
+                # surface_normal[particle] += broadcast(bf, pos_diff)
+                # surface_normal[particle, :] .+= m_b / density_neighbor * kernel_deriv.(Ref(smoothing_kernel), abs.(pos_diff), distance) .* (pos_diff/distance)
+                surface_normal[particle, :] .+= m_b / density_neighbor * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+                # if norm(particle_coords - [0.5, 0.5]) < eps(Float64)
+                #     println("kernel ", kernel_deriv.(Ref(smoothing_kernel), pos_diff, distance), " pd ", pos_diff, " d ", distance)
+                # end
+            end
+            surface_normal[particle, :] .*= smoothing_length
+            println("normal ",surface_normal[particle, 1], " ", surface_normal[particle, 2], " ", particle_coords)
+        end
+
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
+
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
 
@@ -30,6 +57,13 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     return du
 end
 
+@inline function need_normal(surface_tension_model)
+    if surface_tension_model isa SurfaceTensionAkinci
+        return true
+    end
+    return false
+end
+
 @inline function calc_dv!(du, u_particle_container, u_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
@@ -50,7 +84,7 @@ end
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
                   distance
 
-    m_a = particle_container.mass[particle]
+    m_a = particle_container.mass[particle] # todo: remove
     m_b = neighbor_container.mass[neighbor]
 
 
@@ -61,7 +95,11 @@ end
                   (particle_container.pressure[particle] / density_particle^2 +
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
     dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
-    dv_surface_tension = k_ij * surface_tension(smoothing_length, m_a, m_b, pos_diff, distance)
+    dv_surface_tension = k_ij * surface_tension(smoothing_length, m_a, m_b,
+    get_normal(particle, particle_container, surface_tension, ndims(particle_container)),
+    get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)), pos_diff, distance)
+
+    #println( get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)))
 
     dv = dv_pressure + dv_viscosity + dv_surface_tension
 
