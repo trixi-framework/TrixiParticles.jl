@@ -655,8 +655,8 @@ end
 The selected walls of the tank will be placed at the new positions.
 
 # Arguments
-- `reset_faces`: Boolean tuple of 4 (in 2D) or 6 (in 3D) dimensions like `faces` in [`RectangularTank`](@ref).
-- `positions`: Tuple of desired positions
+- `reset_faces`: Boolean tuple of 4 (in 2D) or 6 (in 3D) dimensions, similar to `faces` in [`RectangularTank`](@ref).
+- `positions`: Tuple of new positions
 
 !!! warning "Warning"
     There are overlapping particles when adjacent walls are moved inwards simultaneously.
@@ -665,12 +665,13 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
     @unpack boundary_coordinates, particle_spacing, spacing_ratio,
     n_layers, face_indices = rectangular_tank
 
-    dim = 1
     for face in eachindex(reset_faces)
+        dim = div(face - 1, 2) + 1
+
         reset_faces[face] && for layer in 1:n_layers
 
             # `face_indices` contains the associated particle indices for each face.
-            for particle in face_indices[face][layer, :]
+            for particle in view(face_indices[face], layer, :)
 
                 # For "odd" faces the layer direction is outwards
                 # and for "even" faces inwards.
@@ -684,12 +685,9 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
                 boundary_coordinates[dim, particle] = positions[face] + layer_shift
             end
         end
-
-        # jump to the next dimension in the `boundary_coordinates` array
-        # e.g. faces[1] and faces[2] is shifted in x-direction,
-        # whereas faces[3] in y-direction and so on.
-        dim += iseven(face)
     end
+
+    return rectangular_tank
 end
 
 function get_fluid_particles_per_dimension(size, spacing, dimension)
