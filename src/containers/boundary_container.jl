@@ -75,7 +75,7 @@ function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContai
 end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
-                                        u_particle_container, u_boundary_container,
+                                          u_particle_container, u_boundary_container,
                                           particle_container, boundary_container,
                                           pos_diff, distance, m_b)
     @unpack boundary_model = boundary_container
