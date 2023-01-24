@@ -244,16 +244,18 @@ function initialize_boundaries(particle_spacing,
     n_particles_y = n_particles_y - 2
 
     # Store each particle index
-    face1 = Array{Int, 2}(undef, n_layers, n_particles_y)
-    face2 = Array{Int, 2}(undef, n_layers, n_particles_y)
-    face3 = Array{Int, 2}(undef, n_layers, n_particles_x)
-    face4 = Array{Int, 2}(undef, n_layers, n_particles_x)
+    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y)
+    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y)
+    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x)
+    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
 
+    # Create empty array to extend later depending on faces and corners to build
     boundary_coordinates = Array{Float64, 2}(undef, 2, 0)
+
     # Counts the global index of the particles
     index = 0
 
-    # For odd faces we need a shift to make sure that the last layer is at desired position.
+    # For odd faces we need to shift the face outwards if we have multiple layers
     layer_offset = -(n_layers - 1) * particle_spacing
 
     #### Left boundary
@@ -266,10 +268,10 @@ function initialize_boundaries(particle_spacing,
         boundary_coordinates = hcat(boundary_coordinates, left_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = left_boundary.n_particles_per_dimension[2]
+        particles_per_layer = left_boundary.n_particles_per_dimension[2]
         for i in 1:n_layers
-            face1[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_1[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
@@ -283,10 +285,10 @@ function initialize_boundaries(particle_spacing,
         boundary_coordinates = hcat(boundary_coordinates, right_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = right_boundary.n_particles_per_dimension[2]
+        particles_per_layer = right_boundary.n_particles_per_dimension[2]
         for i in 1:n_layers
-            face2[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_2[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
@@ -301,10 +303,10 @@ function initialize_boundaries(particle_spacing,
         boundary_coordinates = hcat(boundary_coordinates, bottom_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = bottom_boundary.n_particles_per_dimension[1]
+        particles_per_layer = bottom_boundary.n_particles_per_dimension[1]
         for i in 1:n_layers
-            face3[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
@@ -319,47 +321,48 @@ function initialize_boundaries(particle_spacing,
         boundary_coordinates = hcat(boundary_coordinates, top_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = top_boundary.n_particles_per_dimension[1]
+        particles_per_layer = top_boundary.n_particles_per_dimension[1]
         for i in 1:n_layers
-            face4[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### Add corners
-    # left bottom
+    # Bottom left
     if faces[1] && faces[3]
-        left_bottom_corner = RectangularShape(particle_spacing,
+        bottom_left_corner = RectangularShape(particle_spacing,
                                               (n_layers, n_layers),
                                               (layer_offset, layer_offset))
-        boundary_coordinates = hcat(boundary_coordinates, left_bottom_corner.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, bottom_left_corner.coordinates)
     end
 
-    # left top
+    # Top left
     if faces[1] && faces[4]
-        left_top_corner = RectangularShape(particle_spacing,
+        top_left_corner = RectangularShape(particle_spacing,
                                            (n_layers, n_layers),
                                            (layer_offset, container_height))
-        boundary_coordinates = hcat(boundary_coordinates, left_top_corner.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, top_left_corner.coordinates)
     end
 
-    # right bottom
+    # Bottom right
     if faces[2] && faces[3]
-        right_bottom_corner = RectangularShape(particle_spacing,
+        bottom_right_corner = RectangularShape(particle_spacing,
                                                (n_layers, n_layers),
                                                (container_width, layer_offset))
-        boundary_coordinates = hcat(boundary_coordinates, right_bottom_corner.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, bottom_right_corner.coordinates)
     end
 
-    # right top
+    # Top right
     if faces[2] && faces[4]
-        right_top_corner = RectangularShape(particle_spacing,
+        top_right_corner = RectangularShape(particle_spacing,
                                             (n_layers, n_layers),
                                             (container_width, container_height))
-        boundary_coordinates = hcat(boundary_coordinates, right_top_corner.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, top_right_corner.coordinates)
     end
 
-    return boundary_coordinates, (face1, face2, face3, face4)
+    return boundary_coordinates,
+           (face_indices_1, face_indices_2, face_indices_3, face_indices_4)
 end
 
 # 3D
@@ -373,127 +376,128 @@ function initialize_boundaries(particle_spacing,
     n_particles_z = n_particles_z - 2
 
     # Store each particle index
-    face1 = Array{Int, 2}(undef, n_layers, (n_particles_y) * (n_particles_z))
-    face2 = Array{Int, 2}(undef, n_layers, (n_particles_y) * (n_particles_z))
-    face3 = Array{Int, 2}(undef, n_layers, (n_particles_x) * (n_particles_z))
-    face4 = Array{Int, 2}(undef, n_layers, (n_particles_x) * (n_particles_z))
-    face5 = Array{Int, 2}(undef, n_layers, (n_particles_x) * (n_particles_y))
-    face6 = Array{Int, 2}(undef, n_layers, (n_particles_x) * (n_particles_y))
+    face_indices_1 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z)
+    face_indices_2 = Array{Int, 2}(undef, n_layers, n_particles_y * n_particles_z)
+    face_indices_3 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z)
+    face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_z)
+    face_indices_5 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
+    face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
 
+    # Create empty array to extend later depending on faces and corners to build
     boundary_coordinates = Array{Float64, 2}(undef, 3, 0)
 
     # Counts the global index of the particles
     index = 0
 
-    # For odd faces we need a shift to make sure that the last layer is at desired position.
+    # For odd faces we need to shift the face outwards if we have multiple layers
     layer_offset = -(n_layers - 1) * particle_spacing
 
     #### -x boundary (y-z-plane)
     if faces[1]
-        x_left_boundary = RectangularShape(particle_spacing,
-                                           (n_layers, n_particles_y, n_particles_z),
-                                           (layer_offset, particle_spacing,
-                                            particle_spacing))
+        x_neg_boundary = RectangularShape(particle_spacing,
+                                          (n_layers, n_particles_y, n_particles_z),
+                                          (layer_offset, particle_spacing,
+                                           particle_spacing))
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, x_left_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(x_left_boundary.n_particles_per_dimension[2:3])
+        particles_per_layer = prod(x_neg_boundary.n_particles_per_dimension[2:3])
         for i in 1:n_layers
-            face1[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_1[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### +x boundary (y-z-plane)
     if faces[2]
-        x_right_boundary = RectangularShape(particle_spacing,
-                                            (n_layers, n_particles_y, n_particles_z),
-                                            (container_width, particle_spacing,
-                                             particle_spacing))
+        x_pos_boundary = RectangularShape(particle_spacing,
+                                          (n_layers, n_particles_y, n_particles_z),
+                                          (container_width, particle_spacing,
+                                           particle_spacing))
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, x_right_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(x_right_boundary.n_particles_per_dimension[2:3])
+        particles_per_layer = prod(x_pos_boundary.n_particles_per_dimension[2:3])
         for i in 1:n_layers
-            face2[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_2[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### -y boundary (x-z-plane)
     if faces[3]
-        y_bottom_boundary = RectangularShape(particle_spacing,
-                                             (n_particles_x, n_layers, n_particles_z),
-                                             (particle_spacing, layer_offset,
-                                              particle_spacing),
-                                             loop_order=:y_first)
+        y_neg_boundary = RectangularShape(particle_spacing,
+                                          (n_particles_x, n_layers, n_particles_z),
+                                          (particle_spacing, layer_offset,
+                                           particle_spacing),
+                                          loop_order=:y_first)
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, y_bottom_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, y_neg_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(y_bottom_boundary.n_particles_per_dimension[1:2:3])
+        particles_per_layer = prod(y_neg_boundary.n_particles_per_dimension[1:2:3])
         for i in 1:n_layers
-            face3[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### +y boundary (x-z-plane)
     if faces[4]
-        y_top_boundary = RectangularShape(particle_spacing,
+        y_pos_boundary = RectangularShape(particle_spacing,
                                           (n_particles_x, n_layers, n_particles_z),
                                           (particle_spacing, container_height,
                                            particle_spacing), loop_order=:y_first)
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, y_top_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, y_pos_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(y_top_boundary.n_particles_per_dimension[1:2:3])
+        particles_per_layer = prod(y_pos_boundary.n_particles_per_dimension[1:2:3])
         for i in 1:n_layers
-            face4[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### -z boundary (x-y-plane).
     if faces[5]
-        z_left_boundary = RectangularShape(particle_spacing,
-                                           (n_particles_x, n_particles_y, n_layers),
-                                           (particle_spacing, particle_spacing,
-                                            layer_offset), loop_order=:z_first)
+        z_neg_boundary = RectangularShape(particle_spacing,
+                                          (n_particles_x, n_particles_y, n_layers),
+                                          (particle_spacing, particle_spacing,
+                                           layer_offset), loop_order=:z_first)
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, z_left_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, z_neg_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(z_left_boundary.n_particles_per_dimension[1:2])
+        particles_per_layer = prod(z_neg_boundary.n_particles_per_dimension[1:2])
         for i in 1:n_layers
-            face5[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_5[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
     #### +z boundary (x-y-plane)
     if faces[6]
-        z_right_boundary = RectangularShape(particle_spacing,
-                                            (n_particles_x, n_particles_y, n_layers),
-                                            (particle_spacing, particle_spacing,
-                                             container_depth), loop_order=:z_first)
+        z_pos_boundary = RectangularShape(particle_spacing,
+                                          (n_particles_x, n_particles_y, n_layers),
+                                          (particle_spacing, particle_spacing,
+                                           container_depth), loop_order=:z_first)
 
         # store coordinates of left boundary
-        boundary_coordinates = hcat(boundary_coordinates, z_right_boundary.coordinates)
+        boundary_coordinates = hcat(boundary_coordinates, z_pos_boundary.coordinates)
 
         # store the indices of each particle
-        particle_per_layer = prod(z_right_boundary.n_particles_per_dimension[1:2])
+        particles_per_layer = prod(z_pos_boundary.n_particles_per_dimension[1:2])
         for i in 1:n_layers
-            face6[i, :] = collect((index + 1):(particle_per_layer + index))
-            index += particle_per_layer
+            face_indices_6[i, :] = collect((index + 1):(particles_per_layer + index))
+            index += particles_per_layer
         end
     end
 
@@ -640,7 +644,9 @@ function initialize_boundaries(particle_spacing,
         boundary_coordinates = hcat(boundary_coordinates, corner_2_4_6.coordinates)
     end
 
-    return boundary_coordinates, (face1, face2, face3, face4, face5, face6)
+    return boundary_coordinates,
+           (face_indices_1, face_indices_2, face_indices_3, face_indices_4, face_indices_5,
+            face_indices_6)
 end
 
 @doc raw"""
