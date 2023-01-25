@@ -158,6 +158,14 @@ end
     return du
 end
 
+@inline function continuity_equation!(du, ::SummationDensity,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    return du
+end
+
 # Solid-boundary interaction
 function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,

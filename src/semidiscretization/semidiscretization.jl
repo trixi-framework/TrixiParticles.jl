@@ -350,8 +350,6 @@ function update2!(container::FluidParticleContainer, container_index, u, u_ode, 
 end
 
 function update3!(container::BoundaryParticleContainer, container_index, u, u_ode, semi, t)
-    @unpack boundary_model = container
-
     # Only update boundary container
     update!(container, container_index, u, u_ode, semi, t)
 end

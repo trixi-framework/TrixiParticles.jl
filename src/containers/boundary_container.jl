@@ -369,7 +369,9 @@ end
 end
 
 # This will only be called for BoundaryModelDummyParticles
-@inline function get_particle_density(particle, u, container::Union{BoundaryParticleContainer, SolidParticleContainer})
+@inline function get_particle_density(particle, u,
+                                      container::Union{BoundaryParticleContainer,
+                                                       SolidParticleContainer})
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
@@ -450,7 +452,10 @@ end
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function compute_density_per_particle(particle, u_particle_container,
                                               u_neighbor_container,
-                                              particle_container::Union{BoundaryParticleContainer, SolidParticleContainer},
+                                              particle_container::Union{
+                                                                        BoundaryParticleContainer,
+                                                                        SolidParticleContainer
+                                                                        },
                                               neighbor_container, neighborhood_search)
     @unpack boundary_model = particle_container
     @unpack smoothing_kernel, smoothing_length, cache = boundary_model
