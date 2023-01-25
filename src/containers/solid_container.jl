@@ -411,14 +411,14 @@ function write_variables!(u0, boundary_model, container)
 end
 
 function write_variables!(u0, boundary_model, density_calculator, container)
-    return du
+    return u0
 end
 
 function write_variables!(u0, boundary_model, ::ContinuityDensity, container)
     @unpack cache = boundary_model
     @unpack initial_density = cache
 
-    for particle in eachparticle(container)
+    for particle in each_moving_particle(container)
         # Set particle densities
         u0[2 * ndims(container) + 1, particle] = initial_density[particle]
     end
