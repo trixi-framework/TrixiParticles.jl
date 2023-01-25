@@ -711,6 +711,13 @@ function get_boundary_particles_per_dimension(container_width, container_height,
         print_warn_message("container height", container_height, new_container_height)
     end
 
+    # The container size is larger than the fluid area by one particle spacing,
+    # since the boundary particles enclose the fluid particles.
+    # For the boundary faces we need the size of the fluid area.
+    # Thus, remove one particle again.
+    n_boundaries_x -= 1
+    n_boundaries_y -= 1
+
     return n_boundaries_x, n_boundaries_y, new_container_width, new_container_height
 end
 
@@ -734,6 +741,14 @@ function get_boundary_particles_per_dimension(container_width, container_height,
     if round(new_container_depth, digits=4) != round(container_depth, digits=4)
         print_warn_message("container depth", container_depth, new_container_depth)
     end
+
+    # The container size is larger than the fluid area by one particle spacing,
+    # since the boundary particles enclose the fluid particles.
+    # For the boundary faces we need the size of the fluid area.
+    # Thus, remove one particle again.
+    n_boundaries_x -= 1
+    n_boundaries_y -= 1
+    n_boundaries_z -= 1
 
     return n_boundaries_x, n_boundaries_y, n_boundaries_z,
            new_container_width, new_container_height, new_container_depth
