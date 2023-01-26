@@ -9,15 +9,15 @@ water_density = 1000.0
 #water_viscosity = 10
 
 
-
-setup = RectangularShape(particle_spacing, (0.0, 0.0), (water_width, water_height), density = water_density)
+# todo: ....
+setup = RectangularShape(particle_spacing, (0.0, 0.0, 0.0), (water_width, water_height, water_height), density = water_density)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0,
 	background_pressure = 100000.0)
 
 smoothing_length = 2.0 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 # Monaghan 2005
 #alpha = 10 * water_viscosity/(water_density * smoothing_length)
 
@@ -29,14 +29,14 @@ particle_container = FluidParticleContainer(setup.coordinates,
 	smoothing_kernel, smoothing_length, water_density,
 	viscosity = ArtificialViscosityMonaghan(1.0,
 		2.0),
-	acceleration = (0.0, 0.0),
+	acceleration = (0.0, 0.0, 0.0),
 	surface_tension = SurfaceTensionAkinci(0.02))
 
 semi = Semidiscretization(particle_container,
 	neighborhood_search = SpatialHashingSearch,
 	damping_coefficient = 0.0)
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 0.1)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()

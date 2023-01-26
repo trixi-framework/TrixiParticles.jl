@@ -23,15 +23,18 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, na, nb
 
     # Eq. 2
     C = 0
-    if distance < smoothing_length
+    if distance^2 <= smoothing_length^2
         if distance > 0.5 * smoothing_length
             # attractive force
+            #print("a")
             C = (smoothing_length - distance)^3 * distance^3
         else
             # repulsive force
+            #print("r")
             C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
         end
         C *= 32.0 / (pi * smoothing_length^9)
+        #println(surface_tension_coefficient," ", mb," ", C," ", dx," ", distance)
     end
 
     # Eq. 1 in acceleration form
@@ -55,8 +58,8 @@ end
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, ma, mb, na, nb, dx, distance)
     @unpack surface_tension_coefficient = surface_tension
 
-    surface_force = - surface_tension_coefficient * (na - nb)
     cof = CohesionForceAkinci(surface_tension_coefficient)(smoothing_length, ma, mb, na, nb, dx, distance)
-    #return cof .+ surface_force
-    return surface_force
+    surface_force = - surface_tension_coefficient * (na - nb)
+    return cof .+ surface_force
+    #return surface_force
 end

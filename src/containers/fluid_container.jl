@@ -91,7 +91,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
             surf_n = Array{ELTYPE, 2}(undef, nparticles, NDIMS)
         else
             surf_n = Array{ELTYPE, 2}(undef, 1, NDIMS)
-            surf_n[1, :] = NaN
+            surf_n[1, :] .= NaN
         end
 
 		# Make acceleration an SVector
@@ -100,9 +100,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 			error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
 		end
 
-		if typeof(surface_tension) != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
-			error("smoothing_length must be at least $(2 * maximum(particle_radius))")
-		end
+		# if typeof(surface_tension) != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
+		# 	error("smoothing_length must be at least $(2 * maximum(particle_radius))")
+		# end
 
 		initial_density = particle_densities
 		cache = (; initial_density)

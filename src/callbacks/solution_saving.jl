@@ -109,6 +109,8 @@ function (extract_quantities::ExtractQuantities)(u, container::FluidParticleCont
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => u[1:ndims(container), :],
+                                          :surface_normal => u[(ndims(container) + 1):(2 * ndims(container)),
+                                          :],
                                           :velocity => u[(ndims(container) + 1):(2 * ndims(container)),
                                                          :],
                                           :pressure => copy(container.pressure))
