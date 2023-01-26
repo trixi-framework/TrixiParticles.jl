@@ -27,9 +27,11 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=n_layers)
 
-setup_gate = RectangularShape(fluid_particle_spacing / beta, n_layers,
-                              setup.n_boundaries_per_dimension[2],
-                              water_width, fluid_particle_spacing / beta,
+gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
+setup_gate = RectangularShape(fluid_particle_spacing / beta,
+                              (n_layers,
+                               round(Int, container_height / fluid_particle_spacing * beta)),
+                              (gate_position, fluid_particle_spacing / beta),
                               density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)
@@ -78,11 +80,13 @@ solid_particle_spacing = thickness / (n_particles_x - 1)
 
 n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
 
-plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
-                         n_particles_per_dimension[2] - 1,
-                         0.6, solid_particle_spacing, density=solid_density)
-fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
-                                   0.6, 0.0, density=solid_density)
+plate = RectangularShape(solid_particle_spacing,
+                         (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
+                         (0.6, solid_particle_spacing),
+                         density=solid_density)
+fixed_particles = RectangularShape(solid_particle_spacing,
+                                   (n_particles_per_dimension[1], 1),
+                                   (0.6, 0.0), density=solid_density)
 
 particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
