@@ -95,10 +95,19 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                dv = boundary_particle_impact(neighbor, particle,
-                                              u_neighbor_container, u_particle_container,
-                                              neighbor_container, particle_container,
-                                              pos_diff, distance, m_b)
+                v_b = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+                pi_ba = viscosity(state_equation.sound_speed, v_b, pos_diff, distance,
+                                  density_b, smoothing_length)
+                dv_viscosity = m_a * pi_ba *
+                               kernel_deriv(smoothing_kernel, distance, smoothing_length) *
+                               pos_diff / distance
+                dv_boundary = boundary_particle_impact(neighbor, particle,
+                                                       u_neighbor_container,
+                                                       u_particle_container,
+                                                       neighbor_container,
+                                                       particle_container,
+                                                       pos_diff, distance, m_b)
+                dv = dv_boundary + dv_viscosity
 
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
