@@ -3,7 +3,8 @@ using OrdinaryDiffEq
 
 particle_spacing = 0.08
 # Spacing ratio between fluid and boundary particles
-beta = 3
+beta = 1
+boundary_layers = 3
 
 water_width = floor(2.0 / particle_spacing) * particle_spacing # x-direction
 water_height = floor(1.0 / particle_spacing) * particle_spacing # y-direction
@@ -16,8 +17,8 @@ container_length = floor(1.0 / particle_spacing) * particle_spacing
 
 setup = RectangularTank(particle_spacing, beta,
                         water_width, water_height, water_length,
-                        container_width, container_height, container_length,
-                        water_density)
+                        container_width, container_height, container_length, water_density,
+                        n_layers=boundary_layers)
 
 # Move right boundary
 new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
@@ -43,12 +44,14 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81, 0.0))
 
-K = 9.81 * water_height
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities, state_equation,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length)
+#K = 9.81 * water_height
+#boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
+
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-                                               setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta,
-                                                                           particle_spacing /
-                                                                           beta))
+                                               setup.boundary_masses, boundary_model)
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
@@ -90,6 +93,8 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
 particle_container.initial_coordinates .= view(u_end, 1:3, :)
 particle_container.initial_velocity .= view(u_end, 4:6, :)
+# TODO
+particle_container.cache.initial_density .= view(u_end, 7, :)
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)

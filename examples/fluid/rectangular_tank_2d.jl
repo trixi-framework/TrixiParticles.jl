@@ -4,6 +4,7 @@ using OrdinaryDiffEq
 particle_spacing = 0.02
 # Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
+boundary_layers = 3
 
 water_width = 2.0
 water_height = 0.9
@@ -13,7 +14,8 @@ container_width = 2.0
 container_height = 1.0
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density, n_layers=3)
+                        container_width, container_height, water_density,
+                        n_layers=boundary_layers)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0,
@@ -32,8 +34,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81))
 
-boundary_densities = water_density * ones(size(setup.boundary_masses))
-boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
