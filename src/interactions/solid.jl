@@ -76,6 +76,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
     @threaded for particle in each_moving_particle(particle_container)
         m_a = particle_container.mass[particle]
+        v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
@@ -91,12 +92,15 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+
                 # Apply the same force to the solid particle
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
                 v_b = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
-                pi_ba = viscosity(state_equation.sound_speed, v_b, pos_diff, distance,
+                v_diff = v_a - v_b
+
+                pi_ba = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                                   density_b, smoothing_length)
                 dv_viscosity = m_a * pi_ba *
                                kernel_deriv(smoothing_kernel, distance, smoothing_length) *
