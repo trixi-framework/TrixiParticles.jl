@@ -53,7 +53,7 @@ end
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / density_particle^2 +
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
-    dv_viscosity = m_b * pi_ab * grad_kernel
+    dv_viscosity = -m_b * pi_ab * grad_kernel
 
     dv = dv_pressure + dv_viscosity
 
@@ -124,7 +124,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
                 pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, density_a,
                                   smoothing_length)
-                dv_viscosity = m_b * pi_ab *
+                dv_viscosity = -m_b * pi_ab *
                                kernel_deriv(smoothing_kernel, distance, smoothing_length) *
                                pos_diff / distance
 

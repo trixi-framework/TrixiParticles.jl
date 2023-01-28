@@ -102,7 +102,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
                 pi_ba = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                                   density_b, smoothing_length)
-                dv_viscosity = m_a * pi_ba *
+                dv_viscosity = -m_a * pi_ba *
                                kernel_deriv(smoothing_kernel, distance, smoothing_length) *
                                pos_diff / distance
                 dv_boundary = boundary_particle_impact(neighbor, particle,
