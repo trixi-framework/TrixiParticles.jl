@@ -75,16 +75,13 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        m_a = particle_container.mass[particle]
+        density_a = get_particle_density(particle, u_particle_container, particle_container)
+        m_a = get_hydrodynamic_mass(particle, particle_container)
         v_a = get_particle_vel(particle, u_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            m_b = neighbor_container.mass[neighbor]
-            density_b = get_particle_density(neighbor, u_neighbor_container,
-                                             neighbor_container)
-
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
 
@@ -97,12 +94,13 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
+                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 v_b = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
-                v_diff = v_a - v_b
+                v_diff = v_b - v_a
 
-                pi_ba = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                                  density_b, smoothing_length)
-                dv_viscosity = -m_a * pi_ba *
+                pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
+                                  density_a, smoothing_length)
+                dv_viscosity = -m_a * pi_ab *
                                kernel_deriv(smoothing_kernel, distance, smoothing_length) *
                                pos_diff / distance
                 dv_boundary = boundary_particle_impact(neighbor, particle,
@@ -110,13 +108,14 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                                                        u_particle_container,
                                                        neighbor_container,
                                                        particle_container,
-                                                       pos_diff, distance, m_b)
+                                                       pos_diff, distance, m_a)
                 dv = dv_boundary + dv_viscosity
 
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
                     # Divide by m_a to obtain the acceleration of solid particle a
-                    du[ndims(particle_container) + i, particle] += dv[i] * m_b / m_a
+                    du[ndims(particle_container) + i, particle] += dv[i] * m_b /
+                                                                   particle_container.mass[particle]
                 end
 
                 continuity_equation!(du, boundary_model,

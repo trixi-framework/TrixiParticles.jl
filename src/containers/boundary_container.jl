@@ -242,13 +242,14 @@ We provide three options to compute the boundary density and pressure, determine
 """
 struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
     pressure           :: Vector{ELTYPE}
+    hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
     cache              :: C
 
-    function BoundaryModelDummyParticles(initial_density, state_equation,
+    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
                                          density_calculator,
                                          smoothing_kernel, smoothing_length)
         pressure = similar(initial_density)
@@ -257,7 +258,7 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
 
         new{eltype(initial_density), typeof(state_equation),
             typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(cache)}(pressure, state_equation, density_calculator,
+            typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
                            smoothing_kernel, smoothing_length, cache)
     end
 end
@@ -385,6 +386,16 @@ end
     return cache.density[particle]
 end
 
+@inline function get_hydrodynamic_mass(particle,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       container)
+    return boundary_model.hydrodynamic_mass[particle]
+end
+
+@inline function get_hydrodynamic_mass(particle, boundary_model, container)
+    return container.mass[particle]
+end
+
 function update!(container::BoundaryParticleContainer, container_index, u, u_ode, semi, t)
     @unpack initial_coordinates, movement_function, boundary_model = container
 
@@ -460,17 +471,16 @@ end
     @unpack boundary_model = particle_container
     @unpack smoothing_kernel, smoothing_length, cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack mass = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
         distance = norm(particle_coords -
                         get_current_coords(neighbor, u_neighbor_container,
                                            neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass[neighbor] *
-                                 kernel(smoothing_kernel, distance, smoothing_length)
+            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end

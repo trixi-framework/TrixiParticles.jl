@@ -71,11 +71,11 @@ end
                                       neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
+    mass = get_hydrodynamic_mass(neighbor, neighbor_container)
     vdiff = get_particle_vel(particle, u_particle_container, particle_container) -
             get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
 
-    du[2 * ndims(particle_container) + 1, particle] += sum(neighbor_container.mass[neighbor] *
-                                                           vdiff *
+    du[2 * ndims(particle_container) + 1, particle] += sum(mass * vdiff *
                                                            kernel_deriv(smoothing_kernel,
                                                                         distance,
                                                                         smoothing_length) .*
@@ -113,7 +113,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                m_b = neighbor_container.mass[neighbor]
+                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 v_b = get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
                 v_diff = v_a - v_b
 

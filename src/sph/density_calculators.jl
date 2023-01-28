@@ -37,3 +37,9 @@ end
 @inline function get_particle_density(particle, u, ::ContinuityDensity, container)
     return u[end, particle]
 end
+
+# This is dispatched in boundary_container.jl
+@inline function get_hydrodynamic_mass(particle, container)
+    @unpack boundary_model = container
+    get_hydrodynamic_mass(particle, boundary_model, container)
+end

@@ -52,7 +52,8 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81))
 
-boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
+                                                  setup.boundary_masses, state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel,
                                                   smoothing_length)
@@ -108,7 +109,11 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 E = 3.5e6
 nu = 0.45
 
-boundary_model_solid = BoundaryModelDummyParticles(particle_densities, state_equation,
+hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses, state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)
 
