@@ -7,41 +7,28 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     a_surface_tension .= 0
     a_viscosity .= 0
 
-    # if need_normal(surface_tension)
-    #     println("determine normals")
-    # end
+    if need_normal(surface_tension)
+        surface_normal .= 0.0
 
-    for particle in each_moving_particle(particle_container)
-        particle_coords = get_current_coords(particle, u_particle_container,
+        @threaded for particle in each_moving_particle(particle_container)
+            particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
 
-        # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
-        # Note: most of the time this only leads to an approximation of the surface normal
-        if need_normal(surface_tension)
-            #println(smoothing_length, " compact ", compact_support(smoothing_kernel, smoothing_length))
-            surface_normal[:, particle] .= 0.0
+            # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+            # Note: most of the time this only leads to an approximation of the surface normal
             for neighbor in eachneighbor(particle_coords, neighborhood_search)
                 neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
                 pos_diff = particle_coords - neighbor_coords
                 distance = norm(pos_diff)
 
-                # strongly depends on this leading to a symmetric distribution of points!
-                # if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+                # correctness strongly depends on this leading to a symmetric distribution of points!
                 if sqrt(eps()) < distance <= smoothing_length
                     m_b = neighbor_container.mass[neighbor]
                     density_neighbor = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
-                    # bf(pd) = (m_b / density_neighbor * kernel_deriv(smoothing_kernel, pd, distance))
-                    # surface_normal[particle] += broadcast(bf, pos_diff)
-                    # surface_normal[particle, :] .+= m_b / density_neighbor * kernel_deriv.(Ref(smoothing_kernel), abs.(pos_diff), distance) .* (pos_diff/distance)
                     surface_normal[:, particle] .+= m_b / density_neighbor * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-                    # if norm(particle_coords - [0.5, 0.5]) < eps(Float64)
-                    # if particle == 5
-                    #     println("kernel ", kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance, " pd ", pos_diff, " d ", distance, " nid ", neighbor)
-                    # end
                 end
             end
             surface_normal[:, particle] .*= smoothing_length
-            # println("normal ",surface_normal[1, particle], " ", surface_normal[2, particle], " ", particle)
         end
     end
 
@@ -49,31 +36,6 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
-
-        # # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
-        # if need_normal(surface_tension)
-        #     surface_normal[particle, :] .= 0.0
-        #     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        #         neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
-        #         pos_diff = particle_coords - neighbor_coords
-        #         distance = norm(pos_diff)
-        #         if distance < eps(Float64)
-        #             continue
-        #         end
-
-        #         m_b = neighbor_container.mass[neighbor]
-        #         density_neighbor = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
-        #         # bf(pd) = (m_b / density_neighbor * kernel_deriv(smoothing_kernel, pd, distance))
-        #         # surface_normal[particle] += broadcast(bf, pos_diff)
-        #         # surface_normal[particle, :] .+= m_b / density_neighbor * kernel_deriv.(Ref(smoothing_kernel), abs.(pos_diff), distance) .* (pos_diff/distance)
-        #         surface_normal[particle, :] .+= m_b / density_neighbor * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
-        #         # if norm(particle_coords - [0.5, 0.5]) < eps(Float64)
-        #         #     println("kernel ", kernel_deriv.(Ref(smoothing_kernel), pos_diff, distance), " pd ", pos_diff, " d ", distance)
-        #         # end
-        #     end
-        #     surface_normal[particle, :] .*= smoothing_length
-        #     println("normal ",surface_normal[particle, 1], " ", surface_normal[particle, 2], " ", particle)
-        # end
 
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
 
@@ -137,25 +99,15 @@ end
                   (particle_container.pressure[particle] / density_particle^2 +
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
     dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
-    a_viscosity[:, particle] .+= dv_viscosity
 
     dv_surface_tension = k_ij * surface_tension(smoothing_length, m_a, m_b,
     get_normal(particle, particle_container, surface_tension, ndims(particle_container)),
     get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)), pos_diff, distance)
-    #println("normal ",get_normal(particle, particle_container, surface_tension, ndims(particle_container)), " ", particle)
 
+    a_viscosity[:, particle] .+= dv_viscosity
     a_surface_tension[:, particle] .+= dv_surface_tension
 
-    # if particle == 2
-    #     println(particle,",",neighbor, "->s", dv_surface_tension, " a ", a_surface_tension[particle, :], " with r ", radius[particle] )
-    #     println(particle,",",neighbor, "->v", dv_viscosity, " a ", a_viscosity[particle, :], " with r ", radius[particle] )
-    # end
-
-    #println( get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)))
-
     dv = dv_pressure + dv_viscosity + dv_surface_tension
-    #dv = dv_viscosity + dv_surface_tension
-
 
     for i in 1:ndims(particle_container)
         du[ndims(particle_container) + i, particle] += dv[i]
