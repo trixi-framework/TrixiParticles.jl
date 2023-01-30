@@ -44,9 +44,12 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
 
         densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
         velocity = zeros(ELTYPE, n_particles)
+        masses = zeros(ELTYPE, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
+
+        masses = densities .* radius.^NDIMS
+
 
         initialize_rectangular!(coordinates, x_position, y_position, particle_spacing,
                                 n_particles_x, n_particles_y)
@@ -70,11 +73,12 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         n_particles = prod(n_particles_i)
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
-        densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
         velocity = zeros(ELTYPE, NDIMS, n_particles)
+        masses = zeros(ELTYPE, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
 
+        densities = density * ones(ELTYPE, n_particles)
+        masses = densities .* radius.^NDIMS
 
         initialize_rectangular!(coordinates, cornerA[1], cornerA[2], particle_spacing,
         n_particles_i[1], n_particles_i[2])

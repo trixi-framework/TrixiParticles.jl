@@ -27,12 +27,12 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
                                             setup.particle_masses, setup.particle_radius,
                                             setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+                                            SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length, water_density,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension = SurfaceTensionAkinci(0.02))
+                                            surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.001, support_length=2.0*particle_spacing))
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
 boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
@@ -67,8 +67,8 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 

@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.1
+particle_spacing = 0.2
 
 water_width = 1.0
 water_height = 1.0
@@ -9,14 +9,14 @@ water_density = 1000.0
 #water_viscosity = 10
 
 
-
+# relax=0.99 630 max press
 setup = RectangularShape(particle_spacing, (0.0, 0.0), (water_width, water_height), density = water_density)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, water_density, 100000.0,
 	background_pressure = 100000.0)
 
-smoothing_length = 2.0 * particle_spacing
+smoothing_length = 4.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 # Monaghan 2005
 #alpha = 10 * water_viscosity/(water_density * smoothing_length)
@@ -25,23 +25,33 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 particle_container = FluidParticleContainer(setup.coordinates,
 	setup.velocity,
 	setup.masses, setup.radius, setup.densities,
-	ContinuityDensity(), state_equation,
+	SummationDensity(), state_equation,
 	smoothing_kernel, smoothing_length, water_density,
 	viscosity = ArtificialViscosityMonaghan(1.0,
 		2.0),
 	acceleration = (0.0, 0.0),
-	surface_tension = SurfaceTensionAkinci(0.02))
+	surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.2, support_length=2.0*particle_spacing))
+
+# particle_container = FluidParticleContainer(setup.coordinates,
+# 	setup.velocity,
+# 	setup.masses, setup.radius, setup.densities,
+# 	ContinuityDensity(), state_equation,
+# 	smoothing_kernel, smoothing_length, water_density,
+# 	viscosity = ArtificialViscosityMonaghan(1.0,
+# 		2.0),
+# 	acceleration = (0.0, 0.0),
+# 	surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.5, support_length=2.0*particle_spacing))
 
 semi = Semidiscretization(particle_container,
 	neighborhood_search = SpatialHashingSearch,
 	damping_coefficient = 0.0)
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval = 100)
-saved_values, saving_callback = SolutionSavingCallback(saveat = 0.0:0.01:1000.0, index=(u, t, container) -> Pixie.eachparticle(container))
+saved_values, saving_callback = SolutionSavingCallback(saveat = 0.0:0.02:1000.0, index=(u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
