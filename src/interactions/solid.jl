@@ -114,7 +114,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
-                    # Divide by m_a to obtain the acceleration of solid particle a
+                    # Divide by the material mass to obtain the acceleration of solid particle a
                     du[ndims(particle_container) + i, particle] += dv[i] * m_b /
                                                                    particle_container.mass[particle]
                 end

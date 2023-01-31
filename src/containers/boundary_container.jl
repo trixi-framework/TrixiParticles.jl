@@ -90,20 +90,21 @@ end
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
-The force on fluid particle ``a`` is given by
+The force on fluid particle ``a`` due to boundary particle ``b`` is given by
 ```math
-f_a = m_a \left(\sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
+f_{ab} = m_a \left(\tilde{f}_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
-f_{ab} = \frac{K}{\beta^{n-1}} \frac{r_{ab}}{\Vert r_{ab} \Vert (\Vert r_{ab} \Vert - d)} \Phi(\Vert r_{ab} \Vert, h)
+\tilde{f}_{ab} = \frac{K}{\beta^{n-1}} \frac{r_{ab}}{\Vert r_{ab} \Vert (\Vert r_{ab} \Vert - d)} \Phi(\Vert r_{ab} \Vert, h)
 \frac{2 m_b}{m_a + m_b},
 ```
-where ``B`` denotes the set of boundary particles, ``m_a`` and ``m_b`` are the masses of
-fluid particle ``a`` and boundary particle ``b`` respectively,
-``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
-``d`` denotes the boundary particle spacing and ``n`` denotes the number of dimensions
-(see (Monaghan, Kajtar, 2009, Equation (3.1)) and (Valizadeh, Monaghan, 2015)).
+where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
+respectively, ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles
+``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
+dimensions (see (Monaghan, Kajtar, 2009, Equation (3.1)) and (Valizadeh, Monaghan, 2015)).
+Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
+the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
 (Monaghan, Kajtar, 2009, Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
@@ -180,15 +181,18 @@ end
 end
 
 @doc raw"""
-    BoundaryModelDummyParticles(initial_density, state_equation, density_calculator,
-                                smoothing_kernel, smoothing_length)
+    BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
+                                density_calculator, smoothing_kernel, smoothing_length)
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
-but their positions and velocities are not evolved in time.
+but their positions and velocities are not evolved in time. Thus, the hydrodynamic mass is
+imposed on the boundary particles which is the fluid density times the particle volume.
 
-Here, `initial_density` is a vector that contains the initial density for each boundary particle.
+Here, `initial_density` and `hydrodynamic_mass` is a vector that contains the initial density
+and the hydrodynamic mass for each boundary particle, respectively.
 Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
 the element type and the number of boundary particles.
+
 To establish a relationship between density and pressure, a `state_equation` has to be passed,
 which should be the same as for the adjacent fluid containers.
 To sum over neighboring particles, a `smoothing_kernel` and `smoothing_length` needs to be passed.
@@ -250,8 +254,8 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
-                                         density_calculator,
-                                         smoothing_kernel, smoothing_length)
+                                         density_calculator, smoothing_kernel,
+                                         smoothing_length)
         pressure = similar(initial_density)
 
         cache = create_cache(initial_density, density_calculator)
