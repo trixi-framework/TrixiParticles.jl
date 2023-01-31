@@ -186,10 +186,10 @@ end
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
 but their positions and velocities are not evolved in time. Thus, the hydrodynamic mass is
-imposed on the boundary particles which is the fluid density times the particle volume.
+imposed on the boundary particles which is the fluid density times the boundary particle volume.
 
 Here, `initial_density` and `hydrodynamic_mass` is a vector that contains the initial density
-and the hydrodynamic mass for each boundary particle, respectively.
+and the hydrodynamic mass respectively for each boundary particle.
 Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
 the element type and the number of boundary particles.
 

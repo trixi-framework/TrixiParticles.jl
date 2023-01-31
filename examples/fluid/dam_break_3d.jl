@@ -44,7 +44,8 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81, 0.0))
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities, state_equation,
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
+                                             setup.boundary_masses, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 #K = 9.81 * water_height
