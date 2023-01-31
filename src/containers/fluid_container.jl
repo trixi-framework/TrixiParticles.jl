@@ -144,7 +144,6 @@ end
     return container.mass[particle]
 end
 
-
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 

@@ -95,7 +95,8 @@ nu = 0.0
 
 hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
-solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites, hydrodynamic_masses, state_equation,
+solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses, state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)
 

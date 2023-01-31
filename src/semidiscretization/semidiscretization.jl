@@ -170,10 +170,8 @@ end
 
     range = ranges[i]
 
-    @boundscheck begin
-        @assert length(range) ==
-                nvariables(container) * n_moving_particles(container)
-    end
+    @boundscheck begin @assert length(range) ==
+                               nvariables(container) * n_moving_particles(container) end
 
     # This is a non-allocation version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
