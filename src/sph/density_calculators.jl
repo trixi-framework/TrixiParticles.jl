@@ -38,7 +38,7 @@ end
     return u[end, particle]
 end
 
-# This is dispatched in boundary_container.jl
+# This is dispatched in fluid_container.jl and boundary_container.jl
 @inline function get_hydrodynamic_mass(particle, container)
     @unpack boundary_model = container
     get_hydrodynamic_mass(particle, boundary_model, container)

@@ -110,7 +110,7 @@ fluid_container = FluidParticleContainer(fluid.coordinates,
                                          ContinuityDensity(), state_equation,
                                          fluid_smoothing_kernel, fluid_smoothing_length,
                                          viscosity=viscosity,
-                                         acceleration=(0.0, body_force))
+                                         acceleration=(0.0, acceleration))
 
 #rigid_solid_container = BoundaryParticleContainer(particle_coordinates, hydrodynamic_masses,
 #                                                  boundary_model_solid)
@@ -155,7 +155,7 @@ summary_callback()
 # ==== analytical solution
 
 # line load
-q_0 = body_force * solid_density * thickness_beam^2
+q_0 = acceleration * solid_density * thickness_beam^2
 L = length_beam
 I_y = thickness_beam^4 / 12
 
