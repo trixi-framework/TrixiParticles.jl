@@ -9,7 +9,7 @@ acceleration = -9.81
 length_beam = 1
 thickness_beam = length_beam / 10
 n_particles_y = 15
-solid_density = 1000.0
+solid_density = 1500.0
 
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
@@ -25,7 +25,7 @@ beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
                         (solid_particle_spacing, y_position),
                         density=solid_density)
 
-n_boundary_layers = 3
+n_boundary_layers = 5
 
 # Start coordinates of the clamp (fixed particles)
 # Since coordinates start in negative coordinate directions,
@@ -34,11 +34,11 @@ x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
 x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
 y_start_clamp = -(2 * n_particles_y - 1) * solid_particle_spacing
 
-clamp_A = RectangularShape(solid_particle_spacing, (3, 10 * n_particles_y),
+clamp_A = RectangularShape(solid_particle_spacing, (n_boundary_layers, 10 * n_particles_y),
                            (x_start_clamp_A, y_start_clamp),
                            density=solid_density)
 
-clamp_B = RectangularShape(solid_particle_spacing, (3, 10 * n_particles_y),
+clamp_B = RectangularShape(solid_particle_spacing, (n_boundary_layers, 10 * n_particles_y),
                            (x_start_clamp_B, y_start_clamp),
                            density=solid_density)
 
@@ -60,10 +60,10 @@ n_fixed_particles = size(clamp_coordinates, 2)
 # ==========================================================================================
 # ==== Fluid
 
-water_height = thickness_beam
-water_width = 1.0
 water_density = 1000.0
-fluid_particle_spacing = solid_particle_spacing
+water_height = thickness_beam * solid_density / water_density
+water_width = 1.0
+fluid_particle_spacing = solid_particle_spacing * 2
 
 fluid_smoothing_length = 1.2 * fluid_particle_spacing
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -92,6 +92,10 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    AdamiPressureExtrapolation(),
                                                    fluid_smoothing_kernel,
                                                    fluid_smoothing_length)
+
+#beta = 3
+#K = 9.81 * water_height
+#boundary_model_solid = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta)
 
 # ==========================================================================================
 # ==== Containers
@@ -153,24 +157,28 @@ summary_callback()
 
 # ==========================================================================================
 # ==== analytical solution
+if false
+    # line load
+    q_0 = acceleration * solid_density * thickness_beam^2
+    L = length_beam
+    I_y = thickness_beam^4 / 12
 
-# line load
-q_0 = acceleration * solid_density * thickness_beam^2
-L = length_beam
-I_y = thickness_beam^4 / 12
+    # d⁴w/dx⁴ = q_0 / (E * I_y)
+    w(x) = q_0 * L^4 / (24 * E * I_y) * ((x / L)^4 - 2 * (x / L)^3 + (x / L)^2)
 
-# d⁴w/dx⁴ = q_0 / (E * I_y)
-w(x) = q_0 * L^4 / (24 * E * I_y) * ((x / L)^4 - 2 * (x / L)^3 + (x / L)^2)
+    # The upper edge of the beam is at position y = 0.0
+    zero_stress_position = (n_particles_y - 1) / 2 * solid_particle_spacing
 
-# The upper edge of the beam is at position y = 0.0
-zero_stress_position = (n_particles_y - 1) / 2 * solid_particle_spacing
+    bending_line = [solid_container.current_coordinates[:, i]
+                    for i in Pixie.each_moving_particle(solid_container)
+                    if isapprox(solid_container.initial_coordinates[2, i],
+                                -zero_stress_position)]
 
-bending_line = [solid_container.current_coordinates[:, i]
-     for i in Pixie.each_moving_particle(solid_container)
-     if isapprox(solid_container.initial_coordinates[2, i], -zero_stress_position)]
+    bending_line = hcat(bending_line...)
+    bending_line[2, :] .+= zero_stress_position
 
-bending_line = hcat(bending_line...)
-bending_line[2, :] .+= zero_stress_position
-
-plot(bending_line[1, :], bending_line[2, :], xlims=(0, L), xlabel="x", ylabel="y", lab="sph")
-plot!(w, lab="analytical")
+    using Plots
+    plot(bending_line[1, :], bending_line[2, :], xlims=(0, L), xlabel="x", ylabel="y",
+         lab="sph")
+    plot!(w, lab="analytical")
+end
