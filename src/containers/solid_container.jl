@@ -186,13 +186,12 @@ end
     return get_particle_coords(particle, current_coordinates, container)
 end
 
-@inline function get_particle_vel(particle, u, container::SolidParticleContainer)
+@inline function get_particle_vel(particle, v, container::SolidParticleContainer)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
 
-    return SVector(ntuple(@inline(dim->u[dim + ndims(container), particle]),
-                          Val(ndims(container))))
+    return get_particle_coords(particle, v, container)
 end
 
 @inline function get_correction_matrix(particle, container)
