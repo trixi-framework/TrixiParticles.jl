@@ -11,9 +11,9 @@ container_width = 4.0
 container_height = 4.0
 
 setup = RectangularShape(fluid_particle_spacing,
-                         round(Int, (water_width / fluid_particle_spacing)),
-                         round(Int, (water_height / fluid_particle_spacing)),
-                         0.1, 0.2, density=water_density)
+                         (round(Int, (water_width / fluid_particle_spacing)),
+                          round(Int, (water_height / fluid_particle_spacing))),
+                         (0.1, 0.2), density=water_density)
 
 c = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
@@ -52,9 +52,8 @@ n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
-beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
-                        n_particles_per_dimension[2],
-                        0.0, 0.0, density=solid_density)
+beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0),
+                        density=solid_density)
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))

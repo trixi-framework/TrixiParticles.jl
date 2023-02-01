@@ -20,7 +20,11 @@ setup = RectangularTank(particle_spacing, beta,
                         water_density)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+reset_faces = (false, true, false, false, false, false)
+positions = (0, new_wall_position, 0, 0, 0, 0)
+
+reset_wall!(setup, reset_faces, positions)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -76,7 +80,8 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+positions = (0, container_width, 0, 0)
+reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
