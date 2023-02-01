@@ -169,7 +169,7 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
     @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
-                                          neighbor_container, semi)
+                                      neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,

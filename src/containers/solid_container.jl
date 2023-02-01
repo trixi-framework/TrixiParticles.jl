@@ -370,8 +370,8 @@ end
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
     f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-         kernel_ / initial_distance^2 * young_modulus * delta_sum *
-         current_pos_diff / current_distance
+        kernel_ / initial_distance^2 * young_modulus * delta_sum *
+        current_pos_diff / current_distance
 
     for i in 1:ndims(container)
         # Divide force by mass to obtain acceleration
