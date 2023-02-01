@@ -50,11 +50,11 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         ELTYPE = eltype(particle_spacing)
 
-        n_particles = prod(n_particles_per_dimension)
+        n_particles = floor(Int64, prod(n_particles_per_dimension))
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
 
-        velocity = zeros(ELTYPE, n_particles)
+        velocity = zeros(ELTYPE, 2, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
 
          # Leave `densities` and `masses` empty if no `density` has been provided
@@ -65,7 +65,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,
                                   particle_spacing, n_particles_per_dimension)
     end
 
@@ -79,9 +79,11 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         ELTYPE = eltype(particle_spacing)
 
-        n_particles = prod(n_particles_per_dimension)
+        n_particles = floor(Int64, prod(n_particles_per_dimension))
 
         coordinates = Array{Float64, 2}(undef, 3, n_particles)
+        velocity = zeros(ELTYPE, 3, n_particles)
+        radius = particle_spacing * ones(ELTYPE, n_particles)
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
@@ -94,32 +96,32 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
                                   particle_spacing, n_particles_per_dimension)
     end
 
-    function RectangularShape(particle_spacing, cornerA, cornerB; density=0.0)
-        NDIMS = length(cornerA)
-        ELTYPE = eltype(particle_spacing)
+    # function RectangularShape(particle_spacing, cornerA::Tuple, cornerB::Tuple; density=0.0)
+    #     NDIMS = length(cornerA)
+    #     ELTYPE = eltype(particle_spacing)
 
-        cornerA = collect(cornerA)
-        cornerB = collect(cornerB)
+    #     cornerA = collect(cornerA)
+    #     cornerB = collect(cornerB)
 
-        floor_int(x) = floor(Int64, x)
-        diff = broadcast(abs, cornerA - cornerB)
-        n_particles_i = broadcast(floor_int, diff/particle_spacing) .+ 1
-        n_particles = prod(n_particles_i)
+    #     floor_int(x) = floor(Int64, x)
+    #     diff = broadcast(abs, cornerA - cornerB)
+    #     n_particles_i = broadcast(floor_int, diff/particle_spacing) .+ 1
+    #     n_particles = prod(n_particles_i)
 
-        coordinates = Array{Float64, 2}(undef, 2, n_particles)
-        velocity = zeros(ELTYPE, NDIMS, n_particles)
-        radius = particle_spacing * ones(ELTYPE, n_particles)
+    #     coordinates = Array{Float64, 2}(undef, 2, n_particles)
+    #     velocity = zeros(ELTYPE, NDIMS, n_particles)
+    #     radius = particle_spacing * ones(ELTYPE, n_particles)
 
-       # Leave `densities` and `masses` empty if no `density` has been provided
-       densities = density * ones(ELTYPE, n_particles * (density > 0))
-       masses = density * particle_spacing^3 * ones(ELTYPE, n_particles * (density > 0))
+    #     # Leave `densities` and `masses` empty if no `density` has been provided
+    #     densities = density * ones(ELTYPE, n_particles * (density > 0))
+    #     masses = density * particle_spacing^3 * ones(ELTYPE, n_particles * (density > 0))
 
-        initialize_rectangular!(coordinates, cornerA[1], cornerA[2], particle_spacing,
-        n_particles_i[1], n_particles_i[2])
+    #     initialize_rectangular!(coordinates, cornerA[1], cornerA[2], particle_spacing,
+    #     n_particles_i[1], n_particles_i[2])
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,
-                                  particle_spacing, Tuple(n_particles_i))
-    end
+    #     return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,
+    #                               particle_spacing, Tuple(n_particles_i))
+    # end
 end
 
 # 2D

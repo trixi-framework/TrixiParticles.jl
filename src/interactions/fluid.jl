@@ -4,9 +4,12 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                    neighbor_container::FluidParticleContainer)
     @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_surface_tension, a_viscosity = particle_container
 
-    a_surface_tension .= 0
-    a_viscosity .= 0
+    if !isnan(a_surface_tension[1,1])
+        a_surface_tension .= 0
+        a_viscosity .= 0
+    end
 
+    # some surface tension models require the surface normal
     if need_normal(surface_tension)
         surface_normal .= 0.0
 
@@ -88,7 +91,6 @@ end
     grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
                   distance
 
-    m_a = particle_container.mass[particle] # todo: remove
     m_b = neighbor_container.mass[neighbor]
 
 
@@ -100,12 +102,15 @@ end
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
     dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
 
-    dv_surface_tension = k_ij * surface_tension(smoothing_length, m_a, m_b,
+    dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
     get_normal(particle, particle_container, surface_tension, ndims(particle_container)),
     get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)), pos_diff, distance)
 
-    a_viscosity[:, particle] .+= dv_viscosity
-    a_surface_tension[:, particle] .+= dv_surface_tension
+    # save acceleration term if vector are allocated
+    if !isnan(a_surface_tension[1,1])
+        a_viscosity[:, particle] .+= dv_viscosity
+        a_surface_tension[:, particle] .+= dv_surface_tension
+    end
 
     dv = dv_pressure + dv_viscosity + dv_surface_tension
 

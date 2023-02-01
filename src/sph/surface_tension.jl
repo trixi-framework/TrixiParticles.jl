@@ -1,11 +1,18 @@
 struct NoSurfaceTension end
 
-function (::NoSurfaceTension)(smoothing_length, ma, mb, na, nb, dx, distance)
+function (::NoSurfaceTension)(smoothing_length, mb, na, nb, dx, distance)
     return 0.0 * dx
 end
 
 @doc raw"""
 cohesionForceAkinci(smoothing_length, ma, mb, dx, distance)
+
+Use the cohesion force model by Akinci. This is based on an Intra-particle-force formulation.
+
+# Keywords
+- 'surface_tension_coefficient=1.0': Coefficient that linearly scales the surface tension induced force.
+- 'support_length=NaN': Defaults to the smoothing length of the SPH Method. Cutoff length of the force calculation
+
 Reference:
 Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggraph Asia
 """
@@ -19,7 +26,7 @@ struct CohesionForceAkinci{ELTYPE}
     end
 end
 
-function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, na, nb, dx, distance)
+function (surface_tension::CohesionForceAkinci)(smoothing_length, mb, na, nb, dx, distance)
     @unpack surface_tension_coefficient, surface_tension_support_length = surface_tension
 
     if !isnan(surface_tension_support_length)
@@ -44,7 +51,14 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, ma, mb, na, nb
 end
 
 @doc raw"""
-SurfaceTensionAkinci(smoothing_length, ma, mb, na, nb, dx, distance)
+SurfaceTensionAkinci(smoothing_length, mb, na, nb, dx, distance)
+
+Use the surface tension model by Akinci. This is based on an Intra-particle-force formulation.
+
+# Keywords
+- 'surface_tension_coefficient=1.0': Coefficient that linearly scales the surface tension induced force.
+- 'support_length=NaN': Defaults to the smoothing length of the SPH Method. Cutoff length of the force calculation
+
 Reference:
 Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggraph Asia
 """
@@ -58,10 +72,10 @@ struct SurfaceTensionAkinci{ELTYPE}
     end
 end
 
-function (surface_tension::SurfaceTensionAkinci)(smoothing_length, ma, mb, na, nb, dx, distance)
+function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, dx, distance)
     @unpack surface_tension_coefficient = surface_tension
 
-    cof = CohesionForceAkinci(surface_tension_coefficient=surface_tension_coefficient)(smoothing_length, ma, mb, na, nb, dx, distance)
+    cof = CohesionForceAkinci(surface_tension_coefficient=surface_tension_coefficient)(smoothing_length, mb, na, nb, dx, distance)
     surface_force = - surface_tension_coefficient * (na - nb)
     return cof .+ surface_force
 end
