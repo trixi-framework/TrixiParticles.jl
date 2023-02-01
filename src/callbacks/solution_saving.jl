@@ -5,14 +5,14 @@ Callback to save the solution at specific times specified by `saveat`.
 The return value is the tuple `saved_values, callback`.
 
 Additional user-defined quantities can be saved by passing functions
-as keyword arguments, which map `(u, t, container)` to an `Array` where
+as keyword arguments, which map `(v, u, t, container)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
 Note that this array must be allocated and cannot be a view to `u`.
 
 # Examples
 ```julia
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 ```
 """
 function SolutionSavingCallback(; saveat, custom_quantities...)
@@ -57,38 +57,41 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
 
     # The SavingCallback does not insert tstops, so u had to be interpolated.
     # However, only u has been interpolated, but not semi.cache. To compute the correct
-    # cache, we have to call rhs! with the correct u again (u_tmp).
-    # We need to pass some cache as du to rhs!. We can use first(get_tmp_cache(integrator))
+    # cache, we have to call kick! with the correct u again (u_tmp).
+    # We need to pass some cache as du to kick!. We can use first(get_tmp_cache(integrator))
     # for this.
     # However, u_tmp is either a reference to the actual integrator.u or a reference to the cache
     # first(get_tmp_cache(integrator)).
-    # Thus, when we call rhs! with first(get_tmp_cache(integrator)) as du, we might change
+    # Thus, when we call kick! with first(get_tmp_cache(integrator)) as du, we might change
     # the contents of u_tmp.
-    # For this reason, we copy the current u_tmp before we call rhs!.
-    u_ode = copy(u_tmp)
+    # For this reason, we copy the current u_tmp before we call kick!.
+    v_ode = copy(u_tmp.x[1])
+    u_ode = copy(u_tmp.x[2])
 
-    # Call rhs! to compute the correct cache (pressures, etc.)
-    u_cache = first(get_tmp_cache(integrator))
-    rhs!(u_cache, u_ode, semi, t)
+    # Call kick! to compute the correct cache (pressures, etc.).
+    # We only need the `v`-part of the cache here.
+    v_cache = first(get_tmp_cache(integrator)).x[1]
+    kick!(v_cache, v_ode, u_ode, semi, t)
 
     result = Dict{Symbol, Dict{Symbol, Array{Float32}}}()
 
     for (container_index, container) in pairs(particle_containers)
-        u = wrap_array(u_ode, container_index, container, semi)
-        write_result!(result, u, t, container, extract_quantities)
+        v = wrap_v(v_ode, container_index, container, semi)
+        u = wrap_u(u_ode, container_index, container, semi)
+        write_result!(result, v, u, t, container, extract_quantities)
     end
 
     return result
 end
 
-function write_result!(result, u, t, container, extract_quantities)
+function write_result!(result, v, u, t, container, extract_quantities)
     @unpack custom_quantities = extract_quantities
 
-    name, value = extract_quantities(u, container)
+    name, value = extract_quantities(v, u, container)
 
     # Extract custom quantities for this container
     for (key, func) in custom_quantities
-        value[key] = func(u, t, container)
+        value[key] = func(v, u, t, container)
     end
 
     # Determine name for this container
@@ -102,30 +105,28 @@ function write_result!(result, u, t, container, extract_quantities)
     return result
 end
 
-function (extract_quantities::ExtractQuantities)(u, container::FluidParticleContainer)
+function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleContainer)
     @unpack density_calculator, cache = container
 
     result = Dict{Symbol, Array{Float32}}(
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => u[1:ndims(container), :],
-                                          :velocity => u[(ndims(container) + 1):(2 * ndims(container)),
-                                                         :],
+                                          :velocity => v[1:ndims(container), :],
                                           :pressure => copy(container.pressure))
 
-    extract_density!(result, u, cache, density_calculator, container)
+    extract_density!(result, v, cache, density_calculator, container)
 
     return "fluid", result
 end
 
-function (extract_quantities::ExtractQuantities)(u, container::SolidParticleContainer)
+function (extract_quantities::ExtractQuantities)(v, u, container::SolidParticleContainer)
     n_fixed_particles = nparticles(container) - n_moving_particles(container)
     result = Dict{Symbol, Array{Float32}}(
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => copy(container.current_coordinates),
-                                          :velocity => hcat(u[(ndims(container) + 1):(2 * ndims(container)),
-                                                              :],
+                                          :velocity => hcat(v[1:ndims(container), :],
                                                             zeros(ndims(container),
                                                                   n_fixed_particles)),
                                           :material_density => container.material_density)
@@ -133,13 +134,13 @@ function (extract_quantities::ExtractQuantities)(u, container::SolidParticleCont
     return "solid", result
 end
 
-function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer)
+function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer)
     @unpack boundary_model = container
 
-    extract_quantities(u, container, boundary_model)
+    extract_quantities(v, u, container, boundary_model)
 end
 
-function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer,
+function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
                                                  boundary_model)
     result = Dict{Symbol, Array{Float64}}(
                                           # Note that we have to allocate here and can't use views.
@@ -149,13 +150,13 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
     return "boundary", result
 end
 
-function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleContainer,
+function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
                                                  boundary_model::BoundaryModelDummyParticles)
     result = Dict{Symbol, Array{Float64}}(
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => copy(container.initial_coordinates),
-                                          :density => [get_particle_density(particle, u,
+                                          :density => [get_particle_density(particle, v,
                                                                             container)
                                                        for particle in eachparticle(container)],
                                           :pressure => copy(boundary_model.pressure))
@@ -163,10 +164,10 @@ function (extract_quantities::ExtractQuantities)(u, container::BoundaryParticleC
     return "boundary", result
 end
 
-function extract_density!(result, u, cache, ::SummationDensity, container)
+function extract_density!(result, v, cache, ::SummationDensity, container)
     result[:density] = copy(cache.density)
 end
 
-function extract_density!(result, u, cache, ::ContinuityDensity, container)
-    result[:density] = u[2 * ndims(container) + 1, :]
+function extract_density!(result, v, cache, ::ContinuityDensity, container)
+    result[:density] = v[end, :]
 end

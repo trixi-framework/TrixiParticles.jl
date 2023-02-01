@@ -28,12 +28,12 @@ struct ContinuityDensity end
     get_particle_density(particle, u, container.density_calculator, container)
 end
 
-@inline function get_particle_density(particle, u, ::SummationDensity, container)
+@inline function get_particle_density(particle, v, ::SummationDensity, container)
     @unpack cache = container
 
     return cache.density[particle]
 end
 
-@inline function get_particle_density(particle, u, ::ContinuityDensity, container)
-    return u[end, particle]
+@inline function get_particle_density(particle, v, ::ContinuityDensity, container)
+    return v[end, particle]
 end
