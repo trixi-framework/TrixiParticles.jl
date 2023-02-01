@@ -57,10 +57,9 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         velocity = zeros(ELTYPE, 2, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
 
-         # Leave `densities` and `masses` empty if no `density` has been provided
-         densities = density * ones(ELTYPE, n_particles * (density > 0))
-         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles * (density > 0))
-
+        # Leave `densities` and `masses` empty if no `density` has been provided
+        densities = density * ones(ELTYPE, n_particles * (density > 0))
+        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles * (density > 0))
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)

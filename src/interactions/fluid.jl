@@ -4,7 +4,7 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
                    neighbor_container::FluidParticleContainer)
     @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_surface_tension, a_viscosity = particle_container
 
-    if !isnan(a_surface_tension[1,1])
+    if !isnan(a_surface_tension[1, 1])
         a_surface_tension .= 0
         a_viscosity .= 0
     end
@@ -15,33 +15,36 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
         @threaded for particle in each_moving_particle(particle_container)
             particle_coords = get_current_coords(particle, u_particle_container,
-                                             particle_container)
+                                                 particle_container)
 
             # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
             # Note: most of the time this only leads to an approximation of the surface normal
             for neighbor in eachneighbor(particle_coords, neighborhood_search)
-                neighbor_coords = get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+                neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
+                                                     neighbor_container)
                 pos_diff = particle_coords - neighbor_coords
                 distance = norm(pos_diff)
 
                 # correctness strongly depends on this leading to a symmetric distribution of points!
                 if sqrt(eps()) < distance <= smoothing_length
                     m_b = neighbor_container.mass[neighbor]
-                    density_neighbor = get_particle_density(neighbor, u_neighbor_container, neighbor_container)
-                    surface_normal[:, particle] .+= m_b / density_neighbor * kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff / distance
+                    density_neighbor = get_particle_density(neighbor, u_neighbor_container,
+                                                            neighbor_container)
+                    surface_normal[:, particle] .+= m_b / density_neighbor *
+                                                    kernel_deriv(smoothing_kernel, distance,
+                                                                 smoothing_length) *
+                                                    pos_diff / distance
                 end
             end
             surface_normal[:, particle] .*= smoothing_length
         end
     end
 
-
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
 
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
 
@@ -93,9 +96,8 @@ end
 
     m_b = neighbor_container.mass[neighbor]
 
-
     # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
-    k_ij = ref_density/density_mean
+    k_ij = ref_density / density_mean
 
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / density_particle^2 +
@@ -103,11 +105,16 @@ end
     dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
 
     dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
-    get_normal(particle, particle_container, surface_tension, ndims(particle_container)),
-    get_normal(neighbor, particle_container, surface_tension, ndims(particle_container)), pos_diff, distance)
+                                         get_normal(particle, particle_container,
+                                                    surface_tension,
+                                                    ndims(particle_container)),
+                                         get_normal(neighbor, particle_container,
+                                                    surface_tension,
+                                                    ndims(particle_container)), pos_diff,
+                                         distance)
 
     # save acceleration term if vector are allocated
-    if !isnan(a_surface_tension[1,1])
+    if !isnan(a_surface_tension[1, 1])
         a_viscosity[:, particle] .+= dv_viscosity
         a_surface_tension[:, particle] .+= dv_surface_tension
     end

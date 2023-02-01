@@ -27,17 +27,19 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
                                             setup.particle_masses, setup.particle_radius,
                                             SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length, water_density,
+                                            smoothing_kernel, smoothing_length,
+                                            water_density,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.001, support_length=2.0*particle_spacing))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.001,
+                                                                                 support_length=2.0 *
+                                                                                                particle_spacing))
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
 boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
-
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)

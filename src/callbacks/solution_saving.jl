@@ -110,7 +110,7 @@ function (extract_quantities::ExtractQuantities)(u, container::FluidParticleCont
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => u[1:ndims(container), :],
                                           :velocity => u[(ndims(container) + 1):(2 * ndims(container)),
-                                          :],
+                                                         :],
                                           :surface_normal => copy(container.surface_normal),
                                           :a_surface_tension => copy(container.a_surface_tension),
                                           :a_viscosity => copy(container.a_viscosity),
