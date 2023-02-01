@@ -1,6 +1,11 @@
 using Pixie
 using OrdinaryDiffEq
 
+acceleration = -9.81 # gravity
+
+# ==========================================================================================
+# ==== Fluid
+
 fluid_particle_spacing = 0.0125 * 3
 
 water_width = 0.525
@@ -10,25 +15,23 @@ water_density = 1000.0
 container_width = 4.0
 container_height = 4.0
 
+c = 10 * sqrt(9.81 * water_height)
+
+smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+
 setup = RectangularShape(fluid_particle_spacing,
                          (round(Int, (water_width / fluid_particle_spacing)),
                           round(Int, (water_height / fluid_particle_spacing))),
                          (0.1, 0.2), density=water_density)
 
-c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# Create semidiscretization
-fluid_container = FluidParticleContainer(setup.coordinates,
-                                         zeros(Float64, size(setup.coordinates)),
-                                         setup.masses, setup.densities,
-                                         ContinuityDensity(), state_equation,
-                                         smoothing_kernel, smoothing_length,
-                                         viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                         acceleration=(0.0, -9.81))
+# ==========================================================================================
+# ==== Solid
 
 length_beam = 0.35
 thickness = 0.05
@@ -39,6 +42,13 @@ solid_density = 1000.0
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
+
+smoothing_length = sqrt(2) * solid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# Lamé constants
+E = 1.4e6
+nu = 0.4
 
 fixed_particles = CircularShape(clamp_radius + solid_particle_spacing / 2, 0.0,
                                 thickness / 2, solid_particle_spacing,
@@ -57,28 +67,38 @@ beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
-
 particle_masses = vcat(beam.masses, fixed_particles.masses)
 particle_densities = vcat(beam.densities, fixed_particles.densities)
 
-smoothing_length = sqrt(2) * solid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# Lamé constants
-E = 1.4e6
-nu = 0.4
+# ==========================================================================================
+# ==== Boundary models
 
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
+
+boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing)
+
+# ==========================================================================================
+# ==== Containers
+
+fluid_container = FluidParticleContainer(setup.coordinates,
+                                         zeros(Float64, size(setup.coordinates)),
+                                         setup.masses, setup.densities,
+                                         ContinuityDensity(), state_equation,
+                                         smoothing_kernel, smoothing_length,
+                                         viscosity=viscosity,
+                                         acceleration=(0.0, acceleration))
+
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                          particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=fixed_particles.n_particles,
-                                         acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta,
-                                                                     solid_particle_spacing),
+                                         acceleration=(0.0, acceleration), boundary_model,
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(fluid_container, solid_container,
                           neighborhood_search=SpatialHashingSearch)

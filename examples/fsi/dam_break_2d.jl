@@ -8,7 +8,13 @@
 using Pixie
 using OrdinaryDiffEq
 
+acceleration = -9.81 # gravity
+
+# ==========================================================================================
+# ==== Fluid
+
 fluid_particle_spacing = 0.01
+
 # Spacing ratio between fluid and boundary particles
 beta = 1
 boundary_layers = 3
@@ -19,6 +25,16 @@ water_density = 1000.0
 
 container_width = 0.584
 container_height = 4.0
+
+c = 20 * sqrt(9.81 * water_height)
+
+smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
@@ -32,33 +48,8 @@ positions = (0, new_wall_position, 0, 0)
 
 reset_wall!(setup, reset_faces, positions)
 
-c = 20 * sqrt(9.81 * water_height)
-
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
-
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02,
-                                                                                  0.0),
-                                            acceleration=(0.0, -9.81))
-
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
-
-# K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
-
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-                                               setup.boundary_masses, boundary_model)
+# ==========================================================================================
+# ==== Solid
 
 length_beam = 0.08
 thickness = 0.012
@@ -68,6 +59,13 @@ n_particles_x = 5
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
+
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# Young's modulus and Poisson ratio
+E = 1e6
+nu = 0.0
 
 n_particles_per_dimension = (n_particles_x,
                              round(Int, length_beam / solid_particle_spacing) + 1)
@@ -86,15 +84,21 @@ particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
 particle_masses = vcat(plate.masses, fixed_particles.masses)
 particle_densities = vcat(plate.densities, fixed_particles.densities)
 
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# ==========================================================================================
+# ==== Boundary models
 
-# Young's modulus and Poisson ratio
-E = 1e6
-nu = 0.0
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
+                                             setup.boundary_masses, state_equation,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             smoothing_length)
 
+# K = 9.81 * water_height
+# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
+
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+
 solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses, state_equation,
                                                    AdamiPressureExtrapolation(),
@@ -106,13 +110,31 @@ solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
 #solid_boundary_model = BoundaryModelMonaghanKajtar(solid_K, solid_beta,
 #                                                   solid_particle_spacing)
 
+# ==========================================================================================
+# ==== Containers
+
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
+                                            setup.particle_masses, setup.particle_densities,
+                                            ContinuityDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=viscosity,
+                                            acceleration=(0.0, acceleration))
+
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+                                               setup.boundary_masses, boundary_model)
+
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                          particle_masses, particle_densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, -9.81), solid_boundary_model,
+                                         acceleration=(0.0, acceleration),
+                                         solid_boundary_model,
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+
+# ==========================================================================================
+# ==== Simulation
 
 # Relaxing of the fluid without solid
 semi = Semidiscretization(particle_container, boundary_container,
