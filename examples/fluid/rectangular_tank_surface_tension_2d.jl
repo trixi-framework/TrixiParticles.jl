@@ -26,7 +26,6 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
                                             setup.particle_masses, setup.particle_radius,
-                                            setup.particle_densities,
                                             SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length, water_density,
                                             viscosity=ArtificialViscosityMonaghan(1.0,

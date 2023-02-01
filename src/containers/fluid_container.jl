@@ -36,7 +36,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 	surface_tension     :: ST
 
 	function FluidParticleContainer(particle_coordinates, particle_velocities,
-		particle_masses, particle_radius, particle_densities,
+		particle_masses, particle_radius,
 		density_calculator::SummationDensity, state_equation,
 		smoothing_kernel, smoothing_length, ref_density;
 		viscosity = NoViscosity(),
@@ -68,11 +68,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 			error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
 		end
 
-		# if surface_tension != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
-		# 	error("smoothing_length must be at least $(2 * maximum(particle_radius))")
-		# end
-
-		density = particle_densities
+        density = Vector{ELTYPE}(undef, nparticles)
 		cache = (; density)
 
 		return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
@@ -101,15 +97,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 
 		pressure = Vector{ELTYPE}(undef, nparticles)
         a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+        a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
 
         if need_normal(surface_tension)
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
         else
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
             surf_n .= NaN
-            a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
-            a_surf .= NaN
         end
 
 		# Make acceleration an SVector
@@ -117,10 +111,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
 		if length(acceleration_) != NDIMS
 			error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
 		end
-
-		# if typeof(surface_tension) != NoSurfaceTension && smoothing_length < 2 * maximum(particle_radius)
-		# 	error("smoothing_length must be at least $(2 * maximum(particle_radius))")
-		# end
 
 		initial_density = particle_densities
 		cache = (; initial_density)

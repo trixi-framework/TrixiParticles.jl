@@ -8,7 +8,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.01
+particle_spacing = 0.02
 
 # Spacing ratio between fluid and boundary particles
 beta = 3
@@ -38,13 +38,13 @@ state_equation = StateEquationCole(c, 7, water_density, 100000.0,
 
 particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
+                                            setup.particle_masses, setup.particle_radius, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
+                                            smoothing_kernel, smoothing_length, water_density,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.01))
+                                            surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.0001))
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
