@@ -67,22 +67,20 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 struct SurfaceTensionAkinci{ELTYPE}
     surface_tension_coefficient::ELTYPE
     surface_tension_support_length::ELTYPE
+    cof_model::CohesionForceAkinci
 
     function SurfaceTensionAkinci(; surface_tension_coefficient=1.0, support_length=NaN)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient,
-                                                 support_length)
+                                                 support_length,
+                                                 CohesionForceAkinci(surface_tension_coefficient=surface_tension_coefficient,
+                                                                     support_length=support_length))
     end
 end
 
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, dx, distance)
-    @unpack surface_tension_coefficient = surface_tension
+    @unpack surface_tension_coefficient, cof_model = surface_tension
 
-    cof = CohesionForceAkinci(surface_tension_coefficient=surface_tension_coefficient)(smoothing_length,
-                                                                                       mb,
-                                                                                       na,
-                                                                                       nb,
-                                                                                       dx,
-                                                                                       distance)
+    cof = cof_model(smoothing_length, mb, na, nb, dx, distance)
     surface_force = -surface_tension_coefficient * (na - nb)
     return cof .+ surface_force
 end

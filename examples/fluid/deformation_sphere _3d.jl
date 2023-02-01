@@ -28,15 +28,13 @@ particle_container = FluidParticleContainer(setup.coordinates,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1,
-                                                                                 support_length=1.0 *
-                                                                                                particle_spacing))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1))
 
 semi = Semidiscretization(particle_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=0.0)
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()

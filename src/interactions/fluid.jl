@@ -74,6 +74,7 @@ end
     return false
 end
 
+# calculate the dv term
 @inline function calc_dv!(du, u_particle_container, u_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
@@ -91,17 +92,23 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
-
     m_b = neighbor_container.mass[neighbor]
 
     # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
     k_ij = ref_density / density_mean
 
+    # calculate the 0-order correction term
+    correction_term = m_b/density_neighbor * kernel(smoothing_kernel, distance, smoothing_length)
+    println("correction term", correction_term)
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
+                  distance
+
+
+    # momentum equation
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / density_particle^2 +
                    neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
+
     dv_viscosity = k_ij * m_b * pi_ab * grad_kernel
 
     dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
@@ -128,6 +135,7 @@ end
     return du
 end
 
+# update density in case of ContinuityDensity is used
 @inline function continuity_equation!(du, density_calculator::ContinuityDensity,
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
@@ -149,6 +157,7 @@ end
     return du
 end
 
+# skip
 @inline function continuity_equation!(du, density_calculator::SummationDensity,
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,

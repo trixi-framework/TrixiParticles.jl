@@ -48,6 +48,8 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   Part B. On the problem of osculatory interpolation. A second class of analytic approximation formulae."
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
+- Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
+  In: Reports on Progress in Physics (2005), pages 1703–1754.
 """
 struct SchoenbergCubicSplineKernel{NDIMS} end
 
