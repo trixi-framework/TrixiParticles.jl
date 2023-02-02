@@ -29,17 +29,25 @@ year = 365day
 tspan = (0.0, 10year)
 ode = semidiscretize(semi, tspan)
 
-alive_callback = AliveCallback(alive_interval=1000)
+summary_callback = SummaryCallback()
+alive_callback = AliveCallback(alive_interval=100000)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:(10day):tspan[end])
 
-callbacks = CallbackSet(alive_callback, saving_callback)
+callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-@printf("%.9f\n", energy(ode.u0, particle_container, semi))
+# One RHS evaluation is so fast that timers make it multiple times slower
+TimerOutputs.disable_debug_timings(Pixie)
 
-sol = solve(ode, Trapezoid(nlsolve=NLFunctional()),
-            abstol=1.0e-7, reltol=1.0e-7, # Tighter tolerance for better energy preservation
-            save_everystep=false, callback=callbacks,
-            maxiters=10_000_000);
+sol = solve(ode, SymplecticEuler(),
+            dt=1.0e5,
+            save_everystep=false, callback=callbacks);
 
-@printf("%.9f\n", energy(sol[end], particle_container, semi))
+# Print the timer summary
+summary_callback()
+
+@printf("%.9e\n", energy(ode.u0, particle_container, semi))
+@printf("%.9e\n", energy(sol[end], particle_container, semi))
+
+# Enable timers again
+TimerOutputs.enable_debug_timings(Pixie)

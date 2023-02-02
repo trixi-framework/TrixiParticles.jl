@@ -68,31 +68,36 @@ particle_container = NBodyContainer(coordinates, velocities, masses, G)
 
 semi = Semidiscretization(particle_container)
 
-tspan = (0.0, 25e2)
-ode = semidiscretize(semi, tspan)
-
 # This is significantly faster than using OrdinaryDiffEq
-# Note that in the reference benchmark, the semi-implicit Euler scheme is used,
-# which is symplectic and energy-conserving.
-# Symplectic schemes are not yet available in Pixie.
-function euler(ode)
-    u = ode.u0
+function symplectic_euler(velocities, coordinates, semi)
+    v = copy(vec(velocities))
+    u = copy(vec(coordinates))
+    dv = copy(v)
     du = copy(u)
+
     @time for _ in 1:50_000_000
-        Pixie.rhs!(du, u, semi, 0.0)
+        Pixie.kick!(dv, v, u, semi, 0.0)
+
+        @inbounds for i in eachindex(v)
+            v[i] += 0.01 * dv[i]
+        end
+
+        Pixie.drift!(du, v, u, semi, 0.0)
 
         @inbounds for i in eachindex(u)
             u[i] += 0.01 * du[i]
         end
     end
+
+    return v, u
 end
 
 # One RHS evaluation is so fast that timers make it multiple times slower
 TimerOutputs.disable_debug_timings(Pixie)
 
-@printf("%.9f\n", energy(ode.u0, particle_container, semi))
-euler(ode)
-@printf("%.9f\n", energy(ode.u0, particle_container, semi))
+@printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
+v, u = symplectic_euler(velocities, coordinates, semi)
+@printf("%.9f\n", energy(v, u, particle_container, semi))
 
 # Enable timers again
 TimerOutputs.enable_debug_timings(Pixie)
