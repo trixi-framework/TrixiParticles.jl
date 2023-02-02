@@ -7,7 +7,8 @@ using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
-using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
+using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
+                 get_tmp_cache
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix
 using StrideArrays: PtrArray, StaticInt
@@ -25,7 +26,7 @@ include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
 include("setups/setups.jl")
 
-export Semidiscretization, semidiscretize
+export Semidiscretization, semidiscretize, restart_with!
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
@@ -39,6 +40,6 @@ export SpatialHashingSearch
 export examples_dir, pixie_include
 export pixie2vtk
 export RectangularTank, RectangularShape, CircularShape
-export DrawCircle, FillCircle, reset_right_wall!
+export DrawCircle, FillCircle, reset_wall!
 
 end # module

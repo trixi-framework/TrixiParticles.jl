@@ -18,6 +18,11 @@ jobs:
         uses: julia-actions/setup-julia@v1
         with:
           version: '1.8.2'
+      - name: Apply JuliaFormatter and check format
+        run: |
+          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
+          julia -e 'using JuliaFormatter; !format(".", verbose=true) &&
+            error("Code not properly formatted")'
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Run tests
