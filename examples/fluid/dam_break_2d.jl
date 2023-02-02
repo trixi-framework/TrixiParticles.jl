@@ -8,6 +8,11 @@
 using Pixie
 using OrdinaryDiffEq
 
+acceleration = -9.81 # gravity
+
+# ==========================================================================================
+# ==== Fluid
+
 particle_spacing = 0.02
 
 # Spacing ratio between fluid and boundary particles
@@ -21,6 +26,16 @@ water_density = 1000.0
 container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 container_height = 4
 
+c = 20 * sqrt(9.81 * water_height)
+
+smoothing_length = 1.2 * particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=boundary_layers)
@@ -33,22 +48,8 @@ positions = (0, new_wall_position, 0, 0)
 
 reset_wall!(setup, reset_faces, positions)
 
-c = 20 * sqrt(9.81 * water_height)
-
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
-
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02,
-                                                                                  0.0),
-                                            acceleration=(0.0, -9.81))
+# ==========================================================================================
+# ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
@@ -58,8 +59,22 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 #K = 9.81 * water_height
 #boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
 
+# ==========================================================================================
+# ==== Containers
+
+particle_container = FluidParticleContainer(setup.particle_coordinates,
+                                            setup.particle_velocities,
+                                            setup.particle_masses, setup.particle_densities,
+                                            ContinuityDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=viscosity,
+                                            acceleration=(0.0, -9.81))
+
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,

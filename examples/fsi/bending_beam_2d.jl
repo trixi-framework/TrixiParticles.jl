@@ -1,10 +1,10 @@
 using Pixie
 using OrdinaryDiffEq
 
-acceleration = -9.81
+acceleration = -9.81 # gravity
 
 # ==========================================================================================
-# ==== Beam
+# ==== Solid
 
 length_beam = 1
 thickness_beam = length_beam / 10
@@ -14,6 +14,13 @@ solid_density = 1500.0
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness_beam / (n_particles_y - 1)
+
+# Lamé constants
+E = 1.4e6
+nu = 0.0 # e.g. for a rod: Diameter does not change when its length will change
+
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing - 1),
                              n_particles_y)
@@ -47,13 +54,6 @@ particle_coordinates = hcat(beam.coordinates, clamp_coordinates)
 particle_velocities = zeros(size(particle_coordinates))
 particle_masses = vcat(beam.masses, clamp_A.masses, clamp_B.masses)
 particle_densities = vcat(beam.densities, clamp_A.densities, clamp_B.densities)
-
-# Lamé constants
-E = 1.4e6
-nu = 0.0 # e.g. for a rod: Diameter does not change when its length will change
-
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 n_fixed_particles = size(clamp_coordinates, 2)
 
