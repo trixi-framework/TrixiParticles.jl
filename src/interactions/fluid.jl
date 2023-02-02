@@ -170,11 +170,11 @@ end
     # density change added at the end of du
     NDIMS = ndims(particle_container)
     dv[NDIM + 1, particle] += sum(neighbor_container.mass[neighbor] *
-                                                           v_diff *
-                                                           kernel_deriv(smoothing_kernel,
-                                                                        distance,
-                                                                        smoothing_length) .*
-                                                           pos_diff) / distance
+                                  v_diff *
+                                  kernel_deriv(smoothing_kernel,
+                                               distance,
+                                               smoothing_length) .*
+                                  pos_diff) / distance
 
     return dv
 end
