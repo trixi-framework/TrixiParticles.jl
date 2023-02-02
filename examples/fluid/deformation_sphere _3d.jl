@@ -28,13 +28,13 @@ particle_container = FluidParticleContainer(setup.coordinates,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
 
 semi = Semidiscretization(particle_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=0.0)
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 20.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -44,10 +44,10 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-sol = solve(ode, TRBDF2(autodiff=false),
-            abstol=1e-8, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-6, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=5e-5, # Limit stepsize to prevent crashing
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=5e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # Print the timer summary

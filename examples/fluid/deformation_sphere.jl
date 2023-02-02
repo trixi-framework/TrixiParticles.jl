@@ -7,7 +7,7 @@ water_width = 1.0
 water_height = 1.0
 water_density = 1000.0
 
-setup = RectangularShape(particle_spacing, (0.0, 0.0), (water_width, water_height),
+setup = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
                          density=water_density)
 
 c = 10 * sqrt(9.81 * water_height)
@@ -27,9 +27,7 @@ particle_container = FluidParticleContainer(setup.coordinates,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2,
-                                                                                 support_length=2.0 *
-                                                                                                particle_spacing))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2))
 
 semi = Semidiscretization(particle_container,
                           neighborhood_search=SpatialHashingSearch,

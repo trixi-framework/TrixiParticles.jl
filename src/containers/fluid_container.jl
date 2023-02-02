@@ -47,6 +47,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
+        if nparticles == 0
+            error("particle_masses has 0-length!")
+        end
+
         pressure = Vector{ELTYPE}(undef, nparticles)
         a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
 
@@ -92,6 +96,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
+
+        if nparticles == 0
+            error("particle_masses has 0-length!")
+        end
 
         pressure = Vector{ELTYPE}(undef, nparticles)
         a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
