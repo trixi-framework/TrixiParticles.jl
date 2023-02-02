@@ -12,7 +12,8 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
     # some surface tension models require the surface normal
     if need_normal(surface_tension)
         surface_normal .= 0.0
-        calc_normal_akinci(u_particle_container, u_neighbor_container, neighborhood_search, particle_container, neighbor_container)
+        calc_normal_akinci(u_particle_container, u_neighbor_container, neighborhood_search,
+                           particle_container, neighbor_container)
     end
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -27,9 +28,10 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-
-                v_diff = get_particle_vel(particle, u_particle_container, particle_container) -
-                get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+                v_diff = get_particle_vel(particle, u_particle_container,
+                                          particle_container) -
+                         get_particle_vel(neighbor, u_neighbor_container,
+                                          neighbor_container)
 
                 calc_dv!(du, u_particle_container, u_neighbor_container,
                          particle, neighbor, pos_diff, v_diff, distance,
@@ -48,7 +50,9 @@ end
 
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: most of the time this only leads to an approximation of the surface normal
-@inline function calc_normal_akinci(u_particle_container, u_neighbor_container, neighborhood_search, particle_container, neighbor_container)
+@inline function calc_normal_akinci(u_particle_container, u_neighbor_container,
+                                    neighborhood_search, particle_container,
+                                    neighbor_container)
     @unpack smoothing_kernel, smoothing_length, surface_normal = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -99,7 +103,6 @@ end
     p_a = particle_container.pressure[particle]
     p_b = neighbor_container.pressure[neighbor]
 
-
     # calculate the 0-order correction term
     #correction_term = m_b/density_neighbor * kernel(smoothing_kernel, distance, smoothing_length)
     #println("correction term", correction_term)
@@ -109,7 +112,9 @@ end
     # correction term for free surfaces
     k_ij = ref_density / rho_mean
 
-    dv_viscosity = k_ij * calc_visc_term(particle_container, m_b, v_diff, pos_diff, distance, rho_mean, smoothing_length, grad_kernel)
+    dv_viscosity = k_ij *
+                   calc_visc_term(particle_container, m_b, v_diff, pos_diff, distance,
+                                  rho_mean, smoothing_length, grad_kernel)
     dv_pressure = calc_momentum_eq(m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
 
     # surface tension
@@ -139,18 +144,20 @@ end
 
 @inline function calc_grad_kernel(smoothing_kernel, distance, smoothing_length, pos_diff)
     return kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-    distance
+           distance
 end
 
 @inline function calc_momentum_eq(m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
     return -m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel
 end
 
-@inline function calc_visc_term(particle_container, m_b, v_diff, pos_diff, distance, density_mean, smoothing_length, grad_kernel)
+@inline function calc_visc_term(particle_container, m_b, v_diff, pos_diff, distance,
+                                density_mean, smoothing_length, grad_kernel)
     @unpack state_equation, viscosity = particle_container
 
-    return m_b * viscosity(state_equation.sound_speed, v_diff, pos_diff,
-    distance, density_mean, smoothing_length) * grad_kernel
+    return m_b *
+           viscosity(state_equation.sound_speed, v_diff, pos_diff,
+                     distance, density_mean, smoothing_length) * grad_kernel
 end
 
 # update density in case of ContinuityDensity is used
@@ -163,7 +170,7 @@ end
 
     # density change added at the end of du
     du[2 * ndims(particle_container) + 1, particle] += sum(neighbor_container.mass[neighbor] *
-    v_diff *
+                                                           v_diff *
                                                            kernel_deriv(smoothing_kernel,
                                                                         distance,
                                                                         smoothing_length) .*
