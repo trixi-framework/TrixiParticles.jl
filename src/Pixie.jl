@@ -5,7 +5,8 @@ using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
-using SciMLBase: CallbackSet, DiscreteCallback, ODEProblem, u_modified!, get_tmp_cache
+using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
+                 get_tmp_cache
 using StaticArrays: SVector, @SMatrix, SMatrix
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
@@ -22,7 +23,7 @@ include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
 include("setups/setups.jl")
 
-export Semidiscretization, semidiscretize
+export Semidiscretization, semidiscretize, restart_with!
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity

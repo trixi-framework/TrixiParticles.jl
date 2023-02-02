@@ -1,12 +1,15 @@
 abstract type ParticleContainer{NDIMS} end
 
 initialize!(container, neighborhood_search) = container
-update!(container, container_index, u, u_ode, semi, t) = container
+update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 @inline Base.ndims(::ParticleContainer{NDIMS}) where {NDIMS} = NDIMS
 
-# Number of integrated variables in the ODE system (coordinates, velocity, sometimes density)
-@inline nvariables(container) = 2 * ndims(container)
+# Number of integrated variables in the first component of the ODE system (coordinates)
+@inline u_nvariables(container) = ndims(container)
+# Number of integrated variables in the second component
+# of the ODE system (velocity and sometimes density)
+@inline v_nvariables(container) = ndims(container)
 
 # Number of particles in the container
 @inline nparticles(container) = length(container.mass)
@@ -31,9 +34,8 @@ end
     return SVector(ntuple(@inline(dim->coords[dim, particle]), Val(ndims(container))))
 end
 
-@inline function get_particle_vel(particle, u, container)
-    return SVector(ntuple(@inline(dim->u[dim + ndims(container), particle]),
-                          Val(ndims(container))))
+@inline function get_particle_vel(particle, v, container)
+    return get_particle_coords(particle, v, container)
 end
 
 include("fluid_container.jl")
