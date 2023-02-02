@@ -97,7 +97,7 @@ end
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container,
                           particle, neighbor, pos_diff, v_diff, distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity, surface_tension, ref_density, radius, a_surface_tension, a_viscosity = particle_container
+    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity, ref_density, a_viscosity, surface_tension = particle_container
 
     # per convention neigbor values are indicated by 'b' and local values with 'a'
     rho_a = get_particle_density(particle, v_particle_container, particle_container)
@@ -116,22 +116,16 @@ end
 
     # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
     # correction term for free surfaces
-    k_ij = ref_density / rho_mean
+    k_ij = 1.0
+    if surface_tension isa AkinciTypeSurfaceTension
+        k_ij = ref_density / rho_mean
+    end
 
     dv_viscosity = k_ij *
                    calc_visc_term(particle_container, m_b, v_diff, pos_diff, distance,
                                   rho_mean, smoothing_length, grad_kernel)
     dv_pressure = calc_momentum_eq(m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
 
-    # surface tension
-    # dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
-    #                                      get_normal(particle, particle_container,
-    #                                                 surface_tension,
-    #                                                 ndims(particle_container)),
-    #                                      get_normal(neighbor, particle_container,
-    #                                                 surface_tension,
-    #                                                 ndims(particle_container)), pos_diff,
-    #                                      distance)
 
     # save acceleration term if vector is allocated
     if !isnan(a_surface_tension[1, 1])
@@ -139,7 +133,7 @@ end
     end
 
     for i in 1:ndims(particle_container)
-        dv[i, particle] += dv_pressure[i] + dv_viscosity[i] #+ dv_surface_tension[i]
+        dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
     end
 
     return dv
