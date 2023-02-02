@@ -118,7 +118,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                 for i in 1:ndims(particle_container)
                     # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
                     # Divide by the material mass to obtain the acceleration of solid particle a
-                    dv[i, particle] += dv_particle[i] * m_b / particle_container.mass[particle]
+                    dv[i, particle] += dv_particle[i] * m_b /
+                                       particle_container.mass[particle]
                 end
 
                 continuity_equation!(dv, boundary_model,
