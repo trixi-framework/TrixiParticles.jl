@@ -38,6 +38,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                          particle, neighbor, pos_diff, v_diff, distance,
                          particle_container, neighbor_container)
 
+                calc_surface_tension!(dv, v_particle_container, v_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container, neighbor_container,
+                                      surface_tension)
+
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
                                      particle, neighbor, pos_diff, v_diff, distance,
@@ -119,25 +124,71 @@ end
     dv_pressure = calc_momentum_eq(m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
 
     # surface tension
+    # dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
+    #                                      get_normal(particle, particle_container,
+    #                                                 surface_tension,
+    #                                                 ndims(particle_container)),
+    #                                      get_normal(neighbor, particle_container,
+    #                                                 surface_tension,
+    #                                                 ndims(particle_container)), pos_diff,
+    #                                      distance)
+
+    # save acceleration term if vector is allocated
+    if !isnan(a_surface_tension[1, 1])
+        a_viscosity[:, particle] .+= dv_viscosity
+    end
+
+    for i in 1:ndims(particle_container)
+        dv[i, particle] += dv_pressure[i] + dv_viscosity[i] #+ dv_surface_tension[i]
+    end
+
+    return dv
+end
+
+@inline function calc_surface_tension!(dv, v_particle_container, v_neighbor_container,
+                                       particle, neighbor, pos_diff, distance,
+                                       particle_container, neighbor_container,
+                                       surface_tension::AkinciTypeSurfaceTension)
+    @unpack smoothing_length, a_surface_tension, ref_density = particle_container
+
+    # per convention neigbor values are indicated by 'b' and local values with 'a'
+    rho_a = get_particle_density(particle, v_particle_container, particle_container)
+    rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
+    rho_mean = (rho_a + rho_b) / 2
+
+    m_b = neighbor_container.mass[neighbor]
+
+    NDIM = ndims(particle_container)
+
+    # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+    # correction term for free surfaces
+    k_ij = ref_density / rho_mean
+
     dv_surface_tension = k_ij * surface_tension(smoothing_length, m_b,
                                          get_normal(particle, particle_container,
                                                     surface_tension,
-                                                    ndims(particle_container)),
+                                                    NDIM),
                                          get_normal(neighbor, particle_container,
                                                     surface_tension,
-                                                    ndims(particle_container)), pos_diff,
+                                                    NDIM), pos_diff,
                                          distance)
 
-    # save acceleration term if vector are allocated
+    # save acceleration term if vector is allocated
     if !isnan(a_surface_tension[1, 1])
-        a_viscosity[:, particle] .+= dv_viscosity
         a_surface_tension[:, particle] .+= dv_surface_tension
     end
 
     for i in 1:ndims(particle_container)
-        dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_surface_tension[i]
+        dv[i, particle] += dv_surface_tension[i]
     end
 
+    return dv
+end
+
+@inline function calc_surface_tension!(dv, v_particle_container, v_neighbor_container,
+                                       particle, neighbor, pos_diff, v_diff, distance,
+                                       particle_container, neighbor_container,
+                                       surface_tension::NoSurfaceTension)
     return dv
 end
 

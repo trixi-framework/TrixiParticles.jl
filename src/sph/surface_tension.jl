@@ -4,6 +4,8 @@ function (::NoSurfaceTension)(smoothing_length, mb, na, nb, dx, distance)
     return 0.0 * dx
 end
 
+abstract type AkinciTypeSurfaceTension end
+
 @doc raw"""
 cohesionForceAkinci(smoothing_length, ma, mb, dx, distance)
 
@@ -17,7 +19,7 @@ Reference:
 Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggraph Asia
 """
 
-struct CohesionForceAkinci{ELTYPE}
+struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient    :: ELTYPE
     surface_tension_support_length :: ELTYPE
 
@@ -64,7 +66,7 @@ Reference:
 Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggraph Asia
 """
 
-struct SurfaceTensionAkinci{ELTYPE}
+struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
     surface_tension_support_length::ELTYPE
     cof_model::CohesionForceAkinci
