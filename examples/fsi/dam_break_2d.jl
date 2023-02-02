@@ -152,18 +152,14 @@ reset_wall!(setup, reset_faces, positions)
 tspan = (0.0, 1.0)
 
 # Use solution of the relaxing step as initial coordinates
-u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
-particle_container.initial_coordinates .= view(u_end, 1:2, :)
-particle_container.initial_velocity .= view(u_end, 3:4, :)
-# TODO
-particle_container.cache.initial_density .= view(u_end, 5, :)
+restart_with!(semi, sol)
 
 semi = Semidiscretization(particle_container, boundary_container, solid_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 

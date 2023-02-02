@@ -130,14 +130,14 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
     end
 end
 
-@inline function nvariables(container::FluidParticleContainer)
-    nvariables(container, container.density_calculator)
+@inline function v_nvariables(container::FluidParticleContainer)
+    v_nvariables(container, container.density_calculator)
 end
-@inline function nvariables(container::FluidParticleContainer, ::SummationDensity)
-    2 * ndims(container)
+@inline function v_nvariables(container::FluidParticleContainer, ::SummationDensity)
+    ndims(container)
 end
-@inline function nvariables(container::FluidParticleContainer, ::ContinuityDensity)
-    2 * ndims(container) + 1
+@inline function v_nvariables(container::FluidParticleContainer, ::ContinuityDensity)
+    ndims(container) + 1
 end
 
 @inline function get_hydrodynamic_mass(particle, container::FluidParticleContainer)
@@ -147,19 +147,22 @@ end
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
-function update!(container::FluidParticleContainer, container_index, u, u_ode, semi, t)
+function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+                 semi, t)
     @unpack density_calculator = container
 
-    compute_quantities(u, density_calculator, container, container_index, u_ode, semi)
+    compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
 
     return container
 end
 
-function compute_quantities(u, ::ContinuityDensity, container, container_index, u_ode, semi)
-    compute_pressure!(container, u)
+function compute_quantities(v, u, ::ContinuityDensity, container, container_index, u_ode,
+                            semi)
+    compute_pressure!(container, v)
 end
 
-function compute_quantities(u, ::SummationDensity, container, container_index, u_ode, semi)
+function compute_quantities(v, u, ::SummationDensity, container, container_index, u_ode,
+                            semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
     @unpack density = cache # Density is in the cache for SummationDensity
@@ -169,8 +172,8 @@ function compute_quantities(u, ::SummationDensity, container, container_index, u
     # Use all other containers for the density summation
     @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
-        u_neighbor_container = wrap_array(u_ode, neighbor_container_index,
-                                          neighbor_container, semi)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
+                                      neighbor_container, semi)
 
         @threaded for particle in eachparticle(container)
             compute_density_per_particle(particle, u, u_neighbor_container,
@@ -179,14 +182,14 @@ function compute_quantities(u, ::SummationDensity, container, container_index, u
         end
     end
 
-    compute_pressure!(container, u)
+    compute_pressure!(container, v)
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_density_per_particle(particle, u_particle_container,
-                                              u_neighbor_container,
+@inline function compute_density_per_particle(particle,
+                                              u_particle_container, u_neighbor_container,
                                               particle_container::FluidParticleContainer,
                                               neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
@@ -196,56 +199,65 @@ end
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
         mass = get_hydrodynamic_mass(neighbor, neighbor_container)
-        distance = norm(particle_coords -
-                        get_current_coords(neighbor, u_neighbor_container,
-                                           neighbor_container))
+        neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
+                                             neighbor_container)
+        distance = norm(particle_coords - neighbor_coords)
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
             density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end
-function compute_pressure!(container, u)
+
+function compute_pressure!(container, v)
     @unpack state_equation, pressure = container
 
     # Note that @threaded makes this slower
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, u, container))
+        pressure[particle] = state_equation(get_particle_density(particle, v, container))
     end
 end
 
-function write_variables!(u0, container::FluidParticleContainer)
-    @unpack initial_coordinates, initial_velocity, density_calculator = container
+function write_u0!(u0, container::FluidParticleContainer)
+    @unpack initial_coordinates = container
 
     for particle in eachparticle(container)
         # Write particle coordinates
         for dim in 1:ndims(container)
             u0[dim, particle] = initial_coordinates[dim, particle]
         end
+    end
 
+    return u0
+end
+
+function write_v0!(v0, container::FluidParticleContainer)
+    @unpack initial_velocity, density_calculator = container
+
+    for particle in eachparticle(container)
         # Write particle velocities
         for dim in 1:ndims(container)
-            u0[dim + ndims(container), particle] = initial_velocity[dim, particle]
+            v0[dim, particle] = initial_velocity[dim, particle]
         end
     end
 
-    write_variables!(u0, density_calculator, container)
+    write_v0!(v0, density_calculator, container)
 
-    return u0
+    return v0
 end
 
-function write_variables!(u0, ::SummationDensity, container::FluidParticleContainer)
-    return u0
+function write_v0!(v0, ::SummationDensity, container::FluidParticleContainer)
+    return v0
 end
 
-function write_variables!(u0, ::ContinuityDensity, container::FluidParticleContainer)
+function write_v0!(v0, ::ContinuityDensity, container::FluidParticleContainer)
     @unpack cache = container
     @unpack initial_density = cache
 
     for particle in eachparticle(container)
         # Set particle densities
-        u0[2 * ndims(container) + 1, particle] = initial_density[particle]
+        v0[ndims(container) + 1, particle] = initial_density[particle]
     end
 
-    return u0
+    return v0
 end
