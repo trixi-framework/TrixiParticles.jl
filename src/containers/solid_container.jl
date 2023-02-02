@@ -172,11 +172,11 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     end
 end
 
-@inline function nvariables(container::SolidParticleContainer)
-    nvariables(container, container.boundary_model)
+@inline function v_nvariables(container::SolidParticleContainer)
+    v_nvariables(container, container.boundary_model)
 end
 # This is dispatched in boundary_container.jl
-@inline nvariables(container::SolidParticleContainer, model) = 2 * ndims(container)
+@inline v_nvariables(container::SolidParticleContainer, model) = ndims(container)
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
@@ -186,13 +186,12 @@ end
     return get_particle_coords(particle, current_coordinates, container)
 end
 
-@inline function get_particle_vel(particle, u, container::SolidParticleContainer)
+@inline function get_particle_vel(particle, v, container::SolidParticleContainer)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
 
-    return SVector(ntuple(@inline(dim->u[dim + ndims(container), particle]),
-                          Val(ndims(container))))
+    return get_particle_coords(particle, v, container)
 end
 
 @inline function get_correction_matrix(particle, container)
@@ -253,7 +252,8 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
     return correction_matrix
 end
 
-function update!(container::SolidParticleContainer, container_index, u, u_ode, semi, t)
+function update!(container::SolidParticleContainer, container_index, v, u,
+                 v_ode, u_ode, semi, t)
     @unpack neighborhood_searches = semi
 
     # Update current coordinates
@@ -346,7 +346,7 @@ end
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
 
-@inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
+@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container,
                                      penalty_force::PenaltyForceGanzenmueller)
     @unpack smoothing_kernel, smoothing_length, mass,
@@ -368,60 +368,68 @@ end
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
-    dv = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-         kernel_ / initial_distance^2 * young_modulus * delta_sum *
-         current_pos_diff / current_distance
+    f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
+        kernel_ / initial_distance^2 * young_modulus * delta_sum *
+        current_pos_diff / current_distance
 
     for i in 1:ndims(container)
         # Divide force by mass to obtain acceleration
-        du[ndims(container) + i, particle] += dv[i] / mass[particle]
+        dv[i, particle] += f[i] / mass[particle]
     end
 
-    return du
+    return dv
 end
 
-@inline function calc_penalty_force!(du, particle, neighbor, initial_pos_diff,
+@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container, ::Nothing)
-    return du
+    return dv
 end
 
-function write_variables!(u0, container::SolidParticleContainer)
-    @unpack initial_coordinates, initial_velocity, boundary_model = container
+function write_u0!(u0, container::SolidParticleContainer)
+    @unpack initial_coordinates = container
 
     for particle in each_moving_particle(container)
         # Write particle coordinates
         for dim in 1:ndims(container)
             u0[dim, particle] = initial_coordinates[dim, particle]
         end
+    end
 
+    return u0
+end
+
+function write_v0!(v0, container::SolidParticleContainer)
+    @unpack initial_velocity, boundary_model = container
+
+    for particle in each_moving_particle(container)
         # Write particle velocities
         for dim in 1:ndims(container)
-            u0[dim + ndims(container), particle] = initial_velocity[dim, particle]
+            v0[dim, particle] = initial_velocity[dim, particle]
         end
     end
 
-    write_variables!(u0, boundary_model, container)
+    write_v0!(v0, boundary_model, container)
 
-    return u0
+    return v0
 end
 
 # This is dispatched in boundary_container.jl
-function write_variables!(u0, boundary_model, container)
-    return u0
+function write_v0!(v0, boundary_model, container)
+    return v0
 end
 
-function write_variables!(u0, boundary_model, density_calculator, container)
-    return du
+function write_v0!(v0, boundary_model, density_calculator, container)
+    return v0
 end
 
-function write_variables!(u0, boundary_model, ::ContinuityDensity, container)
+function write_v0!(v0, boundary_model, ::ContinuityDensity, container)
     @unpack cache = boundary_model
     @unpack initial_density = cache
 
     for particle in eachparticle(container)
         # Set particle densities
-        u0[2 * ndims(container) + 1, particle] = initial_density[particle]
+        v0[ndims(container) + 1, particle] = initial_density[particle]
     end
 
-    return u0
+    return v0
 end

@@ -56,7 +56,7 @@ ode = semidiscretize(semi, tspan)
 summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 

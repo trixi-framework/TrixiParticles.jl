@@ -16,7 +16,7 @@
             initial_pos_diff = [[0.1, 0.0], [0.5, 0.3], [1.0, 0.37]]
             particle = [1, 3, 10]
             neighbor = [10, 4, 9]
-            dv_expected = [
+            dv_particle_expected = [
                 [2.0, 0.0],
                 [0.07118137645953881, 0.11640973221047637],
                 [0.01870315713691948, 0.014067976038520915],
@@ -59,15 +59,15 @@
                 end
 
                 #### Verification
-                du = zeros(2 * ndims(container), 10)
-                du_expected = copy(du)
-                du_expected[3:4, particle[i]] = dv_expected[i]
+                dv = zeros(ndims(container), 10)
+                dv_expected = copy(dv)
+                dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                Pixie.calc_dv!(du, particle[i], neighbor[i], initial_pos_diff[i],
+                Pixie.calc_dv!(dv, particle[i], neighbor[i], initial_pos_diff[i],
                                initial_distance,
                                container, container)
 
-                @test du ≈ du_expected
+                @test dv ≈ dv_expected
             end
         end
 
@@ -95,7 +95,7 @@
             ]
             particle = [1, 3, 10, 7]
             neighbor = [10, 4, 9, 7]
-            dv_expected = [
+            dv_particle_expected = [
                 [2.0, 0.0],
                 [0.07118137645953881, 0.11640973221047637],
                 [0.01870315713691948, 0.014067976038520915],
@@ -166,13 +166,13 @@
                 Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
                 #### Verification
-                du = zeros(2 * ndims(container), 10)
-                du_expected = copy(du)
-                du_expected[3:4, particle[i]] = dv_expected[i]
+                dv = zeros(ndims(container), 10)
+                dv_expected = copy(dv)
+                dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-                Pixie.interact_solid_solid!(du, Val(:nhs), container, container)
+                Pixie.interact_solid_solid!(dv, Val(:nhs), container, container)
 
-                @test du ≈ du_expected
+                @test dv ≈ dv_expected
             end
         end
     end
@@ -187,12 +187,10 @@
 
         # The acceleration in the first three should be zero (linear stretching)
         # The fourth one is calculated by hand
-        expected_du_41 = Dict("rotation" => [1.0, -2.0, 0.0, 0.0],
-                              "stretch both" => [1.0, -2.0, 0.0, 0.0],
-                              "rotate and stretch" => [1.0, -2.0, 0.0, 0.0],
+        dv_expected_41 = Dict("rotation" => [0.0, 0.0],
+                              "stretch both" => [0.0, 0.0],
+                              "rotate and stretch" => [0.0, 0.0],
                               "nonlinear stretching" => [
-                                  1.0,
-                                  -2.0,
                                   10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 *
                                   1.224,
                                   0.0,
@@ -200,9 +198,10 @@
 
         @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             J = deformations[deformation]
-            u = zeros(4, 81)
-            u[3, :] .= 1.0
-            u[4, :] .= -2.0
+            u = zeros(2, 81)
+            v = zeros(2, 81)
+            v[1, :] .= 1.0
+            v[2, :] .= -2.0
 
             # Make both Lamé constants equal to 1
             nu = 0.25
@@ -248,10 +247,11 @@
             #### Verification for the particle in the middle
             particle = 41
 
-            du = zeros(2 * ndims(container), 81)
-            Pixie.rhs!(du, u, semi, 0.0)
+            dv = zeros(ndims(container), 81)
+            Pixie.kick!(dv, v, u, semi, 0.0)
 
-            @test du[:, particle] ≈ expected_du_41[deformation]
+            @test isapprox(dv[:, particle], dv_expected_41[deformation],
+                           rtol=sqrt(eps()), atol=sqrt(eps()))
         end
     end
 end
