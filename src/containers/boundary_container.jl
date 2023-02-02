@@ -365,20 +365,20 @@ end
     return get_particle_coords(particle, initial_coordinates, container)
 end
 
-@inline function get_particle_vel(particle, u, container::BoundaryParticleContainer)
+@inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)
     # TODO moving boundaries
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
 # This will only be called for BoundaryModelDummyParticles
-@inline function get_particle_density(particle, u, container::BoundaryParticleContainer)
+@inline function get_particle_density(particle, v, container::BoundaryParticleContainer)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    get_particle_density(particle, u, density_calculator, boundary_model)
+    get_particle_density(particle, v, density_calculator, boundary_model)
 end
 
-@inline function get_particle_density(particle, u, ::AdamiPressureExtrapolation,
+@inline function get_particle_density(particle, v, ::AdamiPressureExtrapolation,
                                       boundary_model)
     @unpack cache = boundary_model
 

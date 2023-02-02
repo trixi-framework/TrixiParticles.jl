@@ -55,20 +55,20 @@ function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
     semi = integrator.p
     @unpack particle_containers = semi
 
-    # The SavingCallback does not insert tstops, so u had to be interpolated.
-    # However, only u has been interpolated, but not semi.cache. To compute the correct
-    # cache, we have to call kick! with the correct u again (u_tmp).
-    # We need to pass some cache as du to kick!. We can use first(get_tmp_cache(integrator))
-    # for this.
-    # However, u_tmp is either a reference to the actual integrator.u or a reference to the cache
-    # first(get_tmp_cache(integrator)).
-    # Thus, when we call kick! with first(get_tmp_cache(integrator)) as du, we might change
-    # the contents of u_tmp.
-    # For this reason, we copy the current u_tmp before we call kick!.
+    # The SavingCallback does not insert tstops, so `u` had to be interpolated.
+    # However, only `u` (or `u` and `v`) has been interpolated, but not the containers.
+    # To upate the containers, we have to call `kick!` with the correct `u` again (`u_tmp`).
+    # We need to pass some cache as `dv` to `kick!`.
+    # We can use `first(get_tmp_cache(integrator))` for this.
+    # However, `u_tmp` is either a reference to the actual `integrator.u` or a reference
+    # to the cache `first(get_tmp_cache(integrator))`.
+    # Thus, when we call `kick!` with `first(get_tmp_cache(integrator))` as `dv`,
+    # we might change the contents of `u_tmp`.
+    # For this reason, we copy the current `u_tmp` before we call `kick!`.
     v_ode = copy(u_tmp.x[1])
     u_ode = copy(u_tmp.x[2])
 
-    # Call kick! to compute the correct cache (pressures, etc.).
+    # Call `kick!` to update the containers (pressures, etc.).
     # We only need the `v`-part of the cache here.
     v_cache = first(get_tmp_cache(integrator)).x[1]
     kick!(v_cache, v_ode, u_ode, semi, t)
