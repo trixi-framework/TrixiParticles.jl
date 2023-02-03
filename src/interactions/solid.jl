@@ -111,7 +111,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 continuity_equation!(dv, boundary_model,
                                      v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, 0.0, distance,
+                                     particle, neighbor, pos_diff, distance,
                                      particle_container, neighbor_container)
             end
         end

@@ -44,9 +44,9 @@ state_equation = StateEquationCole(c, 7, 997.0, 100000.0, background_pressure=10
 
 particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
+                                            setup.particle_masses, setup.particle_radius, setup.particle_densities,
                                             ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
+                                            smoothing_kernel, smoothing_length, water_density,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81))
