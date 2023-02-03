@@ -30,9 +30,11 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 # Create semidiscretization
 particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_radius, setup.particle_densities,
+                                            setup.particle_masses, setup.particle_radius,
+                                            setup.particle_densities,
                                             ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length, water_density,
+                                            smoothing_kernel, smoothing_length,
+                                            water_density,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81))
