@@ -126,9 +126,8 @@ end
                                   rho_mean, smoothing_length, grad_kernel)
     dv_pressure = calc_momentum_eq(m_b, p_a, p_b, rho_a, rho_b, grad_kernel)
 
-
     # save acceleration term if vector is allocated
-    if !isnan(a_surface_tension[1, 1])
+    if !isnan(a_viscosity[1, 1])
         a_viscosity[:, particle] .+= dv_viscosity
     end
 
@@ -180,7 +179,7 @@ end
 end
 
 @inline function calc_surface_tension!(dv, v_particle_container, v_neighbor_container,
-                                       particle, neighbor, pos_diff, v_diff, distance,
+                                       particle, neighbor, pos_diff, distance,
                                        particle_container, neighbor_container,
                                        surface_tension::NoSurfaceTension)
     return dv
@@ -213,7 +212,7 @@ end
     @unpack smoothing_kernel, smoothing_length = particle_container
 
     # density change added at the end of du
-    NDIMS = ndims(particle_container)
+    NDIM = ndims(particle_container)
     dv[NDIM + 1, particle] += sum(neighbor_container.mass[neighbor] *
                                   v_diff *
                                   kernel_deriv(smoothing_kernel,
@@ -260,7 +259,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
+                                     particle, neighbor, pos_diff, 0.0, distance,
                                      particle_container, neighbor_container)
 
                 pi_ab = viscosity(sound_speed, v_a, pos_diff, distance, density_a,

@@ -53,4 +53,4 @@ sol = solve(ode, TRBDF2(autodiff=false),
 summary_callback()
 
 # activate to save to vtk
-pixie2vtk(saved_values)
+#pixie2vtk(saved_values)

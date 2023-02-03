@@ -122,4 +122,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # activate to save to vtk
-pixie2vtk(saved_values)
+#pixie2vtk(saved_values)
