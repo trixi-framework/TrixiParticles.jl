@@ -30,8 +30,8 @@ end
 
 # NHS update
 function Pixie.update!(neighborhood_search, u,
-                 container::NBodyContainer,
-                 neighbor::NBodyContainer)
+                       container::NBodyContainer,
+                       neighbor::NBodyContainer)
     Pixie.update!(neighborhood_search, u, neighbor)
 end
 
