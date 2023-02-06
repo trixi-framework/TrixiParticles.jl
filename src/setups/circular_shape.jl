@@ -34,14 +34,15 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
-        n_particles = size(coordinates, 2)
         coordinates = generate_particles(shape_type, R, x_center, y_center,
                                          particle_spacing)
 
+        n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        velocities = zeros(ELTYPE, 2, n_particles)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles)
     end
 end
