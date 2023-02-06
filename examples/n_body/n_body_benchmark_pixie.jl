@@ -3,7 +3,6 @@
 #
 
 using Pixie
-using TimerOutputs
 using Printf
 
 include("n_body_container.jl")
@@ -93,11 +92,11 @@ function symplectic_euler(velocities, coordinates, semi)
 end
 
 # One RHS evaluation is so fast that timers make it multiple times slower
-TimerOutputs.disable_debug_timings(Pixie)
+Pixie.TimerOutputs.disable_debug_timings(Pixie)
 
 @printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
 v, u = symplectic_euler(velocities, coordinates, semi)
 @printf("%.9f\n", energy(v, u, particle_container, semi))
 
 # Enable timers again
-TimerOutputs.enable_debug_timings(Pixie)
+Pixie.TimerOutputs.enable_debug_timings(Pixie)

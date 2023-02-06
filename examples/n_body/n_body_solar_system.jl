@@ -2,7 +2,6 @@
 # An n-body simulation of the solar system
 #
 using Pixie
-using TimerOutputs
 using OrdinaryDiffEq
 using Printf
 
@@ -38,7 +37,7 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:(10day):tspan[
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
 # One RHS evaluation is so fast that timers make it multiple times slower
-TimerOutputs.disable_debug_timings(Pixie)
+Pixie.TimerOutputs.disable_debug_timings(Pixie)
 
 sol = solve(ode, SymplecticEuler(),
             dt=1.0e5,
@@ -51,4 +50,4 @@ summary_callback()
 @printf("%.9e\n", energy(sol[end].x..., particle_container, semi))
 
 # Enable timers again
-TimerOutputs.enable_debug_timings(Pixie)
+Pixie.TimerOutputs.enable_debug_timings(Pixie)
