@@ -21,8 +21,9 @@ Either a circle filled with particles or a circumference drawn by particles.
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
-struct CircularShape{NDIMS, ELTYPE <: Real}
+struct CircularShape{NDIM, ELTYPE <: Real} <: ProvidesParticleGroup
     coordinates      :: Array{ELTYPE, 2}
+    velocities       :: Array{ELTYPE, 2}
     masses           :: Vector{ELTYPE}
     densities        :: Vector{ELTYPE}
     particle_spacing :: ELTYPE
@@ -30,18 +31,18 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
 
     function CircularShape(R, x_center, y_center, particle_spacing;
                            shape_type=FillCircle(), density=0.0)
-        NDIMS = 2
+        NDIM = 2
         ELTYPE = eltype(particle_spacing)
 
+        n_particles = size(coordinates, 2)
         coordinates = generate_particles(shape_type, R, x_center, y_center,
                                          particle_spacing)
 
-        n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
-                                  particle_spacing, n_particles)
+        return new{NDIM, ELTYPE}(coordinates, masses, densities,
+                                 particle_spacing, n_particles)
     end
 end
 

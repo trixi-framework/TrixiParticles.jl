@@ -16,15 +16,16 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
 include("sph/sph.jl")
+include("setups/setups.jl")
 include("containers/container.jl")
 include("semidiscretization/semidiscretization.jl")
 include("interactions/interactions.jl")
 include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
-include("setups/setups.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
+export FluidParticleContainer, new_fluid
+export SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
