@@ -62,7 +62,7 @@ end
     @unpack smoothing_kernel, smoothing_length, surface_normal = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        particle_coords = get_current_coords(particle, v_particle_container,
+        particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
 
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
