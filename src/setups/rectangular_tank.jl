@@ -48,7 +48,7 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
 
 See also: [`reset_wall!`](@ref)
 """
-struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real} <: ProvidesParticleGroup
+struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     densities                 :: Vector{ELTYPE}

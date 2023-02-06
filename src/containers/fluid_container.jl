@@ -258,7 +258,7 @@ function write_v0!(v0, ::ContinuityDensity, container::FluidParticleContainer)
     return v0
 end
 
-function new_fluid(pg::ProvidesParticleGroup, density_calculator::SummationDensity,
+function new_fluid(pg, density_calculator::SummationDensity,
                    state_equation, smoothing_kernel, smoothing_length;
                    viscosity=NoViscosity(),
                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
@@ -268,7 +268,7 @@ function new_fluid(pg::ProvidesParticleGroup, density_calculator::SummationDensi
                                   viscosity=viscosity, acceleration=acceleration)
 end
 
-function new_fluid(pg::ProvidesParticleGroup, density_calculator::ContinuityDensity,
+function new_fluid(pg, density_calculator::ContinuityDensity,
                    state_equation, smoothing_kernel, smoothing_length;
                    viscosity=NoViscosity(),
                    acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))

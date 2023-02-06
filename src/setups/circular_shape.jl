@@ -21,7 +21,7 @@ Either a circle filled with particles or a circumference drawn by particles.
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
-struct CircularShape{NDIM, ELTYPE <: Real} <: ProvidesParticleGroup
+struct CircularShape{NDIM, ELTYPE <: Real}
     coordinates      :: Array{ELTYPE, 2}
     velocities       :: Array{ELTYPE, 2}
     masses           :: Vector{ELTYPE}

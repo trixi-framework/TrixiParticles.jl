@@ -31,7 +31,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0))
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
 ```
 """
-struct RectangularShape{NDIM, ELTYPE <: Real} <: ProvidesParticleGroup
+struct RectangularShape{NDIM, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
