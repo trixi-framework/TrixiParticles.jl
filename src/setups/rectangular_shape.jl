@@ -31,20 +31,20 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0))
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
 ```
 """
-struct RectangularShape{NDIM, ELTYPE <: Real}
+struct RectangularShape{NDIMS, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
     densities                 :: Vector{ELTYPE}
     particle_spacing          :: ELTYPE
-    n_particles_per_dimension :: NTuple{NDIM, Int}
+    n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularShape(particle_spacing,
                               n_particles_per_dimension::NTuple{2}, particle_position;
                               density=zero(eltype(particle_spacing)), loop_order=:x_first)
-        NDIM = 2
-        if length(particle_position) != NDIM
-            throw(ArgumentError("`particle_position` must be of length $NDIM for a $(NDIM)D problem"))
+        NDIMS = 2
+        if length(particle_position) != NDIMS
+            throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         ELTYPE = eltype(particle_spacing)
@@ -61,16 +61,16 @@ struct RectangularShape{NDIM, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIM, ELTYPE}(coordinates, velocities, masses, densities,
-                                 particle_spacing, n_particles_per_dimension)
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
+                                  particle_spacing, n_particles_per_dimension)
     end
 
     function RectangularShape(particle_spacing,
                               n_particles_per_dimension::NTuple{3}, particle_position;
                               density=zero(eltype(particle_spacing)), loop_order=:x_first)
-        NDIM = 3
-        if length(particle_position) != NDIM
-            throw(ArgumentError("`particle_position` must be of length $NDIM for a $(NDIM)D problem"))
+        NDIMS = 3
+        if length(particle_position) != NDIMS
+            throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         ELTYPE = eltype(particle_spacing)
@@ -87,8 +87,8 @@ struct RectangularShape{NDIM, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIM, ELTYPE}(coordinates, velocities, masses, densities,
-                                 particle_spacing, n_particles_per_dimension)
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
+                                  particle_spacing, n_particles_per_dimension)
     end
 end
 

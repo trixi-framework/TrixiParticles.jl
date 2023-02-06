@@ -48,7 +48,7 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
 
 See also: [`reset_wall!`](@ref)
 """
-struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
+struct RectangularTank{NDIMS, NDIMt2, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     densities                 :: Vector{ELTYPE}
@@ -60,13 +60,13 @@ struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
     particle_spacing          :: ELTYPE
     spacing_ratio             :: ELTYPE
     n_layers                  :: Int
-    n_particles_per_dimension :: NTuple{NDIM, Int}
+    n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, spacing_ratio, fluid_width, fluid_height,
                              container_width, container_height, fluid_density;
                              n_layers=1, init_velocity=0.0, boundary_density=fluid_density,
                              faces=Tuple(trues(4)))
-        NDIM = 2
+        NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
         # Leave space for the fluid particles
@@ -116,12 +116,12 @@ struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
-        return new{NDIM, 2 * NDIM, ELTYPE}(particle_coordinates, particle_velocities,
-                                           particle_densities, particle_masses,
-                                           boundary_coordinates, boundary_masses, faces,
-                                           face_indices,
-                                           particle_spacing, spacing_ratio, n_layers,
-                                           n_particles_per_dimension)
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
+                                             particle_densities, particle_masses,
+                                             boundary_coordinates, boundary_masses, faces,
+                                             face_indices,
+                                             particle_spacing, spacing_ratio, n_layers,
+                                             n_particles_per_dimension)
     end
 
     function RectangularTank(particle_spacing, spacing_ratio,
@@ -130,7 +130,7 @@ struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
                              fluid_density;
                              n_layers=1, init_velocity=0.0, boundary_density=fluid_density,
                              faces=Tuple(trues(6)))
-        NDIM = 3
+        NDIMS = 3
         ELTYPE = eltype(particle_spacing)
         mass = fluid_density * particle_spacing^3
 
@@ -192,12 +192,12 @@ struct RectangularTank{NDIM, NDIMt2, ELTYPE <: Real}
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
-        return new{NDIM, 2 * NDIM, ELTYPE}(particle_coordinates, particle_velocities,
-                                           particle_densities, particle_masses,
-                                           boundary_coordinates, boundary_masses, faces,
-                                           face_indices,
-                                           particle_spacing, spacing_ratio, n_layers,
-                                           n_particles_per_dimension)
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
+                                             particle_densities, particle_masses,
+                                             boundary_coordinates, boundary_masses, faces,
+                                             face_indices,
+                                             particle_spacing, spacing_ratio, n_layers,
+                                             n_particles_per_dimension)
     end
 end
 
