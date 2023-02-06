@@ -78,7 +78,8 @@ n_particles_x = 5
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length_beam / solid_particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x,
+                             round(Int, length_beam / solid_particle_spacing) + 1)
 
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
