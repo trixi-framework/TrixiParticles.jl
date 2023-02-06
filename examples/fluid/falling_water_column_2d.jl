@@ -16,8 +16,8 @@ setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density, n_layers=1)
 
 # Move water column
-for i in axes(setup.particle_coordinates, 2)
-    setup.particle_coordinates[:, i] .+= [0.5 * container_width - 0.5 * water_width, 0.2]
+for i in axes(setup.coordinates, 2)
+    setup.coordinates[:, i] .+= [0.5 * container_width - 0.5 * water_width, 0.2]
 end
 
 c = 10 * sqrt(9.81 * water_height)
