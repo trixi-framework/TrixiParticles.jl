@@ -46,8 +46,8 @@ sol = solve(ode, SymplecticEuler(),
 # Print the timer summary
 summary_callback()
 
-@printf("%.9e\n", energy(ode.u0, particle_container, semi))
-@printf("%.9e\n", energy(sol[end], particle_container, semi))
+@printf("%.9e\n", energy(ode.u0.x..., particle_container, semi))
+@printf("%.9e\n", energy(sol[end].x..., particle_container, semi))
 
 # Enable timers again
 TimerOutputs.enable_debug_timings(Pixie)
