@@ -2,6 +2,7 @@
 # An n-body simulation of the solar system
 #
 using Pixie
+using TimerOutputs
 using OrdinaryDiffEq
 using Printf
 
