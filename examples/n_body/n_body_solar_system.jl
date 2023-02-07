@@ -8,6 +8,9 @@ using Printf
 
 include("n_body_container.jl")
 
+# ==========================================================================================
+# ==== Container
+
 # Data from https://de.mathworks.com/help/sm/ug/model-planet-orbit-due-to-gravity.html;jsessionid=1c983e477bd0e1231ad25ef4c5d1
 coordinates = [5.5850e+08 5.1979e+10 -1.5041e+10 -1.1506e+09 -4.8883e+10 -8.1142e+11 -4.2780e+11 2.7878e+12 4.2097e+12;
                5.5850e+08 7.6928e+09 9.7080e+10 -1.3910e+11 -1.9686e+11 4.5462e+10 -1.3353e+12 9.9509e+11 -1.3834e+12;
@@ -22,6 +25,9 @@ masses = [
 
 G = 6.6743e-11
 particle_container = NBodyContainer(coordinates, velocities, masses, G)
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(particle_container)
 

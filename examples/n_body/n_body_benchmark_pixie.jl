@@ -46,6 +46,9 @@ function Pixie.interact!(du, u_particle_container, u_neighbor_container,
     return du
 end
 
+# ==========================================================================================
+# ==== Container
+
 const SOLAR_MASS = 4 * pi * pi
 const DAYS_PER_YEAR = 365.24
 coordinates = [0.0 4.84143144246472090e+0 8.34336671824457987e+0 1.28943695621391310e+1 1.53796971148509165e+1;
@@ -67,6 +70,9 @@ velocities[:, 1] = -velocities[:, 2:end] * masses[2:end] / SOLAR_MASS
 
 G = 1.0
 particle_container = NBodyContainer(coordinates, velocities, masses, G)
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(particle_container)
 
