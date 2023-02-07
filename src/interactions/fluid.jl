@@ -6,8 +6,8 @@ function interact!(dv, v_particle_container, u_particle_container,
     @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_surface_tension, a_viscosity = particle_container
 
     if !isnan(a_surface_tension[1, 1])
-        a_surface_tension .= 0
-        a_viscosity .= 0
+        fill!(a_surface_tension, 0.0)
+        fill!(a_viscosity, 0.0)
     end
 
     # some surface tension models require the surface normal
@@ -82,7 +82,9 @@ end
                                                 pos_diff / distance
             end
         end
-        surface_normal[:, particle] .*= smoothing_length
+        for i in 1:ndims(particle_container)
+            surface_normal[i, particle] *= smoothing_length
+        end
     end
 end
 
@@ -128,7 +130,9 @@ end
 
     # save acceleration term if vector is allocated
     if !isnan(a_viscosity[1, 1])
-        a_viscosity[:, particle] .+= dv_viscosity
+        for i in 1:ndims(particle_container)
+            a_viscosity[i, particle] += dv_viscosity[i]
+        end
     end
 
     for i in 1:ndims(particle_container)
@@ -168,7 +172,9 @@ end
 
     # save acceleration term if vector is allocated
     if !isnan(a_surface_tension[1, 1])
-        a_surface_tension[:, particle] .+= dv_surface_tension
+        for i in 1:ndims(particle_container)
+            a_surface_tension[i, particle] += dv_surface_tension[i]
+        end
     end
 
     for i in 1:ndims(particle_container)
