@@ -263,9 +263,14 @@ function interact!(dv, v_particle_container, u_particle_container,
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 m_b = neighbor_container.mass[neighbor]
 
+                v_diff = get_particle_vel(particle, v_particle_container,
+                                          particle_container) -
+                         get_particle_vel(neighbor, v_neighbor_container,
+                                          neighbor_container)
+
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, 0.0, distance,
+                                     particle, neighbor, pos_diff, v_diff, distance,
                                      particle_container, neighbor_container)
 
                 pi_ab = viscosity(sound_speed, v_a, pos_diff, distance, density_a,
