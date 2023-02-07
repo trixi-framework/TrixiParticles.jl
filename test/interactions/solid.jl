@@ -1,5 +1,5 @@
-@testset "Solid RHS" begin
-    @testset "Unit Tests" begin
+@testset verbose=true "Solid RHS" begin
+    @testset verbose=true "Unit Tests" begin
         @testset "calc_dv!" begin
             # Pass specific pk1 and pos_diff to calc_dv! and verify with
             # values calculated by hand
@@ -177,7 +177,7 @@
         end
     end
 
-    @testset "Integration Tests" begin
+    @testset verbose=true "Integration Tests" begin
         deformations = Dict("rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
                             "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
                             "rotate and stretch" => x -> [cos(0.3) -sin(0.3);

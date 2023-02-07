@@ -1,5 +1,5 @@
-@testset "Deformation Gradient" begin
-    @testset "Unit Tests" begin
+@testset verbose=true "Deformation Gradient" begin
+    @testset verbose=true "Unit Tests" begin
         # This is a proof of concept to show that mocking in Julia unit tests works without
         # the need for any mocking packages or modifying source code.
 
@@ -63,7 +63,7 @@
         end
     end
 
-    @testset "Integration Tests" begin
+    @testset verbose=true "Integration Tests" begin
         deformations = Dict("stretch x" => x -> [2.0 0.0; 0.0 1.0] * x,
                             "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
                             "rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
@@ -122,8 +122,8 @@
     end
 end
 
-@testset "Stress tensors" begin
-    @testset "Unit tests" begin
+@testset verbose=true "Stress tensors" begin
+    @testset verbose=true "Unit tests" begin
         deformations = Dict("rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
                             "stretch both" => [2.0 0.0; 0.0 3.0],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
@@ -170,7 +170,7 @@ end
         end
     end
 
-    @testset "Integration Tests" begin
+    @testset verbose=true "Integration Tests" begin
         @testset "Rotate and Stretch" begin
             # Make both Lamé constants equal to 1
             nu = 0.25
