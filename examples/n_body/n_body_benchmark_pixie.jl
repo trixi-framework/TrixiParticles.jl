@@ -1,13 +1,16 @@
 #
-# An n-body benchmark from "The Computer Language Benchmarks Game" translated to Pixie
+# An n-body benchmark from "The Computer Language Benchmarks Game" translated to Pixie.
+# This example does not benefit from using multiple threads.
+# Multithreading is disabled below.
 #
 
 using Pixie
 using Printf
+using Polyester
 
 include("n_body_container.jl")
 
-# Redefine interact in a more optimized way
+# Redefine interact in a more optimized way.
 function Pixie.interact!(du, u_particle_container, u_neighbor_container,
                          neighborhood_search,
                          particle_container::NBodyContainer,
@@ -67,10 +70,10 @@ particle_container = NBodyContainer(coordinates, velocities, masses, G)
 
 semi = Semidiscretization(particle_container)
 
-# This is significantly faster than using OrdinaryDiffEq
-function symplectic_euler(velocities, coordinates, semi)
-    v = copy(vec(velocities))
-    u = copy(vec(coordinates))
+# This is significantly faster than using OrdinaryDiffEq.
+function symplectic_euler!(velocities, coordinates, semi)
+    v = vec(velocities)
+    u = vec(coordinates)
     dv = copy(v)
     du = copy(u)
 
@@ -87,16 +90,19 @@ function symplectic_euler(velocities, coordinates, semi)
             u[i] += 0.01 * du[i]
         end
     end
-
-    return v, u
 end
 
-# One RHS evaluation is so fast that timers make it multiple times slower
+# One RHS evaluation is so fast that timers make it multiple times slower.
 Pixie.TimerOutputs.disable_debug_timings(Pixie)
 
 @printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
-v, u = symplectic_euler(velocities, coordinates, semi)
-@printf("%.9f\n", energy(v, u, particle_container, semi))
 
-# Enable timers again
+# Disable multithreading, since it adds a significant overhead for this small problem.
+disable_polyester_threads() do
+    symplectic_euler!(velocities, coordinates, semi)
+end
+
+@printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
+
+# Enable timers again.
 Pixie.TimerOutputs.enable_debug_timings(Pixie)

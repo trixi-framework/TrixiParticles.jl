@@ -1,5 +1,6 @@
 #
-# An n-body simulation of the solar system
+# An n-body simulation of the solar system.
+# This example does not benefit from using multiple threads due to the small problem size.
 #
 using Pixie
 using OrdinaryDiffEq
@@ -36,18 +37,18 @@ saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:(10day):tspan[
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-# One RHS evaluation is so fast that timers make it multiple times slower
+# One RHS evaluation is so fast that timers make it multiple times slower.
 Pixie.TimerOutputs.disable_debug_timings(Pixie)
 
 sol = solve(ode, SymplecticEuler(),
             dt=1.0e5,
             save_everystep=false, callback=callbacks);
 
-# Print the timer summary
+# Print the timer summary.
 summary_callback()
 
 @printf("%.9e\n", energy(ode.u0.x..., particle_container, semi))
 @printf("%.9e\n", energy(sol[end].x..., particle_container, semi))
 
-# Enable timers again
+# Enable timers again.
 Pixie.TimerOutputs.enable_debug_timings(Pixie)
