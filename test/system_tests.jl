@@ -46,4 +46,19 @@
                                    dtmax=1e-3)
         @test sol.retcode == ReturnCode.Success
     end
+
+    @testset "N-Body" begin
+        @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                            "n_body_solar_system.jl"))
+        @test sol.retcode == ReturnCode.Success
+
+        @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                            "n_body_benchmark_pixie.jl"))
+
+        @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                            "n_body_benchmark_reference.jl"))
+
+        @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                            "n_body_benchmark_reference_faster.jl"))
+    end
 end
