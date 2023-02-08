@@ -21,7 +21,6 @@ function interact!(dv, v_particle_container, u_particle_container,
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
 
-        correction_term = 0
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
@@ -34,10 +33,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                                           particle_container) -
                          get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
-
-                m_b = neighbor_container.mass[neighbor]
-                rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
-                correction_term += m_b/rho_b * kernel(smoothing_kernel, distance, smoothing_length)
 
                 calc_dv!(dv, v_particle_container, v_neighbor_container,
                          particle, neighbor, pos_diff, v_diff, distance,
@@ -54,7 +49,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                                      particle_container, neighbor_container)
             end
         end
-        println("correction term", correction_term)
     end
 
     return dv
@@ -118,6 +112,8 @@ end
     p_b = neighbor_container.pressure[neighbor]
 
     # calculate the 0-order correction term
+    #correction_term = m_b/density_neighbor * kernel(smoothing_kernel, distance, smoothing_length)
+    #println("correction term", correction_term)
     grad_kernel = calc_grad_kernel(smoothing_kernel, distance, smoothing_length, pos_diff)
 
     # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
