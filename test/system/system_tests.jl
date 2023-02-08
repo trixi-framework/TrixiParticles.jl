@@ -76,18 +76,21 @@
 
     @testset verbose=true "N-Body" begin
         @pixie_testset "n_body/n_body_solar_system.jl" begin
-            @test_nowarn pixie_include(@__MODULE__, joinpath(examples_dir(), "n_body",
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "n_body",
                                                 "n_body_solar_system.jl"))
             @test sol.retcode == ReturnCode.Success
         end
 
         @pixie_testset "n_body/n_body_benchmark_pixie.jl" begin
-            @test_nowarn pixie_include(@__MODULE__, joinpath(examples_dir(), "n_body",
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "n_body",
                                                 "n_body_benchmark_pixie.jl"))
         end
 
         @pixie_testset "n_body/n_body_benchmark_reference.jl" begin
-            @test_nowarn pixie_include(@__MODULE__, joinpath(examples_dir(), "n_body",
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "n_body",
                                                 "n_body_benchmark_reference.jl"))
         end
 
