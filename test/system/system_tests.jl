@@ -73,4 +73,27 @@
             @test sol.retcode == ReturnCode.Success
         end
     end
+
+    @testset verbose=true "N-Body" begin
+        @pixie_testset "n_body/n_body_solar_system.jl" begin
+            @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                                "n_body_solar_system.jl"))
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @pixie_testset "n_body/n_body_benchmark_pixie.jl" begin
+            @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                                "n_body_benchmark_pixie.jl"))
+        end
+
+        @pixie_testset "n_body/n_body_benchmark_reference.jl" begin
+            @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                                "n_body_benchmark_reference.jl"))
+        end
+
+        @pixie_testset "n_body/n_body_benchmark_reference_faster.jl" begin
+            @test_nowarn pixie_include(joinpath(examples_dir(), "n_body",
+                                                "n_body_benchmark_reference_faster.jl"))
+        end
+    end
 end
