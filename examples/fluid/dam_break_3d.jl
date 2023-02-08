@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-acceleration = -9.81 # gravity
+gravity = -9.81
 
 # ==========================================================================================
 # ==== Fluid
@@ -21,12 +21,12 @@ container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / be
 container_height = floor(4.0 / particle_spacing) * particle_spacing
 container_length = floor(1.0 / particle_spacing) * particle_spacing
 
-c = 20 * sqrt(9.81 * water_height)
+sound_speed = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
@@ -50,8 +50,8 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
-#K = 9.81 * water_height
-#boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
+# K = 9.81 * water_height
+# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
 
 # ==========================================================================================
 # ==== Containers
@@ -62,7 +62,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, acceleration, 0.0))
+                                            acceleration=(0.0, gravity, 0.0))
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)

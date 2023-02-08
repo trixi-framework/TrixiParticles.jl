@@ -1,7 +1,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-acceleration = -9.81 # gravity
+gravity = -9.81
 
 # ==========================================================================================
 # ==== Fluid
@@ -19,8 +19,8 @@ water_density = 1000.0
 container_width = 2.0
 container_height = 1.0
 
-c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+sound_speed = 10 * sqrt(9.81 * water_height)
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
@@ -53,7 +53,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, acceleration))
+                                            acceleration=(0.0, gravity))
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)

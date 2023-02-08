@@ -8,7 +8,7 @@
 using Pixie
 using OrdinaryDiffEq
 
-acceleration = -9.81 # gravity
+gravity = -9.81
 
 # ==========================================================================================
 # ==== Fluid
@@ -26,8 +26,8 @@ water_density = 1000.0
 container_width = 2.0
 container_height = 1.0
 
-c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+sound_speed = 10 * sqrt(9.81 * water_height)
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 
 fluid_smoothing_length = 1.2 * fluid_particle_spacing
@@ -102,10 +102,10 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      fluid_smoothing_length)
 
 # Use bigger K to prevent penetration into the solid
-#solid_K = 5 * 9.81 * water_height
-#solid_beta = fluid_particle_spacing / solid_particle_spacing
-#solid_boundary_model = BoundaryModelMonaghanKajtar(solid_K, solid_beta,
-#                                                   solid_particle_spacing)
+# solid_K = 5 * 9.81 * water_height
+# solid_beta = fluid_particle_spacing / solid_particle_spacing
+# solid_boundary_model = BoundaryModelMonaghanKajtar(solid_K, solid_beta,
+#                                                    solid_particle_spacing)
 
 # ==========================================================================================
 # ==== Containers
@@ -116,7 +116,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             ContinuityDensity(), state_equation,
                                             fluid_smoothing_kernel, fluid_smoothing_length,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, acceleration))
+                                            acceleration=(0.0, gravity))
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)
@@ -125,7 +125,7 @@ solid_container_1 = SolidParticleContainer(particle_coordinates_1, particle_velo
                                            particle_masses_1, particle_densities_1,
                                            solid_smoothing_kernel, solid_smoothing_length,
                                            E1, nu,
-                                           acceleration=(0.0, acceleration),
+                                           acceleration=(0.0, gravity),
                                            solid_boundary_model_1,
                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
@@ -133,7 +133,7 @@ solid_container_2 = SolidParticleContainer(particle_coordinates_2, particle_velo
                                            particle_masses_2, particle_densities_2,
                                            solid_smoothing_kernel, solid_smoothing_length,
                                            E2, nu,
-                                           acceleration=(0.0, acceleration),
+                                           acceleration=(0.0, gravity),
                                            solid_boundary_model_2,
                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 

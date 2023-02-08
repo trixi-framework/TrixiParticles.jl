@@ -1,12 +1,12 @@
 using Pixie
 using OrdinaryDiffEq
 
-acceleration = -9.81 # gravity
+gravity = -9.81
 
 # ==========================================================================================
 # ==== Solid
 
-length_beam = 1
+length_beam = 1.0
 thickness_beam = length_beam / 10
 n_particles_y = 15
 solid_density = 1500.0
@@ -34,11 +34,14 @@ beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
 
 n_boundary_layers = 5
 
-# Start coordinates of the clamp (fixed particles)
+# The beam is clamped between two rigid "pillars". Calculate the start coordinates of the fixed
+# particles for the left pillar (A) and the right pillar (B).
 # Since coordinates start in negative coordinate directions,
 # shift x and y coordinates outwards and downwards respectively.
 x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
 x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
+
+# Start point of the pillars in y-direction.
 y_start_clamp = -(2 * n_particles_y - 1) * solid_particle_spacing
 
 clamp_A = RectangularShape(solid_particle_spacing, (n_boundary_layers, 10 * n_particles_y),
@@ -68,9 +71,9 @@ fluid_particle_spacing = solid_particle_spacing * 2
 fluid_smoothing_length = 1.2 * fluid_particle_spacing
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-c = 10 * sqrt(9.81 * water_height)
+sound_speed = 10 * sqrt(9.81 * water_height)
 
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
@@ -93,9 +96,9 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    fluid_smoothing_kernel,
                                                    fluid_smoothing_length)
 
-#beta = 3
-#K = 9.81 * water_height
-#boundary_model_solid = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta)
+# beta = 3
+# K = 9.81 * water_height
+# boundary_model_solid = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta)
 
 # ==========================================================================================
 # ==== Containers
@@ -114,10 +117,10 @@ fluid_container = FluidParticleContainer(fluid.coordinates,
                                          ContinuityDensity(), state_equation,
                                          fluid_smoothing_kernel, fluid_smoothing_length,
                                          viscosity=viscosity,
-                                         acceleration=(0.0, acceleration))
+                                         acceleration=(0.0, gravity))
 
-#rigid_solid_container = BoundaryParticleContainer(particle_coordinates, hydrodynamic_masses,
-#                                                  boundary_model_solid)
+# rigid_solid_container = BoundaryParticleContainer(particle_coordinates, hydrodynamic_masses,
+#                                                   boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation
@@ -134,7 +137,7 @@ summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
@@ -157,9 +160,10 @@ summary_callback()
 
 # ==========================================================================================
 # ==== analytical solution
-if false
+
+function plot_analytical(solid_container)
     # line load
-    q_0 = acceleration * solid_density * thickness_beam^2
+    q_0 = gravity * solid_density * thickness_beam^2
     L = length_beam
     I_y = thickness_beam^4 / 12
 
@@ -177,7 +181,6 @@ if false
     bending_line = hcat(bending_line...)
     bending_line[2, :] .+= zero_stress_position
 
-    using Plots
     plot(bending_line[1, :], bending_line[2, :], xlims=(0, L), xlabel="x", ylabel="y",
          lab="sph")
     plot!(w, lab="analytical")
