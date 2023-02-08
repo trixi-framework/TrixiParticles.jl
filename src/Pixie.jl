@@ -1,5 +1,7 @@
 module Pixie
 
+using Reexport: @reexport
+
 using DiffEqCallbacks: SavedValues, SavingCallback, SavingAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
@@ -7,11 +9,12 @@ using Polyester: @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
-using StaticArrays: SVector, @SMatrix, SMatrix
+@reexport using StaticArrays: SVector
+using StaticArrays: @SMatrix, SMatrix
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using UnPack: @unpack
+@reexport using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 include("util.jl")
