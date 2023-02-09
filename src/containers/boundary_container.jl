@@ -185,10 +185,13 @@ end
                                 density_calculator, smoothing_kernel, smoothing_length)
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
-but their positions and velocities are not evolved in time. Thus, the hydrodynamic mass is
-imposed on the boundary particles which is the fluid density times the boundary particle volume.
+but their positions and velocities are not evolved in time. Since the force towards the fluid
+should not change with the material density when used with a `SolidParticleContainer`, the
+dummy particles need to have a mass corresponding to the fluid's rest density, which we call
+"hydrodynamic mass", as opposed to mass corresponding to the material density of a
+`SolidParticleContainer`.
 
-Here, `initial_density` and `hydrodynamic_mass` is a vector that contains the initial density
+Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
 and the hydrodynamic mass respectively for each boundary particle.
 Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
 the element type and the number of boundary particles.

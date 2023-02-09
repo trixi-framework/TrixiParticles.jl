@@ -96,14 +96,17 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 density_b = get_particle_density(neighbor, v_neighbor_container,
                                                  neighbor_container)
                 v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-                v_diff = v_b - v_a
+
+                # Flip sign to get the same force as for the fluid-solid direction.
+                v_diff = -(v_a - v_b)
 
                 pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                                   density_b, smoothing_length)
+
+                # use `m_a` to get the same viscosity as for the fluid-solid direction.
                 dv_viscosity = -m_a * pi_ab *
                                kernel_deriv(smoothing_kernel, distance, smoothing_length) *
                                pos_diff / distance
@@ -116,9 +119,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                 dv_particle = dv_boundary + dv_viscosity
 
                 for i in 1:ndims(particle_container)
-                    # Multiply dv (acceleration on fluid particle b) by m_b to obtain the force
-                    # Divide by the material mass to obtain the acceleration of solid particle a
-                    dv[i, particle] += dv_particle[i] * m_b /
+                    # Multiply `dv` (acceleration on fluid particle b) by the mass of
+                    # particle b to obtain the force.
+                    # Divide by the material mass of particle a to obtain the acceleration
+                    # of solid particle a.
+                    dv[i, particle] += dv_particle[i] * neighbor_container.mass[neighbor] /
                                        particle_container.mass[particle]
                 end
 

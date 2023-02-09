@@ -430,9 +430,8 @@ function update2!(container::FluidParticleContainer, container_index, v, u,
     update!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update3!(container::BoundaryParticleContainer, container_index, v, u, v_ode, u_ode,
-                  semi, t)
-    # Only update boundary container
+function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    # Update all other containers
     update!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
@@ -444,7 +443,8 @@ function update3!(container::SolidParticleContainer, container_index, v, u, v_od
     update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
 end
 
-function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
+function update3!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+                  semi, t)
     return container
 end
 

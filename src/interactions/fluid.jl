@@ -115,8 +115,8 @@ function interact!(dv, v_particle_container, u_particle_container,
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
 
-                # In fluid-solid interaction, the solid particles are treated as fixed fluid
-                # particles. Thus, the hydrodynamic mass is imposed on the solid particles.
+                # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
+                # corresponding to the rest density of the fluid and not the material density.
                 m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
                 v_diff = v_a - v_b
