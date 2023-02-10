@@ -45,5 +45,9 @@
                                    tspan=(0.0, 0.4),
                                    dtmax=1e-3)
         @test sol.retcode == ReturnCode.Success
+
+        @test_nowarn pixie_include(joinpath(examples_dir(), "fsi", "bending_beam_2d.jl"),
+                                   n_particles_y=5)
+        @test sol.retcode == ReturnCode.Success
     end
 end
