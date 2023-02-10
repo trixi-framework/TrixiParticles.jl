@@ -33,18 +33,15 @@ end
 """
 struct BoundaryParticleContainer{NDIMS, ELTYPE <: Real, BM, MF} <: ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2}
-    mass                :: Vector{ELTYPE}
     boundary_model      :: BM
     movement_function   :: MF
     ismoving            :: Vector{Bool}
 
-    function BoundaryParticleContainer(coordinates, mass, model;
-                                       movement_function=nothing)
+    function BoundaryParticleContainer(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
         return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(coordinates,
-                                                                                         mass,
                                                                                          model,
                                                                                          movement_function,
                                                                                          ismoving)
@@ -142,9 +139,10 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
+    hydrodynamic_mass         :: Vector{ELTYPE}
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
-        new{typeof(K)}(K, beta, boundary_particle_spacing)
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
+        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
     end
 end
 
@@ -338,6 +336,10 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
+@inline function nparticles(container::BoundaryParticleContainer)
+    length(container.boundary_model.hydrodynamic_mass)
+end
+
 # No particle positions are advanced for boundary containers,
 # except when using BoundaryModelDummyParticles with ContinuityDensity.
 @inline function n_moving_particles(container::BoundaryParticleContainer)
@@ -395,14 +397,8 @@ end
     return cache.density[particle]
 end
 
-@inline function get_hydrodynamic_mass(particle,
-                                       boundary_model::BoundaryModelDummyParticles,
-                                       container)
-    return boundary_model.hydrodynamic_mass[particle]
-end
-
 @inline function get_hydrodynamic_mass(particle, boundary_model, container)
-    return container.mass[particle]
+    return boundary_model.hydrodynamic_mass[particle]
 end
 
 function update!(container::BoundaryParticleContainer, container_index,
