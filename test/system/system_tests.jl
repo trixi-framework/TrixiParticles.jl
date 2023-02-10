@@ -85,7 +85,7 @@
             @test_nowarn pixie_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi",
                                                 "falling_spheres.jl"),
-                                                tspan = (0.0, 1.0))
+                                       tspan=(0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
         end
     end
