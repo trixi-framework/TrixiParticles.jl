@@ -102,11 +102,13 @@ boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
 
 # K_tank = 9.81 * water_height
 # boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
-#                                                   fluid_particle_spacing / beta_tank)
+#                                                   fluid_particle_spacing / beta_tank,
+#                                                   setup.boundary_masses)
 
 K_gate = 9.81 * water_height
 boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
-                                                  fluid_particle_spacing / beta_gate)
+                                                  fluid_particle_spacing / beta_gate,
+                                                  setup_gate.masses)
 
 hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
@@ -121,7 +123,8 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # K_solid = 9.81 * water_height
 # beta_solid = fluid_particle_spacing / solid_particle_spacing
 # boundary_model_solid = BoundaryModelMonaghanKajtar(K_solid, beta_solid,
-#                                                    solid_particle_spacing)
+#                                                    solid_particle_spacing,
+#                                                    hydrodynamic_masses)
 
 # ==========================================================================================
 # ==== Containers
@@ -135,11 +138,10 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             acceleration=(0.0, gravity))
 
 boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates,
-                                                    setup.boundary_masses,
                                                     boundary_model_tank)
 
 boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
-                                                    setup_gate.masses, boundary_model_gate,
+                                                    boundary_model_gate,
                                                     movement_function=movement_function)
 
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,

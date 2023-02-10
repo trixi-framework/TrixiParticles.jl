@@ -93,7 +93,8 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              smoothing_length)
 
 # K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta)
+# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
+#                                              setup.boundary_masses)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = water_density * ones(size(particle_densities))
@@ -108,7 +109,8 @@ solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
 # solid_K = 5 * 9.81 * water_height
 # solid_beta = fluid_particle_spacing / solid_particle_spacing
 # solid_boundary_model = BoundaryModelMonaghanKajtar(solid_K, solid_beta,
-#                                                    solid_particle_spacing)
+#                                                    solid_particle_spacing,
+#                                                    hydrodynamic_masses)
 
 # ==========================================================================================
 # ==== Containers
@@ -121,8 +123,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-                                               setup.boundary_masses, boundary_model)
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                          particle_masses, particle_densities,

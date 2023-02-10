@@ -119,8 +119,7 @@ fluid_container = FluidParticleContainer(fluid.coordinates,
                                          viscosity=viscosity,
                                          acceleration=(0.0, gravity))
 
-# rigid_solid_container = BoundaryParticleContainer(particle_coordinates, hydrodynamic_masses,
-#                                                   boundary_model_solid)
+# rigid_solid_container = BoundaryParticleContainer(particle_coordinates, boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation

@@ -76,7 +76,12 @@ particle_densities = vcat(beam.densities, fixed_particles.densities)
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
 
-boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing)
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
+hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+
+boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
+                                             hydrodynamic_masses)
 
 # ==========================================================================================
 # ==== Containers
