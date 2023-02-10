@@ -72,6 +72,14 @@
                                        dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success
         end
+
+        @pixie_testset "fsi/dam_break_gate_2d.jl" begin
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fsi",
+                                                "bending_beam_2d.jl"),
+                                       n_particles_y=5)
+            @test sol.retcode == ReturnCode.Success
+        end
     end
 
     @testset verbose=true "N-Body" begin
