@@ -73,11 +73,19 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @pixie_testset "fsi/dam_break_gate_2d.jl" begin
+        @pixie_testset "fsi/bending_beam_2d.jl" begin
             @test_nowarn pixie_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi",
                                                 "bending_beam_2d.jl"),
                                        n_particles_y=5)
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @pixie_testset "fsi/falling_spheres.jl" begin
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fsi",
+                                                "falling_spheres.jl"),
+                                                tspan = (0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
         end
     end

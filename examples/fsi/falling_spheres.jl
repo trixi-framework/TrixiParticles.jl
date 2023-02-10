@@ -1,10 +1,3 @@
-# 2D dam break flow against an elastic plate based on Section 6.5 of
-#
-# L. Zhan, C. Peng, B. Zhang, W. Wu.
-# "A stabilized TL–WC SPH approach with GPU acceleration for three-dimensional fluid–structure interaction".
-# In: Journal of Fluids and Structures 86 (2019), pages 329-353.
-# https://doi.org/10.1016/j.jfluidstructs.2019.02.002
-
 using Pixie
 using OrdinaryDiffEq
 
@@ -80,10 +73,6 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              fluid_smoothing_kernel,
                                              fluid_smoothing_length)
 
-# K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta,
-#                                              setup.boundary_masses)
-
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites_1 = water_density * ones(size(particle_densities_1))
 hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^2
@@ -93,6 +82,7 @@ solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                      AdamiPressureExtrapolation(),
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
+
 hydrodynamic_densites_2 = water_density * ones(size(particle_densities_2))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^2
 
