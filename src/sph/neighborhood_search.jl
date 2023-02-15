@@ -93,6 +93,12 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
                                                                          container),
                                                      neighborhood_search) != cell_coords)
 
+        # Skip this cell if no particles moved out of it
+        n_moved_particles = count(_ -> true, moved_particle_indices)
+        if n_moved_particles == 0
+            continue
+        end
+
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
@@ -109,7 +115,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
         end
 
         # Remove moved particles from this cell or delete the cell if it is now empty
-        if count(_ -> true, moved_particle_indices) == length(particles)
+        if n_moved_particles == length(particles)
             delete!(hashtable, cell_coords)
         else
             deleteat!(particles, moved_particle_indices)
