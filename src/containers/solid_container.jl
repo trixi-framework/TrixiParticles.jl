@@ -183,7 +183,7 @@ end
 @inline function get_current_coords(particle, u, container::SolidParticleContainer)
     @unpack current_coordinates = container
 
-    return get_particle_coords(particle, current_coordinates, container)
+    return get_vec_field(particle, current_coordinates, container)
 end
 
 @inline function get_particle_vel(particle, v, container::SolidParticleContainer)
@@ -191,7 +191,7 @@ end
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
 
-    return get_particle_coords(particle, v, container)
+    return get_vec_field(particle, v, container)
 end
 
 @inline function get_correction_matrix(particle, container)
@@ -229,12 +229,12 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
     for particle in eachparticle(container)
         L = zeros(eltype(mass), ndims(container), ndims(container))
 
-        particle_coordinates = get_particle_coords(particle, initial_coordinates, container)
+        particle_coordinates = get_vec_field(particle, initial_coordinates, container)
         for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
             volume = mass[neighbor] / material_density[neighbor]
 
             initial_pos_diff = particle_coordinates -
-                               get_particle_coords(neighbor, initial_coordinates, container)
+                               get_vec_field(neighbor, initial_coordinates, container)
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
@@ -310,14 +310,14 @@ function deformation_gradient(particle, neighborhood_search, container)
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
-    initial_particle_coords = get_particle_coords(particle, initial_coordinates, container)
+    initial_particle_coords = get_vec_field(particle, initial_coordinates, container)
     for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
         volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = get_particle_coords(particle, current_coordinates, container) -
-                   get_particle_coords(neighbor, current_coordinates, container)
+        pos_diff = get_vec_field(particle, current_coordinates, container) -
+                   get_vec_field(neighbor, current_coordinates, container)
 
         initial_pos_diff = initial_particle_coords -
-                           get_particle_coords(neighbor, initial_coordinates, container)
+                           get_vec_field(neighbor, initial_coordinates, container)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
@@ -352,8 +352,8 @@ end
     @unpack smoothing_kernel, smoothing_length, mass,
     material_density, current_coordinates, young_modulus = container
 
-    current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
-                       get_particle_coords(neighbor, current_coordinates, container)
+    current_pos_diff = get_vec_field(particle, current_coordinates, container) -
+                       get_vec_field(neighbor, current_coordinates, container)
     current_distance = norm(current_pos_diff)
 
     volume_particle = mass[particle] / material_density[particle]

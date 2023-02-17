@@ -25,17 +25,17 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 # This can be dispatched by container types, since for some containers, the current coordinates
 # are stored in u, for others in the container itself. By default, try to extract them from u.
 @inline function get_current_coords(particle, u, container)
-    get_particle_coords(particle, u, container)
+    get_vec_field(particle, u, container)
 end
 
-# Return the `particle`-th column of the array `coords`.
+# Return the `particle`-th column of the array `field`.
 # This should not be dispatched by container type. We always expect to get a column of the array `coords`.
-@inline function get_particle_coords(particle, coords, container)
-    return SVector(ntuple(@inline(dim->coords[dim, particle]), Val(ndims(container))))
+@inline function get_vec_field(particle, field, container)
+    return SVector(ntuple(@inline(dim->field[dim, particle]), Val(ndims(container))))
 end
 
 @inline function get_particle_vel(particle, v, container)
-    return get_particle_coords(particle, v, container)
+    return get_vec_field(particle, v, container)
 end
 
 include("fluid_container.jl")

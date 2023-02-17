@@ -293,18 +293,12 @@ function write_v0!(v0, ::ContinuityDensity, container::FluidParticleContainer)
     return v0
 end
 
-function get_normal(particle, particle_container::FluidParticleContainer,
-                    ::NoSurfaceTension, NDIM)
-    return zeros(NDIM)
+@inline function get_normal(particle, particle_container::ParticleContainer, ::Any)
+    return zeros(SVector{ndims(container), eltype(container)})
 end
 
-function get_normal(particle, particle_container::FluidParticleContainer,
-                    ::CohesionForceAkinci, NDIM)
-    return zeros(NDIM)
-end
-
-function get_normal(particle, particle_container::FluidParticleContainer,
-                    ::SurfaceTensionAkinci, NDIM)
+@inline function get_normal(particle, particle_container::FluidParticleContainer,
+                            ::SurfaceTensionAkinci)
     @unpack surface_normal = particle_container
-    return surface_normal[:, particle]
+    return get_vec_field(particle, surface_normal, particle_container)
 end

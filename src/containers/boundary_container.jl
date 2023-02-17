@@ -77,13 +77,13 @@ end
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
-                                          pos_diff, distance, m_b)
+                                          grad_kernel, pos_diff, distance, m_b)
     @unpack boundary_model = boundary_container
 
     boundary_particle_impact(particle, boundary_particle,
                              v_particle_container, v_boundary_container,
                              particle_container, boundary_container,
-                             pos_diff, distance, m_b, boundary_model)
+                             grad_kernel, pos_diff, distance, m_b, boundary_model)
 end
 
 @doc raw"""
@@ -156,6 +156,7 @@ end
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
+                                          grad_kernel,
                                           pos_diff, distance, m_b,
                                           boundary_model::BoundaryModelMonaghanKajtar)
     @unpack smoothing_length = particle_container
@@ -273,7 +274,7 @@ end
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
-                                          pos_diff, distance, m_b,
+                                          grad_kernel, pos_diff, distance, m_b,
                                           boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
@@ -282,9 +283,6 @@ end
     density_boundary_particle = get_particle_density(boundary_particle,
                                                      v_boundary_container,
                                                      boundary_container)
-
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
 
     return -m_b *
            (particle_container.pressure[particle] / density_particle^2 +
@@ -362,7 +360,7 @@ end
 @inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
     @unpack initial_coordinates = container
 
-    return get_particle_coords(particle, initial_coordinates, container)
+    return get_vec_field(particle, initial_coordinates, container)
 end
 
 @inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)
@@ -545,6 +543,10 @@ end
                                   kernel(smoothing_kernel, distance, smoothing_length)
             volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
         end
+    end
+
+    if pressure[particle] < 0
+        pressure[particle] = 0
     end
 end
 
