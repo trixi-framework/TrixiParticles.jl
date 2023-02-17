@@ -60,7 +60,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                distance,
                                                rho_mean, smoothing_length, grad_kernel)
 
-                dv_pressure += K[pressure_K_id()] * calc_momentum_eq(particle, particle_container, neighbor,
+                dv_pressure += K[pressure_K_id()] *
+                               calc_momentum_eq(particle, particle_container, neighbor,
                                                 neighbor_container, m_b, rho_a, rho_b,
                                                 grad_kernel)
 

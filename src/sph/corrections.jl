@@ -12,11 +12,12 @@ abstract type AkinciFreeSurfaceCorrection end
     return akinci_free_surface_correction(particle_container, rho_mean)
 end
 
-@inline function fluid_corrections(::AkinciFreeSurfaceCorrection, particle_container, rho_mean)
+@inline function fluid_corrections(::AkinciFreeSurfaceCorrection, particle_container,
+                                   rho_mean)
     return akinci_free_surface_correction(particle_container, rho_mean)
 end
 
-@inline function fluid_corrections(::Any, particle_container, rho_mean )
+@inline function fluid_corrections(::Any, particle_container, rho_mean)
     return ones(SVector{ncvals(particle_container), eltype(particle_container)})
 end
 

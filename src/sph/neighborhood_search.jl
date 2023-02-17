@@ -89,15 +89,15 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
         # Find all particles whose coordinates do not match this cell
         moved_particle_indices = (i for i in eachindex(particles)
                                   if get_cell_coords(get_vec_field(particles[i],
-                                                                         coordinates,
-                                                                         container),
+                                                                   coordinates,
+                                                                   container),
                                                      neighborhood_search) != cell_coords)
 
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
             new_cell_coords = get_cell_coords(get_vec_field(particle, coordinates,
-                                                                  container),
+                                                            container),
                                               neighborhood_search)
 
             # Add particle to corresponding cell or create cell if it does not exist

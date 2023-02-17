@@ -19,12 +19,12 @@ end
     @threaded for particle in each_moving_particle(particle_container)
         # Everything here is done in the initial coordinates
         particle_coords = get_vec_field(particle,
-                                              particle_container.initial_coordinates,
-                                              particle_container)
+                                        particle_container.initial_coordinates,
+                                        particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_vec_field(neighbor,
-                                                  neighbor_container.initial_coordinates,
-                                                  neighbor_container)
+                                            neighbor_container.initial_coordinates,
+                                            neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -124,7 +124,8 @@ end
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer, grad_kernel)
+                                      neighbor_container::FluidParticleContainer,
+                                      grad_kernel)
     return dv
 end
 
@@ -132,7 +133,8 @@ end
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer, grad_kernel)
+                                      neighbor_container::FluidParticleContainer,
+                                      grad_kernel)
     @unpack density_calculator = boundary_model
 
     continuity_equation!(dv, density_calculator,
@@ -145,7 +147,8 @@ end
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer, grad_kernel)
+                                      neighbor_container::FluidParticleContainer,
+                                      grad_kernel)
     @unpack smoothing_kernel, smoothing_length = neighbor_container
 
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
@@ -153,7 +156,7 @@ end
 
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] *
-    v_diff .* grad_kernel)
+                                   v_diff .* grad_kernel)
 
     return dv
 end
