@@ -3,13 +3,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_surface_tension, a_viscosity, ref_density = particle_container
+    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_pressure, a_surface_tension, a_viscosity, save_options = particle_container
 
-    # no major performance impact
-    if !isnan(a_surface_tension[1, 1])
-        fill!(a_surface_tension, 0.0)
-        fill!(a_viscosity, 0.0)
-    end
+    reset_save(save_options)
 
     # some surface tension models require the surface normal
     calc_normal_akinci(surface_tension, v_particle_container, u_particle_container,
@@ -72,18 +68,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                            neighbor_container,
                                                            surface_tension)
 
-                # save acceleration term if vector is allocated
-                # if !isnan(a_surface_tension[1, 1])
-                #     for i in 1:NDIMS
-                #         a_surface_tension[i, particle] += dv_surface_tension[i]
-                #     end
-                # end
 
-                # if !isnan(a_viscosity[1, 1])
-                #     for i in 1:NDIMS
-                #         a_viscosity[i, particle] += dv_viscosity[i]
-                #     end
-                # end
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
@@ -91,6 +76,22 @@ function interact!(dv, v_particle_container, u_particle_container,
                                      particle_container, neighbor_container, grad_kernel)
             end
         end
+
+        # save acceleration term if vector is allocated
+        # if !isnan(a_surface_tension[1, 1])
+        #     for i in 1:NDIMS
+        #         a_surface_tension[i, particle] += dv_surface_tension[i]
+        #     end
+        # end
+
+        # if !isnan(a_viscosity[1, 1])
+        #     for i in 1:NDIMS
+        #         a_viscosity[i, particle] += dv_viscosity[i]
+        #     end
+        # end
+        #save!(save_options, a_viscosity, dv_viscosity, particle)
+        #save!(save_options, a_pressure, dv_pressure, particle)
+        #save!(save_options, a_surface_tension, dv_surface_tension, particle)
 
         for i in 1:NDIMS
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] +
@@ -236,4 +237,14 @@ end
                                       particle, neighbor, pos_diff, v_diff, distance,
                                       particle_container, neighbor_container, grad_kernel)
     return dv
+end
+
+# skip
+@inline function reset_save(::DefaultSave)
+end
+
+@inline function reset_save(::SaveAll)
+    fill!(a_surface_tension, 0.0)
+    fill!(a_viscosity, 0.0)
+    fill!(a_pressure, 0.0)
 end
