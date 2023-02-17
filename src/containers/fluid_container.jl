@@ -105,7 +105,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST} <:
         a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
         a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
 
-        if need_normal(surface_tension)
+        if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
         else
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)

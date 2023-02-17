@@ -73,13 +73,15 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, pos_diff, distance)
+function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, pos_diff,
+                                                 distance)
     @unpack surface_tension_coefficient = surface_tension
-    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance) .- (surface_tension_coefficient * (na - nb))
+    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
+                                 distance) .- (surface_tension_coefficient * (na - nb))
 end
 
-
-@inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension, smoothing_length, mb, pos_diff, distance)
+@inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
+                                       smoothing_length, mb, pos_diff, distance)
     @unpack surface_tension_coefficient, surface_tension_support_length = surface_tension
 
     if !isnan(surface_tension_support_length)
@@ -101,4 +103,51 @@ end
 
     # Eq. 1 in acceleration form
     return -surface_tension_coefficient * mb * C * pos_diff / distance
+end
+
+# section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+# Note: most of the time this only leads to an approximation of the surface normal
+function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_container,
+                            v_neighbor_container, u_neighbor_container,
+                            neighborhood_search, particle_container,
+                            neighbor_container)
+    @unpack smoothing_kernel, smoothing_length, surface_normal = particle_container
+
+    @threaded for particle in each_moving_particle(particle_container)
+        particle_coords = get_current_coords(particle, u_particle_container,
+                                             particle_container)
+        # reset surface normal
+        for i in 1:ndims(particle_container)
+            surface_normal[i, particle] = 0.0
+        end
+
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
+            neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
+                                                 neighbor_container)
+            pos_diff = particle_coords - neighbor_coords
+            distance = norm(pos_diff)
+
+            # correctness strongly depends on this leading to a symmetric distribution of points!
+            if sqrt(eps()) < distance <= smoothing_length
+                m_b = neighbor_container.mass[neighbor]
+                density_neighbor = get_particle_density(neighbor, v_neighbor_container,
+                                                        neighbor_container)
+                grad_kernel = kernel_deriv(smoothing_kernel, distance,
+                                           smoothing_length) *
+                              pos_diff / distance
+                surface_normal[:, particle] .+= m_b / density_neighbor *
+                                                grad_kernel
+            end
+        end
+        for i in 1:ndims(particle_container)
+            surface_normal[i, particle] *= smoothing_length
+        end
+    end
+end
+
+function calc_normal_akinci(::Any, u_particle_container,
+                            v_neighbor_container, u_neighbor_container,
+                            neighborhood_search, particle_container,
+                            neighbor_container, grad_kernel)
+    # normal not needed
 end
