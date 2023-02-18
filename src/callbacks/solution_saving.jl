@@ -116,7 +116,6 @@ function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleC
                                           :velocity => v[1:NDIMS, :],
                                           :pressure => copy(container.pressure))
 
-
     if surface_tension isa SurfaceTensionAkinci
         result[:surface_normal] = copy(container.surface_normal)
     end

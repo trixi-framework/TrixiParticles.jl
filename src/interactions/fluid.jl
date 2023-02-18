@@ -68,8 +68,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                            neighbor_container,
                                                            surface_tension)
 
-
-
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
                                      particle, neighbor, pos_diff, v_diff, distance,
@@ -91,7 +89,8 @@ function interact!(dv, v_particle_container, u_particle_container,
         # end
         store_additional!(store_options, NDIMS, a_viscosity, dv_viscosity, particle)
         store_additional!(store_options, NDIMS, a_pressure, dv_pressure, particle)
-        store_additional!(store_options, NDIMS, a_surface_tension, dv_surface_tension, particle)
+        store_additional!(store_options, NDIMS, a_surface_tension, dv_surface_tension,
+                          particle)
 
         for i in 1:NDIMS
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] +
