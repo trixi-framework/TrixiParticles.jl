@@ -49,7 +49,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.0001))
+                                            surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.0001), store_options=StoreAll())
 
 K = 9.81 * water_height
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
@@ -122,4 +122,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # activate to save to vtk
-#pixie2vtk(saved_values)
+pixie2vtk(saved_values)

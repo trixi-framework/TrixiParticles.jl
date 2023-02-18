@@ -35,7 +35,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
     acceleration        :: SVector{NDIMS, ELTYPE}
     cache               :: C
     surface_tension     :: ST
-    save_options        :: SAVE
+    store_options       :: SAVE
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_radius,
@@ -44,7 +44,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
-                                    surface_tension=NoSurfaceTension(), save_options=DefaultSave())
+                                    surface_tension=NoSurfaceTension(), store_options=DefaultStore())
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -55,22 +55,21 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
+        a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
+
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-        else
-            surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
         end
 
-        if save_options isa SaveAll
+        if store_options isa StoreAll
             a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            if surface_tension isa SurfaceTensionAkinci
+            if surface_tension isa AkinciTypeSurfaceTension
                 a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             end
-        else
-            a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
-            a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
-            a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
         end
 
         # Make acceleration an SVector
@@ -84,14 +83,14 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
-                   typeof(surface_tension), typeof(save_options)}(particle_coordinates, particle_velocities,
+                   typeof(surface_tension), typeof(store_options)}(particle_coordinates, particle_velocities,
                                             surf_n,
                                             a_visc, a_surf, a_pressure,
                                             particle_masses, particle_radius, pressure,
                                             density_calculator, state_equation,
                                             smoothing_kernel, smoothing_length, ref_density,
                                             viscosity, acceleration_, cache,
-                                            surface_tension, save_options)
+                                            surface_tension, store_options)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
@@ -101,7 +100,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
-                                    surface_tension=NoSurfaceTension(), save_options=DefaultSave())
+                                    surface_tension=NoSurfaceTension(), store_options=DefaultStore())
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -112,22 +111,21 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
+        a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
+        surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
+
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-        else
-            surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
         end
 
-        if save_options isa SaveAll
+        if store_options isa StoreAll
             a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            if surface_tension isa SurfaceTensionAkinci
+            if surface_tension isa AkinciTypeSurfaceTension
                 a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             end
-        else
-            a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
-            a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
-            a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
         end
 
         # Make acceleration an SVector
@@ -141,13 +139,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
-                   typeof(surface_tension), typeof(save_options)}(particle_coordinates, particle_velocities,
+                   typeof(surface_tension), typeof(store_options)}(particle_coordinates, particle_velocities,
                                             surf_n, a_visc, a_surf, a_pressure,
                                             particle_masses, particle_radius, pressure,
                                             density_calculator, state_equation,
                                             smoothing_kernel, smoothing_length, ref_density,
                                             viscosity, acceleration_, cache,
-                                            surface_tension, save_options)
+                                            surface_tension, store_options)
     end
 end
 

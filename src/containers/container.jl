@@ -1,7 +1,7 @@
 abstract type ParticleContainer{NDIMS} end
 
-struct DefaultSave end
-struct SaveAll end
+struct DefaultStore end
+struct StoreAll end
 
 initialize!(container, neighborhood_search) = container
 update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container

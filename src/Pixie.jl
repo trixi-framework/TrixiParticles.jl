@@ -42,5 +42,6 @@ export examples_dir, pixie_include
 export pixie2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
+export StoreAll, DefaultStore
 
 end # module

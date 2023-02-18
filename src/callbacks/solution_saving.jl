@@ -106,17 +106,26 @@ function write_result!(result, v, u, t, container, extract_quantities)
 end
 
 function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleContainer)
-    @unpack density_calculator, cache = container
+    @unpack density_calculator, cache, store_options, surface_tension = container
 
+    NDIMS = ndims(container)
     result = Dict{Symbol, Array{Float32}}(
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => u[1:ndims(container), :],
-                                          :velocity => v[1:ndims(container), :],
-                                          :surface_normal => copy(container.surface_normal),
-                                          :a_surface_tension => copy(container.a_surface_tension),
-                                          :a_viscosity => copy(container.a_viscosity),
+                                          :coordinates => u[1:NDIMS, :],
+                                          :velocity => v[1:NDIMS, :],
                                           :pressure => copy(container.pressure))
+
+
+    if surface_tension isa SurfaceTensionAkinci
+        result[:surface_normal] = copy(container.surface_normal)
+    end
+
+    if store_options isa StoreAll
+        result[:a_surface_tension] = copy(container.a_surface_tension)
+        result[:a_viscosity] = copy(container.a_viscosity)
+        result[:a_pressure] = copy(container.a_pressure)
+    end
 
     extract_density!(result, v, cache, density_calculator, container)
 

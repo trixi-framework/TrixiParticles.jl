@@ -3,9 +3,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_pressure, a_surface_tension, a_viscosity, save_options = particle_container
+    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, surface_normal, a_pressure, a_surface_tension, a_viscosity, store_options = particle_container
 
-    reset_save(save_options)
+    reset_store(store_options, particle_container)
 
     # some surface tension models require the surface normal
     calc_normal_akinci(surface_tension, v_particle_container, u_particle_container,
@@ -89,9 +89,9 @@ function interact!(dv, v_particle_container, u_particle_container,
         #         a_viscosity[i, particle] += dv_viscosity[i]
         #     end
         # end
-        #save!(save_options, a_viscosity, dv_viscosity, particle)
-        #save!(save_options, a_pressure, dv_pressure, particle)
-        #save!(save_options, a_surface_tension, dv_surface_tension, particle)
+        store_additional!(store_options, NDIMS, a_viscosity, dv_viscosity, particle)
+        store_additional!(store_options, NDIMS, a_pressure, dv_pressure, particle)
+        store_additional!(store_options, NDIMS, a_surface_tension, dv_surface_tension, particle)
 
         for i in 1:NDIMS
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] +
@@ -240,11 +240,24 @@ end
 end
 
 # skip
-@inline function reset_save(::DefaultSave)
+@inline function reset_store(::DefaultStore, particle_container)
 end
 
-@inline function reset_save(::SaveAll)
+@inline function reset_store(::StoreAll, particle_container)
+    @unpack a_surface_tension, a_viscosity, a_pressure = particle_container
+
     fill!(a_surface_tension, 0.0)
     fill!(a_viscosity, 0.0)
     fill!(a_pressure, 0.0)
+end
+
+# skip
+@inline function store_additional!(::DefaultStore, NDIMS, store, value, particle)
+end
+
+# skip
+@inline function store_additional!(::StoreAll, NDIMS, store, value, particle)
+    for i in 1:NDIMS
+        store[i, particle] = value[i]
+    end
 end
