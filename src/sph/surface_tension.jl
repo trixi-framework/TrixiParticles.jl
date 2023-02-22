@@ -116,17 +116,17 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
-        # reset surface normal
-        for i in 1:ndims(particle_container)
-            surface_normal[i, particle] = 0.0
-        end
-
+        # if particle == 46
+        #     println("46 coord:", particle_coords)
+        # end
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
-
+            # if particle == 46 && distance < 2 * smoothing_length
+            #     println("46 ", distance, " ", neighbor_coords, " ", neighbor)
+            # end
             # correctness strongly depends on this leading to a symmetric distribution of points!
             if sqrt(eps()) < distance <= smoothing_length
                 m_b = neighbor_container.mass[neighbor]
@@ -137,7 +137,16 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                               pos_diff / distance
                 surface_normal[:, particle] .+= m_b / density_neighbor *
                                                 grad_kernel
+                # if isinf(surface_normal[1, particle])
+                #     println(density_neighbor, " ", grad_kernel, " ", pos_diff, " ", distance)
+                # end
+                # if particle == 46
+                #     println("46 surf:", surface_normal[:, particle])
+                # end
             end
+        end
+        if isinf(surface_normal[1, particle])
+            println("before",surface_normal[:, particle])
         end
         for i in 1:ndims(particle_container)
             surface_normal[i, particle] *= smoothing_length
@@ -148,6 +157,6 @@ end
 function calc_normal_akinci(::Any, u_particle_container,
                             v_neighbor_container, u_neighbor_container,
                             neighborhood_search, particle_container,
-                            neighbor_container, grad_kernel)
+                            neighbor_container)
     # normal not needed
 end

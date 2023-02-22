@@ -27,7 +27,7 @@ particle_container = FluidParticleContainer(setup.coordinates,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2), store_options=StoreAll())
 
 semi = Semidiscretization(particle_container,
                           neighborhood_search=SpatialHashingSearch,
@@ -53,4 +53,4 @@ sol = solve(ode, TRBDF2(autodiff=false),
 summary_callback()
 
 # activate to save to vtk
-#pixie2vtk(saved_values)
+# pixie2vtk(saved_values)

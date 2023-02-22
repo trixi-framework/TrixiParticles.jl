@@ -8,10 +8,10 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+particle_spacing = 0.2
 
 # Spacing ratio between fluid and boundary particles
-beta = 3
+beta = 1.0
 
 water_width = 2.0
 water_height = 1.0
@@ -21,7 +21,7 @@ container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / be
 container_height = 6
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density)
+                        container_width, container_height, water_density, n_layers=4)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
@@ -49,15 +49,23 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension=CohesionForceAkinci(surface_tension_coefficient=0.0001),
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0001),
                                             store_options=StoreAll())
 
-K = 9.81 * water_height
+boundary_densities = water_density * ones(size(setup.boundary_masses))
+boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
+                                             SummationDensity(), smoothing_kernel,
+                                             smoothing_length)
+
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-                                               setup.boundary_masses,
-                                               BoundaryModelMonaghanKajtar(K, beta,
-                                                                           particle_spacing /
-                                                                           beta))
+                                               setup.boundary_masses, boundary_model)
+
+# K = 9.81 * water_height
+# boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
+#                                                setup.boundary_masses,
+#                                                BoundaryModelMonaghanKajtar(K, beta,
+#                                                                            particle_spacing /
+#                                                                            beta))
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
@@ -67,14 +75,14 @@ tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
+alive_callback = AliveCallback(alive_interval=1)
 
 # activate to save
-# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
-# callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.01:5.0,
+                                                         index=(v, u, t, container) -> Pixie.eachparticle(container))
+callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-callbacks = CallbackSet(summary_callback, alive_callback)
+#callbacks = CallbackSet(summary_callback, alive_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -87,11 +95,13 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # Print the timer summary
 summary_callback()
+
+pixie2vtk(saved_values)
 
 # Move right boundary
 positions = (0, container_width, 0, 0)

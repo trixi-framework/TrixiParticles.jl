@@ -7,12 +7,6 @@ function interact!(dv, v_particle_container, u_particle_container,
 
     reset_store(store_options, particle_container)
 
-    # some surface tension models require the surface normal
-    calc_normal_akinci(surface_tension, v_particle_container, u_particle_container,
-                       v_neighbor_container,
-                       u_neighbor_container, neighborhood_search,
-                       particle_container, neighbor_container)
-
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)

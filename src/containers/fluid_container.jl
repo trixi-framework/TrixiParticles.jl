@@ -215,9 +215,25 @@ initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                  semi, t)
-    @unpack density_calculator = container
+    @unpack density_calculator, surface_tension, surface_normal = container
+
+    println("update()", t)
 
     compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
+
+    # some surface tension models require the surface normal
+    # Note: this is the most expensive step in update! when *active*!
+    if t > eps() # skip depending on order boundary density is not set and will diverge
+        # @efaulhaber this should be fixed in another way...
+        compute_surface_normal(surface_tension, v, u, container, container_index, u_ode, v_ode, semi)
+    else
+        # reset surface normal
+        for particle in eachparticle(container)
+            for i in 1:ndims(container)
+                surface_normal[i, particle] = 0.0
+            end
+        end
+    end
 
     return container
 end
@@ -249,6 +265,37 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
     end
 
     compute_pressure!(container, v)
+end
+
+# skip
+function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi)
+end
+
+function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container, container_index, u_ode, v_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack surface_normal = container
+
+    println("reset()")
+
+    # reset surface normal
+    for particle in eachparticle(container)
+        for i in 1:ndims(container)
+            surface_normal[i, particle] = 0.0
+        end
+    end
+
+    @pixie_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
+        neighbor_container, semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
+        neighbor_container, semi)
+
+        println(neighbor_container_index)
+
+        calc_normal_akinci(surface_tension, u, v_neighbor_container,
+        u_neighbor_container, neighborhood_searches[container_index][neighbor_container_index], container, particle_containers[neighbor_container_index])
+    end
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
