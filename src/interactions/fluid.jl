@@ -101,7 +101,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    particle_container::FluidParticleContainer,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
-    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         density_a = get_particle_density(particle, v_particle_container, particle_container)
@@ -135,7 +135,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                               distance, density_a,
                                               smoothing_length, grad_kernel)
 
-                dv_boundary = boundary_particle_impact(particle, neighbor,
+                dv_boundary = boundary_particle_impact(surface_tension, particle, neighbor,
                                                        v_particle_container,
                                                        v_neighbor_container,
                                                        particle_container,
@@ -192,11 +192,19 @@ end
            distance
 end
 
-@inline function calc_momentum_eq(particle, particle_container, neighbor,
+@inline function calc_momentum_eq(particle, particle_container::FluidParticleContainer, neighbor,
                                   neighbor_container, m_b, rho_a, rho_b, grad_kernel)
     p_a = particle_container.pressure[particle]
     p_b = neighbor_container.pressure[neighbor]
     return -m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel
+end
+
+@inline function calc_momentum_eq(particle, particle_container::BoundaryParticleContainer, neighbor, v_neighbor_container,
+    neighbor_container, m_f, grad_kernel)
+    println("bnd")
+    rho_f = get_particle_density(neighbor, v_particle_container, neighbor_container)
+    p_f = neighbor_container.pressure[neighbor]
+    return -m_f * (p_f / rho_f^2) * grad_kernel
 end
 
 @inline function calc_visc_term(particle_container, m_b, v, pos_diff, distance,

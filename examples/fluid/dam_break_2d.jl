@@ -54,7 +54,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
 boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
-                                             SummationDensity(), smoothing_kernel,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,

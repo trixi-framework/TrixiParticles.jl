@@ -60,3 +60,21 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
 
     return 0.0
 end
+
+
+# todo: implement
+# viscosity on boundary
+function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
+    density_mean, h)
+    @unpack alpha, beta, epsilon = viscosity
+
+    # v_ab ⋅ r_ab
+    vr = sum(v_diff .* pos_diff)
+
+    if vr < 0
+    mu = h * vr / (distance^2 + epsilon * h^2)
+    return (alpha * c * mu + beta * mu^2) / density_mean
+    end
+
+    return 0.0
+end
