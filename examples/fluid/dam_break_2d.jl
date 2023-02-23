@@ -59,13 +59,6 @@ boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                setup.boundary_masses, boundary_model)
 
-# K = 9.81 * water_height
-# boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-#                                                setup.boundary_masses,
-#                                                BoundaryModelMonaghanKajtar(K, beta,
-#                                                                            particle_spacing /
-#                                                                            beta))
-
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
@@ -74,14 +67,14 @@ tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=1)
+alive_callback = AliveCallback(alive_interval=100)
 
 # activate to save
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.01:5.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+#saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.01:5.0,
+#                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
+#callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
-#callbacks = CallbackSet(summary_callback, alive_callback)
+callbacks = CallbackSet(summary_callback, alive_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -100,7 +93,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # Print the timer summary
 summary_callback()
 
-pixie2vtk(saved_values)
+#pixie2vtk(saved_values)
 
 # Move right boundary
 positions = (0, container_width, 0, 0)
