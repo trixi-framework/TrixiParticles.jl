@@ -90,6 +90,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
+            grad_kernel = NaN # unused until correction is used
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 # Apply the same force to the solid particle
@@ -100,7 +101,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                        v_neighbor_container,
                                                        v_particle_container,
                                                        neighbor_container,
-                                                       particle_container,
+                                                       particle_container, grad_kernel,
                                                        pos_diff, distance, m_b)
 
                 for i in 1:ndims(particle_container)
@@ -112,7 +113,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 continuity_equation!(dv, boundary_model,
                                      v_particle_container, v_neighbor_container,
                                      particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
+                                     particle_container, neighbor_container, grad_kernel)
             end
         end
     end

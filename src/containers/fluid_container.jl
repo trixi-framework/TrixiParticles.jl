@@ -221,16 +221,33 @@ initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                  semi, t)
-    @unpack density_calculator, surface_tension, surface_normal = container
+    @unpack density_calculator, surface_tension = container
 
     compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
 
     # some surface tension models require the surface normal
     # Note: this is the most expensive step in update! when *active*!
+    compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
+                           v_ode, semi, t)
+
+    return container
+end
+
+# skip
+function compute_surface_normal(surface_tension::Any, v, u, container, container_index,
+                                u_ode,
+                                v_ode, semi, t)
+end
+
+function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
+                                container_index, u_ode,
+                                v_ode, semi, t)
+    @unpack surface_normal = container
+
     if t > eps() # skip depending on order boundary density is not set and will diverge
         # @efaulhaber this should be fixed in another way...
         compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
-                               v_ode, semi)
+                               v_ode, semi, t)
     else
         # reset surface normal
         for particle in eachparticle(container)
@@ -239,8 +256,6 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
             end
         end
     end
-
-    return container
 end
 
 function compute_quantities(v, u, ::ContinuityDensity, container, container_index, u_ode,
