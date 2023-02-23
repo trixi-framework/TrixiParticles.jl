@@ -1,15 +1,9 @@
 """
     FluidParticleContainer(setup,
-                            density_calculator::SummationDensity, state_equation,
-                            smoothing_kernel, smoothing_length;
-                            viscosity=NoViscosity(),
-                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
-
-    FluidParticleContainer(setup,
-                            density_calculator::ContinuityDensity, state_equation,
-                            smoothing_kernel, smoothing_length;
-                            viscosity=NoViscosity(),
-                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                           density_calculator, state_equation,
+                           smoothing_kernel, smoothing_length;
+                           viscosity=NoViscosity(),
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
     FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
                            density_calculator::SummationDensity, state_equation,
                            smoothing_kernel, smoothing_length;
