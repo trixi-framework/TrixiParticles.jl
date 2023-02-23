@@ -17,36 +17,13 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient    :: ELTYPE
-    surface_tension_support_length :: ELTYPE
 
-    function CohesionForceAkinci(; surface_tension_coefficient=1.0, support_length=NaN)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient,
-                                                 support_length)
+    function CohesionForceAkinci(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
 function (surface_tension::CohesionForceAkinci)(smoothing_length, mb, pos_diff, distance)
-    # @unpack surface_tension_coefficient, surface_tension_support_length = surface_tension
-
-    # if !isnan(surface_tension_support_length)
-    #     smoothing_length = surface_tension_support_length
-    # end
-
-    # # Eq. 2
-    # C = 0
-    # if distance^2 <= smoothing_length^2
-    #     if distance > 0.5 * smoothing_length
-    #         # attractive force
-    #         C = (smoothing_length - distance)^3 * distance^3
-    #     else
-    #         # repulsive force
-    #         C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
-    #     end
-    #     C *= 32.0 / (pi * smoothing_length^9)
-    # end
-
-    # # Eq. 1 in acceleration form
-    # return -surface_tension_coefficient * mb * C * pos_diff / distance
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance)
 end
 
@@ -65,11 +42,9 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
-    surface_tension_support_length::ELTYPE
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0, support_length=NaN)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient,
-                                                 support_length)
+    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
 end
 
@@ -80,13 +55,17 @@ function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, p
                                  distance) .- (surface_tension_coefficient * (na - nb))
 end
 
+# just the cohesion force to compensate near boundaries
+function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
+    distance)
+    @unpack surface_tension_coefficient = surface_tension
+    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
+    distance)
+end
+
 @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
                                        smoothing_length, mb, pos_diff, distance)
-    @unpack surface_tension_coefficient, surface_tension_support_length = surface_tension
-
-    if !isnan(surface_tension_support_length)
-        smoothing_length = surface_tension_support_length
-    end
+    @unpack surface_tension_coefficient = surface_tension
 
     # Eq. 2
     C = 0
@@ -116,17 +95,12 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
-        # if particle == 46
-        #     println("46 coord:", particle_coords)
-        # end
+
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                                  neighbor_container)
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
-            # if particle == 46 && distance < 2 * smoothing_length
-            #     println("46 ", distance, " ", neighbor_coords, " ", neighbor)
-            # end
             # correctness strongly depends on this leading to a symmetric distribution of points!
             if sqrt(eps()) < distance <= smoothing_length
                 m_b = neighbor_container.mass[neighbor]
@@ -137,17 +111,9 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                               pos_diff / distance
                 surface_normal[:, particle] .+= m_b / density_neighbor *
                                                 grad_kernel
-                # if isinf(surface_normal[1, particle])
-                #     println(density_neighbor, " ", grad_kernel, " ", pos_diff, " ", distance)
-                # end
-                # if particle == 46
-                #     println("46 surf:", surface_normal[:, particle])
-                # end
             end
         end
-        if isinf(surface_normal[1, particle])
-            println("before",surface_normal[:, particle])
-        end
+
         for i in 1:ndims(particle_container)
             surface_normal[i, particle] *= smoothing_length
         end

@@ -63,6 +63,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+            println("WARNING: Result is *probably* inaccurate when used without corrections. Incorrect pressure near the boundary leads the particles near walls to be too far away, which leads to surface tension being applied near walls!")
         end
 
         if store_options isa StoreAll
@@ -129,6 +130,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+            println("WARNING: Result is *probably* inaccurate when used without corrections. Incorrect pressure near the boundary leads the particles near walls to be too far away, which leads to surface tension being applied near walls!")
         end
 
         if store_options isa StoreAll
@@ -217,8 +219,6 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
                  semi, t)
     @unpack density_calculator, surface_tension, surface_normal = container
 
-    println("update()", t)
-
     compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
 
     # some surface tension models require the surface normal
@@ -275,8 +275,6 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
     @unpack particle_containers, neighborhood_searches = semi
     @unpack surface_normal = container
 
-    println("reset()")
-
     # reset surface normal
     for particle in eachparticle(container)
         for i in 1:ndims(container)
@@ -290,8 +288,6 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
         neighbor_container, semi)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
         neighbor_container, semi)
-
-        println(neighbor_container_index)
 
         calc_normal_akinci(surface_tension, u, v_neighbor_container,
         u_neighbor_container, neighborhood_searches[container_index][neighbor_container_index], container, particle_containers[neighbor_container_index])

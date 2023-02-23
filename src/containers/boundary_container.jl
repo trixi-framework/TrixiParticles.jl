@@ -74,13 +74,13 @@ function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContai
     end
 end
 
-@inline function boundary_particle_impact(surface_tension::Any, particle, boundary_particle,
+@inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
                                           grad_kernel, pos_diff, distance, m_b)
     @unpack boundary_model = boundary_container
 
-    boundary_particle_impact(surface_tension, particle, boundary_particle,
+    boundary_particle_impact(particle, boundary_particle,
                              v_particle_container, v_boundary_container,
                              particle_container, boundary_container,
                              grad_kernel, pos_diff, distance, m_b, boundary_model)
@@ -153,7 +153,7 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, "BoundaryModelMonaghanKajtar")
 end
 
-@inline function boundary_particle_impact(::Any, particle, boundary_particle,
+@inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
                                           grad_kernel,
@@ -271,7 +271,7 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(::Any, particle, boundary_particle,
+@inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,
                                           grad_kernel, pos_diff, distance, m_b,
@@ -291,14 +291,15 @@ end
 end
 
 # see Akinci et al., "Versatile Rigid-Fluid Coupling for Incompressible SPH", 2012
+# todo: currently unused
 @inline function boundary_particle_impact(::AkinciTypeSurfaceTension, particle, boundary_particle,
     v_particle_container, v_boundary_container,
     particle_container, boundary_container,
     grad_kernel, pos_diff, distance, m_b,
     boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
-    @unpack cache = boundary_model
-    @unpack volume = cache
+    #@unpack cache = boundary_model
+    #@unpack volume = cache
 
 
     density_particle = get_particle_density(particle, v_particle_container,
