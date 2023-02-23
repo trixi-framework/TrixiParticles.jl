@@ -122,7 +122,9 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 dv_viscosity = calc_visc_term(particle_container, m_b, v_a, pos_diff,
                                               distance, density_a,
-                                              compact_support(smoothing_kernel, smoothing_length), grad_kernel)
+                                              compact_support(smoothing_kernel,
+                                                              smoothing_length),
+                                              grad_kernel)
 
                 dv_boundary = boundary_particle_impact(particle, neighbor,
                                                        v_particle_container,
@@ -132,13 +134,14 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                        grad_kernel, pos_diff, distance, m_b)
 
                 dv_surface_adhesion = calc_adhesion(particle, neighbor, pos_diff,
-                                                            distance,
-                                                            particle_container,
-                                                            neighbor_container,
-                                                            surface_tension)
+                                                    distance,
+                                                    particle_container,
+                                                    neighbor_container,
+                                                    surface_tension)
 
                 for i in 1:ndims(particle_container)
-                    dv[i, particle] += dv_boundary[i] + dv_viscosity[i] + dv_surface_adhesion[i]
+                    dv[i, particle] += dv_boundary[i] + dv_viscosity[i] +
+                                       dv_surface_adhesion[i]
                 end
             end
         end
@@ -148,7 +151,8 @@ function interact!(dv, v_particle_container, u_particle_container,
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_container, neighbor_container::FluidParticleContainer,
+                                      particle_container,
+                                      neighbor_container::FluidParticleContainer,
                                       surface_tension::CohesionForceAkinci)
     @unpack smoothing_length = particle_container
 
@@ -159,7 +163,8 @@ end
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_container, neighbor_container::FluidParticleContainer,
+                                      particle_container,
+                                      neighbor_container::FluidParticleContainer,
                                       surface_tension::SurfaceTensionAkinci)
     @unpack smoothing_length = particle_container
 
@@ -184,8 +189,9 @@ end
 
 # adhesion term to compensate for cohesion force
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-    particle_container, neighbor_container::BoundaryParticleContainer,
-    surface_tension::AkinciTypeSurfaceTension)
+                               particle_container,
+                               neighbor_container::BoundaryParticleContainer,
+                               surface_tension::AkinciTypeSurfaceTension)
     @unpack smoothing_length = particle_container
 
     # per convention neigbor values are indicated by 'b' and local values with 'a'
@@ -196,9 +202,9 @@ end
 
 # skip
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-    particle_container::ParticleContainer,
-    neighbor_container,
-    surface_tension::NoSurfaceTension)
+                               particle_container::ParticleContainer,
+                               neighbor_container,
+                               surface_tension::NoSurfaceTension)
     return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end
 
@@ -207,7 +213,8 @@ end
            distance
 end
 
-@inline function calc_momentum_eq(particle, particle_container::FluidParticleContainer, neighbor,
+@inline function calc_momentum_eq(particle, particle_container::FluidParticleContainer,
+                                  neighbor,
                                   neighbor_container, m_b, rho_a, rho_b, grad_kernel)
     p_a = particle_container.pressure[particle]
     p_b = neighbor_container.pressure[neighbor]

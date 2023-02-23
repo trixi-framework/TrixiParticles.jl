@@ -16,7 +16,7 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 """
 
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
-    surface_tension_coefficient    :: ELTYPE
+    surface_tension_coefficient::ELTYPE
 
     function CohesionForceAkinci(; surface_tension_coefficient=1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
@@ -57,10 +57,10 @@ end
 
 # just the cohesion force to compensate near boundaries
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
-    distance)
+                                                 distance)
     @unpack surface_tension_coefficient = surface_tension
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
-    distance)
+                                 distance)
 end
 
 @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,

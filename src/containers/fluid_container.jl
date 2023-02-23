@@ -63,7 +63,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            println("WARNING: Result is *probably* inaccurate when used without corrections. Incorrect pressure near the boundary leads the particles near walls to be too far away, which leads to surface tension being applied near walls!")
+            println("WARNING: Result is *probably* inaccurate when used without corrections.
+                     Incorrect pressure near the boundary leads the particles near walls to
+                     be too far away, which leads to surface tension being applied near walls!")
         end
 
         if store_options isa StoreAll
@@ -130,7 +132,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
 
         if surface_tension isa SurfaceTensionAkinci
             surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            println("WARNING: Result is *probably* inaccurate when used without corrections. Incorrect pressure near the boundary leads the particles near walls to be too far away, which leads to surface tension being applied near walls!")
+            println("WARNING: Result is *probably* inaccurate when used without corrections.
+                     Incorrect pressure near the boundary leads the particles near walls to
+                     be too far away, which leads to surface tension being applied near walls!")
         end
 
         if store_options isa StoreAll
@@ -225,7 +229,8 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
     # Note: this is the most expensive step in update! when *active*!
     if t > eps() # skip depending on order boundary density is not set and will diverge
         # @efaulhaber this should be fixed in another way...
-        compute_surface_normal(surface_tension, v, u, container, container_index, u_ode, v_ode, semi)
+        compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
+                               v_ode, semi)
     else
         # reset surface normal
         for particle in eachparticle(container)
@@ -271,7 +276,8 @@ end
 function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi)
 end
 
-function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container, container_index, u_ode, v_ode, semi)
+function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
+                                container_index, u_ode, v_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack surface_normal = container
 
@@ -283,14 +289,16 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
     end
 
     @pixie_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                                neighbor_container)
+                                                                                              neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
-        neighbor_container, semi)
+                                      neighbor_container, semi)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
-        neighbor_container, semi)
+                                      neighbor_container, semi)
 
         calc_normal_akinci(surface_tension, u, v_neighbor_container,
-        u_neighbor_container, neighborhood_searches[container_index][neighbor_container_index], container, particle_containers[neighbor_container_index])
+                           u_neighbor_container,
+                           neighborhood_searches[container_index][neighbor_container_index],
+                           container, particle_containers[neighbor_container_index])
     end
 end
 

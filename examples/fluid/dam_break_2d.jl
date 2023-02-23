@@ -53,7 +53,7 @@ particle_container = FluidParticleContainer(setup.particle_coordinates,
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
 boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
-SummationDensity(), smoothing_kernel,
+                                             SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
@@ -78,7 +78,7 @@ alive_callback = AliveCallback(alive_interval=1)
 
 # activate to save
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.01:5.0,
-                                                         index=(v, u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
 #callbacks = CallbackSet(summary_callback, alive_callback)
