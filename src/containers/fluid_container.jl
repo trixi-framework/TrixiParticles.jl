@@ -44,7 +44,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
-        return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses,
+        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
@@ -56,9 +56,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
-        return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses,
-                                      pg.densities,
-                                      density_calculator,
+        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
+                                      setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
     end
