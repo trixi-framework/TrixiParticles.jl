@@ -23,10 +23,11 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Create semidiscretization
-particle_container = new_fluid(setup, ContinuityDensity(), state_equation,
-                               smoothing_kernel, smoothing_length,
-                               viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                               acceleration=(0.0, -9.81))
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
+                                            acceleration=(0.0, -9.81))
 
 boundary_densities = water_density * ones(size(setup.boundary_masses))
 boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,

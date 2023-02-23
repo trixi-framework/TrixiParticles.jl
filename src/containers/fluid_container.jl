@@ -1,4 +1,15 @@
 """
+    FluidParticleContainer(setup,
+                            density_calculator::SummationDensity, state_equation,
+                            smoothing_kernel, smoothing_length;
+                            viscosity=NoViscosity(),
+                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+
+    FluidParticleContainer(setup,
+                            density_calculator::ContinuityDensity, state_equation,
+                            smoothing_kernel, smoothing_length;
+                            viscosity=NoViscosity(),
+                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
     FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
                            density_calculator::SummationDensity, state_equation,
                            smoothing_kernel, smoothing_length;
@@ -26,6 +37,31 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
     viscosity           :: V
     acceleration        :: SVector{NDIMS, ELTYPE}
     cache               :: C
+
+    # convenience constructor for passing a setup as first argument
+    function FluidParticleContainer(setup, density_calculator::SummationDensity,
+                                    state_equation, smoothing_kernel, smoothing_length;
+                                    viscosity=NoViscosity(),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)))
+        return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses,
+                                      density_calculator,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      viscosity=viscosity, acceleration=acceleration)
+    end
+
+    # convenience constructor for passing a setup as first argument
+    function FluidParticleContainer(setup, density_calculator::ContinuityDensity,
+                                    state_equation, smoothing_kernel, smoothing_length;
+                                    viscosity=NoViscosity(),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)))
+        return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses,
+                                      pg.densities,
+                                      density_calculator,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      viscosity=viscosity, acceleration=acceleration)
+    end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses,
@@ -256,24 +292,4 @@ function write_v0!(v0, ::ContinuityDensity, container::FluidParticleContainer)
     end
 
     return v0
-end
-
-function new_fluid(pg, density_calculator::SummationDensity,
-                   state_equation, smoothing_kernel, smoothing_length;
-                   viscosity=NoViscosity(),
-                   acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
-    return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses,
-                                  density_calculator,
-                                  state_equation, smoothing_kernel, smoothing_length,
-                                  viscosity=viscosity, acceleration=acceleration)
-end
-
-function new_fluid(pg, density_calculator::ContinuityDensity,
-                   state_equation, smoothing_kernel, smoothing_length;
-                   viscosity=NoViscosity(),
-                   acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
-    return FluidParticleContainer(pg.coordinates, pg.velocities, pg.masses, pg.densities,
-                                  density_calculator,
-                                  state_equation, smoothing_kernel, smoothing_length,
-                                  viscosity=viscosity, acceleration=acceleration)
 end

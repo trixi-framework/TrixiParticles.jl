@@ -42,10 +42,11 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 state_equation = StateEquationCole(c, 7, 997.0, 100000.0, background_pressure=100000.0)
 
-particle_container = new_fluid(setup, ContinuityDensity(), state_equation,
-                               smoothing_kernel, smoothing_length,
-                               viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                               acceleration=(0.0, -9.81))
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=ArtificialViscosityMonaghan(0.02,
+                                                                                  0.0),
+                                            acceleration=(0.0, -9.81))
 
 # Add a factor of 4 to prevent boundary penetration
 K = 9.81 * water_height
