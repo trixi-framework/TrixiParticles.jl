@@ -48,15 +48,15 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
 
 See also: [`reset_wall!`](@ref)
 """
-struct RectangularTank{NDIMS, NDIMt2, ELTYPE <: Real}
+struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     densities                 :: Vector{ELTYPE}
     masses                    :: Vector{ELTYPE}
     boundary_coordinates      :: Array{ELTYPE, 2}
     boundary_masses           :: Vector{ELTYPE}
-    faces_                    :: NTuple{NDIMt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
-    face_indices              :: NTuple{NDIMt2, Array{Int, 2}} # see `reset_wall!`
+    faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
+    face_indices              :: NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
     particle_spacing          :: ELTYPE
     spacing_ratio             :: ELTYPE
     n_layers                  :: Int
