@@ -235,8 +235,7 @@ end
 
 # skip
 function compute_surface_normal(surface_tension::Any, v, u, container, container_index,
-                                u_ode,
-                                v_ode, semi, t)
+                                u_ode, v_ode, semi, t)
 end
 
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
@@ -247,7 +246,7 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
     if t > eps() # skip depending on order boundary density is not set and will diverge
         # @efaulhaber this should be fixed in another way...
         compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
-                               v_ode, semi, t)
+                               v_ode, semi)
     else
         # reset surface normal
         for particle in eachparticle(container)
