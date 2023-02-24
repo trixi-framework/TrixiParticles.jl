@@ -1,3 +1,17 @@
+# To test FSI, this example simulates a beam which is clamped on both ends and is bent by
+# the load of a water column. Thereafter, the y-deflection of the beam is compared with the
+# analytical deflection curve. The analytical approach assumes that the beam is made from
+# homogeneous material, is much longer than any dimension of its cross-section and also the
+# beam does not bend severely or coming close to deforming or fracturing (for more details
+# see the "analytical solution" section of this example).
+#
+# Despite these assumptions, we cannot expect a good agreement with the analytical solution,
+# anyway:
+# The uniform load of the beam under gravity (by its own weight) is replaced by the
+# load of the water column under gravity. Therefore, the load is not uniformly distributed
+# anymore, since the distance normal to the water surface and the upper edge of the beam is
+# not constant in x-direction.
+
 using Pixie
 using OrdinaryDiffEq
 
@@ -77,6 +91,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
+# Remove one particle in x-direction that the water column fits in between the two pillars,
+# even though the load of the water is not correct anymore. The simulation is not physically
+# correct anyway (see comment above).
 n_particles_per_dimension = (round(Int, water_width / fluid_particle_spacing) - 1,
                              round(Int, water_height / fluid_particle_spacing))
 
@@ -160,27 +177,41 @@ summary_callback()
 # ==========================================================================================
 # ==== analytical solution
 
-function plot_analytical(solid_container)
-    # line load
-    q_0 = gravity * solid_density * thickness_beam^2
-    L = length_beam
-    I_y = thickness_beam^4 / 12
+# In the following, the y deflection of the beam is compared with the analytical
+# deflection curve (one of the most widely used formulas in structural engineering).
+#
+# The equation is derived in e.g.:
+# Lubliner, J. & Papadopoulos, P., "Introduction to Solid Mechanics", Ch. 8,
+# DOI: 10.1007/978-3-319-18878-2
 
-    # d⁴w/dx⁴ = q_0 / (E * I_y)
-    w(x) = q_0 * L^4 / (24 * E * I_y) * ((x / L)^4 - 2 * (x / L)^3 + (x / L)^2)
+function plot_analytical(solid_container)
+    # distributed transverse force
+    q_0 = gravity * solid_density * thickness_beam^2
+
+    # second moment of area about z-axis (beam bends in the plane perpendicular to the z-axis)
+    I_z = thickness_beam^4 / 12
+
+    L = length_beam
+
+    # d⁴v/dx⁴ = q_0 / (E * I_z)
+    # (This "v" should not be confused with the same symbold used for velocity. To denote displacement
+    # in solid mechanics the symbold u, v and w are used for x, y and z-direction, respectively)
+    v(x) = q_0 * L^4 / (24 * E * I_z) * ((x / L)^4 - 2 * (x / L)^3 + (x / L)^2)
 
     # The upper edge of the beam is at position y = 0.0
-    zero_stress_position = (n_particles_y - 1) / 2 * solid_particle_spacing
+    centroidal_fiber_position = (n_particles_y - 1) / 2 * solid_particle_spacing
 
-    bending_line = [solid_container.current_coordinates[:, i]
-                    for i in Pixie.each_moving_particle(solid_container)
-                    if isapprox(solid_container.initial_coordinates[2, i],
-                                -zero_stress_position)]
+    # In a homogeneous linearly elastic beam in pure bending, the neutral fiber (zero stress)
+    # coincides with the centroidal fiber
+    neutral_fiber_position = [solid_container.current_coordinates[:, i]
+                              for i in Pixie.each_moving_particle(solid_container)
+                              if isapprox(solid_container.initial_coordinates[2, i],
+                                          -centroidal_fiber_position)]
 
-    bending_line = hcat(bending_line...)
-    bending_line[2, :] .+= zero_stress_position
+    neutral_fiber_position = hcat(neutral_fiber_position...)
+    neutral_fiber_position[2, :] .+= centroidal_fiber_position
 
-    plot(bending_line[1, :], bending_line[2, :], xlims=(0, L), xlabel="x", ylabel="y",
-         lab="sph")
-    plot!(w, lab="analytical")
+    plot(neutral_fiber_position[1, :], neutral_fiber_position[2, :], xlims=(0, L),
+         xlabel="x", ylabel="y", lab="sph")
+    plot!(v, lab="analytical")
 end

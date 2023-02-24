@@ -1,3 +1,7 @@
+# In this example, two solid spheres of different densities fall into a tank of water.
+# Note, that the solids don't interact with boundaries (yet), so that the sphere with larger
+# density is going to fall out of the tank.
+
 using Pixie
 using OrdinaryDiffEq
 
@@ -124,11 +128,9 @@ solid_container_2 = SolidParticleContainer(particle_coordinates_2, particle_velo
 # ==========================================================================================
 # ==== Simulation
 
-# Relaxing of the fluid without solid
 semi = Semidiscretization(particle_container, boundary_container, solid_container_1,
                           solid_container_2,
-                          neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=0.1)
+                          neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
