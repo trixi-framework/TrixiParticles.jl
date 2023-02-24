@@ -564,6 +564,9 @@ end
             volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
+
+    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
+    pressure[particle] = max(pressure[particle], 0.0)
 end
 
 @inline function compute_pressure_per_particle(particle, u_particle_container,
