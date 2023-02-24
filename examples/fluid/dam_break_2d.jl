@@ -7,7 +7,7 @@
 
 include("../Pixie_ODE_solve.jl")
 
-particle_spacing = 0.2
+particle_spacing = 0.02
 
 # Spacing ratio between fluid and boundary particles
 beta = 3
