@@ -42,10 +42,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 state_equation = StateEquationCole(c, 7, 997.0, 100000.0, background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),

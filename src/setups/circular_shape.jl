@@ -23,6 +23,7 @@ see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
 struct CircularShape{NDIMS, ELTYPE <: Real}
     coordinates      :: Array{ELTYPE, 2}
+    velocities       :: Array{ELTYPE, 2}
     masses           :: Vector{ELTYPE}
     densities        :: Vector{ELTYPE}
     particle_spacing :: ELTYPE
@@ -39,8 +40,9 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        velocities = zeros(ELTYPE, 2, n_particles)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles)
     end
 end
