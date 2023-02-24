@@ -1,45 +1,53 @@
 # Boundary-fluid interaction
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container)
     @unpack boundary_model = particle_container
 
-    interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+    interact!(dv, v_particle_container, u_particle_container,
+              v_neighbor_container, u_neighbor_container, neighborhood_search,
               particle_container, neighbor_container, boundary_model)
 end
 
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container::BoundaryParticleContainer)
     # TODO moving boundaries
-    return du
+    return dv
 end
 
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container,
                    boundary_model)
-    return du
+    return dv
 end
 
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container,
                    boundary_model::BoundaryModelDummyParticles)
     @unpack density_calculator = boundary_model
 
-    interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+    interact!(dv, v_particle_container, u_particle_container,
+              v_neighbor_container, u_neighbor_container, neighborhood_search,
               particle_container, neighbor_container, boundary_model, density_calculator)
 end
 
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container, boundary_model,
                    density_calculator)
-    return du
+    return dv
 end
 
-function interact!(du, u_particle_container, u_neighbor_container, neighborhood_search,
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container, boundary_model,
                    ::ContinuityDensity)
@@ -57,11 +65,13 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 # Continuity equation
-                vdiff = get_particle_vel(particle, u_particle_container,
+                vdiff = get_particle_vel(particle, v_particle_container,
                                          particle_container) -
-                        get_particle_vel(neighbor, u_neighbor_container, neighbor_container)
+                        get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
-                du[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
+                # For boundary particles, the velocity is not integrated.
+                # Therefore, the density is stored in the first dimension of `dv`.
+                dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
                                        kernel_deriv(smoothing_kernel, distance,
                                                     smoothing_length) .*
                                        pos_diff) / distance
@@ -69,5 +79,5 @@ function interact!(du, u_particle_container, u_neighbor_container, neighborhood_
         end
     end
 
-    return du
+    return dv
 end

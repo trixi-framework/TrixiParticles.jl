@@ -20,7 +20,11 @@ setup = RectangularTank(particle_spacing, beta,
                         water_density)
 
 # Move right boundary
-reset_right_wall!(setup, container_width, wall_position=water_width)
+new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+reset_faces = (false, true, false, false, false, false)
+positions = (0, new_wall_position, 0, 0, 0, 0)
+
+reset_wall!(setup, reset_faces, positions)
 
 c = 20 * sqrt(9.81 * water_height)
 
@@ -30,10 +34,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 state_equation = StateEquationCole(c, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
@@ -76,22 +77,21 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # Move right boundary
-reset_right_wall!(setup, container_width)
+positions = (0, container_width, 0, 0)
+reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
 
 # Use solution of the relaxing step as initial coordinates
-u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
-particle_container.initial_coordinates .= view(u_end, 1:3, :)
-particle_container.initial_velocity .= view(u_end, 4:6, :)
+restart_with!(semi, sol)
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 

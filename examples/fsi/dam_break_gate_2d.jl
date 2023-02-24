@@ -27,9 +27,11 @@ setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
                         n_layers=n_layers)
 
-setup_gate = RectangularShape(fluid_particle_spacing / beta, n_layers,
-                              setup.n_boundaries_per_dimension[2],
-                              water_width, fluid_particle_spacing / beta,
+gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
+setup_gate = RectangularShape(fluid_particle_spacing / beta,
+                              (n_layers,
+                               round(Int, container_height / fluid_particle_spacing * beta)),
+                              (gate_position, fluid_particle_spacing / beta),
                               density=water_density)
 
 c = 20 * sqrt(9.81 * water_height)
@@ -40,10 +42,7 @@ search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
 state_equation = StateEquationCole(c, 7, 997.0, 100000.0, background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=ArtificialViscosityMonaghan(0.02,
                                                                                   0.0),
@@ -67,7 +66,7 @@ boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
                                                                                 beta),
                                                     movement_function=movement_function)
 
-length = 0.09
+length_beam = 0.09
 thickness = 0.004
 solid_density = 1161.54
 n_particles_x = 5
@@ -76,13 +75,16 @@ n_particles_x = 5
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
 
-n_particles_per_dimension = (n_particles_x, round(Int, length / solid_particle_spacing) + 1)
+n_particles_per_dimension = (n_particles_x,
+                             round(Int, length_beam / solid_particle_spacing) + 1)
 
-plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1],
-                         n_particles_per_dimension[2] - 1,
-                         0.6, solid_particle_spacing, density=solid_density)
-fixed_particles = RectangularShape(solid_particle_spacing, n_particles_per_dimension[1], 1,
-                                   0.6, 0.0, density=solid_density)
+plate = RectangularShape(solid_particle_spacing,
+                         (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
+                         (0.6, solid_particle_spacing),
+                         density=solid_density)
+fixed_particles = RectangularShape(solid_particle_spacing,
+                                   (n_particles_per_dimension[1], 1),
+                                   (0.6, 0.0), density=solid_density)
 
 particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
@@ -157,9 +159,7 @@ function movement_function(coordinates, t)
 end
 
 # Use solution of the relaxing step as initial coordinates
-u_end = Pixie.wrap_array(sol[end], 1, particle_container, semi)
-particle_container.initial_coordinates .= view(u_end, 1:2, :)
-particle_container.initial_velocity .= view(u_end, 3:4, :)
+restart_with!(semi, sol)
 
 semi = Semidiscretization(particle_container, boundary_container_tank,
                           boundary_container_gate, solid_container,
@@ -168,7 +168,7 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 ode = semidiscretize(semi, tspan)
 
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 

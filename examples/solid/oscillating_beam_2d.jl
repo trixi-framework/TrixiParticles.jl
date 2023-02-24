@@ -24,9 +24,8 @@ n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
-beam = RectangularShape(particle_spacing, n_particles_per_dimension[1],
-                        n_particles_per_dimension[2],
-                        0.0, 0.0, density=particle_density)
+beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
+                        density=particle_density)
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
@@ -57,7 +56,7 @@ ode = semidiscretize(semi, tspan)
 summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
 saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-                                                       index=(u, t, container) -> Pixie.eachparticle(container))
+                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
 
 callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
