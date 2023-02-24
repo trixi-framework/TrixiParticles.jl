@@ -82,7 +82,7 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     @unpack smoothing_kernel, smoothing_length = container
 
     radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius)
+    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
     initialize!(search, neighbor.initial_coordinates, neighbor)
@@ -96,7 +96,7 @@ function create_neighborhood_search(container::SolidParticleContainer,
     @unpack smoothing_kernel, smoothing_length = neighbor
 
     radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius)
+    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
     initialize!(search, neighbor.initial_coordinates, neighbor)
@@ -115,7 +115,7 @@ function create_neighborhood_search(container::BoundaryParticleContainer, _,
                                     boundary_model, ::Val{SpatialHashingSearch})
     # This NHS will never be used, so we just return an empty NHS.
     # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
-    return SpatialHashingSearch{ndims(container)}(0.0)
+    return SpatialHashingSearch{ndims(container)}(0.0, 0)
 end
 
 function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
@@ -124,7 +124,7 @@ function create_neighborhood_search(container::BoundaryParticleContainer, neighb
     @unpack smoothing_kernel, smoothing_length = boundary_model
 
     radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius)
+    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
     initialize!(search, neighbor.initial_coordinates, neighbor)

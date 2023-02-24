@@ -36,15 +36,20 @@ Julia's `Dict` data structure instead.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
 struct SpatialHashingSearch{NDIMS, ELTYPE}
-    hashtable     :: Dict{NTuple{NDIMS, Int64}, Vector{Int64}}
-    search_radius :: ELTYPE
-    empty_vector  :: Vector{Int64} # Just an empty vector
+    hashtable           :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    search_radius       :: ELTYPE
+    empty_vector        :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
+    cell_buffer         :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
+    cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
 
-    function SpatialHashingSearch{NDIMS}(search_radius) where {NDIMS}
-        hashtable = Dict{NTuple{NDIMS, Int64}, Vector{Int64}}()
-        empty_vector = Vector{Int64}()
+    function SpatialHashingSearch{NDIMS}(search_radius, n_particles) where {NDIMS}
+        hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
+        empty_vector = Vector{Int}()
+        cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
+        cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        new{NDIMS, typeof(search_radius)}(hashtable, search_radius, empty_vector)
+        new{NDIMS, typeof(search_radius)}(hashtable, search_radius, empty_vector,
+                                          cell_buffer, cell_buffer_indices)
     end
 end
 
@@ -75,50 +80,68 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::SpatialHashingSearch, coordinates, container)
-    @unpack hashtable = neighborhood_search
+    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+
+    @inline function cell_coords(particle)
+        get_cell_coords(get_particle_coords(particle, coordinates, container),
+                        neighborhood_search)
+    end
+
+    # Reset `cell_buffer` by moving all pointers to the beginning.
+    cell_buffer_indices .= 0
+
+    # Find all cells containing particles that now belong to another cell.
+    # `collect` the keyset to be able to loop over it with `@threaded`.
+    @threaded for cell in collect(keys(hashtable))
+        for particle in hashtable[cell]
+            if cell_coords(particle) != cell
+                # Mark this cell and continue with the next one.
+                #
+                # `cell_buffer` is preallocated,
+                # but only the entries 1:i are used for this thread.
+                i = cell_buffer_indices[Threads.threadid()] += 1
+                cell_buffer[i, Threads.threadid()] = cell
+                break
+            end
+        end
+    end
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
     ThreadingUtilities.sleep_all_tasks()
 
-    # Iterate over the original set of keys because weird things happen
-    # if keys are added during iteration.
-    for cell_coords in collect(keys(hashtable))
-        particles = hashtable[cell_coords]
+    # Iterate over all marked cells and move the particles into their new cells.
+    for thread in 1:Threads.nthreads()
+        # Only the entries `1:cell_buffer_indices[thread]` are initialized for `thread`.
+        for i in 1:cell_buffer_indices[thread]
+            cell = cell_buffer[i, thread]
+            particles = hashtable[cell]
 
-        # Find all particles whose coordinates do not match this cell
-        moved_particle_indices = (i for i in eachindex(particles)
-                                  if get_cell_coords(get_particle_coords(particles[i],
-                                                                         coordinates,
-                                                                         container),
-                                                     neighborhood_search) != cell_coords)
+            # Find all particles whose coordinates do not match this cell
+            moved_particle_indices = (i for i in eachindex(particles)
+                                      if cell_coords(particles[i]) != cell)
 
-        # Skip this cell if no particles moved out of it
-        n_moved_particles = count(_ -> true, moved_particle_indices)
-        if n_moved_particles == 0
-            continue
-        end
+            # Add moved particles to new cell
+            for i in moved_particle_indices
+                particle = particles[i]
+                new_cell_coords = get_cell_coords(get_particle_coords(particle, coordinates,
+                                                                      container),
+                                                  neighborhood_search)
 
-        # Add moved particles to new cell
-        for i in moved_particle_indices
-            particle = particles[i]
-            new_cell_coords = get_cell_coords(get_particle_coords(particle, coordinates,
-                                                                  container),
-                                              neighborhood_search)
-
-            # Add particle to corresponding cell or create cell if it does not exist
-            if haskey(hashtable, new_cell_coords)
-                append!(hashtable[new_cell_coords], particle)
-            else
-                hashtable[new_cell_coords] = [particle]
+                # Add particle to corresponding cell or create cell if it does not exist
+                if haskey(hashtable, new_cell_coords)
+                    append!(hashtable[new_cell_coords], particle)
+                else
+                    hashtable[new_cell_coords] = [particle]
+                end
             end
-        end
 
-        # Remove moved particles from this cell or delete the cell if it is now empty
-        if n_moved_particles == length(particles)
-            delete!(hashtable, cell_coords)
-        else
-            deleteat!(particles, moved_particle_indices)
+            # Remove moved particles from this cell or delete the cell if it is now empty
+            if count(_ -> true, moved_particle_indices) == length(particles)
+                delete!(hashtable, cell)
+            else
+                deleteat!(particles, moved_particle_indices)
+            end
         end
     end
 
