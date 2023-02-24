@@ -99,10 +99,7 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             fluid_smoothing_kernel, fluid_smoothing_length,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))
