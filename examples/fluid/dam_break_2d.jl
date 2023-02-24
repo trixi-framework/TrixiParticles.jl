@@ -5,10 +5,9 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
 # https://doi.org/10.1016/J.CMA.2010.12.016
 
-using Pixie
-using OrdinaryDiffEq
+include("../Pixie_ODE_solve.jl")
 
-particle_spacing = 0.02
+particle_spacing = 0.2
 
 # Spacing ratio between fluid and boundary particles
 beta = 3
@@ -59,16 +58,6 @@ semi = Semidiscretization(particle_container, boundary_container,
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-
-# activate to save
-# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
-# callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
-
-callbacks = CallbackSet(summary_callback, alive_callback)
-
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -77,14 +66,12 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = pixie_ode_solve(ode, RDPK3SpFSAL49(), tspan,
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
+            save = false # switch to save
+            );
 
 # Move right boundary
 positions = (0, container_width, 0, 0)
@@ -100,20 +87,10 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
-
 # See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = pixie_ode_solve(ode, RDPK3SpFSAL49(), tspan,
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)
+            save=false # switch to save
+            );
