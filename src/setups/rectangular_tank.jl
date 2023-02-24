@@ -50,10 +50,10 @@ setup = RectangularTank(particle_spacing, 3, water_width, water_height, water_de
 See also: [`reset_wall!`](@ref)
 """
 struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
-    particle_coordinates      :: Array{ELTYPE, 2}
-    particle_velocities       :: Array{ELTYPE, 2}
-    particle_densities        :: Vector{ELTYPE}
-    particle_masses           :: Vector{ELTYPE}
+    coordinates               :: Array{ELTYPE, 2}
+    velocities                :: Array{ELTYPE, 2}
+    densities                 :: Vector{ELTYPE}
+    masses                    :: Vector{ELTYPE}
     boundary_coordinates      :: Array{ELTYPE, 2}
     boundary_masses           :: Vector{ELTYPE}
     boundary_densities        :: Vector{ELTYPE}
