@@ -194,8 +194,8 @@ function plot_analytical(solid_container)
     L = length_beam
 
     # d⁴v/dx⁴ = q_0 / (E * I_z)
-    # (This "v" should not be confused with the same symbold used for velocity. To denote displacement
-    # in solid mechanics the symbold u, v and w are used for x, y and z-direction, respectively)
+    # (This "v" should not be confused with the same symbol used for velocity. To denote displacement
+    # in solid mechanics the symbol u, v and w are used for x, y and z-direction, respectively)
     v(x) = q_0 * L^4 / (24 * E * I_z) * ((x / L)^4 - 2 * (x / L)^3 + (x / L)^2)
 
     # The upper edge of the beam is at position y = 0.0
