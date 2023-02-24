@@ -33,13 +33,14 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
     cache               :: C
 
     # convenience constructor for passing a setup as first argument
-    function FluidParticleContainer(setup, density_calculator::SummationDensity,
+    function FluidParticleContainer(setup, density_calculator,
                                     state_equation, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
+        # Nothing!
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
-                                      density_calculator,
+                                      setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
     end
@@ -50,6 +51,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
+        # Nothing!
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -63,6 +65,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
+        # COMMON CODE >
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -74,6 +77,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
+        # </COMMON CODE
 
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
@@ -99,6 +103,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
+        # COMMON CODE >
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -110,6 +115,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
+        # </ COMMON CODE
 
         initial_density = particle_densities
         cache = (; initial_density)
