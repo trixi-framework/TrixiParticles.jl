@@ -67,11 +67,10 @@ ode = semidiscretize(semi, tspan)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = pixie_ode_solve(ode, RDPK3SpFSAL49(), tspan,
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save = false # switch to save
-            );
+                      abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+                      reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+                      dtmax=1e-2, # Limit stepsize to prevent crashing
+                      save=false);
 
 # Move right boundary
 positions = (0, container_width, 0, 0)
@@ -89,8 +88,7 @@ ode = semidiscretize(semi, tspan)
 
 # See above for an explanation of the parameter choice
 sol = pixie_ode_solve(ode, RDPK3SpFSAL49(), tspan,
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save=false # switch to save
-            );
+                      abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+                      reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+                      dtmax=1e-2, # Limit stepsize to prevent crashing
+                      save=false);

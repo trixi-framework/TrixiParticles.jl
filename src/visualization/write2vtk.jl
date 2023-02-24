@@ -14,7 +14,8 @@ function pixie2vtk(saved_values::SavedValues; output_directory="out", prefix="")
 
         # For all containers
         for key in keys(solution)
-            filename = prefix === "" ? "$output_directory/$key" : "$output_directory/$(prefix)_$key"
+            filename = prefix === "" ? "$output_directory/$key" :
+                       "$output_directory/$(prefix)_$key"
             filename *= timestep === nothing ? "" : "_$timestep"
 
             points = solution[key][:coordinates]
@@ -35,7 +36,8 @@ function pixie2vtk(container::BoundaryParticleContainer; output_directory="out",
     @unpack initial_coordinates = container
 
     mkpath(output_directory)
-    filename = prefix==="" ? "$output_directory/boundaries" : "$output_directory/$(prefix)_boundaries"
+    filename = prefix === "" ? "$output_directory/boundaries" :
+               "$output_directory/$(prefix)_boundaries"
 
     points = initial_coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
