@@ -53,7 +53,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                                         size(particle_coordinates, 1)))
         # Nothing!
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
-                                      setup.densities, density_calculator,
+                                      density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
     end
