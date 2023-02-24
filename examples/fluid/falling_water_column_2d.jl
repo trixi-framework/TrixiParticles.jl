@@ -33,8 +33,8 @@ setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         n_layers=boundary_layers)
 
 # Move water column
-for i in axes(setup.particle_coordinates, 2)
-    setup.particle_coordinates[:, i] .+= [0.5 * container_width - 0.5 * water_width, 0.2]
+for i in axes(setup.coordinates, 2)
+    setup.coordinates[:, i] .+= [0.5 * container_width - 0.5 * water_width, 0.2]
 end
 
 # ==========================================================================================
@@ -52,10 +52,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_densities,
-                                            ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))

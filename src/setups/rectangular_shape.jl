@@ -33,6 +33,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
 """
 struct RectangularShape{NDIMS, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
+    velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
     densities                 :: Vector{ELTYPE}
     particle_spacing          :: ELTYPE
@@ -51,6 +52,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         n_particles = prod(n_particles_per_dimension)
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
+        velocities = zeros(ELTYPE, 2, n_particles)
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
@@ -59,7 +61,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles_per_dimension)
     end
 
@@ -76,6 +78,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         n_particles = prod(n_particles_per_dimension)
 
         coordinates = Array{Float64, 2}(undef, 3, n_particles)
+        velocities = zeros(ELTYPE, 3, n_particles)
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
@@ -84,7 +87,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles_per_dimension)
     end
 end
