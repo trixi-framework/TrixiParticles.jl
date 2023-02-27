@@ -1,5 +1,5 @@
 # In this example, two solid spheres of different densities fall into a tank of water.
-# Note, that the solids don't interact with boundaries (yet), so that the sphere with larger
+# Note that the solids don't interact with boundaries (yet), so that the sphere with larger
 # density is going to fall out of the tank.
 
 using Pixie

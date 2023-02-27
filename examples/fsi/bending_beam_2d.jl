@@ -1,16 +1,19 @@
 # To test FSI, this example simulates a beam which is clamped on both ends and is bent by
 # the load of a water column. Thereafter, the y-deflection of the beam is compared with the
-# analytical deflection curve. The analytical approach assumes that the beam is made from
-# homogeneous material, is much longer than any dimension of its cross-section and also the
-# beam does not bend severely or coming close to deforming or fracturing (for more details
-# see the "analytical solution" section of this example).
+# analytical deflection curve.
 #
-# Despite these assumptions, we cannot expect a good agreement with the analytical solution,
-# anyway:
-# The uniform load of the beam under gravity (by its own weight) is replaced by the
-# load of the water column under gravity. Therefore, the load is not uniformly distributed
-# anymore, since the distance normal to the water surface and the upper edge of the beam is
-# not constant in x-direction.
+# The analytical approach assumes that the beam is made from homogeneous material, is much
+# longer than any dimension of its cross-section and also the beam does not bend severely
+# or coming close to deforming or fracturing (for more details see the "analytical solution"
+# section of this example).
+#
+# In addition to these assumptions, we replaced the uniform load of the beam
+# under gravity (by its own weight) by the load of the water column under gravity.
+# Therefore, the load is not uniformly distributed anymore, since the height
+# of the water column is higher towards the center of the beam.
+#
+# Because of these assumptions/modifications, we cannot expect
+# a good agreement with the analytical solution.
 
 using Pixie
 using OrdinaryDiffEq
@@ -91,9 +94,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-# Remove one particle in x-direction that the water column fits in between the two pillars,
-# even though the load of the water is not correct anymore. The simulation is not physically
-# correct anyway (see comment above).
+# Remove one particle in x-direction, so that the water column fits in between the two
+# pillars, even though the load of the water is not correct anymore. The simulation is not
+# physically correct anyway (see comment above).
 n_particles_per_dimension = (round(Int, water_width / fluid_particle_spacing) - 1,
                              round(Int, water_height / fluid_particle_spacing))
 
@@ -179,6 +182,8 @@ summary_callback()
 
 # In the following, the y deflection of the beam is compared with the analytical
 # deflection curve (one of the most widely used formulas in structural engineering).
+# Note that this is not the correct analytical soluation for this example,
+# but just an approximation (see comment at the top of this file).
 #
 # The equation is derived in e.g.:
 # Lubliner, J. & Papadopoulos, P., "Introduction to Solid Mechanics", Ch. 8,
