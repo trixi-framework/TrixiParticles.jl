@@ -426,7 +426,7 @@ function write_v0!(v0, boundary_model, ::ContinuityDensity, container)
     @unpack cache = boundary_model
     @unpack initial_density = cache
 
-    for particle in eachparticle(container)
+    for particle in each_moving_particle(container)
         # Set particle densities
         v0[ndims(container) + 1, particle] = initial_density[particle]
     end

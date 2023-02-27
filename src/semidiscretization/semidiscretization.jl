@@ -435,8 +435,16 @@ function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
     update!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update3!(container::Union{SolidParticleContainer, FluidParticleContainer},
-                  container_index, v, u, v_ode, u_ode, semi, t)
+function update3!(container::SolidParticleContainer, container_index, v, u, v_ode, u_ode,
+                  semi, t)
+    @unpack boundary_model = container
+
+    # Only update boundary model
+    update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
+end
+
+function update3!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+                  semi, t)
     return container
 end
 

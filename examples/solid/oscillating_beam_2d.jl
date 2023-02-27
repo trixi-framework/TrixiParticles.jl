@@ -1,6 +1,11 @@
 using Pixie
 using OrdinaryDiffEq
 
+acceleration = -2.0
+
+# ==========================================================================================
+# ==== Solid
+
 length_beam = 0.35
 thickness = 0.02
 n_particles_y = 5
@@ -10,6 +15,13 @@ particle_density = 1000.0
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 particle_spacing = thickness / (n_particles_y - 1)
+
+smoothing_length = sqrt(2) * particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# Lamé constants
+E = 1.4e6
+nu = 0.4
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius.
 fixed_particles = CircularShape(clamp_radius + particle_spacing / 2, 0.0, thickness / 2,
@@ -29,24 +41,22 @@ beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
-
 particle_masses = vcat(beam.masses, fixed_particles.masses)
 particle_densities = vcat(beam.densities, fixed_particles.densities)
 
-smoothing_length = sqrt(2) * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# Lamé constants
-E = 1.4e6
-nu = 0.4
+# ==========================================================================================
+# ==== Containers
 
 particle_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                             particle_masses, particle_densities,
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
                                             n_fixed_particles=fixed_particles.n_particles,
-                                            acceleration=(0.0, -2.0),
+                                            acceleration=(0.0, acceleration),
                                             nothing) # No boundary model
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)
 tspan = (0.0, 5.0)
