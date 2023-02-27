@@ -20,7 +20,7 @@
     @testset verbose=true "SpatialHashingSearch" begin
         @testset "Coordinate Limits" begin
             # Test the threshold for very large and very small coordinates.
-            nhs = SpatialHashingSearch{2}(1.0)
+            nhs = SpatialHashingSearch{2}(1.0, 0)
             coords1 = [Inf, -Inf]
             coords2 = [NaN, 0]
             coords3 = [typemax(Int) + 1.0, -typemax(Int) - 1.0]
@@ -46,7 +46,7 @@
             container = Val(:mock_container_nhs)
 
             # create neighborhood search
-            nhs1 = SpatialHashingSearch{2}(radius)
+            nhs1 = SpatialHashingSearch{2}(radius, size(coordinates1, 2))
             function Pixie.eachparticle(::Val{:mock_container_nhs})
                 Base.OneTo(size(coordinates1, 2))
             end
@@ -73,7 +73,7 @@
             neighbors3 = sort(collect(Pixie.eachneighbor(particle_position2, nhs1)))
 
             # double search radius
-            nhs2 = SpatialHashingSearch{2}(2 * radius)
+            nhs2 = SpatialHashingSearch{2}(2 * radius, size(coordinates1, 2))
             Pixie.initialize!(nhs2, coordinates1, container)
 
             # get each neighbor in double search radius
@@ -118,7 +118,7 @@
             container = Val(:mock_container_nhs_3D)
 
             # create neighborhood search
-            nhs1 = SpatialHashingSearch{3}(radius)
+            nhs1 = SpatialHashingSearch{3}(radius, size(coordinates1, 2))
             function Pixie.eachparticle(::Val{:mock_container_nhs_3D})
                 Base.OneTo(size(coordinates1, 2))
             end

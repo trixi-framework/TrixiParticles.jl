@@ -11,9 +11,10 @@ end
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
 
 @doc raw"""
-    SpatialHashingSearch{NDIMS}(search_radius)
+    SpatialHashingSearch{NDIMS}(search_radius, n_particles)
 
-Simple neighborhood search with uniform search radius ``d`` based on (Ihmsen et al. 2011, Section 4.4).
+Simple grid-based neighborhood search with uniform search radius ``d``,
+inspired by (Ihmsen et al. 2011, Section 4.4).
 
 The domain is divided into cells of uniform size ``d`` in each dimension.
 Only particles in neighboring cells are then considered as neighbors of a particle.
@@ -28,6 +29,8 @@ where ``x, y, z`` are the space coordinates.
 
 As opposed to (Ihmsen et al. 2011), we do not handle the hashing explicitly and use
 Julia's `Dict` data structure instead.
+We also do not sort the particles in any way, since that makes our Implementation
+a lot faster (although not parallelizable).
 
 ## References:
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
