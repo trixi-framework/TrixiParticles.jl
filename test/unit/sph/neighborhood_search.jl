@@ -1,5 +1,5 @@
-@testset verbose=true "Neighborhood search" begin
-    @testset "TrivialNeighborhoodSearch" begin
+@testset verbose=true "Neighborhood Search" begin
+    @testset verbose=true "TrivialNeighborhoodSearch" begin
         #### Mocking
         # Mock the container
         container = Val(:mock_container_nhs_trivial)
@@ -17,8 +17,8 @@
         @test neighbors == [1, 2, 3, 4, 5]
     end
 
-    @testset "SpatialHashingSearch" begin
-        @testset "Coordinate limits" begin
+    @testset verbose=true "SpatialHashingSearch" begin
+        @testset "Coordinate Limits" begin
             # Test the threshold for very large and very small coordinates.
             nhs = SpatialHashingSearch{2}(1.0)
             coords1 = [Inf, -Inf]
@@ -30,7 +30,7 @@
             @test Pixie.get_cell_coords(coords3, nhs) == (typemax(Int), typemin(Int))
         end
 
-        @testset "Rectangular point cloud 2D" begin
+        @testset "Rectangular Point Cloud 2D" begin
             #### Setup
             # Rectangular filled with equidistant spaced particles
             # from (x, y) = (-0.25, -0.25) to (x, y) = (0.35, 0.35)
@@ -102,7 +102,7 @@
             @test neighbors5 == [36, 37, 38, 43, 44, 45]
         end
 
-        @testset "Rectangular point cloud 3D" begin
+        @testset "Rectangular Point Cloud 3D" begin
             #### Setup
             # Rectangular filled with equidistant spaced particles
             # from (x, y, z) = (-0.25, -0.25, -0.25) to (x, y) = (0.35, 0.35, 0.35)
