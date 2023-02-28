@@ -107,7 +107,9 @@ function interact!(dv, v_particle_container, u_particle_container,
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                m_b = neighbor_container.mass[neighbor]
+                # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
+                # corresponding to the rest density of the fluid and not the material density.
+                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
                 v_diff = v_a - get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
@@ -120,7 +122,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                      particle, neighbor, pos_diff, v_diff, distance,
                                      particle_container, neighbor_container, grad_kernel)
 
-                dv_viscosity = calc_visc_term(particle_container, m_b, v_a, pos_diff,
+                dv_viscosity = calc_visc_term(particle_container, m_b, v_diff, pos_diff,
                                               distance, density_a,
                                               compact_support(smoothing_kernel,
                                                               smoothing_length),
@@ -240,8 +242,8 @@ end
 
     # density change added at the end of du
     NDIMS = ndims(particle_container)
-    dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] *
-                                   v_diff .* grad_kernel)
+    mass = get_hydrodynamic_mass(neighbor, neighbor_container)
+    dv[NDIMS + 1, particle] += sum(mass * v_diff .* grad_kernel)
 
     return dv
 end
