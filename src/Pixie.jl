@@ -28,8 +28,7 @@ include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export FluidParticleContainer, FluidParticleContainer
-export SolidParticleContainer, BoundaryParticleContainer
+export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
 export AliveCallback, SolutionSavingCallback, SummaryCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
