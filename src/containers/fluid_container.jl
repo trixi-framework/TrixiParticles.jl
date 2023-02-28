@@ -271,9 +271,9 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
     return container
 end
 
-# skip
 function compute_surface_normal(surface_tension::Any, v, u, container, container_index,
                                 u_ode, v_ode, semi, t)
+    # skip
 end
 
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
@@ -324,8 +324,8 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
     compute_pressure!(container, v)
 end
 
-# skip
 function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi)
+    # skip
 end
 
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
