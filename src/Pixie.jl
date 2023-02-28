@@ -17,14 +17,15 @@ using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
+# util needs to be first because of macro @pixie_timeit
 include("util.jl")
 include("sph/sph.jl")
+include("setups/setups.jl")
 include("containers/container.jl")
 include("semidiscretization/semidiscretization.jl")
 include("interactions/interactions.jl")
 include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
-include("setups/setups.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer

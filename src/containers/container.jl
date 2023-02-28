@@ -22,7 +22,7 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
-@inline Base.eltype(container::ParticleContainer) = eltype(container.mass)
+@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
 
 # Specifically get the current coordinates of a particle for all container types.
 # This can be dispatched by container types, since for some containers, the current coordinates

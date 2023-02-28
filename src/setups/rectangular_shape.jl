@@ -33,10 +33,10 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
 """
 struct RectangularShape{NDIMS, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
+    velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
     densities                 :: Vector{ELTYPE}
     radius                    :: Vector{ELTYPE}
-    velocity                  :: Array{ELTYPE, 2}
     particle_spacing          :: ELTYPE
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
@@ -58,8 +58,8 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
 
-        velocity = zeros(ELTYPE, 2, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
+        velocities = zeros(ELTYPE, 2, n_particles)
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
@@ -68,7 +68,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities, radius,
                                   particle_spacing, n_particles_per_dimension)
     end
 
@@ -89,7 +89,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         end
 
         coordinates = Array{Float64, 2}(undef, 3, n_particles)
-        velocity = zeros(ELTYPE, 3, n_particles)
+        velocities = zeros(ELTYPE, 3, n_particles)
         radius = particle_spacing * ones(ELTYPE, n_particles)
 
         # Leave `densities` and `masses` empty if no `density` has been provided
@@ -99,7 +99,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities, radius, velocity,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities, radius,
                                   particle_spacing, n_particles_per_dimension)
     end
 end

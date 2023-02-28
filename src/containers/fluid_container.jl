@@ -1,10 +1,14 @@
 """
-	FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
-						   density_calculator::SummationDensity, state_equation,
-						   smoothing_kernel, smoothing_length, ref_density;
-						   viscosity=NoViscosity(),
-						   acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-						   surface_tension=NoSurfaceTension(), save_forces=false)
+    FluidParticleContainer(setup,
+                           density_calculator, state_equation,
+                           smoothing_kernel, smoothing_length;
+                           viscosity=NoViscosity(),
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+                           density_calculator::SummationDensity, state_equation,
+                           smoothing_kernel, smoothing_length;
+                           viscosity=NoViscosity(),
+                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
 	FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
 						   density_calculator::ContinuityDensity, state_equation,
@@ -36,6 +40,34 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, ST, SAVE} 
     cache               :: C
     surface_tension     :: ST
     store_options       :: SAVE
+
+    # convenience constructor for passing a setup as first argument
+    function FluidParticleContainer(setup, density_calculator::SummationDensity,
+                                    state_equation, smoothing_kernel, smoothing_length;
+                                    viscosity=NoViscosity(),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)))
+        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
+                                      density_calculator,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      viscosity=viscosity, acceleration=acceleration,
+                                      surface_tension=NoSurfaceTension(),
+                                      store_options=DefaultStore())
+    end
+
+    # convenience constructor for passing a setup as first argument
+    function FluidParticleContainer(setup, density_calculator::ContinuityDensity,
+                                    state_equation, smoothing_kernel, smoothing_length;
+                                    viscosity=NoViscosity(),
+                                    acceleration=ntuple(_ -> 0.0,
+                                                        size(particle_coordinates, 1)),
+                                                        surface_tension=NoSurfaceTension(),
+                                                        store_options=DefaultStore())
+        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
+                                      setup.densities, density_calculator,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      viscosity=viscosity, acceleration=acceleration)
+    end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_radius,
@@ -216,6 +248,10 @@ end
     ndims(container) + 1
 end
 
+@inline function get_hydrodynamic_mass(particle, container::FluidParticleContainer)
+    return container.mass[particle]
+end
+
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
@@ -325,17 +361,17 @@ end
                                               neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack mass = neighbor_container
+    @unpack boundary_model = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
         neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                              neighbor_container)
         distance = norm(particle_coords - neighbor_coords)
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass[neighbor] *
-                                 kernel(smoothing_kernel, distance, smoothing_length)
+            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end
