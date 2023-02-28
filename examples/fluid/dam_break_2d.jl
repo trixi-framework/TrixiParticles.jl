@@ -76,7 +76,7 @@ particle_container = FluidParticleContainer(setup,
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),
                                             store_options=StoreAll())
 
-                                            boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

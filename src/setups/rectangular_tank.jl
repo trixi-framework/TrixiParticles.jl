@@ -54,7 +54,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     velocities                :: Array{ELTYPE, 2}
     densities                 :: Vector{ELTYPE}
     masses                    :: Vector{ELTYPE}
-    radius           :: Vector{ELTYPE}
+    radius                    :: Vector{ELTYPE}
     boundary_coordinates      :: Array{ELTYPE, 2}
     boundary_masses           :: Vector{ELTYPE}
     boundary_densities        :: Vector{ELTYPE}
@@ -122,7 +122,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         particle_radius = particle_spacing * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses, particle_radius,
+                                             particle_densities, particle_masses,
+                                             particle_radius,
                                              boundary_coordinates, boundary_masses,
                                              boundary_densities, faces,
                                              face_indices,
@@ -201,7 +202,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         particle_radius = particle_spacing * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses, particle_radius,
+                                             particle_densities, particle_masses,
+                                             particle_radius,
                                              boundary_coordinates, boundary_masses,
                                              boundary_densities, faces,
                                              face_indices,
