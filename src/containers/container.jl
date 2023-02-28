@@ -32,7 +32,7 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 end
 
 # Return the `particle`-th column of the array `field`.
-# This should not be dispatched by container type. We always expect to get a column of the array `coords`.
+# This should not be dispatched by container type. We always expect to get a column of the array `field`.
 @inline function get_vec_field(particle, field, container)
     return SVector(ntuple(@inline(dim->field[dim, particle]), Val(ndims(container))))
 end
