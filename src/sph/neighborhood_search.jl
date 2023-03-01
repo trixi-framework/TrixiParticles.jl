@@ -60,7 +60,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, con
     for particle in eachparticle(container)
         # Get cell index of the particle's cell
         cell = cell_coords(extract_svector(coordinates, container, particle),
-                                      neighborhood_search)
+                           neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell)
@@ -89,16 +89,16 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
         # Find all particles whose coordinates do not match this cell
         moved_particle_indices = (i for i in eachindex(particles)
                                   if cell_coords(extract_svector(coordinates,
-                                                                     container,
-                                                                     particles[i]),
-                                                     neighborhood_search) != cell)
+                                                                 container,
+                                                                 particles[i]),
+                                                 neighborhood_search) != cell)
 
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
             new_cell = cell_coords(extract_svector(coordinates, container,
-                                                              particle),
-                                              neighborhood_search)
+                                                   particle),
+                                   neighborhood_search)
 
             # Add particle to corresponding cell or create cell if it does not exist
             if haskey(hashtable, new_cell)
