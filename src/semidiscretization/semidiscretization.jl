@@ -240,7 +240,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers = semi
 
     @pixie_timeit timer() "drift!" begin
-        @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
+        @pixie_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @pixie_timeit timer() "velocity" begin
         # Set velocity and add acceleration for each container
@@ -272,7 +272,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
 
     @pixie_timeit timer() "kick!" begin
-        @pixie_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
+        @pixie_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
         @pixie_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
                                                                                     u_ode,
@@ -289,7 +289,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-@inline function reset_du!(du)
+@inline function set_zero!(du)
     du .= zero(eltype(du))
 
     return du
