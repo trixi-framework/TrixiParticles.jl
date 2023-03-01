@@ -156,8 +156,8 @@ function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryPartic
                                           # Note that we have to allocate here and can't use views.
                                           # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
                                           :coordinates => copy(container.initial_coordinates),
-                                          :density => [get_particle_density(particle, v,
-                                                                            container)
+                                          :density => [particle_density(v, container,
+                                                                        particle)
                                                        for particle in eachparticle(container)],
                                           :pressure => copy(boundary_model.pressure))
 

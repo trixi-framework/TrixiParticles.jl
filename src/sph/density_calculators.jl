@@ -24,22 +24,22 @@ velocities of particles ``a`` and ``b``.
 struct ContinuityDensity end
 
 # This is dispatched in boundary_container.jl
-@inline function get_particle_density(particle, v, container)
-    get_particle_density(particle, v, container.density_calculator, container)
+@inline function particle_density(v, container, particle)
+    particle_density(v, container.density_calculator, container, particle)
 end
 
-@inline function get_particle_density(particle, v, ::SummationDensity, container)
+@inline function particle_density(v, ::SummationDensity, container, particle)
     @unpack cache = container
 
     return cache.density[particle]
 end
 
-@inline function get_particle_density(particle, v, ::ContinuityDensity, container)
+@inline function particle_density(v, ::ContinuityDensity, container, particle)
     return v[end, particle]
 end
 
 # This is dispatched in fluid_container.jl and boundary_container.jl
-@inline function get_hydrodynamic_mass(particle, container)
+@inline function hydrodynamic_mass(container, particle)
     @unpack boundary_model = container
-    get_hydrodynamic_mass(particle, boundary_model, container)
+    hydrodynamic_mass(container, boundary_model, particle)
 end

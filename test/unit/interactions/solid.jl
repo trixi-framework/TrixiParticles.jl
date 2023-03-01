@@ -50,7 +50,7 @@
 
             Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
-            function Pixie.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
+            function Pixie.pk1_corrected(::Val{:mock_container_dv}, particle_)
                 if particle_ == particle[i]
                     return pk1_particle_corrected[i]
                 end
@@ -154,7 +154,7 @@
             Pixie.eachneighbor(_, ::Val{:nhs}) = eachneighbor
             Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 
-            function Pixie.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
+            function Pixie.pk1_corrected(::Val{:mock_container_dv}, particle_)
                 if particle_ == particle[i]
                     return pk1_particle_corrected[i]
                 end

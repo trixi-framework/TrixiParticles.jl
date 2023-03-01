@@ -77,10 +77,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Boundary particle data
         n_boundaries_x, n_boundaries_y, container_width,
-        container_height = get_boundary_particles_per_dimension(container_width,
-                                                                container_height,
-                                                                particle_spacing,
-                                                                spacing_ratio)
+        container_height = boundary_particles_per_dimension(container_width,
+                                                            container_height,
+                                                            particle_spacing,
+                                                            spacing_ratio)
 
         boundary_coordinates,
         face_indices = initialize_boundaries(particle_spacing / spacing_ratio,
@@ -94,10 +94,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
 
         # Particle data
-        n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing,
-                                                          "fluid width")
-        n_particles_y = get_fluid_particles_per_dimension(fluid_height, particle_spacing,
-                                                          "fluid height")
+        n_particles_x = fluid_particles_per_dimension(fluid_width, particle_spacing,
+                                                      "fluid width")
+        n_particles_y = fluid_particles_per_dimension(fluid_height, particle_spacing,
+                                                      "fluid height")
 
         if container_width < fluid_width - 1e-5 * particle_spacing
             n_particles_x -= 1
@@ -145,11 +145,11 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Boundary particle data
         n_boundaries_x, n_boundaries_y, n_boundaries_z, container_width, container_height,
-        container_depth = get_boundary_particles_per_dimension(container_width,
-                                                               container_height,
-                                                               container_depth,
-                                                               particle_spacing,
-                                                               spacing_ratio)
+        container_depth = boundary_particles_per_dimension(container_width,
+                                                           container_height,
+                                                           container_depth,
+                                                           particle_spacing,
+                                                           spacing_ratio)
 
         boundary_coordinates,
         face_indices = initialize_boundaries(particle_spacing / spacing_ratio,
@@ -165,12 +165,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
 
         # Particle data
-        n_particles_x = get_fluid_particles_per_dimension(fluid_width, particle_spacing,
-                                                          "fluid width")
-        n_particles_y = get_fluid_particles_per_dimension(fluid_height, particle_spacing,
-                                                          "fluid height")
-        n_particles_z = get_fluid_particles_per_dimension(fluid_depth, particle_spacing,
-                                                          "fluid depth")
+        n_particles_x = fluid_particles_per_dimension(fluid_width, particle_spacing,
+                                                      "fluid width")
+        n_particles_y = fluid_particles_per_dimension(fluid_height, particle_spacing,
+                                                      "fluid height")
+        n_particles_z = fluid_particles_per_dimension(fluid_depth, particle_spacing,
+                                                      "fluid depth")
 
         if container_width < fluid_width - 1e-5 * particle_spacing
             n_particles_x -= 1
@@ -691,7 +691,7 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
     return rectangular_tank
 end
 
-function get_fluid_particles_per_dimension(size, spacing, dimension)
+function fluid_particles_per_dimension(size, spacing, dimension)
     n_particles = round(Int, size / spacing)
 
     new_size = n_particles * spacing
@@ -702,8 +702,8 @@ function get_fluid_particles_per_dimension(size, spacing, dimension)
     return n_particles
 end
 
-function get_boundary_particles_per_dimension(container_width, container_height,
-                                              particle_spacing, spacing_ratio)
+function boundary_particles_per_dimension(container_width, container_height,
+                                          particle_spacing, spacing_ratio)
     n_boundaries_x = round(Int, (container_width / particle_spacing * spacing_ratio))
     n_boundaries_y = round(Int, (container_height / particle_spacing * spacing_ratio))
 
@@ -727,9 +727,9 @@ function get_boundary_particles_per_dimension(container_width, container_height,
     return n_boundaries_x, n_boundaries_y, new_container_width, new_container_height
 end
 
-function get_boundary_particles_per_dimension(container_width, container_height,
-                                              container_depth,
-                                              particle_spacing, spacing_ratio)
+function boundary_particles_per_dimension(container_width, container_height,
+                                          container_depth,
+                                          particle_spacing, spacing_ratio)
     n_boundaries_x = round(Int, container_width / particle_spacing * spacing_ratio)
     n_boundaries_y = round(Int, container_height / particle_spacing * spacing_ratio)
     n_boundaries_z = round(Int, container_depth / particle_spacing * spacing_ratio)

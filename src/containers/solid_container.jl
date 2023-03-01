@@ -180,38 +180,28 @@ end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
-@inline function get_current_coords(particle, u, container::SolidParticleContainer)
+@inline function current_coords(u, container::SolidParticleContainer, particle)
     @unpack current_coordinates = container
 
-    return get_particle_coords(particle, current_coordinates, container)
+    return extract_svector(current_coordinates, container, particle)
 end
 
-@inline function get_particle_vel(particle, v, container::SolidParticleContainer)
+@inline function current_velocity(v, container::SolidParticleContainer, particle)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
 
-    return get_particle_coords(particle, v, container)
+    return extract_svector(v, container, particle)
 end
 
-@inline function get_correction_matrix(particle, container)
-    extract_smatrix(container.correction_matrix, particle, container)
+@inline function correction_matrix(container, particle)
+    extract_smatrix(container.correction_matrix, container, particle)
 end
-@inline function get_deformation_gradient(particle, container)
-    extract_smatrix(container.deformation_grad, particle, container)
+@inline function deformation_gradient(container, particle)
+    extract_smatrix(container.deformation_grad, container, particle)
 end
-@inline function get_pk1_corrected(particle, container)
-    extract_smatrix(container.pk1_corrected, particle, container)
-end
-
-@inline function extract_smatrix(array, particle, container)
-    # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{ndims(container), ndims(container)}(
-                                                       # Convert linear index to Cartesian index
-                                                       ntuple(@inline(i->array[mod(i - 1, ndims(container)) + 1,
-                                                                               div(i - 1, ndims(container)) + 1,
-                                                                               particle]),
-                                                              Val(ndims(container)^2)))
+@inline function pk1_corrected(container, particle)
+    extract_smatrix(container.pk1_corrected, container, particle)
 end
 
 function initialize!(container::SolidParticleContainer, neighborhood_search)
@@ -229,12 +219,12 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
     for particle in eachparticle(container)
         L = zeros(eltype(mass), ndims(container), ndims(container))
 
-        particle_coordinates = get_particle_coords(particle, initial_coordinates, container)
+        particle_coordinates = extract_svector(initial_coordinates, container, particle)
         for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
             volume = mass[neighbor] / material_density[neighbor]
 
             initial_pos_diff = particle_coordinates -
-                               get_particle_coords(neighbor, initial_coordinates, container)
+                               extract_svector(initial_coordinates, container, neighbor)
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
@@ -289,7 +279,7 @@ end
         end
 
         pk1_particle = pk1_stress_tensor(J_particle, container)
-        pk1_particle_corrected = pk1_particle * get_correction_matrix(particle, container)
+        pk1_particle_corrected = pk1_particle * correction_matrix(container, particle)
 
         for j in 1:ndims(container), i in 1:ndims(container)
             pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
@@ -310,14 +300,14 @@ function deformation_gradient(particle, neighborhood_search, container)
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
-    initial_particle_coords = get_particle_coords(particle, initial_coordinates, container)
+    initial_particle_coords = extract_svector(initial_coordinates, container, particle)
     for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
         volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = get_particle_coords(particle, current_coordinates, container) -
-                   get_particle_coords(neighbor, current_coordinates, container)
+        pos_diff = extract_svector(current_coordinates, container, particle) -
+                   extract_svector(current_coordinates, container, neighbor)
 
         initial_pos_diff = initial_particle_coords -
-                           get_particle_coords(neighbor, initial_coordinates, container)
+                           extract_svector(initial_coordinates, container, neighbor)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
@@ -331,7 +321,7 @@ function deformation_gradient(particle, neighborhood_search, container)
     end
 
     # Mulitply by L_{0a}
-    result *= get_correction_matrix(particle, container)'
+    result *= correction_matrix(container, particle)'
 
     return result
 end
@@ -352,8 +342,8 @@ end
     @unpack smoothing_kernel, smoothing_length, mass,
     material_density, current_coordinates, young_modulus = container
 
-    current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
-                       get_particle_coords(neighbor, current_coordinates, container)
+    current_pos_diff = extract_svector(current_coordinates, container, particle) -
+                       extract_svector(current_coordinates, container, neighbor)
     current_distance = norm(current_pos_diff)
 
     volume_particle = mass[particle] / material_density[particle]
@@ -361,8 +351,8 @@ end
 
     kernel_ = kernel(smoothing_kernel, initial_distance, smoothing_length)
 
-    J_a = get_deformation_gradient(particle, container)
-    J_b = get_deformation_gradient(neighbor, container)
+    J_a = deformation_gradient(container, particle)
+    J_b = deformation_gradient(container, neighbor)
 
     # Use the symmetry of epsilon to simplify computations
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff

@@ -43,12 +43,12 @@ function Pixie.interact!(dv, v_particle_container, u_particle_container,
     @unpack mass, G = neighbor_container
 
     for particle in Pixie.each_moving_particle(particle_container)
-        particle_coords = Pixie.get_current_coords(particle, u_particle_container,
-                                                   particle_container)
+        particle_coords = Pixie.current_coords(u_particle_container,
+                                               particle_container, particle)
 
         for neighbor in Pixie.eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = Pixie.get_current_coords(neighbor, u_neighbor_container,
-                                                       neighbor_container)
+            neighbor_coords = Pixie.current_coords(u_neighbor_container,
+                                                   neighbor_container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -80,11 +80,11 @@ function energy(v_ode, u_ode, container, semi)
     u = Pixie.wrap_u(u_ode, 1, container, semi)
 
     for particle in Pixie.eachparticle(container)
-        e += 0.5 * mass[particle] * sum(Pixie.get_particle_vel(particle, v, container) .^ 2)
+        e += 0.5 * mass[particle] * sum(Pixie.current_velocity(v, container, particle) .^ 2)
 
-        particle_coords = Pixie.get_current_coords(particle, u, container)
+        particle_coords = Pixie.current_coords(u, container, particle)
         for neighbor in (particle + 1):Pixie.nparticles(container)
-            neighbor_coords = Pixie.get_current_coords(neighbor, u, container)
+            neighbor_coords = Pixie.current_coords(u, container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
