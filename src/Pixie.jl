@@ -2,7 +2,7 @@ module Pixie
 
 using Reexport: @reexport
 
-using DiffEqCallbacks: SavedValues, SavingCallback, SavingAffect
+using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
