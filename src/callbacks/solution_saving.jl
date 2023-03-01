@@ -9,14 +9,25 @@ additional `tstops` (note that this may change the solution).
 Additional user-defined quantities can be saved by passing functions
 as keyword arguments, which map `(v, u, t, container)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
-Note that this array must be allocated and cannot be a view to `u`.
+To ignore a custom quantity for a specific container, return `nothing`.
 
 # Examples
 ```julia
-saved_values, saving_callback = SolutionSavingCallback(interval=100)
+# Save every 100 time steps.
+saving_callback = SolutionSavingCallback(interval=100)
 
-saved_values, saving_callback = SolutionSavingCallback(dt=0.02,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
+# Save in intervals of 0.1 in terms of simulation time.
+saving_callback = SolutionSavingCallback(dt=0.1)
+
+# Additionally store the norm of the particle velocity for fluid containers as "v_mag".
+function v_mag(v, u, t, container)
+    # Ignore for other containers.
+    return nothing
+end
+function v_mag(v, u, t, container::FluidParticleContainer)
+    return [norm(v[1:ndims(container), i]) for i in axes(v, 2)]
+end
+saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
 struct SolutionSavingCallback{I, CQ}
@@ -94,11 +105,11 @@ end
 function (solution_callback::SolutionSavingCallback)(integrator)
     @unpack custom_quantities = solution_callback
 
-    u_ode = integrator.u
+    vu_ode = integrator.u
     semi = integrator.p
     iter = integrator.destats.naccept
 
-    @pixie_timeit timer() "save solution" pixie2vtk(u_ode, semi, integrator.t; iter=iter,
+    @pixie_timeit timer() "save solution" pixie2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     custom_quantities...)
 
     # Tell OrdinaryDiffEq that u has not been modified

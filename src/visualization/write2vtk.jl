@@ -26,9 +26,15 @@ function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
     vtk_grid(filename, points, cells) do vtk
         write2vtk!(vtk, v, u, t, container)
 
+        # Store particle index
+        vtk["index"] = eachparticle(container)
+
         # Extract custom quantities for this container
         for (key, func) in custom_quantities
-            vtk[string(key)] = func(v, u, t, container)
+            value = func(v, u, t, container)
+            if value !== nothing
+                vtk[string(key)] = func(v, u, t, container)
+            end
         end
     end
 end
