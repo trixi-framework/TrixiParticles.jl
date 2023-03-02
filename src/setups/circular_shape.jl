@@ -1,6 +1,6 @@
 """
     CircularShape(R, center_position::NTuple{2}, particle_spacing;
-                  shape_type=FillCircle(), density=0.0)
+                  shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
 
 Either a circle filled with particles or a circumference drawn by particles.
 
@@ -12,6 +12,7 @@ Either a circle filled with particles or a circumference drawn by particles.
 # Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
 - `density`:       Specify the density if the `densities` or `masses` fields will be used
+- `init_velocity`: Tuple containing the initial velocity of the fluid particles in x, y direction, respectively.
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -30,7 +31,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     n_particles      :: Int
 
     function CircularShape(R, center_position::NTuple{2}, particle_spacing;
-                           shape_type=FillCircle(), density=0.0)
+                           shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
@@ -43,7 +44,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
-        velocities = zeros(ELTYPE, 2, n_particles)
+        velocities = init_velocity.*ones(ELTYPE, size(coordinates))
 
         return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles)

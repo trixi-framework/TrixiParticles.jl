@@ -1,12 +1,12 @@
 @doc raw"""
     RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size::NTuple{2},
                     fluid_density;
-                    n_layers=1, spacing_ratio=1.0, init_velocity=0.0,
+                    n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                     boundary_density=fluid_density, faces=Tuple(trues(4)))
 
     RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size::NTuple{3},
                     fluid_density;
-                    n_layers=1, spacing_ratio=1.0, init_velocity=0.0,
+                    n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
                     boundary_density=fluid_density, faces=Tuple(trues(6)))
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
@@ -20,7 +20,7 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 # Keywords
 - `n_layers`:           Number of boundary layers.
 - `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing.
-- `init_velocity`:      Initial velocity of the fluid particles.
+- `init_velocity`:      Tuple containing the initial velocity of the fluid particles in x, y and z (only 3D) direction, respectively.
 - `boundary_density`:   Density of the boundary particles (by default set to the rest density)
 - `faces`:              By default all faces are generated. Set faces by passing an bit-array of length 4 (2D) or 6 (3D) to generate the faces in the normal direction: -x,+x,-y,+y,-z,+z
 
@@ -66,7 +66,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size,
                              fluid_density;
-                             n_layers=1, spacing_ratio=1.0, init_velocity=0.0,
+                             n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
         NDIMS = 2
         if length(tank_size) != NDIMS
@@ -128,7 +128,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
                              fluid_density;
-                             n_layers=1, spacing_ratio=1.0, init_velocity=0.0,
+                             n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(6)))
         NDIMS = 3
         if length(tank_size) != NDIMS
@@ -210,8 +210,8 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[2, particle] = y * particle_spacing
 
         # Velocities
-        particle_velocities[1, particle] = init_velocity
-        particle_velocities[2, particle] = init_velocity
+        particle_velocities[1, particle] = init_velocity[1]
+        particle_velocities[2, particle] = init_velocity[2]
     end
 end
 
@@ -230,9 +230,9 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[3, particle] = z * particle_spacing
 
         # Velocities
-        particle_velocities[1, particle] = init_velocity
-        particle_velocities[2, particle] = init_velocity
-        particle_velocities[3, particle] = init_velocity
+        particle_velocities[1, particle] = init_velocity[1]
+        particle_velocities[2, particle] = init_velocity[2]
+        particle_velocities[3, particle] = init_velocity[3]
     end
 end
 
