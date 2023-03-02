@@ -20,6 +20,7 @@ saving_callback = SolutionSavingCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.1)
 
 # Additionally store the norm of the particle velocity for fluid containers as "v_mag".
+using LinearAlgebra
 function v_mag(v, u, t, container)
     # Ignore for other containers.
     return nothing
@@ -142,10 +143,11 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         solution_saving = cb.affect!
+        cq = collect(solution_saving.custom_quantities)
 
         setup = [
             "interval" => solution_saving.interval,
-            "custom quantities" => solution_saving.custom_quantities,
+            "custom quantities" => isempty(cq) ? nothing : cq,
             "save initial solution" => solution_saving.save_initial_solution ?
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
@@ -165,10 +167,11 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         solution_saving = cb.affect!.affect!
+        cq = collect(solution_saving.custom_quantities)
 
         setup = [
             "dt" => solution_saving.interval,
-            "custom quantities" => solution_saving.custom_quantities,
+            "custom quantities" => isempty(cq) ? nothing : cq,
             "save initial solution" => solution_saving.save_initial_solution ?
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :

@@ -29,7 +29,7 @@ include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
-export AliveCallback, SolutionSavingCallback, SummaryCallback
+export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
