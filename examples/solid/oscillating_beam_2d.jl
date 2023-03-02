@@ -24,7 +24,7 @@ E = 1.4e6
 nu = 0.4
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius.
-fixed_particles = CircularShape(clamp_radius + particle_spacing / 2, 0.0, thickness / 2,
+fixed_particles = CircularShape(clamp_radius + particle_spacing / 2, (0.0, thickness / 2),
                                 particle_spacing,
                                 shape_type=FillCircle(x_recess=(0.0, clamp_radius),
                                                       y_recess=(0.0, thickness)),
