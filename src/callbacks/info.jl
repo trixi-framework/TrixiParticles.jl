@@ -44,7 +44,7 @@ end
 function (info_callback::InfoCallback)(u, t, integrator)
     @unpack interval = info_callback
 
-    return interval == 0 ||
+    return interval != 0 &&
            integrator.destats.naccept % interval == 0 ||
            isfinished(integrator)
 end
