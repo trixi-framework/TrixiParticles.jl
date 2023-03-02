@@ -1,5 +1,9 @@
 """
-    SolutionSavingCallback(; interval::Integer=0, dt=0.0, custom_quantities...)
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0,
+                           save_initial_solution=true,
+                           save_final_solution=true,
+                           output_directory="out",
+                           custom_quantities...)
 
 Callback to save the current numerical solution in VTK format in regular intervals.
 Either pass `interval` to save every `interval` time steps,
@@ -10,6 +14,16 @@ Additional user-defined quantities can be saved by passing functions
 as keyword arguments, which map `(v, u, t, container)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
 To ignore a custom quantity for a specific container, return `nothing`.
+
+# Keywords
+- `interval=0`:                 Save the solution every `interval` time steps.
+- `dt`:                         Save the solution in regular intervals of `dt` in terms
+                                of integration time by adding additional `tstops`
+                                (note that this may change the solution).
+- `save_initial_solution=true`: Save the initial solution.
+- `save_final_solution=true`:   Save the final solution.
+- `output_directory="out"`:     Directory to save the VTK files.
+- `custom_quantities...`:       Additional user-defined quantities.
 
 # Examples
 ```julia
@@ -39,8 +53,7 @@ struct SolutionSavingCallback{I, CQ}
     custom_quantities::CQ
 end
 
-function SolutionSavingCallback(; interval::Integer=0,
-                                dt=0.0,
+function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out",
