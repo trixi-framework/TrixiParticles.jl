@@ -80,15 +80,7 @@ semi = Semidiscretization(particle_container, boundary_container,
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-
-# activate to save
-# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
-# callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
-
-callbacks = CallbackSet(summary_callback, alive_callback)
+info_callback = InfoCallback(interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -102,10 +94,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
+            save_everystep=false, callback=info_callback);
 
 # Move right boundary
 positions = (0, container_width, 0, 0)
@@ -121,10 +110,8 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+saving_callback = SolutionSavingCallback(dt=0.02)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
@@ -132,9 +119,3 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)
