@@ -46,7 +46,7 @@ function SolutionSavingCallback(; interval::Integer=0,
                                 output_directory="out",
                                 custom_quantities...)
     if dt > 0
-        interval = dt
+        interval = Float64(dt)
     end
 
     solution_callback = SolutionSavingCallback(interval,
@@ -104,11 +104,11 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack custom_quantities = solution_callback
+    @unpack interval, custom_quantities = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
-    iter = integrator.destats.naccept
+    iter = get_iter(interval, integrator)
 
     @pixie_timeit timer() "save solution" pixie2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     custom_quantities...)
@@ -117,6 +117,12 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     u_modified!(integrator, false)
 
     return nothing
+end
+
+get_iter(::Integer, integrator) = integrator.destats.naccept
+function get_iter(dt::AbstractFloat, integrator)
+    # Basically `(t - tspan[1]) / dt` as `Int`.
+    Int(div(integrator.t - first(integrator.sol.prob.tspan), dt, RoundNearest))
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
