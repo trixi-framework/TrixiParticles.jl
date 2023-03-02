@@ -44,7 +44,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
-        velocities = init_velocity.*ones(ELTYPE, size(coordinates))
+        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles)

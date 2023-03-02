@@ -56,7 +56,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         n_particles = prod(n_particles_per_dimension)
 
         coordinates = Array{Float64, 2}(undef, 2, n_particles)
-        velocities = init_velocity.*ones(ELTYPE, size(coordinates))
+        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
@@ -83,7 +83,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         n_particles = prod(n_particles_per_dimension)
 
         coordinates = Array{Float64, 2}(undef, 3, n_particles)
-        velocities = init_velocity.*ones(ELTYPE, size(coordinates))
+        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
