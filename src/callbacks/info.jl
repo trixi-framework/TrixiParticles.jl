@@ -149,7 +149,6 @@ function initialize_info_callback(discrete_callback, u, t, integrator)
     return nothing
 end
 
-
 # The following are functions to format summary output.
 # This is all copied from Trixi.jl.
 #
