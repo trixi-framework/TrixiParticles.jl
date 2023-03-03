@@ -1,18 +1,18 @@
 """
-    CircularShape(R, center_position::NTuple{2}, particle_spacing;
+    CircularShape(R, center_position, particle_spacing;
                   shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
 
 Either a circle filled with particles or a circumference drawn by particles.
 
 # Arguments
 - `R`:                  Radius of the circle
-- `center_position`:    Tuple containing the position of the circle center in x and y direction, respectively.
-- `particle_spacing`:   Spacing betweeen the particles.
+- `center_position`:    Thee position of the circle center as a vector or tuple `(x,y)`.
+- `particle_spacing`:   Spacing between the particles.
 
 # Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
 - `density`:       Specify the density if the `densities` or `masses` fields will be used
-- `init_velocity`: Tuple containing the initial velocity of the fluid particles in x, y direction, respectively.
+- `init_velocity`: The initial velocity of the fluid particles as a vector or tuple `(vel_x, vel_y)`.
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -30,13 +30,12 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
-    function CircularShape(R, center_position::NTuple{2}, particle_spacing;
+    function CircularShape(R, center_position, particle_spacing;
                            shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
-        x_center = center_position[1]
-        y_center = center_position[2]
+        x_center, y_center = center_position
 
         coordinates = generate_particles(shape_type, R, x_center, y_center,
                                          particle_spacing)
