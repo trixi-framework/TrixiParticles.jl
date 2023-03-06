@@ -5,8 +5,18 @@ using Printf
 
 include("test_util.jl")
 
+const PIXIE_TEST = lowercase(get(ENV, "PIXIE_TEST", "all"))
+
 @testset "All Tests" verbose=true begin
-    include("unit/unit_tests.jl")
-    include("integration/integration_tests.jl")
-    include("system/system_tests.jl")
+    if PIXIE_TEST in ("all", "unit", "unitandintegration")
+        include("unit/unit_tests.jl")
+    end
+
+    if PIXIE_TEST in ("all", "integration", "unitandintegration")
+        include("integration/integration_tests.jl")
+    end
+
+    if PIXIE_TEST in ("all", "system")
+        include("system/system_tests.jl")
+    end
 end

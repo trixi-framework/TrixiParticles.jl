@@ -25,7 +25,17 @@ jobs:
             error("Code not properly formatted")'
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
-      - name: Run tests
+      - name: Run unit and integration tests
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
+          coverage: true
+        env:
+          PIXIE_TEST: unitandintegration
+      - name: Run system tests
+        uses: julia-actions/julia-runtest@v1
+        with:
+          annotate: true
+          coverage: false
+        env:
+          PIXIE_TEST: system
