@@ -1,3 +1,8 @@
+using Test
+using Pixie
+using LinearAlgebra
+using Printf
+
 """
     @pixie_testset "name of the testset" #= code to test #=
 

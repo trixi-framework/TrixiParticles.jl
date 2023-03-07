@@ -1,8 +1,3 @@
-using Test
-using Pixie
-using LinearAlgebra
-using Printf
-
 include("test_util.jl")
 
 const PIXIE_TEST = lowercase(get(ENV, "PIXIE_TEST", "all"))
