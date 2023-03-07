@@ -135,14 +135,20 @@ identical to the density of the fluid particle.
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, DC}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: Vector{ELTYPE}
+    density_calculator        :: DC
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
-        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
+        # No density calculator for this model.
+        # However, this field is mandatory to proper dispatch.
+        density_calculator = nothing
+
+        new{typeof(K), typeof(density_calculator)}(K, beta, boundary_particle_spacing, mass,
+                                                   density_calculator)
     end
 end
 
@@ -395,6 +401,14 @@ end
     @unpack cache = boundary_model
 
     return cache.density[particle]
+end
+
+@inline function get_particle_density(particle, v, density_calculator,
+                                      boundary_model::BoundaryModelMonaghanKajtar)
+
+    # This model do not use any particle density. However, a mean density is used for
+    # `ArtificialViscosityMonaghan` in the fluid interaction
+    return 0.0
 end
 
 @inline function get_hydrodynamic_mass(particle, boundary_model, container)
