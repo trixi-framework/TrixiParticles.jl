@@ -44,6 +44,7 @@ end
     return dv
 end
 
+# Solid-solid interaction
 @inline function calc_dv!(dv, particle, neighbor, initial_pos_diff, initial_distance,
                           particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
@@ -78,9 +79,6 @@ function interact!(dv, v_particle_container, u_particle_container,
     @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        m_a = get_hydrodynamic_mass(particle, particle_container)
-        v_a = get_particle_vel(particle, v_particle_container, particle_container)
-
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
@@ -91,41 +89,8 @@ function interact!(dv, v_particle_container, u_particle_container,
             distance = norm(pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-
-                # Apply the same force to the solid particle
-                # that the fluid particle experiences due to the soild particle.
-                # Note that the same arguments are passed here as in fluid-solid interact!,
-                # except that pos_diff has a flipped sign.
-                density_b = get_particle_density(neighbor, v_neighbor_container,
-                                                 neighbor_container)
-                v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-
-                # Flip sign to get the same force as for the fluid-solid direction.
-                v_diff = -(v_a - v_b)
-
-                pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                                  density_b, smoothing_length)
-
-                # use `m_a` to get the same viscosity as for the fluid-solid direction.
-                dv_viscosity = -m_a * pi_ab *
-                               kernel_deriv(smoothing_kernel, distance, smoothing_length) *
-                               pos_diff / distance
-                dv_boundary = boundary_particle_impact(neighbor, particle,
-                                                       v_neighbor_container,
-                                                       v_particle_container,
-                                                       neighbor_container,
-                                                       particle_container,
-                                                       pos_diff, distance, m_a)
-                dv_particle = dv_boundary + dv_viscosity
-
-                for i in 1:ndims(particle_container)
-                    # Multiply `dv` (acceleration on fluid particle b) by the mass of
-                    # particle b to obtain the force.
-                    # Divide by the material mass of particle a to obtain the acceleration
-                    # of solid particle a.
-                    dv[i, particle] += dv_particle[i] * neighbor_container.mass[neighbor] /
-                                       particle_container.mass[particle]
-                end
+                calc_dv!(dv, v_particle_container, v_neighbor_container, particle, neighbor,
+                         pos_diff, distance, particle_container, neighbor_container)
 
                 continuity_equation!(dv, boundary_model,
                                      v_particle_container, v_neighbor_container,
@@ -133,6 +98,61 @@ function interact!(dv, v_particle_container, u_particle_container,
                                      particle_container, neighbor_container)
             end
         end
+    end
+
+    return dv
+end
+
+# Solid-fluid interaction
+@inline function calc_dv!(dv, v_particle_container, v_neighbor_container, particle,
+                          neighbor, pos_diff, distance,
+                          particle_container::SolidParticleContainer,
+                          neighbor_container)
+    @unpack smoothing_kernel, smoothing_length,
+    state_equation, viscosity = neighbor_container
+
+    # Apply the same force to the solid particle
+    # that the fluid particle experiences due to the soild particle.
+    # Note that the same arguments are passed here as in fluid-solid interact!,
+    # except that pos_diff has a flipped sign.
+    density_particle = get_particle_density(particle, v_particle_container,
+                                            particle_container)
+    density_neighbor = get_particle_density(neighbor, v_neighbor_container,
+                                            neighbor_container)
+
+    m_a = get_hydrodynamic_mass(particle, particle_container)
+
+    # Viscosity
+    # Flip sign to get the same force as for the fluid-solid direction.
+    v_diff = -(get_particle_vel(particle, v_particle_container, particle_container) -
+               get_particle_vel(neighbor, v_neighbor_container, neighbor_container))
+    density_mean = (density_particle + density_neighbor) / 2
+
+    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance, density_mean,
+                      smoothing_length)
+
+    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
+                  distance
+
+    # use `m_a` to get the same viscosity as for the fluid-solid direction.
+    dv_viscosity = -m_a * pi_ab * grad_kernel
+
+    dv_boundary = boundary_particle_impact(neighbor, particle,
+                                           v_neighbor_container,
+                                           v_particle_container,
+                                           neighbor_container,
+                                           particle_container,
+                                           pos_diff, distance, m_a)
+
+    dv_particle = dv_boundary + dv_viscosity
+
+    for i in 1:ndims(particle_container)
+        # Multiply `dv` (acceleration on fluid particle b) by the mass of
+        # particle b to obtain the force.
+        # Divide by the material mass of particle a to obtain the acceleration
+        # of solid particle a.
+        dv[i, particle] += dv_particle[i] * neighbor_container.mass[neighbor] /
+                           particle_container.mass[particle]
     end
 
     return dv
