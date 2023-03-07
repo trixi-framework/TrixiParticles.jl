@@ -1,13 +1,13 @@
 """
-    CircularShape(R, center_position, particle_spacing;
+    CircularShape(particle_spacing, R, center_position;
                   shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
 
 Either a circle filled with particles or a circumference drawn by particles.
 
 # Arguments
+- `particle_spacing`:   Spacing between the particles.
 - `R`:                  Radius of the circle
 - `center_position`:    The position of the circle center as `(x,y)`.
-- `particle_spacing`:   Spacing between the particles.
 
 # Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
@@ -30,7 +30,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
-    function CircularShape(R, center_position, particle_spacing;
+    function CircularShape(particle_spacing, R, center_position;
                            shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)

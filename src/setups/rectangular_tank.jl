@@ -25,10 +25,10 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `faces`:              By default all faces are generated. Set faces by passing an bit-array of length 4 (2D) or 6 (3D) to generate the faces in the normal direction: -x,+x,-y,+y,-z,+z
 
 # Fields
-- `particle_coordinates::Matrix`: Coordinates of the fluid particles
-- `particle_velocities::Matrix`: Velocity of the fluid particles
-- `particle_masses::Vector`: Masses of the fluid particles
-- `particle_densities::Vector`: Densities of the fluid particles
+- `coordinates::Matrix`: Coordinates of the fluid particles
+- `velocities::Matrix`: Velocity of the fluid particles
+- `masses::Vector`: Masses of the fluid particles
+- `densities::Vector`: Densities of the fluid particles
 - `boundary_coordinates::Matrix`: Coordinates of the boundary particles
 - `boundary_masses::Vector`: Masses of the boundary particles
 - `boundary_densities::Vector`: Densities of the boundary particles
@@ -210,7 +210,7 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[2, particle] = y * particle_spacing
 
         # Velocities
-        particle_velocities[:, particle] = init_velocity
+        particle_velocities[:, particle] .= init_velocity
     end
 end
 
@@ -229,7 +229,7 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[3, particle] = z * particle_spacing
 
         # Velocities
-        particle_velocities[:, particle] = init_velocity
+        particle_velocities[:, particle] .= init_velocity
     end
 end
 
