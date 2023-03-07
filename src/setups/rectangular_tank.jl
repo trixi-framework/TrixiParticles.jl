@@ -210,8 +210,7 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[2, particle] = y * particle_spacing
 
         # Velocities
-        particle_velocities[1, particle] = init_velocity[1]
-        particle_velocities[2, particle] = init_velocity[2]
+        particle_velocities[:, particle] = init_velocity
     end
 end
 
@@ -230,9 +229,7 @@ function initialize_particles!(particle_coordinates, particle_velocities, partic
         particle_coordinates[3, particle] = z * particle_spacing
 
         # Velocities
-        particle_velocities[1, particle] = init_velocity[1]
-        particle_velocities[2, particle] = init_velocity[2]
-        particle_velocities[3, particle] = init_velocity[3]
+        particle_velocities[:, particle] = init_velocity
     end
 end
 

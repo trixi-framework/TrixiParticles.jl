@@ -13,7 +13,7 @@ Rectangular shape filled with particles.
 # Keywords
 - `density=0.0`:    Specify the density if the `densities` or `masses` fields will be used
 - `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`)
-- `init_velocity`:  The initial velocity of the fluid particles as a vector or tuple `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
+- `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
