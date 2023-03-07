@@ -171,7 +171,7 @@ end
     @unpack smoothing_length = particle_container
 
     # per convention neigbor values are indicated by 'b' and local values with 'a'
-    m_b = neighbor_container.mass[neighbor]
+    m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
     return surface_tension(smoothing_length, m_b,
                            get_normal(particle, particle_container,
@@ -197,7 +197,8 @@ end
     @unpack smoothing_length = particle_container
 
     # per convention neigbor values are indicated by 'b' and local values with 'a'
-    m_b = neighbor_container.mass[neighbor]
+    #m_b = neighbor_container.mass[neighbor]
+    m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
     return surface_tension(smoothing_length, m_b, pos_diff, distance)
 end

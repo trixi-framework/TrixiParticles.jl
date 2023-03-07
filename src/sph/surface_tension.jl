@@ -103,7 +103,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
             distance = norm(pos_diff)
             # correctness strongly depends on this leading to a symmetric distribution of points!
             if sqrt(eps()) < distance <= smoothing_length
-                m_b = neighbor_container.mass[neighbor]
+                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 density_neighbor = get_particle_density(neighbor, v_neighbor_container,
                                                         neighbor_container)
                 grad_kernel = kernel_deriv(smoothing_kernel, distance,

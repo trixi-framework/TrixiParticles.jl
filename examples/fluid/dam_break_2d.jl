@@ -70,7 +70,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
+                                            smoothing_kernel, smoothing_length, water_density,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity),
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),
@@ -147,4 +147,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # activate to save to vtk
-#pixie2vtk(saved_values)
+pixie2vtk(saved_values)
