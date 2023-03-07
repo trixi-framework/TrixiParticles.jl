@@ -144,7 +144,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, DC}
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
         # No density calculator for this model.
-        # However, this field is mandatory to proper dispatch.
+        # However, this field is mandatory for proper dispatching.
         density_calculator = nothing
 
         new{typeof(K), typeof(density_calculator)}(K, beta, boundary_particle_spacing, mass,
