@@ -4,14 +4,14 @@
         RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1)),
         RectangularTank(0.123, 1, 0.246, 0.246, 0.369, 0.369, 1020.0),
         RectangularTank(0.123, 2, 0.246, 0.246, 0.369, 0.492, 0.492, 0.492, 1020.0),
-        CircularShape(0.52, 0.1, -0.2, 0.123)
+        CircularShape(0.52, 0.1, -0.2, 0.123),
     ]
     setup_names = [
         "RectangularShape 2D",
         "RectangularShape 3D",
         "RectangularTank 2D",
         "RectangularTank 3D",
-        "CircularShape"
+        "CircularShape",
     ]
     NDIMS_ = [2, 3, 2, 3, 2]
     @testset "$(setup_names[i])" for i in eachindex(setups)
