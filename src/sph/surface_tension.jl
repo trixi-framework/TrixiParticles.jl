@@ -90,7 +90,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                             v_neighbor_container, u_neighbor_container,
                             neighborhood_search, particle_container,
                             neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, surface_normal = particle_container
+    @unpack smoothing_kernel, smoothing_length, cache = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -109,13 +109,13 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                 grad_kernel = kernel_deriv(smoothing_kernel, distance,
                                            smoothing_length) *
                               pos_diff / distance
-                surface_normal[:, particle] .+= m_b / density_neighbor *
+                cache.surface_normal[:, particle] .+= m_b / density_neighbor *
                                                 grad_kernel
             end
         end
 
         for i in 1:ndims(particle_container)
-            surface_normal[i, particle] *= smoothing_length
+            cache.surface_normal[i, particle] *= smoothing_length
         end
     end
 end

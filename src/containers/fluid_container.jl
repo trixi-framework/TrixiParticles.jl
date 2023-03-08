@@ -25,10 +25,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
        ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
-    surface_normal      :: Array{ELTYPE, 2} # [dimension, particle]
-    a_viscosity         :: Array{ELTYPE, 2} # [dimension, particle]
-    a_surface_tension   :: Array{ELTYPE, 2} # [dimension, particle]
-    a_pressure          :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
     pressure            :: Array{ELTYPE, 1} # [particle]
     density_calculator  :: DC
@@ -90,32 +86,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
             error("particle_masses has 0-length!")
         end
 
-        if state_at_rest === nothing
-            state_at_rest = state()
-        end
-
-
-        pressure = Vector{ELTYPE}(undef, nparticles)
-
-        a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
-
         if surface_tension isa SurfaceTensionAkinci
-            surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             println("WARNING: Result is *probably* inaccurate when used without corrections.
                      Incorrect pressure near the boundary leads the particles near walls to
                      be too far away, which leads to surface tension being applied near walls!")
         end
 
-        if store_options isa StoreAll
-            a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            if surface_tension isa AkinciTypeSurfaceTension
-                a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            end
-        end
+        pressure = Vector{ELTYPE}(undef, nparticles)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -126,13 +103,14 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
+        cache = append_cache!(cache, store_options, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, surface_tension, ELTYPE, NDIMS, nparticles)
+
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
                    typeof(surface_tension), typeof(store_options), typeof(state_at_rest)}(particle_coordinates,
                                                                    particle_velocities,
-                                                                   surf_n,
-                                                                   a_visc, a_surf,
-                                                                   a_pressure,
                                                                    particle_masses,
                                                                    pressure,
                                                                    density_calculator,
@@ -163,27 +141,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
             error("particle_masses has 0-length!")
         end
 
-        pressure = Vector{ELTYPE}(undef, nparticles)
-
-        a_surf = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        a_visc = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        a_pressure = Array{ELTYPE, 2}(undef, NDIMS, 1)
-        surf_n = Array{ELTYPE, 2}(undef, NDIMS, 1)
-
         if surface_tension isa SurfaceTensionAkinci
-            surf_n = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
             println("WARNING: Result is *probably* inaccurate when used without corrections.
                      Incorrect pressure near the boundary leads the particles near walls to
                      be too far away, which leads to surface tension being applied near walls!")
         end
 
-        if store_options isa StoreAll
-            a_visc = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            if surface_tension isa AkinciTypeSurfaceTension
-                a_surf = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-            end
-        end
+        pressure = Vector{ELTYPE}(undef, nparticles)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -194,12 +158,14 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
         initial_density = particle_densities
         cache = (; initial_density)
 
+        cache = append_cache!(cache, store_options, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, surface_tension, ELTYPE, NDIMS, nparticles)
+
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
                    typeof(surface_tension), typeof(store_options), typeof(state_at_rest)}(particle_coordinates,
                                                                    particle_velocities,
-                                                                   surf_n, a_visc, a_surf,
-                                                                   a_pressure,
                                                                    particle_masses,
                                                                    pressure,
                                                                    density_calculator,
@@ -213,6 +179,28 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
                                                                    state_at_rest)
     end
 end
+
+function append_cache!(cache, ::Any, ELTYPE, NDIMS, nparticles)
+    #skip
+end
+
+function append_cache!(cache, ::StoreAll, ELTYPE, NDIMS, nparticles)
+    cache = merge(cache, (;a_viscosity = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    cache = merge(cache, (;a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    return cache
+end
+
+function append_cache!(cache, ::StoreAll, ::AkinciTypeSurfaceTension, ELTYPE, NDIMS, nparticles)
+    cache = merge(cache, (;a_surface_tension = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    return cache
+end
+
+function append_cache!(cache, ::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
+
+    cache = merge(cache, (; surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    return cache
+end
+
 
 function Base.show(io::IO, container::FluidParticleContainer)
     @nospecialize container # reduce precompilation time
@@ -284,7 +272,7 @@ end
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
                                 container_index, u_ode,
                                 v_ode, semi, t)
-    @unpack surface_normal = container
+    @unpack cache = container
 
     if t > eps() # skip depending on order boundary density is not set and will diverge
         # @efaulhaber this should be fixed in another way...
@@ -294,7 +282,7 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
         # reset surface normal
         for particle in eachparticle(container)
             for i in 1:ndims(container)
-                surface_normal[i, particle] = 0.0
+                cache.surface_normal[i, particle] = 0.0
             end
         end
     end
@@ -336,12 +324,12 @@ end
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
                                 container_index, u_ode, v_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
-    @unpack surface_normal = container
+    @unpack cache = container
 
     # reset surface normal
     for particle in eachparticle(container)
         for i in 1:ndims(container)
-            surface_normal[i, particle] = 0.0
+            cache.surface_normal[i, particle] = 0.0
         end
     end
 
@@ -438,6 +426,6 @@ end
 
 @inline function get_normal(particle, particle_container::FluidParticleContainer,
                             ::SurfaceTensionAkinci)
-    @unpack surface_normal = particle_container
-    return get_vec_field(particle, surface_normal, particle_container)
+    @unpack cache = particle_container
+    return get_vec_field(particle, cache.surface_normal, particle_container)
 end

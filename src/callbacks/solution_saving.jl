@@ -117,13 +117,13 @@ function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleC
                                           :pressure => copy(container.pressure))
 
     if surface_tension isa SurfaceTensionAkinci
-        result[:surface_normal] = copy(container.surface_normal)
+        result[:surface_normal] = copy(cache.surface_normal)
     end
 
     if store_options isa StoreAll
-        result[:a_surface_tension] = copy(container.a_surface_tension)
-        result[:a_viscosity] = copy(container.a_viscosity)
-        result[:a_pressure] = copy(container.a_pressure)
+        result[:a_surface_tension] = copy(cache.a_surface_tension)
+        result[:a_viscosity] = copy(cache.a_viscosity)
+        result[:a_pressure] = copy(cache.a_pressure)
     end
 
     extract_density!(result, v, cache, density_calculator, container)
