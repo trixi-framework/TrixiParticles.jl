@@ -17,7 +17,7 @@ jobs:
       - name: Set up Julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: '1.8.2'
+          version: '1'
       - name: Apply JuliaFormatter and check format
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
@@ -25,7 +25,28 @@ jobs:
             error("Code not properly formatted")'
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
-      - name: Run tests
+      - name: Run unit and integration tests
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
+          coverage: true
+        env:
+          PIXIE_TEST: unitandintegration
+      - name: Run system tests
+        uses: julia-actions/julia-runtest@v1
+        with:
+          annotate: true
+          coverage: false
+        env:
+          PIXIE_TEST: system
+      - name: Process coverage results
+        uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,examples
+      - name: Upload coverage report to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: true
+          flags: unitandintegration
