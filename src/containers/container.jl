@@ -41,6 +41,17 @@ end
     return get_vec_field(particle, v, container)
 end
 
+struct State{ELTYPE}
+    density     ::ELTYPE
+    pressure    ::ELTYPE
+    temperature ::ELTYPE
+
+    function State(density, pressure, temperature)
+        ELTYPE = typeof(density)
+        return new{ELTYPE}(density, pressure, temperature)
+    end
+end
+
 include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers

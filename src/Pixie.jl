@@ -34,7 +34,7 @@ export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
-export StateEquationIdealGas, StateEquationCole
+export StateEquationIdealGas, StateEquationCole, State
 export ArtificialViscosityMonaghan
 export CohesionForceAkinci, SurfaceTensionAkinci
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation

@@ -8,15 +8,32 @@
 using Pixie
 using OrdinaryDiffEq
 
-gravity = -9.81
+# ==========================================================================================
+# ==== Reference Values
+
+gravity = 9.81
+atmospheric_pressure = 100000.0
+incompressible_gamma = 7
+ambient_temperature = 293.15
+
 
 # ==========================================================================================
 # ==== Fluid
 
-gravity = -9.81
+water_width = 2.0
+water_height = 1.0
+water_density = 1000.0
+
+sound_speed = 20 * sqrt(gravity * water_height)
+
+state_equation = StateEquationCole(sound_speed, incompressible_gamma, water_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
 # ==========================================================================================
-# ==== Fluid
+# ==== Particle Setup
 
 particle_spacing = 0.05
 
@@ -24,22 +41,11 @@ particle_spacing = 0.05
 beta = 1
 boundary_layers = 4
 
-water_width = 2.0
-water_height = 1.0
-water_density = 1000.0
-
-container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 6
-
-sound_speed = 20 * sqrt(9.81 * water_height)
-
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
-
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
+container_height = 6
 
 setup = RectangularTank(particle_spacing, beta, water_width, water_height,
                         container_width, container_height, water_density,
@@ -70,9 +76,9 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length, water_density,
+                                            smoothing_kernel, smoothing_length, water_at_rest,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, gravity),
+                                            acceleration=(0.0, -gravity),
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),
                                             store_options=StoreAll())
 
@@ -80,6 +86,8 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, bound
 
 # ==========================================================================================
 # ==== Simulation
+
+# 1. Initialization
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
@@ -117,12 +125,14 @@ summary_callback()
 
 #pixie2vtk(saved_values)
 
+# 2. Main Simulation
+
 # Move right boundary
 positions = (0, container_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
