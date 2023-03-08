@@ -17,9 +17,9 @@ water_height = floor(1.0 / particle_spacing) * particle_spacing # y-direction
 water_length = floor(1.0 / particle_spacing) * particle_spacing # z-direction
 water_density = 1000.0
 
-container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = floor(4.0 / particle_spacing) * particle_spacing
-container_length = floor(1.0 / particle_spacing) * particle_spacing
+tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
+tank_height = floor(4.0 / particle_spacing) * particle_spacing
+tank_length = floor(1.0 / particle_spacing) * particle_spacing
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
@@ -31,10 +31,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, beta,
-                        water_width, water_height, water_length,
-                        container_width, container_height, container_length, water_density,
-                        n_layers=boundary_layers)
+setup = RectangularTank(particle_spacing, (water_width, water_height, water_length),
+                        (tank_width, tank_height, tank_length), water_density,
+                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
@@ -91,7 +90,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=info_callback);
 
 # Move right boundary
-positions = (0, container_width, 0, 0)
+positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation

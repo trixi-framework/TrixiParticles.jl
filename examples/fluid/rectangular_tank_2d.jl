@@ -16,8 +16,8 @@ water_width = 2.0
 water_height = 0.9
 water_density = 1000.0
 
-container_width = 2.0
-container_height = 1.0
+tank_width = 2.0
+tank_height = 1.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
@@ -28,9 +28,9 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=boundary_layers)
+setup = RectangularTank(particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # ==========================================================================================
 # ==== Boundary models
