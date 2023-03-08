@@ -117,13 +117,14 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack interval, custom_quantities = solution_callback
+    @unpack interval, output_directory, custom_quantities = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
     @pixie_timeit timer() "save solution" pixie2vtk(vu_ode, semi, integrator.t; iter=iter,
+                                                    output_directory=output_directory,
                                                     custom_quantities...)
 
     # Tell OrdinaryDiffEq that u has not been modified

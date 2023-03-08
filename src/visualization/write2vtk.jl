@@ -2,18 +2,26 @@ function pixie2vtk(vu_ode, semi, t; iter=nothing, custom_quantities...)
     @unpack particle_containers = semi
     v_ode, u_ode = vu_ode.x
 
+    # Add `_i` to each container name, where `i` is the index of the corresponding
+    # container type.
+    # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
+    cnames = particle_containers .|> vtkname
+    filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
+                 for i in eachindex(cnames)]
+
     foreach_enumerate(particle_containers) do (container_index, container)
         v = wrap_v(v_ode, container_index, container, semi)
         u = wrap_u(u_ode, container_index, container, semi)
-        pixie2vtk(v, u, t, container; iter=iter, custom_quantities...)
+        pixie2vtk(v, u, t, container; container_name=filenames[container_index], iter=iter,
+                  custom_quantities...)
     end
 end
 
 function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
+                   container_name=vtkname(container),
                    custom_quantities...)
     mkpath(output_directory)
 
-    container_name = vtkname(container)
     if iter === nothing
         filename = "$output_directory/$container_name"
     else
