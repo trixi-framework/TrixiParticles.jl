@@ -44,12 +44,12 @@ boundary_layers = 4
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-container_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-container_height = 6
+tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
+tank_height = 6
 
-setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=boundary_layers)
+setup = RectangularTank(particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
@@ -128,7 +128,7 @@ summary_callback()
 # 2. Main Simulation
 
 # Move right boundary
-positions = (0, container_width, 0, 0)
+positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation

@@ -81,7 +81,7 @@
                                        joinpath(examples_dir(), "fsi", "dam_break_2d.jl"),
                                        water_width=0.15,
                                        water_height=0.29,
-                                       container_width=0.58,
+                                       tank_width=0.58,
                                        tspan_relaxing=(0.0, 2.0),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
