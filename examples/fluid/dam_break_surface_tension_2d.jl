@@ -8,33 +8,44 @@
 using Pixie
 using OrdinaryDiffEq
 
-gravity = -9.81
+# ==========================================================================================
+# ==== Reference Values
+
+gravity = 9.81
+atmospheric_pressure = 100000.0
+incompressible_gamma = 7
+ambient_temperature = 293.15
+
 
 # ==========================================================================================
 # ==== Fluid
-
-particle_spacing = 0.02
-
-# Spacing ratio between fluid and boundary particles
-beta = 1
-boundary_layers = 3
 
 water_width = 2.0
 water_height = 1.0
 water_density = 1000.0
 
-tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-tank_height = 4
+sound_speed = 20 * sqrt(gravity * water_height)
 
-sound_speed = 20 * sqrt(9.81 * water_height)
+state_equation = StateEquationCole(sound_speed, incompressible_gamma, water_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
+
+# ==========================================================================================
+# ==== Particle Setup
+
+particle_spacing = 0.05
+
+# Spacing ratio between fluid and boundary particles
+beta = 1
+boundary_layers = 4
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
-
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
+tank_height = 6
 
 setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
@@ -63,15 +74,20 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
+particle_container = FluidParticleContainer(setup,
+                                            SummationDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length, water_at_rest,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+                                            acceleration=(0.0, -gravity),
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),
+                                            store_options=StoreAll())
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+
+# 1. Initialization
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
@@ -84,9 +100,9 @@ summary_callback = SummaryCallback()
 alive_callback = AliveCallback(alive_interval=100)
 
 # activate to save
-# saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:20.0,
-#                                                         index=(u, t, container) -> Pixie.eachparticle(container))
-# callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+#saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.01:5.0,
+#                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
+#callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 
 callbacks = CallbackSet(summary_callback, alive_callback)
 
@@ -100,19 +116,23 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
 # Print the timer summary
 summary_callback()
+
+#pixie2vtk(saved_values)
+
+# 2. Main Simulation
 
 # Move right boundary
 positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
@@ -137,4 +157,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
 summary_callback()
 
 # activate to save to vtk
-# pixie2vtk(saved_values)
+pixie2vtk(saved_values)
