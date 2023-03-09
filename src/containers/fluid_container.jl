@@ -44,7 +44,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
                                     state_at_rest::State;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)),
+                                                        size(setup.coordinates, 1)),
                                     surface_tension=NoSurfaceTension(),
                                     store_options=DefaultStore())
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
@@ -62,7 +62,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
                                     state_at_rest;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)),
+                                                        size(setup.coordinates, 1)),
                                     surface_tension=NoSurfaceTension(),
                                     store_options=DefaultStore())
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
