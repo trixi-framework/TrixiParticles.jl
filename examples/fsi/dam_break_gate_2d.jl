@@ -27,8 +27,8 @@ water_width = 0.2
 water_height = 0.4
 water_density = 997.0
 
-container_width = 0.8
-container_height = 4.0
+tank_width = 0.8
+tank_height = 4.0
 gate_height = water_height + 4 * fluid_particle_spacing # Make sure that it overlaps the fluid.
 
 sound_speed = 20 * sqrt(9.81 * water_height)
@@ -41,9 +41,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, beta_tank, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=tank_layers)
+setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=tank_layers, spacing_ratio=beta_tank)
 
 gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 
