@@ -40,7 +40,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
 
     # convenience constructor for passing a setup as first argument
     function FluidParticleContainer(setup, density_calculator::SummationDensity,
-                                    state_equation, smoothing_kernel, smoothing_length, state_at_rest;
+                                    state_equation, smoothing_kernel, smoothing_length, state_at_rest::State;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)), surface_tension=NoSurfaceTension(),
@@ -72,7 +72,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses,
                                     density_calculator::SummationDensity, state_equation,
-                                    smoothing_kernel, smoothing_length, state_at_rest;
+                                    smoothing_kernel, smoothing_length, state_at_rest::State;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
@@ -181,7 +181,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
 end
 
 function append_cache!(cache, ::Any, ELTYPE, NDIMS, nparticles)
-    #skip
+    # skip
+    return cache
 end
 
 function append_cache!(cache, ::StoreAll, ELTYPE, NDIMS, nparticles)
@@ -190,15 +191,51 @@ function append_cache!(cache, ::StoreAll, ELTYPE, NDIMS, nparticles)
     return cache
 end
 
+@inline function get_a_viscosity(cache, ::Any)
+    # skip
+end
+
+@inline function get_a_viscosity(cache, ::StoreAll)
+    return cache.a_viscosity
+end
+
+@inline function get_a_pressure(cache, ::Any)
+    # skip
+end
+
+@inline function get_a_pressure(cache, ::StoreAll)
+    return cache.a_pressure
+end
+
+function append_cache!(cache, ::Any, ::Any, ELTYPE, NDIMS, nparticles)
+    # skip
+    return cache
+end
+
 function append_cache!(cache, ::StoreAll, ::AkinciTypeSurfaceTension, ELTYPE, NDIMS, nparticles)
     cache = merge(cache, (;a_surface_tension = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
     return cache
 end
 
-function append_cache!(cache, ::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
+@inline function get_a_surface_tension(cache, ::Any, ::Any)
+    # skip
+end
 
+@inline function get_a_surface_tension(cache, ::StoreAll, ::AkinciTypeSurfaceTension)
+    return cache.a_surface_tension
+end
+
+function append_cache!(cache, ::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
     cache = merge(cache, (; surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
     return cache
+end
+
+@inline function get_surface_normal(cache, ::Any)
+    # skip
+end
+
+@inline function get_surface_normal(cache, ::SurfaceTensionAkinci)
+    return cache.surface_normal
 end
 
 

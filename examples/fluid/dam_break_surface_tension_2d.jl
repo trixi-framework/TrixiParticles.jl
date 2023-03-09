@@ -16,7 +16,6 @@ atmospheric_pressure = 100000.0
 incompressible_gamma = 7
 ambient_temperature = 293.15
 
-
 # ==========================================================================================
 # ==== Fluid
 

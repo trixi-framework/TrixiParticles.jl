@@ -69,9 +69,9 @@ function interact!(dv, v_particle_container, u_particle_container,
             end
         end
 
-        store_additional!(store_options, NDIMS, cache.a_viscosity, dv_viscosity, particle)
-        store_additional!(store_options, NDIMS, cache.a_pressure, dv_pressure, particle)
-        store_additional!(store_options, NDIMS, cache.a_surface_tension, dv_surface_tension,
+        store_additional!(store_options, NDIMS, get_a_viscosity(cache, store_options), dv_viscosity, particle)
+        store_additional!(store_options, NDIMS, get_a_pressure(cache, store_options), dv_pressure, particle)
+        store_additional!(store_options, NDIMS, get_a_surface_tension(cache, store_options, surface_tension), dv_surface_tension,
                           particle)
 
         for i in 1:NDIMS

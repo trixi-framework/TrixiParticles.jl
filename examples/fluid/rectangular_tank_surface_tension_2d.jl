@@ -1,48 +1,68 @@
 using Pixie
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
-# Ratio of fluid particle spacing to boundary particle spacing
-beta = 1
+# ==========================================================================================
+# ==== Reference Values
 
+gravity = 9.81
+atmospheric_pressure = 100000.0
+incompressible_gamma = 7
+ambient_temperature = 293.15
+
+# ==========================================================================================
+# ==== Fluid
 water_width = 2.0
 water_height = 0.9
 water_density = 1000.0
 
-container_width = 2.0
-container_height = 1.0
+water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
-setup = RectangularTank(particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density, n_layers=3)
+# ==========================================================================================
+# ==== Particle Setup
 
-c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
+particle_spacing = 0.02
+beta = 1
+
+tank_width = 2.0
+tank_height = 1.0
+
+setup = RectangularTank(particle_spacing, (water_width, water_height),
+(tank_width, tank_height), water_density, n_layers=3, spacing_ratio=beta)
+
+c = 10 * sqrt(gravity * water_height)
+state_equation = StateEquationCole(c, incompressible_gamma, water_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
 
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-# Create semidiscretization
-particle_container = FluidParticleContainer(setup.particle_coordinates,
-                                            setup.particle_velocities,
-                                            setup.particle_masses, setup.particle_radius,
+# ==========================================================================================
+# ==== Containers
+particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            water_density,
+                                            water_at_rest,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, -9.81),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.001,
-                                                                                 support_length=2.0 *
-                                                                                                particle_spacing))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.001))
 
-boundary_densities = water_density * ones(size(setup.boundary_masses))
-boundary_model = BoundaryModelDummyParticles(boundary_densities, state_equation,
+
+# ==========================================================================================
+# ==== Boundary models
+
+#boundary_densities = water_density * ones(size(setup.boundary_masses))
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities, setup.boundary_masses,
+                                             state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
-                                               setup.boundary_masses, boundary_model)
+                                               boundary_model)
+
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
