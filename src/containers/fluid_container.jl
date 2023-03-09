@@ -40,14 +40,17 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
 
     # convenience constructor for passing a setup as first argument
     function FluidParticleContainer(setup, density_calculator::SummationDensity,
-                                    state_equation, smoothing_kernel, smoothing_length, state_at_rest::State;
+                                    state_equation, smoothing_kernel, smoothing_length,
+                                    state_at_rest::State;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)), surface_tension=NoSurfaceTension(),
-                                                        store_options=DefaultStore())
+                                                        size(particle_coordinates, 1)),
+                                    surface_tension=NoSurfaceTension(),
+                                    store_options=DefaultStore())
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
-                                      state_equation, smoothing_kernel, smoothing_length, state_at_rest,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      state_at_rest,
                                       viscosity=viscosity, acceleration=acceleration,
                                       surface_tension=surface_tension,
                                       store_options=store_options)
@@ -55,7 +58,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
 
     # convenience constructor for passing a setup as first argument
     function FluidParticleContainer(setup, density_calculator::ContinuityDensity,
-                                    state_equation, smoothing_kernel, smoothing_length, state_at_rest;
+                                    state_equation, smoothing_kernel, smoothing_length,
+                                    state_at_rest;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
@@ -63,7 +67,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
                                     store_options=DefaultStore())
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
-                                      state_equation, smoothing_kernel, smoothing_length, state_at_rest,
+                                      state_equation, smoothing_kernel, smoothing_length,
+                                      state_at_rest,
                                       viscosity=viscosity, acceleration=acceleration,
                                       surface_tension=surface_tension,
                                       store_options=store_options)
@@ -72,7 +77,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses,
                                     density_calculator::SummationDensity, state_equation,
-                                    smoothing_kernel, smoothing_length, state_at_rest::State;
+                                    smoothing_kernel, smoothing_length,
+                                    state_at_rest::State;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
@@ -104,24 +110,26 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
         cache = (; density)
 
         cache = append_cache!(cache, store_options, ELTYPE, NDIMS, nparticles)
-        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS,
+                              nparticles)
         cache = append_cache!(cache, surface_tension, ELTYPE, NDIMS, nparticles)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
                    typeof(surface_tension), typeof(store_options), typeof(state_at_rest)}(particle_coordinates,
-                                                                   particle_velocities,
-                                                                   particle_masses,
-                                                                   pressure,
-                                                                   density_calculator,
-                                                                   state_equation,
-                                                                   smoothing_kernel,
-                                                                   smoothing_length,
-                                                                   viscosity, acceleration_,
-                                                                   cache,
-                                                                   surface_tension,
-                                                                   store_options,
-                                                                   state_at_rest )
+                                                                                          particle_velocities,
+                                                                                          particle_masses,
+                                                                                          pressure,
+                                                                                          density_calculator,
+                                                                                          state_equation,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          viscosity,
+                                                                                          acceleration_,
+                                                                                          cache,
+                                                                                          surface_tension,
+                                                                                          store_options,
+                                                                                          state_at_rest)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
@@ -159,24 +167,26 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
         cache = (; initial_density)
 
         cache = append_cache!(cache, store_options, ELTYPE, NDIMS, nparticles)
-        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS, nparticles)
+        cache = append_cache!(cache, store_options, surface_tension, ELTYPE, NDIMS,
+                              nparticles)
         cache = append_cache!(cache, surface_tension, ELTYPE, NDIMS, nparticles)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache),
                    typeof(surface_tension), typeof(store_options), typeof(state_at_rest)}(particle_coordinates,
-                                                                   particle_velocities,
-                                                                   particle_masses,
-                                                                   pressure,
-                                                                   density_calculator,
-                                                                   state_equation,
-                                                                   smoothing_kernel,
-                                                                   smoothing_length,
-                                                                   viscosity, acceleration_,
-                                                                   cache,
-                                                                   surface_tension,
-                                                                   store_options,
-                                                                   state_at_rest)
+                                                                                          particle_velocities,
+                                                                                          particle_masses,
+                                                                                          pressure,
+                                                                                          density_calculator,
+                                                                                          state_equation,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          viscosity,
+                                                                                          acceleration_,
+                                                                                          cache,
+                                                                                          surface_tension,
+                                                                                          store_options,
+                                                                                          state_at_rest)
     end
 end
 
@@ -186,8 +196,8 @@ function append_cache!(cache, ::Any, ELTYPE, NDIMS, nparticles)
 end
 
 function append_cache!(cache, ::StoreAll, ELTYPE, NDIMS, nparticles)
-    cache = merge(cache, (;a_viscosity = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
-    cache = merge(cache, (;a_pressure = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    cache = merge(cache, (; a_viscosity=Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    cache = merge(cache, (; a_pressure=Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
     return cache
 end
 
@@ -212,8 +222,9 @@ function append_cache!(cache, ::Any, ::Any, ELTYPE, NDIMS, nparticles)
     return cache
 end
 
-function append_cache!(cache, ::StoreAll, ::AkinciTypeSurfaceTension, ELTYPE, NDIMS, nparticles)
-    cache = merge(cache, (;a_surface_tension = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+function append_cache!(cache, ::StoreAll, ::AkinciTypeSurfaceTension, ELTYPE, NDIMS,
+                       nparticles)
+    cache = merge(cache, (; a_surface_tension=Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
     return cache
 end
 
@@ -226,7 +237,7 @@ end
 end
 
 function append_cache!(cache, ::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
-    cache = merge(cache, (; surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
+    cache = merge(cache, (; surface_normal=Array{ELTYPE, 2}(undef, NDIMS, nparticles)))
     return cache
 end
 
@@ -237,7 +248,6 @@ end
 @inline function get_surface_normal(cache, ::SurfaceTensionAkinci)
     return cache.surface_normal
 end
-
 
 function Base.show(io::IO, container::FluidParticleContainer)
     @nospecialize container # reduce precompilation time

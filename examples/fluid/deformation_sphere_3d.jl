@@ -20,7 +20,9 @@ water_density = 1000.0
 particle_spacing = 0.2
 
 c = 10 * sqrt(gravity * water_height)
-state_equation = StateEquationCole(c, incompressible_gamma, water_density, atmospheric_pressure, background_pressure=atmospheric_pressure)
+state_equation = StateEquationCole(c, incompressible_gamma, water_density,
+                                   atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
 water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
 # ==========================================================================================

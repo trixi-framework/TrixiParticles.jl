@@ -110,7 +110,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                                            smoothing_length) *
                               pos_diff / distance
                 cache.surface_normal[:, particle] .+= m_b / density_neighbor *
-                                                grad_kernel
+                                                      grad_kernel
             end
         end
 

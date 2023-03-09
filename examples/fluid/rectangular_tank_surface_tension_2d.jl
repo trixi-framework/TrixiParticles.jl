@@ -27,10 +27,12 @@ tank_width = 2.0
 tank_height = 1.0
 
 setup = RectangularTank(particle_spacing, (water_width, water_height),
-(tank_width, tank_height), water_density, n_layers=3, spacing_ratio=beta)
+                        (tank_width, tank_height), water_density, n_layers=3,
+                        spacing_ratio=beta)
 
 c = 10 * sqrt(gravity * water_height)
-state_equation = StateEquationCole(c, incompressible_gamma, water_density, atmospheric_pressure,
+state_equation = StateEquationCole(c, incompressible_gamma, water_density,
+                                   atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
 
 smoothing_length = 2.0 * particle_spacing
@@ -47,19 +49,18 @@ particle_container = FluidParticleContainer(setup,
                                             acceleration=(0.0, -9.81),
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.001))
 
-
 # ==========================================================================================
 # ==== Boundary models
 
 #boundary_densities = water_density * ones(size(setup.boundary_masses))
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities, setup.boundary_masses,
+boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
+                                             setup.boundary_masses,
                                              state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates,
                                                boundary_model)
-
 
 # ==========================================================================================
 # ==== Simulation

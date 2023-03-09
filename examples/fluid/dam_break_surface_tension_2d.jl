@@ -25,7 +25,8 @@ water_density = 1000.0
 
 sound_speed = 20 * sqrt(gravity * water_height)
 
-state_equation = StateEquationCole(sound_speed, incompressible_gamma, water_density, atmospheric_pressure,
+state_equation = StateEquationCole(sound_speed, incompressible_gamma, water_density,
+                                   atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
@@ -75,7 +76,8 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length, water_at_rest,
+                                            smoothing_kernel, smoothing_length,
+                                            water_at_rest,
                                             viscosity=viscosity,
                                             acceleration=(0.0, -gravity),
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),

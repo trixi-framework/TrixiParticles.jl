@@ -42,9 +42,9 @@ end
 end
 
 struct State{ELTYPE}
-    density     ::ELTYPE
-    pressure    ::ELTYPE
-    temperature ::ELTYPE
+    density     :: ELTYPE
+    pressure    :: ELTYPE
+    temperature :: ELTYPE
 
     function State(density, pressure, temperature)
         ELTYPE = typeof(density)

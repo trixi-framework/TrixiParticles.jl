@@ -9,7 +9,6 @@ atmospheric_pressure = 100000.0
 incompressible_gamma = 7
 ambient_temperature = 293.15
 
-
 # ==========================================================================================
 # ==== Fluid
 
@@ -17,9 +16,9 @@ water_width = 1.0
 water_height = 1.0
 water_density = 1000.0
 
-
 c = 10 * sqrt(gravity * water_height)
-state_equation = StateEquationCole(c, incompressible_gamma, water_density, atmospheric_pressure,
+state_equation = StateEquationCole(c, incompressible_gamma, water_density,
+                                   atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
 
 water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
@@ -32,7 +31,7 @@ particle_spacing = 0.2
 smoothing_length = 4.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-setup = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),  density=water_density)
+setup = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), density=water_density)
 
 # ==========================================================================================
 # ==== Containers

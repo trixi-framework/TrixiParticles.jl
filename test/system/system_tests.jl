@@ -54,7 +54,6 @@
                                        tspan=(0.0, 0.5))
             @test sol.retcode == ReturnCode.Success
         end
-
     end
 
     @testset verbose=true "Solid" begin
