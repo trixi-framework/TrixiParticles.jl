@@ -116,7 +116,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
                 rho_b = get_particle_density(neighbor, v_neighbor_container,
-                                                neighbor_container)
+                                             neighbor_container)
                 rho_mean = (rho_a + rho_b) / 2
 
                 v_diff = v_a - get_particle_vel(neighbor, v_neighbor_container,
