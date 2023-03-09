@@ -328,6 +328,14 @@ function update_containers_and_nhs(v_ode, u_ode, semi, t)
 
         update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
     end
+
+    # Perform corrections which require the density, pressure and bnd
+    foreach_enumerate(particle_containers) do (container_index, container)
+        v = wrap_v(v_ode, container_index, container, semi)
+        u = wrap_u(u_ode, container_index, container, semi)
+
+        update_correction!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    end
 end
 
 function update_nhs(u_ode, semi)
@@ -445,7 +453,18 @@ end
 
 function update3!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                   semi, t)
+    # skip
     return container
+end
+
+function update_correction!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    return container
+end
+
+function update_correction!(container::FluidParticleContainer, container_index, v, u,
+    v_ode, u_ode, semi, t)
+    # Only update fluid containers
+    fluid_update_correction!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
 # NHS updates
