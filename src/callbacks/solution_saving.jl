@@ -23,6 +23,7 @@ To ignore a custom quantity for a specific container, return `nothing`.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
+- `append_timestamp=false`:     Append current timestamp to the output directory.
 - `custom_quantities...`:       Additional user-defined quantities.
 
 # Examples
@@ -56,10 +57,14 @@ end
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
-                                output_directory="out",
+                                output_directory="out", append_timestamp=false,
                                 custom_quantities...)
     if dt > 0
         interval = Float64(dt)
+    end
+
+    if append_timestamp
+        output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
     solution_callback = SolutionSavingCallback(interval,

@@ -1,4 +1,5 @@
-function pixie2vtk(vu_ode, semi, t; iter=nothing, custom_quantities...)
+function pixie2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+                   custom_quantities...)
     @unpack particle_containers = semi
     v_ode, u_ode = vu_ode.x
 
@@ -12,7 +13,8 @@ function pixie2vtk(vu_ode, semi, t; iter=nothing, custom_quantities...)
     foreach_enumerate(particle_containers) do (container_index, container)
         v = wrap_v(v_ode, container_index, container, semi)
         u = wrap_u(u_ode, container_index, container, semi)
-        pixie2vtk(v, u, t, container; container_name=filenames[container_index], iter=iter,
+        pixie2vtk(v, u, t, container; output_directory=output_directory,
+                  container_name=filenames[container_index], iter=iter,
                   custom_quantities...)
     end
 end
