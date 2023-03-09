@@ -393,22 +393,30 @@ end
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    get_particle_density(particle, v, density_calculator, boundary_model)
+    get_particle_density(particle, v, density_calculator, boundary_model, container)
 end
 
-@inline function get_particle_density(particle, v, ::AdamiPressureExtrapolation,
-                                      boundary_model)
+@inline function get_particle_density(particle, v,
+                                      ::Union{AdamiPressureExtrapolation, SummationDensity},
+                                      boundary_model, container)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
-@inline function get_particle_density(particle, v, density_calculator,
-                                      boundary_model::BoundaryModelMonaghanKajtar)
+@inline function get_particle_density(particle, v, ::ContinuityDensity, boundary_model,
+                                      container)
+    return v[end, particle]
+end
 
-    # This model do not use any particle density. However, a mean density is used for
+@inline function get_particle_density(particle, v, density_calculator,
+                                      boundary_model::BoundaryModelMonaghanKajtar,
+                                      container)
+    @unpack hydrodynamic_mass, boundary_particle_spacing = boundary_model
+
+    # This model does not use any particle density. However, a mean density is used for
     # `ArtificialViscosityMonaghan` in the fluid interaction
-    return 0.0
+    return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(container)
 end
 
 @inline function get_hydrodynamic_mass(particle, boundary_model, container)
