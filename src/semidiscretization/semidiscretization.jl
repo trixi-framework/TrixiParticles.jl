@@ -462,7 +462,7 @@ function update_correction!(container, container_index, v, u, v_ode, u_ode, semi
 end
 
 function update_correction!(container::FluidParticleContainer, container_index, v, u,
-    v_ode, u_ode, semi, t)
+                            v_ode, u_ode, semi, t)
     # Only update fluid containers
     fluid_update_correction!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end

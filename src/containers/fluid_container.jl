@@ -306,8 +306,9 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
     return container
 end
 
-function fluid_update_correction!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
-    semi, t)
+function fluid_update_correction!(container::FluidParticleContainer, container_index, v, u,
+                                  v_ode, u_ode,
+                                  semi, t)
     @unpack surface_tension = container
 
     # some surface tension models require the surface normal
@@ -325,9 +326,8 @@ end
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
                                 container_index, u_ode,
                                 v_ode, semi, t)
-
     compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
-                            v_ode, semi)
+                           v_ode, semi)
 end
 
 function compute_quantities(v, u, ::ContinuityDensity, container, container_index, u_ode,
