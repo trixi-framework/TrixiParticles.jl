@@ -97,7 +97,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
     # iterate overall fluid particles
     @threaded for particle in each_moving_particle(particle_container)
-        density_a = get_particle_density(particle, v_particle_container, particle_container)
+        rho_a = get_particle_density(particle, v_particle_container, particle_container)
         v_a = get_particle_vel(particle, v_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -115,6 +115,10 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # corresponding to the rest density of the fluid and not the material density.
                 m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
+                rho_b = get_particle_density(neighbor, v_neighbor_container,
+                                                neighbor_container)
+                rho_mean = (rho_a + rho_b) / 2
+
                 v_diff = v_a - get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
 
@@ -127,7 +131,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                      particle_container, neighbor_container, grad_kernel)
 
                 dv_viscosity = calc_visc_term(particle_container, m_b, v_diff, pos_diff,
-                                              distance, density_a,
+                                              distance, rho_mean,
                                               compact_support(smoothing_kernel,
                                                               smoothing_length),
                                               grad_kernel)
