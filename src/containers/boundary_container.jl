@@ -289,8 +289,7 @@ end
                                                      v_boundary_container,
                                                      boundary_container)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     return -m_b *
            (particle_container.pressure[particle] / density_particle^2 +
