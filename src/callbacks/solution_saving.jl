@@ -2,7 +2,7 @@
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                            save_initial_solution=true,
                            save_final_solution=true,
-                           output_directory="out",
+                           output_directory="out", append_timestamp=false,
                            custom_quantities...)
 
 Callback to save the current numerical solution in VTK format in regular intervals.
