@@ -166,7 +166,7 @@ end
                                       surface_tension::CohesionForceAkinci)
     @unpack smoothing_length = particle_container
 
-    # per convention neigbor values are indicated by 'b' and local values with 'a'
+    # Per convention, neighbor values are indicated by `b` and local values with `a`.
     m_b = neighbor_container.mass[neighbor]
 
     return surface_tension(smoothing_length, m_b, pos_diff, distance)
