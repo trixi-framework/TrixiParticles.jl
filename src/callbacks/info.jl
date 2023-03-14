@@ -45,7 +45,7 @@ function (info_callback::InfoCallback)(u, t, integrator)
     @unpack interval = info_callback
 
     return interval != 0 &&
-           integrator.destats.naccept % interval == 0 ||
+           integrator.stats.naccept % interval == 0 ||
            isfinished(integrator)
 end
 
@@ -54,7 +54,7 @@ function (info_callback::InfoCallback)(integrator)
     if isfinished(integrator)
         println("─"^100)
         println("Pixie simulation finished.  Final time: ", integrator.t,
-                "  Time steps: ", integrator.destats.naccept, " (accepted), ",
+                "  Time steps: ", integrator.stats.naccept, " (accepted), ",
                 integrator.iter, " (total)")
         println("─"^100)
         println()
@@ -67,7 +67,7 @@ function (info_callback::InfoCallback)(integrator)
     else
         runtime_absolute = 1.0e-9 * (time_ns() - info_callback.start_time)
         @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
-                integrator.destats.naccept, integrator.dt, integrator.t, runtime_absolute)
+                integrator.stats.naccept, integrator.dt, integrator.t, runtime_absolute)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
