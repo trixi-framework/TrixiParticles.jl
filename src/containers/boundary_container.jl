@@ -140,7 +140,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, DC}
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: Vector{ELTYPE}
-    density_calculator        :: DC
+    density_calculator        :: Nothing
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
         # No density calculator for this model.
