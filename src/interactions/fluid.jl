@@ -178,7 +178,7 @@ end
                                       surface_tension::SurfaceTensionAkinci)
     @unpack smoothing_length = particle_container
 
-    # per convention neigbor values are indicated by 'b' and local values with 'a'
+    # Per convention, neighbor values are indicated by `b` and local values with `a`.
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
     return surface_tension(smoothing_length, m_b,
