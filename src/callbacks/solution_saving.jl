@@ -1,173 +1,208 @@
 """
-    SolutionSavingCallback(; saveat, custom_quantities...)
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0,
+                           save_initial_solution=true,
+                           save_final_solution=true,
+                           output_directory="out", append_timestamp=false,
+                           custom_quantities...)
 
-Callback to save the solution at specific times specified by `saveat`.
-The return value is the tuple `saved_values, callback`.
+Callback to save the current numerical solution in VTK format in regular intervals.
+Either pass `interval` to save every `interval` time steps,
+or pass `dt` to save in intervals of `dt` in terms of integration time by adding
+additional `tstops` (note that this may change the solution).
 
 Additional user-defined quantities can be saved by passing functions
 as keyword arguments, which map `(v, u, t, container)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
-Note that this array must be allocated and cannot be a view to `u`.
+To ignore a custom quantity for a specific container, return `nothing`.
+
+# Keywords
+- `interval=0`:                 Save the solution every `interval` time steps.
+- `dt`:                         Save the solution in regular intervals of `dt` in terms
+                                of integration time by adding additional `tstops`
+                                (note that this may change the solution).
+- `save_initial_solution=true`: Save the initial solution.
+- `save_final_solution=true`:   Save the final solution.
+- `output_directory="out"`:     Directory to save the VTK files.
+- `append_timestamp=false`:     Append current timestamp to the output directory.
+- `custom_quantities...`:       Additional user-defined quantities.
 
 # Examples
 ```julia
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
+# Save every 100 time steps.
+saving_callback = SolutionSavingCallback(interval=100)
+
+# Save in intervals of 0.1 in terms of simulation time.
+saving_callback = SolutionSavingCallback(dt=0.1)
+
+# Additionally store the norm of the particle velocity for fluid containers as "v_mag".
+using LinearAlgebra
+function v_mag(v, u, t, container)
+    # Ignore for other containers.
+    return nothing
+end
+function v_mag(v, u, t, container::FluidParticleContainer)
+    return [norm(v[1:ndims(container), i]) for i in axes(v, 2)]
+end
+saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
-function SolutionSavingCallback(; saveat, custom_quantities...)
-    ELTYPE = eltype(saveat)
-    extract_quantities = ExtractQuantities(custom_quantities)
-
-    # Create callback
-    saved_values = SavedValues(ELTYPE, Dict{Symbol, Dict{Symbol, Array{ELTYPE}}})
-    callback = SavingCallback(extract_quantities, saved_values, saveat=saveat)
-
-    return saved_values, callback
+struct SolutionSavingCallback{I, CQ}
+    interval::I
+    save_initial_solution::Bool
+    save_final_solution::Bool
+    output_directory::String
+    custom_quantities::CQ
 end
 
-struct ExtractQuantities{CQ}
-    custom_quantities::CQ
+function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
+                                save_initial_solution=true,
+                                save_final_solution=true,
+                                output_directory="out", append_timestamp=false,
+                                custom_quantities...)
+    if dt > 0
+        interval = Float64(dt)
+    end
 
-    function ExtractQuantities(custom_quantities)
-        new{typeof(custom_quantities)}(custom_quantities)
+    if append_timestamp
+        output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
+    end
+
+    solution_callback = SolutionSavingCallback(interval,
+                                               save_initial_solution, save_final_solution,
+                                               output_directory, custom_quantities)
+
+    if dt > 0
+        # Add a `tstop` every `dt`, and save the final solution.
+        return PeriodicCallback(solution_callback, dt,
+                                initialize=initialize_save_cb!,
+                                final_affect=save_final_solution)
+    else
+        # The first one is the condition, the second the affect!
+        return DiscreteCallback(solution_callback, solution_callback,
+                                save_positions=(false, false),
+                                initialize=initialize_save_cb!)
     end
 end
 
-function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SavingAffect{<:ExtractQuantities}})
+function initialize_save_cb!(cb, u, t, integrator)
+    # The `SolutionSavingCallback` is either `cb.affect!` (with `DiscreteCallback`)
+    # or `cb.affect!.affect!` (with `PeriodicCallback`).
+    # Let recursive dispatch handle this.
+    initialize_save_cb!(cb.affect!, u, t, integrator)
+end
+
+function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    # Save initial solution
+    if solution_callback.save_initial_solution
+        # Update containers to compute quantities like density and pressure.
+        semi = integrator.p
+        v_ode, u_ode = u.x
+        update_containers_and_nhs(v_ode, u_ode, semi, t)
+
+        # Apply the callback.
+        solution_callback(integrator)
+    end
+
+    return nothing
+end
+
+# condition
+function (solution_callback::SolutionSavingCallback)(u, t, integrator)
+    @unpack interval, save_final_solution = solution_callback
+
+    # With error-based step size control, some steps can be rejected. Thus,
+    #   `integrator.iter >= integrator.destats.naccept`
+    #    (total #steps)       (#accepted steps)
+    # We need to check the number of accepted steps since callbacks are not
+    # activated after a rejected step.
+    return interval > 0 && (((integrator.destats.naccept % interval == 0) &&
+             !(integrator.destats.naccept == 0 && integrator.iter > 0)) ||
+            (save_final_solution && isfinished(integrator)))
+end
+
+# affect!
+function (solution_callback::SolutionSavingCallback)(integrator)
+    @unpack interval, output_directory, custom_quantities = solution_callback
+
+    vu_ode = integrator.u
+    semi = integrator.p
+    iter = get_iter(interval, integrator)
+
+    @pixie_timeit timer() "save solution" pixie2vtk(vu_ode, semi, integrator.t; iter=iter,
+                                                    output_directory=output_directory,
+                                                    custom_quantities...)
+
+    # Tell OrdinaryDiffEq that u has not been modified
+    u_modified!(integrator, false)
+
+    return nothing
+end
+
+get_iter(::Integer, integrator) = integrator.destats.naccept
+function get_iter(dt::AbstractFloat, integrator)
+    # Basically `(t - tspan[1]) / dt` as `Int`.
+    Int(div(integrator.t - first(integrator.sol.prob.tspan), dt, RoundNearest))
+end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
-    print(io, "SolutionSavingCallback")
+    solution_saving = cb.affect!
+    print(io, "SolutionSavingCallback(interval=", solution_saving.interval, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    solution_saving = cb.affect!.affect!
+    print(io, "SolutionSavingCallback(dt=", solution_saving.interval, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
-                   cb::DiscreteCallback{<:Any, <:SavingAffect{<:ExtractQuantities}})
+                   cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
     @nospecialize cb # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, cb)
     else
-        summary_box(io, "SolutionSavingCallback")
+        solution_saving = cb.affect!
+        cq = collect(solution_saving.custom_quantities)
+
+        setup = [
+            "interval" => solution_saving.interval,
+            "custom quantities" => isempty(cq) ? nothing : cq,
+            "save initial solution" => solution_saving.save_initial_solution ?
+                                       "yes" : "no",
+            "save final solution" => solution_saving.save_final_solution ? "yes" :
+                                     "no",
+            "output directory" => abspath(normpath(solution_saving.output_directory)),
+        ]
+        summary_box(io, "SolutionSavingCallback", setup)
     end
 end
 
-function (extract_quantities::ExtractQuantities)(u_tmp, t, integrator)
-    semi = integrator.p
-    @unpack particle_containers = semi
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SolutionSavingCallback}})
+    @nospecialize cb # reduce precompilation time
 
-    # The SavingCallback does not insert tstops, so `u` had to be interpolated.
-    # However, only `u` (or `u` and `v`) has been interpolated, but not the containers.
-    # To upate the containers, we have to call `kick!` with the correct `u` again (`u_tmp`).
-    # We need to pass some cache as `dv` to `kick!`.
-    # We can use `first(get_tmp_cache(integrator))` for this.
-    # However, `u_tmp` is either a reference to the actual `integrator.u` or a reference
-    # to the cache `first(get_tmp_cache(integrator))`.
-    # Thus, when we call `kick!` with `first(get_tmp_cache(integrator))` as `dv`,
-    # we might change the contents of `u_tmp`.
-    # For this reason, we copy the current `u_tmp` before we call `kick!`.
-    v_ode = copy(u_tmp.x[1])
-    u_ode = copy(u_tmp.x[2])
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        solution_saving = cb.affect!.affect!
+        cq = collect(solution_saving.custom_quantities)
 
-    # Call `kick!` to update the containers (pressures, etc.).
-    # We only need the `v`-part of the cache here.
-    v_cache = first(get_tmp_cache(integrator)).x[1]
-    kick!(v_cache, v_ode, u_ode, semi, t)
-
-    result = Dict{Symbol, Dict{Symbol, Array{Float32}}}()
-
-    for (container_index, container) in pairs(particle_containers)
-        v = wrap_v(v_ode, container_index, container, semi)
-        u = wrap_u(u_ode, container_index, container, semi)
-        write_result!(result, v, u, t, container, extract_quantities)
+        setup = [
+            "dt" => solution_saving.interval,
+            "custom quantities" => isempty(cq) ? nothing : cq,
+            "save initial solution" => solution_saving.save_initial_solution ?
+                                       "yes" : "no",
+            "save final solution" => solution_saving.save_final_solution ? "yes" :
+                                     "no",
+            "output directory" => abspath(normpath(solution_saving.output_directory)),
+        ]
+        summary_box(io, "SolutionSavingCallback", setup)
     end
-
-    return result
-end
-
-function write_result!(result, v, u, t, container, extract_quantities)
-    @unpack custom_quantities = extract_quantities
-
-    name, value = extract_quantities(v, u, container)
-
-    # Extract custom quantities for this container
-    for (key, func) in custom_quantities
-        value[key] = func(v, u, t, container)
-    end
-
-    # Determine name for this container
-    i = 1
-    while Symbol("$(name)_$i") in keys(result)
-        i += 1
-    end
-
-    result[Symbol("$(name)_$i")] = value
-
-    return result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleContainer)
-    @unpack density_calculator, cache = container
-
-    result = Dict{Symbol, Array{Float32}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => u[1:ndims(container), :],
-                                          :velocity => v[1:ndims(container), :],
-                                          :pressure => copy(container.pressure))
-
-    extract_density!(result, v, cache, density_calculator, container)
-
-    return "fluid", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::SolidParticleContainer)
-    n_fixed_particles = nparticles(container) - n_moving_particles(container)
-    result = Dict{Symbol, Array{Float32}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.current_coordinates),
-                                          :velocity => hcat(v[1:ndims(container), :],
-                                                            zeros(ndims(container),
-                                                                  n_fixed_particles)),
-                                          :material_density => container.material_density)
-
-    return "solid", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer)
-    @unpack boundary_model = container
-
-    extract_quantities(v, u, container, boundary_model)
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
-                                                 boundary_model)
-    result = Dict{Symbol, Array{Float64}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.initial_coordinates))
-
-    return "boundary", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
-                                                 boundary_model::BoundaryModelDummyParticles)
-    result = Dict{Symbol, Array{Float64}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.initial_coordinates),
-                                          :density => [get_particle_density(particle, v,
-                                                                            container)
-                                                       for particle in eachparticle(container)],
-                                          :pressure => copy(boundary_model.pressure))
-
-    return "boundary", result
-end
-
-function extract_density!(result, v, cache, ::SummationDensity, container)
-    result[:density] = copy(cache.density)
-end
-
-function extract_density!(result, v, cache, ::ContinuityDensity, container)
-    result[:density] = v[end, :]
 end
