@@ -49,7 +49,7 @@ background pressure (to be used with free surfaces).
 
 For water, an average value of ``\gamma = 7.15`` is usually used (Cole 1948, p. 39).
 
-Formulation used in WCSPH, ISPH and PCISPH
+Formulation used in WCSPH, ISPH and PCISPH.
 
 ## References:
 - Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
