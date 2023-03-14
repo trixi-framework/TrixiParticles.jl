@@ -25,15 +25,15 @@ function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
     mkpath(output_directory)
 
     if iter === nothing
-        filename = "$output_directory/$container_name"
+        file = joinpath(output_directory, "$container_name")
     else
-        filename = "$output_directory/$(container_name)_$iter"
+        file = joinpath(output_directory, "$(container_name)_$iter")
     end
 
     points = current_coordinates(u, container)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
-    vtk_grid(filename, points, cells) do vtk
+    vtk_grid(file, points, cells) do vtk
         write2vtk!(vtk, v, u, t, container)
 
         # Store particle index
@@ -47,6 +47,17 @@ function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
             end
         end
     end
+end
+
+function pixie2vtk(coordinates; output_directory="out", filename="coordinates")
+    mkpath(output_directory)
+    file = joinpath(output_directory, filename)
+
+    points = coordinates
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+    vtk_grid(vtk -> nothing, file, points, cells)
+
+    return file
 end
 
 vtkname(container::FluidParticleContainer) = "fluid"
