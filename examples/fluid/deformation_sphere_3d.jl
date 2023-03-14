@@ -29,7 +29,7 @@ water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 # ==== Particle Setup
 
 smoothing_length = 2.0 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
 setup = RectangularShape(particle_spacing, (5, 5, 5), (0.0, 0.0, 0.0),
                          density=water_density)
