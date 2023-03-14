@@ -367,10 +367,8 @@ end
     2 * ndims(container) + 1
 end
 
-@inline function current_coords(u, container::BoundaryParticleContainer, particle)
-    @unpack initial_coordinates = container
-
-    return extract_svector(initial_coordinates, container, particle)
+@inline function current_coordinates(u, container::BoundaryParticleContainer)
+    return container.initial_coordinates
 end
 
 @inline function current_velocity(v, container::BoundaryParticleContainer, particle)

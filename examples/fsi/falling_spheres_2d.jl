@@ -20,8 +20,8 @@ water_width = 2.0
 water_height = 0.9
 water_density = 1000.0
 
-container_width = 2.0
-container_height = 1.0
+tank_width = 2.0
+tank_height = 1.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
@@ -32,9 +32,10 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=boundary_layers, faces=(true, true, true, false))
+setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=boundary_layers, spacing_ratio=beta,
+                        faces=(true, true, true, false))
 
 # ==========================================================================================
 # ==== Solid
@@ -53,9 +54,9 @@ E1 = 7e4
 E2 = 1e5
 nu = 0.0
 
-sphere_1 = CircularShape(solid_radius_1, 0.5, 1.6, solid_particle_spacing,
+sphere_1 = CircularShape(solid_particle_spacing, solid_radius_1, (0.5, 1.6),
                          density=solid_density_1)
-sphere_2 = CircularShape(solid_radius_2, 1.5, 1.6, solid_particle_spacing,
+sphere_2 = CircularShape(solid_particle_spacing, solid_radius_2, (1.5, 1.6),
                          density=solid_density_2)
 
 particle_coordinates_1 = sphere_1.coordinates
@@ -132,11 +133,10 @@ semi = Semidiscretization(particle_container, boundary_container, solid_containe
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=10)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.02:1000.0)
+info_callback = InfoCallback(interval=10)
+saving_callback = SolutionSavingCallback(dt=0.02)
 
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -151,9 +151,3 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)

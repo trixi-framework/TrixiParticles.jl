@@ -180,10 +180,8 @@ end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
-@inline function current_coords(u, container::SolidParticleContainer, particle)
-    @unpack current_coordinates = container
-
-    return extract_svector(current_coordinates, container, particle)
+@inline function current_coordinates(u, container::SolidParticleContainer)
+    return container.current_coordinates
 end
 
 @inline function current_velocity(v, container::SolidParticleContainer, particle)

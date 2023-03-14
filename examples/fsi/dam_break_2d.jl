@@ -23,8 +23,8 @@ water_width = 0.146
 water_height = 0.292
 water_density = 1000.0
 
-container_width = 0.584
-container_height = 4.0
+tank_width = 0.584
+tank_height = 4.0
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
@@ -36,9 +36,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=boundary_layers)
+setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
@@ -142,10 +142,7 @@ semi = Semidiscretization(particle_container, boundary_container,
 tspan_relaxing = (0.0, 3.0)
 ode = semidiscretize(semi, tspan_relaxing)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-
-callbacks = CallbackSet(summary_callback, alive_callback)
+info_callback = InfoCallback(interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -159,13 +156,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
+            save_everystep=false, callback=info_callback);
 
 # Move right boundary
-positions = (0, container_width, 0, 0)
+positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
@@ -178,10 +172,8 @@ semi = Semidiscretization(particle_container, boundary_container, solid_containe
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+saving_callback = SolutionSavingCallback(dt=0.02)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
@@ -189,9 +181,3 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)

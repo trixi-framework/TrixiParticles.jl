@@ -96,17 +96,15 @@ function energy(v_ode, u_ode, container, semi)
     return e
 end
 
-function (extract_quantities::Pixie.ExtractQuantities)(v, u, container::NBodyContainer)
+Pixie.vtkname(container::NBodyContainer) = "n-body"
+
+function Pixie.write2vtk!(vtk, v, u, t, container::NBodyContainer)
     @unpack mass = container
 
-    result = Dict{Symbol, Array{Float64}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(u),
-                                          :velocity => copy(v),
-                                          :mass => copy(mass))
+    vtk["velocity"] = v
+    vtk["mass"] = mass
 
-    return "n-body", result
+    return vtk
 end
 
 function Base.show(io::IO, container::NBodyContainer)
