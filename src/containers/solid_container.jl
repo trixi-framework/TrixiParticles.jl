@@ -180,10 +180,8 @@ end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
-@inline function get_current_coords(particle, u, container::SolidParticleContainer)
-    @unpack current_coordinates = container
-
-    return get_particle_coords(particle, current_coordinates, container)
+@inline function current_coordinates(u, container::SolidParticleContainer)
+    return container.current_coordinates
 end
 
 @inline function get_particle_vel(particle, v, container::SolidParticleContainer)
