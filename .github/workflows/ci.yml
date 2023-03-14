@@ -32,13 +32,6 @@ jobs:
           coverage: true
         env:
           PIXIE_TEST: unitandintegration
-      - name: Run system tests
-        uses: julia-actions/julia-runtest@v1
-        with:
-          annotate: true
-          coverage: false
-        env:
-          PIXIE_TEST: system
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
         with:
@@ -50,3 +43,10 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
           flags: unitandintegration
+      - name: Run system tests
+        uses: julia-actions/julia-runtest@v1
+        with:
+          annotate: true
+          coverage: false
+        env:
+          PIXIE_TEST: system
