@@ -71,10 +71,9 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 # For boundary particles, the velocity is not integrated.
                 # Therefore, the density is stored in the first dimension of `dv`.
-                dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                       kernel_deriv(smoothing_kernel, distance,
-                                                    smoothing_length) .*
-                                       pos_diff) / distance
+                dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
+                                       kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                   smoothing_length))
             end
         end
     end

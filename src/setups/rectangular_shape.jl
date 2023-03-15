@@ -1,9 +1,7 @@
 """
-    RectangularShape(particle_spacing, n_particles_per_dimension::NTuple{2},
-                     particle_position; density=0.0, loop_order=:x_first)
-
-    RectangularShape(particle_spacing, n_particles_per_dimension::NTuple{3},
-                     particle_position; density=0.0, loop_order=:x_first)
+    RectangularShape(particle_spacing, n_particles_per_dimension,
+                     particle_position; density=0.0, loop_order=:x_first,
+                     init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)))
 
 Rectangular shape filled with particles.
 
@@ -13,8 +11,9 @@ Rectangular shape filled with particles.
 - `particle_position::Tuple`:    Coordinates of the corner in negative coordinate directions
 
 # Keywords
-- `density=0.0`: Specify the density if the `densities` or `masses` fields will be used
-- `loop_order`: To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`)
+- `density=0.0`:    Specify the density if the `densities` or `masses` fields will be used
+- `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`)
+- `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -33,15 +32,18 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
 """
 struct RectangularShape{NDIMS, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
+    velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
     densities                 :: Vector{ELTYPE}
     particle_spacing          :: ELTYPE
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularShape(particle_spacing,
-                              n_particles_per_dimension::NTuple{2}, particle_position;
-                              density=zero(eltype(particle_spacing)), loop_order=:x_first)
-        NDIMS = 2
+                              n_particles_per_dimension, particle_position;
+                              density=zero(eltype(particle_spacing)), loop_order=:x_first,
+                              init_velocity=ntuple(_ -> 0.0,
+                                                   length(n_particles_per_dimension)))
+        NDIMS = length(n_particles_per_dimension)
         if length(particle_position) != NDIMS
             throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
@@ -50,41 +52,18 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         n_particles = prod(n_particles_per_dimension)
 
-        coordinates = Array{Float64, 2}(undef, 2, n_particles)
+        coordinates = Array{Float64, 2}(undef, NDIMS, n_particles)
+        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
-        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles * (density > 0))
+        masses = density * particle_spacing^NDIMS *
+                 ones(ELTYPE, n_particles * (density > 0))
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
-                                  particle_spacing, n_particles_per_dimension)
-    end
-
-    function RectangularShape(particle_spacing,
-                              n_particles_per_dimension::NTuple{3}, particle_position;
-                              density=zero(eltype(particle_spacing)), loop_order=:x_first)
-        NDIMS = 3
-        if length(particle_position) != NDIMS
-            throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        ELTYPE = eltype(particle_spacing)
-
-        n_particles = prod(n_particles_per_dimension)
-
-        coordinates = Array{Float64, 2}(undef, 3, n_particles)
-
-        # Leave `densities` and `masses` empty if no `density` has been provided
-        densities = density * ones(ELTYPE, n_particles * (density > 0))
-        masses = density * particle_spacing^3 * ones(ELTYPE, n_particles * (density > 0))
-
-        initialize_rectangular!(coordinates, particle_spacing, particle_position,
-                                n_particles_per_dimension, loop_order)
-
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles_per_dimension)
     end
 end

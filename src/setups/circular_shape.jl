@@ -1,17 +1,18 @@
 """
-    CircularShape(R, x_center, y_center, particle_spacing;
-                  shape_type=FillCircle(), density=0.0)
+    CircularShape(particle_spacing, R, center_position;
+                  shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
 
 Either a circle filled with particles or a circumference drawn by particles.
 
 # Arguments
-- `R`:                      Radius of the circle
-- `x_center`, `y_center`:   Center of the circle in x and y direction, respectively.
-- `particle_spacing`:       Spacing betweeen the particles.
+- `particle_spacing`:   Spacing between the particles.
+- `R`:                  Radius of the circle
+- `center_position`:    The position of the circle center as `(x,y)`.
 
 # Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
 - `density`:       Specify the density if the `densities` or `masses` fields will be used
+- `init_velocity`: The initial velocity of the fluid particles as `(vel_x, vel_y)`.
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -23,15 +24,18 @@ see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
 struct CircularShape{NDIMS, ELTYPE <: Real}
     coordinates      :: Array{ELTYPE, 2}
+    velocities       :: Array{ELTYPE, 2}
     masses           :: Vector{ELTYPE}
     densities        :: Vector{ELTYPE}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
-    function CircularShape(R, x_center, y_center, particle_spacing;
-                           shape_type=FillCircle(), density=0.0)
+    function CircularShape(particle_spacing, R, center_position;
+                           shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
+
+        x_center, y_center = center_position
 
         coordinates = generate_particles(shape_type, R, x_center, y_center,
                                          particle_spacing)
@@ -39,8 +43,9 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-        return new{NDIMS, ELTYPE}(coordinates, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
                                   particle_spacing, n_particles)
     end
 end

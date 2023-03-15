@@ -56,7 +56,7 @@
                                        joinpath(examples_dir(), "fsi", "dam_break_2d.jl"),
                                        water_width=0.15,
                                        water_height=0.29,
-                                       container_width=0.58,
+                                       tank_width=0.58,
                                        tspan_relaxing=(0.0, 2.0),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
@@ -70,6 +70,22 @@
                                        tspan_relaxing=(0.0, 2.0),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @pixie_testset "fsi/bending_beam_2d.jl" begin
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fsi",
+                                                "bending_beam_2d.jl"),
+                                       n_particles_y=5)
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @pixie_testset "fsi/falling_spheres_2d.jl" begin
+            @test_nowarn pixie_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fsi",
+                                                "falling_spheres_2d.jl"),
+                                       tspan=(0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
         end
     end

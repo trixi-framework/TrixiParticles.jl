@@ -180,10 +180,8 @@ end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
-@inline function get_current_coords(particle, u, container::SolidParticleContainer)
-    @unpack current_coordinates = container
-
-    return get_particle_coords(particle, current_coordinates, container)
+@inline function current_coordinates(u, container::SolidParticleContainer)
+    return container.current_coordinates
 end
 
 @inline function get_particle_vel(particle, v, container::SolidParticleContainer)
@@ -238,10 +236,8 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
-                grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
-                                           smoothing_length) *
-                              initial_pos_diff / initial_distance
-
+                grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff,
+                                          initial_distance, smoothing_length)
                 L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
         end
@@ -322,9 +318,8 @@ function deformation_gradient(particle, neighborhood_search, container)
 
         if initial_distance > sqrt(eps())
             # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
-                                       smoothing_length) * initial_pos_diff /
-                          initial_distance
+            grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
+                                      smoothing_length)
 
             result -= volume * pos_diff * grad_kernel'
         end
@@ -426,7 +421,7 @@ function write_v0!(v0, boundary_model, ::ContinuityDensity, container)
     @unpack cache = boundary_model
     @unpack initial_density = cache
 
-    for particle in eachparticle(container)
+    for particle in each_moving_particle(container)
         # Set particle densities
         v0[ndims(container) + 1, particle] = initial_density[particle]
     end
