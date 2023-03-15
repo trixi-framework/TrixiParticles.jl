@@ -1,3 +1,7 @@
+@inline function kernel_grad(kernel, pos_diff, distance, h)
+    return kernel_deriv(kernel, distance, h) * pos_diff / distance
+end
+
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 
@@ -24,18 +28,18 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
     The kernel can be called as `Pixie.kernel(::SchoenbergCubicSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergCubicSplineKernel, r, h)`.
     The length of the compact support can be obtained as
     `Pixie.compact_support(::SchoenbergCubicSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `Pixie.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -118,18 +122,18 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
     The kernel can be called as `Pixie.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergQuarticSplineKernel, r, h)`.
     The length of the compact support can be obtained as
     `Pixie.compact_support(::SchoenbergQuarticSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `Pixie.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -218,18 +222,18 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
     The kernel can be called as `Pixie.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergQuinticSplineKernel, r, h)`.
     The length of the compact support can be obtained as
     `Pixie.compact_support(::SchoenbergQuinticSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `Pixie.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
