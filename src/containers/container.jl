@@ -43,9 +43,17 @@ end
     return extract_svector(current_coordinates(u, container), container, particle)
 end
 
-# This can be dispatched by container types, since for some containers, the current coordinates
+# This can be dispatched by container type, since for some containers, the current coordinates
 # are stored in u, for others in the container itself. By default, try to extract them from u.
 @inline current_coordinates(u, container) = u
+
+# Specifically get the initial coordinates of a particle for all container types.
+@inline function initial_coords(container, particle)
+    return extract_svector(initial_coordinates(container), container, particle)
+end
+
+# This can be dispatched by container type.
+@inline initial_coordinates(container) = container.initial_coordinates
 
 # Specifically get the current coordinates of a particle for all container types.
 # This can be dispatched by container types, since for some containers, the current coordinates

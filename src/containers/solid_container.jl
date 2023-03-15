@@ -184,6 +184,13 @@ end
     return container.current_coordinates
 end
 
+@inline function current_coords(container::SolidParticleContainer, particle)
+    # For this container, the current coordinates are stored in the container directly,
+    # so we don't need a `u` array. This is only to be used in this file
+    # when no `u` is available.
+    current_coords(nothing, container, particle)
+end
+
 @inline function current_velocity(v, container::SolidParticleContainer, particle)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
@@ -217,12 +224,11 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
     for particle in eachparticle(container)
         L = zeros(eltype(mass), ndims(container), ndims(container))
 
-        particle_coordinates = extract_svector(initial_coordinates, container, particle)
+        particle_coordinates = initial_coords(container, particle)
         for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
             volume = mass[neighbor] / material_density[neighbor]
 
-            initial_pos_diff = particle_coordinates -
-                               extract_svector(initial_coordinates, container, neighbor)
+            initial_pos_diff = particle_coordinates - initial_coords(container, neighbor)
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
@@ -298,14 +304,12 @@ function deformation_gradient(particle, neighborhood_search, container)
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
-    initial_particle_coords = extract_svector(initial_coordinates, container, particle)
+    initial_particle_coords = initial_coords(container, particle)
     for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
         volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = extract_svector(current_coordinates, container, particle) -
-                   extract_svector(current_coordinates, container, neighbor)
+        pos_diff = current_coords(container, particle) - current_coords(container, neighbor)
 
-        initial_pos_diff = initial_particle_coords -
-                           extract_svector(initial_coordinates, container, neighbor)
+        initial_pos_diff = initial_particle_coords - initial_coords(container, neighbor)
         initial_distance = norm(initial_pos_diff)
 
         if initial_distance > sqrt(eps())
@@ -340,8 +344,8 @@ end
     @unpack smoothing_kernel, smoothing_length, mass,
     material_density, current_coordinates, young_modulus = container
 
-    current_pos_diff = extract_svector(current_coordinates, container, particle) -
-                       extract_svector(current_coordinates, container, neighbor)
+    current_pos_diff = current_coords(container, particle) -
+                       current_coords(container, neighbor)
     current_distance = norm(current_pos_diff)
 
     volume_particle = mass[particle] / material_density[particle]

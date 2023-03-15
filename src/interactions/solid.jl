@@ -18,11 +18,9 @@ end
 
     @threaded for particle in each_moving_particle(particle_container)
         # Everything here is done in the initial coordinates
-        particle_coords = extract_svector(particle_container.initial_coordinates,
-                                          particle_container, particle)
+        particle_coords = initial_coords(particle_container, particle)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = extract_svector(neighbor_container.initial_coordinates,
-                                              neighbor_container, neighbor)
+            neighbor_coords = initial_coords(neighbor_container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
