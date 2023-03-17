@@ -18,21 +18,21 @@ end
 function print_startup_message()
     s = """
 
-        ██████╗ ██╗██╗  ██╗██╗███████╗
-        ██╔══██╗██║╚██╗██╔╝██║██╔════╝
-        ██████╔╝██║ ╚███╔╝ ██║█████╗
-        ██╔═══╝ ██║ ██╔██╗ ██║██╔══╝
-        ██║     ██║██╔╝ ██╗██║███████╗
-        ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝╚══════╝
+        ████████╗██████╗ ██╗██╗  ██╗██╗
+        ╚══██╔══╝██╔══██╗██║╚██╗██╔╝██║
+           ██║   ██████╔╝██║ ╚███╔╝ ██║
+           ██║   ██╔══██╗██║ ██╔██╗ ██║
+           ██║   ██║  ██║██║██╔╝ ██╗██║
+           ╚═╝   ╚═╝  ╚═╝╚═╝╚═╝  ╚═╝╚═╝
         """
     println(s)
 end
 
-# Enable debug timings `@pixie_timeit timer() "name" stuff...`.
+# Enable debug timings `@trixi_timeit timer() "name" stuff...`.
 # This allows us to disable timings completely by executing
-# `TimerOutputs.disable_debug_timings(Pixie)`
+# `TimerOutputs.disable_debug_timings(TrixiParticles)`
 # and to enable them again by executing
-# `TimerOutputs.enable_debug_timings(Pixie)`
+# `TimerOutputs.enable_debug_timings(TrixiParticles)`
 timeit_debug_enabled() = true
 
 # Store main timer for global timing of functions
@@ -41,16 +41,16 @@ const main_timer = TimerOutput()
 # Always call timer() to hide implementation details
 timer() = main_timer
 
-#     @pixie_timeit timer() "some label" expression
+#     @trixi_timeit timer() "some label" expression
 #
 # Basically the same as a special case of `@timeit_debug` from
 # [TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl),
 # but without `try ... finally ... end` block. Thus, it's not exception-safe,
 # but it also avoids some related performance problems. Since we do not use
-# exception handling in Pixie, that's not really an issue.
+# exception handling in TrixiParticles, that's not really an issue.
 #
 # Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
-macro pixie_timeit(timer_output, label, expr)
+macro trixi_timeit(timer_output, label, expr)
     timeit_block = quote
         if timeit_debug_enabled()
             local to = $(esc(timer_output))
@@ -118,15 +118,15 @@ macro threaded(expr)
     #     Look at the comments for `wrap_array` when considering to change this macro.
 
     return esc(quote
-                   Pixie.@batch $(expr)
+                   TrixiParticles.@batch $(expr)
                end)
 end
 
 """
     examples_dir()
 
-Return the directory where the example files provided with Pixie.jl are located. If Pixie is
-installed as a regular package (with `]add Pixie`), these files are read-only and should *not* be
+Return the directory where the example files provided with TrixiParticles.jl are located. If TrixiParticles is
+installed as a regular package (with `]add TrixiParticles`), these files are read-only and should *not* be
 modified. To find out which files are available, use, e.g., `readdir`.
 
 Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
@@ -136,23 +136,23 @@ Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 readdir(examples_dir())
 ```
 """
-examples_dir() = joinpath(pathof(Pixie) |> dirname |> dirname, "examples")
+examples_dir() = joinpath(pathof(TrixiParticles) |> dirname |> dirname, "examples")
 
-# Note: We can't call the method below `Pixie.include` since that is created automatically
-# inside `module Pixie` to `include` source files and evaluate them within the global scope
-# of `Pixie`. However, users will want to evaluate in the global scope of `Main` or something
+# Note: We can't call the method below `TrixiParticles.include` since that is created automatically
+# inside `module TrixiParticles` to `include` source files and evaluate them within the global scope
+# of `TrixiParticles`. However, users will want to evaluate in the global scope of `Main` or something
 # similar to manage dependencies on their own.
 """
-    pixie_include([mod::Module=Main,] example::AbstractString; kwargs...)
+    trixi_include([mod::Module=Main,] example::AbstractString; kwargs...)
 
 `include` the file `example` and evaluate its content in the global scope of module `mod`.
 You can override specific assignments in `example` by supplying keyword arguments.
-It's basic purpose is to make it easier to modify some parameters while running Pixie from the
+It's basic purpose is to make it easier to modify some parameters while running TrixiParticles from the
 REPL. Additionally, this is used in tests to reduce the computational burden for CI while still
 providing examples with sensible default values for users.
 
 Before replacing assignments in `example`, the keyword argument `maxiters` is inserted
-into calls to `solve` and `Pixie.solve` with it's default value used in the SciML ecosystem
+into calls to `solve` and `TrixiParticles.solve` with it's default value used in the SciML ecosystem
 for ODEs, see https://diffeq.sciml.ai/stable/basics/common_solver_opts/#Miscellaneous.
 
 Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
@@ -161,18 +161,18 @@ Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 
 ```jldoctest
 julia> redirect_stdout(devnull) do
-           pixie_include(@__MODULE__, joinpath(examples_dir(), "dam_break_2d.jl"),
+           trixi_include(@__MODULE__, joinpath(examples_dir(), "dam_break_2d.jl"),
                          tspan=(0.0, 0.1))
            sol.t[end]
        end
 0.1
 ```
 """
-function pixie_include(mod::Module, elixir::AbstractString; kwargs...)
+function trixi_include(mod::Module, elixir::AbstractString; kwargs...)
     Base.include(ex -> replace_assignments(insert_maxiters(ex); kwargs...), mod, elixir)
 end
 
-pixie_include(elixir::AbstractString; kwargs...) = pixie_include(Main, elixir; kwargs...)
+trixi_include(elixir::AbstractString; kwargs...) = trixi_include(Main, elixir; kwargs...)
 
 # Helper methods used in the functions defined above, also copied from Trixi.jl
 
@@ -180,7 +180,7 @@ pixie_include(elixir::AbstractString; kwargs...) = pixie_include(Main, elixir; k
 walkexpr(f, expr::Expr) = f(Expr(expr.head, (walkexpr(f, arg) for arg in expr.args)...))
 walkexpr(f, x) = f(x)
 
-# Insert the keyword argument `maxiters` into calls to `solve` and `Pixie.solve`
+# Insert the keyword argument `maxiters` into calls to `solve` and `TrixiParticles.solve`
 # with default value `10^5` if it is not already present.
 function insert_maxiters(expr)
     maxiters_default = 10^5
@@ -188,13 +188,13 @@ function insert_maxiters(expr)
     expr = walkexpr(expr) do x
         if x isa Expr
             is_plain_solve = x.head === Symbol("call") && x.args[1] === Symbol("solve")
-            is_pixie_solve = (x.head === Symbol("call") && x.args[1] isa Expr &&
+            is_trixi_solve = (x.head === Symbol("call") && x.args[1] isa Expr &&
                               x.args[1].head === Symbol(".") &&
-                              x.args[1].args[1] === Symbol("Pixie") &&
+                              x.args[1].args[1] === Symbol("TrixiParticles") &&
                               x.args[1].args[2] isa QuoteNode &&
                               x.args[1].args[2].value === Symbol("solve"))
 
-            if is_plain_solve || is_pixie_solve
+            if is_plain_solve || is_trixi_solve
                 # Do nothing if `maxiters` is already set as keyword argument...
                 for arg in x.args
                     if arg isa Expr && arg.head === Symbol("kw") &&

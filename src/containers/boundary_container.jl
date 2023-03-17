@@ -443,7 +443,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
@@ -509,7 +509,7 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     volume .= zero(eltype(volume))
 
     # Use all other containers for the pressure summation
-    @pixie_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                                  neighbor_container)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
                                       neighbor_container, semi)

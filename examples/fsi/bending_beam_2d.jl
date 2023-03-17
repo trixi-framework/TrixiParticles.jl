@@ -15,7 +15,7 @@
 # Because of these assumptions/modifications, we cannot expect
 # a good agreement with the analytical solution.
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
@@ -203,7 +203,7 @@ function plot_analytical(solid_container)
     # In a homogeneous linearly elastic beam in pure bending, the neutral fiber (zero stress)
     # coincides with the centroidal fiber
     neutral_fiber_position = [solid_container.current_coordinates[:, i]
-                              for i in Pixie.each_moving_particle(solid_container)
+                              for i in TrixiParticles.each_moving_particle(solid_container)
                               if isapprox(solid_container.initial_coordinates[2, i],
                                           -centroidal_fiber_position)]
 

@@ -1,4 +1,4 @@
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
