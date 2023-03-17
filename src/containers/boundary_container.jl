@@ -289,8 +289,7 @@ end
                                                      v_boundary_container,
                                                      boundary_container)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     return -m_b *
            (particle_container.pressure[particle] / density_particle^2 +
@@ -369,10 +368,8 @@ end
     2 * ndims(container) + 1
 end
 
-@inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
-    @unpack initial_coordinates = container
-
-    return get_particle_coords(particle, initial_coordinates, container)
+@inline function current_coordinates(u, container::BoundaryParticleContainer)
+    return container.initial_coordinates
 end
 
 @inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)

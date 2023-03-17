@@ -1,48 +1,113 @@
-function pixie2vtk(solution_or_boundaries...; output_directory="out")
-    for solution_or_boundary in solution_or_boundaries
-        pixie2vtk(solution_or_boundary, output_directory=output_directory)
+function pixie2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+                   custom_quantities...)
+    @unpack particle_containers = semi
+    v_ode, u_ode = vu_ode.x
+
+    # Add `_i` to each container name, where `i` is the index of the corresponding
+    # container type.
+    # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
+    cnames = particle_containers .|> vtkname
+    filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
+                 for i in eachindex(cnames)]
+
+    foreach_enumerate(particle_containers) do (container_index, container)
+        v = wrap_v(v_ode, container_index, container, semi)
+        u = wrap_u(u_ode, container_index, container, semi)
+        pixie2vtk(v, u, t, container; output_directory=output_directory,
+                  container_name=filenames[container_index], iter=iter,
+                  custom_quantities...)
     end
 end
 
-function pixie2vtk(saved_values::SavedValues; output_directory="out")
-    @unpack saveval = saved_values
+function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
+                   container_name=vtkname(container),
+                   custom_quantities...)
+    mkpath(output_directory)
 
-    for timestep in eachindex(saveval)
-        solution = saveval[timestep]
+    if iter === nothing
+        file = joinpath(output_directory, "$container_name")
+    else
+        file = joinpath(output_directory, "$(container_name)_$iter")
+    end
 
-        mkpath(output_directory)
+    points = current_coordinates(u, container)
+    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
-        # For all containers
-        for key in keys(solution)
-            filename = timestep === nothing ? "$output_directory/$key" :
-                       "$output_directory/$(key)_$timestep"
+    vtk_grid(file, points, cells) do vtk
+        write2vtk!(vtk, v, u, t, container)
 
-            points = solution[key][:coordinates]
-            cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+        # Store particle index
+        vtk["index"] = eachparticle(container)
 
-            vtk_grid(filename, points, cells) do vtk
-                for (key, value) in solution[key]
-                    if key != :coordinates
-                        vtk[string(key)] = value
-                    end
-                end
+        # Extract custom quantities for this container
+        for (key, func) in custom_quantities
+            value = func(v, u, t, container)
+            if value !== nothing
+                vtk[string(key)] = func(v, u, t, container)
             end
         end
     end
 end
 
-function pixie2vtk(container::BoundaryParticleContainer; output_directory="out")
-    @unpack initial_coordinates = container
-
+function pixie2vtk(coordinates; output_directory="out", filename="coordinates")
     mkpath(output_directory)
-    filename = "$output_directory/boundaries"
+    file = joinpath(output_directory, filename)
 
-    points = initial_coordinates
+    points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+    vtk_grid(vtk -> nothing, file, points, cells)
 
-    vtk_grid(filename, points, cells) do vtk
-        nothing
-    end
+    return file
+end
 
-    return nothing
+vtkname(container::FluidParticleContainer) = "fluid"
+vtkname(container::SolidParticleContainer) = "solid"
+vtkname(container::BoundaryParticleContainer) = "boundary"
+
+function write2vtk!(vtk, v, u, t, container::FluidParticleContainer)
+    @unpack density_calculator, cache = container
+
+    vtk["velocity"] = view(v, 1:ndims(container), :)
+    vtk["pressure"] = container.pressure
+
+    write2vtk!(vtk, v, density_calculator, container)
+end
+
+function write2vtk!(vtk, v, ::SummationDensity, container::FluidParticleContainer)
+    vtk["density"] = container.cache.density
+
+    return vtk
+end
+
+function write2vtk!(vtk, v, ::ContinuityDensity, container::FluidParticleContainer)
+    vtk["density"] = view(v, ndims(container) + 1, :)
+
+    return vtk
+end
+
+function write2vtk!(vtk, v, u, t, container::SolidParticleContainer)
+    n_fixed_particles = nparticles(container) - n_moving_particles(container)
+
+    vtk["velocity"] = hcat(view(v, 1:ndims(container), :),
+                           zeros(ndims(container), n_fixed_particles))
+    vtk["material_density"] = container.material_density
+
+    return vtk
+end
+
+function write2vtk!(vtk, v, u, t, container::BoundaryParticleContainer)
+    write2vtk!(vtk, v, u, t, container.boundary_model, container)
+end
+
+function write2vtk!(vtk, v, u, t, model, container::BoundaryParticleContainer)
+    return vtk
+end
+
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
+                    container::BoundaryParticleContainer)
+    vtk["density"] = [get_particle_density(particle, v, container)
+                      for particle in eachparticle(container)]
+    vtk["pressure"] = model.pressure
+
+    return vtk
 end
