@@ -30,25 +30,26 @@ end
 
 # NHS update
 function TrixiParticles.update!(neighborhood_search, u,
-                       container::NBodyContainer,
-                       neighbor::NBodyContainer)
+                                container::NBodyContainer,
+                                neighbor::NBodyContainer)
     TrixiParticles.update!(neighborhood_search, u, neighbor)
 end
 
 function TrixiParticles.interact!(dv, v_particle_container, u_particle_container,
-                         v_neighbor_container, u_neighbor_container,
-                         neighborhood_search,
-                         particle_container::NBodyContainer,
-                         neighbor_container::NBodyContainer)
+                                  v_neighbor_container, u_neighbor_container,
+                                  neighborhood_search,
+                                  particle_container::NBodyContainer,
+                                  neighbor_container::NBodyContainer)
     @unpack mass, G = neighbor_container
 
     for particle in TrixiParticles.each_moving_particle(particle_container)
         particle_coords = TrixiParticles.get_current_coords(particle, u_particle_container,
-                                                   particle_container)
+                                                            particle_container)
 
         for neighbor in TrixiParticles.eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = TrixiParticles.get_current_coords(neighbor, u_neighbor_container,
-                                                       neighbor_container)
+            neighbor_coords = TrixiParticles.get_current_coords(neighbor,
+                                                                u_neighbor_container,
+                                                                neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -80,7 +81,8 @@ function energy(v_ode, u_ode, container, semi)
     u = TrixiParticles.wrap_u(u_ode, 1, container, semi)
 
     for particle in TrixiParticles.eachparticle(container)
-        e += 0.5 * mass[particle] * sum(TrixiParticles.get_particle_vel(particle, v, container) .^ 2)
+        e += 0.5 * mass[particle] *
+             sum(TrixiParticles.get_particle_vel(particle, v, container) .^ 2)
 
         particle_coords = TrixiParticles.get_current_coords(particle, u, container)
         for neighbor in (particle + 1):TrixiParticles.nparticles(container)

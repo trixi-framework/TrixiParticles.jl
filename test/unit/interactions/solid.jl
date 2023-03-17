@@ -63,8 +63,8 @@
             dv_expected[:, particle[i]] = dv_particle_expected[i]
 
             TrixiParticles.calc_dv!(dv, particle[i], neighbor[i], initial_pos_diff[i],
-                           initial_distance,
-                           container, container)
+                                    initial_distance,
+                                    container, container)
 
             @test dv ≈ dv_expected
         end
@@ -161,7 +161,9 @@
                 return pk1_neighbor_corrected[i]
             end
 
-            TrixiParticles.add_acceleration!(_, _, ::Val{:mock_container_interact}) = nothing
+            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_container_interact})
+                nothing
+            end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
             #### Verification
