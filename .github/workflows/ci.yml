@@ -31,7 +31,7 @@ jobs:
           annotate: true
           coverage: true
         env:
-          TRIXI_TEST: unitandintegration
+          TRIXIPARTICLES_TEST: unitandintegration
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
         with:
@@ -49,4 +49,4 @@ jobs:
           annotate: true
           coverage: false
         env:
-          TRIXI_TEST: system
+          TRIXIPARTICLES_TEST: system
