@@ -46,7 +46,7 @@ end
     # Viscosity
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
              get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-    density_mean = (density_particle + density_neighbor) / 2
+    density_mean = 0.5 * (density_particle + density_neighbor)
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
 
