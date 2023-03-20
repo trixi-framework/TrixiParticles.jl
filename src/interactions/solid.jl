@@ -52,8 +52,8 @@ end
     density_particle = particle_container.material_density[particle]
     density_neighbor = neighbor_container.material_density[neighbor]
 
-    grad_kernel = kernel_deriv(smoothing_kernel, initial_distance, smoothing_length) *
-                  initial_pos_diff / initial_distance
+    grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
+                              smoothing_length)
 
     m_b = neighbor_container.mass[neighbor]
 
@@ -131,8 +131,8 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance, density_mean,
                       smoothing_length)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                              smoothing_length)
 
     # use `m_a` to get the same viscosity as for the fluid-solid direction.
     dv_viscosity = -m_a * pi_ab * grad_kernel
@@ -190,10 +190,9 @@ end
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
     NDIMS = ndims(particle_container)
-    dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                   kernel_deriv(smoothing_kernel, distance,
-                                                smoothing_length) .*
-                                   pos_diff) / distance
+    dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
+                                   kernel_grad(smoothing_kernel, pos_diff, distance,
+                                               smoothing_length))
 
     return dv
 end

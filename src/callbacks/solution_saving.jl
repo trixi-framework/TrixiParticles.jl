@@ -111,12 +111,12 @@ function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     @unpack interval, save_final_solution = solution_callback
 
     # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.destats.naccept`
+    #   `integrator.iter >= integrator.stats.naccept`
     #    (total #steps)       (#accepted steps)
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
-    return interval > 0 && (((integrator.destats.naccept % interval == 0) &&
-             !(integrator.destats.naccept == 0 && integrator.iter > 0)) ||
+    return interval > 0 && (((integrator.stats.naccept % interval == 0) &&
+             !(integrator.stats.naccept == 0 && integrator.iter > 0)) ||
             (save_final_solution && isfinished(integrator)))
 end
 
@@ -138,7 +138,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     return nothing
 end
 
-get_iter(::Integer, integrator) = integrator.destats.naccept
+get_iter(::Integer, integrator) = integrator.stats.naccept
 function get_iter(dt::AbstractFloat, integrator)
     # Basically `(t - tspan[1]) / dt` as `Int`.
     Int(div(integrator.t - first(integrator.sol.prob.tspan), dt, RoundNearest))

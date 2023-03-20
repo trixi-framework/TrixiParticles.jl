@@ -48,8 +48,8 @@ end
     density_mean = (density_particle + density_neighbor) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, density_mean, smoothing_length)
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
     m_b = neighbor_container.mass[neighbor]
 
     dv_pressure = -m_b *
@@ -121,12 +121,9 @@ end
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
     NDIMS = ndims(particle_container)
-
-    dv[NDIMS + 1, particle] += sum(mass * vdiff *
-                                   kernel_deriv(smoothing_kernel,
-                                                distance,
-                                                smoothing_length) .*
-                                   pos_diff) / distance
+    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
+                                   kernel_grad(smoothing_kernel, pos_diff, distance,
+                                               smoothing_length))
 
     return dv
 end
