@@ -110,29 +110,27 @@ end
                           neighbor_container)
     @unpack smoothing_kernel, smoothing_length,
     state_equation, viscosity = neighbor_container
+    @unpack boundary_model = particle_container
 
     # Apply the same force to the solid particle
     # that the fluid particle experiences due to the soild particle.
     # Note that the same arguments are passed here as in fluid-solid interact!,
     # except that pos_diff has a flipped sign.
-    rho_fluid = get_particle_density(neighbor, v_neighbor_container,
-                                            neighbor_container)
+    rho_a = get_particle_density(neighbor, v_neighbor_container,
+                                 neighbor_container)
 
     m_a = get_hydrodynamic_mass(particle, particle_container)
-
-    # Viscosity
-    # Flip sign to get the same force as for the fluid-solid direction.
-    v_diff = -(get_particle_vel(particle, v_particle_container, particle_container) -
-               get_particle_vel(neighbor, v_neighbor_container, neighbor_container))
-
-    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance, rho_fluid,
-                      smoothing_length)
 
     grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
                               smoothing_length)
 
-    # use `m_a` to get the same viscosity as for the fluid-solid direction.
-    dv_viscosity = -m_a * pi_ab * grad_kernel
+    # use `m_a` to get the same viscosity as for the fluid-solid direction
+    dv_viscosity = calc_viscosity(boundary_model,
+                                  neighbor_container, particle_container,
+                                  v_neighbor_container, v_particle_container,
+                                  neighbor, particle, pos_diff, distance, rho_a,
+                                  grad_kernel, state_equation.sound_speed, smoothing_length,
+                                  m_a)
 
     dv_boundary = boundary_particle_impact(neighbor, particle,
                                            v_neighbor_container,

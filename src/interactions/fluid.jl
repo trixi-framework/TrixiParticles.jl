@@ -70,26 +70,17 @@ end
                           particle_container::FluidParticleContainer,
                           neighbor_container)
     @unpack smoothing_kernel, smoothing_length,
-    state_equation, viscosity = particle_container
+    state_equation = particle_container
+    @unpack boundary_model = neighbor_container
 
     rho_a = get_particle_density(particle, v_particle_container,
                                  particle_container)
-
-    # Viscosity
-    v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
-             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-
-    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                      distance, rho_a, smoothing_length)
-
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
 
     # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
     # corresponding to the rest density of the fluid and not the material density.
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
-    dv_viscosity = -m_b * pi_ab * grad_kernel
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     dv_boundary = boundary_particle_impact(particle, neighbor,
                                            v_particle_container,
@@ -97,6 +88,12 @@ end
                                            particle_container,
                                            neighbor_container,
                                            pos_diff, distance, m_b)
+
+    dv_viscosity = calc_viscosity(boundary_model, particle_container, neighbor_container,
+                                  v_particle_container, v_neighbor_container,
+                                  particle, neighbor, pos_diff, distance, rho_a,
+                                  grad_kernel, state_equation.sound_speed, smoothing_length,
+                                  m_b)
 
     for i in 1:ndims(particle_container)
         dv[i, particle] += dv_boundary[i] + dv_viscosity[i]
@@ -128,4 +125,27 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container, neighbor_container)
     return dv
+end
+
+@inline function calc_viscosity(model,
+                                particle_container, neighbor_container,
+                                v_particle_container, v_neighbor_container,
+                                particle, neighbor, pos_diff, distance, rho_a,
+                                grad_kernel, sound_speed, smoothing_length, m_b)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_container))))
+end
+
+@inline function calc_viscosity(model::BoundaryModelMonaghanKajtar,
+                                particle_container, neighbor_container,
+                                v_particle_container, v_neighbor_container,
+                                particle, neighbor, pos_diff, distance, rho_a,
+                                grad_kernel, sound_speed, smoothing_length, m_b)
+    @unpack viscosity = particle_container
+    v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
+             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+
+    pi_ab = viscosity(sound_speed, v_diff, pos_diff,
+                      distance, rho_a, smoothing_length)
+
+    return -m_b * pi_ab * grad_kernel
 end
