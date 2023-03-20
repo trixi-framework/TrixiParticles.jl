@@ -1,32 +1,94 @@
+mutable struct InfoCallback
+    start_time::Float64
+    interval::Int
+end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:InfoCallback})
+    @nospecialize cb # reduce precompilation time
+
+    callback = cb.affect!
+    print(io, "InfoCallback(interval=", callback.interval, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:InfoCallback})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!
+
+        setup = [
+            "interval" => callback.interval,
+        ]
+        summary_box(io, "InfoCallback", setup)
+    end
+end
 
 """
-    SummaryCallback()
+    InfoCallback()
 
 Create and return a callback that prints a human-readable summary of the simulation setup at the
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
 """
-function SummaryCallback()
-    DiscreteCallback(summary_callback, summary_callback,
+function InfoCallback(; interval=0)
+    info_callback = InfoCallback(0.0, interval)
+
+    DiscreteCallback(info_callback, info_callback,
                      save_positions=(false, false),
-                     initialize=initialize_summary_callback)
+                     initialize=initialize_info_callback)
 end
 
-# condition: never call the summary callback during the simulation
-summary_callback(u, t, integrator) = false
+# condition
+function (info_callback::InfoCallback)(u, t, integrator)
+    @unpack interval = info_callback
+
+    return interval != 0 &&
+           integrator.stats.naccept % interval == 0 ||
+           isfinished(integrator)
+end
 
 # affect!
-function summary_callback(integrator)
-    # The summary callback does nothing when called accidentally.
-    # Tell OrdinaryDiffEq that u has not been modified.
+function (info_callback::InfoCallback)(integrator)
+    if isfinished(integrator)
+        println("─"^100)
+        println("Pixie simulation finished.  Final time: ", integrator.t,
+                "  Time steps: ", integrator.stats.naccept, " (accepted), ",
+                integrator.iter, " (total)")
+        println("─"^100)
+        println()
+
+        # Print timer
+        TimerOutputs.complement!(timer())
+        print_timer(timer(), title="Pixie.jl",
+                    allocations=true, linechars=:unicode, compact=false)
+        println()
+    else
+        runtime_absolute = 1.0e-9 * (time_ns() - info_callback.start_time)
+        @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
+                integrator.stats.naccept, integrator.dt, integrator.t, runtime_absolute)
+    end
+
+    # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
 
     return nothing
 end
 
+@inline function isfinished(integrator)
+    # Checking for floating point equality is OK here as `DifferentialEquations.jl`
+    # sets the time exactly to the final time in the last iteration
+    return integrator.t == last(integrator.sol.prob.tspan) ||
+           isempty(integrator.opts.tstops) ||
+           integrator.iter == integrator.opts.maxiters
+end
+
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
-function initialize_summary_callback(discrete_callback, u, t, integrator)
+function initialize_info_callback(discrete_callback, u, t, integrator)
+    info_callback = discrete_callback.affect!
+
     print_startup_message()
 
     io = stdout
@@ -53,7 +115,7 @@ function initialize_summary_callback(discrete_callback, u, t, integrator)
     end
     for cb in callbacks.discrete_callbacks
         # Do not show ourselves
-        cb.affect! === summary_callback && continue
+        cb.affect! === info_callback && continue
 
         show(io_context, MIME"text/plain"(), cb)
         println(io, "\n")
@@ -81,19 +143,8 @@ function initialize_summary_callback(discrete_callback, u, t, integrator)
 
     reset_timer!(timer())
 
-    return nothing
-end
-
-# When the summary callback is called directly
-function (cb::DiscreteCallback{Condition, Affect!})(io::IO=stdout) where {Condition,
-                                                                          Affect! <:
-                                                                          typeof(summary_callback)
-                                                                          }
-    # Print timer
-    TimerOutputs.complement!(timer())
-    print_timer(io, timer(), title="Pixie.jl",
-                allocations=true, linechars=:unicode, compact=false)
-    println(io)
+    # Save current time as start_time
+    info_callback.start_time = time_ns()
 
     return nothing
 end
@@ -101,7 +152,7 @@ end
 # The following are functions to format summary output.
 # This is all copied from Trixi.jl.
 #
-# Format a key/value pair for output from the SummaryCallback
+# Format a key/value pair for output from the InfoCallback
 function format_key_value_line(key::AbstractString, value::AbstractString, key_width,
                                total_width;
                                indentation_level=0, guide='…', filler='…', prefix="│ ",

@@ -396,10 +396,8 @@ end
     2 * ndims(container) + 1
 end
 
-@inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
-    @unpack initial_coordinates = container
-
-    return get_vec_field(particle, initial_coordinates, container)
+@inline function current_coordinates(u, container::BoundaryParticleContainer)
+    return container.initial_coordinates
 end
 
 @inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)

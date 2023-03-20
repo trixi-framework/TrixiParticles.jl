@@ -25,11 +25,13 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 @inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
 
 # Specifically get the current coordinates of a particle for all container types.
+@inline function get_current_coords(particle, u, container)
+    get_particle_coords(particle, current_coordinates(u, container), container)
+end
+
 # This can be dispatched by container types, since for some containers, the current coordinates
 # are stored in u, for others in the container itself. By default, try to extract them from u.
-@inline function get_current_coords(particle, u, container)
-    get_vec_field(particle, u, container)
-end
+@inline current_coordinates(u, container) = u
 
 # Return the `particle`-th column of the array `field`.
 # This should not be dispatched by container type. We always expect to get a column of the array `field`.
