@@ -1,7 +1,7 @@
 using Pixie
 using LinearAlgebra
 
-struct NBodyContainer{NDIMS, ELTYPE <: Real} <: Pixie.ParticleContainer{NDIMS}
+struct NBodyContainer{NDIMS, ELTYPE <: Real} <: Pixie.Dimension{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
@@ -120,4 +120,8 @@ function Base.show(io::IO, ::MIME"text/plain", container::NBodyContainer)
         Pixie.summary_line(io, "#particles", Pixie.nparticles(container))
         Pixie.summary_footer(io)
     end
+end
+
+@inline function Base.eltype(container::NBodyContainer)
+    eltype(container.initial_coordinates)
 end
