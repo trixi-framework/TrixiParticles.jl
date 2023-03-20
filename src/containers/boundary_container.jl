@@ -284,10 +284,10 @@ end
     @unpack smoothing_kernel, smoothing_length = particle_container
 
     rho_a = get_particle_density(particle, v_particle_container,
-                                            particle_container)
+                                 particle_container)
     rho_b = get_particle_density(boundary_particle,
-                                                     v_boundary_container,
-                                                     boundary_container)
+                                 v_boundary_container,
+                                 boundary_container)
 
     grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
