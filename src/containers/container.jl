@@ -39,6 +39,12 @@ include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers
 
-@inline Base.eltype(container::FluidParticleContainer) = eltype(container.initial_coordinates)
-@inline Base.eltype(container::SolidParticleContainer) = eltype(container.initial_coordinates)
-@inline Base.eltype(container::BoundaryParticleContainer) = eltype(container.initial_coordinates)
+@inline function Base.eltype(container::FluidParticleContainer)
+    eltype(container.initial_coordinates)
+end
+@inline function Base.eltype(container::SolidParticleContainer)
+    eltype(container.initial_coordinates)
+end
+@inline function Base.eltype(container::BoundaryParticleContainer)
+    eltype(container.initial_coordinates)
+end
