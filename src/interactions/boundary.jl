@@ -64,7 +64,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             distance2 = sum(abs2, pos_diff)
 
             if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
-                distance= sqrt(distance2)
+                distance = sqrt(distance2)
 
                 # Continuity equation
                 vdiff = get_particle_vel(particle, v_particle_container,

@@ -90,8 +90,14 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
-@inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 0.4547284088339867 / h^2 # 10 / (7 * pi * h^2)
-@inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 0.3183098861837907 / h^3 # 1 / (pi * h^3)
+@inline function normalization_factor(::SchoenbergCubicSplineKernel{2}, h)
+    # 10 / (7 * pi * h^2)
+    return 0.4547284088339867 / h^2
+end
+@inline function normalization_factor(::SchoenbergCubicSplineKernel{3}, h)
+    # 1 / (pi * h^3)
+    return 0.3183098861837907 / h^3
+end
 
 @doc raw"""
     SchoenbergQuarticSplineKernel{NDIMS}()
@@ -192,8 +198,14 @@ end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 0.025486029252413597 / h^2 # 96 / (1199 * pi * h^2)
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 0.015915494309189534 / h^3 # 1 / (20 * pi * h^3)
+@inline function normalization_factor(::SchoenbergQuarticSplineKernel{2}, h)
+    # 96 / (1199 * pi * h^2)
+    return 0.025486029252413597 / h^2
+end
+@inline function normalization_factor(::SchoenbergQuarticSplineKernel{3}, h)
+    # 1 / (20 * pi * h^3)
+    return 0.015915494309189534 / h^3
+end
 
 @doc raw"""
     SchoenbergQuinticSplineKernel{NDIMS}()
@@ -292,5 +304,11 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 0.00466144184787978 / h^2   # 7 / (478 * pi * h^2)
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 0.0026525823848649226 / h^3 # 1 / (120 * pi * h^3)
+@inline function normalization_factor(::SchoenbergQuinticSplineKernel{2}, h)
+    # 7 / (478 * pi * h^2)
+    return 0.00466144184787978 / h^2
+end
+@inline function normalization_factor(::SchoenbergQuinticSplineKernel{3}, h)
+    # 1 / (120 * pi * h^3)
+    return 0.0026525823848649226 / h^3
+end
