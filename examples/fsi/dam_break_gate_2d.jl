@@ -5,7 +5,7 @@
 # In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
 # https://doi.org/10.1016/j.enganabound.2019.03.033
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81

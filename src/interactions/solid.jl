@@ -49,8 +49,8 @@ end
                           particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle = particle_container.material_density[particle]
-    density_neighbor = neighbor_container.material_density[neighbor]
+    rho_a = particle_container.material_density[particle]
+    rho_b = neighbor_container.material_density[neighbor]
 
     grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
                               smoothing_length)
@@ -58,8 +58,8 @@ end
     m_b = neighbor_container.mass[neighbor]
 
     dv_particle = m_b *
-                  (get_pk1_corrected(particle, particle_container) / density_particle^2 +
-                   get_pk1_corrected(neighbor, neighbor_container) / density_neighbor^2) *
+                  (get_pk1_corrected(particle, particle_container) / rho_a^2 +
+                   get_pk1_corrected(neighbor, neighbor_container) / rho_b^2) *
                   grad_kernel
 
     for i in 1:ndims(particle_container)
@@ -115,9 +115,7 @@ end
     # that the fluid particle experiences due to the soild particle.
     # Note that the same arguments are passed here as in fluid-solid interact!,
     # except that pos_diff has a flipped sign.
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_neighbor = get_particle_density(neighbor, v_neighbor_container,
+    rho_fluid = get_particle_density(neighbor, v_neighbor_container,
                                             neighbor_container)
 
     m_a = get_hydrodynamic_mass(particle, particle_container)
@@ -126,9 +124,8 @@ end
     # Flip sign to get the same force as for the fluid-solid direction.
     v_diff = -(get_particle_vel(particle, v_particle_container, particle_container) -
                get_particle_vel(neighbor, v_neighbor_container, neighbor_container))
-    density_mean = (density_particle + density_neighbor) / 2
 
-    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance, density_mean,
+    pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance, rho_fluid,
                       smoothing_length)
 
     grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,

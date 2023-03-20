@@ -1,3 +1,3 @@
-using Documenter, Pixie
+using Documenter, TrixiParticles
 
-makedocs(sitename="Pixie.jl")
+makedocs(sitename="TrixiParticles.jl")

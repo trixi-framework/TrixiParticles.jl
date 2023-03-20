@@ -289,17 +289,17 @@ end
                                           boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_boundary_particle = get_particle_density(boundary_particle,
-                                                     v_boundary_container,
-                                                     boundary_container)
+    rho_a = get_particle_density(particle, v_particle_container,
+                                 particle_container)
+    rho_b = get_particle_density(boundary_particle,
+                                 v_boundary_container,
+                                 boundary_container)
 
     grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     return -m_b *
-           (particle_container.pressure[particle] / density_particle^2 +
-            boundary_model.pressure[boundary_particle] / density_boundary_particle^2) *
+           (particle_container.pressure[particle] / rho_a^2 +
+            boundary_model.pressure[boundary_particle] / rho_b^2) *
            grad_kernel
 end
 
@@ -465,7 +465,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
@@ -531,7 +531,7 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     volume .= zero(eltype(volume))
 
     # Use all other containers for the pressure summation
-    @pixie_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                                  neighbor_container)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
                                       neighbor_container, semi)

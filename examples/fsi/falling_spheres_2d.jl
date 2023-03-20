@@ -2,7 +2,7 @@
 # Note that the solids don't interact with boundaries (yet), so that the sphere with larger
 # density is going to fall out of the tank.
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
