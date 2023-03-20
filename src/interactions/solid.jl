@@ -48,8 +48,8 @@ end
                           particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle = particle_container.material_density[particle]
-    density_neighbor = neighbor_container.material_density[neighbor]
+    rho_a = particle_container.material_density[particle]
+    rho_b = neighbor_container.material_density[neighbor]
 
     grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
                               smoothing_length)
@@ -57,8 +57,8 @@ end
     m_b = neighbor_container.mass[neighbor]
 
     dv_particle = m_b *
-                  (get_pk1_corrected(particle, particle_container) / density_particle^2 +
-                   get_pk1_corrected(neighbor, neighbor_container) / density_neighbor^2) *
+                  (get_pk1_corrected(particle, particle_container) / rho_a^2 +
+                   get_pk1_corrected(neighbor, neighbor_container) / rho_b^2) *
                   grad_kernel
 
     for i in 1:ndims(particle_container)
@@ -96,7 +96,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                density_b = get_particle_density(neighbor, v_neighbor_container,
+                rho_b = get_particle_density(neighbor, v_neighbor_container,
                                                  neighbor_container)
                 v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
@@ -104,7 +104,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 v_diff = -(v_a - v_b)
 
                 pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                                  density_b, smoothing_length)
+                                  rho_b, smoothing_length)
 
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
                 dv_viscosity = -m_a * pi_ab *
