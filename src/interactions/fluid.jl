@@ -30,7 +30,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                          get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
 
-                # per convention neigbor values are indicated by 'b' and local values with 'a'
+                # Per convention, neighbor values are indicated by `b` and local values with `a`.
                 rho_a = get_particle_density(particle, v_particle_container,
                                              particle_container)
                 rho_b = get_particle_density(neighbor, v_neighbor_container,
@@ -166,7 +166,6 @@ end
                                       surface_tension::CohesionForceAkinci)
     @unpack smoothing_length = particle_container
 
-    # per convention neigbor values are indicated by 'b' and local values with 'a'
     m_b = neighbor_container.mass[neighbor]
 
     return surface_tension(smoothing_length, m_b, pos_diff, distance)
@@ -178,7 +177,6 @@ end
                                       surface_tension::SurfaceTensionAkinci)
     @unpack smoothing_length = particle_container
 
-    # per convention neigbor values are indicated by 'b' and local values with 'a'
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
     return surface_tension(smoothing_length, m_b,
@@ -204,8 +202,6 @@ end
                                surface_tension::AkinciTypeSurfaceTension)
     @unpack smoothing_length = particle_container
 
-    # per convention neigbor values are indicated by 'b' and local values with 'a'
-    #m_b = neighbor_container.mass[neighbor]
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
     return surface_tension(smoothing_length, m_b, pos_diff, distance)
