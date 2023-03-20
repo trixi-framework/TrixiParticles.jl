@@ -27,9 +27,11 @@ end
                                                   neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
+
                 calc_dv!(dv, particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
 
@@ -88,9 +90,10 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
 
                 # Apply the same force to the solid particle
                 # that the fluid particle experiences due to the soild particle.
