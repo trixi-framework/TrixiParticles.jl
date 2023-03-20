@@ -128,7 +128,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
-    @pixie_timeit timer() "save solution" pixie2vtk(vu_ode, semi, integrator.t; iter=iter,
+    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     output_directory=output_directory,
                                                     custom_quantities...)
 
