@@ -149,7 +149,7 @@ function semidiscretize(semi, tspan)
     ELTYPE = eltype(particle_containers[1])
 
     # Initialize all particle containers
-    @pixie_timeit timer() "initialize particle containers" begin for (container_index, container) in pairs(particle_containers)
+    @trixi_timeit timer() "initialize particle containers" begin for (container_index, container) in pairs(particle_containers)
         # Get the neighborhood search for this container
         neighborhood_search = neighborhood_searches[container_index][container_index]
 
@@ -239,10 +239,10 @@ end
 function drift!(du_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers = semi
 
-    @pixie_timeit timer() "drift!" begin
-        @pixie_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
+    @trixi_timeit timer() "drift!" begin
+        @trixi_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
-        @pixie_timeit timer() "velocity" begin
+        @trixi_timeit timer() "velocity" begin
         # Set velocity and add acceleration for each container
         foreach_enumerate(particle_containers) do (container_index, container)
             du = wrap_u(du_ode, container_index, container, semi)
@@ -271,17 +271,17 @@ end
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
 
-    @pixie_timeit timer() "kick!" begin
-        @pixie_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
+    @trixi_timeit timer() "kick!" begin
+        @trixi_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
 
-        @pixie_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
+        @trixi_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
                                                                                     u_ode,
                                                                                     semi, t)
 
-        @pixie_timeit timer() "gravity and damping" gravity_and_damping!(dv_ode, v_ode,
+        @trixi_timeit timer() "gravity and damping" gravity_and_damping!(dv_ode, v_ode,
                                                                          semi)
 
-        @pixie_timeit timer() "container interaction" container_interaction!(dv_ode,
+        @trixi_timeit timer() "container interaction" container_interaction!(dv_ode,
                                                                              v_ode, u_ode,
                                                                              semi)
     end
@@ -308,7 +308,7 @@ function update_containers_and_nhs(v_ode, u_ode, semi, t)
     end
 
     # Update NHS
-    @pixie_timeit timer() "update nhs" update_nhs(u_ode, semi)
+    @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
     # Second update step.
     # This is used to calculate density and pressure of the fluid containers

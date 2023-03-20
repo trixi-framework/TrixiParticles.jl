@@ -31,7 +31,7 @@
         #### Mocking
         # Mock the container
         container = Val(:mock_container_tensor)
-        Pixie.ndims(::Val{:mock_container_tensor}) = 2
+        TrixiParticles.ndims(::Val{:mock_container_tensor}) = 2
 
         # All @unpack calls should return another mock object of the type Val{:mock_property_name},
         # but we want to have some real matrices as properties as opposed to only mock objects
@@ -50,14 +50,14 @@
             return Val(Symbol("mock_" * string(f)))
         end
 
-        Pixie.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
+        TrixiParticles.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
 
         Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-        Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
+        TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
 
         #### Verification
-        @test Pixie.deformation_gradient(particle, Val(:mock_nhs), container) ==
+        @test TrixiParticles.deformation_gradient(particle, Val(:mock_nhs), container) ==
               expected[i]
     end
 end
@@ -101,10 +101,10 @@ end
             return Val(Symbol("mock_" * string(f)))
         end
 
-        Pixie.deformation_gradient(_, ::Val{:mock_container_deform}) = J
+        TrixiParticles.deformation_gradient(_, ::Val{:mock_container_deform}) = J
 
         #### Verification
-        @test Pixie.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
-        @test Pixie.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
+        @test TrixiParticles.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
+        @test TrixiParticles.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
     end
 end

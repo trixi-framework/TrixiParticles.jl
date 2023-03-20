@@ -53,7 +53,7 @@ end
 function (info_callback::InfoCallback)(integrator)
     if isfinished(integrator)
         println("─"^100)
-        println("Pixie simulation finished.  Final time: ", integrator.t,
+        println("Trixi simulation finished.  Final time: ", integrator.t,
                 "  Time steps: ", integrator.stats.naccept, " (accepted), ",
                 integrator.iter, " (total)")
         println("─"^100)
@@ -61,7 +61,7 @@ function (info_callback::InfoCallback)(integrator)
 
         # Print timer
         TimerOutputs.complement!(timer())
-        print_timer(timer(), title="Pixie.jl",
+        print_timer(timer(), title="TrixiParticles.jl",
                     allocations=true, linechars=:unicode, compact=false)
         println()
     else
