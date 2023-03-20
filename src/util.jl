@@ -251,3 +251,6 @@ function find_assignment(expr, destination)
 
     result
 end
+
+abstract type Dimension{NDIMS} end
+@inline Base.ndims(::Dimension{NDIMS}) where {NDIMS} = NDIMS

@@ -31,7 +31,7 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct BoundaryParticleContainer{NDIMS, ELTYPE <: Real, BM, MF} <: ParticleContainer{NDIMS}
+struct BoundaryParticleContainer{NDIMS, ELTYPE <: Real, BM, MF} <: Dimension{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2}
     boundary_model      :: BM
     movement_function   :: MF

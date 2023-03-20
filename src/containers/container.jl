@@ -1,9 +1,5 @@
-abstract type ParticleContainer{NDIMS} end
-
 initialize!(container, neighborhood_search) = container
 update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
-
-@inline Base.ndims(::ParticleContainer{NDIMS}) where {NDIMS} = NDIMS
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(container) = ndims(container)
@@ -19,7 +15,6 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
-@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
 
 # Specifically get the current coordinates of a particle for all container types.
 @inline function get_current_coords(particle, u, container)
@@ -43,3 +38,7 @@ end
 include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers
+
+@inline Base.eltype(container::FluidParticleContainer) = eltype(container.initial_coordinates)
+@inline Base.eltype(container::SolidParticleContainer) = eltype(container.initial_coordinates)
+@inline Base.eltype(container::BoundaryParticleContainer) = eltype(container.initial_coordinates)

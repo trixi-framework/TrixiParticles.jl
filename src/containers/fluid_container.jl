@@ -19,7 +19,7 @@
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
 struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
-       ParticleContainer{NDIMS}
+        Dimension{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
@@ -75,6 +75,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
 
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel must be of same dimensionality $NDIMS")
+        end
+
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
@@ -109,6 +113,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel must be of same dimensionality $NDIMS")
         end
 
         initial_density = particle_densities

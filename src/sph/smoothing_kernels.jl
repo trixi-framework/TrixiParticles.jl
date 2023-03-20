@@ -53,7 +53,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergCubicSplineKernel{NDIMS} end
+struct SchoenbergCubicSplineKernel{NDIMS} <: Dimension{NDIMS} end
 
 function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
@@ -147,7 +147,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuarticSplineKernel{NDIMS} end
+struct SchoenbergQuarticSplineKernel{NDIMS} <: Dimension{NDIMS} end
 
 function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
@@ -247,7 +247,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuinticSplineKernel{NDIMS} end
+struct SchoenbergQuinticSplineKernel{NDIMS} <: Dimension{NDIMS} end
 
 function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
