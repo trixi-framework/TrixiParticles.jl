@@ -283,17 +283,17 @@ end
                                           boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_boundary_particle = get_particle_density(boundary_particle,
-                                                     v_boundary_container,
-                                                     boundary_container)
+    rho_a = get_particle_density(particle, v_particle_container,
+                                 particle_container)
+    rho_b = get_particle_density(boundary_particle,
+                                 v_boundary_container,
+                                 boundary_container)
 
     grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     return -m_b *
-           (particle_container.pressure[particle] / density_particle^2 +
-            boundary_model.pressure[boundary_particle] / density_boundary_particle^2) *
+           (particle_container.pressure[particle] / rho_a^2 +
+            boundary_model.pressure[boundary_particle] / rho_b^2) *
            grad_kernel
 end
 
