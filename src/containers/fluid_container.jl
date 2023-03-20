@@ -398,7 +398,6 @@ end
                                               neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    #@unpack boundary_model = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
