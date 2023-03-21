@@ -19,7 +19,7 @@
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
 struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
-       Dimension{NDIMS}
+    ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]

@@ -123,7 +123,3 @@ function Base.show(io::IO, ::MIME"text/plain", container::NBodyContainer)
         TrixiParticles.summary_footer(io)
     end
 end
-
-@inline function Base.eltype(container::NBodyContainer)
-    eltype(container.initial_coordinates)
-end

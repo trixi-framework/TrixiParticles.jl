@@ -1,8 +1,15 @@
+# implies number of dimensions and a field with the name of initial_coordinates
+abstract type ParticleContainer{NDIMS} end
+
 initialize!(container, neighborhood_search) = container
 update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
+@inline Base.ndims(::ParticleContainer{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
+
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(container) = ndims(container)
+
 # Number of integrated variables in the second component
 # of the ODE system (velocity and sometimes density)
 @inline v_nvariables(container) = ndims(container)
@@ -38,13 +45,3 @@ end
 include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers
-
-@inline function Base.eltype(container::FluidParticleContainer)
-    eltype(container.initial_coordinates)
-end
-@inline function Base.eltype(container::SolidParticleContainer)
-    eltype(container.initial_coordinates)
-end
-@inline function Base.eltype(container::BoundaryParticleContainer)
-    eltype(container.initial_coordinates)
-end

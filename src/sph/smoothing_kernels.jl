@@ -1,3 +1,6 @@
+abstract type SmoothingKernel{NDIMS} end
+@inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
+
 @inline function kernel_grad(kernel, pos_diff, distance, h)
     return kernel_deriv(kernel, distance, h) * pos_diff / distance
 end
@@ -17,8 +20,8 @@ w(q) = \sigma \begin{cases}
     0                                   & \text{if } q \geq 2, \\
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 17/(7\pi)``
-in two dimensions or ``\sigma = 1/\pi`` in three dimensions is a normalization factor.
+where ``d`` is the number of SmoothingKernels and ``\sigma = 17/(7\pi)``
+in two SmoothingKernels or ``\sigma = 1/\pi`` in three SmoothingKernels is a normalization factor.
 
 This kernel function has a compact support of ``[0, 2h]``.
 
@@ -53,7 +56,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergCubicSplineKernel{NDIMS} <: Dimension{NDIMS} end
+struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
@@ -111,8 +114,8 @@ w(q) = \sigma \begin{cases}
     0 & \text{if } q \geq \frac{5}{2},
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 96/(1199\pi)``
-in two dimensions or ``\sigma = 1/(20\pi)`` in three dimensions is a normalization factor.
+where ``d`` is the number of SmoothingKernels and ``\sigma = 96/(1199\pi)``
+in two SmoothingKernels or ``\sigma = 1/(20\pi)`` in three SmoothingKernels is a normalization factor.
 
 This kernel function has a compact support of ``[0, 2.5h]``.
 
@@ -147,7 +150,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuarticSplineKernel{NDIMS} <: Dimension{NDIMS} end
+struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
@@ -211,8 +214,8 @@ w(q) = \sigma \begin{cases}
     0                                       & \text{if } q \geq 3,
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 7/(478\pi)``
-in two dimensions or ``\sigma = 1/(120\pi)`` in three dimensions is a normalization factor.
+where ``d`` is the number of SmoothingKernels and ``\sigma = 7/(478\pi)``
+in two SmoothingKernels or ``\sigma = 1/(120\pi)`` in three SmoothingKernels is a normalization factor.
 
 This kernel function has a compact support of ``[0, 3h]``.
 
@@ -247,7 +250,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuinticSplineKernel{NDIMS} <: Dimension{NDIMS} end
+struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
