@@ -33,7 +33,7 @@
             #### Mocking
             # Mock the container
             container = Val(:mock_container_dv)
-            Pixie.ndims(::Val{:mock_container_dv}) = 2
+            TrixiParticles.ndims(::Val{:mock_container_dv}) = 2
 
             # All @unpack calls should return another mock object of the type Val{:mock_property_name},
             # but we want to have some predefined values as properties
@@ -48,9 +48,9 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
-            function Pixie.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
+            function TrixiParticles.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
                 if particle_ == particle[i]
                     return pk1_particle_corrected[i]
                 end
@@ -62,9 +62,9 @@
             dv_expected = copy(dv)
             dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-            Pixie.calc_dv!(dv, particle[i], neighbor[i], initial_pos_diff[i],
-                           initial_distance,
-                           container, container)
+            TrixiParticles.calc_dv!(dv, particle[i], neighbor[i], initial_pos_diff[i],
+                                    initial_distance,
+                                    container, container)
 
             @test dv ≈ dv_expected
         end
@@ -124,7 +124,7 @@
             #### Mocking
             # Mock the container
             container = Val{:mock_container_interact}()
-            Pixie.ndims(::Val{:mock_container_interact}) = 2
+            TrixiParticles.ndims(::Val{:mock_container_interact}) = 2
 
             # @unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}
@@ -147,29 +147,31 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            function Pixie.each_moving_particle(::Val{:mock_container_interact})
+            function TrixiParticles.each_moving_particle(::Val{:mock_container_interact})
                 each_moving_particle
             end
-            Pixie.eachparticle(::Val{:mock_container_interact}) = eachparticle
-            Pixie.eachneighbor(_, ::Val{:nhs}) = eachneighbor
-            Pixie.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
+            TrixiParticles.eachparticle(::Val{:mock_container_interact}) = eachparticle
+            TrixiParticles.eachneighbor(_, ::Val{:nhs}) = eachneighbor
+            TrixiParticles.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 
-            function Pixie.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
+            function TrixiParticles.get_pk1_corrected(particle_, ::Val{:mock_container_dv})
                 if particle_ == particle[i]
                     return pk1_particle_corrected[i]
                 end
                 return pk1_neighbor_corrected[i]
             end
 
-            Pixie.add_acceleration!(_, _, ::Val{:mock_container_interact}) = nothing
-            Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
+            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_container_interact})
+                nothing
+            end
+            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
             #### Verification
             dv = zeros(ndims(container), 10)
             dv_expected = copy(dv)
             dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-            Pixie.interact_solid_solid!(dv, Val(:nhs), container, container)
+            TrixiParticles.interact_solid_solid!(dv, Val(:nhs), container, container)
 
             @test dv ≈ dv_expected
         end
