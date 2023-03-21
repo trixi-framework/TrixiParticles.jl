@@ -18,11 +18,11 @@ end
 
     @threaded for particle in each_moving_particle(particle_container)
         # Everything here is done in the initial coordinates
-        particle_coords = get_vec_field(particle,
+        particle_coords = get_particle_coords(particle,
                                         particle_container.initial_coordinates,
                                         particle_container)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_vec_field(neighbor,
+            neighbor_coords = get_particle_coords(neighbor,
                                             neighbor_container.initial_coordinates,
                                             neighbor_container)
 

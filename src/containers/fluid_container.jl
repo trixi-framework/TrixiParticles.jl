@@ -468,5 +468,5 @@ end
 @inline function get_normal(particle, particle_container::FluidParticleContainer,
                             ::SurfaceTensionAkinci)
     @unpack cache = particle_container
-    return get_vec_field(particle, cache.surface_normal, particle_container)
+    return get_particle_coords(particle, cache.surface_normal, particle_container)
 end

@@ -26,7 +26,7 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 # Specifically get the current coordinates of a particle for all container types.
 @inline function get_current_coords(particle, u, container)
-    get_vec_field(particle, current_coordinates(u, container), container)
+    get_particle_coords(particle, current_coordinates(u, container), container)
 end
 
 # This can be dispatched by container types, since for some containers, the current coordinates
@@ -35,12 +35,12 @@ end
 
 # Return the `particle`-th column of the array `field`.
 # This should not be dispatched by container type. We always expect to get a column of the array `field`.
-@inline function get_vec_field(particle, field, container)
+@inline function get_particle_coords(particle, field, container)
     return SVector(ntuple(@inline(dim->field[dim, particle]), Val(ndims(container))))
 end
 
 @inline function get_particle_vel(particle, v, container)
-    return get_vec_field(particle, v, container)
+    return get_particle_coords(particle, v, container)
 end
 
 struct State{ELTYPE}

@@ -59,7 +59,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, con
 
     for particle in eachparticle(container)
         # Get cell index of the particle's cell
-        cell_coords = get_cell_coords(get_vec_field(particle, coordinates, container),
+        cell_coords = get_cell_coords(get_particle_coords(particle, coordinates, container),
                                       neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
@@ -88,7 +88,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
 
         # Find all particles whose coordinates do not match this cell
         moved_particle_indices = (i for i in eachindex(particles)
-                                  if get_cell_coords(get_vec_field(particles[i],
+                                  if get_cell_coords(get_particle_coords(particles[i],
                                                                    coordinates,
                                                                    container),
                                                      neighborhood_search) != cell_coords)
@@ -96,7 +96,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
         # Add moved particles to new cell
         for i in moved_particle_indices
             particle = particles[i]
-            new_cell_coords = get_cell_coords(get_vec_field(particle, coordinates,
+            new_cell_coords = get_cell_coords(get_particle_coords(particle, coordinates,
                                                             container),
                                               neighborhood_search)
 
@@ -180,7 +180,7 @@ function z_index_sort!(coordinates, container)
     @unpack mass, pressure, neighborhood_search = container
 
     perm = sortperm(eachparticle(container),
-                    by=(i -> cell_z_index(get_vec_field(i, coordinates, container),
+                    by=(i -> cell_z_index(get_particle_coords(i, coordinates, container),
                                           neighborhood_search)))
 
     permute!(mass, perm)
