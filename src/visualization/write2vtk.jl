@@ -1,4 +1,4 @@
-function pixie2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
                    custom_quantities...)
     @unpack particle_containers = semi
     v_ode, u_ode = vu_ode.x
@@ -13,13 +13,13 @@ function pixie2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
     foreach_enumerate(particle_containers) do (container_index, container)
         v = wrap_v(v_ode, container_index, container, semi)
         u = wrap_u(u_ode, container_index, container, semi)
-        pixie2vtk(v, u, t, container; output_directory=output_directory,
+        trixi2vtk(v, u, t, container; output_directory=output_directory,
                   container_name=filenames[container_index], iter=iter,
                   custom_quantities...)
     end
 end
 
-function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
+function trixi2vtk(v, u, t, container; output_directory="out", iter=nothing,
                    container_name=vtkname(container),
                    custom_quantities...)
     mkpath(output_directory)
@@ -49,7 +49,7 @@ function pixie2vtk(v, u, t, container; output_directory="out", iter=nothing,
     end
 end
 
-function pixie2vtk(coordinates; output_directory="out", filename="coordinates")
+function trixi2vtk(coordinates; output_directory="out", filename="coordinates")
     mkpath(output_directory)
     file = joinpath(output_directory, filename)
 

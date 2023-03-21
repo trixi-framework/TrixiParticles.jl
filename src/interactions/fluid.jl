@@ -22,7 +22,10 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
+
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 v_diff = get_particle_vel(particle, v_particle_container,
@@ -98,6 +101,7 @@ function interact!(dv, v_particle_container, u_particle_container,
     # iterate overall fluid particles
     @threaded for particle in each_moving_particle(particle_container)
         rho_a = get_particle_density(particle, v_particle_container, particle_container)
+        rho_a = get_particle_density(particle, v_particle_container, particle_container)
         v_a = get_particle_vel(particle, v_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -108,7 +112,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
