@@ -24,7 +24,6 @@ end
 # equation 4 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # correction term for free surfaces
 @inline function akinci_free_surface_correction(particle_container, rho_mean)
-    @unpack state0 = particle_container
-    k = state0.density / rho_mean
+    k = particle_container.rho0 / rho_mean
     return SVector{ncvals(particle_container), eltype(particle_container)}(k, 1.0, k)
 end

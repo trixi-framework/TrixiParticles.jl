@@ -5,17 +5,14 @@ using OrdinaryDiffEq
 # ==== Reference Values
 
 gravity = 9.81
-atmospheric_pressure = 100000.0
-incompressible_gamma = 7
-ambient_temperature = 293.15
+atmospheric_pressure = 1E5
+incompressible_gamma = 7.0
 
 # ==========================================================================================
 # ==== Fluid
 water_width = 2.0
 water_height = 0.9
 water_density = 1000.0
-
-water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
 # ==========================================================================================
 # ==== Particle Setup
@@ -43,7 +40,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            water_at_rest,
+                                            water_density,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, -9.81),

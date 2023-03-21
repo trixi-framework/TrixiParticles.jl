@@ -12,9 +12,8 @@ using OrdinaryDiffEq
 # ==== Reference Values
 
 gravity = 9.81
-atmospheric_pressure = 100000.0
-incompressible_gamma = 7
-ambient_temperature = 293.15
+atmospheric_pressure = 1E5
+incompressible_gamma = 7.0
 
 # ==========================================================================================
 # ==== Fluid
@@ -30,7 +29,6 @@ state_equation = StateEquationCole(sound_speed, incompressible_gamma, water_dens
                                    background_pressure=atmospheric_pressure)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
-water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
 # ==========================================================================================
 # ==== Particle Setup
@@ -77,7 +75,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            water_at_rest,
+                                            water_density,
                                             viscosity=viscosity,
                                             acceleration=(0.0, -gravity),
                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0005),

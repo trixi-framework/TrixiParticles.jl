@@ -5,9 +5,8 @@ using OrdinaryDiffEq
 # ==== Reference Values
 
 gravity = 9.81
-atmospheric_pressure = 100000.0
-incompressible_gamma = 7
-ambient_temperature = 293.15
+atmospheric_pressure = 1E5
+incompressible_gamma = 7.0
 
 # ==========================================================================================
 # ==== Fluid
@@ -20,8 +19,6 @@ c = 10 * sqrt(gravity * water_height)
 state_equation = StateEquationCole(c, incompressible_gamma, water_density,
                                    atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
-
-water_at_rest = State(water_density, atmospheric_pressure, ambient_temperature)
 
 # ==========================================================================================
 # ==== Particle Setup
@@ -39,7 +36,7 @@ setup = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), density=water_den
 particle_container = FluidParticleContainer(setup,
                                             SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
-                                            water_at_rest,
+                                            water_density,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0),
