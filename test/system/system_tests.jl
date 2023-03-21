@@ -31,24 +31,24 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @pixie_testset "fluid/deformation_sphere_2d.jl" begin
-            @test_nowarn pixie_include(@__MODULE__,
+        @trixi_testset "fluid/deformation_sphere_2d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "deformation_sphere_2d.jl"),
                                        tspan=(0.0, 3.0))
             @test sol.retcode == ReturnCode.Success
         end
 
-        @pixie_testset "fluid/deformation_sphere_3d.jl" begin
-            @test_nowarn pixie_include(@__MODULE__,
+        @trixi_testset "fluid/deformation_sphere_3d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "deformation_sphere_3d.jl"),
                                        tspan=(0.0, 20.0))
             @test sol.retcode == ReturnCode.Success
         end
 
-        @pixie_testset "fluid/rectangular_tank_surface_tension_2d.jl" begin
-            @test_nowarn pixie_include(@__MODULE__,
+        @trixi_testset "fluid/rectangular_tank_surface_tension_2d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "rectangular_tank_surface_tension_2d.jl"),
                                        tspan=(0.0, 0.5))
