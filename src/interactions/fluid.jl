@@ -41,8 +41,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 m_b = neighbor_container.mass[neighbor]
 
-                grad_kernel = calc_grad_kernel(smoothing_kernel, distance, smoothing_length,
-                                               pos_diff)
+                grad_kernel = kernel_grad(kernel, pos_diff, distance, smoothing_length)
 
                 # determine correction values
                 K = fluid_corrections(surface_tension, particle_container, rho_mean)
@@ -126,8 +125,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 v_diff = v_a - get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
 
-                grad_kernel = calc_grad_kernel(smoothing_kernel, distance, smoothing_length,
-                                               pos_diff)
+                grad_kernel = kernel_grad(kernel, pos_diff, distance, smoothing_length)
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
@@ -217,11 +215,6 @@ end
                                neighbor_container,
                                surface_tension::NoSurfaceTension)
     return zeros(SVector{ndims(particle_container), eltype(particle_container)})
-end
-
-@inline function calc_grad_kernel(smoothing_kernel, distance, smoothing_length, pos_diff)
-    return kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-           distance
 end
 
 @inline function calc_momentum_eq(particle, particle_container::FluidParticleContainer,
