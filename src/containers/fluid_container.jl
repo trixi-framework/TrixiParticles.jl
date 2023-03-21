@@ -375,7 +375,7 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
         end
     end
 
-    @pixie_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                               neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)

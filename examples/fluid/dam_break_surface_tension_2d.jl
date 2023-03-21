@@ -5,7 +5,7 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
 # https://doi.org/10.1016/J.CMA.2010.12.016
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
