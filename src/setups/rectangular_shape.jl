@@ -50,7 +50,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         ELTYPE = eltype(particle_spacing)
 
-        n_particles = floor(Int64, prod(n_particles_per_dimension))
+        n_particles =prod(n_particles_per_dimension)
 
         coordinates = Array{Float64, 2}(undef, NDIMS, n_particles)
         velocities = init_velocity .* ones(ELTYPE, size(coordinates))

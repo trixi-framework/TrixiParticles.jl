@@ -299,7 +299,7 @@ initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
 function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                  semi, t)
-    @unpack density_calculator, surface_tension = container
+    @unpack density_calculator = container
 
     compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
 
@@ -307,8 +307,7 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
 end
 
 function fluid_update_correction!(container::FluidParticleContainer, container_index, v, u,
-                                  v_ode, u_ode,
-                                  semi, t)
+                                  v_ode, u_ode, semi, t)
     @unpack surface_tension = container
 
     # some surface tension models require the surface normal
@@ -318,14 +317,12 @@ function fluid_update_correction!(container::FluidParticleContainer, container_i
     return container
 end
 
-function compute_surface_normal(surface_tension::Any, v, u, container, container_index,
-                                u_ode, v_ode, semi, t)
+function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi, t)
     # skip
 end
 
 function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, container,
-                                container_index, u_ode,
-                                v_ode, semi, t)
+                                container_index, u_ode, v_ode, semi, t)
     compute_surface_normal(surface_tension, v, u, container, container_index, u_ode,
                            v_ode, semi)
 end
@@ -369,11 +366,7 @@ function compute_surface_normal(surface_tension::SurfaceTensionAkinci, v, u, con
     @unpack cache = container
 
     # reset surface normal
-    for particle in eachparticle(container)
-        for i in 1:ndims(container)
-            cache.surface_normal[i, particle] = 0.0
-        end
-    end
+    cache.surface_normal .= zero(eltype(cache.surface_normal))
 
     @trixi_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                               neighbor_container)
