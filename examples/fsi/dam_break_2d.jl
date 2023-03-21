@@ -5,7 +5,7 @@
 # In: Journal of Fluids and Structures 86 (2019), pages 329-353.
 # https://doi.org/10.1016/j.jfluidstructs.2019.02.002
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81

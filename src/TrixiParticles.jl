@@ -1,4 +1,4 @@
-module Pixie
+module TrixiParticles
 
 using Reexport: @reexport
 
@@ -18,7 +18,7 @@ using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using UnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
-# util needs to be first because of macro @pixie_timeit
+# util needs to be first because of macro @trixi_timeit
 include("util.jl")
 include("sph/sph.jl")
 include("setups/setups.jl")
@@ -39,8 +39,8 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
-export examples_dir, pixie_include
-export pixie2vtk
+export examples_dir, trixi_include
+export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
 
