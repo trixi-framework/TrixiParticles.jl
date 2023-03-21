@@ -317,7 +317,8 @@ function fluid_update_correction!(container::FluidParticleContainer, container_i
     return container
 end
 
-function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi, t)
+function compute_surface_normal(::Any, v, u, container, container_index, u_ode, v_ode, semi,
+                                t)
     # skip
 end
 
