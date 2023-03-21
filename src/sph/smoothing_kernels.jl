@@ -20,8 +20,8 @@ w(q) = \sigma \begin{cases}
     0                                   & \text{if } q \geq 2, \\
 \end{cases}
 ```
-where ``d`` is the number of SmoothingKernels and ``\sigma = 17/(7\pi)``
-in two SmoothingKernels or ``\sigma = 1/\pi`` in three SmoothingKernels is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma = 17/(7\pi)``
+in two dimensions or ``\sigma = 1/\pi`` in three dimensions is a normalization factor.
 
 This kernel function has a compact support of ``[0, 2h]``.
 
@@ -114,8 +114,8 @@ w(q) = \sigma \begin{cases}
     0 & \text{if } q \geq \frac{5}{2},
 \end{cases}
 ```
-where ``d`` is the number of SmoothingKernels and ``\sigma = 96/(1199\pi)``
-in two SmoothingKernels or ``\sigma = 1/(20\pi)`` in three SmoothingKernels is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma = 96/(1199\pi)``
+in two dimensions or ``\sigma = 1/(20\pi)`` in three dimensions is a normalization factor.
 
 This kernel function has a compact support of ``[0, 2.5h]``.
 
@@ -214,8 +214,8 @@ w(q) = \sigma \begin{cases}
     0                                       & \text{if } q \geq 3,
 \end{cases}
 ```
-where ``d`` is the number of SmoothingKernels and ``\sigma = 7/(478\pi)``
-in two SmoothingKernels or ``\sigma = 1/(120\pi)`` in three SmoothingKernels is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma = 7/(478\pi)``
+in two dimensions or ``\sigma = 1/(120\pi)`` in three dimensions is a normalization factor.
 
 This kernel function has a compact support of ``[0, 3h]``.
 
