@@ -92,15 +92,16 @@ function write2vtk!(vtk, ::Any, container::FluidParticleContainer)
 end
 
 function write2vtk!(vtk, ::SurfaceTensionAkinci, container::FluidParticleContainer)
-    vtk["surface_normal"] =  view(container.cache.surface_normal, 1:ndims(container), :)
+    vtk["surface_normal"] = view(container.cache.surface_normal, 1:ndims(container), :)
 
     return vtk
 end
 
 function write2vtk!(vtk, ::StoreAll, container::FluidParticleContainer)
-    vtk["a_surface_tension"] =  view(container.cache.a_surface_tension, 1:ndims(container), :)
-    vtk["a_viscosity"] =  view(container.cache.a_viscosity, 1:ndims(container), :)
-    vtk["a_pressure"] =  view(container.cache.a_pressure, 1:ndims(container), :)
+    vtk["a_surface_tension"] = view(container.cache.a_surface_tension, 1:ndims(container),
+                                    :)
+    vtk["a_viscosity"] = view(container.cache.a_viscosity, 1:ndims(container), :)
+    vtk["a_pressure"] = view(container.cache.a_pressure, 1:ndims(container), :)
 
     return vtk
 end

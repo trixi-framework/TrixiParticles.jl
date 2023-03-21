@@ -53,7 +53,6 @@ semi = Semidiscretization(particle_container,
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
-
 info_callback = InfoCallback(interval=1000)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
