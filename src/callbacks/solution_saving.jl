@@ -4,17 +4,14 @@
                            save_final_solution=true,
                            output_directory="out", append_timestamp=false,
                            custom_quantities...)
-
 Callback to save the current numerical solution in VTK format in regular intervals.
 Either pass `interval` to save every `interval` time steps,
 or pass `dt` to save in intervals of `dt` in terms of integration time by adding
 additional `tstops` (note that this may change the solution).
-
 Additional user-defined quantities can be saved by passing functions
 as keyword arguments, which map `(v, u, t, container)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
 To ignore a custom quantity for a specific container, return `nothing`.
-
 # Keywords
 - `interval=0`:                 Save the solution every `interval` time steps.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
@@ -25,15 +22,12 @@ To ignore a custom quantity for a specific container, return `nothing`.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `custom_quantities...`:       Additional user-defined quantities.
-
 # Examples
 ```julia
 # Save every 100 time steps.
 saving_callback = SolutionSavingCallback(interval=100)
-
 # Save in intervals of 0.1 in terms of simulation time.
 saving_callback = SolutionSavingCallback(dt=0.1)
-
 # Additionally store the norm of the particle velocity for fluid containers as "v_mag".
 using LinearAlgebra
 function v_mag(v, u, t, container)
@@ -205,86 +199,4 @@ function Base.show(io::IO, ::MIME"text/plain",
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
-
-    result[Symbol("$(name)_$i")] = value
-
-    return result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::FluidParticleContainer)
-    @unpack density_calculator, cache, store_options, surface_tension = container
-
-    NDIMS = ndims(container)
-    result = Dict{Symbol, Array{Float32}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => u[1:NDIMS, :],
-                                          :velocity => v[1:NDIMS, :],
-                                          :pressure => copy(container.pressure))
-
-    if surface_tension isa SurfaceTensionAkinci
-        result[:surface_normal] = copy(cache.surface_normal)
-    end
-
-    if store_options isa StoreAll
-        result[:a_surface_tension] = copy(cache.a_surface_tension)
-        result[:a_viscosity] = copy(cache.a_viscosity)
-        result[:a_pressure] = copy(cache.a_pressure)
-    end
-
-    extract_density!(result, v, cache, density_calculator, container)
-
-    return "fluid", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::SolidParticleContainer)
-    n_fixed_particles = nparticles(container) - n_moving_particles(container)
-    result = Dict{Symbol, Array{Float32}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.current_coordinates),
-                                          :velocity => hcat(v[1:ndims(container), :],
-                                                            zeros(ndims(container),
-                                                                  n_fixed_particles)),
-                                          :material_density => container.material_density)
-
-    return "solid", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer)
-    @unpack boundary_model = container
-
-    extract_quantities(v, u, container, boundary_model)
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
-                                                 boundary_model)
-    result = Dict{Symbol, Array{Float64}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.initial_coordinates))
-
-    return "boundary", result
-end
-
-function (extract_quantities::ExtractQuantities)(v, u, container::BoundaryParticleContainer,
-                                                 boundary_model::BoundaryModelDummyParticles)
-    result = Dict{Symbol, Array{Float64}}(
-                                          # Note that we have to allocate here and can't use views.
-                                          # See https://diffeq.sciml.ai/stable/features/callback_library/#saving_callback.
-                                          :coordinates => copy(container.initial_coordinates),
-                                          :density => [get_particle_density(particle, v,
-                                                                            container)
-                                                       for particle in eachparticle(container)],
-                                          :pressure => copy(boundary_model.pressure))
-
-    return "boundary", result
-end
-
-function extract_density!(result, v, cache, ::SummationDensity, container)
-    result[:density] = copy(cache.density)
-end
-
-function extract_density!(result, v, cache, ::ContinuityDensity, container)
-    result[:density] = v[end, :]
 end

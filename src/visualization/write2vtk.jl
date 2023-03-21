@@ -65,12 +65,14 @@ vtkname(container::SolidParticleContainer) = "solid"
 vtkname(container::BoundaryParticleContainer) = "boundary"
 
 function write2vtk!(vtk, v, u, t, container::FluidParticleContainer)
-    @unpack density_calculator, cache = container
+    @unpack density_calculator, surface_tension, store_options, cache = container
 
     vtk["velocity"] = view(v, 1:ndims(container), :)
     vtk["pressure"] = container.pressure
 
     write2vtk!(vtk, v, density_calculator, container)
+    write2vtk!(vtk, surface_tension, container)
+    write2vtk!(vtk, store_options, container)
 end
 
 function write2vtk!(vtk, v, ::SummationDensity, container::FluidParticleContainer)
@@ -81,6 +83,24 @@ end
 
 function write2vtk!(vtk, v, ::ContinuityDensity, container::FluidParticleContainer)
     vtk["density"] = view(v, ndims(container) + 1, :)
+
+    return vtk
+end
+
+function write2vtk!(vtk, ::Any, container::FluidParticleContainer)
+    return vtk
+end
+
+function write2vtk!(vtk, ::SurfaceTensionAkinci, container::FluidParticleContainer)
+    vtk["surface_normal"] =  view(container.cache.surface_normal, 1:ndims(container), :)
+
+    return vtk
+end
+
+function write2vtk!(vtk, ::StoreAll, container::FluidParticleContainer)
+    vtk["a_surface_tension"] =  view(container.cache.a_surface_tension, 1:ndims(container), :)
+    vtk["a_viscosity"] =  view(container.cache.a_viscosity, 1:ndims(container), :)
+    vtk["a_pressure"] =  view(container.cache.a_pressure, 1:ndims(container), :)
 
     return vtk
 end
