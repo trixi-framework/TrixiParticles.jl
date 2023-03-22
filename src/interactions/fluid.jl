@@ -45,7 +45,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                                           smoothing_length)
 
                 # determine correction values
-                viscosity_correction, pressure_correction, surface_tension_correction = fluid_corrections(surface_tension, particle_container, rho_mean)
+                viscosity_correction, pressure_correction, surface_tension_correction = fluid_corrections(surface_tension,
+                                                                                                          particle_container,
+                                                                                                          rho_mean)
 
                 dv_viscosity += viscosity_correction *
                                 calc_visc_term(particle_container, m_b, v_diff, pos_diff,
@@ -57,7 +59,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                 neighbor_container, m_b, rho_a, rho_b,
                                                 grad_kernel)
 
-                dv_surface_tension += surface_tension_correction*
+                dv_surface_tension += surface_tension_correction *
                                       calc_surface_tension(particle, neighbor, pos_diff,
                                                            distance,
                                                            particle_container,
