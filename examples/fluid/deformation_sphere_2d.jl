@@ -10,11 +10,9 @@ incompressible_gamma = 7.0
 
 # ==========================================================================================
 # ==== Fluid
-
-water_height = 1.0
 water_density = 1000.0
 
-c = 10 * sqrt(gravity * water_height)
+c = 10 * sqrt(gravity)
 state_equation = StateEquationCole(c, incompressible_gamma, water_density,
                                    atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
