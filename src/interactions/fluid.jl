@@ -41,7 +41,8 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 m_b = neighbor_container.mass[neighbor]
 
-                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                          smoothing_length)
 
                 # determine correction values
                 K = fluid_corrections(surface_tension, particle_container, rho_mean)
@@ -125,7 +126,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                 v_diff = v_a - get_particle_vel(neighbor, v_neighbor_container,
                                           neighbor_container)
 
-                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                                          smoothing_length)
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
