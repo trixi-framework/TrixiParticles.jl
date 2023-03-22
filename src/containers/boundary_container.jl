@@ -302,7 +302,6 @@ end
            grad_kernel
 end
 
-
 @doc raw"""
     AdamiPressureExtrapolation()
 
