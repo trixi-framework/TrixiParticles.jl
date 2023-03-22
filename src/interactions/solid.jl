@@ -111,10 +111,10 @@ function interact!(dv, v_particle_container, u_particle_container,
                                   rho_b, smoothing_length)
 
                 grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                smoothing_length)
+                                          smoothing_length)
 
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
-                dv_viscosity = -m_a * pi_ab *grad_kernel
+                dv_viscosity = -m_a * pi_ab * grad_kernel
 
                 dv_boundary = boundary_particle_impact(neighbor, particle,
                                                        v_neighbor_container,
