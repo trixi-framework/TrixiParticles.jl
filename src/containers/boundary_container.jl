@@ -302,28 +302,6 @@ end
            grad_kernel
 end
 
-# see Akinci et al., "Versatile Rigid-Fluid Coupling for Incompressible SPH", 2012
-# todo: currently unused
-@inline function boundary_particle_impact(::AkinciTypeSurfaceTension, particle,
-                                          boundary_particle,
-                                          v_particle_container, v_boundary_container,
-                                          particle_container, boundary_container,
-                                          grad_kernel, pos_diff, distance, m_b,
-                                          boundary_model::BoundaryModelDummyParticles)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-    #@unpack cache = boundary_model
-    #@unpack volume = cache
-
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_boundary_particle = get_particle_density(boundary_particle,
-                                                     v_boundary_container,
-                                                     boundary_container)
-
-    # Eq. 9
-    return -particle_container.ref_density * m_b / density_boundary_particle *
-           (particle_container.pressure[particle] / density_particle^2) * grad_kernel
-end
 
 @doc raw"""
     AdamiPressureExtrapolation()
