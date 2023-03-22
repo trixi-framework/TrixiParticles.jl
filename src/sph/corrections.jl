@@ -1,13 +1,5 @@
 abstract type AkinciFreeSurfaceCorrection end
 
-# number of correction values
-@inline ncvals(::Any) = 3
-
-# index for the correction values
-@inline viscosity_K_id() = 1
-@inline pressure_K_id() = 2
-@inline surface_tension_K_id() = 3
-
 @inline function fluid_corrections(::AkinciTypeSurfaceTension, particle_container, rho_mean)
     return akinci_free_surface_correction(particle_container, rho_mean)
 end
@@ -25,5 +17,5 @@ end
 # correction term for free surfaces
 @inline function akinci_free_surface_correction(particle_container, rho_mean)
     k = particle_container.rho0 / rho_mean
-    return SVector{ncvals(particle_container), eltype(particle_container)}(k, 1.0, k)
+    return k, 1.0, k
 end
