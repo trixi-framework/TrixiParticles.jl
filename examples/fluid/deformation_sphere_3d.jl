@@ -25,7 +25,7 @@ state_equation = StateEquationCole(c, incompressible_gamma, water_density,
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
-setup = RectangularShape(particle_spacing, (5, 5, 5), (0.0, 0.0, 0.0),
+setup = RectangularShape(particle_spacing, (3, 3, 3), (0.0, 0.0, 0.0),
                          density=water_density)
 
 # ==========================================================================================
@@ -38,7 +38,7 @@ particle_container = FluidParticleContainer(setup,
                                             viscosity=ArtificialViscosityMonaghan(1.0,
                                                                                   2.0),
                                             acceleration=(0.0, 0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
+                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1))
 
 # ==========================================================================================
 # ==== Simulation
