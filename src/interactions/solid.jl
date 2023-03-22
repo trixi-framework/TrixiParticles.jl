@@ -79,7 +79,8 @@ function interact!(dv, v_particle_container, u_particle_container,
     smoothing_kernel, smoothing_length = neighbor_container
     @unpack boundary_model = particle_container
 
-    @threaded for particle in each_moving_particle(particle_container)
+    #@threaded for particle in each_moving_particle(particle_container)
+    for particle in each_moving_particle(particle_container)
         m_a = get_hydrodynamic_mass(particle, particle_container)
         v_a = get_particle_vel(particle, v_particle_container, particle_container)
 
@@ -91,7 +92,6 @@ function interact!(dv, v_particle_container, u_particle_container,
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
-            grad_kernel = NaN # unused until correction is used
 
             if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
                 distance = sqrt(distance2)
@@ -110,10 +110,12 @@ function interact!(dv, v_particle_container, u_particle_container,
                 pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                                   rho_b, smoothing_length)
 
+                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
+                smoothing_length)
+
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
-                dv_viscosity = -m_a * pi_ab *
-                               kernel_grad(smoothing_kernel, pos_diff, distance,
-                                           smoothing_length)
+                dv_viscosity = -m_a * pi_ab *grad_kernel
+
                 dv_boundary = boundary_particle_impact(neighbor, particle,
                                                        v_neighbor_container,
                                                        v_particle_container,
@@ -187,7 +189,8 @@ end
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
+                                      neighbor_container::FluidParticleContainer,
+                                      grad_kernel)
     return du
 end
 
