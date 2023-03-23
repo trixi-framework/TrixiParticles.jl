@@ -12,11 +12,14 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                calc_dv!(dv, v_particle_container, v_neighbor_container, particle, neighbor,
-                         pos_diff, distance, particle_container, neighbor_container)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
+
+                calc_dv!(dv, v_particle_container, v_neighbor_container,
+                         particle, neighbor, pos_diff, distance,
+                         particle_container, neighbor_container)
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
