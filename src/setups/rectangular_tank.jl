@@ -108,12 +108,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         end
 
         n_particles_per_dimension = (n_particles_x, n_particles_y)
-        particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-        particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+        particle_coordinates = Array{ELTYPE, 2}(undef, 2, prod(n_particles_per_dimension))
+        particle_velocities = zeros(ELTYPE, size(particle_coordinates))
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
@@ -180,12 +180,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         n_particles_per_dimension = (n_particles_x, n_particles_y, n_particles_z)
 
-        particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
-        particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+        particle_coordinates = Array{ELTYPE, 2}(undef, 3, prod(n_particles_per_dimension))
+        particle_velocities = Array{ELTYPE, 2}(undef, 3, prod(n_particles_per_dimension))
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
@@ -245,7 +245,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 2, 0)
+    boundary_coordinates = Array{eltype(particle_spacing), 2}(undef, 2, 0)
 
     # Counts the global index of the particles
     index = 0
@@ -374,7 +374,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 3, 0)
+    boundary_coordinates = Array{eltype(particle_spacing), 2}(undef, 3, 0)
 
     # Counts the global index of the particles
     index = 0
