@@ -135,14 +135,17 @@ identical to the density of the fluid particle.
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: Vector{ELTYPE}
+    viscosity                 :: V
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
-        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass,
+                                         viscosity=NoViscosity())
+        new{typeof(K), typeof(viscosity)}(K, beta, boundary_particle_spacing, mass,
+                                          viscosity)
     end
 end
 
@@ -245,26 +248,27 @@ We provide three options to compute the boundary density and pressure, determine
   In: Computers, Materials and Continua 5 (2007), pages 173-184.
   [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
-struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
+struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
+    viscosity          :: V
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length)
+                                         smoothing_length; viscosity=NoViscosity())
         pressure = similar(initial_density)
 
         cache = create_cache(initial_density, density_calculator)
 
         new{eltype(initial_density), typeof(state_equation),
-            typeof(density_calculator), typeof(smoothing_kernel),
+            typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
             typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
-                           smoothing_kernel, smoothing_length, cache)
+                           smoothing_kernel, smoothing_length, viscosity, cache)
     end
 end
 
@@ -490,7 +494,6 @@ end
 
 function compute_quantities!(boundary_model, ::ContinuityDensity,
                              container, container_index, v, u, v_ode, u_ode, semi)
-    @unpack particle_containers, neighborhood_searches = semi
     @unpack pressure, state_equation = boundary_model
 
     for particle in eachparticle(container)
@@ -502,11 +505,14 @@ end
 function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
                              container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
-    @unpack pressure, state_equation, cache = boundary_model
+    @unpack pressure, state_equation, cache, viscosity = boundary_model
     @unpack density, volume = cache
 
     density .= zero(eltype(density))
     volume .= zero(eltype(volume))
+
+    # Only for no-slip condition
+    reset_velocity!(viscosity)
 
     # Use all other containers for the pressure summation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
@@ -540,7 +546,7 @@ end
                                                particle_container,
                                                neighbor_container::FluidParticleContainer,
                                                neighborhood_search, boundary_model)
-    @unpack pressure, smoothing_kernel, smoothing_length, cache = boundary_model
+    @unpack pressure, smoothing_kernel, smoothing_length, cache, viscosity = boundary_model
     @unpack volume = cache
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
@@ -553,17 +559,25 @@ end
             density_neighbor = get_particle_density(neighbor, v_neighbor_container,
                                                     neighbor_container)
 
+            kernel_ = kernel(smoothing_kernel, distance, smoothing_length)
             # TODO moving boundaries
             pressure[particle] += (neighbor_container.pressure[neighbor] +
                                    dot(neighbor_container.acceleration,
-                                       density_neighbor * pos_diff)) *
-                                  kernel(smoothing_kernel, distance, smoothing_length)
-            volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
+                                       density_neighbor * pos_diff)) * kernel_
+            volume[particle] += kernel_
+
+            # To impose a non-slip condition
+            extrapolate_smoothed_velocity_field!(viscosity, kernel_, particle, neighbor,
+                                                 v_neighbor_container, neighbor_container)
         end
     end
 
     # Limit pressure to be non-negative to avoid negative pressures at free surfaces
     pressure[particle] = max(pressure[particle], 0.0)
+
+    # To impose no-slip condition
+    compute_wall_velocity!(viscosity, volume, particle, u_particle_container,
+                           particle_container)
 end
 
 @inline function compute_pressure_per_particle(particle, u_particle_container,
@@ -572,6 +586,48 @@ end
                                                neighborhood_search,
                                                boundary_model)
     return nothing
+end
+
+@inline reset_velocity!(viscosity) = viscosity
+
+@inline function reset_velocity!(viscosity::ViscousInteractionAdami)
+    viscosity.velocities .= zero(eltype(viscosity.velocities))
+end
+
+@inline extrapolate_smoothed_velocity_field!(viscosity, _, _, _, _, _) = viscosity
+
+@inline function extrapolate_smoothed_velocity_field!(viscosity::ViscousInteractionAdami,
+                                                      kernel_, particle, neighbor,
+                                                      v_neighbor_container,
+                                                      neighbor_container)
+    v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+
+    for dim in 1:ndims(neighbor_container)
+        viscosity.velocities[dim, particle] += kernel_ * v_b[dim]
+    end
+
+    return viscosity
+end
+
+@inline compute_wall_velocity!(viscosity, _, _, _, _) = viscosity
+
+@inline function compute_wall_velocity!(viscosity::ViscousInteractionAdami, volume,
+                                        particle, v, container)
+
+    # Avoid NaNs in velocities
+    if volume[particle] > eps()
+
+        #TODO moving boundaries
+        vel_boundary = get_particle_vel(particle, v, container)
+
+        for dim in 1:ndims(container)
+            viscosity.velocities[dim, particle] = 2 * vel_boundary[dim] -
+                                                  viscosity.velocities[dim, particle] /
+                                                  volume[particle]
+        end
+    end
+
+    return viscosity
 end
 
 function write_u0!(u0, container::BoundaryParticleContainer)

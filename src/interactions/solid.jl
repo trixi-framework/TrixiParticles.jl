@@ -128,7 +128,7 @@ end
                               smoothing_length)
 
     # use `m_a` to get the same viscosity as for the fluid-solid direction
-    dv_viscosity = calc_viscosity(boundary_model,
+    dv_viscosity = calc_viscosity(boundary_model.viscosity,
                                   neighbor_container, particle_container,
                                   v_neighbor_container, v_particle_container,
                                   neighbor, particle, pos_diff, distance, rho_a,

@@ -60,3 +60,17 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
 
     return 0.0
 end
+
+"""
+TODO
+"""
+struct ViscousInteractionAdami{ELTYPE}
+    eta::ELTYPE
+    velocities::Array{ELTYPE, 2}
+
+    function ViscousInteractionAdami(eta, coords)
+        velocities = zeros(eltype(coords), size(coords))
+
+        new{typeof(eta)}(eta, velocities)
+    end
+end
