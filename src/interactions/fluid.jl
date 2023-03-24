@@ -162,6 +162,7 @@ end
 
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff / distance) .* tmp
 
+    return visc/m_a
 end
 
 @inline function calc_viscosity(viscosity, particle_container, _, _, _, _, _, _, _, _, _, _,
