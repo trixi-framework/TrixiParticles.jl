@@ -81,6 +81,13 @@ tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.02)
+
+# activate to save intialization
+#callbacks = CallbackSet(info_callback, saving_callback)
+# instead of
+callbacks = info_callback
+
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -94,7 +101,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=info_callback);
+            save_everystep=false, callback=callbacks);
 
 # Move right boundary
 positions = (0, tank_width, 0, 0)
@@ -110,7 +117,7 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, interval=100)
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
