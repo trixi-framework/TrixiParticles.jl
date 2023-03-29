@@ -155,14 +155,14 @@ end
 
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) - v_w
 
-    tmp =  viscosity.eta * v_diff / distance
+    tmp = viscosity.eta * v_diff / distance
 
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
 
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff / distance) .* tmp
 
-    return visc/m_a
+    return visc / m_a
 end
 
 @inline function calc_viscosity(viscosity, particle_container, _, _, _, _, _, _, _, _, _, _,
