@@ -566,7 +566,7 @@ end
                                        density_neighbor * pos_diff)) * kernel_
             volume[particle] += kernel_
 
-            # To impose a non-slip condition
+            # To impose a no-slip condition
             extrapolate_smoothed_velocity_field!(viscosity, kernel_, particle, neighbor,
                                                  v_neighbor_container, neighbor_container)
         end

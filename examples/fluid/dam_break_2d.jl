@@ -40,6 +40,9 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
                         n_layers=boundary_layers, spacing_ratio=beta)
 
+eta = 1.6
+tank_viscosity = ViscousInteractionAdami(eta, setup.boundary_coordinates)
+
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
@@ -53,8 +56,9 @@ reset_wall!(setup, reset_faces, positions)
 
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
+                                             AdamiPressureExtrapolation(),
+                                             #viscosity=tank_viscosity,
+                                             smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
