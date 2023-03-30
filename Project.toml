@@ -21,3 +21,4 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
 DiffEqCallbacks = "2.25"
+TimerOutputs = "0.5"
