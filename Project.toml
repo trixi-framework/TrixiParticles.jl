@@ -21,3 +21,12 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
 DiffEqCallbacks = "2.25"
+Morton = "0.1"
+Polyester = "0.7"
+Reexport = "1"
+SciMLBase = "1"
+StaticArrays = "1"
+StrideArrays = "0.1"
+ThreadingUtilities = "0.5"
+TimerOutputs = "0.5"
+WriteVTK = "1"
