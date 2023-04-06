@@ -116,7 +116,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         end
 
         if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel must be of same dimensionality $NDIMS")
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
         end
 
         initial_density = particle_densities
