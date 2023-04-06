@@ -1,4 +1,4 @@
-# implies number of dimensions and a field with the name of initial_coordinates
+# Implies number of dimensions and a field with the name `initial_coordinates`.
 abstract type ParticleContainer{NDIMS} end
 
 initialize!(container, neighborhood_search) = container
