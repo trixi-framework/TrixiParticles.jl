@@ -229,19 +229,19 @@ end
                                               u_particle_container, u_neighbor_container,
                                               particle_container::FluidParticleContainer,
                                               neighbor_container, neighborhood_search)
-    @unpack smoothing_kernel, smoothing_length, cache = particle_container
+    @unpack cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
     @unpack boundary_model = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
+        m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
         neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                              neighbor_container)
         distance = norm(particle_coords - neighbor_coords)
 
-        if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
+        if distance <= compact_support(particle_container)
+            density[particle] += m_b * kernel(particle_container, distance)
         end
     end
 end

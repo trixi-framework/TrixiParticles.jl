@@ -361,7 +361,7 @@ end
     volume_particle = mass[particle] / material_density[particle]
     volume_neighbor = mass[neighbor] / material_density[neighbor]
 
-    kernel_ = kernel(smoothing_kernel, initial_distance, smoothing_length)
+    kernel_ = kernel(container, initial_distance)
 
     J_a = get_deformation_gradient(particle, container)
     J_b = get_deformation_gradient(neighbor, container)
