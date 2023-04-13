@@ -119,7 +119,6 @@ struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleConta
             error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
         end
 
-
         current_coordinates = copy(particle_coordinates)
         correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
         pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
