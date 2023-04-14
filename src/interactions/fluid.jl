@@ -69,15 +69,12 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::FluidParticleContainer,
                                       neighbor_container)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
     mass = get_hydrodynamic_mass(neighbor, neighbor_container)
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   kernel_grad(smoothing_kernel, pos_diff, distance,
-                                               smoothing_length))
+                                   kernel_grad(particle_container, pos_diff, distance))
 
     return dv
 end
@@ -129,8 +126,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
                                   smoothing_length)
                 dv_viscosity = -m_b * pi_ab *
-                               kernel_grad(smoothing_kernel, pos_diff, distance,
-                                           smoothing_length)
+                               kernel_grad(particle_container, pos_diff, distance)
 
                 dv_boundary = boundary_particle_impact(particle, neighbor,
                                                        v_particle_container,

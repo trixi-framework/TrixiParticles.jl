@@ -243,8 +243,7 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
-                grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff,
-                                          initial_distance, smoothing_length)
+                grad_kernel = kernel_grad(container, initial_pos_diff, initial_distance)
                 L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
         end
