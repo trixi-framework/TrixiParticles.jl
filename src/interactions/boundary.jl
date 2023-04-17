@@ -61,9 +61,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
+
                 # Continuity equation
                 vdiff = get_particle_vel(particle, v_particle_container,
                                          particle_container) -
@@ -71,10 +73,9 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 # For boundary particles, the velocity is not integrated.
                 # Therefore, the density is stored in the first dimension of `dv`.
-                dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                       kernel_deriv(smoothing_kernel, distance,
-                                                    smoothing_length) .*
-                                       pos_diff) / distance
+                dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
+                                       kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                   smoothing_length))
             end
         end
     end

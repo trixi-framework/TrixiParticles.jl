@@ -176,12 +176,9 @@ end
 @inline function particles_in_cell(cell_index, neighborhood_search)
     @unpack hashtable, empty_vector = neighborhood_search
 
-    if haskey(hashtable, cell_index)
-        return hashtable[cell_index]
-    end
-
-    # Reuse empty vector to avoid allocations
-    return empty_vector
+    # Return an empty vector when `cell_index` is not a key of `hastable` and
+    # reuse the empty vector to avoid allocations
+    return get(hashtable, cell_index, empty_vector)
 end
 
 @inline function get_cell_coords(coords, neighborhood_search)

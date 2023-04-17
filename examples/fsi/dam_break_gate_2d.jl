@@ -5,66 +5,59 @@
 # In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
 # https://doi.org/10.1016/j.enganabound.2019.03.033
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
+
+gravity = -9.81
+
+# ==========================================================================================
+# ==== Fluid
 
 # Note that the effect of the gate is less pronounced with lower resolutions,
 # since "larger" particles don't fit through the slightly opened gate.
 fluid_particle_spacing = 0.02
+
 # Spacing ratio between fluid and boundary particles
-beta = 3
-n_layers = 1
+beta_tank = 1
+beta_gate = 3
+tank_layers = 3
+gate_layers = 1
 
 water_width = 0.2
 water_height = 0.4
 water_density = 997.0
 
-container_width = 0.8
-container_height = 4.0
-wall_height = container_height
+tank_width = 0.8
+tank_height = 4.0
+gate_height = water_height + 4 * fluid_particle_spacing # Make sure that it overlaps the fluid.
 
-setup = RectangularTank(fluid_particle_spacing, beta, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=n_layers)
-
-gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
-setup_gate = RectangularShape(fluid_particle_spacing / beta,
-                              (n_layers,
-                               round(Int, container_height / fluid_particle_spacing * beta)),
-                              (gate_position, fluid_particle_spacing / beta),
-                              density=water_density)
-
-c = 20 * sqrt(9.81 * water_height)
+sound_speed = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
 
-state_equation = StateEquationCole(c, 7, 997.0, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=ArtificialViscosityMonaghan(0.02,
-                                                                                  0.0),
-                                            acceleration=(0.0, -9.81))
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-# Add a factor of 4 to prevent boundary penetration
-K = 9.81 * water_height
+setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=tank_layers, spacing_ratio=beta_tank)
 
-boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates,
-                                                    setup.boundary_masses,
-                                                    BoundaryModelMonaghanKajtar(K, beta,
-                                                                                fluid_particle_spacing /
-                                                                                beta))
+gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
+
+setup_gate = RectangularShape(fluid_particle_spacing / beta_gate,
+                              (gate_layers,
+                               round(Int, gate_height / fluid_particle_spacing * beta_gate)),
+                              (gate_position, fluid_particle_spacing / beta_gate),
+                              density=water_density)
 
 # No moving boundaries for the relaxing step
 movement_function(coordinates, t) = false
-boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
-                                                    setup_gate.masses,
-                                                    BoundaryModelMonaghanKajtar(K, beta,
-                                                                                fluid_particle_spacing /
-                                                                                beta),
-                                                    movement_function=movement_function)
+
+# ==========================================================================================
+# ==== Solid
 
 length_beam = 0.09
 thickness = 0.004
@@ -74,6 +67,13 @@ n_particles_x = 5
 # The structure starts at the position of the first particle and ends
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_x - 1)
+
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# Young's modulus and Poisson ratio
+E = 3.5e6
+nu = 0.45
 
 n_particles_per_dimension = (n_particles_x,
                              round(Int, length_beam / solid_particle_spacing) + 1)
@@ -91,24 +91,65 @@ particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
 particle_masses = vcat(plate.masses, fixed_particles.masses)
 particle_densities = vcat(plate.densities, fixed_particles.densities)
 
-smoothing_length = sqrt(2) * solid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+# ==========================================================================================
+# ==== Boundary models
 
-# Young's modulus and Poisson ratio
-E = 3.5e6
-nu = 0.45
+boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
+                                                  setup.boundary_masses, state_equation,
+                                                  AdamiPressureExtrapolation(),
+                                                  smoothing_kernel,
+                                                  smoothing_length)
 
-beta = fluid_particle_spacing / solid_particle_spacing
+# K_tank = 9.81 * water_height
+# boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
+#                                                   fluid_particle_spacing / beta_tank,
+#                                                   setup.boundary_masses)
+
+K_gate = 9.81 * water_height
+boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
+                                                  fluid_particle_spacing / beta_gate,
+                                                  setup_gate.masses)
+
+hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses, state_equation,
+                                                   AdamiPressureExtrapolation(),
+                                                   smoothing_kernel, smoothing_length)
+
+# Use bigger K to prevent penetration into the solid
+# K_solid = 9.81 * water_height
+# beta_solid = fluid_particle_spacing / solid_particle_spacing
+# boundary_model_solid = BoundaryModelMonaghanKajtar(K_solid, beta_solid,
+#                                                    solid_particle_spacing,
+#                                                    hydrodynamic_masses)
+
+# ==========================================================================================
+# ==== Containers
+
+particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+                                            smoothing_kernel, smoothing_length,
+                                            viscosity=viscosity,
+                                            acceleration=(0.0, gravity))
+
+boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates,
+                                                    boundary_model_tank)
+
+boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
+                                                    boundary_model_gate,
+                                                    movement_function=movement_function)
+
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                          particle_masses, particle_densities,
-                                         smoothing_kernel, smoothing_length,
-                                         E, nu,
+                                         solid_smoothing_kernel, solid_smoothing_length,
+                                         E, nu, boundary_model_solid,
                                          n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, -9.81),
-                                         # Use bigger K to prevent penetration into the solid
-                                         BoundaryModelMonaghanKajtar(5K, beta,
-                                                                     solid_particle_spacing))
+                                         acceleration=(0.0, gravity))
+
+# ==========================================================================================
+# ==== Simulation
 
 # Relaxing of the fluid without solid
 semi = Semidiscretization(particle_container, boundary_container_tank,
@@ -118,10 +159,7 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-
-callbacks = CallbackSet(summary_callback, alive_callback)
+info_callback = InfoCallback(interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -132,13 +170,10 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
+            save_everystep=false, callback=info_callback);
 
 # Run full simulation
 tspan = (0.0, 1.0)
@@ -167,20 +202,12 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+saving_callback = SolutionSavingCallback(dt=0.02)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)

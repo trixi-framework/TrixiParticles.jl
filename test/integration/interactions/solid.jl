@@ -69,7 +69,7 @@
         particle = 41
 
         dv = zeros(ndims(container), 81)
-        Pixie.kick!(dv, v, u, semi, 0.0)
+        TrixiParticles.kick!(dv, v, u, semi, 0.0)
 
         @test isapprox(dv[:, particle], dv_expected_41[deformation],
                        rtol=sqrt(eps()), atol=sqrt(eps()))

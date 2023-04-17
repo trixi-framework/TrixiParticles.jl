@@ -13,9 +13,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
+
                 calc_dv!(dv, v_particle_container, v_neighbor_container,
                          particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
@@ -36,25 +38,24 @@ end
                           particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length, state_equation, viscosity = particle_container
 
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_neighbor = get_particle_density(neighbor, v_neighbor_container,
-                                            neighbor_container)
+    rho_a = get_particle_density(particle, v_particle_container,
+                                 particle_container)
+    rho_b = get_particle_density(neighbor, v_neighbor_container,
+                                 neighbor_container)
 
     # Viscosity
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
              get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-    density_mean = (density_particle + density_neighbor) / 2
+    rho_mean = (rho_a + rho_b) / 2
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                      distance, density_mean, smoothing_length)
+                      distance, rho_mean, smoothing_length)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
     m_b = neighbor_container.mass[neighbor]
     dv_pressure = -m_b *
-                  (particle_container.pressure[particle] / density_particle^2 +
-                   neighbor_container.pressure[neighbor] / density_neighbor^2) * grad_kernel
-    dv_viscosity = m_b * pi_ab * grad_kernel
+                  (particle_container.pressure[particle] / rho_a^2 +
+                   neighbor_container.pressure[neighbor] / rho_b^2) * grad_kernel
+    dv_viscosity = -m_b * pi_ab * grad_kernel
 
     for i in 1:ndims(particle_container)
         dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
@@ -70,14 +71,13 @@ end
                                       neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
+    mass = get_hydrodynamic_mass(neighbor, neighbor_container)
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
-
     NDIMS = ndims(particle_container)
-    dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff *
-                                   kernel_deriv(smoothing_kernel, distance,
-                                                smoothing_length) .*
-                                   pos_diff) / distance
+    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
+                                   kernel_grad(smoothing_kernel, pos_diff, distance,
+                                               smoothing_length))
 
     return dv
 end
@@ -100,7 +100,7 @@ function interact!(dv, v_particle_container, u_particle_container,
     @unpack sound_speed = state_equation
 
     @threaded for particle in each_moving_particle(particle_container)
-        density_a = get_particle_density(particle, v_particle_container, particle_container)
+        rho_a = get_particle_density(particle, v_particle_container, particle_container)
         v_a = get_particle_vel(particle, v_particle_container, particle_container)
 
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -110,21 +110,27 @@ function interact!(dv, v_particle_container, u_particle_container,
                                                  neighbor_container)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
 
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
-                m_b = neighbor_container.mass[neighbor]
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
+
+                # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
+                # corresponding to the rest density of the fluid and not the material density.
+                m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
+                v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+                v_diff = v_a - v_b
 
                 continuity_equation!(dv, density_calculator,
                                      v_particle_container, v_neighbor_container,
                                      particle, neighbor, pos_diff, distance,
                                      particle_container, neighbor_container)
 
-                pi_ab = viscosity(sound_speed, v_a, pos_diff, distance, density_a,
+                pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
                                   smoothing_length)
-                dv_viscosity = m_b * pi_ab *
-                               kernel_deriv(smoothing_kernel, distance, smoothing_length) *
-                               pos_diff / distance
+                dv_viscosity = -m_b * pi_ab *
+                               kernel_grad(smoothing_kernel, pos_diff, distance,
+                                           smoothing_length)
 
                 dv_boundary = boundary_particle_impact(particle, neighbor,
                                                        v_particle_container,

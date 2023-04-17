@@ -1,5 +1,10 @@
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
+
+gravity = -9.81
+
+# ==========================================================================================
+# ==== Fluid
 
 fluid_particle_spacing = 0.0125 * 3
 
@@ -10,25 +15,23 @@ water_density = 1000.0
 container_width = 4.0
 container_height = 4.0
 
+sound_speed = 10 * sqrt(9.81 * water_height)
+
+smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
+
+viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+
 setup = RectangularShape(fluid_particle_spacing,
                          (round(Int, (water_width / fluid_particle_spacing)),
                           round(Int, (water_height / fluid_particle_spacing))),
                          (0.1, 0.2), density=water_density)
 
-c = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(c, 7, 1000.0, 100000.0, background_pressure=100000.0)
-
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# Create semidiscretization
-fluid_container = FluidParticleContainer(setup.coordinates,
-                                         zeros(Float64, size(setup.coordinates)),
-                                         setup.masses, setup.densities,
-                                         ContinuityDensity(), state_equation,
-                                         smoothing_kernel, smoothing_length,
-                                         viscosity=ArtificialViscosityMonaghan(0.02, 0.0),
-                                         acceleration=(0.0, -9.81))
+# ==========================================================================================
+# ==== Solid
 
 length_beam = 0.35
 thickness = 0.05
@@ -40,8 +43,16 @@ solid_density = 1000.0
 # at the position of the last particle.
 solid_particle_spacing = thickness / (n_particles_y - 1)
 
-fixed_particles = CircularShape(clamp_radius + solid_particle_spacing / 2, 0.0,
-                                thickness / 2, solid_particle_spacing,
+smoothing_length = sqrt(2) * solid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# Lamé constants
+E = 1.4e6
+nu = 0.4
+
+fixed_particles = CircularShape(solid_particle_spacing,
+                                clamp_radius + solid_particle_spacing / 2,
+                                (0.0, thickness / 2),
                                 shape_type=FillCircle(x_recess=(0.0, clamp_radius),
                                                       y_recess=(0.0, thickness)),
                                 density=solid_density)
@@ -57,28 +68,43 @@ beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
-
 particle_masses = vcat(beam.masses, fixed_particles.masses)
 particle_densities = vcat(beam.densities, fixed_particles.densities)
 
-smoothing_length = sqrt(2) * solid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-# Lamé constants
-E = 1.4e6
-nu = 0.4
+# ==========================================================================================
+# ==== Boundary models
 
 K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
+
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
+hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+
+boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
+                                             hydrodynamic_masses)
+
+# ==========================================================================================
+# ==== Containers
+
+fluid_container = FluidParticleContainer(setup.coordinates,
+                                         zeros(Float64, size(setup.coordinates)),
+                                         setup.masses, setup.densities,
+                                         ContinuityDensity(), state_equation,
+                                         smoothing_kernel, smoothing_length,
+                                         viscosity=viscosity,
+                                         acceleration=(0.0, gravity))
+
 solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                          particle_masses, particle_densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=fixed_particles.n_particles,
-                                         acceleration=(0.0, -9.81),
-                                         BoundaryModelMonaghanKajtar(K, beta,
-                                                                     solid_particle_spacing),
+                                         acceleration=(0.0, gravity), boundary_model,
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+
+# ==========================================================================================
+# ==== Simulation
 
 semi = Semidiscretization(fluid_container, solid_container,
                           neighborhood_search=SpatialHashingSearch)
@@ -86,11 +112,10 @@ semi = Semidiscretization(fluid_container, solid_container,
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:1000.0)
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.005)
 
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -101,13 +126,7 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)

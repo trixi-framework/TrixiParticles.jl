@@ -75,6 +75,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
 
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+        end
+
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
@@ -109,6 +113,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
         end
 
         initial_density = particle_densities
@@ -169,6 +177,10 @@ end
     ndims(container) + 1
 end
 
+@inline function get_hydrodynamic_mass(particle, container::FluidParticleContainer)
+    return container.mass[particle]
+end
+
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
@@ -195,7 +207,7 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
@@ -219,17 +231,17 @@ end
                                               neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack mass = neighbor_container
+    @unpack boundary_model = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
         neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
                                              neighbor_container)
         distance = norm(particle_coords - neighbor_coords)
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass[neighbor] *
-                                 kernel(smoothing_kernel, distance, smoothing_length)
+            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end

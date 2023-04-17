@@ -33,18 +33,15 @@ end
 """
 struct BoundaryParticleContainer{NDIMS, ELTYPE <: Real, BM, MF} <: ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2}
-    mass                :: Vector{ELTYPE}
     boundary_model      :: BM
     movement_function   :: MF
     ismoving            :: Vector{Bool}
 
-    function BoundaryParticleContainer(coordinates, mass, model;
-                                       movement_function=nothing)
+    function BoundaryParticleContainer(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
         return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(coordinates,
-                                                                                         mass,
                                                                                          model,
                                                                                          movement_function,
                                                                                          ismoving)
@@ -90,20 +87,21 @@ end
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
-The force on fluid particle ``a`` is given by
+The force on fluid particle ``a`` due to boundary particle ``b`` is given by
 ```math
-f_a = m_a \left(\sum_{b \in B} f_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
+f_{ab} = m_a \left(\tilde{f}_{ab} - m_b \Pi_{ab} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)\right)
 ```
 with
 ```math
-f_{ab} = \frac{K}{\beta^{n-1}} \frac{r_{ab}}{\Vert r_{ab} \Vert (\Vert r_{ab} \Vert - d)} \Phi(\Vert r_{ab} \Vert, h)
+\tilde{f}_{ab} = \frac{K}{\beta^{n-1}} \frac{r_{ab}}{\Vert r_{ab} \Vert (\Vert r_{ab} \Vert - d)} \Phi(\Vert r_{ab} \Vert, h)
 \frac{2 m_b}{m_a + m_b},
 ```
-where ``B`` denotes the set of boundary particles, ``m_a`` and ``m_b`` are the masses of
-fluid particle ``a`` and boundary particle ``b`` respectively,
-``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
-``d`` denotes the boundary particle spacing and ``n`` denotes the number of dimensions
-(see (Monaghan, Kajtar, 2009, Equation (3.1)) and (Valizadeh, Monaghan, 2015)).
+where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
+respectively, ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles
+``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
+dimensions (see (Monaghan, Kajtar, 2009, Equation (3.1)) and (Valizadeh, Monaghan, 2015)).
+Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
+the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
 (Monaghan, Kajtar, 2009, Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
@@ -141,9 +139,10 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
+    hydrodynamic_mass         :: Vector{ELTYPE}
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
-        new{typeof(K)}(K, beta, boundary_particle_spacing)
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
+        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
     end
 end
 
@@ -180,15 +179,21 @@ end
 end
 
 @doc raw"""
-    BoundaryModelDummyParticles(initial_density, state_equation, density_calculator,
-                                smoothing_kernel, smoothing_length)
+    BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
+                                density_calculator, smoothing_kernel, smoothing_length)
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
-but their positions and velocities are not evolved in time.
+but their positions and velocities are not evolved in time. Since the force towards the fluid
+should not change with the material density when used with a `SolidParticleContainer`, the
+dummy particles need to have a mass corresponding to the fluid's rest density, which we call
+"hydrodynamic mass", as opposed to mass corresponding to the material density of a
+`SolidParticleContainer`.
 
-Here, `initial_density` is a vector that contains the initial density for each boundary particle.
+Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
+and the hydrodynamic mass respectively for each boundary particle.
 Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
 the element type and the number of boundary particles.
+
 To establish a relationship between density and pressure, a `state_equation` has to be passed,
 which should be the same as for the adjacent fluid containers.
 To sum over neighboring particles, a `smoothing_kernel` and `smoothing_length` needs to be passed.
@@ -242,22 +247,23 @@ We provide three options to compute the boundary density and pressure, determine
 """
 struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
     pressure           :: Vector{ELTYPE}
+    hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
     cache              :: C
 
-    function BoundaryModelDummyParticles(initial_density, state_equation,
-                                         density_calculator,
-                                         smoothing_kernel, smoothing_length)
+    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
+                                         density_calculator, smoothing_kernel,
+                                         smoothing_length)
         pressure = similar(initial_density)
 
         cache = create_cache(initial_density, density_calculator)
 
         new{eltype(initial_density), typeof(state_equation),
             typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(cache)}(pressure, state_equation, density_calculator,
+            typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
                            smoothing_kernel, smoothing_length, cache)
     end
 end
@@ -277,18 +283,17 @@ end
                                           boundary_model::BoundaryModelDummyParticles)
     @unpack smoothing_kernel, smoothing_length = particle_container
 
-    density_particle = get_particle_density(particle, v_particle_container,
-                                            particle_container)
-    density_boundary_particle = get_particle_density(boundary_particle,
-                                                     v_boundary_container,
-                                                     boundary_container)
+    rho_a = get_particle_density(particle, v_particle_container,
+                                 particle_container)
+    rho_b = get_particle_density(boundary_particle,
+                                 v_boundary_container,
+                                 boundary_container)
 
-    grad_kernel = kernel_deriv(smoothing_kernel, distance, smoothing_length) * pos_diff /
-                  distance
+    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 
     return -m_b *
-           (particle_container.pressure[particle] / density_particle^2 +
-            boundary_model.pressure[boundary_particle] / density_boundary_particle^2) *
+           (particle_container.pressure[particle] / rho_a^2 +
+            boundary_model.pressure[boundary_particle] / rho_b^2) *
            grad_kernel
 end
 
@@ -330,6 +335,10 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
+@inline function nparticles(container::BoundaryParticleContainer)
+    length(container.boundary_model.hydrodynamic_mass)
+end
+
 # No particle positions are advanced for boundary containers,
 # except when using BoundaryModelDummyParticles with ContinuityDensity.
 @inline function n_moving_particles(container::BoundaryParticleContainer)
@@ -359,10 +368,8 @@ end
     2 * ndims(container) + 1
 end
 
-@inline function get_current_coords(particle, u, container::BoundaryParticleContainer)
-    @unpack initial_coordinates = container
-
-    return get_particle_coords(particle, initial_coordinates, container)
+@inline function current_coordinates(u, container::BoundaryParticleContainer)
+    return container.initial_coordinates
 end
 
 @inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)
@@ -371,7 +378,9 @@ end
 end
 
 # This will only be called for BoundaryModelDummyParticles
-@inline function get_particle_density(particle, v, container::BoundaryParticleContainer)
+@inline function get_particle_density(particle, v,
+                                      container::Union{BoundaryParticleContainer,
+                                                       SolidParticleContainer})
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
@@ -383,6 +392,10 @@ end
     @unpack cache = boundary_model
 
     return cache.density[particle]
+end
+
+@inline function get_hydrodynamic_mass(particle, boundary_model, container)
+    return boundary_model.hydrodynamic_mass[particle]
 end
 
 function update!(container::BoundaryParticleContainer, container_index,
@@ -430,7 +443,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     density .= zero(eltype(density))
 
     # Use all other containers for the density summation
-    @pixie_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                        neighbor_container)
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
@@ -453,22 +466,24 @@ end
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function compute_density_per_particle(particle, u_particle_container,
                                               u_neighbor_container,
-                                              particle_container::BoundaryParticleContainer,
+                                              particle_container::Union{
+                                                                        BoundaryParticleContainer,
+                                                                        SolidParticleContainer
+                                                                        },
                                               neighbor_container, neighborhood_search)
     @unpack boundary_model = particle_container
     @unpack smoothing_kernel, smoothing_length, cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack mass = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
         distance = norm(particle_coords -
                         get_current_coords(neighbor, u_neighbor_container,
                                            neighbor_container))
 
         if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass[neighbor] *
-                                 kernel(smoothing_kernel, distance, smoothing_length)
+            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
 end
@@ -494,7 +509,7 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     volume .= zero(eltype(volume))
 
     # Use all other containers for the pressure summation
-    @pixie_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
+    @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                                  neighbor_container)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
                                       neighbor_container, semi)
@@ -546,6 +561,9 @@ end
             volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
         end
     end
+
+    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
+    pressure[particle] = max(pressure[particle], 0.0)
 end
 
 @inline function compute_pressure_per_particle(particle, u_particle_container,

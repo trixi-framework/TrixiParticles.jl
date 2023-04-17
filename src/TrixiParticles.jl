@@ -1,8 +1,9 @@
-module Pixie
+module TrixiParticles
 
 using Reexport: @reexport
 
-using DiffEqCallbacks: SavedValues, SavingCallback, SavingAffect
+using Dates
+using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
@@ -14,10 +15,10 @@ using StaticArrays: @SMatrix, SMatrix
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-@reexport using UnPack: @unpack
+@reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
-# util needs to be first because of macro @pixie_timeit
+# util needs to be first because of macro @trixi_timeit
 include("util.jl")
 include("sph/sph.jl")
 include("setups/setups.jl")
@@ -28,9 +29,8 @@ include("callbacks/callbacks.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export FluidParticleContainer, FluidParticleContainer
-export SolidParticleContainer, BoundaryParticleContainer
-export AliveCallback, SolutionSavingCallback, SummaryCallback
+export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
+export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
@@ -39,8 +39,8 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
-export examples_dir, pixie_include
-export pixie2vtk
+export examples_dir, trixi_include
+export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
 
