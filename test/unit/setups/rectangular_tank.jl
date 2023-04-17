@@ -1,4 +1,3 @@
-# 2D
 @testset verbose=true "Rectangular tank 2D" begin
     @testset verbose=true "One Boundary Layer" begin
         water_width = 0.5
@@ -231,7 +230,6 @@
     end
 end
 
-# 3D
 @testset verbose=true "Rectangular tank 3D" begin
     @testset verbose=true "One Boundary Layer" begin
         water_width = 0.4
