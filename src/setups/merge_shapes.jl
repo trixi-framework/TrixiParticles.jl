@@ -27,6 +27,21 @@ struct MergeShapes{ELTYPE <: Real}
         masses = vcat(masses...)
         densities = vcat(densities...)
 
+        if overlapping_particles(coordinates)
+            @warn "There are overlapping particles."
+        end
+
         return new{ELTYPE}(coordinates, velocities, masses, densities)
     end
+end
+
+# Check overlapping particles.
+function overlapping_particles(coords)
+
+    # Round coordinates to make sure that particle position is unique
+    coords = round.(coords, digits=6)
+
+    tuple_coords = [Tuple(coords[:, i]) for i in axes(coords, 2)]
+
+    return !allunique(tuple_coords)
 end
