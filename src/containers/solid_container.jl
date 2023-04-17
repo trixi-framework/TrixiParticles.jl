@@ -111,6 +111,13 @@ struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleConta
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+        end
 
         current_coordinates = copy(particle_coordinates)
         correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
@@ -257,7 +264,7 @@ function update!(container::SolidParticleContainer, container_index, v, u,
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[container_index][container_index]
-    @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
+    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
                                                                  container)
 
     return container

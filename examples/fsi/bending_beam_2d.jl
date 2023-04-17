@@ -15,7 +15,7 @@
 # Because of these assumptions/modifications, we cannot expect
 # a good agreement with the analytical solution.
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
@@ -166,8 +166,8 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
@@ -203,7 +203,7 @@ function plot_analytical(solid_container)
     # In a homogeneous linearly elastic beam in pure bending, the neutral fiber (zero stress)
     # coincides with the centroidal fiber
     neutral_fiber_position = [solid_container.current_coordinates[:, i]
-                              for i in Pixie.each_moving_particle(solid_container)
+                              for i in TrixiParticles.each_moving_particle(solid_container)
                               if isapprox(solid_container.initial_coordinates[2, i],
                                           -centroidal_fiber_position)]
 
