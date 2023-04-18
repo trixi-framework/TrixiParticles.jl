@@ -241,7 +241,7 @@ end
         distance = norm(particle_coords - neighbor_coords)
 
         if distance <= compact_support(particle_container)
-            density[particle] += m_b * kernel(particle_container, distance)
+            density[particle] += m_b * smoothing_kernel(particle_container, distance)
         end
     end
 end

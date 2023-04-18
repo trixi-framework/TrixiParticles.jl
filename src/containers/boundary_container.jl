@@ -287,7 +287,7 @@ end
                                  v_boundary_container,
                                  boundary_container)
 
-    grad_kernel = kernel_grad(particle_container, pos_diff, distance)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
 
     return -m_b *
            (particle_container.pressure[particle] / rho_a^2 +
@@ -481,7 +481,7 @@ end
                                            neighbor_container))
 
         if distance <= compact_support(boundary_model)
-            density[particle] += mass * kernel(boundary_model, distance)
+            density[particle] += mass * smoothing_kernel(boundary_model, distance)
         end
     end
 end
@@ -555,8 +555,8 @@ end
             pressure[particle] += (neighbor_container.pressure[neighbor] +
                                    dot(neighbor_container.acceleration,
                                        density_neighbor * pos_diff)) *
-                                  kernel(boundary_model, distance)
-            volume[particle] += kernel(boundary_model, distance)
+                                  smoothing_kernel(boundary_model, distance)
+            volume[particle] += smoothing_kernel(boundary_model, distance)
         end
     end
 

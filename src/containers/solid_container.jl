@@ -242,7 +242,7 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
-                grad_kernel = kernel_grad(container, initial_pos_diff, initial_distance)
+                grad_kernel = smoothing_kernel_grad(container, initial_pos_diff, initial_distance)
                 L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
         end
@@ -323,7 +323,7 @@ function deformation_gradient(particle, neighborhood_search, container)
 
         if initial_distance > sqrt(eps())
             # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
+            grad_kernel = smoothing_kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
                                       smoothing_length)
 
             result -= volume * pos_diff * grad_kernel'
@@ -359,7 +359,7 @@ end
     volume_particle = mass[particle] / material_density[particle]
     volume_neighbor = mass[neighbor] / material_density[neighbor]
 
-    kernel_ = kernel(container, initial_distance)
+    kernel_ = smoothing_kernel(container, initial_distance)
 
     J_a = get_deformation_gradient(particle, container)
     J_b = get_deformation_gradient(neighbor, container)

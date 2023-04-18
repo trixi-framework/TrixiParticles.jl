@@ -42,17 +42,17 @@ end
     return get_particle_coords(particle, v, container)
 end
 
-@inline function kernel(container, distance)
+@inline function smoothing_kernel(container, distance)
     @unpack smoothing_kernel, smoothing_length = container
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function kernel_deriv(container, distance)
+@inline function smoothing_kernel_deriv(container, distance)
     @unpack smoothing_kernel, smoothing_length = container
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function kernel_grad(container, pos_diff, distance)
+@inline function smoothing_kernel_grad(container, pos_diff, distance)
     @unpack smoothing_kernel, smoothing_length = container
     return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end

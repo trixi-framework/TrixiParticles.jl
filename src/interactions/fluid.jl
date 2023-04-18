@@ -50,7 +50,7 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, rho_mean, smoothing_length)
 
-    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
     m_b = neighbor_container.mass[neighbor]
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / rho_a^2 +
@@ -74,7 +74,7 @@ end
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   kernel_grad(particle_container, pos_diff, distance))
+                                   smoothing_kernel_grad(particle_container, pos_diff, distance))
 
     return dv
 end
@@ -126,7 +126,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
                                   smoothing_length)
                 dv_viscosity = -m_b * pi_ab *
-                               kernel_grad(particle_container, pos_diff, distance)
+                               smoothing_kernel_grad(particle_container, pos_diff, distance)
 
                 dv_boundary = boundary_particle_impact(particle, neighbor,
                                                        v_particle_container,

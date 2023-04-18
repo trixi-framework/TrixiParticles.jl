@@ -51,7 +51,7 @@ end
     rho_a = particle_container.material_density[particle]
     rho_b = neighbor_container.material_density[neighbor]
 
-    grad_kernel = kernel_grad(particle_container, initial_pos_diff, initial_distance)
+    grad_kernel = smoothing_kernel_grad(particle_container, initial_pos_diff, initial_distance)
 
     m_b = neighbor_container.mass[neighbor]
 
@@ -107,7 +107,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
                 dv_viscosity = -m_a * pi_ab *
-                               kernel_grad(neighbor_container, pos_diff, distance)
+                               smoothing_kernel_grad(neighbor_container, pos_diff, distance)
                 dv_boundary = boundary_particle_impact(neighbor, particle,
                                                        v_neighbor_container,
                                                        v_particle_container,
@@ -167,7 +167,7 @@ end
 
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
-                                   kernel_grad(neighbor_container, pos_diff, distance))
+                                   smoothing_kernel_grad(neighbor_container, pos_diff, distance))
 
     return dv
 end
