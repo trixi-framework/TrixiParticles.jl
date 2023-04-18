@@ -74,9 +74,9 @@ end
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
-                   neighbor_container::FluidParticleContainer)
-    @unpack state_equation, viscosity,
-    smoothing_kernel, smoothing_length = neighbor_container
+                   neighbor_container::FluidParticleContainer{<:WCSPH})
+    @unpack SPH_scheme, viscosity, smoothing_kernel, smoothing_length = neighbor_container
+    @unpack state_equation = SPH_scheme
     @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)

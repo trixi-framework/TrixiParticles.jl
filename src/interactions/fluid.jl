@@ -1,8 +1,8 @@
 # Fluid-fluid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer,
-                   neighbor_container::FluidParticleContainer)
+                   particle_container::FluidParticleContainer{<:WCSPH},
+                   neighbor_container::FluidParticleContainer{<:WCSPH})
     @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -36,7 +36,8 @@ end
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity = particle_container
+    @unpack SPH_scheme, smoothing_kernel, smoothing_length, viscosity = particle_container
+    @unpack state_equation = SPH_scheme
 
     rho_a = get_particle_density(particle, v_particle_container,
                                  particle_container)
@@ -95,8 +96,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                    particle_container::FluidParticleContainer,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
-    @unpack density_calculator, state_equation, viscosity,
+    @unpack SPH_scheme, density_calculator, viscosity,
     smoothing_kernel, smoothing_length = particle_container
+    @unpack state_equation = SPH_scheme
     @unpack sound_speed = state_equation
 
     @threaded for particle in each_moving_particle(particle_container)
