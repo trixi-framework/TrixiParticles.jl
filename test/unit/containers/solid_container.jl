@@ -141,11 +141,13 @@ end
 
             Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
+            function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
+                kernel_derivative
+            end
 
             #### Verification
-            @test TrixiParticles.deformation_gradient(particle, Val(:mock_nhs), container) ==
-                  expected[i]
+            @test TrixiParticles.deformation_gradient(particle, Val(:mock_nhs),
+                                                      container) == expected[i]
         end
     end
 
@@ -176,7 +178,8 @@ end
 
             smoothing_length = 0.12
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
+            search_radius = TrixiParticles.compact_support(smoothing_kernel,
+                                                           smoothing_length)
 
             container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                                particle_masses, particle_densities,
@@ -267,7 +270,8 @@ end
                                        material_densities, smoothing_kernel,
                                        smoothing_length, E, nu, boundary_model)
 
-    u0 = zeros(TrixiParticles.u_nvariables(container), TrixiParticles.n_moving_particles(container))
+    u0 = zeros(TrixiParticles.u_nvariables(container),
+               TrixiParticles.n_moving_particles(container))
     TrixiParticles.write_u0!(u0, container)
 
     @test u0 == coordinates
@@ -290,7 +294,8 @@ end
                                        material_densities, smoothing_kernel,
                                        smoothing_length, E, nu, boundary_model)
 
-    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    v0 = zeros(TrixiParticles.v_nvariables(container),
+               TrixiParticles.n_moving_particles(container))
     TrixiParticles.write_v0!(v0, container)
 
     @test v0 == velocities
