@@ -117,7 +117,7 @@ end
             #### Mocking
             # Mock the container
             container = Val(:mock_container_tensor)
-            Pixie.ndims(::Val{:mock_container_tensor}) = 2
+            TrixiParticles.ndims(::Val{:mock_container_tensor}) = 2
 
             # All @unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have some real matrices
@@ -137,14 +137,14 @@ end
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            Pixie.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
+            TrixiParticles.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
 
             Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
-            Pixie.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
+            TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_derivative
 
             #### Verification
-            @test Pixie.deformation_gradient(particle, Val(:mock_nhs), container) ==
+            @test TrixiParticles.deformation_gradient(particle, Val(:mock_nhs), container) ==
                   expected[i]
         end
     end
@@ -176,23 +176,23 @@ end
 
             smoothing_length = 0.12
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+            search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
             container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                                particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                1.0, 1.0, nothing)
-            nhs = Pixie.TrivialNeighborhoodSearch(container)
-            Pixie.initialize!(container, nhs)
+            nhs = TrixiParticles.TrivialNeighborhoodSearch(container)
+            TrixiParticles.initialize!(container, nhs)
 
             # Apply the deformation matrix
-            for particle in Pixie.eachparticle(container)
+            for particle in TrixiParticles.eachparticle(container)
                 new_coords = deformation(container.initial_coordinates[:, particle])
                 container.current_coordinates[:, particle] = new_coords
             end
 
             # Compute the deformation gradient for the particle in the middle
-            J = Pixie.deformation_gradient(41, nhs, container)
+            J = TrixiParticles.deformation_gradient(41, nhs, container)
 
             #### Verification
             @test J ≈ deformation_gradients[deformation_name]
@@ -242,11 +242,11 @@ end
             return Val(Symbol("mock_" * string(f)))
         end
 
-        Pixie.deformation_gradient(_, ::Val{:mock_container}) = J
+        TrixiParticles.deformation_gradient(_, ::Val{:mock_container}) = J
 
         #### Verification
-        @test Pixie.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
-        @test Pixie.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
+        @test TrixiParticles.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
+        @test TrixiParticles.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
     end
 end
 
@@ -267,8 +267,8 @@ end
                                        material_densities, smoothing_kernel,
                                        smoothing_length, E, nu, boundary_model)
 
-    u0 = zeros(Pixie.u_nvariables(container), Pixie.n_moving_particles(container))
-    Pixie.write_u0!(u0, container)
+    u0 = zeros(TrixiParticles.u_nvariables(container), TrixiParticles.n_moving_particles(container))
+    TrixiParticles.write_u0!(u0, container)
 
     @test u0 == coordinates
 end
@@ -290,8 +290,8 @@ end
                                        material_densities, smoothing_kernel,
                                        smoothing_length, E, nu, boundary_model)
 
-    v0 = zeros(Pixie.v_nvariables(container), Pixie.n_moving_particles(container))
-    Pixie.write_v0!(v0, container)
+    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    TrixiParticles.write_v0!(v0, container)
 
     @test v0 == velocities
 end

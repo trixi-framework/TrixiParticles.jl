@@ -5,7 +5,7 @@
 # In: Engineering Analysis with Boundary Elements 104 (2019), pages 240-258.
 # https://doi.org/10.1016/j.enganabound.2019.03.033
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
@@ -27,8 +27,8 @@ water_width = 0.2
 water_height = 0.4
 water_density = 997.0
 
-container_width = 0.8
-container_height = 4.0
+tank_width = 0.8
+tank_height = 4.0
 gate_height = water_height + 4 * fluid_particle_spacing # Make sure that it overlaps the fluid.
 
 sound_speed = 20 * sqrt(9.81 * water_height)
@@ -41,9 +41,9 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, beta_tank, water_width, water_height,
-                        container_width, container_height, water_density,
-                        n_layers=tank_layers)
+setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                        (tank_width, tank_height), water_density,
+                        n_layers=tank_layers, spacing_ratio=beta_tank)
 
 gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 
@@ -159,10 +159,7 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-
-callbacks = CallbackSet(summary_callback, alive_callback)
+info_callback = InfoCallback(interval=100)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -173,13 +170,10 @@ callbacks = CallbackSet(summary_callback, alive_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
+            save_everystep=false, callback=info_callback);
 
 # Run full simulation
 tspan = (0.0, 1.0)
@@ -208,20 +202,12 @@ semi = Semidiscretization(particle_container, boundary_container_tank,
 
 ode = semidiscretize(semi, tspan)
 
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:20.0,
-                                                       index=(v, u, t, container) -> Pixie.eachparticle(container))
-
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+saving_callback = SolutionSavingCallback(dt=0.02)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)
