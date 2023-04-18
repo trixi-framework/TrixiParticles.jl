@@ -14,6 +14,7 @@
         densities = [990.0, 1000.0]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
+        TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
         smoothing_length = 0.362
         density_calculator = SummationDensity()
 
@@ -79,6 +80,7 @@ end
     densities = [990.0, 1000.0]
     state_equation = Val(:state_equation)
     smoothing_kernel = Val(:smoothing_kernel)
+    TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
     smoothing_length = 0.362
     density_calculator = SummationDensity()
 
@@ -100,7 +102,7 @@ end
     │ density calculator: …………………………… SummationDensity                                                 │
     │ state equation: ……………………………………… Val                                                              │
     │ smoothing kernel: ………………………………… Val                                                              │
-    │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                              │
+    │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
     │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
     @test repr("text/plain", container) == show_box
