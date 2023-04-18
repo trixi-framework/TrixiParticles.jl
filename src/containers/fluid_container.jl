@@ -33,21 +33,7 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
     cache               :: C
 
     # convenience constructor for passing a setup as first argument
-    function FluidParticleContainer(SPH_scheme, setup,
-                                    density_calculator::SummationDensity,
-                                    smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
-        return FluidParticleContainer(SPH_scheme, setup.coordinates, setup.velocities,
-                                      setup.masses, density_calculator, smoothing_kernel,
-                                      smoothing_length, viscosity=viscosity,
-                                      acceleration=acceleration)
-    end
-
-    # convenience constructor for passing a setup as first argument
-    function FluidParticleContainer(SPH_scheme, setup,
-                                    density_calculator::ContinuityDensity,
+    function FluidParticleContainer(SPH_scheme, setup, density_calculator,
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
@@ -59,51 +45,9 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
                                       acceleration=acceleration)
     end
 
-    function FluidParticleContainer(SPH_scheme, particle_coordinates,
-                                    particle_velocities, particle_masses,
-                                    density_calculator::SummationDensity,
-                                    smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
-        NDIMS = size(particle_coordinates, 1)
-        ELTYPE = eltype(particle_masses)
-        nparticles = length(particle_masses)
-
-        pressure = Vector{ELTYPE}(undef, nparticles)
-
-        # Make acceleration an SVector
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
-        end
-
-        if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
-        end
-
-        density = Vector{ELTYPE}(undef, nparticles)
-        cache = (; density)
-
-        return new{typeof(SPH_scheme), NDIMS, ELTYPE, typeof(density_calculator),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(cache)}(SPH_scheme,
-                                  particle_coordinates,
-                                  particle_velocities,
-                                  particle_masses,
-                                  pressure,
-                                  density_calculator,
-                                  smoothing_kernel,
-                                  smoothing_length,
-                                  viscosity,
-                                  acceleration_,
-                                  cache)
-    end
-
     function FluidParticleContainer(SPH_scheme, particle_coordinates, particle_velocities,
                                     particle_masses, particle_densities,
-                                    density_calculator::ContinuityDensity,
-                                    smoothing_kernel, smoothing_length;
+                                    density_calculator, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
@@ -111,10 +55,9 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
 
-        pressure = Vector{ELTYPE}(undef, nparticles)
-
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
@@ -123,8 +66,9 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
             error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
         end
 
-        initial_density = particle_densities
-        cache = (; initial_density)
+        pressure = Vector{ELTYPE}(undef, nparticles)
+
+        cache = create_cache(particle_densities, density_calculator)
 
         return new{typeof(SPH_scheme), NDIMS, ELTYPE, typeof(density_calculator),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -171,6 +115,16 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
         summary_line(io, "acceleration", container.acceleration)
         summary_footer(io)
     end
+end
+
+function create_cache(initial_density, ::SummationDensity)
+    density = similar(initial_density)
+
+    return (; density)
+end
+
+function create_cache(initial_density, ::ContinuityDensity)
+    return (; initial_density)
 end
 
 @inline function v_nvariables(container::FluidParticleContainer)
@@ -237,7 +191,6 @@ end
                                               neighbor_container, neighborhood_search)
     @unpack smoothing_kernel, smoothing_length, cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack boundary_model = neighbor_container
 
     particle_coords = get_current_coords(particle, u_particle_container, particle_container)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)

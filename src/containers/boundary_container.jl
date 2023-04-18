@@ -318,16 +318,6 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
-function create_cache(initial_density, ::SummationDensity)
-    density = similar(initial_density)
-
-    return (; density)
-end
-
-function create_cache(initial_density, ::ContinuityDensity)
-    return (; initial_density)
-end
-
 function create_cache(initial_density, ::AdamiPressureExtrapolation)
     density = similar(initial_density)
     volume = similar(initial_density)
