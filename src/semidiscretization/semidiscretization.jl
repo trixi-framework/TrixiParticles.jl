@@ -133,8 +133,8 @@ function create_neighborhood_search(container::BoundaryParticleContainer, neighb
 end
 
 # Create Tuple of containers for single container
-digest_containers(boundary_condition) = (boundary_condition,)
-digest_containers(boundary_condition::Tuple) = boundary_condition
+convert_to_tuple(container) = (container,)
+convert_to_tuple(container::Tuple) = container
 
 """
     semidiscretize(semi, tspan)
