@@ -39,10 +39,8 @@ end
     @unpack SPH_scheme, smoothing_kernel, smoothing_length, viscosity = particle_container
     @unpack state_equation = SPH_scheme
 
-    rho_a = get_particle_density(particle, v_particle_container,
-                                 particle_container)
-    rho_b = get_particle_density(neighbor, v_neighbor_container,
-                                 neighbor_container)
+    rho_a = get_particle_density(particle, v_particle_container, particle_container)
+    rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
 
     # Viscosity
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
