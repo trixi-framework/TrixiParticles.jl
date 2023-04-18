@@ -122,7 +122,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    u0 = zeros(TrixiParticles.u_nvariables(container), TrixiParticles.n_moving_particles(container))
+    u0 = zeros(TrixiParticles.u_nvariables(container),
+               TrixiParticles.n_moving_particles(container))
     TrixiParticles.write_u0!(u0, container)
 
     @test u0 == coordinates
@@ -144,7 +145,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    v0 = zeros(TrixiParticles.v_nvariables(container),
+               TrixiParticles.n_moving_particles(container))
     TrixiParticles.write_v0!(v0, container)
 
     @test v0 == velocities
@@ -155,7 +157,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    v0 = zeros(TrixiParticles.v_nvariables(container),
+               TrixiParticles.n_moving_particles(container))
     TrixiParticles.write_v0!(v0, container)
 
     @test v0 == vcat(velocities, densities')
