@@ -1,3 +1,4 @@
+include("schemes.jl")
 include("density_calculators.jl")
 include("neighborhood_search.jl")
 include("penalty_force.jl")

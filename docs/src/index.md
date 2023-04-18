@@ -61,6 +61,12 @@ Modules = [TrixiParticles]
 Pages = [joinpath("sph", "penalty_force.jl")]
 ```
 
+### File schemes.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("sph", "schemes.jl")]
+```
+
 ### File smoothing_kernels.jl
 ```@autodocs
 Modules = [TrixiParticles]
