@@ -1,3 +1,10 @@
+abstract type SmoothingKernel{NDIMS} end
+@inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
+
+@inline function kernel_grad(kernel, pos_diff, distance, h)
+    return kernel_deriv(kernel, distance, h) * pos_diff / distance
+end
+
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 
@@ -23,19 +30,19 @@ including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
-    The kernel can be called as `Pixie.kernel(::SchoenbergCubicSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergCubicSplineKernel, r, h)`.
+    The kernel can be called as `TrixiParticles.kernel(::SchoenbergCubicSplineKernel, r, h)`.
     The length of the compact support can be obtained as
-    `Pixie.compact_support(::SchoenbergCubicSplineKernel, h)`.
+    `TrixiParticles.compact_support(::SchoenbergCubicSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -49,7 +56,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergCubicSplineKernel{NDIMS} end
+struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
@@ -117,19 +124,19 @@ including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
-    The kernel can be called as `Pixie.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergQuarticSplineKernel, r, h)`.
+    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
     The length of the compact support can be obtained as
-    `Pixie.compact_support(::SchoenbergQuarticSplineKernel, h)`.
+    `TrixiParticles.compact_support(::SchoenbergQuarticSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -143,7 +150,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuarticSplineKernel{NDIMS} end
+struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
@@ -217,19 +224,19 @@ including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
 !!! note "Usage"
-    The kernel can be called as `Pixie.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
-    The derivative ``\partial/\partial r W(r, h)`` can be called as
-    `Pixie.kernel_deriv(::SchoenbergQuinticSplineKernel, r, h)`.
+    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
     The length of the compact support can be obtained as
-    `Pixie.compact_support(::SchoenbergQuinticSplineKernel, h)`.
+    `TrixiParticles.compact_support(::SchoenbergQuinticSplineKernel, h)`.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The derivative required in SPH is then given by
+    The gradient required in SPH,
     ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h) =
-    \frac{\partial}{\partial r} W(\Vert r_a - r_b \Vert, h) \frac{r_a - r_b}{\Vert r_a - r_b \Vert}.
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
     ```
+    can be called as
+    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -243,7 +250,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
   In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
   [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
 """
-struct SchoenbergQuinticSplineKernel{NDIMS} end
+struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h

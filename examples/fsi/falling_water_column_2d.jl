@@ -1,4 +1,4 @@
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
@@ -50,8 +50,9 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 E = 1.4e6
 nu = 0.4
 
-fixed_particles = CircularShape(clamp_radius + solid_particle_spacing / 2, 0.0,
-                                thickness / 2, solid_particle_spacing,
+fixed_particles = CircularShape(solid_particle_spacing,
+                                clamp_radius + solid_particle_spacing / 2,
+                                (0.0, thickness / 2),
                                 shape_type=FillCircle(x_recess=(0.0, clamp_radius),
                                                       y_recess=(0.0, thickness)),
                                 density=solid_density)
@@ -111,11 +112,10 @@ semi = Semidiscretization(fluid_container, solid_container,
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
-summary_callback = SummaryCallback()
-alive_callback = AliveCallback(alive_interval=100)
-saved_values, saving_callback = SolutionSavingCallback(saveat=0.0:0.005:1000.0)
+info_callback = InfoCallback(interval=100)
+saving_callback = SolutionSavingCallback(dt=0.005)
 
-callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -126,13 +126,7 @@ callbacks = CallbackSet(summary_callback, alive_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# Print the timer summary
-summary_callback()
-
-# activate to save to vtk
-# pixie2vtk(saved_values)

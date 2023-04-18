@@ -33,23 +33,23 @@
 
         smoothing_length = 0.12
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+        search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
         container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                            particle_masses, particle_densities,
                                            smoothing_kernel, smoothing_length,
                                            1.0, 1.0, nothing)
-        nhs = Pixie.TrivialNeighborhoodSearch(container)
-        Pixie.initialize!(container, nhs)
+        nhs = TrixiParticles.TrivialNeighborhoodSearch(container)
+        TrixiParticles.initialize!(container, nhs)
 
         # Apply the deformation matrix
-        for particle in Pixie.eachparticle(container)
+        for particle in TrixiParticles.eachparticle(container)
             container.current_coordinates[:, particle] = deformations[deformation](container.initial_coordinates[:,
                                                                                                                  particle])
         end
 
         # Compute the deformation gradient for the particle in the middle
-        J = Pixie.deformation_gradient(41, nhs, container)
+        J = TrixiParticles.deformation_gradient(41, nhs, container)
 
         #### Verification
         @test J ≈ deformation_gradients[deformation]
@@ -83,16 +83,16 @@ end
 
         smoothing_length = 0.12
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-        search_radius = Pixie.compact_support(smoothing_kernel, smoothing_length)
+        search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
         container = SolidParticleContainer(particle_coordinates, particle_velocities,
                                            particle_masses, particle_densities,
                                            smoothing_kernel, smoothing_length,
                                            E, nu, nothing)
-        nhs = Pixie.TrivialNeighborhoodSearch(container)
-        Pixie.initialize!(container, nhs)
+        nhs = TrixiParticles.TrivialNeighborhoodSearch(container)
+        TrixiParticles.initialize!(container, nhs)
 
         # Apply the deformation matrix
-        for particle in Pixie.eachparticle(container)
+        for particle in TrixiParticles.eachparticle(container)
             # Rotate and stretch with the same deformation as in the unit test above
             container.current_coordinates[:, particle] = [cos(0.3) -sin(0.3);
                                                           sin(0.3) cos(0.3)] *
@@ -106,13 +106,13 @@ end
         J_expected = [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
 
         # Deformation gradient
-        @test Pixie.deformation_gradient(particle, nhs, container) ≈ J_expected
+        @test TrixiParticles.deformation_gradient(particle, nhs, container) ≈ J_expected
 
         # PK2 stress tensor (same as in the unit test above)
-        @test Pixie.pk2_stress_tensor(J_expected, container) ≈ [8.5 0.0; 0.0 13.5]
+        @test TrixiParticles.pk2_stress_tensor(J_expected, container) ≈ [8.5 0.0; 0.0 13.5]
 
         # PK1 stress tensor (same as in the unit test above)
-        @test Pixie.pk1_stress_tensor(J_expected, container) ≈
+        @test TrixiParticles.pk1_stress_tensor(J_expected, container) ≈
               J_expected * [8.5 0.0; 0.0 13.5]
     end
 end
