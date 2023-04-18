@@ -142,7 +142,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
     hydrodynamic_mass         :: Vector{ELTYPE}
     viscosity                 :: V
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass,
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
                                          viscosity=NoViscosity())
         new{typeof(K), typeof(viscosity)}(K, beta, boundary_particle_spacing, mass,
                                           viscosity)
