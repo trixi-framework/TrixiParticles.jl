@@ -29,7 +29,7 @@ where ``x, y, z`` are the space coordinates.
 
 As opposed to (Ihmsen et al. 2011), we do not handle the hashing explicitly and use
 Julia's `Dict` data structure instead.
-We also do not sort the particles in any way, since that makes our Implementation
+We also do not sort the particles in any way, since that makes our implementation
 a lot faster (although not parallelizable).
 
 ## References:
