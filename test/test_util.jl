@@ -1,5 +1,5 @@
 using Test
-using Pixie
+using TrixiParticles
 using LinearAlgebra
 using Printf
 
