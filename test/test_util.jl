@@ -1,3 +1,8 @@
+using Test
+using TrixiParticles
+using LinearAlgebra
+using Printf
+
 """
     @trixi_testset "name of the testset" #= code to test #=
 

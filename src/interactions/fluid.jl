@@ -40,10 +40,8 @@ end
     @unpack smoothing_kernel, smoothing_length,
     state_equation, viscosity = particle_container
 
-    rho_a = get_particle_density(particle, v_particle_container,
-                                 particle_container)
-    rho_b = get_particle_density(neighbor, v_neighbor_container,
-                                 neighbor_container)
+    rho_a = get_particle_density(particle, v_particle_container, particle_container)
+    rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
 
     # Viscosity
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) -

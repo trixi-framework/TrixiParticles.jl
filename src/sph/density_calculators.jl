@@ -23,19 +23,31 @@ velocities of particles ``a`` and ``b``.
 """
 struct ContinuityDensity end
 
-# This is dispatched in boundary_container.jl
 @inline function get_particle_density(particle, v, container)
     get_particle_density(particle, v, container.density_calculator, container)
 end
 
 @inline function get_particle_density(particle, v, ::SummationDensity, container)
-    @unpack cache = container
-
-    return cache.density[particle]
+    return container.cache.density[particle]
 end
 
 @inline function get_particle_density(particle, v, ::ContinuityDensity, container)
     return v[end, particle]
+end
+
+# *Note* that these functions are intended to internally set the density for buffer particles
+# and density correction. It cannot be used to set up an initial condition,
+# as the particle density depends on the particle positions.
+@inline function set_particle_density(particle, v, container, density)
+    set_particle_density(particle, v, container.density_calculator, container, density)
+end
+
+@inline function set_particle_density(particle, v, ::SummationDensity, container, density)
+    container.cache.density[particle] = density
+end
+
+@inline function set_particle_density(particle, v, ::ContinuityDensity, container, density)
+    v[end, particle] = density
 end
 
 # This is dispatched in fluid_container.jl and boundary_container.jl
