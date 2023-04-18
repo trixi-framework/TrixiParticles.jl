@@ -92,6 +92,8 @@ sound_speed = 10 * sqrt(9.81 * water_height)
 
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
+scheme = WCSPH(state_equation)
+
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 # Remove one particle in x-direction, so that the water column fits in between the two
@@ -131,10 +133,10 @@ solid_container = SolidParticleContainer(particle_coordinates, particle_velociti
                                          acceleration=(0.0, 0.0),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-fluid_container = FluidParticleContainer(fluid.coordinates,
+fluid_container = FluidParticleContainer(scheme, fluid.coordinates,
                                          zeros(size(fluid.coordinates)),
                                          fluid.masses, fluid.densities,
-                                         ContinuityDensity(), state_equation,
+                                         ContinuityDensity(),
                                          fluid_smoothing_kernel, fluid_smoothing_length,
                                          viscosity=viscosity,
                                          acceleration=(0.0, gravity))

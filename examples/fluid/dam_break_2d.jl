@@ -33,6 +33,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
+scheme = WCSPH(state_equation)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
@@ -63,7 +64,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(scheme, setup, ContinuityDensity(),
                                             smoothing_kernel, smoothing_length,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))

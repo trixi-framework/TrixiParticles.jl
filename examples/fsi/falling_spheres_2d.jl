@@ -26,6 +26,7 @@ tank_height = 1.0
 sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
+scheme = WCSPH(state_equation)
 
 fluid_smoothing_length = 1.2 * fluid_particle_spacing
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -100,7 +101,7 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+particle_container = FluidParticleContainer(scheme, setup, ContinuityDensity(),
                                             fluid_smoothing_kernel, fluid_smoothing_length,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))

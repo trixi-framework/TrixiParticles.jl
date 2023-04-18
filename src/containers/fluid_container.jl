@@ -164,7 +164,8 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
         summary_line(io, "#particles", nparticles(container))
         summary_line(io, "density calculator",
                      container.density_calculator |> typeof |> nameof)
-        summary_line(io, "state equation", container.SPH_scheme.state_equation |> typeof |> nameof)
+        summary_line(io, "state equation",
+                     container.SPH_scheme.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", container.viscosity)
         summary_line(io, "acceleration", container.acceleration)
