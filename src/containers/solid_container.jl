@@ -227,8 +227,7 @@ function initialize!(container::SolidParticleContainer, neighborhood_search)
 end
 
 function calc_correction_matrix!(correction_matrix, neighborhood_search, container)
-    @unpack initial_coordinates, mass, material_density,
-    smoothing_kernel, smoothing_length = container
+    @unpack initial_coordinates, mass, material_density = container
 
     # Calculate kernel correction matrix
     for particle in eachparticle(container)
