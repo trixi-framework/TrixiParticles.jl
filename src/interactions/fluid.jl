@@ -74,7 +74,8 @@ end
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_container, pos_diff, distance))
+                                   smoothing_kernel_grad(particle_container, pos_diff,
+                                                         distance))
 
     return dv
 end
