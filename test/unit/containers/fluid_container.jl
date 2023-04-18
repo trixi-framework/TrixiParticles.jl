@@ -30,7 +30,7 @@
         @test container.state_equation == state_equation
         @test container.smoothing_kernel == smoothing_kernel
         @test container.smoothing_length == smoothing_length
-        @test container.viscosity isa Pixie.NoViscosity
+        @test container.viscosity isa TrixiParticles.NoViscosity
         @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
         error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
@@ -57,7 +57,7 @@
         @test container.state_equation == state_equation
         @test container.smoothing_kernel == smoothing_kernel
         @test container.smoothing_length == smoothing_length
-        @test container.viscosity isa Pixie.NoViscosity
+        @test container.viscosity isa TrixiParticles.NoViscosity
         @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
         @test_throws ErrorException(error_str) FluidParticleContainer(coordinates,
@@ -89,7 +89,7 @@ end
 
     show_compact = "FluidParticleContainer{2}(SummationDensity(), " *
                    "Val{:state_equation}(), Val{:smoothing_kernel}(), " *
-                   "Pixie.NoViscosity(), [0.0, 0.0]) with 2 particles"
+                   "TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
     @test repr(container) == show_compact
 
     show_box = """
@@ -100,7 +100,7 @@ end
     │ density calculator: …………………………… SummationDensity                                                 │
     │ state equation: ……………………………………… Val                                                              │
     │ smoothing kernel: ………………………………… Val                                                              │
-    │ viscosity: …………………………………………………… Pixie.NoViscosity()                                              │
+    │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                              │
     │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
     @test repr("text/plain", container) == show_box
@@ -122,8 +122,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    u0 = zeros(Pixie.u_nvariables(container), Pixie.n_moving_particles(container))
-    Pixie.write_u0!(u0, container)
+    u0 = zeros(TrixiParticles.u_nvariables(container), TrixiParticles.n_moving_particles(container))
+    TrixiParticles.write_u0!(u0, container)
 
     @test u0 == coordinates
 end
@@ -144,8 +144,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    v0 = zeros(Pixie.v_nvariables(container), Pixie.n_moving_particles(container))
-    Pixie.write_v0!(v0, container)
+    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    TrixiParticles.write_v0!(v0, container)
 
     @test v0 == velocities
 
@@ -155,8 +155,8 @@ end
                                        state_equation, smoothing_kernel,
                                        smoothing_length)
 
-    v0 = zeros(Pixie.v_nvariables(container), Pixie.n_moving_particles(container))
-    Pixie.write_v0!(v0, container)
+    v0 = zeros(TrixiParticles.v_nvariables(container), TrixiParticles.n_moving_particles(container))
+    TrixiParticles.write_v0!(v0, container)
 
     @test v0 == vcat(velocities, densities')
 end

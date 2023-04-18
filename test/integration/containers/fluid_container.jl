@@ -34,7 +34,7 @@
         @test container.state_equation == state_equation
         @test container.smoothing_kernel == smoothing_kernel
         @test container.smoothing_length == smoothing_length
-        @test container.viscosity isa Pixie.NoViscosity
+        @test container.viscosity isa TrixiParticles.NoViscosity
         @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
         error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
