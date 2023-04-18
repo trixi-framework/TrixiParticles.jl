@@ -37,7 +37,7 @@ end
 
 # *Note* that these functions are intended to internally set the density for buffer particles
 # and density correction. It cannot be used to set up an initial condition,
-# as the particle density depends on the particle positions
+# as the particle density depends on the particle positions.
 @inline function set_particle_density(particle, v, container, density)
     set_particle_density(particle, v, container.density_calculator, container, density)
 end
