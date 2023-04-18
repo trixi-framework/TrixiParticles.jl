@@ -1,8 +1,3 @@
-using Test
-using TrixiParticles
-using LinearAlgebra
-using Printf
-
 include("test_util.jl")
 
 const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
