@@ -13,6 +13,7 @@
         masses = [1.25, 1.5]
         material_densities = [990.0, 1000.0]
         smoothing_kernel = Val(:smoothing_kernel)
+        TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
         smoothing_length = 0.362
         # Make both Lamé constants equal to 1
         nu = 0.25
@@ -48,6 +49,7 @@ end
     masses = [1.25, 1.5]
     material_densities = [990.0, 1000.0]
     smoothing_kernel = Val(:smoothing_kernel)
+    TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
     smoothing_length = 0.362
     # Make both Lamé constants equal to 1
     nu = 0.25
