@@ -36,7 +36,7 @@ end
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity = particle_container
+    @unpack state_equation, viscosity, smoothing_length = particle_container
 
     rho_a = get_particle_density(particle, v_particle_container,
                                  particle_container)
@@ -50,7 +50,7 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, rho_mean, smoothing_length)
 
-    grad_kernel = smoothing_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
     m_b = neighbor_container.mass[neighbor]
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / rho_a^2 +

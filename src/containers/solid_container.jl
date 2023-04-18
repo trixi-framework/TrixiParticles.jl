@@ -306,8 +306,7 @@ function pk1_stress_tensor(J, container)
 end
 
 function deformation_gradient(particle, neighborhood_search, container)
-    @unpack initial_coordinates, current_coordinates,
-    mass, material_density, smoothing_kernel, smoothing_length = container
+    @unpack initial_coordinates, current_coordinates, mass, material_density = container
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
@@ -323,8 +322,7 @@ function deformation_gradient(particle, neighborhood_search, container)
 
         if initial_distance > sqrt(eps())
             # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = smoothing_kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
-                                      smoothing_length)
+            grad_kernel = smoothing_kernel_grad(container, initial_pos_diff, initial_distance)
 
             result -= volume * pos_diff * grad_kernel'
         end
@@ -349,8 +347,7 @@ end
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container,
                                      penalty_force::PenaltyForceGanzenmueller)
-    @unpack smoothing_kernel, smoothing_length, mass,
-    material_density, current_coordinates, young_modulus = container
+    @unpack mass, material_density, current_coordinates, young_modulus = container
 
     current_pos_diff = get_particle_coords(particle, current_coordinates, container) -
                        get_particle_coords(neighbor, current_coordinates, container)
