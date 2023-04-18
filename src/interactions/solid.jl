@@ -99,7 +99,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
+                rho_b = get_particle_density(neighbor, v_neighbor_container,
+                                             neighbor_container)
                 v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
                 # Flip sign to get the same force as for the fluid-solid direction.
