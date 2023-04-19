@@ -16,9 +16,13 @@
             state_equation = Val(:state_equation)
             smoothing_kernel = Val(:smoothing_kernel)
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
+            smoothing_kernel2 = Val(:smoothing_kernel2)
+            # The wrong dimension. 2 -> 3, 3 -> 2.
+            TrixiParticles.ndims(::Val{:smoothing_kernel2}) = i % 2 + 2
             smoothing_length = 0.362
-            density_calculator = SummationDensity()
 
+            # SummationDensity
+            density_calculator = SummationDensity()
             container = FluidParticleContainer(coordinates, velocities, masses,
                                                density_calculator,
                                                state_equation, smoothing_kernel,
@@ -35,16 +39,26 @@
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
-            error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ErrorException(error_str) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel,
-                                                                          smoothing_length,
-                                                                          acceleration=(0.0))
+            error_str1 = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
+            @test_throws ErrorException(error_str1) FluidParticleContainer(coordinates,
+                                                                           velocities,
+                                                                           masses,
+                                                                           density_calculator,
+                                                                           state_equation,
+                                                                           smoothing_kernel,
+                                                                           smoothing_length,
+                                                                           acceleration=(0.0))
 
+            error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
+            @test_throws ErrorException(error_str2) FluidParticleContainer(coordinates,
+                                                                           velocities,
+                                                                           masses,
+                                                                           density_calculator,
+                                                                           state_equation,
+                                                                           smoothing_kernel2,
+                                                                           smoothing_length)
+
+            # ContinuityDensity
             density_calculator = ContinuityDensity()
             container = FluidParticleContainer(coordinates, velocities, masses, densities,
                                                density_calculator, state_equation,
@@ -62,14 +76,24 @@
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
-            @test_throws ErrorException(error_str) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses, densities,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel,
-                                                                          smoothing_length,
-                                                                          acceleration=(0.0))
+            @test_throws ErrorException(error_str1) FluidParticleContainer(coordinates,
+                                                                           velocities,
+                                                                           masses,
+                                                                           densities,
+                                                                           density_calculator,
+                                                                           state_equation,
+                                                                           smoothing_kernel,
+                                                                           smoothing_length,
+                                                                           acceleration=(0.0))
+
+            @test_throws ErrorException(error_str2) FluidParticleContainer(coordinates,
+                                                                           velocities,
+                                                                           masses,
+                                                                           densities,
+                                                                           density_calculator,
+                                                                           state_equation,
+                                                                           smoothing_kernel2,
+                                                                           smoothing_length)
         end
     end
 
