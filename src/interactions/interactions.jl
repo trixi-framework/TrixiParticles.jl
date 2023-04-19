@@ -1,3 +1,3 @@
-include("boundary.jl")
-include("fluid.jl")
-include("solid.jl")
+include("boundary/boundary.jl")
+include("fluid/WCSPH.jl")
+include("solid/solid.jl")
