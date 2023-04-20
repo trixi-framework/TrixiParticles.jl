@@ -51,8 +51,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container, boundary_model,
                    ::ContinuityDensity)
-    @unpack smoothing_kernel, smoothing_length = boundary_model
-
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
@@ -74,9 +72,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # For boundary particles, the velocity is not integrated.
                 # Therefore, the density is stored in the first dimension of `dv`.
                 dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
-                                       smoothing_kernel_grad(smoothing_kernel, pos_diff,
-                                                             distance,
-                                                             smoothing_length))
+                                       smoothing_kernel_grad(boundary_model, pos_diff,
+                                                             distance))
             end
         end
     end

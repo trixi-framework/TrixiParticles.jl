@@ -9,7 +9,7 @@ end
 # Function barrier without dispatch for unit testing
 @inline function interact_solid_solid!(dv, neighborhood_search, particle_container,
                                        neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, penalty_force = particle_container
+    @unpack penalty_force = particle_container
 
     # Different solids do not interact with each other (yet)
     if particle_container !== neighbor_container

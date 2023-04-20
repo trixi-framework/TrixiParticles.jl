@@ -3,7 +3,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -92,7 +92,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
     @unpack density_calculator, state_equation, viscosity,
-    smoothing_kernel, smoothing_length = particle_container
+    smoothing_length = particle_container
     @unpack sound_speed = state_equation
 
     @threaded for particle in each_moving_particle(particle_container)
