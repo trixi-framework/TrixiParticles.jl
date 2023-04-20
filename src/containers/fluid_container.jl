@@ -86,37 +86,6 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
     end
 end
 
-function Base.show(io::IO, container::FluidParticleContainer{<:WCSPH})
-    @nospecialize container # reduce precompilation time
-
-    print(io, "FluidParticleContainer{WCSPH, ", ndims(container), "}(")
-    print(io, container.density_calculator)
-    print(io, ", ", container.SPH_scheme.state_equation)
-    print(io, ", ", container.smoothing_kernel)
-    print(io, ", ", container.viscosity)
-    print(io, ", ", container.acceleration)
-    print(io, ") with ", nparticles(container), " particles")
-end
-
-function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer{<:WCSPH})
-    @nospecialize container # reduce precompilation time
-
-    if get(io, :compact, false)
-        show(io, container)
-    else
-        summary_header(io, "FluidParticleContainer{WCSPH, $(ndims(container))}")
-        summary_line(io, "#particles", nparticles(container))
-        summary_line(io, "density calculator",
-                     container.density_calculator |> typeof |> nameof)
-        summary_line(io, "state equation",
-                     container.SPH_scheme.state_equation |> typeof |> nameof)
-        summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "viscosity", container.viscosity)
-        summary_line(io, "acceleration", container.acceleration)
-        summary_footer(io)
-    end
-end
-
 function create_cache(initial_density, ::SummationDensity)
     density = similar(initial_density)
 
@@ -139,80 +108,6 @@ end
 
 @inline function get_hydrodynamic_mass(particle, container::FluidParticleContainer)
     return container.mass[particle]
-end
-
-# Nothing to initialize for this container
-initialize!(container::FluidParticleContainer, neighborhood_search) = container
-
-function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
-                 semi, t)
-    @unpack density_calculator = container
-
-    compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
-
-    return container
-end
-
-function compute_quantities(v, u, ::ContinuityDensity, container, container_index, u_ode,
-                            semi)
-    compute_pressure!(container, v)
-end
-
-function compute_quantities(v, u, ::SummationDensity, container, container_index, u_ode,
-                            semi)
-    @unpack particle_containers, neighborhood_searches = semi
-    @unpack cache = container
-    @unpack density = cache # Density is in the cache for SummationDensity
-
-    density .= zero(eltype(density))
-
-    # Use all other containers for the density summation
-    @trixi_timeit timer() "compute density" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                       neighbor_container)
-        u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
-                                      neighbor_container, semi)
-
-        @threaded for particle in eachparticle(container)
-            compute_density_per_particle(particle, u, u_neighbor_container,
-                                         container, neighbor_container,
-                                         neighborhood_searches[container_index][neighbor_container_index])
-        end
-    end
-
-    compute_pressure!(container, v)
-end
-
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_density_per_particle(particle,
-                                              u_particle_container, u_neighbor_container,
-                                              particle_container::FluidParticleContainer,
-                                              neighbor_container, neighborhood_search)
-    @unpack smoothing_kernel, smoothing_length, cache = particle_container
-    @unpack density = cache # Density is in the cache for SummationDensity
-
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
-        neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                             neighbor_container)
-        distance = norm(particle_coords - neighbor_coords)
-
-        if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
-        end
-    end
-end
-
-function compute_pressure!(container::FluidParticleContainer{<:WCSPH}, v)
-    @unpack SPH_scheme, pressure = container
-    @unpack state_equation = SPH_scheme
-
-    # Note that @threaded makes this slower
-    for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v, container))
-    end
 end
 
 function write_u0!(u0, container::FluidParticleContainer)
