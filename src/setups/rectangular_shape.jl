@@ -35,6 +35,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
     velocities                :: Array{ELTYPE, 2}
     masses                    :: Vector{ELTYPE}
     densities                 :: Vector{ELTYPE}
+    pressures                 :: Vector{ELTYPE}
     particle_spacing          :: ELTYPE
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
@@ -59,11 +60,12 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         densities = density * ones(ELTYPE, n_particles * (density > 0))
         masses = density * particle_spacing^NDIMS *
                  ones(ELTYPE, n_particles * (density > 0))
+        pressures = zeros(ELTYPE, size(densities))
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
 
-        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities, pressures,
                                   particle_spacing, n_particles_per_dimension)
     end
 end

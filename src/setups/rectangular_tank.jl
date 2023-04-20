@@ -53,6 +53,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     coordinates               :: Array{ELTYPE, 2}
     velocities                :: Array{ELTYPE, 2}
     densities                 :: Vector{ELTYPE}
+    pressures                 :: Vector{ELTYPE}
     masses                    :: Vector{ELTYPE}
     boundary_coordinates      :: Array{ELTYPE, 2}
     boundary_masses           :: Vector{ELTYPE}
@@ -108,22 +109,23 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         end
 
         n_particles_per_dimension = (n_particles_x, n_particles_y)
-        particle_coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-        particle_velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+        particle_coordinates = Array{ELTYPE, 2}(undef, 2, prod(n_particles_per_dimension))
+        particle_velocities = Array{ELTYPE, 2}(undef, 2, prod(n_particles_per_dimension))
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
+        particle_pressures = zeros(ELTYPE, size(particle_densities))
+
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
-                                             boundary_coordinates, boundary_masses,
-                                             boundary_densities, faces,
-                                             face_indices,
-                                             particle_spacing, spacing_ratio, n_layers,
-                                             n_particles_per_dimension)
+                                             particle_densities, particle_pressures,
+                                             particle_masses, boundary_coordinates,
+                                             boundary_masses, boundary_densities, faces,
+                                             face_indices, particle_spacing, spacing_ratio,
+                                             n_layers, n_particles_per_dimension)
     end
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
@@ -180,21 +182,21 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         n_particles_per_dimension = (n_particles_x, n_particles_y, n_particles_z)
 
-        particle_coordinates = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
-        particle_velocities = Array{Float64, 2}(undef, 3, prod(n_particles_per_dimension))
+        particle_coordinates = Array{ELTYPE, 2}(undef, 3, prod(n_particles_per_dimension))
+        particle_velocities = Array{ELTYPE, 2}(undef, 3, prod(n_particles_per_dimension))
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
+        particle_pressures = zeros(ELTYPE, size(particle_densities))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
-                                             boundary_coordinates, boundary_masses,
-                                             boundary_densities, faces,
-                                             face_indices,
-                                             particle_spacing, spacing_ratio, n_layers,
-                                             n_particles_per_dimension)
+                                             particle_densities, particle_pressures,
+                                             particle_masses, boundary_coordinates,
+                                             boundary_masses, boundary_densities, faces,
+                                             face_indices, particle_spacing, spacing_ratio,
+                                             n_layers, n_particles_per_dimension)
     end
 end
 

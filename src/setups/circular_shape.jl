@@ -27,6 +27,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     velocities       :: Array{ELTYPE, 2}
     masses           :: Vector{ELTYPE}
     densities        :: Vector{ELTYPE}
+    pressures        :: Vector{ELTYPE}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
@@ -43,9 +44,10 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        pressures = zeros(ELTYPE, size(densities))
         velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
+        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities, pressures,
                                   particle_spacing, n_particles)
     end
 end
