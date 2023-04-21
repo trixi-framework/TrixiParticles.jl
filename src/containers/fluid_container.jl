@@ -82,17 +82,11 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
-        return new{NDIMS, ELTYPE,
-                   typeof(density_calculator),
-                   typeof(state_equation),
-                   typeof(smoothing_kernel),
-                   typeof(viscosity), typeof(cache)}(particle_coordinates,
-                                                     particle_velocities,
-                                                     particle_masses, pressure,
-                                                     density_calculator, state_equation,
-                                                     smoothing_kernel,
-                                                     smoothing_length,
-                                                     viscosity, acceleration_, cache)
+        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                     density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     viscosity, acceleration_, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
