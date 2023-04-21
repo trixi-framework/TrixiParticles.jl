@@ -15,7 +15,7 @@ using StaticArrays: @SMatrix, SMatrix
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-@reexport using UnPack: @unpack
+@reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 # util needs to be first because of macro @trixi_timeit

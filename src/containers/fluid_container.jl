@@ -106,6 +106,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
         end
 
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+        end
+
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
@@ -161,6 +165,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C, SRFT, SAVE
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
         end
 
         initial_density = particle_densities
