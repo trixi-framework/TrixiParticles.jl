@@ -45,15 +45,24 @@ end
     return get_particle_coords(particle, v, container)
 end
 
-struct State{ELTYPE}
-    density     :: ELTYPE
-    pressure    :: ELTYPE
-    temperature :: ELTYPE
+@inline function smoothing_kernel(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
 
-    function State(density, pressure, temperature)
-        ELTYPE = typeof(density)
-        return new{ELTYPE}(density, pressure, temperature)
-    end
+@inline function smoothing_kernel_deriv(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_deriv(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_grad(container, pos_diff, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+end
+
+@inline function compact_support(container)
+    @unpack smoothing_kernel, smoothing_length = container
+    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 include("fluid_container.jl")

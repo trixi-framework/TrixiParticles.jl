@@ -3,7 +3,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension, cache, store_options = particle_container
+    @unpack density_calculator, smoothing_length, surface_tension, cache, store_options = particle_container
 
     reset_store(store_options, particle_container)
 
@@ -24,7 +24,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(particle_container)^2
                 distance = sqrt(distance2)
 
                 v_diff = get_particle_vel(particle, v_particle_container,
@@ -97,7 +97,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    particle_container::FluidParticleContainer,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
-    @unpack density_calculator, smoothing_kernel, smoothing_length, surface_tension = particle_container
+    @unpack density_calculator, smoothing_length, surface_tension = particle_container
 
     # iterate overall fluid particles
     @threaded for particle in each_moving_particle(particle_container)
@@ -115,7 +115,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(particle_container)^2
                 distance = sqrt(distance2)
                 # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
                 # corresponding to the rest density of the fluid and not the material density.
