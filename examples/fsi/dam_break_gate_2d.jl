@@ -95,8 +95,9 @@ particle_densities = vcat(plate.densities, fixed_particles.densities)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
-                                                  setup.boundary_masses, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(scheme, setup.boundary_densities,
+                                                  setup.boundary_masses,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel,
                                                   smoothing_length)
@@ -115,8 +116,9 @@ hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
+boundary_model_solid = BoundaryModelDummyParticles(scheme, hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)
 

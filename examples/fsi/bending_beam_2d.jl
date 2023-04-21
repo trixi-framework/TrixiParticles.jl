@@ -112,8 +112,9 @@ fluid = RectangularShape(fluid_particle_spacing, n_particles_per_dimension,
 hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
+boundary_model_solid = BoundaryModelDummyParticles(scheme, hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    fluid_smoothing_kernel,
                                                    fluid_smoothing_length)

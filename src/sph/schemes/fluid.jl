@@ -13,7 +13,7 @@ function update!(container::FluidParticleContainer, container_index, v, u, v_ode
 end
 
 function compute_density!(container::FluidParticleContainer, container_index,
-                          density_calculator, v, u, u_ode, semi)
+                          ::SummationDensity, v, u, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
     @unpack density = cache # Density is in the cache for SummationDensity
@@ -57,6 +57,6 @@ end
     end
 end
 
-function comput_density!(container::FluidParticleContainer, container_index,
+function compute_density!(container::FluidParticleContainer, container_index,
                          ::ContinuityDensity, v, u, u_ode, semi)
 end

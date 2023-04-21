@@ -73,8 +73,9 @@ particle_densities_2 = sphere_2.densities
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(scheme, setup.boundary_densities,
+                                             setup.boundary_masses,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              fluid_smoothing_kernel,
                                              fluid_smoothing_length)
@@ -83,8 +84,9 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 hydrodynamic_densites_1 = water_density * ones(size(particle_densities_1))
 hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^2
 
-solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
-                                                     hydrodynamic_masses_1, state_equation,
+solid_boundary_model_1 = BoundaryModelDummyParticles(scheme, hydrodynamic_densites_1,
+                                                     hydrodynamic_masses_1,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
@@ -92,8 +94,9 @@ solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
 hydrodynamic_densites_2 = water_density * ones(size(particle_densities_2))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^2
 
-solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
-                                                     hydrodynamic_masses_2, state_equation,
+solid_boundary_model_2 = BoundaryModelDummyParticles(scheme, hydrodynamic_densites_2,
+                                                     hydrodynamic_masses_2,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)

@@ -52,8 +52,9 @@ reset_wall!(setup, reset_faces, positions)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(scheme, setup.boundary_densities,
+                                             setup.boundary_masses,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 

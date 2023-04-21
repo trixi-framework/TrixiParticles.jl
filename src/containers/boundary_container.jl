@@ -389,7 +389,9 @@ end
     return cache.density[particle]
 end
 
-@inline function get_particle_pressure(particle, v, container::BoundaryParticleContainer)
+@inline function get_particle_pressure(particle, v,
+                                       container::Union{BoundaryParticleContainer,
+                                                        SolidParticleContainer})
     return container.boundary_model.pressure[particle]
 end
 

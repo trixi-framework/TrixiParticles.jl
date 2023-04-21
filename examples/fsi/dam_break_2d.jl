@@ -88,8 +88,9 @@ particle_densities = vcat(plate.densities, fixed_particles.densities)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(scheme, setup.boundary_densities,
+                                             setup.boundary_masses,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
@@ -101,8 +102,9 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 hydrodynamic_densites = water_density * ones(size(particle_densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
+solid_boundary_model = BoundaryModelDummyParticles(scheme, hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)
 
