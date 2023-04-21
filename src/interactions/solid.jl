@@ -9,7 +9,7 @@ end
 # Function barrier without dispatch for unit testing
 @inline function interact_solid_solid!(dv, neighborhood_search, particle_container,
                                        neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, penalty_force = particle_container
+    @unpack penalty_force = particle_container
 
     # Different solids do not interact with each other (yet)
     if particle_container !== neighbor_container
@@ -29,7 +29,7 @@ end
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(particle_container)^2
                 distance = sqrt(distance2)
 
                 calc_dv!(dv, particle, neighbor, pos_diff, distance,
@@ -48,13 +48,11 @@ end
 
 @inline function calc_dv!(dv, particle, neighbor, initial_pos_diff, initial_distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
     rho_a = particle_container.material_density[particle]
     rho_b = neighbor_container.material_density[neighbor]
 
-    grad_kernel = kernel_grad(smoothing_kernel, initial_pos_diff, initial_distance,
-                              smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, initial_pos_diff,
+                                        initial_distance)
 
     m_b = neighbor_container.mass[neighbor]
 
@@ -75,8 +73,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack state_equation, viscosity,
-    smoothing_kernel, smoothing_length = neighbor_container
+    @unpack state_equation, viscosity, smoothing_length = neighbor_container
     @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -92,7 +89,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(neighbor_container)^2
                 distance = sqrt(distance2)
 
                 # Apply the same force to the solid particle
@@ -111,8 +108,7 @@ function interact!(dv, v_particle_container, u_particle_container,
 
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
                 dv_viscosity = -m_a * pi_ab *
-                               kernel_grad(smoothing_kernel, pos_diff, distance,
-                                           smoothing_length)
+                               smoothing_kernel_grad(neighbor_container, pos_diff, distance)
                 dv_boundary = boundary_particle_impact(neighbor, particle,
                                                        v_neighbor_container,
                                                        v_particle_container,
@@ -167,15 +163,13 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
                                       neighbor_container::FluidParticleContainer)
-    @unpack smoothing_kernel, smoothing_length = neighbor_container
-
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
-                                   kernel_grad(smoothing_kernel, pos_diff, distance,
-                                               smoothing_length))
+                                   smoothing_kernel_grad(neighbor_container, pos_diff,
+                                                         distance))
 
     return dv
 end
