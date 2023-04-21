@@ -91,7 +91,7 @@ end
 # Fluid-boundary and fluid-solid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer,
+                   particle_container::FluidParticleContainer{<:WCSPH},
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
     @unpack SPH_scheme, density_calculator, viscosity,

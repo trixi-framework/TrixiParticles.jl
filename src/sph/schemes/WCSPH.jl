@@ -50,7 +50,7 @@ end
 
 function compute_quantities(container::FluidParticleContainer{<:WCSPH}, container_index,
                             density_calculator, v, u, u_ode, semi, t)
-    comput_density!(container, container_index, density_calculator, v, u, u_ode, semi)
+    compute_density!(container, container_index, density_calculator, v, u, u_ode, semi)
     compute_pressure!(container, v)
 end
 

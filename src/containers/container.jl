@@ -42,6 +42,10 @@ end
     return get_particle_coords(particle, v, container)
 end
 
+@inline function get_particle_pressure(particle, v, container)
+    return container.pressure[particle]
+end
+
 include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers
