@@ -42,6 +42,26 @@ end
     return get_particle_coords(particle, v, container)
 end
 
+@inline function smoothing_kernel(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_deriv(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_deriv(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_grad(container, pos_diff, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+end
+
+@inline function compact_support(container)
+    @unpack smoothing_kernel, smoothing_length = container
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
 include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers

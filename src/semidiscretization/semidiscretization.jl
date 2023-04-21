@@ -79,9 +79,7 @@ function create_neighborhood_search(_, neighbor, ::Val{nothing})
 end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
-    @unpack smoothing_kernel, smoothing_length = container
-
-    radius = compact_support(smoothing_kernel, smoothing_length)
+    radius = compact_support(container)
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
@@ -107,9 +105,7 @@ end
 function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
                                     boundary_model::BoundaryModelDummyParticles,
                                     ::Val{SpatialHashingSearch})
-    @unpack smoothing_kernel, smoothing_length = boundary_model
-
-    radius = compact_support(smoothing_kernel, smoothing_length)
+    radius = compact_support(boundary_model)
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search

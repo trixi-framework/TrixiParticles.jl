@@ -3,7 +3,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
+    @unpack density_calculator = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
@@ -15,7 +15,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(particle_container)^2
                 distance = sqrt(distance2)
 
                 calc_dv!(dv, v_particle_container, v_neighbor_container,
@@ -36,7 +36,7 @@ end
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container,
                           particle, neighbor, pos_diff, distance,
                           particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, state_equation, viscosity = particle_container
+    @unpack state_equation, viscosity, smoothing_length = particle_container
 
     rho_a = get_particle_density(particle, v_particle_container, particle_container)
     rho_b = get_particle_density(neighbor, v_neighbor_container, neighbor_container)
@@ -48,7 +48,7 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, rho_mean, smoothing_length)
 
-    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
     m_b = neighbor_container.mass[neighbor]
     dv_pressure = -m_b *
                   (particle_container.pressure[particle] / rho_a^2 +
@@ -67,15 +67,13 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::FluidParticleContainer,
                                       neighbor_container)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
     mass = get_hydrodynamic_mass(neighbor, neighbor_container)
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   kernel_grad(smoothing_kernel, pos_diff, distance,
-                                               smoothing_length))
+                                   smoothing_kernel_grad(particle_container, pos_diff,
+                                                         distance))
 
     return dv
 end
@@ -94,7 +92,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
     @unpack density_calculator, state_equation, viscosity,
-    smoothing_kernel, smoothing_length = particle_container
+    smoothing_length = particle_container
     @unpack sound_speed = state_equation
 
     @threaded for particle in each_moving_particle(particle_container)
@@ -110,7 +108,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <= compact_support(particle_container)^2
                 distance = sqrt(distance2)
 
                 # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
@@ -127,8 +125,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
                                   smoothing_length)
                 dv_viscosity = -m_b * pi_ab *
-                               kernel_grad(smoothing_kernel, pos_diff, distance,
-                                           smoothing_length)
+                               smoothing_kernel_grad(particle_container, pos_diff, distance)
 
                 dv_boundary = boundary_particle_impact(particle, neighbor,
                                                        v_particle_container,
