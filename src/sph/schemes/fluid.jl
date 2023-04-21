@@ -58,5 +58,5 @@ end
 end
 
 function compute_density!(container::FluidParticleContainer, container_index,
-                         ::ContinuityDensity, v, u, u_ode, semi)
+                          ::ContinuityDensity, v, u, u_ode, semi)
 end
