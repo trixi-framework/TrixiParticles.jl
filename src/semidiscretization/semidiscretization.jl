@@ -243,7 +243,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-        # Set velocity and add acceleration for each container
+        # Set velocity for each container
         foreach_enumerate(particle_containers) do (container_index, container)
             du = wrap_u(du_ode, container_index, container, semi)
             v = wrap_v(v_ode, container_index, container, semi)
@@ -269,7 +269,6 @@ end
 @inline add_velocity!(du, v, particle, container::BoundaryParticleContainer) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack particle_containers, neighborhood_searches = semi
 
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
