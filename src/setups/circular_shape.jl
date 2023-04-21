@@ -32,7 +32,8 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     n_particles      :: Int
 
     function CircularShape(particle_spacing, R, center_position;
-                           shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
+                           shape_type=FillCircle(), density=0.0, pressure=0.0,
+                           init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
@@ -44,7 +45,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
         masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
-        pressures = zeros(ELTYPE, size(densities))
+        pressures = pressure * ones(ELTYPE, size(densities))
         velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities, pressures,

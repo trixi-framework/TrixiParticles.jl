@@ -67,7 +67,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size,
                              fluid_density;
-                             n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
+                             n_layers=1, spacing_ratio=1.0, pressure=0.0,
+                             init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
         NDIMS = 2
         if length(tank_size) != NDIMS
@@ -115,7 +116,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
-        particle_pressures = zeros(ELTYPE, size(particle_densities))
+        particle_pressures = pressure * ones(ELTYPE, size(particle_densities))
 
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
@@ -130,7 +131,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
                              fluid_density;
-                             n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
+                             n_layers=1, spacing_ratio=1.0, pressure=0.0,
+                             init_velocity=(0.0, 0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(6)))
         NDIMS = 3
         if length(tank_size) != NDIMS
@@ -188,7 +190,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(ELTYPE, prod(n_particles_per_dimension))
-        particle_pressures = zeros(ELTYPE, size(particle_densities))
+        particle_pressures = pressure * ones(ELTYPE, size(particle_densities))
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,

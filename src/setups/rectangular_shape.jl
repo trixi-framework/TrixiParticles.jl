@@ -41,7 +41,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
     function RectangularShape(particle_spacing,
                               n_particles_per_dimension, particle_position;
-                              density=zero(eltype(particle_spacing)), loop_order=:x_first,
+                              density=0.0, pressure=0.0, loop_order=:x_first,
                               init_velocity=ntuple(_ -> 0.0,
                                                    length(n_particles_per_dimension)))
         NDIMS = length(n_particles_per_dimension)
@@ -60,7 +60,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
         densities = density * ones(ELTYPE, n_particles * (density > 0))
         masses = density * particle_spacing^NDIMS *
                  ones(ELTYPE, n_particles * (density > 0))
-        pressures = zeros(ELTYPE, size(densities))
+        pressures = pressure * ones(ELTYPE, size(densities))
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
