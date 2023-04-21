@@ -520,7 +520,7 @@ function compute_pressure1!(boundary_model, ::AdamiPressureExtrapolation, contai
                             container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack pressure, cache = boundary_model
-    @unpack density, volume = cache
+    @unpack volume = cache
 
     volume .= zero(eltype(volume))
 

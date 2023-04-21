@@ -1,35 +1,17 @@
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer{<:WCSPH}, neighbor_container)
-    @unpack density_calculator, smoothing_kernel, smoothing_length = particle_container
+@inline function interaction!(particle_container::FluidParticleContainer{<:WCSPH},
+                              neighbor_container,
+                              dv, v_particle_container, v_neighbor_container,
+                              particle, neighbor, pos_diff, distance)
+    @unpack density_calculator = particle_container
 
-    @threaded for particle in each_moving_particle(particle_container)
-        particle_coords = get_current_coords(particle, u_particle_container,
-                                             particle_container)
+    calc_dv!(dv, v_particle_container, v_neighbor_container,
+             particle, neighbor, pos_diff, distance,
+             particle_container, neighbor_container)
 
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                                 neighbor_container)
-
-            pos_diff = particle_coords - neighbor_coords
-            distance2 = dot(pos_diff, pos_diff)
-
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
-                distance = sqrt(distance2)
-
-                calc_dv!(dv, v_particle_container, v_neighbor_container,
+    continuity_equation!(dv, density_calculator,
+                         v_particle_container, v_neighbor_container,
                          particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
-
-                continuity_equation!(dv, density_calculator,
-                                     v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
-            end
-        end
-    end
-
-    return dv
 end
 
 # Fluid-fluid interaction
@@ -68,7 +50,7 @@ end
 # Fluid-boundary and fluid-solid interaction
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container, particle,
                           neighbor, pos_diff, distance,
-                          particle_container::FluidParticleContainer,
+                          particle_container::FluidParticleContainer{<:WCSPH},
                           neighbor_container)
     @unpack smoothing_kernel, smoothing_length, SPH_scheme = particle_container
     @unpack state_equation = SPH_scheme

@@ -72,45 +72,27 @@ end
 end
 
 # Solid-fluid interaction
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::SolidParticleContainer,
-                   neighbor_container::FluidParticleContainer{<:WCSPH})
-    @unpack SPH_scheme, viscosity, smoothing_kernel, smoothing_length = neighbor_container
-    @unpack state_equation = SPH_scheme
+@inline function interaction!(particle_container::SolidParticleContainer,
+                              neighbor_container::FluidParticleContainer{<:WCSPH},
+                              dv, v_particle_container, v_neighbor_container,
+                              particle, neighbor, pos_diff, distance)
     @unpack boundary_model = particle_container
 
-    @threaded for particle in each_moving_particle(particle_container)
-        particle_coords = get_current_coords(particle, u_particle_container,
-                                             particle_container)
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                                 neighbor_container)
+    calc_dv!(dv, v_particle_container, v_neighbor_container,
+             particle, neighbor, pos_diff, distance,
+             particle_container, neighbor_container)
 
-            pos_diff = particle_coords - neighbor_coords
-            distance2 = dot(pos_diff, pos_diff)
-
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
-                distance = sqrt(distance2)
-                calc_dv!(dv, v_particle_container, v_neighbor_container, particle, neighbor,
-                         pos_diff, distance, particle_container, neighbor_container)
-
-                continuity_equation!(dv, boundary_model,
-                                     v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
-            end
-        end
-    end
-
-    return dv
+    continuity_equation!(dv, boundary_model,
+                         v_particle_container, v_neighbor_container,
+                         particle, neighbor, pos_diff, distance,
+                         particle_container, neighbor_container)
 end
 
 # Solid-fluid interaction
 @inline function calc_dv!(dv, v_particle_container, v_neighbor_container, particle,
                           neighbor, pos_diff, distance,
                           particle_container::SolidParticleContainer,
-                          neighbor_container)
+                          neighbor_container::FluidParticleContainer)
     @unpack smoothing_kernel, smoothing_length, SPH_scheme, viscosity = neighbor_container
     @unpack state_equation = SPH_scheme
     @unpack boundary_model = particle_container
@@ -164,6 +146,14 @@ end
     return dv
 end
 
+@inline function continuity_equation!(du, ::SummationDensity,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    return du
+end
+
 @inline function continuity_equation!(dv, boundary_model::BoundaryModelDummyParticles,
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
@@ -193,14 +183,6 @@ end
                                                smoothing_length))
 
     return dv
-end
-
-@inline function continuity_equation!(du, ::SummationDensity,
-                                      u_particle_container, u_neighbor_container,
-                                      particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
-    return du
 end
 
 # Solid-boundary interaction

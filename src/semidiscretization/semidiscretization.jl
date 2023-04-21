@@ -269,7 +269,6 @@ end
 @inline add_velocity!(du, v, particle, container::BoundaryParticleContainer) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
 
