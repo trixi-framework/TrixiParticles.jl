@@ -107,8 +107,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                                   rho_b, smoothing_length)
 
-                grad_kernel = smoothing_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                          smoothing_length)
+                grad_kernel = smoothing_kernel_grad(neighbor_container, pos_diff, distance)
 
                 # use `m_a` to get the same viscosity as for the fluid-solid direction.
                 dv_viscosity = -m_a * pi_ab * grad_kernel
