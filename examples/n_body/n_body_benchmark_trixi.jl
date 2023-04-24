@@ -19,13 +19,13 @@ function TrixiParticles.interact!(du, u_particle_container, u_neighbor_container
 
     for particle in TrixiParticles.each_moving_particle(particle_container)
         particle_coords = TrixiParticles.current_coords(u_particle_container,
-                                               particle_container, particle)
+                                                        particle_container, particle)
 
         # This makes `interact!` about 20% faster than `eachneighbor` with `particle < neighbor`.
         # Note that this doesn't work if we have multiple containers.
         for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_container)
             neighbor_coords = TrixiParticles.current_coords(u_neighbor_container,
-                                                   neighbor_container, neighbor)
+                                                            neighbor_container, neighbor)
             pos_diff = particle_coords - neighbor_coords
 
             # Multiplying by pos_diff later makes this slightly faster.
