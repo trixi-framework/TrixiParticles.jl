@@ -24,6 +24,7 @@ To ignore a custom quantity for a specific container, return `nothing`.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
+- 'prefix':                     Prefix added to the filename.
 - `custom_quantities...`:       Additional user-defined quantities.
 
 # Examples
@@ -51,6 +52,7 @@ struct SolutionSavingCallback{I, CQ}
     save_initial_solution::Bool
     save_final_solution::Bool
     output_directory::String
+    prefix::String
     custom_quantities::CQ
 end
 
@@ -58,6 +60,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
+                                prefix=nothing,
                                 custom_quantities...)
     if dt > 0
         interval = Float64(dt)
@@ -69,7 +72,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
-                                               output_directory, custom_quantities)
+                                               output_directory, prefix, custom_quantities)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -122,7 +125,7 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack interval, output_directory, custom_quantities = solution_callback
+    @unpack interval, output_directory, custom_quantities, prefix = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
@@ -130,6 +133,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     output_directory=output_directory,
+                                                    prefix=prefix,
                                                     custom_quantities...)
 
     # Tell OrdinaryDiffEq that u has not been modified
