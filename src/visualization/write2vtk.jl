@@ -1,4 +1,4 @@
-function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
+function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix=nothing,
                    custom_quantities...)
     @unpack particle_containers = semi
     v_ode, u_ode = vu_ode.x
@@ -14,21 +14,22 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out",
         v = wrap_v(v_ode, container_index, container, semi)
         u = wrap_u(u_ode, container_index, container, semi)
         trixi2vtk(v, u, t, container; output_directory=output_directory,
-                  container_name=filenames[container_index], iter=iter,
+                  container_name=filenames[container_index], iter=iter, prefix=prefix,
                   custom_quantities...)
     end
 end
 
-function trixi2vtk(v, u, t, container; output_directory="out", iter=nothing,
+function trixi2vtk(v, u, t, container; output_directory="out", prefix=nothing, iter=nothing,
                    container_name=vtkname(container),
                    custom_quantities...)
     mkpath(output_directory)
 
-    if iter === nothing
-        file = joinpath(output_directory, "$container_name")
-    else
-        file = joinpath(output_directory, "$(container_name)_$iter")
-    end
+    add_opt_str_pre(str) = (str === nothing ? "" : "$(str)_")
+    add_opt_str_post(str) = (str === nothing ? "" : "_$(str)")
+
+    file = joinpath(output_directory,
+                    add_opt_str_pre(prefix) * "$container_name"
+                    * add_opt_str_post(iter))
 
     points = current_coordinates(u, container)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
@@ -49,9 +50,10 @@ function trixi2vtk(v, u, t, container; output_directory="out", iter=nothing,
     end
 end
 
-function trixi2vtk(coordinates; output_directory="out", filename="coordinates")
+function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
     mkpath(output_directory)
-    file = joinpath(output_directory, filename)
+    file = prefix === "" ? joinpath(output_directory, filename) :
+           "$output_directory/$(prefix)_boundaries"
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
