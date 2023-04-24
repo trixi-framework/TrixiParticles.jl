@@ -47,12 +47,12 @@ end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
-struct SolutionSavingCallback{I, CQ}
+struct SolutionSavingCallback{I, P, CQ}
     interval::I
     save_initial_solution::Bool
     save_final_solution::Bool
     output_directory::String
-    prefix::String
+    prefix::P
     custom_quantities::CQ
 end
 
