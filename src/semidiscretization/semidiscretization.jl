@@ -92,11 +92,9 @@ end
     return compact_support(container)
 end
 
-@inline function nhs_radius(container::BoundaryParticleContainer, neighbor)
-    return nhs_radius(container, container.boundary_model, neighbor)
-end
-
-@inline function nhs_radius(container::SolidParticleContainer, neighbor)
+@inline function nhs_radius(container::Union{SolidParticleContainer,
+                                             BoundaryParticleContainer},
+                            neighbor)
     return nhs_radius(container, container.boundary_model, neighbor)
 end
 
