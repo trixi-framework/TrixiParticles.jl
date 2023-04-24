@@ -1,12 +1,15 @@
+# Implies number of dimensions and a field with the name `initial_coordinates`.
 abstract type ParticleContainer{NDIMS} end
 
 initialize!(container, neighborhood_search) = container
 update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 @inline Base.ndims(::ParticleContainer{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(container) = ndims(container)
+
 # Number of integrated variables in the second component
 # of the ODE system (velocity and sometimes density)
 @inline v_nvariables(container) = ndims(container)
@@ -19,7 +22,6 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
-@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
 
 # Return the `i`-th column of the array `A` as an `SVector`.
 # This should not be dispatched by container type. We always expect to get a column of `A`.
@@ -61,6 +63,26 @@ end
 # By default, try to extract them from `u`.
 @inline current_coords(u, container, particle) = extract_svector(u, container, particle)
 @inline current_velocity(v, container, particle) = extract_svector(v, container, particle)
+
+@inline function smoothing_kernel(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_deriv(container, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_deriv(smoothing_kernel, distance, smoothing_length)
+end
+
+@inline function smoothing_kernel_grad(container, pos_diff, distance)
+    @unpack smoothing_kernel, smoothing_length = container
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+end
+
+@inline function compact_support(container)
+    @unpack smoothing_kernel, smoothing_length = container
+    return compact_support(smoothing_kernel, smoothing_length)
+end
 
 include("fluid_container.jl")
 include("solid_container.jl")

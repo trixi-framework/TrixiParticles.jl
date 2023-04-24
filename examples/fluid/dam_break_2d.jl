@@ -5,7 +5,7 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
 # https://doi.org/10.1016/J.CMA.2010.12.016
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
 gravity = -9.81
@@ -91,8 +91,8 @@ info_callback = InfoCallback(interval=100)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=info_callback);
 
@@ -115,7 +115,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

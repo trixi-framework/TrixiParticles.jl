@@ -1,30 +1,30 @@
 #
-# An n-body benchmark from "The Computer Language Benchmarks Game" translated to Pixie.
+# An n-body benchmark from "The Computer Language Benchmarks Game" translated to TrixiParticles.
 # This example does not benefit from using multiple threads.
 # Multithreading is disabled below.
 #
 
-using Pixie
+using TrixiParticles
 using Printf
 using Polyester
 
 include("n_body_container.jl")
 
 # Redefine interact in a more optimized way.
-function Pixie.interact!(du, u_particle_container, u_neighbor_container,
-                         neighborhood_search,
-                         particle_container::NBodyContainer,
-                         neighbor_container::NBodyContainer)
+function TrixiParticles.interact!(du, u_particle_container, u_neighbor_container,
+                                  neighborhood_search,
+                                  particle_container::NBodyContainer,
+                                  neighbor_container::NBodyContainer)
     @unpack mass, G = neighbor_container
 
-    for particle in Pixie.each_moving_particle(particle_container)
-        particle_coords = Pixie.current_coords(u_particle_container,
+    for particle in TrixiParticles.each_moving_particle(particle_container)
+        particle_coords = TrixiParticles.current_coords(u_particle_container,
                                                particle_container, particle)
 
         # This makes `interact!` about 20% faster than `eachneighbor` with `particle < neighbor`.
         # Note that this doesn't work if we have multiple containers.
-        for neighbor in (particle + 1):Pixie.nparticles(neighbor_container)
-            neighbor_coords = Pixie.current_coords(u_neighbor_container,
+        for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_container)
+            neighbor_coords = TrixiParticles.current_coords(u_neighbor_container,
                                                    neighbor_container, neighbor)
             pos_diff = particle_coords - neighbor_coords
 
@@ -84,13 +84,13 @@ function symplectic_euler!(velocities, coordinates, semi)
     du = copy(u)
 
     @time for _ in 1:50_000_000
-        Pixie.kick!(dv, v, u, semi, 0.0)
+        TrixiParticles.kick!(dv, v, u, semi, 0.0)
 
         @inbounds for i in eachindex(v)
             v[i] += 0.01 * dv[i]
         end
 
-        Pixie.drift!(du, v, u, semi, 0.0)
+        TrixiParticles.drift!(du, v, u, semi, 0.0)
 
         @inbounds for i in eachindex(u)
             u[i] += 0.01 * du[i]
@@ -99,7 +99,7 @@ function symplectic_euler!(velocities, coordinates, semi)
 end
 
 # One RHS evaluation is so fast that timers make it multiple times slower.
-Pixie.TimerOutputs.disable_debug_timings(Pixie)
+TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
 
 @printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
 
@@ -111,4 +111,4 @@ end
 @printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
 
 # Enable timers again.
-Pixie.TimerOutputs.enable_debug_timings(Pixie)
+TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)

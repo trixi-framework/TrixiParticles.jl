@@ -111,6 +111,13 @@ struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleConta
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+        end
 
         current_coordinates = copy(particle_coordinates)
         correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
@@ -217,8 +224,7 @@ function initialize!(container::SolidParticleContainer, neighborhood_search)
 end
 
 function calc_correction_matrix!(correction_matrix, neighborhood_search, container)
-    @unpack initial_coordinates, mass, material_density,
-    smoothing_kernel, smoothing_length = container
+    @unpack initial_coordinates, mass, material_density = container
 
     # Calculate kernel correction matrix
     for particle in eachparticle(container)
@@ -232,10 +238,8 @@ function calc_correction_matrix!(correction_matrix, neighborhood_search, contain
             initial_distance = norm(initial_pos_diff)
 
             if initial_distance > eps()
-                grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
-                                           smoothing_length) *
-                              initial_pos_diff / initial_distance
-
+                grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+                                                    initial_distance)
                 L -= volume * grad_kernel * transpose(initial_pos_diff)
             end
         end
@@ -255,7 +259,7 @@ function update!(container::SolidParticleContainer, container_index, v, u,
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[container_index][container_index]
-    @pixie_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
+    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
                                                                  container)
 
     return container
@@ -299,8 +303,7 @@ function pk1_stress_tensor(J, container)
 end
 
 function deformation_gradient(particle, neighborhood_search, container)
-    @unpack initial_coordinates, current_coordinates,
-    mass, material_density, smoothing_kernel, smoothing_length = container
+    @unpack initial_coordinates, current_coordinates, mass, material_density = container
 
     result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
 
@@ -314,9 +317,8 @@ function deformation_gradient(particle, neighborhood_search, container)
 
         if initial_distance > sqrt(eps())
             # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = kernel_deriv(smoothing_kernel, initial_distance,
-                                       smoothing_length) * initial_pos_diff /
-                          initial_distance
+            grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+                                                initial_distance)
 
             result -= volume * pos_diff * grad_kernel'
         end
@@ -341,8 +343,7 @@ end
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container,
                                      penalty_force::PenaltyForceGanzenmueller)
-    @unpack smoothing_kernel, smoothing_length, mass,
-    material_density, current_coordinates, young_modulus = container
+    @unpack mass, material_density, current_coordinates, young_modulus = container
 
     current_pos_diff = current_coords(container, particle) -
                        current_coords(container, neighbor)
@@ -351,7 +352,7 @@ end
     volume_particle = mass[particle] / material_density[particle]
     volume_neighbor = mass[neighbor] / material_density[neighbor]
 
-    kernel_ = kernel(smoothing_kernel, initial_distance, smoothing_length)
+    kernel_ = smoothing_kernel(container, initial_distance)
 
     J_a = deformation_gradient(container, particle)
     J_b = deformation_gradient(container, neighbor)
