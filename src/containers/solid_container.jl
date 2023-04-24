@@ -193,7 +193,7 @@ end
 
 @inline function current_coords(container::SolidParticleContainer, particle)
     # For this container, the current coordinates are stored in the container directly,
-    # so we don't need a `u` array. This is only to be used in this file
+    # so we don't need a `u` array. This function is only to be used in this file
     # when no `u` is available.
     current_coords(nothing, container, particle)
 end

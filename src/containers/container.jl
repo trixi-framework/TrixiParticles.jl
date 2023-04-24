@@ -57,11 +57,6 @@ end
 # This can be dispatched by container type.
 @inline initial_coordinates(container) = container.initial_coordinates
 
-# Specifically get the current coordinates of a particle for all container types.
-# This can be dispatched by container types, since for some containers, the current coordinates
-# are stored in `u`, for others in the container itself.
-# By default, try to extract them from `u`.
-@inline current_coords(u, container, particle) = extract_svector(u, container, particle)
 @inline current_velocity(v, container, particle) = extract_svector(v, container, particle)
 
 @inline function smoothing_kernel(container, distance)

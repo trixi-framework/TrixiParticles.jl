@@ -375,7 +375,8 @@ end
 # This will only be called for BoundaryModelDummyParticles
 @inline function particle_density(v,
                                   container::Union{BoundaryParticleContainer,
-                                                   SolidParticleContainer}, particle)
+                                                   SolidParticleContainer},
+                                  particle)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 

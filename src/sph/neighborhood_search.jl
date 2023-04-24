@@ -85,7 +85,7 @@ end
 function update!(neighborhood_search::SpatialHashingSearch, coordinates, container)
     @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
 
-    @inline function cell_coords(particle)
+    @inline function cell_coords_(particle)
         cell_coords(extract_svector(coordinates, container, particle),
                     neighborhood_search)
     end
@@ -97,7 +97,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
     # `collect` the keyset to be able to loop over it with `@threaded`.
     @threaded for cell in collect(keys(hashtable))
         for particle in hashtable[cell]
-            if cell_coords(particle) != cell
+            if cell_coords_(particle) != cell
                 # Mark this cell and continue with the next one.
                 #
                 # `cell_buffer` is preallocated,
@@ -122,12 +122,12 @@ function update!(neighborhood_search::SpatialHashingSearch, coordinates, contain
 
             # Find all particles whose coordinates do not match this cell
             moved_particle_indices = (i for i in eachindex(particles)
-                                      if cell_coords(particles[i]) != cell)
+                                      if cell_coords_(particles[i]) != cell)
 
             # Add moved particles to new cell
             for i in moved_particle_indices
                 particle = particles[i]
-                new_cell_coords = cell_coords(particle)
+                new_cell_coords = cell_coords_(particle)
 
                 # Add particle to corresponding cell or create cell if it does not exist
                 if haskey(hashtable, new_cell_coords)
