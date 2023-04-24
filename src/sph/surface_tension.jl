@@ -106,8 +106,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                 m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
                 density_neighbor = get_particle_density(neighbor, v_neighbor_container,
                                                         neighbor_container)
-                grad_kernel = kernel_deriv(smoothing_kernel, distance,
-                                           smoothing_length) *
+                grad_kernel = smoothing_kernel_deriv(particle_container, distance) *
                               pos_diff / distance
                 cache.surface_normal[:, particle] .+= m_b / density_neighbor *
                                                       grad_kernel
