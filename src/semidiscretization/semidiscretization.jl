@@ -94,13 +94,8 @@ end
 
 @inline function nhs_radius(container::Union{SolidParticleContainer,
                                              BoundaryParticleContainer},
-                            neighbor)
+                            neighbor::FluidParticleContainer)
     return nhs_radius(container, container.boundary_model, neighbor)
-end
-
-@inline function nhs_radius(container::SolidParticleContainer,
-                            neighbor::SolidParticleContainer)
-    return compact_support(container)
 end
 
 @inline function nhs_radius(container, model, neighbor)
@@ -116,14 +111,9 @@ function nhs_init_function(container, neighbor)
     return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
 end
 
-function nhs_init_function(container::SolidParticleContainer,
-                           neighbor::SolidParticleContainer)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
-end
-
 function nhs_init_function(container::Union{SolidParticleContainer,
                                             BoundaryParticleContainer},
-                           neighbor)
+                           neighbor::FluidParticleContainer)
     return nhs_init_function(container, container.boundary_model, neighbor)
 end
 
