@@ -39,7 +39,7 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
                                     smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
+                                                        size(setup.coordinates, 1)))
         return FluidParticleContainer(SPH_scheme, setup.coordinates, setup.velocities,
                                       setup.masses, setup.densities, density_calculator,
                                       smoothing_kernel, smoothing_length,

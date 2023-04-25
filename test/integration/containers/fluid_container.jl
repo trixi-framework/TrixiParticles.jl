@@ -22,30 +22,29 @@
         setup = setups[i]
         NDIMS = NDIMS_[i]
         state_equation = Val(:state_equation)
+        scheme = WCSPH(state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
         smoothing_length = 0.362
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
-            container = FluidParticleContainer(setup, density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               smoothing_length)
+            container = FluidParticleContainer(scheme, setup, density_calculator,
+                                               smoothing_kernel, smoothing_length)
 
-            @test container isa FluidParticleContainer{NDIMS}
+            @test container isa FluidParticleContainer{<:WCSPH, NDIMS}
             @test container.initial_coordinates == setup.coordinates
             @test container.initial_velocity == setup.velocities
             @test container.mass == setup.masses
             @test container.density_calculator == density_calculator
-            @test container.state_equation == state_equation
+            @test container.SPH_scheme.state_equation == state_equation
             @test container.smoothing_kernel == smoothing_kernel
             @test container.smoothing_length == smoothing_length
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
             error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ErrorException(error_str) FluidParticleContainer(setup,
+            @test_throws ErrorException(error_str) FluidParticleContainer(scheme, setup,
                                                                           density_calculator,
-                                                                          state_equation,
                                                                           smoothing_kernel,
                                                                           smoothing_length,
                                                                           acceleration=(0.0))
