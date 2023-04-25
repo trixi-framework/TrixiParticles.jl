@@ -19,7 +19,7 @@ end
                           particle, neighbor, pos_diff, distance,
                           particle_container::FluidParticleContainer{<:WCSPH},
                           neighbor_container::FluidParticleContainer{<:WCSPH})
-    @unpack SPH_scheme, smoothing_kernel, smoothing_length, viscosity = particle_container
+    @unpack SPH_scheme, smoothing_length, viscosity = particle_container
     @unpack state_equation = SPH_scheme
 
     rho_a = get_particle_density(particle, v_particle_container, particle_container)
@@ -32,7 +32,7 @@ end
     pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                       distance, rho_mean, smoothing_length)
 
-    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
     m_b = neighbor_container.mass[neighbor]
 
     dv_pressure = -m_b *
@@ -52,7 +52,7 @@ end
                           neighbor, pos_diff, distance,
                           particle_container::FluidParticleContainer{<:WCSPH},
                           neighbor_container)
-    @unpack smoothing_kernel, smoothing_length, SPH_scheme = particle_container
+    @unpack SPH_scheme, smoothing_length = particle_container
     @unpack state_equation = SPH_scheme
     @unpack boundary_model = neighbor_container
 
@@ -63,7 +63,7 @@ end
     # corresponding to the rest density of the fluid and not the material density.
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
-    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
 
     dv_boundary = boundary_particle_impact(particle, neighbor,
                                            v_particle_container,
@@ -90,15 +90,16 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::FluidParticleContainer,
                                       neighbor_container)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
     mass = get_hydrodynamic_mass(neighbor, neighbor_container)
+
     vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
             get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+
     NDIMS = ndims(particle_container)
+
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   kernel_grad(smoothing_kernel, pos_diff, distance,
-                                               smoothing_length))
+                                   smoothing_kernel_grad(particle_container, pos_diff,
+                                                         distance))
 
     return dv
 end
@@ -123,7 +124,7 @@ end
                                 v_particle_container, v_neighbor_container,
                                 particle, neighbor, pos_diff, distance, rho_a,
                                 grad_kernel, sound_speed, smoothing_length, m_b)
-    @unpack viscosity = particle_container
+    @unpack viscosity, smoothing_length = particle_container
     v_diff = get_particle_vel(particle, v_particle_container, particle_container) -
              get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
 
