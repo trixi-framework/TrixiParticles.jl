@@ -68,11 +68,6 @@ end
 function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
     @unpack hashtable, search_radius = neighborhood_search
 
-    if search_radius < sqrt(eps())
-        # Search radius 0.0 indicates that this NHS is never used.
-        return neighborhood_search
-    end
-
     empty!(hashtable)
 
     # This is needed to prevent lagging on macOS ARM.
