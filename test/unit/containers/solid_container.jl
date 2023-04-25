@@ -191,7 +191,7 @@
                                                    particle_masses, particle_densities,
                                                    smoothing_kernel, smoothing_length,
                                                    1.0, 1.0, nothing)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch(container)
+                nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(container))
                 TrixiParticles.initialize!(container, nhs)
 
                 # Apply the deformation matrix
