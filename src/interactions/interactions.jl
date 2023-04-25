@@ -5,8 +5,6 @@ include("solid/solid.jl")
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container, neighbor_container)
-    @unpack smoothing_kernel, smoothing_length = particle_container
-
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,
                                              particle_container)
@@ -18,7 +16,9 @@ function interact!(dv, v_particle_container, u_particle_container,
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
 
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+            if eps() < distance2 <=
+               larger_compact_support(particle_container, neighbor_container)^2
+
                 distance = sqrt(distance2)
 
                 interaction!(particle_container, neighbor_container,
