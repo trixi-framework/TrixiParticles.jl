@@ -116,6 +116,11 @@ function nhs_init_function(container, neighbor)
     return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
 end
 
+function nhs_init_function(container::SolidParticleContainer,
+                           neighbor::SolidParticleContainer)
+    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+end
+
 function nhs_init_function(container::Union{SolidParticleContainer,
                                             BoundaryParticleContainer},
                            neighbor)
