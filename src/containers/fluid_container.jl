@@ -71,18 +71,10 @@ struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
         cache = create_cache(particle_densities, density_calculator)
 
         return new{typeof(SPH_scheme), NDIMS, ELTYPE, typeof(density_calculator),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(cache)}(SPH_scheme,
-                                  particle_coordinates,
-                                  particle_velocities,
-                                  particle_masses,
-                                  pressure,
-                                  density_calculator,
-                                  smoothing_kernel,
-                                  smoothing_length,
-                                  viscosity,
-                                  acceleration_,
-                                  cache)
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   }(SPH_scheme, particle_coordinates, particle_velocities,
+                     particle_masses, pressure, density_calculator, smoothing_kernel,
+                     smoothing_length, viscosity, acceleration_, cache)
     end
 end
 
