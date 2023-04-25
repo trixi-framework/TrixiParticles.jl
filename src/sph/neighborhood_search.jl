@@ -103,11 +103,6 @@ end
 function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
     @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
 
-    if search_radius < sqrt(eps())
-        # Search radius 0.0 indicates that this NHS is never used.
-        return neighborhood_search
-    end
-
     @inline function cell_coords(particle)
         get_cell_coords(coords_fun(particle), neighborhood_search)
     end

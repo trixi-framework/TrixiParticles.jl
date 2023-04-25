@@ -83,7 +83,7 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
-    initialize!(search, i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor))
+    initialize!(search, nhs_init_function(container, neighbor))
 
     return search
 end
@@ -105,13 +105,30 @@ end
 
 @inline function nhs_radius(container, model, neighbor)
     # This NHS is never used.
-    # To keep actions on the tuple of NHS type-stable,
-    # we still create a NHS, which is just never initialized or updated.
     return 0.0
 end
 
 @inline function nhs_radius(container, model::BoundaryModelDummyParticles, neighbor)
     return compact_support(model)
+end
+
+function nhs_init_function(container, neighbor)
+    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+end
+
+function nhs_init_function(container::Union{SolidParticleContainer,
+                                            BoundaryParticleContainer},
+                           neighbor)
+    return nhs_init_function(container, container.boundary_model, neighbor)
+end
+
+function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
+    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+end
+
+function nhs_init_function(container, model, neighbor)
+    # This NHS is never used. Don't initialize NHS.
+    return nothing
 end
 
 # Create Tuple of containers for single container
