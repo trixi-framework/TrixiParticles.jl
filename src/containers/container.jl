@@ -66,7 +66,7 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function larger_compact_support(particle_container, neighbor_container)
+@inline function compact_support(particle_container, neighbor_container)
     @unpack smoothing_kernel, smoothing_length = particle_container
     return compact_support(smoothing_kernel, smoothing_length)
 end
@@ -75,9 +75,9 @@ include("fluid_container.jl")
 include("solid_container.jl")
 include("boundary_container.jl") # This depends on fluid and solid containers
 
-@inline function larger_compact_support(particle_container::Union{SolidParticleContainer,
-                                                                  BoundaryParticleContainer
-                                                                  }, neighbor_container)
+@inline function compact_support(particle_container::Union{SolidParticleContainer,
+                                                           BoundaryParticleContainer
+                                                           }, neighbor_container)
     @unpack smoothing_kernel, smoothing_length = neighbor_container
     return compact_support(smoothing_kernel, smoothing_length)
 end

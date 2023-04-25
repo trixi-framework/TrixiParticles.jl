@@ -17,8 +17,7 @@ function interact!(dv, v_particle_container, u_particle_container,
             distance2 = dot(pos_diff, pos_diff)
 
             if eps() < distance2 <=
-               larger_compact_support(particle_container, neighbor_container)^2
-
+               compact_support(particle_container, neighbor_container)^2
                 distance = sqrt(distance2)
 
                 interaction!(particle_container, neighbor_container,
