@@ -1,22 +1,24 @@
 """
-    FluidParticleContainer(setup,
-                           density_calculator, state_equation,
-                           smoothing_kernel, smoothing_length;
+    FluidParticleContainer(SPH_scheme, setup,
+                           density_calculator, smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
-    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
-                           density_calculator::SummationDensity, state_equation,
+
+    FluidParticleContainer(SPH_scheme, particle_coordinates, particle_velocities,
+                           particle_masses, particle_densities,
+                           density_calculator::SummationDensity,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                           density_calculator::ContinuityDensity, state_equation,
+    FluidParticleContainer(SPH_scheme, particle_coordinates, particle_velocities,
+                           particle_masses, particle_densities,
+                           density_calculator::ContinuityDensity,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
+Container for fluid particles.
 """
 struct FluidParticleContainer{SC, NDIMS, ELTYPE <: Real, DC, K, V, C} <:
        ParticleContainer{NDIMS}
