@@ -25,11 +25,12 @@
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
         smoothing_length = 0.362
+        reference_density = 1.0
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             container = FluidParticleContainer(setup, density_calculator,
                                                state_equation, smoothing_kernel,
-                                               smoothing_length)
+                                               smoothing_length, reference_density)
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == setup.coordinates
