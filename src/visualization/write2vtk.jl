@@ -54,7 +54,7 @@ end
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
-           joinpath(output_directory, "$(prefix)_boundaries")
+           joinpath(output_directory, "$(prefix)_$filename")
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
