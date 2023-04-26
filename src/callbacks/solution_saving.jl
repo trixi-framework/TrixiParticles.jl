@@ -62,8 +62,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="",
-                                verbose=false,
+                                prefix="", verbose=false,
                                 custom_quantities...)
     if dt > 0 && interval > 0
         error("Setting both interval and dt is not supported!")
@@ -144,8 +143,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     output_directory=output_directory,
-                                                    prefix=prefix,
-                                                    custom_quantities...)
+                                                    prefix=prefix, custom_quantities...)
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
