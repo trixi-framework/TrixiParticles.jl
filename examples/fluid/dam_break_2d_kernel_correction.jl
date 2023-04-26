@@ -28,8 +28,8 @@ tank_height = 4
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 1.3 * particle_spacing
+smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
