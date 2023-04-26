@@ -84,7 +84,6 @@ info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=0.02, prefix="relaxation")
 callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
-
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
 # Limiting of the maximum stepsize is necessary to prevent crashing.

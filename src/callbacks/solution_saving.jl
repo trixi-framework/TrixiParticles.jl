@@ -78,7 +78,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
-                                               verbose, output_directory, prefix, custom_quantities)
+                                               verbose, output_directory, prefix,
+                                               custom_quantities)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
