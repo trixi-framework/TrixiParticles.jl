@@ -1,4 +1,4 @@
-function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix=nothing,
+function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
     @unpack particle_containers = semi
     v_ode, u_ode = vu_ode.x
@@ -19,12 +19,13 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     end
 end
 
-function trixi2vtk(v, u, t, container; output_directory="out", prefix=nothing, iter=nothing,
+function trixi2vtk(v, u, t, container; output_directory="out", prefix="", iter=nothing,
                    container_name=vtkname(container),
                    custom_quantities...)
     mkpath(output_directory)
 
-    add_opt_str_pre(str) = (str === nothing ? "" : "$(str)_")
+    # handle "_" on optional pre/postfix strings
+    add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
     add_opt_str_post(str) = (str === nothing ? "" : "_$(str)")
 
     file = joinpath(output_directory,
@@ -53,7 +54,7 @@ end
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
-           "$output_directory/$(prefix)_boundaries"
+           joinpath(output_directory, "$(prefix)_boundaries")
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]

@@ -47,20 +47,20 @@ end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
-struct SolutionSavingCallback{I, P, CQ}
-    interval::I
-    save_initial_solution::Bool
-    save_final_solution::Bool
-    output_directory::String
-    prefix::P
-    custom_quantities::CQ
+struct SolutionSavingCallback{I, CQ}
+    interval              :: I
+    save_initial_solution :: Bool
+    save_final_solution   :: Bool
+    output_directory      :: String
+    prefix                :: String
+    custom_quantities     :: CQ
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix=nothing,
+                                prefix="",
                                 custom_quantities...)
     if dt > 0
         interval = Float64(dt)
