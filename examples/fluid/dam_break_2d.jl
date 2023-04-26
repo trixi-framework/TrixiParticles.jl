@@ -84,6 +84,7 @@ info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=0.02, prefix="relaxation")
 callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
+
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -92,6 +93,7 @@ callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
+# Note: to save initialization switch info_callback to callbacks in solve()
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
@@ -111,9 +113,6 @@ restart_with!(semi, sol)
 semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
-
-saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
