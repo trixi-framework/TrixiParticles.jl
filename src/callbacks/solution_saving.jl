@@ -25,7 +25,7 @@ To ignore a custom quantity for a specific container, return `nothing`.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `custom_quantities...`:       Additional user-defined quantities.
-- `verbose=false`:              Print to standard IO when a file is written
+- `verbose=false`:              Print to standard IO when a file is written.
 
 # Examples
 ```julia
@@ -48,12 +48,12 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
 struct SolutionSavingCallback{I, CQ}
-    interval::I
-    save_initial_solution::Bool
-    save_final_solution::Bool
-    verbose::Bool
-    output_directory::String
-    custom_quantities::CQ
+    interval              :: I
+    save_initial_solution :: Bool
+    save_final_solution   :: Bool
+    verbose               :: Bool
+    output_directory      :: String
+    custom_quantities     :: CQ
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
