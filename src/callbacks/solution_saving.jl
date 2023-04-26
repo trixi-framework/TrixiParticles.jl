@@ -22,6 +22,7 @@ To ignore a custom quantity for a specific container, return `nothing`.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - `custom_quantities...`:       Additional user-defined quantities.
+- `verbose=false`:              Print to standard IO when a file is written.
 # Examples
 ```julia
 # Save every 100 time steps.
@@ -41,18 +42,24 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
 """
 struct SolutionSavingCallback{I, CQ}
-    interval::I
-    save_initial_solution::Bool
-    save_final_solution::Bool
-    output_directory::String
-    custom_quantities::CQ
+    interval              :: I
+    save_initial_solution :: Bool
+    save_final_solution   :: Bool
+    verbose               :: Bool
+    output_directory      :: String
+    custom_quantities     :: CQ
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
+                                verbose=false,
                                 custom_quantities...)
+    if dt > 0 && interval > 0
+        error("Setting both interval and dt is not supported!")
+    end
+
     if dt > 0
         interval = Float64(dt)
     end
@@ -63,7 +70,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
-                                               output_directory, custom_quantities)
+                                               verbose, output_directory, custom_quantities)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -116,11 +123,15 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack interval, output_directory, custom_quantities = solution_callback
+    @unpack interval, output_directory, custom_quantities, verbose = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
+
+    if verbose
+        println("Writing solution to $output_directory at t = $(integrator.t)")
+    end
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     output_directory=output_directory,
