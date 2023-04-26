@@ -136,7 +136,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     iter = get_iter(interval, integrator)
 
     if verbose
-        println("Writing solution to $output_directory @$(integrator.t)")
+        println("Writing solution to $output_directory at t = $(integrator.t)")
     end
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
