@@ -1,1 +1,2 @@
-@testset verbose=true "SolidParticleContainer" begin include("solid_container.jl") end
+include("fluid_container.jl")
+include("solid_container.jl")
