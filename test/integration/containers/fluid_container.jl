@@ -1,3 +1,4 @@
+
 @testset verbose=true "Constructors with Setups" begin
     setups = [
         RectangularShape(0.123, (2, 3), (-1.0, 0.1)),
@@ -27,9 +28,20 @@
         smoothing_length = 0.362
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
-            container = FluidParticleContainer(setup, density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               smoothing_length)
+            container = Nothing()
+            if density_calculator isa ContinuityDensity && length(setup.densities) == 0
+                empty_density_err_str = "An initial density needs to be provied when using ContinuityDensity()!"
+                @test_throws ErrorException(empty_density_err_str) FluidParticleContainer(setup,
+                                                                                          density_calculator,
+                                                                                          state_equation,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length)
+                continue
+            else
+                container = FluidParticleContainer(setup, density_calculator,
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length)
+            end
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == setup.coordinates
@@ -41,6 +53,14 @@
             @test container.smoothing_length == smoothing_length
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
+
+            if density_calculator isa SummationDensity
+                @test length(container.cache.density) == size(setup.coordinates, 2)
+            end
+
+            if density_calculator isa ContinuityDensity
+                @test length(container.cache.initial_density) == size(setup.coordinates, 2)
+            end
 
             error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
             @test_throws ErrorException(error_str) FluidParticleContainer(setup,
