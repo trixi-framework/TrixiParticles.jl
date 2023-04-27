@@ -77,7 +77,7 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 0.3)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

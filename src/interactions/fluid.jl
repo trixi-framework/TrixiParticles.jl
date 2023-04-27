@@ -155,7 +155,7 @@ end
                                           boundary_container::FluidParticleContainer,
                                           pos_diff, distance, m_b)
     # skip for non boundary container
-    return zeros(Float64, ndims(particle_container))
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end
 
 @inline function calc_momentum_eq(particle, particle_container::FluidParticleContainer,
@@ -171,5 +171,5 @@ end
                                   neighbor,
                                   neighbor_container, m_b, rho_a, rho_b, grad_kernel)
     # skip for non fluid container
-    return zeros(Float64, ndims(particle_container))
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end
