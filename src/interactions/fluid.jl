@@ -82,7 +82,7 @@ end
                                       particle_container::FluidParticleContainer,
                                       neighbor_container, grad_kernel)
     NDIMS = ndims(particle_container)
-    dv[NDIMS + 1, particle] += sum(m_b * vdiff .* grad_kernel)
+    dv[NDIMS + 1, particle] += sum(m_b * v_diff .* grad_kernel)
 
     return dv
 end
