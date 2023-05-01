@@ -113,12 +113,12 @@ end
 end
 
 function nhs_init_function(container, neighbor)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container::SolidParticleContainer,
                            neighbor::SolidParticleContainer)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container::Union{SolidParticleContainer,
@@ -128,7 +128,7 @@ function nhs_init_function(container::Union{SolidParticleContainer,
 end
 
 function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container, model, neighbor)
@@ -456,18 +456,18 @@ end
 # NHS updates
 function nhs_coords_function(container::FluidParticleContainer,
                              neighbor::FluidParticleContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+    return i -> current_coords(u, neighbor, i)
 end
 
 function nhs_coords_function(container::FluidParticleContainer,
                              neighbor::SolidParticleContainer, u)
-    return i -> get_particle_coords(i, neighbor.current_coordinates, neighbor)
+    return i -> current_coords(u, neighbor, i)
 end
 
 function nhs_coords_function(container::FluidParticleContainer,
                              neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+        return i -> current_coords(u, neighbor, i)
     end
 
     # Don't update
@@ -476,7 +476,7 @@ end
 
 function nhs_coords_function(container::SolidParticleContainer,
                              neighbor::FluidParticleContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+    return i -> current_coords(u, neighbor, i)
 end
 
 function nhs_coords_function(container::SolidParticleContainer,
@@ -488,7 +488,7 @@ end
 function nhs_coords_function(container::SolidParticleContainer,
                              neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+        return i -> current_coords(u, neighbor, i)
     end
 
     # Don't update
@@ -512,7 +512,7 @@ end
 function nhs_coords_function(container::BoundaryParticleContainer,
                              neighbor::FluidParticleContainer,
                              boundary_model::BoundaryModelDummyParticles, u)
-    return i -> get_particle_coords(i, u, neighbor)
+    return i -> current_coords(u, neighbor, i)
 end
 
 function nhs_coords_function(container::BoundaryParticleContainer,
