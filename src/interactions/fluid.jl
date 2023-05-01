@@ -89,11 +89,6 @@ function interact!(dv, v_particle_container, u_particle_container,
         v_b = current_velocity(v_neighbor_container, neighbor_container, neighbor)
         v_diff = v_a - v_b
 
-        continuity_equation!(dv, density_calculator,
-                             v_particle_container, v_neighbor_container,
-                             particle, neighbor, pos_diff, distance,
-                             particle_container, neighbor_container)
-
         rho_a = particle_density(v_particle_container, particle_container, particle)
         pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
                           smoothing_length)
