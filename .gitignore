@@ -4,3 +4,4 @@ Manifest.toml
 out
 out_*
 docs/build
+env
