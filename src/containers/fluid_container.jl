@@ -37,7 +37,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     state_equation, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
+                                                        size(setup.coordinates, 1)))
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -49,7 +49,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     state_equation, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
+                                                        size(setup.coordinates, 1)))
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -83,17 +83,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         cache = (; density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(particle_coordinates,
-                                                                               particle_velocities,
-                                                                               particle_masses,
-                                                                               pressure,
-                                                                               density_calculator,
-                                                                               state_equation,
-                                                                               smoothing_kernel,
-                                                                               smoothing_length,
-                                                                               viscosity,
-                                                                               acceleration_,
-                                                                               cache)
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                     density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     viscosity, acceleration_, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
@@ -123,17 +116,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         cache = (; initial_density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)}(particle_coordinates,
-                                                                               particle_velocities,
-                                                                               particle_masses,
-                                                                               pressure,
-                                                                               density_calculator,
-                                                                               state_equation,
-                                                                               smoothing_kernel,
-                                                                               smoothing_length,
-                                                                               viscosity,
-                                                                               acceleration_,
-                                                                               cache)
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                     density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     viscosity, acceleration_, cache)
     end
 end
 

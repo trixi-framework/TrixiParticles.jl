@@ -1,13 +1,13 @@
 struct TrivialNeighborhoodSearch{E}
     eachparticle::E
 
-    function TrivialNeighborhoodSearch(container)
-        new{typeof(eachparticle(container))}(eachparticle(container))
+    function TrivialNeighborhoodSearch(eachparticle)
+        new{typeof(eachparticle)}(eachparticle)
     end
 end
 
-@inline initialize!(search::TrivialNeighborhoodSearch, u, container) = nothing
-@inline update!(search::TrivialNeighborhoodSearch, u, container) = nothing
+@inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
+@inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
 
 @doc raw"""
@@ -56,8 +56,17 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
     end
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, container)
-    @unpack hashtable = neighborhood_search
+@inline function nparticles(neighborhood_search::SpatialHashingSearch)
+    return size(neighborhood_search.cell_buffer, 1)
+end
+
+function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+    # No particle coordinates function -> don't update.
+    return neighborhood_search
+end
+
+function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
+    @unpack hashtable, search_radius = neighborhood_search
 
     empty!(hashtable)
 
@@ -65,10 +74,9 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, con
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
     ThreadingUtilities.sleep_all_tasks()
 
-    for particle in eachparticle(container)
+    for particle in 1:nparticles(neighborhood_search)
         # Get cell index of the particle's cell
-        cell = cell_coords(extract_svector(coordinates, container, particle),
-                           neighborhood_search)
+        cell = cell_coords(coords_fun(particle), neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell)
@@ -81,13 +89,17 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coordinates, con
     return neighborhood_search
 end
 
+function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+    # No particle coordinates function -> don't update.
+    return neighborhood_search
+end
+
 # Modify the existing hash table by moving particles into their new cells
-function update!(neighborhood_search::SpatialHashingSearch, coordinates, container)
-    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
+    @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
 
     @inline function cell_coords_(particle)
-        cell_coords(extract_svector(coordinates, container, particle),
-                    neighborhood_search)
+        cell_coords(coords_fun(particle), neighborhood_search)
     end
 
     # Reset `cell_buffer` by moving all pointers to the beginning.

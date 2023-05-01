@@ -1,17 +1,10 @@
 @testset verbose=true "Neighborhood Search" begin
     @testset verbose=true "TrivialNeighborhoodSearch" begin
-        #### Mocking
-        # Mock the container
-        container = Val(:mock_container_nhs_trivial)
+        # Setup with 5 particles
+        nhs = TrixiParticles.TrivialNeighborhoodSearch(Base.OneTo(5))
 
-        # setup with 5 particles
-        TrixiParticles.eachparticle(::Val{:mock_container_nhs_trivial}) = Base.OneTo(5)
-
-        # create trivial neighborhood search
-        nhs = TrixiParticles.TrivialNeighborhoodSearch(container)
-
-        # get each neighbor for random coordinates
-        neighbors = collect(TrixiParticles.eachneighbor(rand(Float64, 1), nhs))
+        # Get each neighbor for arbitrary coordinates
+        neighbors = collect(TrixiParticles.eachneighbor([1.0, 2.0], nhs))
 
         #### Verification
         @test neighbors == [1, 2, 3, 4, 5]
@@ -36,56 +29,51 @@
             # from (x, y) = (-0.25, -0.25) to (x, y) = (0.35, 0.35)
             range = -0.25:0.1:0.35
             coordinates1 = hcat(collect.(Iterators.product(range, range))...)
+            nparticles = size(coordinates1, 2)
 
             particle_position1 = [0.05, 0.05]
             particle_spacing = 0.1
             radius = particle_spacing
 
-            #### Mocking
-            # Mock the container
-            container = Val(:mock_container_nhs)
+            # Create neighborhood search
+            nhs1 = SpatialHashingSearch{2}(radius, nparticles)
 
-            # create neighborhood search
-            nhs1 = SpatialHashingSearch{2}(radius, size(coordinates1, 2))
-            function TrixiParticles.eachparticle(::Val{:mock_container_nhs})
-                Base.OneTo(size(coordinates1, 2))
-            end
-            TrixiParticles.ndims(::Val{:mock_container_nhs}) = size(coordinates1, 1)
+            coords_fun(i) = coordinates1[:, i]
+            TrixiParticles.initialize!(nhs1, coords_fun)
 
-            TrixiParticles.initialize!(nhs1, coordinates1, container)
-
-            # get each neighbor for `particle_position1`
+            # Get each neighbor for `particle_position1`
             neighbors1 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs1)))
 
-            # move particles
+            # Move particles
             coordinates2 = coordinates1 .+ [1.4, -3.5]
 
-            # update neighborhood search
-            TrixiParticles.update!(nhs1, coordinates2, container)
+            # Update neighborhood search
+            coords_fun2(i) = coordinates2[:, i]
+            TrixiParticles.update!(nhs1, coords_fun2)
 
-            # get each neighbor for updated NHS
+            # Get each neighbor for updated NHS
             neighbors2 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs1)))
 
-            # change position
+            # Change position
             particle_position2 = particle_position1 .+ [1.4, -3.5]
 
-            # get each neighbor for `particle_position2`
+            # Get each neighbor for `particle_position2`
             neighbors3 = sort(collect(TrixiParticles.eachneighbor(particle_position2, nhs1)))
 
-            # double search radius
+            # Double search radius
             nhs2 = SpatialHashingSearch{2}(2 * radius, size(coordinates1, 2))
-            TrixiParticles.initialize!(nhs2, coordinates1, container)
+            TrixiParticles.initialize!(nhs2, coords_fun)
 
-            # get each neighbor in double search radius
+            # Get each neighbor in double search radius
             neighbors4 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs2)))
 
-            # move particles
+            # Move particles
             coordinates2 = coordinates1 .+ [0.4, -0.4]
 
-            # update neighborhood search
-            TrixiParticles.update!(nhs2, coordinates2, container)
+            # Update neighborhood search
+            TrixiParticles.update!(nhs2, coords_fun2)
 
-            # get each neighbor in double search radius
+            # Get each neighbor in double search radius
             neighbors5 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs2)))
 
             #### Verification
@@ -108,40 +96,35 @@
             # from (x, y, z) = (-0.25, -0.25, -0.25) to (x, y) = (0.35, 0.35, 0.35)
             range = -0.25:0.1:0.35
             coordinates1 = hcat(collect.(Iterators.product(range, range, range))...)
+            nparticles = size(coordinates1, 2)
 
             particle_position1 = [0.05, 0.05, 0.05]
             particle_spacing = 0.1
             radius = particle_spacing
 
-            #### Mocking
-            # Mock the container
-            container = Val(:mock_container_nhs_3D)
+            # Create neighborhood search
+            nhs1 = SpatialHashingSearch{3}(radius, nparticles)
 
-            # create neighborhood search
-            nhs1 = SpatialHashingSearch{3}(radius, size(coordinates1, 2))
-            function TrixiParticles.eachparticle(::Val{:mock_container_nhs_3D})
-                Base.OneTo(size(coordinates1, 2))
-            end
-            TrixiParticles.ndims(::Val{:mock_container_nhs_3D}) = size(coordinates1, 1)
+            coords_fun(i) = coordinates1[:, i]
+            TrixiParticles.initialize!(nhs1, coords_fun)
 
-            TrixiParticles.initialize!(nhs1, coordinates1, container)
-
-            # get each neighbor for `particle_position1`
+            # Get each neighbor for `particle_position1`
             neighbors1 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs1)))
 
-            # move particles
+            # Move particles
             coordinates2 = coordinates1 .+ [1.4, -3.5, 0.8]
 
-            # update neighborhood search
-            TrixiParticles.update!(nhs1, coordinates2, container)
+            # Update neighborhood search
+            coords_fun2(i) = coordinates2[:, i]
+            TrixiParticles.update!(nhs1, coords_fun2)
 
-            # get each neighbor for updated NHS
+            # Get each neighbor for updated NHS
             neighbors2 = sort(collect(TrixiParticles.eachneighbor(particle_position1, nhs1)))
 
-            # change position
+            # Change position
             particle_position2 = particle_position1 .+ [1.4, -3.5, 0.8]
 
-            # get each neighbor for `particle_position2`
+            # Get each neighbor for `particle_position2`
             neighbors3 = sort(collect(TrixiParticles.eachneighbor(particle_position2, nhs1)))
 
             #### Verification
