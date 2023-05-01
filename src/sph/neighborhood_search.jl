@@ -223,6 +223,8 @@ end
         if eps() < distance2 <= compact_support(container)^2
             distance = sqrt(distance2)
 
+            # Inline to avoid loss of performance
+            # compared to not using `for_particle_neighbor`.
             @inline f(particle, neighbor, pos_diff, distance)
         end
     end
