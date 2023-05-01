@@ -193,7 +193,7 @@ end
                       for cell in neighboring_cells)
 end
 
-function for_particle_neighbor(f, container, neighbor_container,
+@inline function for_particle_neighbor(f, container, neighbor_container,
                                container_coords, neighbor_coords,
                                neighborhood_search::SpatialHashingSearch)
     @threaded for particle in each_moving_particle(container)
@@ -223,7 +223,7 @@ end
         if eps() < distance2 <= compact_support(container)^2
             distance = sqrt(distance2)
 
-            f(particle, neighbor, pos_diff, distance)
+            @inline f(particle, neighbor, pos_diff, distance)
         end
     end
 end
