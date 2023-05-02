@@ -75,61 +75,65 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
 end
 
 function create_neighborhood_search(_, neighbor, ::Val{nothing})
-    TrivialNeighborhoodSearch(neighbor)
+    TrivialNeighborhoodSearch(eachparticle(neighbor))
 end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
-    @unpack smoothing_kernel, smoothing_length = container
-
-    radius = compact_support(smoothing_kernel, smoothing_length)
+    radius = nhs_radius(container, neighbor)
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
-    initialize!(search, neighbor.initial_coordinates, neighbor)
+    initialize!(search, nhs_init_function(container, neighbor))
 
     return search
 end
 
-function create_neighborhood_search(container::SolidParticleContainer,
-                                    neighbor::FluidParticleContainer,
-                                    ::Val{SpatialHashingSearch})
-    @unpack smoothing_kernel, smoothing_length = neighbor
-
-    radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
-
-    # Initialize neighborhood search
-    initialize!(search, neighbor.initial_coordinates, neighbor)
-
-    return search
+@inline function nhs_radius(container, neighbor)
+    return compact_support(container)
 end
 
-function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
-                                    search::Val{SpatialHashingSearch})
-    @unpack boundary_model = container
-
-    create_neighborhood_search(container, neighbor, boundary_model, search)
+@inline function nhs_radius(container::Union{SolidParticleContainer,
+                                             BoundaryParticleContainer},
+                            neighbor)
+    return nhs_radius(container, container.boundary_model, neighbor)
 end
 
-function create_neighborhood_search(container::BoundaryParticleContainer, _,
-                                    boundary_model, ::Val{SpatialHashingSearch})
-    # This NHS will never be used, so we just return an empty NHS.
-    # To keep actions on the tuple of NHS type-stable, we return something of the same type as the other NHS.
-    return SpatialHashingSearch{ndims(container)}(0.0, 0)
+@inline function nhs_radius(container::SolidParticleContainer,
+                            neighbor::SolidParticleContainer)
+    return compact_support(container)
 end
 
-function create_neighborhood_search(container::BoundaryParticleContainer, neighbor,
-                                    boundary_model::BoundaryModelDummyParticles,
-                                    ::Val{SpatialHashingSearch})
-    @unpack smoothing_kernel, smoothing_length = boundary_model
+@inline function nhs_radius(container, model, neighbor)
+    # This NHS is never used.
+    return 0.0
+end
 
-    radius = compact_support(smoothing_kernel, smoothing_length)
-    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
+@inline function nhs_radius(container, model::BoundaryModelDummyParticles, neighbor)
+    return compact_support(model)
+end
 
-    # Initialize neighborhood search
-    initialize!(search, neighbor.initial_coordinates, neighbor)
+function nhs_init_function(container, neighbor)
+    return i -> initial_coords(neighbor, i)
+end
 
-    return search
+function nhs_init_function(container::SolidParticleContainer,
+                           neighbor::SolidParticleContainer)
+    return i -> initial_coords(neighbor, i)
+end
+
+function nhs_init_function(container::Union{SolidParticleContainer,
+                                            BoundaryParticleContainer},
+                           neighbor)
+    return nhs_init_function(container, container.boundary_model, neighbor)
+end
+
+function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
+    return i -> initial_coords(neighbor, i)
+end
+
+function nhs_init_function(container, model, neighbor)
+    # This NHS is never used. Don't initialize NHS.
+    return nothing
 end
 
 # Create Tuple of containers for single container
@@ -240,7 +244,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers = semi
 
     @trixi_timeit timer() "drift!" begin
-        @trixi_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
+        @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
         # Set velocity and add acceleration for each container
@@ -272,7 +276,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
 
     @trixi_timeit timer() "kick!" begin
-        @trixi_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
+        @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
         @trixi_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
                                                                                     u_ode,
@@ -289,7 +293,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-@inline function reset_du!(du)
+@inline function set_zero!(du)
     du .= zero(eltype(du))
 
     return du
@@ -339,7 +343,8 @@ function update_nhs(u_ode, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[container_index][neighbor_index]
 
-            update!(neighborhood_search, u_neighbor, container, neighbor)
+            update!(neighborhood_search,
+                    nhs_coords_function(container, neighbor, u_neighbor))
         end
     end
 end
@@ -449,65 +454,75 @@ function update3!(container::FluidParticleContainer, container_index, v, u, v_od
 end
 
 # NHS updates
-function update!(neighborhood_search, u, container::FluidParticleContainer,
-                 neighbor::FluidParticleContainer)
-    update!(neighborhood_search, u, neighbor)
+function nhs_coords_function(container::FluidParticleContainer,
+                             neighbor::FluidParticleContainer, u)
+    return i -> current_coords(u, neighbor, i)
 end
 
-function update!(neighborhood_search, u, container::FluidParticleContainer,
-                 neighbor::SolidParticleContainer)
-    update!(neighborhood_search, neighbor.current_coordinates, neighbor)
+function nhs_coords_function(container::FluidParticleContainer,
+                             neighbor::SolidParticleContainer, u)
+    return i -> current_coords(u, neighbor, i)
 end
 
-function update!(neighborhood_search, u, container::FluidParticleContainer,
-                 neighbor::BoundaryParticleContainer)
+function nhs_coords_function(container::FluidParticleContainer,
+                             neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
+        return i -> current_coords(u, neighbor, i)
     end
+
+    # Don't update
+    return nothing
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer,
-                 neighbor::FluidParticleContainer)
-    update!(neighborhood_search, u, neighbor)
+function nhs_coords_function(container::SolidParticleContainer,
+                             neighbor::FluidParticleContainer, u)
+    return i -> current_coords(u, neighbor, i)
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer,
-                 neighbor::SolidParticleContainer)
-    return neighborhood_search
+function nhs_coords_function(container::SolidParticleContainer,
+                             neighbor::SolidParticleContainer, u)
+    # Don't update
+    return nothing
 end
 
-function update!(neighborhood_search, u, container::SolidParticleContainer,
-                 neighbor::BoundaryParticleContainer)
+function nhs_coords_function(container::SolidParticleContainer,
+                             neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        update!(neighborhood_search, neighbor.initial_coordinates, neighbor)
+        return i -> current_coords(u, neighbor, i)
     end
+
+    # Don't update
+    return nothing
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer,
-                 neighbor::FluidParticleContainer)
+function nhs_coords_function(container::BoundaryParticleContainer,
+                             neighbor::FluidParticleContainer, u)
     @unpack boundary_model = container
 
-    update!(neighborhood_search, u, container, neighbor, boundary_model)
+    return nhs_coords_function(container, neighbor, boundary_model, u)
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer,
-                 neighbor::FluidParticleContainer,
-                 boundary_model)
-    return neighborhood_search
+function nhs_coords_function(container::BoundaryParticleContainer,
+                             neighbor::FluidParticleContainer,
+                             boundary_model, u)
+    # Don't update
+    return nothing
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer,
-                 neighbor::FluidParticleContainer,
-                 boundary_model::BoundaryModelDummyParticles)
-    update!(neighborhood_search, u, neighbor)
+function nhs_coords_function(container::BoundaryParticleContainer,
+                             neighbor::FluidParticleContainer,
+                             boundary_model::BoundaryModelDummyParticles, u)
+    return i -> current_coords(u, neighbor, i)
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer,
-                 neighbor::SolidParticleContainer)
-    return neighborhood_search
+function nhs_coords_function(container::BoundaryParticleContainer,
+                             neighbor::SolidParticleContainer, u)
+    # Don't update
+    return nothing
 end
 
-function update!(neighborhood_search, u, container::BoundaryParticleContainer,
-                 neighbor::BoundaryParticleContainer)
-    return neighborhood_search
+function nhs_coords_function(container::BoundaryParticleContainer,
+                             neighbor::BoundaryParticleContainer, u)
+    # Don't update
+    return nothing
 end

@@ -281,15 +281,10 @@ end
                                           particle_container, boundary_container,
                                           pos_diff, distance, m_b,
                                           boundary_model::BoundaryModelDummyParticles)
-    @unpack smoothing_kernel, smoothing_length = particle_container
+    rho_a = particle_density(v_particle_container, particle_container, particle)
+    rho_b = particle_density(v_boundary_container, boundary_container, boundary_particle)
 
-    rho_a = get_particle_density(particle, v_particle_container,
-                                 particle_container)
-    rho_b = get_particle_density(boundary_particle,
-                                 v_boundary_container,
-                                 boundary_container)
-
-    grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
 
     return -m_b *
            (particle_container.pressure[particle] / rho_a^2 +
@@ -372,29 +367,30 @@ end
     return container.initial_coordinates
 end
 
-@inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)
+@inline function current_velocity(v, container::BoundaryParticleContainer, particle)
     # TODO moving boundaries
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
 # This will only be called for BoundaryModelDummyParticles
-@inline function get_particle_density(particle, v,
-                                      container::Union{BoundaryParticleContainer,
-                                                       SolidParticleContainer})
+@inline function particle_density(v,
+                                  container::Union{BoundaryParticleContainer,
+                                                   SolidParticleContainer},
+                                  particle)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    get_particle_density(particle, v, density_calculator, boundary_model)
+    particle_density(v, density_calculator, boundary_model, particle)
 end
 
-@inline function get_particle_density(particle, v, ::AdamiPressureExtrapolation,
-                                      boundary_model)
+@inline function particle_density(v, ::AdamiPressureExtrapolation,
+                                  boundary_model, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
-@inline function get_hydrodynamic_mass(particle, boundary_model, container)
+@inline function hydrodynamic_mass(container, boundary_model, particle)
     return boundary_model.hydrodynamic_mass[particle]
 end
 
@@ -456,8 +452,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     end
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v,
-                                                                 boundary_model))
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
 end
 
@@ -472,18 +467,18 @@ end
                                                                         },
                                               neighbor_container, neighborhood_search)
     @unpack boundary_model = particle_container
-    @unpack smoothing_kernel, smoothing_length, cache = boundary_model
+    @unpack cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
 
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+    particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
+        mass = hydrodynamic_mass(neighbor_container, neighbor)
         distance = norm(particle_coords -
-                        get_current_coords(neighbor, u_neighbor_container,
-                                           neighbor_container))
+                        current_coords(u_neighbor_container, neighbor_container,
+                                       neighbor))
 
-        if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density[particle] += mass * kernel(smoothing_kernel, distance, smoothing_length)
+        if distance <= compact_support(boundary_model)
+            density[particle] += mass * smoothing_kernel(boundary_model, distance)
         end
     end
 end
@@ -494,8 +489,7 @@ function compute_quantities!(boundary_model, ::ContinuityDensity,
     @unpack pressure, state_equation = boundary_model
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v,
-                                                                 boundary_model))
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
 end
 
@@ -540,25 +534,25 @@ end
                                                particle_container,
                                                neighbor_container::FluidParticleContainer,
                                                neighborhood_search, boundary_model)
-    @unpack pressure, smoothing_kernel, smoothing_length, cache = boundary_model
+    @unpack pressure, cache = boundary_model
     @unpack volume = cache
 
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+    particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
         pos_diff = particle_coords -
-                   get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+                   current_coords(u_neighbor_container, neighbor_container, neighbor)
         distance = norm(pos_diff)
 
-        if distance <= compact_support(smoothing_kernel, smoothing_length)
-            density_neighbor = get_particle_density(neighbor, v_neighbor_container,
-                                                    neighbor_container)
+        if distance <= compact_support(boundary_model)
+            density_neighbor = particle_density(v_neighbor_container, neighbor_container,
+                                                neighbor)
 
             # TODO moving boundaries
             pressure[particle] += (neighbor_container.pressure[neighbor] +
                                    dot(neighbor_container.acceleration,
                                        density_neighbor * pos_diff)) *
-                                  kernel(smoothing_kernel, distance, smoothing_length)
-            volume[particle] += kernel(smoothing_kernel, distance, smoothing_length)
+                                  smoothing_kernel(boundary_model, distance)
+            volume[particle] += smoothing_kernel(boundary_model, distance)
         end
     end
 
