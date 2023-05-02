@@ -79,7 +79,7 @@ function create_neighborhood_search(_, neighbor, ::Val{nothing})
 end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
-    radius = nhs_radius(container, neighbor)
+    radius = compact_support(container, neighbor)
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
@@ -88,28 +88,31 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     return search
 end
 
-@inline function nhs_radius(container, neighbor)
-    return compact_support(container)
+@inline function compact_support(container, neighbor)
+    @unpack smoothing_kernel, smoothing_length = container
+    return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function nhs_radius(container::Union{SolidParticleContainer,
-                                             BoundaryParticleContainer},
-                            neighbor)
-    return nhs_radius(container, container.boundary_model, neighbor)
+@inline function compact_support(container::Union{SolidParticleContainer,
+                                                  BoundaryParticleContainer},
+                                 neighbor)
+    return compact_support(container, container.boundary_model, neighbor)
 end
 
-@inline function nhs_radius(container::SolidParticleContainer,
-                            neighbor::SolidParticleContainer)
-    return compact_support(container)
+@inline function compact_support(container::SolidParticleContainer,
+                                 neighbor::SolidParticleContainer)
+    @unpack smoothing_kernel, smoothing_length = container
+    return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function nhs_radius(container, model, neighbor)
+@inline function compact_support(container, model, neighbor)
     # This NHS is never used.
     return 0.0
 end
 
-@inline function nhs_radius(container, model::BoundaryModelDummyParticles, neighbor)
-    return compact_support(model)
+@inline function compact_support(container, model::BoundaryModelDummyParticles, neighbor)
+    @unpack smoothing_kernel, smoothing_length = model
+    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 function nhs_init_function(container, neighbor)

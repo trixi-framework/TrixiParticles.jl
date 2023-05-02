@@ -194,9 +194,10 @@ end
 end
 
 @inline function for_particle_neighbor(f, container, neighbor_container,
-                               container_coords, neighbor_coords,
-                               neighborhood_search::SpatialHashingSearch)
-    @threaded for particle in each_moving_particle(container)
+                                       container_coords, neighbor_coords,
+                                       neighborhood_search::SpatialHashingSearch;
+                                       particles=each_moving_particle(container))
+    @threaded for particle in particles
         for_particle_neighbor_inner(f, container, neighbor_container,
                                     container_coords, neighbor_coords, neighborhood_search,
                                     particle)
@@ -220,7 +221,7 @@ end
         pos_diff = particle_coords - neighbor_coords
         distance2 = dot(pos_diff, pos_diff)
 
-        if eps() < distance2 <= compact_support(container)^2
+        if distance2 <= compact_support(container, neighbor_container)^2
             distance = sqrt(distance2)
 
             # Inline to avoid loss of performance
