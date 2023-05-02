@@ -98,7 +98,7 @@ end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, container)
     vtk["hydrodynamic_density"] = [particle_density(v, container, particle)
-                      for particle in eachparticle(container)]
+                                   for particle in eachparticle(container)]
     vtk["pressure"] = model.pressure
 
     return vtk
