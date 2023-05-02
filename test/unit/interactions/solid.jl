@@ -34,6 +34,7 @@
             # Mock the container
             container = Val(:mock_container_dv)
             TrixiParticles.ndims(::Val{:mock_container_dv}) = 2
+            Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
 
             # All @unpack calls should return another mock object of the type Val{:mock_property_name},
             # but we want to have some predefined values as properties
@@ -125,6 +126,7 @@
             # Mock the container
             container = Val{:mock_container_interact}()
             TrixiParticles.ndims(::Val{:mock_container_interact}) = 2
+            Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
 
             # @unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}
