@@ -17,15 +17,10 @@ struct MergeShapes{ELTYPE <: Real}
     function MergeShapes(shapes...)
         ELTYPE = eltype(shapes[1].coordinates)
 
-        coordinates = Tuple(shape.coordinates for shape in shapes)
-        velocities = Tuple(shape.velocities for shape in shapes)
-        masses = Tuple(shape.masses for shape in shapes)
-        densities = Tuple(shape.densities for shape in shapes)
-
-        coordinates = hcat(coordinates...)
-        velocities = hcat(velocities...)
-        masses = vcat(masses...)
-        densities = vcat(densities...)
+        coordinates = hcat((shape.coordinates for shape in shapes)...)
+        velocities = hcat((shape.velocities for shape in shapes)...)
+        masses = vcat((shape.masses for shape in shapes)...)
+        densities = vcat((shape.densities for shape in shapes)...)
 
         if overlapping_particles(coordinates)
             @warn "There are overlapping particles."
