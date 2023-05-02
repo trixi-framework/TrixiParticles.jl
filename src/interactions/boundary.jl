@@ -52,11 +52,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                    neighbor_container, boundary_model,
                    ::ContinuityDensity)
     @threaded for particle in each_moving_particle(particle_container)
-        particle_coords = get_current_coords(particle, u_particle_container,
-                                             particle_container)
+        particle_coords = current_coords(u_particle_container, particle_container,
+                                         particle)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                                 neighbor_container)
+            neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
+                                             neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
@@ -65,9 +65,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                 distance = sqrt(distance2)
 
                 # Continuity equation
-                vdiff = get_particle_vel(particle, v_particle_container,
-                                         particle_container) -
-                        get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+                vdiff = current_velocity(v_particle_container, particle_container,
+                                         particle) -
+                        current_velocity(v_neighbor_container, neighbor_container, neighbor)
 
                 # For boundary particles, the velocity is not integrated.
                 # Therefore, the density is stored in the first dimension of `dv`.
