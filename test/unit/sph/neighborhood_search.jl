@@ -18,11 +18,9 @@
             coords2 = [NaN, 0]
             coords3 = [typemax(Int) + 1.0, -typemax(Int) - 1.0]
 
-            @test TrixiParticles.get_cell_coords(coords1, nhs) ==
-                  (typemax(Int), typemin(Int))
-            @test TrixiParticles.get_cell_coords(coords2, nhs) == (typemax(Int), 0)
-            @test TrixiParticles.get_cell_coords(coords3, nhs) ==
-                  (typemax(Int), typemin(Int))
+            @test TrixiParticles.cell_coords(coords1, nhs) == (typemax(Int), typemin(Int))
+            @test TrixiParticles.cell_coords(coords2, nhs) == (typemax(Int), 0)
+            @test TrixiParticles.cell_coords(coords3, nhs) == (typemax(Int), typemin(Int))
         end
 
         @testset "Rectangular Point Cloud 2D" begin

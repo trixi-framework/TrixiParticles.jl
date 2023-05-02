@@ -167,7 +167,7 @@ end
     ndims(container) + 1
 end
 
-@inline function get_hydrodynamic_mass(particle, container::FluidParticleContainer)
+@inline function hydrodynamic_mass(container::FluidParticleContainer, particle)
     return container.mass[particle]
 end
 
@@ -222,11 +222,11 @@ end
     @unpack cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
 
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+    particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
-        neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                             neighbor_container)
+        m_b = hydrodynamic_mass(neighbor_container, neighbor)
+        neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
+                                         neighbor)
         distance = norm(particle_coords - neighbor_coords)
 
         if distance <= compact_support(particle_container)
@@ -240,7 +240,7 @@ function compute_pressure!(container, v)
 
     # Note that @threaded makes this slower
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v, container))
+        pressure[particle] = state_equation(particle_density(v, container, particle))
     end
 end
 
