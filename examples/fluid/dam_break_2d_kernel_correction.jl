@@ -56,17 +56,14 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
-# K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              setup.boundary_masses)
-
 # ==========================================================================================
 # ==== Containers
 
 particle_container = FluidParticleContainer(setup, SummationDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
                                             viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+                                            acceleration=(0.0, gravity),
+                                            correction=KernelCorrection())
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
