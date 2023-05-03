@@ -71,19 +71,9 @@ function write2vtk!(vtk, v, u, t, container::FluidParticleContainer)
     @unpack density_calculator, cache = container
 
     vtk["velocity"] = view(v, 1:ndims(container), :)
+    vtk["density"] = [particle_density(v, container, particle)
+                      for particle in eachparticle(container)]
     vtk["pressure"] = container.pressure
-
-    write2vtk!(vtk, v, density_calculator, container)
-end
-
-function write2vtk!(vtk, v, ::SummationDensity, container::FluidParticleContainer)
-    vtk["density"] = container.cache.density
-
-    return vtk
-end
-
-function write2vtk!(vtk, v, ::ContinuityDensity, container::FluidParticleContainer)
-    vtk["density"] = view(v, ndims(container) + 1, :)
 
     return vtk
 end
@@ -95,21 +85,20 @@ function write2vtk!(vtk, v, u, t, container::SolidParticleContainer)
                            zeros(ndims(container), n_fixed_particles))
     vtk["material_density"] = container.material_density
 
-    return vtk
+    write2vtk!(vtk, v, u, t, container.boundary_model, container)
 end
 
 function write2vtk!(vtk, v, u, t, container::BoundaryParticleContainer)
     write2vtk!(vtk, v, u, t, container.boundary_model, container)
 end
 
-function write2vtk!(vtk, v, u, t, model, container::BoundaryParticleContainer)
+function write2vtk!(vtk, v, u, t, model, container)
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
-                    container::BoundaryParticleContainer)
-    vtk["density"] = [get_particle_density(particle, v, container)
-                      for particle in eachparticle(container)]
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, container)
+    vtk["hydrodynamic_density"] = [particle_density(v, container, particle)
+                                   for particle in eachparticle(container)]
     vtk["pressure"] = model.pressure
 
     return vtk

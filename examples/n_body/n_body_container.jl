@@ -29,9 +29,9 @@ function TrixiParticles.write_v0!(v0, container::NBodyContainer)
 end
 
 # NHS update
-function TrixiParticles.nhs_coords_function(container::NBodyContainer,
-                                            neighbor::NBodyContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+function TrixiParticles.nhs_coords(container::NBodyContainer,
+                                   neighbor::NBodyContainer, u)
+    return u
 end
 
 function TrixiParticles.interact!(dv, v_particle_container, u_particle_container,
@@ -42,13 +42,12 @@ function TrixiParticles.interact!(dv, v_particle_container, u_particle_container
     @unpack mass, G = neighbor_container
 
     for particle in TrixiParticles.each_moving_particle(particle_container)
-        particle_coords = TrixiParticles.get_current_coords(particle, u_particle_container,
-                                                            particle_container)
+        particle_coords = TrixiParticles.current_coords(u_particle_container,
+                                                        particle_container, particle)
 
         for neighbor in TrixiParticles.eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = TrixiParticles.get_current_coords(neighbor,
-                                                                u_neighbor_container,
-                                                                neighbor_container)
+            neighbor_coords = TrixiParticles.current_coords(u_neighbor_container,
+                                                            neighbor_container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -81,11 +80,11 @@ function energy(v_ode, u_ode, container, semi)
 
     for particle in TrixiParticles.eachparticle(container)
         e += 0.5 * mass[particle] *
-             sum(TrixiParticles.get_particle_vel(particle, v, container) .^ 2)
+             sum(TrixiParticles.current_velocity(v, container, particle) .^ 2)
 
-        particle_coords = TrixiParticles.get_current_coords(particle, u, container)
+        particle_coords = TrixiParticles.current_coords(u, container, particle)
         for neighbor in (particle + 1):TrixiParticles.nparticles(container)
-            neighbor_coords = TrixiParticles.get_current_coords(neighbor, u, container)
+            neighbor_coords = TrixiParticles.current_coords(u, container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)

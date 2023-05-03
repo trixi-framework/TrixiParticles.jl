@@ -61,8 +61,13 @@ end
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
-    # No particle coordinates function -> don't update.
+    # No particle coordinates function -> don't initialize.
     return neighborhood_search
+end
+
+function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
+                     x::AbstractArray) where {NDIMS}
+    initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
@@ -76,13 +81,13 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
 
     for particle in 1:nparticles(neighborhood_search)
         # Get cell index of the particle's cell
-        cell_coords = get_cell_coords(coords_fun(particle), neighborhood_search)
+        cell = cell_coords(coords_fun(particle), neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
-        if haskey(hashtable, cell_coords)
-            append!(hashtable[cell_coords], particle)
+        if haskey(hashtable, cell)
+            append!(hashtable[cell], particle)
         else
-            hashtable[cell_coords] = [particle]
+            hashtable[cell] = [particle]
         end
     end
 
@@ -94,12 +99,17 @@ function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
     return neighborhood_search
 end
 
+function update!(neighborhood_search::SpatialHashingSearch{NDIMS},
+                 x::AbstractArray) where {NDIMS}
+    update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
+end
+
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
     @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
 
-    @inline function cell_coords(particle)
-        get_cell_coords(coords_fun(particle), neighborhood_search)
+    @inline function cell_coords_(particle)
+        cell_coords(coords_fun(particle), neighborhood_search)
     end
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
@@ -109,7 +119,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
     # `collect` the keyset to be able to loop over it with `@threaded`.
     @threaded for cell in collect(keys(hashtable))
         for particle in hashtable[cell]
-            if cell_coords(particle) != cell
+            if cell_coords_(particle) != cell
                 # Mark this cell and continue with the next one.
                 #
                 # `cell_buffer` is preallocated,
@@ -134,12 +144,12 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
 
             # Find all particles whose coordinates do not match this cell
             moved_particle_indices = (i for i in eachindex(particles)
-                                      if cell_coords(particles[i]) != cell)
+                                      if cell_coords_(particles[i]) != cell)
 
             # Add moved particles to new cell
             for i in moved_particle_indices
                 particle = particles[i]
-                new_cell_coords = cell_coords(particle)
+                new_cell_coords = cell_coords_(particle)
 
                 # Add particle to corresponding cell or create cell if it does not exist
                 if haskey(hashtable, new_cell_coords)
@@ -162,8 +172,8 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
 end
 
 @inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
-    cell_coords = get_cell_coords(coords, neighborhood_search)
-    x, y = cell_coords
+    cell = cell_coords(coords, neighborhood_search)
+    x, y = cell
     # Generator of all neighboring cells to consider
     neighboring_cells = ((x + i, y + j) for i in -1:1, j in -1:1)
 
@@ -173,8 +183,8 @@ end
 end
 
 @inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
-    cell_coords = get_cell_coords(coords, neighborhood_search)
-    x, y, z = cell_coords
+    cell = cell_coords(coords, neighborhood_search)
+    x, y, z = cell
     # Generator of all neighboring cells to consider
     neighboring_cells = ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
 
@@ -191,7 +201,7 @@ end
     return get(hashtable, cell_index, empty_vector)
 end
 
-@inline function get_cell_coords(coords, neighborhood_search)
+@inline function cell_coords(coords, neighborhood_search)
     @unpack search_radius = neighborhood_search
 
     return Tuple(floor_to_int.(coords / search_radius))
@@ -222,7 +232,7 @@ function z_index_sort!(coordinates, container)
     @unpack mass, pressure, neighborhood_search = container
 
     perm = sortperm(eachparticle(container),
-                    by=(i -> cell_z_index(get_particle_coords(i, coordinates, container),
+                    by=(i -> cell_z_index(extract_svector(coordinates, container, i),
                                           neighborhood_search)))
 
     permute!(mass, perm)
@@ -233,7 +243,7 @@ function z_index_sort!(coordinates, container)
 end
 
 @inline function cell_z_index(coords, neighborhood_search)
-    cell_coords = get_cell_coords(coords, neighborhood_search) .+ 1
+    cell = cell_coords(coords, neighborhood_search) .+ 1
 
-    return cartesian2morton(SVector(cell_coords))
+    return cartesian2morton(SVector(cell))
 end
