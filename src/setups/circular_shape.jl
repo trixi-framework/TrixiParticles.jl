@@ -32,7 +32,6 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
 
     function CircularShape(particle_spacing, R, center_position;
                            shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
-
         if particle_spacing < eps()
             error("Particle spacing needs to be positive and larger than $(eps())!")
         end
