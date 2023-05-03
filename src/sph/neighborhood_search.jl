@@ -61,8 +61,13 @@ end
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
-    # No particle coordinates function -> don't update.
+    # No particle coordinates function -> don't initialize.
     return neighborhood_search
+end
+
+function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
+                     x::AbstractArray) where {NDIMS}
+    initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
@@ -92,6 +97,11 @@ end
 function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
     # No particle coordinates function -> don't update.
     return neighborhood_search
+end
+
+function update!(neighborhood_search::SpatialHashingSearch{NDIMS},
+                 x::AbstractArray) where {NDIMS}
+    update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
 # Modify the existing hash table by moving particles into their new cells

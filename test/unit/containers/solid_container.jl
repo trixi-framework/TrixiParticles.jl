@@ -121,6 +121,7 @@
                 # Mock the container
                 container = Val(:mock_container_tensor)
                 TrixiParticles.ndims(::Val{:mock_container_tensor}) = 2
+                Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
                 function TrixiParticles.current_coords(container::Val{:mock_container_tensor
                                                                       },
                                                        particle)
