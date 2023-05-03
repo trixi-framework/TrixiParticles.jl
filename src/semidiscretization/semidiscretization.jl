@@ -145,7 +145,7 @@ digest_containers(boundary_condition::Tuple) = boundary_condition
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
-function semidiscretize(semi, tspan)
+function semidiscretize(semi, tspan; check_overlapping=true)
     @unpack particle_containers, neighborhood_searches = semi
 
     @assert all(container -> eltype(container) === eltype(particle_containers[1]),
@@ -175,7 +175,7 @@ function semidiscretize(semi, tspan)
         write_u0!(u0_container, container)
         write_v0!(v0_container, container)
 
-        if overlapping_particles(u0_container, Val(ndims(container)))
+        if check_overlapping && overlapping_particles(u0_container, Val(ndims(container)))
             @warn "There are overlapping particles in $container."
         end
     end
@@ -213,6 +213,7 @@ end
 
 function overlapping_particles(coords, ::Val{NDIMS}) where {NDIMS}
     n_particles = size(coords, 2)
+
     nhs = SpatialHashingSearch{NDIMS}(1e-6, n_particles)
 
     initialize!(nhs, coords)
