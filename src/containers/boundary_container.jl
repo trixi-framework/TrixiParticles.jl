@@ -386,18 +386,18 @@ end
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    particle_density(v, boundary_model, container, density_calculator, particle)
+    particle_density(v, density_calculator, boundary_model, container, particle)
 end
 
-@inline function particle_density(v, ::AdamiPressureExtrapolation,
-                                  boundary_model, particle)
+@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model,
+                                  container, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
-@inline function particle_density(v, boundary_model, container,
-                                  ::ContinuityDensity, particle)
+@inline function particle_density(v, ::ContinuityDensity, boundary_model, container,
+                                  particle)
     return v[end, particle]
 end
 
