@@ -75,15 +75,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
-        end
+        typeassert(smoothing_kernel, SmoothingKernel{NDIMS})
 
         if length(particle_masses) != nparticles
-            error("An initial mass needs to be provided when using SummationDensity()!")
+            throw(ArgumentError("An initial mass needs to be provided when using `SummationDensity`!"))
         end
 
         density = Vector{ELTYPE}(undef, nparticles)
@@ -112,15 +110,17 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
-        end
+        typeassert(smoothing_kernel, SmoothingKernel{NDIMS})
 
         if length(particle_densities) != nparticles
-            error("An initial density needs to be provided when using ContinuityDensity()!")
+            throw(ArgumentError("An initial density needs to be provided when using `ContinuityDensity`!"))
+        end
+
+        if length(particle_masses) != nparticles
+            throw(ArgumentError("An initial mass needs to be provided when using `ContinuityDensity`!"))
         end
 
         initial_density = particle_densities
