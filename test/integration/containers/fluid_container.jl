@@ -3,18 +3,22 @@
     setups = [
         RectangularShape(0.123, (2, 3), (-1.0, 0.1)),
         RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1)),
+        RectangularShape(0.123, (1, 2, 1), (-1.0, 0.1, 2.1), density=1000.0),
         RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0),
         RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492), 1020.0),
         CircularShape(0.52, 0.1, (-0.2, 0.123)),
+        CircularShape(0.2, 0.1, (-0.2, 0.123), density=1000.0),
     ]
     setup_names = [
         "RectangularShape 2D",
         "RectangularShape 3D",
+        "RectangularShape 3D with density",
         "RectangularTank 2D",
         "RectangularTank 3D",
         "CircularShape",
+        "CircularShape with density",
     ]
-    NDIMS_ = [2, 3, 2, 3, 2]
+    NDIMS_ = [2, 3, 3, 2, 3, 2, 2]
     density_calculators = [
         SummationDensity(),
         ContinuityDensity(),
@@ -30,13 +34,22 @@
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             container = Nothing()
             if density_calculator isa ContinuityDensity && length(setup.densities) == 0
-                empty_density_err_str = "An initial density needs to be provied when using ContinuityDensity()!"
+                empty_density_err_str = "An initial density needs to be provided when using ContinuityDensity()!"
                 @test_throws ErrorException(empty_density_err_str) FluidParticleContainer(setup,
                                                                                           density_calculator,
                                                                                           state_equation,
                                                                                           smoothing_kernel,
                                                                                           smoothing_length)
                 continue
+            elseif density_calculator isa SummationDensity && length(setup.masses) == 0
+                empty_density_err_str = "An initial mass needs to be provided when using SummationDensity()!"
+                @test_throws ErrorException(empty_density_err_str) FluidParticleContainer(setup,
+                                                                                          density_calculator,
+                                                                                          state_equation,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length)
+                continue
+
             else
                 container = FluidParticleContainer(setup, density_calculator,
                                                    state_equation, smoothing_kernel,
@@ -56,10 +69,12 @@
 
             if density_calculator isa SummationDensity
                 @test length(container.cache.density) == size(setup.coordinates, 2)
+                @test length(container.mass) == size(setup.coordinates, 2)
             end
 
             if density_calculator isa ContinuityDensity
                 @test length(container.cache.initial_density) == size(setup.coordinates, 2)
+                @test container.cache.initial_density == setup.densities
             end
 
             error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"

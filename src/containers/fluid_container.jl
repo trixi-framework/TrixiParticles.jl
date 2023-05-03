@@ -38,6 +38,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)))
+        if !isempty(setup.densities)
+            println("WARNING: Density provided by the setup will be ignored.")
+        end
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -77,6 +80,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
 
         if ndims(smoothing_kernel) != NDIMS
             error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+        end
+
+        if length(particle_masses) != nparticles
+            error("An initial mass needs to be provided when using SummationDensity()!")
         end
 
         density = Vector{ELTYPE}(undef, nparticles)

@@ -68,7 +68,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              fluid_density;
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
+        if particle_spacing < eps()
+            error("Particle spacing needs to be positive and larger than $(eps())!")
+        end
+
         NDIMS = 2
+
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
