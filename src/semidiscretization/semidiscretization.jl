@@ -174,6 +174,10 @@ function semidiscretize(semi, tspan)
 
         write_u0!(u0_container, container)
         write_v0!(v0_container, container)
+
+        if overlapping_particles(u0_container, Val(ndims(container)))
+            @warn "There are overlapping particles in $container."
+        end
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
@@ -205,6 +209,29 @@ function restart_with!(semi, sol)
     end
 
     return semi
+end
+
+function overlapping_particles(coords, ::Val{NDIMS}) where {NDIMS}
+    n_particles = size(coords, 2)
+    nhs = SpatialHashingSearch{NDIMS}(1e-6, n_particles)
+
+    initialize!(nhs, coords)
+
+    for particle in 1:n_particles
+        particle_coords = extract_svector(coords, Val(NDIMS), particle)
+
+        for neighbor in eachneighbor(particle_coords, nhs)
+            neighbor_coords = extract_svector(coords, Val(NDIMS), neighbor)
+
+            pos_diff = particle_coords - neighbor_coords
+            distance2 = dot(pos_diff, pos_diff)
+            if particle != neighbor && distance2 < 1e-3
+                return true
+            end
+        end
+    end
+
+    return false
 end
 
 # We have to pass `container` here for type stability,
