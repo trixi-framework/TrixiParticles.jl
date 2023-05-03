@@ -29,9 +29,9 @@ function TrixiParticles.write_v0!(v0, container::NBodyContainer)
 end
 
 # NHS update
-function TrixiParticles.nhs_coords_function(container::NBodyContainer,
-                                            neighbor::NBodyContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+function TrixiParticles.nhs_coords(container::NBodyContainer,
+                                   neighbor::NBodyContainer, u)
+    return u
 end
 
 function TrixiParticles.interact!(dv, v_particle_container, u_particle_container,
