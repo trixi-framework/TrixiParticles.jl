@@ -113,7 +113,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         end
 
         if length(particle_densities) != nparticles
-            error("An initial density needs to be provied when using ContinuityDensity()!")
+            error("An initial density needs to be provided when using ContinuityDensity()!")
         end
 
         initial_density = particle_densities
