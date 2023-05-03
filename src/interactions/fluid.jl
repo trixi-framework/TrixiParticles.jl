@@ -115,7 +115,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # corresponding to the rest density of the fluid and not the material density.
                 m_b = hydrodynamic_mass(neighbor_container, neighbor)
                 rho_b = particle_density(v_neighbor_container,
-                                             neighbor_container, neighbor)
+                                         neighbor_container, neighbor)
                 v_b = current_velocity(v_neighbor_container, neighbor_container, neighbor)
                 v_diff = v_a - v_b
 

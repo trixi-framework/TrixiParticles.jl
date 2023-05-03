@@ -372,7 +372,8 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
-@inline function particle_density(v, container::Union{BoundaryParticleContainer,
+@inline function particle_density(v,
+                                  container::Union{BoundaryParticleContainer,
                                                    SolidParticleContainer},
                                   particle)
     @unpack boundary_model = container
@@ -381,7 +382,7 @@ end
 end
 
 @inline function particle_density(v, boundary_model::BoundaryModelDummyParticles, container,
-     particle)
+                                  particle)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
@@ -389,19 +390,19 @@ end
 end
 
 @inline function particle_density(v, ::AdamiPressureExtrapolation,
-                                      boundary_model, particle)
+                                  boundary_model, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
 @inline function particle_density(v, boundary_model, container,
-                                      ::ContinuityDensity, particle)
+                                  ::ContinuityDensity, particle)
     return v[end, particle]
 end
 
 @inline function particle_density(v, boundary_model::BoundaryModelMonaghanKajtar,
-                                      container, particle)
+                                  container, particle)
     @unpack hydrodynamic_mass, boundary_particle_spacing = boundary_model
 
     # This model does not use any particle density. However, a mean density is used for
