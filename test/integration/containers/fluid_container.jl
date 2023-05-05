@@ -67,11 +67,11 @@
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
             @test_throws ArgumentError(error_str) FluidParticleContainer(setup,
-                                                                        density_calculator,
-                                                                        state_equation,
-                                                                        smoothing_kernel,
-                                                                        smoothing_length,
-                                                                        acceleration=(0.0))
+                                                                         density_calculator,
+                                                                         state_equation,
+                                                                         smoothing_kernel,
+                                                                         smoothing_length,
+                                                                         acceleration=(0.0))
         end
     end
 
@@ -96,8 +96,8 @@
         smoothing_length = 0.362
 
         container = FluidParticleContainer(setup, density_calculator,
-                                            state_equation, smoothing_kernel,
-                                            smoothing_length)
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length)
 
         @test container isa FluidParticleContainer{NDIMS}
         @test container.initial_coordinates == setup.coordinates
@@ -117,10 +117,10 @@
     end
 
     struct MockShape{NDIMS, ELTYPE <: Real}
-        coordinates               :: Array{ELTYPE, 2}
-        velocities                :: Array{ELTYPE, 2}
-        masses                    :: Vector{ELTYPE}
-        densities                 :: Vector{ELTYPE}
+        coordinates :: Array{ELTYPE, 2}
+        velocities  :: Array{ELTYPE, 2}
+        masses      :: Vector{ELTYPE}
+        densities   :: Vector{ELTYPE}
 
         function MockShape(n_particles, NDIMS; density=0.0)
             ELTYPE = Float64
@@ -128,7 +128,7 @@
             coordinates = Array{Float64, 2}(undef, NDIMS, n_particles)
             velocities = ones(ELTYPE, size(coordinates))
 
-            densities = ones(ELTYPE, n_particles * (density>0))
+            densities = ones(ELTYPE, n_particles * (density > 0))
             masses = ones(ELTYPE, 0)
 
             return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities)
@@ -158,17 +158,17 @@
             if density_calculator isa ContinuityDensity && length(setup.densities) == 0
                 empty_density_err_str = "An initial density needs to be provided when using `ContinuityDensity`!"
                 @test_throws ArgumentError(empty_density_err_str) FluidParticleContainer(setup,
-                                                                                          density_calculator,
-                                                                                          state_equation,
-                                                                                          smoothing_kernel,
-                                                                                          smoothing_length)
+                                                                                         density_calculator,
+                                                                                         state_equation,
+                                                                                         smoothing_kernel,
+                                                                                         smoothing_length)
             elseif density_calculator isa SummationDensity && length(setup.masses) == 0
                 empty_density_err_str = "An initial mass needs to be provided when using `$(typeof(density_calculator))`!"
                 @test_throws ArgumentError(empty_density_err_str) FluidParticleContainer(setup,
-                                                                                          density_calculator,
-                                                                                          state_equation,
-                                                                                          smoothing_kernel,
-                                                                                          smoothing_length)
+                                                                                         density_calculator,
+                                                                                         state_equation,
+                                                                                         smoothing_kernel,
+                                                                                         smoothing_length)
             end
         end
     end
