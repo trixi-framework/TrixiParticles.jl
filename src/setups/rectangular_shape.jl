@@ -14,6 +14,7 @@ Rectangular shape filled with particles.
 - `density=0.0`:    Specify the density if the `densities` or `masses` fields will be used
 - `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`)
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
+- 'init_mass':      The initial mass of a particle. (default: 1)
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the particles
@@ -42,9 +43,9 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
                               n_particles_per_dimension, particle_position;
                               density=zero(eltype(particle_spacing)), loop_order=:x_first,
                               init_velocity=ntuple(_ -> 0.0,
-                                                   length(n_particles_per_dimension)))
+                                                   length(n_particles_per_dimension)), init_mass = 1.0)
         if particle_spacing < eps()
-            error("Particle spacing needs to be positive and larger than $(eps())!")
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
         end
 
         NDIMS = length(n_particles_per_dimension)
@@ -61,8 +62,8 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
-        masses = density * particle_spacing^NDIMS *
-                 ones(ELTYPE, n_particles * (density > 0))
+        masses = (density>0 ? density * particle_spacing^NDIMS : init_mass)  *
+                 ones(ELTYPE, n_particles)
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)

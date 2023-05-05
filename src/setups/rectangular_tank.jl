@@ -23,6 +23,7 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `init_velocity`:      The initial velocity of the fluid particles as `(x, y)` (or `(x, y, z)` in 3D).
 - `boundary_density`:   Density of the boundary particles (by default set to the rest density)
 - `faces`:              By default all faces are generated. Set faces by passing an bit-array of length 4 (2D) or 6 (3D) to generate the faces in the normal direction: -x,+x,-y,+y,-z,+z
+- 'init_mass':      The initial mass of a particle. (default: 1)
 
 # Fields
 - `coordinates::Matrix`: Coordinates of the fluid particles
@@ -67,9 +68,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     function RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size,
                              fluid_density;
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
-                             boundary_density=fluid_density, faces=Tuple(trues(4)))
+                             boundary_density=fluid_density, faces=Tuple(trues(4)), init_mass = 1.0)
         if particle_spacing < eps()
-            error("Particle spacing needs to be positive and larger than $(eps())!")
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
         end
 
         NDIMS = 2
@@ -118,8 +119,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
-        mass = fluid_density * particle_spacing^2
+        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension)* (fluid_density > 0))
+
+        mass = (fluid_density>0 ? fluid_density * particle_spacing^2 : init_mass)
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
@@ -134,7 +136,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
                              fluid_density;
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
-                             boundary_density=fluid_density, faces=Tuple(trues(6)))
+                             boundary_density=fluid_density, faces=Tuple(trues(6)), init_mass = 1.0)
         NDIMS = 3
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
@@ -142,7 +144,6 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         ELTYPE = eltype(particle_spacing)
 
-        mass = fluid_density * particle_spacing^3
 
         # Leave space for the fluid particles
         tank_size = tank_size .+ particle_spacing
@@ -190,7 +191,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension)* (fluid_density > 0))
+
+        mass = (fluid_density>0 ? fluid_density * particle_spacing^3 : init_mass)
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,

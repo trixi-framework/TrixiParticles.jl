@@ -78,7 +78,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        typeassert(smoothing_kernel, SmoothingKernel{NDIMS})
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!")
+        end
 
         if length(particle_masses) != nparticles
             throw(ArgumentError("An initial mass needs to be provided when using `SummationDensity`!"))
@@ -113,7 +115,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        typeassert(smoothing_kernel, SmoothingKernel{NDIMS})
+        if ndims(smoothing_kernel) != NDIMS
+            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!")
+        end
 
         if length(particle_densities) != nparticles
             throw(ArgumentError("An initial density needs to be provided when using `ContinuityDensity`!"))
