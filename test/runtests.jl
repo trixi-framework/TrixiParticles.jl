@@ -1,7 +1,6 @@
 include("test_util.jl")
 
-# const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
-const TRIXIPARTICLES_TEST = "integration"
+const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 
 @testset "All Tests" verbose=true begin
     if TRIXIPARTICLES_TEST in ("all", "unit", "unitandintegration")
