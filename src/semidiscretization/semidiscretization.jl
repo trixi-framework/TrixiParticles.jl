@@ -176,7 +176,7 @@ function semidiscretize(semi, tspan; check_overlapping=true)
         write_v0!(v0_container, container)
 
         if check_overlapping && overlapping_particles(u0_container, Val(ndims(container)))
-            @warn "There are overlapping particles in $container."
+            @warn "There are overlapping particles in container $container_index."
         end
     end
 
@@ -211,10 +211,10 @@ function restart_with!(semi, sol)
     return semi
 end
 
-function overlapping_particles(coords, ::Val{NDIMS}) where {NDIMS}
+function overlapping_particles(coords, ::Val{NDIMS}; search_radius=1e-6) where {NDIMS}
     n_particles = size(coords, 2)
 
-    nhs = SpatialHashingSearch{NDIMS}(1e-6, n_particles)
+    nhs = SpatialHashingSearch{NDIMS}(search_radius, n_particles)
 
     initialize!(nhs, coords)
 
@@ -226,7 +226,7 @@ function overlapping_particles(coords, ::Val{NDIMS}) where {NDIMS}
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
-            if particle != neighbor && distance2 < 1e-3
+            if particle != neighbor && distance2 < sqrt(search_radius)
                 return true
             end
         end
