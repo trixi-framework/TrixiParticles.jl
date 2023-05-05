@@ -39,8 +39,8 @@
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
-            error_str1 = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ErrorException(error_str1) FluidParticleContainer(coordinates,
+            error_str1 = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
+            @test_throws ArgumentError(error_str1) FluidParticleContainer(coordinates,
                                                                            velocities,
                                                                            masses,
                                                                            density_calculator,
@@ -49,7 +49,7 @@
                                                                            smoothing_length,
                                                                            acceleration=(0.0))
 
-            error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
+            error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"
             @test_throws ErrorException(error_str2) FluidParticleContainer(coordinates,
                                                                            velocities,
                                                                            masses,
@@ -76,7 +76,7 @@
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
 
-            @test_throws ErrorException(error_str1) FluidParticleContainer(coordinates,
+            @test_throws ArgumentError(error_str1) FluidParticleContainer(coordinates,
                                                                            velocities,
                                                                            masses,
                                                                            densities,
