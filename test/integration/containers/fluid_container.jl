@@ -162,7 +162,7 @@
                                                                                          state_equation,
                                                                                          smoothing_kernel,
                                                                                          smoothing_length)
-            elseif density_calculator isa SummationDensity && length(setup.masses) == 0
+            elseif length(setup.masses) == 0
                 empty_density_err_str = "An initial mass needs to be provided when using `$(typeof(density_calculator))`!"
                 @test_throws ArgumentError(empty_density_err_str) FluidParticleContainer(setup,
                                                                                          density_calculator,
