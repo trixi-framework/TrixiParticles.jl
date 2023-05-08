@@ -142,7 +142,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
     hydrodynamic_mass         :: Vector{ELTYPE}
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
-        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
+        return new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
     end
 end
 
@@ -372,22 +372,42 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
-# This will only be called for BoundaryModelDummyParticles
 @inline function particle_density(v,
                                   container::Union{BoundaryParticleContainer,
                                                    SolidParticleContainer},
                                   particle)
     @unpack boundary_model = container
-    @unpack density_calculator = boundary_model
 
-    particle_density(v, density_calculator, boundary_model, particle)
+    particle_density(v, boundary_model, container, particle)
 end
 
-@inline function particle_density(v, ::AdamiPressureExtrapolation,
-                                  boundary_model, particle)
+@inline function particle_density(v, boundary_model::BoundaryModelDummyParticles, container,
+                                  particle)
+    @unpack boundary_model = container
+    @unpack density_calculator = boundary_model
+
+    particle_density(v, density_calculator, boundary_model, container, particle)
+end
+
+@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model,
+                                  container, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
+end
+
+@inline function particle_density(v, ::ContinuityDensity, boundary_model, container,
+                                  particle)
+    return v[end, particle]
+end
+
+@inline function particle_density(v, boundary_model::BoundaryModelMonaghanKajtar,
+                                  container, particle)
+    @unpack hydrodynamic_mass, boundary_particle_spacing = boundary_model
+
+    # This model does not use any particle density. However, a mean density is used for
+    # `ArtificialViscosityMonaghan` in the fluid interaction.
+    return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(container)
 end
 
 @inline function hydrodynamic_mass(container, boundary_model, particle)

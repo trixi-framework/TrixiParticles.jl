@@ -23,10 +23,14 @@ update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 @inline eachparticle(container) = Base.OneTo(nparticles(container))
 @inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
 
-# Return the `i`-th column of the array `A` as an `SVector`.
 # This should not be dispatched by container type. We always expect to get a column of `A`.
 @inline function extract_svector(A, container, i)
-    return SVector(ntuple(@inline(dim->A[dim, i]), Val(ndims(container))))
+    extract_svector(A, Val(ndims(container)), i)
+end
+
+# Return the `i`-th column of the array `A` as an `SVector`.
+@inline function extract_svector(A, ::Val{NDIMS}, i) where {NDIMS}
+    return SVector(ntuple(@inline(dim->A[dim, i]), NDIMS))
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
