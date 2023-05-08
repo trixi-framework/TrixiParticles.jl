@@ -430,7 +430,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         boundary_coordinates = hcat(boundary_coordinates, y_neg_boundary)
 
         # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_layers, n_particles_z))
+        particles_per_layer = prod((n_particles_x, n_particles_z))
         for i in 1:n_layers
             face_indices_3[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
@@ -448,7 +448,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
         boundary_coordinates = hcat(boundary_coordinates, y_pos_boundary)
 
         # store the indices of each particle
-        particles_per_layer = prod((n_particles_x, n_layers, n_particles_z))
+        particles_per_layer = prod((n_particles_x, n_particles_z))
         for i in 1:n_layers
             face_indices_4[i, :] = collect((index + 1):(particles_per_layer + index))
             index += particles_per_layer
