@@ -114,16 +114,14 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
                 # corresponding to the rest density of the fluid and not the material density.
                 m_b = hydrodynamic_mass(neighbor_container, neighbor)
+                rho_b = particle_density(v_neighbor_container,
+                                         neighbor_container, neighbor)
                 v_b = current_velocity(v_neighbor_container, neighbor_container, neighbor)
                 v_diff = v_a - v_b
 
-                continuity_equation!(dv, density_calculator,
-                                     v_particle_container, v_neighbor_container,
-                                     particle, neighbor, pos_diff, distance,
-                                     particle_container, neighbor_container)
-
-                pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_a,
-                                  smoothing_length)
+                rho_mean = (rho_a + rho_b) / 2
+                pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
+                                  distance, rho_mean, smoothing_length)
                 dv_viscosity = -m_b * pi_ab *
                                smoothing_kernel_grad(particle_container, pos_diff, distance)
 
@@ -137,6 +135,11 @@ function interact!(dv, v_particle_container, u_particle_container,
                 for i in 1:ndims(particle_container)
                     dv[i, particle] += dv_boundary[i] + dv_viscosity[i]
                 end
+
+                continuity_equation!(dv, density_calculator,
+                                     v_particle_container, v_neighbor_container,
+                                     particle, neighbor, pos_diff, distance,
+                                     particle_container, neighbor_container)
             end
         end
     end
