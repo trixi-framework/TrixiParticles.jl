@@ -30,15 +30,15 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
-    function CircularShape(particle_spacing, R, center_position;
-                           shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
+    function CircularShape(particle_spacing, R, center_position, density;
+                           shape_type=FillCircle(), init_velocity=(0.0, 0.0))
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
         x_center, y_center = center_position
 
-        coordinates = generate_particles(shape_type, R, x_center, y_center,
-                                         particle_spacing)
+        coordinates = circular_shape_coords(shape_type, R, x_center, y_center,
+                                            particle_spacing)
 
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
@@ -122,7 +122,7 @@ struct DrawCircle{}
     end
 end
 
-function generate_particles(shape::FillCircle, R, x_center, y_center, particle_spacing)
+function circular_shape_coords(shape::FillCircle, R, x_center, y_center, particle_spacing)
     @unpack x_recess, y_recess = shape
 
     x_vec = Vector{Float64}(undef, 0)
@@ -155,7 +155,7 @@ function generate_particles(shape::FillCircle, R, x_center, y_center, particle_s
     return particle_coords
 end
 
-function generate_particles(shape::DrawCircle, R, x_center, y_center, particle_spacing)
+function circular_shape_coords(shape::DrawCircle, R, x_center, y_center, particle_spacing)
     @unpack n_layers, layer_inwards = shape
 
     x_vec = Vector{Float64}(undef, 0)
