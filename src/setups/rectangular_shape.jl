@@ -1,33 +1,33 @@
 """
-    RectangularShape(particle_spacing, n_particles_per_dimension,
-                     particle_position; density=0.0, loop_order=:x_first,
+    RectangularShape(particle_spacing, n_particles_per_dimension, density,
+                     particle_position; loop_order=:x_first,
                      init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)))
 
 Rectangular shape filled with particles.
 
 # Arguments
-- `particle_spacing`:             Spacing between the particles
-- `n_particles_per_dimension::Tuple`: Tuple containing the number of particles in x, y and z (only 3D) direction, respectively
-- `particle_position::Tuple`:    Coordinates of the corner in negative coordinate directions
+- `particle_spacing`:             Spacing between the particles.
+- `n_particles_per_dimension::Tuple`: Tuple containing the number of particles in x, y and z (only 3D) direction, respectively.
+- `particle_position::Tuple`:    Coordinates of the corner in negative coordinate directions.
+- `density`:    Initial density of particles.
 
 # Keywords
-- `density=0.0`:    Specify the density if the `densities` or `masses` fields will be used
-- `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`)
+- `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`).
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
 
 # Fields
-- `coordinates::Matrix`: Coordinates of the particles
-- `masses::Vector`: Masses of the particles
-- `densities::Vector`: Densities of the particles
+- `coordinates::Matrix`: Coordinates of the particles.
+- `masses::Vector`: Masses of the particles.
+- `densities::Vector`: Densities of the particles.
 
 # Examples
 2D:
 ```julia
-rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0))
+rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0)
 ```
 3D:
 ```julia
-rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0))
+rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 1000.0)
 ```
 """
 struct RectangularShape{NDIMS, ELTYPE <: Real}
