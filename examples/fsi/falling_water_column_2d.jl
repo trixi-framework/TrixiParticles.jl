@@ -66,10 +66,7 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0),
                         density=solid_density)
 
-particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
-particle_velocities = zeros(Float64, size(particle_coordinates))
-particle_masses = vcat(beam.masses, fixed_particles.masses)
-particle_densities = vcat(beam.densities, fixed_particles.densities)
+solid = MergeShapes(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -78,7 +75,7 @@ K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_densites = water_density * ones(size(solid.densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
@@ -95,8 +92,8 @@ fluid_container = FluidParticleContainer(setup.coordinates,
                                          viscosity=viscosity,
                                          acceleration=(0.0, gravity))
 
-solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                         particle_masses, particle_densities,
+solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+                                         solid.masses, solid.densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,
                                          n_fixed_particles=fixed_particles.n_particles,

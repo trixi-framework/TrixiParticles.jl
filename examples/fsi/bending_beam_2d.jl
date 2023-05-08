@@ -58,24 +58,21 @@ n_boundary_layers = 5
 x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
 x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
 
+n_particles_per_dimension_clamp =  (n_boundary_layers, 10 * n_particles_y)
+n_fixed_particles = prod(n_particles_per_dimension_clamp)*2
+
 # Start point of the pillars in y-direction.
 y_start_clamp = -(2 * n_particles_y - 1) * solid_particle_spacing
 
-clamp_A = RectangularShape(solid_particle_spacing, (n_boundary_layers, 10 * n_particles_y),
+clamp_A = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
                            (x_start_clamp_A, y_start_clamp),
                            density=solid_density)
 
-clamp_B = RectangularShape(solid_particle_spacing, (n_boundary_layers, 10 * n_particles_y),
+clamp_B = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
                            (x_start_clamp_B, y_start_clamp),
                            density=solid_density)
 
-clamp_coordinates = hcat(clamp_A.coordinates, clamp_B.coordinates)
-particle_coordinates = hcat(beam.coordinates, clamp_coordinates)
-particle_velocities = zeros(size(particle_coordinates))
-particle_masses = vcat(beam.masses, clamp_A.masses, clamp_B.masses)
-particle_densities = vcat(beam.densities, clamp_A.densities, clamp_B.densities)
-
-n_fixed_particles = size(clamp_coordinates, 2)
+solid = MergeShapes(beam, clamp_A, clamp_B)
 
 # ==========================================================================================
 # ==== Fluid
@@ -107,7 +104,7 @@ fluid = RectangularShape(fluid_particle_spacing, n_particles_per_dimension,
 # ==========================================================================================
 # ==== Boundary models
 
-hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_densites = water_density * ones(size(solid.densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
@@ -123,8 +120,8 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==========================================================================================
 # ==== Containers
 
-solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                         particle_masses, particle_densities,
+solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+                                         solid.masses, solid.densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu, boundary_model_solid,
                                          n_fixed_particles=n_fixed_particles,
