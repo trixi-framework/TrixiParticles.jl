@@ -27,8 +27,8 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 setup = RectangularShape(fluid_particle_spacing,
                          (round(Int, (water_width / fluid_particle_spacing)),
-                          round(Int, (water_height / fluid_particle_spacing))),
-                         (0.1, 0.2), density=water_density)
+                          round(Int, (water_height / fluid_particle_spacing))), (0.1, 0.2),
+                         water_density)
 
 # ==========================================================================================
 # ==== Solid
@@ -55,7 +55,7 @@ fixed_particles = CircularShape(solid_particle_spacing,
                                 (0.0, thickness / 2),
                                 shape_type=FillCircle(x_recess=(0.0, clamp_radius),
                                                       y_recess=(0.0, thickness)),
-                                density=solid_density)
+                                solid_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
@@ -64,7 +64,7 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0),
-                        density=solid_density)
+                        solid_density)
 
 particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
 particle_velocities = zeros(Float64, size(particle_coordinates))
