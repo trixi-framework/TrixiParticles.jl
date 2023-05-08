@@ -43,7 +43,7 @@
 
     @testset "$(shape_names[i])" for i in eachindex(shape_names)
         @testset "Position $position" for position in positions
-            shape = CircularShape(particle_spacing, radius, position,
+            shape = CircularShape(particle_spacing, radius, position, 0.0,
                                   shape_type=shape_type(position)[i])
             @test isapprox(shape.coordinates, expected_coords[i] .+ position; atol=1e-4)
         end

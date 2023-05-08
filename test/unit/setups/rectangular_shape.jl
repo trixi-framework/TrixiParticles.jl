@@ -22,7 +22,7 @@
 
     @testset "Position $i" for i in eachindex(positions)
         shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, positions[i])
+                                 n_particles_per_dimension, positions[i], 0.0)
 
         @test shape.coordinates == expected_coords[i]
     end
@@ -51,7 +51,7 @@ end
 
     @testset "Position $i" for i in eachindex(positions)
         shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, positions[i])
+                                 n_particles_per_dimension, positions[i], 0.0)
 
         @test shape.coordinates == expected_coords[i]
     end
