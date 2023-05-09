@@ -68,7 +68,16 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              fluid_density;
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
+        if particle_spacing < eps()
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
+        end
+
+        if fluid_density < eps()
+            throw(ArgumentError("Density needs to be positive and larger than $(eps())!"))
+        end
+
         NDIMS = 2
+
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
@@ -113,7 +122,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
-        particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        particle_densities = fluid_density * ones(Float64,
+                                                  prod(n_particles_per_dimension))
+
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
@@ -131,13 +142,20 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(6)))
         NDIMS = 3
+
+        if particle_spacing < eps()
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
+        end
+
+        if fluid_density < eps()
+            throw(ArgumentError("Density needs to be positive and larger than $(eps())!"))
+        end
+
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         ELTYPE = eltype(particle_spacing)
-
-        mass = fluid_density * particle_spacing^3
 
         # Leave space for the fluid particles
         tank_size = tank_size .+ particle_spacing
@@ -186,6 +204,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+
+        mass = fluid_density * particle_spacing^3
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
