@@ -1,3 +1,4 @@
+# Fluid-fluid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
@@ -124,9 +125,12 @@ function interact!(dv, v_particle_container, u_particle_container,
                 dv_viscosity = -m_b * pi_ab *
                                smoothing_kernel_grad(particle_container, pos_diff, distance)
 
-                calc_dv!(dv, neighbor, neighbor_container, particle, particle_container,
-                         rho_a, rho_b, m_b, grad_kernel, pi_ab, v_particle_container,
-                         v_neighbor_container, pos_diff, distance)
+                dv_boundary = boundary_particle_impact(particle, neighbor,
+                                                       v_particle_container,
+                                                       v_neighbor_container,
+                                                       particle_container,
+                                                       neighbor_container,
+                                                       pos_diff, distance, m_b)
 
                 for i in 1:ndims(particle_container)
                     dv[i, particle] += dv_boundary[i] + dv_viscosity[i]
@@ -140,52 +144,5 @@ function interact!(dv, v_particle_container, u_particle_container,
         end
     end
 
-    return dv
-end
-
-@inline function calc_dv!(dv, neighbor, neighbor_container::FluidParticleContainer,
-                          particle, particle_container, rho_a, rho_b, m_b, grad_kernel,
-                          pi_ab, v_particle_container, v_neighbor_container, pos_diff,
-                          distance)
-    dv_viscosity = -m_b * pi_ab * grad_kernel
-
-    p_a = particle_container.pressure[particle]
-    p_b = neighbor_container.pressure[neighbor]
-    dv_pressure = -m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel
-
-    for i in 1:ndims(particle_container)
-        dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
-    end
-end
-
-@inline function calc_dv!(dv, neighbor,
-                          neighbor_container::Union{BoundaryParticleContainer,
-                                                    SolidParticleContainer}, particle,
-                          particle_container, rho_a, rho_b, m_b, grad_kernel, pi_ab,
-                          v_particle_container, v_neighbor_container, pos_diff, distance)
-    dv_viscosity = -m_b * pi_ab * grad_kernel
-
-    dv_boundary = boundary_particle_impact(particle, neighbor, v_particle_container,
-                                           v_neighbor_container, particle_container,
-                                           neighbor_container, pos_diff, distance, m_b)
-
-    for i in 1:ndims(particle_container)
-        dv[i, particle] += dv_boundary[i] + dv_viscosity[i]
-    end
-end
-
-@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      particle, neighbor, v_diff, m_b,
-                                      particle_container::FluidParticleContainer,
-                                      neighbor_container, grad_kernel)
-    NDIMS = ndims(particle_container)
-    dv[NDIMS + 1, particle] += sum(m_b * vdiff .* grad_kernel)
-
-    return dv
-end
-
-@inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      particle, neighbor, v_diff, m_b, particle_container,
-                                      neighbor_container, grad_kernel)
     return dv
 end
