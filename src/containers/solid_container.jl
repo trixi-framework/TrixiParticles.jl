@@ -223,31 +223,45 @@ function initialize!(container::SolidParticleContainer, neighborhood_search)
     calc_correction_matrix!(correction_matrix, neighborhood_search, container)
 end
 
-function calc_correction_matrix!(correction_matrix, neighborhood_search, container)
-    @unpack initial_coordinates, mass, material_density = container
+function calc_correction_matrix!(corr_matrix, neighborhood_search, container)
+    @unpack mass, material_density = container
+
+    set_zero!(corr_matrix)
 
     # Calculate kernel correction matrix
-    for particle in eachparticle(container)
-        L = zeros(eltype(mass), ndims(container), ndims(container))
+    initial_coords = initial_coordinates(container)
 
-        particle_coordinates = initial_coords(container, particle)
-        for neighbor in eachneighbor(particle_coordinates, neighborhood_search)
-            volume = mass[neighbor] / material_density[neighbor]
-
-            initial_pos_diff = particle_coordinates - initial_coords(container, neighbor)
-            initial_distance = norm(initial_pos_diff)
-
-            if initial_distance > eps()
-                grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
-                                                    initial_distance)
-                L -= volume * grad_kernel * transpose(initial_pos_diff)
-            end
+    for_particle_neighbor(container, container,
+                          initial_coords, initial_coords,
+                          neighborhood_search;
+                          particles=eachparticle(container)) do particle, neighbor,
+                                                                initial_pos_diff,
+                                                                initial_distance
+        if initial_distance < sqrt(eps())
+            return
         end
 
-        correction_matrix[:, :, particle] = inv(L)
+        volume = mass[neighbor] / material_density[neighbor]
+
+        grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+                                            initial_distance)
+        result = volume * grad_kernel * initial_pos_diff'
+
+        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+            corr_matrix[i, j, particle] -= result[i, j]
+        end
     end
 
-    return correction_matrix
+    @threaded for particle in eachparticle(container)
+        L = correction_matrix(container, particle)
+        result = inv(L)
+
+        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+            corr_matrix[i, j, particle] = result[i, j]
+        end
+    end
+
+    return corr_matrix
 end
 
 function update!(container::SolidParticleContainer, container_index, v, u,
@@ -278,56 +292,60 @@ end
 @inline function compute_pk1_corrected(neighborhood_search, container)
     @unpack pk1_corrected, deformation_grad = container
 
+    set_zero!(deformation_grad)
+
+    calc_deformation_grad!(deformation_grad, neighborhood_search, container)
+
     @threaded for particle in eachparticle(container)
-        J_particle = deformation_gradient(particle, neighborhood_search, container)
-
-        # store deformation gradient
-        for j in 1:ndims(container), i in 1:ndims(container)
-            deformation_grad[i, j, particle] = J_particle[i, j]
-        end
-
+        J_particle = deformation_gradient(container, particle)
         pk1_particle = pk1_stress_tensor(J_particle, container)
         pk1_particle_corrected = pk1_particle * correction_matrix(container, particle)
 
-        for j in 1:ndims(container), i in 1:ndims(container)
+        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
             pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
         end
     end
 end
 
-# First Piola-Kirchhoff stress tensor
-function pk1_stress_tensor(J, container)
-    S = pk2_stress_tensor(J, container)
+@inline function calc_deformation_grad!(deformation_grad, neighborhood_search, container)
+    @unpack mass, material_density = container
 
-    return J * S
-end
+    initial_coords = initial_coordinates(container)
 
-function deformation_gradient(particle, neighborhood_search, container)
-    @unpack initial_coordinates, current_coordinates, mass, material_density = container
-
-    result = zeros(SMatrix{ndims(container), ndims(container), eltype(mass)})
-
-    initial_particle_coords = initial_coords(container, particle)
-    for neighbor in eachneighbor(initial_particle_coords, neighborhood_search)
+    for_particle_neighbor(container, container,
+                          initial_coords, initial_coords,
+                          neighborhood_search;
+                          particles=eachparticle(container)) do particle, neighbor,
+                                                                initial_pos_diff,
+                                                                initial_distance
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = current_coords(container, particle) - current_coords(container, neighbor)
 
-        initial_pos_diff = initial_particle_coords - initial_coords(container, neighbor)
-        initial_distance = norm(initial_pos_diff)
+        if initial_distance < sqrt(eps())
+            return
+        end
 
-        if initial_distance > sqrt(eps())
-            # Note that the multiplication by L_{0a} is done after this loop
-            grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
-                                                initial_distance)
+        grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+                                            initial_distance)
 
-            result -= volume * pos_diff * grad_kernel'
+        result = volume * pos_diff * grad_kernel'
+
+        # Mulitply by L_{0a}
+        result *= correction_matrix(container, particle)'
+
+        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+            deformation_grad[i, j, particle] -= result[i, j]
         end
     end
 
-    # Mulitply by L_{0a}
-    result *= correction_matrix(container, particle)'
+    return deformation_grad
+end
 
-    return result
+# First Piola-Kirchhoff stress tensor
+@inline function pk1_stress_tensor(J, container)
+    S = pk2_stress_tensor(J, container)
+
+    return J * S
 end
 
 # Second Piola-Kirchhoff stress tensor
