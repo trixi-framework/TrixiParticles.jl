@@ -292,8 +292,6 @@ end
 @inline function compute_pk1_corrected(neighborhood_search, container)
     @unpack pk1_corrected, deformation_grad = container
 
-    set_zero!(deformation_grad)
-
     calc_deformation_grad!(deformation_grad, neighborhood_search, container)
 
     @threaded for particle in eachparticle(container)
@@ -310,8 +308,10 @@ end
 @inline function calc_deformation_grad!(deformation_grad, neighborhood_search, container)
     @unpack mass, material_density = container
 
-    initial_coords = initial_coordinates(container)
+    # Reset deformation gradient
+    set_zero!(deformation_grad)
 
+    initial_coords = initial_coordinates(container)
     for_particle_neighbor(container, container,
                           initial_coords, initial_coords,
                           neighborhood_search;

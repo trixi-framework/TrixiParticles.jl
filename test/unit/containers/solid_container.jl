@@ -111,7 +111,8 @@
                 mass = [2.0, 2.0]
                 density = 4.0
 
-                correction_matrix = [1 0; 0 1]
+                correction_matrix = [1 0; 0 1;;;
+                                     1 0; 0 1]
 
                 # This will cause the computed gradient
                 # to be equal to `initial_coords[particle] - initial_coords[neighbor]`
@@ -150,12 +151,16 @@
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
                 function TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _)
-                    kernel_derivative
+                    return kernel_derivative
                 end
 
+                # Compute deformation gradient
+                deformation_grad = ones(2, 2, 2)
+                TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:mock_nhs),
+                                                      container)
+
                 #### Verification
-                @test TrixiParticles.deformation_gradient(particle, Val(:mock_nhs),
-                                                          container) == expected[i]
+                @test deformation_grad[:, :, particle] == expected[i]
             end
         end
 
@@ -206,7 +211,9 @@
                 end
 
                 # Compute the deformation gradient for the particle in the middle
-                J = TrixiParticles.deformation_gradient(41, nhs, container)
+                TrixiParticles.calc_deformation_grad!(container.deformation_grad,
+                                                      nhs, container)
+                J = TrixiParticles.deformation_gradient(container, 41)
 
                 #### Verification
                 @test J ≈ deformation_gradients[deformation_name]
@@ -255,8 +262,6 @@
                 # For all other properties, return mock objects
                 return Val(Symbol("mock_" * string(f)))
             end
-
-            TrixiParticles.deformation_gradient(_, ::Val{:mock_container}) = J
 
             #### Verification
             @test TrixiParticles.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
