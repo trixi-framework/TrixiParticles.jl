@@ -290,7 +290,7 @@ end
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, container)
-    @unpack pk1_corrected, deformation_grad = container
+    @unpack deformation_grad = container
 
     calc_deformation_grad!(deformation_grad, neighborhood_search, container)
 
@@ -300,7 +300,7 @@ end
         pk1_particle_corrected = pk1_particle * correction_matrix(container, particle)
 
         @inbounds for j in 1:ndims(container), i in 1:ndims(container)
-            pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
+            container.pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
         end
     end
 end
