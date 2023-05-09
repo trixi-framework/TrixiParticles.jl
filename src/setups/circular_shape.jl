@@ -5,19 +5,19 @@
 Either a circle filled with particles or a circumference drawn by particles.
 
 # Arguments
-- `particle_spacing`:   Spacing between the particles.
-- `R`:                  Radius of the circle.
-- `center_position::Tuple`:    The position of the circle center as `(x,y)`.
-- `density`:    Initial density of particles.
+- `particle_spacing`:           Spacing between the particles.
+- `R`:                          Radius of the circle.
+- `center_position::Tuple`:     The position of the circle center as `(x,y)`.
+- `density`:                    Initial density of particles.
 
 # Keywords
 - `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref)).
 - `init_velocity`: The initial velocity of the fluid particles as `(vel_x, vel_y)`.
 
 # Fields
-- `coordinates::Matrix`: Coordinates of the particles.
-- `masses::Vector`: Masses of the particles.
-- `densities::Vector`: Densities of the particles.
+- `coordinates::Matrix`:    Coordinates of the particles.
+- `masses::Vector`:         Masses of the particles.
+- `densities::Vector`:      Densities of the particles.
 
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.

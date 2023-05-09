@@ -6,19 +6,19 @@
 Rectangular shape filled with particles.
 
 # Arguments
-- `particle_spacing`:             Spacing between the particles.
-- `n_particles_per_dimension::Tuple`: Tuple containing the number of particles in x, y and z (only 3D) direction, respectively.
-- `particle_position::Tuple`:    Coordinates of the corner in negative coordinate directions.
-- `density`:    Initial density of particles.
+- `particle_spacing`:                   Spacing between the particles.
+- `n_particles_per_dimension::Tuple`:   Tuple containing the number of particles in x, y and z (only 3D) direction, respectively.
+- `particle_position::Tuple`:           Coordinates of the corner in negative coordinate directions.
+- `density`:                            Initial density of particles.
 
 # Keywords
 - `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`).
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
 
 # Fields
-- `coordinates::Matrix`: Coordinates of the particles.
-- `masses::Vector`: Masses of the particles.
-- `densities::Vector`: Densities of the particles.
+- `coordinates::Matrix`:    Coordinates of the particles.
+- `masses::Vector`:         Masses of the particles.
+- `densities::Vector`:      Densities of the particles.
 
 # Examples
 2D:
