@@ -41,14 +41,37 @@
             @test container.smoothing_length == smoothing_length
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
+            @test length(container.mass) == size(setup.coordinates, 2)
 
-            error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem"
-            @test_throws ErrorException(error_str) FluidParticleContainer(setup,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel,
-                                                                          smoothing_length,
-                                                                          acceleration=(0.0))
+            if density_calculator isa SummationDensity
+                @test length(container.cache.density) == size(setup.coordinates, 2)
+            end
+
+            if density_calculator isa ContinuityDensity
+                @test length(container.cache.initial_density) == size(setup.coordinates, 2)
+                @test container.cache.initial_density == setup.densities
+            end
+        end
+    end
+
+    # wrong dimension of acceleration
+    NDIMS_ = [2, 3]
+    @testset "Wrong acceleration dimension" for i in eachindex(NDIMS_)
+        setup = setups[i]
+        NDIMS = NDIMS_[i]
+        state_equation = Val(:state_equation)
+        smoothing_kernel = Val(:smoothing_kernel)
+        TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
+        smoothing_length = 0.362
+
+        @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
+            @test_throws ArgumentError(error_str) FluidParticleContainer(setup,
+                                                                         density_calculator,
+                                                                         state_equation,
+                                                                         smoothing_kernel,
+                                                                         smoothing_length,
+                                                                         acceleration=(0.0))
         end
     end
 end
