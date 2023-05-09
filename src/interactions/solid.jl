@@ -20,13 +20,14 @@ end
     container_coords = initial_coordinates(particle_container)
     neighbor_coords = initial_coordinates(neighbor_container)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # For solid-solid interaction, this has to happen in the initial coordinates.
     for_particle_neighbor(particle_container, neighbor_container,
                           container_coords, neighbor_coords,
                           neighborhood_search) do particle, neighbor, initial_pos_diff,
                                                   initial_distance
-        if initial_distance < sqrt(eps())
-            return
-        end
+        # Only consider particles with a distance > 0.
+        initial_distance < sqrt(eps()) && return
 
         rho_a = particle_container.material_density[particle]
         rho_b = neighbor_container.material_density[neighbor]
@@ -65,12 +66,12 @@ function interact!(dv, v_particle_container, u_particle_container,
     container_coords = current_coordinates(u_particle_container, particle_container)
     neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_container, neighbor_container,
                           container_coords, neighbor_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        if distance < sqrt(eps())
-            return
-        end
+        # Only consider particles with a distance > 0.
+        distance < sqrt(eps()) && return
 
         # Apply the same force to the solid particle
         # that the fluid particle experiences due to the soild particle.

@@ -203,6 +203,9 @@ end
                       for cell in neighboring_cells)
 end
 
+# Loop over all pairs of particles and neighbors within the kernel cutoff.
+# `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
+# By default, loop over `each_moving_particle(container)`.
 @inline function for_particle_neighbor(f, container, neighbor_container,
                                        container_coords, neighbor_coords,
                                        neighborhood_search;

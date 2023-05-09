@@ -53,13 +53,13 @@ function TrixiParticles.interact!(dv, v_particle_container, u_particle_container
     neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_container,
                                                          neighbor_container)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     TrixiParticles.for_particle_neighbor(particle_container, neighbor_container,
                                          container_coords, neighbor_coords,
                                          neighborhood_search) do particle, neighbor,
                                                                  pos_diff, distance
-        if distance < sqrt(eps())
-            return
-        end
+        # Only consider particles with a distance > 0.
+        distance < sqrt(eps()) && return
 
         # Original version
         # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3

@@ -231,15 +231,15 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, container)
     # Calculate kernel correction matrix
     initial_coords = initial_coordinates(container)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(container, container,
                           initial_coords, initial_coords,
                           neighborhood_search;
                           particles=eachparticle(container)) do particle, neighbor,
                                                                 initial_pos_diff,
                                                                 initial_distance
-        if initial_distance < sqrt(eps())
-            return
-        end
+        # Only consider particles with a distance > 0.
+        initial_distance < sqrt(eps()) && return
 
         volume = mass[neighbor] / material_density[neighbor]
 
@@ -311,6 +311,7 @@ end
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(container)
     for_particle_neighbor(container, container,
                           initial_coords, initial_coords,

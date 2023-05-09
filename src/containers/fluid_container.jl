@@ -203,6 +203,7 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
 
         neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
 
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(container, neighbor_container,
                               container_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance

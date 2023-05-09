@@ -54,6 +54,7 @@ function interact!(dv, v_particle_container, u_particle_container,
     container_coords = current_coordinates(u_particle_container, particle_container)
     neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_container, neighbor_container,
                           container_coords, neighbor_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance

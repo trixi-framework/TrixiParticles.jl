@@ -469,6 +469,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
 
         neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
 
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(container, neighbor_container,
                               container_coords, neighbor_coords,
                               neighborhood_search;
@@ -535,6 +536,7 @@ end
     @unpack pressure, cache = boundary_model
     @unpack volume = cache
 
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(container, neighbor_container,
                           container_coords, neighbor_coords,
                           neighborhood_search;
