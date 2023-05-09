@@ -50,13 +50,13 @@
                                                                           acceleration=(0.0))
 
             error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"
-            @test_throws ErrorException(error_str2) FluidParticleContainer(coordinates,
-                                                                           velocities,
-                                                                           masses,
-                                                                           density_calculator,
-                                                                           state_equation,
-                                                                           smoothing_kernel2,
-                                                                           smoothing_length)
+            @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
+                                                                          velocities,
+                                                                          masses,
+                                                                          density_calculator,
+                                                                          state_equation,
+                                                                          smoothing_kernel2,
+                                                                          smoothing_length)
 
             # ContinuityDensity
             density_calculator = ContinuityDensity()
@@ -86,14 +86,14 @@
                                                                           smoothing_length,
                                                                           acceleration=(0.0))
 
-            @test_throws ErrorException(error_str2) FluidParticleContainer(coordinates,
-                                                                           velocities,
-                                                                           masses,
-                                                                           densities,
-                                                                           density_calculator,
-                                                                           state_equation,
-                                                                           smoothing_kernel2,
-                                                                           smoothing_length)
+            @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
+                                                                          velocities,
+                                                                          masses,
+                                                                          densities,
+                                                                          density_calculator,
+                                                                          state_equation,
+                                                                          smoothing_kernel2,
+                                                                          smoothing_length)
         end
     end
 

@@ -41,10 +41,10 @@
             @test container.smoothing_length == smoothing_length
             @test container.viscosity isa TrixiParticles.NoViscosity
             @test container.acceleration == [0.0 for _ in 1:NDIMS]
+            @test length(container.mass) == size(setup.coordinates, 2)
 
             if density_calculator isa SummationDensity
                 @test length(container.cache.density) == size(setup.coordinates, 2)
-                @test length(container.mass) == size(setup.coordinates, 2)
             end
 
             if density_calculator isa ContinuityDensity
@@ -109,11 +109,8 @@
         @test container.smoothing_length == smoothing_length
         @test container.viscosity isa TrixiParticles.NoViscosity
         @test container.acceleration == [0.0 for _ in 1:NDIMS]
-
-        if density_calculator isa SummationDensity
-            @test length(container.cache.density) == size(setup.coordinates, 2)
-            @test length(container.mass) == size(setup.coordinates, 2)
-        end
+        @test length(container.cache.density) == size(setup.coordinates, 2)
+        @test length(container.mass) == size(setup.coordinates, 2)
     end
 
     struct MockShape{NDIMS, ELTYPE <: Real}
@@ -163,7 +160,7 @@
                                                                                          smoothing_kernel,
                                                                                          smoothing_length)
             elseif length(setup.masses) == 0
-                empty_density_err_str = "An initial mass needs to be provided when using `$(typeof(density_calculator))`!"
+                empty_density_err_str = "An initial mass needs to be provided!"
                 @test_throws ArgumentError(empty_density_err_str) FluidParticleContainer(setup,
                                                                                          density_calculator,
                                                                                          state_equation,
