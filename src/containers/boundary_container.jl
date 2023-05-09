@@ -142,7 +142,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
     hydrodynamic_mass         :: Vector{ELTYPE}
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
-        new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
+        return new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
     end
 end
 
@@ -281,11 +281,8 @@ end
                                           particle_container, boundary_container,
                                           pos_diff, distance, m_b,
                                           boundary_model::BoundaryModelDummyParticles)
-    rho_a = get_particle_density(particle, v_particle_container,
-                                 particle_container)
-    rho_b = get_particle_density(boundary_particle,
-                                 v_boundary_container,
-                                 boundary_container)
+    rho_a = particle_density(v_particle_container, particle_container, particle)
+    rho_b = particle_density(v_boundary_container, boundary_container, boundary_particle)
 
     grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
 
@@ -370,29 +367,50 @@ end
     return container.initial_coordinates
 end
 
-@inline function get_particle_vel(particle, v, container::BoundaryParticleContainer)
+@inline function current_velocity(v, container::BoundaryParticleContainer, particle)
     # TODO moving boundaries
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
-# This will only be called for BoundaryModelDummyParticles
-@inline function get_particle_density(particle, v,
-                                      container::Union{BoundaryParticleContainer,
-                                                       SolidParticleContainer})
+@inline function particle_density(v,
+                                  container::Union{BoundaryParticleContainer,
+                                                   SolidParticleContainer},
+                                  particle)
+    @unpack boundary_model = container
+
+    particle_density(v, boundary_model, container, particle)
+end
+
+@inline function particle_density(v, boundary_model::BoundaryModelDummyParticles, container,
+                                  particle)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    get_particle_density(particle, v, density_calculator, boundary_model)
+    particle_density(v, density_calculator, boundary_model, container, particle)
 end
 
-@inline function get_particle_density(particle, v, ::AdamiPressureExtrapolation,
-                                      boundary_model)
+@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model,
+                                  container, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
 end
 
-@inline function get_hydrodynamic_mass(particle, boundary_model, container)
+@inline function particle_density(v, ::ContinuityDensity, boundary_model, container,
+                                  particle)
+    return v[end, particle]
+end
+
+@inline function particle_density(v, boundary_model::BoundaryModelMonaghanKajtar,
+                                  container, particle)
+    @unpack hydrodynamic_mass, boundary_particle_spacing = boundary_model
+
+    # This model does not use any particle density. However, a mean density is used for
+    # `ArtificialViscosityMonaghan` in the fluid interaction.
+    return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(container)
+end
+
+@inline function hydrodynamic_mass(container, boundary_model, particle)
     return boundary_model.hydrodynamic_mass[particle]
 end
 
@@ -454,8 +472,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
     end
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v,
-                                                                 boundary_model))
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
 end
 
@@ -473,12 +490,12 @@ end
     @unpack cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
 
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+    particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        mass = get_hydrodynamic_mass(neighbor, neighbor_container)
+        mass = hydrodynamic_mass(neighbor_container, neighbor)
         distance = norm(particle_coords -
-                        get_current_coords(neighbor, u_neighbor_container,
-                                           neighbor_container))
+                        current_coords(u_neighbor_container, neighbor_container,
+                                       neighbor))
 
         if distance <= compact_support(boundary_model)
             density[particle] += mass * smoothing_kernel(boundary_model, distance)
@@ -492,8 +509,7 @@ function compute_quantities!(boundary_model, ::ContinuityDensity,
     @unpack pressure, state_equation = boundary_model
 
     for particle in eachparticle(container)
-        pressure[particle] = state_equation(get_particle_density(particle, v,
-                                                                 boundary_model))
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
 end
 
@@ -541,15 +557,15 @@ end
     @unpack pressure, cache = boundary_model
     @unpack volume = cache
 
-    particle_coords = get_current_coords(particle, u_particle_container, particle_container)
+    particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
         pos_diff = particle_coords -
-                   get_current_coords(neighbor, u_neighbor_container, neighbor_container)
+                   current_coords(u_neighbor_container, neighbor_container, neighbor)
         distance = norm(pos_diff)
 
         if distance <= compact_support(boundary_model)
-            density_neighbor = get_particle_density(neighbor, v_neighbor_container,
-                                                    neighbor_container)
+            density_neighbor = particle_density(v_neighbor_container, neighbor_container,
+                                                neighbor)
 
             # TODO moving boundaries
             pressure[particle] += (neighbor_container.pressure[neighbor] +

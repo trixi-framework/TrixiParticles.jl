@@ -80,8 +80,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Boundary particle data
         n_boundaries_per_dim,
-        tank_size = get_boundary_particles_per_dimension(tank_size, particle_spacing,
-                                                         spacing_ratio)
+        tank_size = boundary_particles_per_dimension(tank_size, particle_spacing,
+                                                     spacing_ratio)
 
         boundary_coordinates,
         face_indices = initialize_boundaries(particle_spacing / spacing_ratio, tank_size,
@@ -92,10 +92,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
 
         # Particle data
-        n_particles_x = get_fluid_particles_per_dimension(fluid_size[1], particle_spacing,
-                                                          "fluid width")
-        n_particles_y = get_fluid_particles_per_dimension(fluid_size[2], particle_spacing,
-                                                          "fluid height")
+        n_particles_x = fluid_particles_per_dimension(fluid_size[1], particle_spacing,
+                                                      "fluid width")
+        n_particles_y = fluid_particles_per_dimension(fluid_size[2], particle_spacing,
+                                                      "fluid height")
 
         if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
             n_particles_x -= 1
@@ -144,8 +144,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         # Boundary particle data
         n_boundaries_per_dim,
-        tank_size = get_boundary_particles_per_dimension(tank_size, particle_spacing,
-                                                         spacing_ratio)
+        tank_size = boundary_particles_per_dimension(tank_size, particle_spacing,
+                                                     spacing_ratio)
 
         boundary_coordinates,
         face_indices = initialize_boundaries(particle_spacing / spacing_ratio, tank_size,
@@ -156,12 +156,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
 
         # Particle data
-        n_particles_x = get_fluid_particles_per_dimension(fluid_size[1], particle_spacing,
-                                                          "fluid width")
-        n_particles_y = get_fluid_particles_per_dimension(fluid_size[2], particle_spacing,
-                                                          "fluid height")
-        n_particles_z = get_fluid_particles_per_dimension(fluid_size[3], particle_spacing,
-                                                          "fluid depth")
+        n_particles_x = fluid_particles_per_dimension(fluid_size[1], particle_spacing,
+                                                      "fluid width")
+        n_particles_y = fluid_particles_per_dimension(fluid_size[2], particle_spacing,
+                                                      "fluid height")
+        n_particles_z = fluid_particles_per_dimension(fluid_size[3], particle_spacing,
+                                                      "fluid depth")
 
         if tank_size[1] < fluid_size[1] - 1e-5 * particle_spacing
             n_particles_x -= 1
@@ -680,7 +680,7 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
     return rectangular_tank
 end
 
-function get_fluid_particles_per_dimension(size, spacing, dimension)
+function fluid_particles_per_dimension(size, spacing, dimension)
     n_particles = round(Int, size / spacing)
 
     new_size = n_particles * spacing
@@ -691,8 +691,8 @@ function get_fluid_particles_per_dimension(size, spacing, dimension)
     return n_particles
 end
 
-function get_boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spacing,
-                                              spacing_ratio)
+function boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spacing,
+                                          spacing_ratio)
     n_boundaries_x = round(Int, (tank_size[1] / particle_spacing * spacing_ratio))
     n_boundaries_y = round(Int, (tank_size[2] / particle_spacing * spacing_ratio))
 
@@ -716,8 +716,8 @@ function get_boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spa
     return (n_boundaries_x, n_boundaries_y), (new_container_width, new_container_height)
 end
 
-function get_boundary_particles_per_dimension(tank_size::NTuple{3}, particle_spacing,
-                                              spacing_ratio)
+function boundary_particles_per_dimension(tank_size::NTuple{3}, particle_spacing,
+                                          spacing_ratio)
     n_boundaries_x = round(Int, tank_size[1] / particle_spacing * spacing_ratio)
     n_boundaries_y = round(Int, tank_size[2] / particle_spacing * spacing_ratio)
     n_boundaries_z = round(Int, tank_size[3] / particle_spacing * spacing_ratio)

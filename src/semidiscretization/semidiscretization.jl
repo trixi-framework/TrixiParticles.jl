@@ -113,12 +113,12 @@ end
 end
 
 function nhs_init_function(container, neighbor)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container::SolidParticleContainer,
                            neighbor::SolidParticleContainer)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container::Union{SolidParticleContainer,
@@ -128,7 +128,7 @@ function nhs_init_function(container::Union{SolidParticleContainer,
 end
 
 function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
-    return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+    return i -> initial_coords(neighbor, i)
 end
 
 function nhs_init_function(container, model, neighbor)
@@ -244,7 +244,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers = semi
 
     @trixi_timeit timer() "drift!" begin
-        @trixi_timeit timer() "reset ∂u/∂t" reset_du!(du_ode)
+        @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
         # Set velocity and add acceleration for each container
@@ -276,7 +276,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
 
     @trixi_timeit timer() "kick!" begin
-        @trixi_timeit timer() "reset ∂v/∂t" reset_du!(dv_ode)
+        @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
         @trixi_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
                                                                                     u_ode,
@@ -293,7 +293,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-@inline function reset_du!(du)
+@inline function set_zero!(du)
     du .= zero(eltype(du))
 
     return du
@@ -343,8 +343,7 @@ function update_nhs(u_ode, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[container_index][neighbor_index]
 
-            update!(neighborhood_search,
-                    nhs_coords_function(container, neighbor, u_neighbor))
+            update!(neighborhood_search, nhs_coords(container, neighbor, u_neighbor))
         end
     end
 end
@@ -454,75 +453,75 @@ function update3!(container::FluidParticleContainer, container_index, v, u, v_od
 end
 
 # NHS updates
-function nhs_coords_function(container::FluidParticleContainer,
-                             neighbor::FluidParticleContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+function nhs_coords(container::FluidParticleContainer,
+                    neighbor::FluidParticleContainer, u)
+    return current_coordinates(u, neighbor)
 end
 
-function nhs_coords_function(container::FluidParticleContainer,
-                             neighbor::SolidParticleContainer, u)
-    return i -> get_particle_coords(i, neighbor.current_coordinates, neighbor)
+function nhs_coords(container::FluidParticleContainer,
+                    neighbor::SolidParticleContainer, u)
+    return current_coordinates(u, neighbor)
 end
 
-function nhs_coords_function(container::FluidParticleContainer,
-                             neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container::FluidParticleContainer,
+                    neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+        return current_coordinates(u, neighbor)
     end
 
     # Don't update
     return nothing
 end
 
-function nhs_coords_function(container::SolidParticleContainer,
-                             neighbor::FluidParticleContainer, u)
-    return i -> get_particle_coords(i, u, neighbor)
+function nhs_coords(container::SolidParticleContainer,
+                    neighbor::FluidParticleContainer, u)
+    return current_coordinates(u, neighbor)
 end
 
-function nhs_coords_function(container::SolidParticleContainer,
-                             neighbor::SolidParticleContainer, u)
+function nhs_coords(container::SolidParticleContainer,
+                    neighbor::SolidParticleContainer, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords_function(container::SolidParticleContainer,
-                             neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container::SolidParticleContainer,
+                    neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
-        return i -> get_particle_coords(i, neighbor.initial_coordinates, neighbor)
+        return current_coordinates(u, neighbor)
     end
 
     # Don't update
     return nothing
 end
 
-function nhs_coords_function(container::BoundaryParticleContainer,
-                             neighbor::FluidParticleContainer, u)
+function nhs_coords(container::BoundaryParticleContainer,
+                    neighbor::FluidParticleContainer, u)
     @unpack boundary_model = container
 
-    return nhs_coords_function(container, neighbor, boundary_model, u)
+    return nhs_coords(container, neighbor, boundary_model, u)
 end
 
-function nhs_coords_function(container::BoundaryParticleContainer,
-                             neighbor::FluidParticleContainer,
-                             boundary_model, u)
+function nhs_coords(container::BoundaryParticleContainer,
+                    neighbor::FluidParticleContainer,
+                    boundary_model, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords_function(container::BoundaryParticleContainer,
-                             neighbor::FluidParticleContainer,
-                             boundary_model::BoundaryModelDummyParticles, u)
-    return i -> get_particle_coords(i, u, neighbor)
+function nhs_coords(container::BoundaryParticleContainer,
+                    neighbor::FluidParticleContainer,
+                    boundary_model::BoundaryModelDummyParticles, u)
+    return current_coordinates(u, neighbor)
 end
 
-function nhs_coords_function(container::BoundaryParticleContainer,
-                             neighbor::SolidParticleContainer, u)
+function nhs_coords(container::BoundaryParticleContainer,
+                    neighbor::SolidParticleContainer, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords_function(container::BoundaryParticleContainer,
-                             neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container::BoundaryParticleContainer,
+                    neighbor::BoundaryParticleContainer, u)
     # Don't update
     return nothing
 end

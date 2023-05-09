@@ -18,13 +18,9 @@ end
 
     @threaded for particle in each_moving_particle(particle_container)
         # Everything here is done in the initial coordinates
-        particle_coords = get_particle_coords(particle,
-                                              particle_container.initial_coordinates,
-                                              particle_container)
+        particle_coords = initial_coords(particle_container, particle)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_particle_coords(neighbor,
-                                                  neighbor_container.initial_coordinates,
-                                                  neighbor_container)
+            neighbor_coords = initial_coords(neighbor_container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
@@ -57,8 +53,8 @@ end
     m_b = neighbor_container.mass[neighbor]
 
     dv_particle = m_b *
-                  (get_pk1_corrected(particle, particle_container) / rho_a^2 +
-                   get_pk1_corrected(neighbor, neighbor_container) / rho_b^2) *
+                  (pk1_corrected(particle_container, particle) / rho_a^2 +
+                   pk1_corrected(neighbor_container, neighbor) / rho_b^2) *
                   grad_kernel
 
     for i in 1:ndims(particle_container)
@@ -77,14 +73,14 @@ function interact!(dv, v_particle_container, u_particle_container,
     @unpack boundary_model = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
-        m_a = get_hydrodynamic_mass(particle, particle_container)
-        v_a = get_particle_vel(particle, v_particle_container, particle_container)
+        m_a = hydrodynamic_mass(particle_container, particle)
+        v_a = current_velocity(v_particle_container, particle_container, particle)
 
-        particle_coords = get_current_coords(particle, u_particle_container,
-                                             particle_container)
+        particle_coords = current_coords(u_particle_container, particle_container,
+                                         particle)
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = get_current_coords(neighbor, u_neighbor_container,
-                                                 neighbor_container)
+            neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
+                                             neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
@@ -96,9 +92,9 @@ function interact!(dv, v_particle_container, u_particle_container,
                 # that the fluid particle experiences due to the soild particle.
                 # Note that the same arguments are passed here as in fluid-solid interact!,
                 # except that pos_diff has a flipped sign.
-                rho_b = get_particle_density(neighbor, v_neighbor_container,
-                                             neighbor_container)
-                v_b = get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+                rho_b = particle_density(v_neighbor_container, neighbor_container,
+                                         neighbor)
+                v_b = current_velocity(v_neighbor_container, neighbor_container, neighbor)
 
                 # Flip sign to get the same force as for the fluid-solid direction.
                 v_diff = -(v_a - v_b)
@@ -163,8 +159,8 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
                                       neighbor_container::FluidParticleContainer)
-    vdiff = get_particle_vel(particle, v_particle_container, particle_container) -
-            get_particle_vel(neighbor, v_neighbor_container, neighbor_container)
+    vdiff = current_velocity(v_particle_container, particle_container, particle) -
+            current_velocity(v_neighbor_container, neighbor_container, neighbor)
 
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*

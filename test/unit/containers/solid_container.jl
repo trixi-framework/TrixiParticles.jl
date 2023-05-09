@@ -121,6 +121,13 @@
                 # Mock the container
                 container = Val(:mock_container_tensor)
                 TrixiParticles.ndims(::Val{:mock_container_tensor}) = 2
+                Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
+                function TrixiParticles.current_coords(container::Val{:mock_container_tensor
+                                                                      },
+                                                       particle)
+                    return TrixiParticles.extract_svector(current_coordinates[i], container,
+                                                          particle)
+                end
 
                 # All @unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
@@ -130,8 +137,6 @@
                         return initial_coordinates[i]
                     elseif f === :correction_matrix
                         return correction_matrix
-                    elseif f === :current_coordinates
-                        return current_coordinates[i]
                     elseif f === :mass
                         return mass
                     end
