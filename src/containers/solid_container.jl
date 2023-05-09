@@ -254,6 +254,8 @@ function update!(container::SolidParticleContainer, container_index, v, u,
                  v_ode, u_ode, semi, t)
     @unpack neighborhood_searches = semi
 
+    println("solid::update()")
+
     # Update current coordinates
     update_current_coordinates(u, container)
 

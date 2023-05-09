@@ -13,7 +13,7 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.2
+particle_spacing = 0.5
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -53,7 +53,7 @@ reset_wall!(setup, reset_faces, positions)
 
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
 # ==========================================================================================
@@ -92,6 +92,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=info_callback);
+
+# sol = solve(ode, Euler(),
+#             dt=1e-5,
+#             save_everystep=false, callback=info_callback);
 
 # Move right boundary
 positions = (0, tank_width, 0, 0)

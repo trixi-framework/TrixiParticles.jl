@@ -437,6 +437,35 @@ move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
     return boundary_model
 end
 
+function initialize_density!(container::BoundaryParticleContainer, container_index, v, u,
+                             v_ode, u_ode, semi)
+    @unpack boundary_model = container
+    @unpack density_calculator = boundary_model
+
+    compute_quantities!(boundary_model, density_calculator,
+                        container, container_index, v, u, v_ode, u_ode, semi)
+
+    @unpack cache = boundary_model
+    @unpack density = cache
+    for particle in eachparticle(container)
+        println(density[particle])
+    end
+    return container
+end
+
+function print_density(container::BoundaryParticleContainer)
+    @unpack boundary_model = container
+    # compute_quantities!(boundary_model, density_calculator,
+    #                     container, container_index, v, u, v_ode, u_ode, semi)
+
+    @unpack cache = boundary_model
+    @unpack density = cache
+    for particle in eachparticle(container)
+        println("on bnd $(particle):", density[particle])
+    end
+    return container
+end
+
 @inline function update!(boundary_model::BoundaryModelDummyParticles,
                          container, container_index, v, u, v_ode, u_ode, semi)
     @unpack pressure, density_calculator = boundary_model

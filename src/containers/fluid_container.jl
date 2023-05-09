@@ -179,6 +179,16 @@ end
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
+function initialize_density!(container::FluidParticleContainer, container_index, v, u,
+                             v_ode, u_ode, semi)
+    compute_density!(container, container_index, v, u, u_ode, semi, NoCorrection())
+    return container
+end
+
+function print_density(container::FluidParticleContainer)
+    return container
+end
+
 function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                  semi, t)
     @unpack density_calculator = container
@@ -197,7 +207,7 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
                             semi)
     @unpack correction = container
 
-    compute_density!(container, container_index, v, u, u_ode, semi, NoCorrection())
+    #compute_density!(container, container_index, v, u, u_ode, semi, NoCorrection())
     compute_density!(container, container_index, v, u, u_ode, semi, correction)
     compute_pressure!(container, v)
 end
@@ -229,6 +239,7 @@ function compute_density!(container, container_index, v, u, u_ode, semi, ::Kerne
     @unpack density = cache # Density is in the cache for SummationDensity
 
     old_density = copy(density)
+    exit()
     density .= zero(eltype(density))
 
     println("correction start") #todo: remove
@@ -298,7 +309,7 @@ end
         end
     end
     if cw > eps()
-        println(cw) #todo: remove
+        println(cw, typeof(neighbor_container)) #todo: remove
         if isinf(cw)
             for neighbor in eachneighbor(particle_coords, neighborhood_search)
                 m_b = hydrodynamic_mass(neighbor_container, neighbor)
@@ -309,7 +320,7 @@ end
                 if distance <= compact_support(particle_container)
                     rho_b = old_density[neighbor]
                     volume = m_b / rho_b
-                    println("vol: ", volume, " rho_b ", rho_b, " m_b s", m_b)
+                    println("$(neighbor) vol: ", volume, " rho_b ", rho_b, " m_b s", m_b)
                 end
             end
         end
