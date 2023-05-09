@@ -39,7 +39,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)))
         if !isempty(setup.densities)
-            println("WARNING: Density provided by the setup will be ignored.")
+            @info "Density provided by the setup will be ignored."
         end
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
