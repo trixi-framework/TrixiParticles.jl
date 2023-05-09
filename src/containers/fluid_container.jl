@@ -117,7 +117,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         end
 
         if length(particle_densities) != nparticles
-            throw(ArgumentError("An initial density needs to be provided when using `ContinuityDensity`!"))
+            throw(ArgumentError("`particle_densities` must be a vector of length $(n_particles) when using `ContinuityDensity`!"))
         end
 
         if length(particle_masses) != nparticles
