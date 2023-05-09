@@ -519,14 +519,6 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
         adami_pressure_extrapolation!(boundary_model, container, neighbor_container,
                                       container_coords, neighbor_coords,
                                       v_neighbor_container, neighborhood_search)
-
-        @threaded for particle in eachparticle(container)
-            compute_pressure_per_particle(particle, u,
-                                          v_neighbor_container, u_neighbor_container,
-                                          container, neighbor_container,
-                                          neighborhood_searches[container_index][neighbor_container_index],
-                                          boundary_model)
-        end
     end
 
     pressure ./= volume
@@ -543,8 +535,11 @@ end
     @unpack pressure, cache = boundary_model
     @unpack volume = cache
 
-    for_particle_neighbor(container, neighbor_container, container_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    for_particle_neighbor(container, neighbor_container,
+                          container_coords, neighbor_coords,
+                          neighborhood_search;
+                          particles=eachparticle(container)) do particle, neighbor,
+                                                                pos_diff, distance
         density_neighbor = particle_density(v_neighbor_container, neighbor_container,
                                             neighbor)
 

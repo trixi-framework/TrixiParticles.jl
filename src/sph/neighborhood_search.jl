@@ -205,7 +205,7 @@ end
 
 @inline function for_particle_neighbor(f, container, neighbor_container,
                                        container_coords, neighbor_coords,
-                                       neighborhood_search::SpatialHashingSearch;
+                                       neighborhood_search;
                                        particles=each_moving_particle(container))
     @threaded for particle in particles
         for_particle_neighbor_inner(f, container, neighbor_container,

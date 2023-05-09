@@ -34,6 +34,12 @@ function TrixiParticles.nhs_coords(container::NBodyContainer,
     return u
 end
 
+function TrixiParticles.compact_support(container::NBodyContainer,
+                                        neighbor::NBodyContainer)
+    # There is no cutoff. All particles interact with each other.
+    return Inf
+end
+
 function TrixiParticles.interact!(dv, v_particle_container, u_particle_container,
                                   v_neighbor_container, u_neighbor_container,
                                   neighborhood_search,
@@ -41,29 +47,29 @@ function TrixiParticles.interact!(dv, v_particle_container, u_particle_container
                                   neighbor_container::NBodyContainer)
     @unpack mass, G = neighbor_container
 
-    for particle in TrixiParticles.each_moving_particle(particle_container)
-        particle_coords = TrixiParticles.current_coords(u_particle_container,
-                                                        particle_container, particle)
+    container_coords = TrixiParticles.current_coordinates(u_particle_container,
+                                                          particle_container)
 
-        for neighbor in TrixiParticles.eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = TrixiParticles.current_coords(u_neighbor_container,
-                                                            neighbor_container, neighbor)
+    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_container,
+                                                         neighbor_container)
 
-            pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+    TrixiParticles.for_particle_neighbor(particle_container, neighbor_container,
+                                         container_coords, neighbor_coords,
+                                         neighborhood_search) do particle, neighbor,
+                                                                 pos_diff, distance
+        if distance < sqrt(eps())
+            return
+        end
 
-            if sqrt(eps()) < distance
-                # Original version
-                # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3
+        # Original version
+        # dv = -G * mass[neighbor] * pos_diff / norm(pos_diff)^3
 
-                # Multiplying by pos_diff later makes this slightly faster
-                # Multiplying by (1 / norm) is also faster than dividing by norm
-                tmp = -G * mass[neighbor] * (1 / distance^3)
+        # Multiplying by pos_diff later makes this slightly faster
+        # Multiplying by (1 / norm) is also faster than dividing by norm
+        tmp = -G * mass[neighbor] * (1 / distance^3)
 
-                for i in 1:ndims(particle_container)
-                    dv[i, particle] += tmp * pos_diff[i]
-                end
-            end
+        @inbounds for i in 1:ndims(particle_container)
+            dv[i, particle] += tmp * pos_diff[i]
         end
     end
 

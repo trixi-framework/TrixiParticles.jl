@@ -198,38 +198,20 @@ function compute_quantities(v, u, ::SummationDensity, container, container_index
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
 
-        @threaded for particle in eachparticle(container)
-            compute_density_per_particle(particle, u, u_neighbor_container,
-                                         container, neighbor_container,
-                                         neighborhood_searches[container_index][neighbor_container_index])
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        for_particle_neighbor(container, neighbor_container,
+                              container_coords, neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            mass = hydrodynamic_mass(neighbor_container, neighbor)
+            density[particle] += mass * smoothing_kernel(container, distance)
         end
     end
 
     compute_pressure!(container, v)
-end
-
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_density_per_particle(particle,
-                                              u_particle_container, u_neighbor_container,
-                                              particle_container::FluidParticleContainer,
-                                              neighbor_container, neighborhood_search)
-    @unpack cache = particle_container
-    @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack boundary_model = neighbor_container
-
-    particle_coords = current_coords(u_particle_container, particle_container, particle)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        m_b = hydrodynamic_mass(neighbor_container, neighbor)
-        neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
-                                         neighbor)
-        distance = norm(particle_coords - neighbor_coords)
-
-        if distance <= compact_support(particle_container)
-            density[particle] += m_b * smoothing_kernel(particle_container, distance)
-        end
-    end
 end
 
 function compute_pressure!(container, v)
