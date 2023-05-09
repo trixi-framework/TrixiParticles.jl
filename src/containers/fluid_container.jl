@@ -38,9 +38,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)))
-        if !isempty(setup.densities)
-            @info "Density provided by the setup will be ignored."
-        end
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -83,7 +80,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         end
 
         if length(particle_masses) != nparticles
-            throw(ArgumentError("An initial mass needs to be provided!"))
+            throw(ArgumentError("'particle_masses' must be a vector of length $(n_particles)!"))
         end
 
         density = Vector{ELTYPE}(undef, nparticles)
@@ -124,7 +121,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         end
 
         if length(particle_masses) != nparticles
-            throw(ArgumentError("An initial mass needs to be provided!"))
+            throw(ArgumentError("'particle_masses' must be a vector of length $(n_particles)!"))
         end
 
         initial_density = particle_densities
