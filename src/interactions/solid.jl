@@ -82,6 +82,7 @@ function interact!(dv, v_particle_container, u_particle_container,
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_container, particle)
 
+        # Viscosity
         v_a = current_velocity(v_particle_container, particle_container, particle)
         v_b = current_velocity(v_neighbor_container, neighbor_container, neighbor)
 
@@ -93,11 +94,13 @@ function interact!(dv, v_particle_container, u_particle_container,
         rho_mean = (rho_a + rho_b) / 2
 
         pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                          rho_b, smoothing_length)
+                          rho_mean, smoothing_length)
 
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
         dv_viscosity = -m_a * pi_ab *
                        smoothing_kernel_grad(neighbor_container, pos_diff, distance)
+
+        # Boundary forces
         dv_boundary = boundary_particle_impact(neighbor, particle,
                                                v_neighbor_container,
                                                v_particle_container,
