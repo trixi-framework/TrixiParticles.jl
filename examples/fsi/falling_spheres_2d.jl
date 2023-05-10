@@ -55,9 +55,9 @@ E2 = 1e5
 nu = 0.0
 
 sphere_1 = CircularShape(solid_particle_spacing, solid_radius_1, (0.5, 1.6),
-                         density=solid_density_1)
+                         solid_density_1)
 sphere_2 = CircularShape(solid_particle_spacing, solid_radius_2, (1.5, 1.6),
-                         density=solid_density_2)
+                         solid_density_2)
 
 particle_coordinates_1 = sphere_1.coordinates
 particle_velocities_1 = zeros(Float64, size(particle_coordinates_1))
