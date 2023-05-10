@@ -216,7 +216,7 @@ end
 
 # Replace assignments to `key` in `expr` by `key = val` for all `(key,val)` in `kwargs`.
 function replace_assignments(expr; kwargs...)
-    # replace explicit and keyword assignemnts
+    # replace explicit and keyword assignments
     expr = walkexpr(expr) do x
         if x isa Expr
             for (key, val) in kwargs
@@ -238,7 +238,7 @@ function find_assignment(expr, destination)
     # declare result to be able to assign to it in the closure
     local result
 
-    # find explicit and keyword assignemnts
+    # find explicit and keyword assignments
     walkexpr(expr) do x
         if x isa Expr
             if (x.head === Symbol("=") || x.head === :kw) &&
