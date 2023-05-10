@@ -79,7 +79,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         NDIMS = 2
 
         if length(tank_size) != NDIMS
-            throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem."))
+            throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         ELTYPE = eltype(particle_spacing)
