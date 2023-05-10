@@ -319,12 +319,11 @@ end
                           particles=eachparticle(container)) do particle, neighbor,
                                                                 initial_pos_diff,
                                                                 initial_distance
+        # Only consider particles with a distance > 0.
+        initial_distance < sqrt(eps()) && return
+
         volume = mass[neighbor] / material_density[neighbor]
         pos_diff = current_coords(container, particle) - current_coords(container, neighbor)
-
-        if initial_distance < sqrt(eps())
-            return
-        end
 
         grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
                                             initial_distance)
