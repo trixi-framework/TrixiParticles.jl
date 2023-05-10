@@ -324,7 +324,7 @@ function deformation_gradient(particle, neighborhood_search, container)
         end
     end
 
-    # Mulitply by L_{0a}
+    # Multiply by L_{0a}
     result *= correction_matrix(container, particle)'
 
     return result
