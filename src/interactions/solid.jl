@@ -88,7 +88,10 @@ function interact!(dv, v_particle_container, u_particle_container,
         # Flip sign to get the same force as for the fluid-solid direction.
         v_diff = -(v_a - v_b)
 
+        rho_a = particle_density(v_particle_container, particle_container, particle)
         rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+        rho_mean = (rho_a + rho_b) / 2
+
         pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
                           rho_b, smoothing_length)
 
