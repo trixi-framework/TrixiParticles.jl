@@ -64,19 +64,23 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
-        ELTYPE = eltype(particle_masses)
-        nparticles = length(particle_masses)
+        ELTYPE = eltype(particle_coordinates)
+        nparticles = size(particle_coordinates, 2)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
         if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
+        end
+
+        if length(particle_masses) != nparticles
+            throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
         density = Vector{ELTYPE}(undef, nparticles)
@@ -97,19 +101,27 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
-        ELTYPE = eltype(particle_masses)
-        nparticles = length(particle_masses)
+        ELTYPE = eltype(particle_coordinates)
+        nparticles = size(particle_coordinates, 2)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
         if ndims(smoothing_kernel) != NDIMS
-            error("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
+        end
+
+        if length(particle_densities) != nparticles
+            throw(ArgumentError("`particle_densities` must be a vector of length $(n_particles) when using `ContinuityDensity`!"))
+        end
+
+        if length(particle_masses) != nparticles
+            throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
         initial_density = particle_densities
@@ -217,7 +229,6 @@ end
                                               neighbor_container, neighborhood_search)
     @unpack cache = particle_container
     @unpack density = cache # Density is in the cache for SummationDensity
-    @unpack boundary_model = neighbor_container
 
     particle_coords = current_coords(u_particle_container, particle_container, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)

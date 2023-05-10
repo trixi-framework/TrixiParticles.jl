@@ -32,6 +32,14 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
 
     function CircularShape(particle_spacing, R, center_position;
                            shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
+        if particle_spacing < eps()
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
+        end
+
+        # if density < eps()
+        #     throw(ArgumentError("Density needs to be positive and larger than $(eps())!"))
+        # end
+
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
@@ -42,7 +50,7 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
 
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
         velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,

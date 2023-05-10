@@ -43,6 +43,14 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
                               density=zero(eltype(particle_spacing)), loop_order=:x_first,
                               init_velocity=ntuple(_ -> 0.0,
                                                    length(n_particles_per_dimension)))
+        if particle_spacing < eps()
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())!"))
+        end
+
+        # if density < eps()
+        #     throw(ArgumentError("Density needs to be positive and larger than $(eps())!"))
+        # end
+
         NDIMS = length(n_particles_per_dimension)
         if length(particle_position) != NDIMS
             throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
@@ -57,8 +65,7 @@ struct RectangularShape{NDIMS, ELTYPE <: Real}
 
         # Leave `densities` and `masses` empty if no `density` has been provided
         densities = density * ones(ELTYPE, n_particles * (density > 0))
-        masses = density * particle_spacing^NDIMS *
-                 ones(ELTYPE, n_particles * (density > 0))
+        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
 
         initialize_rectangular!(coordinates, particle_spacing, particle_position,
                                 n_particles_per_dimension, loop_order)
