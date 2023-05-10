@@ -130,6 +130,8 @@
                                                           particle)
                 end
 
+                TrixiParticles.compact_support(::Val{:mock_container_tensor}, _) = Inf
+
                 # All @unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
