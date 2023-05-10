@@ -1,10 +1,10 @@
 @testset verbose=true "Constructors with Setups" begin
     setups = [
-        RectangularShape(0.123, (2, 3), (-1.0, 0.1), 0.0),
-        RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 0.0),
+        RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
+        RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
         RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0),
         RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492), 1020.0),
-        CircularShape(0.52, 0.1, (-0.2, 0.123), 0.0),
+        CircularShape(0.52, 0.1, (-0.2, 0.123), 1.0),
     ]
     setup_names = [
         "RectangularShape 2D",
