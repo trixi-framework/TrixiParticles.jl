@@ -1,6 +1,6 @@
 # Smoke tests, i.e., tests to verify that examples are running without crashing,
 # but without checking the correctness of the solution.
-@testset verbose=true "System Tests" begin
+@testset verbose=true "Examples" begin
     @testset verbose=true "Fluid" begin
         @trixi_testset "fluid/rectangular_tank_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
