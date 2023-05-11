@@ -137,7 +137,7 @@ Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 readdir(examples_dir())
 ```
 """
-examples_dir() = joinpath(pathof(TrixiParticles) |> dirname |> dirname, "examples")
+examples_dir() = pkgdir(TrixiParticles, "examples")
 
 # Note: We can't call the method below `TrixiParticles.include` since that is created automatically
 # inside `module TrixiParticles` to `include` source files and evaluate them within the global scope
