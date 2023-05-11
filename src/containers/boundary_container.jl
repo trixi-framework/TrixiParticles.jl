@@ -389,8 +389,8 @@ end
     particle_density(v, density_calculator, boundary_model, container, particle)
 end
 
-@inline function particle_density(v, ::Union{AdamiPressureExtrapolation, SummationDensity}, boundary_model,
-                                  container, particle)
+@inline function particle_density(v, ::Union{AdamiPressureExtrapolation, SummationDensity},
+                                  boundary_model, container, particle)
     @unpack cache = boundary_model
 
     return cache.density[particle]
