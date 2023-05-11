@@ -51,7 +51,7 @@ setup_gate = RectangularShape(fluid_particle_spacing / beta_gate,
                               (gate_layers,
                                round(Int, gate_height / fluid_particle_spacing * beta_gate)),
                               (gate_position, fluid_particle_spacing / beta_gate),
-                              density=water_density)
+                              water_density)
 
 # No moving boundaries for the relaxing step
 movement_function(coordinates, t) = false
@@ -80,11 +80,10 @@ n_particles_per_dimension = (n_particles_x,
 
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (0.6, solid_particle_spacing),
-                         density=solid_density)
+                         (0.6, solid_particle_spacing), solid_density)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1),
-                                   (0.6, 0.0), density=solid_density)
+                                   (n_particles_per_dimension[1], 1), (0.6, 0.0),
+                                   solid_density)
 
 solid = MergeShapes(plate, fixed_particles)
 

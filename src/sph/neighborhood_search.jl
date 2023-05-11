@@ -118,17 +118,7 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
     # Find all cells containing particles that now belong to another cell.
     # `collect` the keyset to be able to loop over it with `@threaded`.
     @threaded for cell in collect(keys(hashtable))
-        for particle in hashtable[cell]
-            if cell_coords_(particle) != cell
-                # Mark this cell and continue with the next one.
-                #
-                # `cell_buffer` is preallocated,
-                # but only the entries 1:i are used for this thread.
-                i = cell_buffer_indices[Threads.threadid()] += 1
-                cell_buffer[i, Threads.threadid()] = cell
-                break
-            end
-        end
+        mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end
 
     # This is needed to prevent lagging on macOS ARM.
@@ -169,6 +159,26 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
     end
 
     return neighborhood_search
+end
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
+# with @batch (@threaded).
+# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
+    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+
+    for particle in hashtable[cell]
+        if cell_coords(coords_fun(particle), neighborhood_search) != cell
+            # Mark this cell and continue with the next one.
+            #
+            # `cell_buffer` is preallocated,
+            # but only the entries 1:i are used for this thread.
+            i = cell_buffer_indices[Threads.threadid()] += 1
+            cell_buffer[i, Threads.threadid()] = cell
+            break
+        end
+    end
 end
 
 @inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})

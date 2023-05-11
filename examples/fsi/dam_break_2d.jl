@@ -73,11 +73,10 @@ n_particles_per_dimension = (n_particles_x,
 # The bottom layer is sampled separately below.
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (0.292, solid_particle_spacing),
-                         density=solid_density)
+                         (0.292, solid_particle_spacing), solid_density)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1),
-                                   (0.292, 0.0), density=solid_density)
+                                   (n_particles_per_dimension[1], 1), (0.292, 0.0),
+                                   solid_density)
 
 solid = MergeShapes(plate, fixed_particles)
 

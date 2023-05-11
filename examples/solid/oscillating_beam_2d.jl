@@ -28,7 +28,7 @@ fixed_particles = CircularShape(particle_spacing, clamp_radius + particle_spacin
                                 (0.0, thickness / 2),
                                 shape_type=FillCircle(x_recess=(0.0, clamp_radius),
                                                       y_recess=(0.0, thickness)),
-                                density=particle_density)
+                                particle_density)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 
@@ -37,7 +37,7 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
 beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
-                        density=particle_density)
+                        particle_density)
 
 solid = MergeShapes(beam, fixed_particles)
 

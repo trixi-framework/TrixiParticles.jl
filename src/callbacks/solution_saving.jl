@@ -65,7 +65,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 prefix="", verbose=false,
                                 custom_quantities...)
     if dt > 0 && interval > 0
-        error("Setting both interval and dt is not supported!")
+        throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
 
     if dt > 0

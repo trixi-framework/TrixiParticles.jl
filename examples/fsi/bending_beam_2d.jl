@@ -46,8 +46,7 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing - 1
 y_position = -(n_particles_y - 1) * solid_particle_spacing
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
-                        (solid_particle_spacing, y_position),
-                        density=solid_density)
+                        (solid_particle_spacing, y_position), solid_density)
 
 n_boundary_layers = 5
 
@@ -58,19 +57,17 @@ n_boundary_layers = 5
 x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
 x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
 
-n_particles_per_dimension_clamp =  (n_boundary_layers, 10 * n_particles_y)
-n_fixed_particles = prod(n_particles_per_dimension_clamp)*2
+n_particles_per_dimension_clamp = (n_boundary_layers, 10 * n_particles_y)
+n_fixed_particles = prod(n_particles_per_dimension_clamp) * 2
 
 # Start point of the pillars in y-direction.
 y_start_clamp = -(2 * n_particles_y - 1) * solid_particle_spacing
 
 clamp_A = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
-                           (x_start_clamp_A, y_start_clamp),
-                           density=solid_density)
+                           (x_start_clamp_A, y_start_clamp), solid_density)
 
 clamp_B = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
-                           (x_start_clamp_B, y_start_clamp),
-                           density=solid_density)
+                           (x_start_clamp_B, y_start_clamp), solid_density)
 
 solid = MergeShapes(beam, clamp_A, clamp_B)
 
@@ -98,8 +95,7 @@ n_particles_per_dimension = (round(Int, water_width / fluid_particle_spacing) - 
                              round(Int, water_height / fluid_particle_spacing))
 
 fluid = RectangularShape(fluid_particle_spacing, n_particles_per_dimension,
-                         (fluid_particle_spacing, fluid_particle_spacing),
-                         density=water_density)
+                         (fluid_particle_spacing, fluid_particle_spacing), water_density)
 
 # ==========================================================================================
 # ==== Boundary models
