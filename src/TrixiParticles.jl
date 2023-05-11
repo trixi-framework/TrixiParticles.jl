@@ -41,7 +41,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, CircularShape
+export MergeShapes, RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
 
 end # module

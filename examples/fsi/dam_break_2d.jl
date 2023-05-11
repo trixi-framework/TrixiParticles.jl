@@ -78,10 +78,7 @@ fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_per_dimension[1], 1), (0.292, 0.0),
                                    solid_density)
 
-particle_coordinates = hcat(plate.coordinates, fixed_particles.coordinates)
-particle_velocities = zeros(Float64, 2, prod(n_particles_per_dimension))
-particle_masses = vcat(plate.masses, fixed_particles.masses)
-particle_densities = vcat(plate.densities, fixed_particles.densities)
+solid = MergeShapes(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -96,7 +93,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 #                                              setup.boundary_masses)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = water_density * ones(size(particle_densities))
+hydrodynamic_densites = water_density * ones(size(solid.densities))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
@@ -121,8 +118,8 @@ particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_eq
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
-solid_container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                         particle_masses, particle_densities,
+solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+                                         solid.masses, solid.densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu,
                                          n_fixed_particles=n_particles_x,

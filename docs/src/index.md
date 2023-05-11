@@ -41,6 +41,12 @@ Modules = [TrixiParticles]
 Pages = [joinpath("setups", "circular_shape.jl")]
 ```
 
+### File merge_shapes.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("setups", "merge_shapes.jl")]
+```
+
 ## SPH
 
 ### File density_calculators.jl

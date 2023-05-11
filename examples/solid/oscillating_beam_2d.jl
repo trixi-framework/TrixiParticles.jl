@@ -39,16 +39,13 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
 beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
                         particle_density)
 
-particle_coordinates = hcat(beam.coordinates, fixed_particles.coordinates)
-particle_velocities = zeros(Float64, size(particle_coordinates))
-particle_masses = vcat(beam.masses, fixed_particles.masses)
-particle_densities = vcat(beam.densities, fixed_particles.densities)
+solid = MergeShapes(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Containers
 
-particle_container = SolidParticleContainer(particle_coordinates, particle_velocities,
-                                            particle_masses, particle_densities,
+particle_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+                                            solid.masses, solid.densities,
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
                                             n_fixed_particles=fixed_particles.n_particles,
