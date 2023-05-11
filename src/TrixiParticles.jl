@@ -20,12 +20,11 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
-include("sph/sph.jl")
+include("callbacks/callbacks.jl")
 include("setups/setups.jl")
 include("containers/container.jl")
-include("semidiscretization/semidiscretization.jl")
-include("interactions/interactions.jl")
-include("callbacks/callbacks.jl")
+include("general/general.jl")
+include("schemes/schemes.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
