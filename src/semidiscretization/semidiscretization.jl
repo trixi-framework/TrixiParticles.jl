@@ -176,19 +176,6 @@ function semidiscretize(semi, tspan)
         write_v0!(v0_container, container)
     end
 
-    # # Initialize density for all particle containers
-    # @trixi_timeit timer() "initialize density" begin for (container_index, container) in pairs(particle_containers)
-    #     # Get the neighborhood search for this container
-    #     neighborhood_search = neighborhood_searches[container_index][container_index]
-
-    #     v = wrap_v(v0_ode, container_index, container, semi)
-    #     u = wrap_u(u0_ode, container_index, container, semi)
-
-    #     # Initialize this container
-    #     initialize_density!(container, container_index, v, u, v0_ode, u0_ode,
-    #                         semi)
-    # end end
-
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
 end
 
@@ -315,20 +302,6 @@ end
 function update_containers_and_nhs(v_ode, u_ode, semi, t)
     @unpack particle_containers = semi
 
-    # Initialize density for all particle containers
-    @trixi_timeit timer() "initialize density" begin for (container_index, container) in pairs(particle_containers)
-        v = wrap_v(v_ode, container_index, container, semi)
-        u = wrap_u(u_ode, container_index, container, semi)
-
-        # Initialize this container
-        initialize_density!(container, container_index, v, u, v_ode, u_ode,
-                            semi)
-    end end
-
-    foreach_enumerate(particle_containers) do (container_index, container)
-        print_density(container)
-    end
-
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid container)
     foreach_enumerate(particle_containers) do (container_index, container)
@@ -341,7 +314,7 @@ function update_containers_and_nhs(v_ode, u_ode, semi, t)
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
-    # Second update step.
+    # Second and third update step.
     # This is used to calculate density and pressure of the fluid containers
     # before updating the boundary containers,
     # since the fluid pressure is needed by the Adami interpolation.
@@ -352,12 +325,20 @@ function update_containers_and_nhs(v_ode, u_ode, semi, t)
         update2!(container, container_index, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Final update step for all remaining containers
+    # Perform correction and pressure calculation
     foreach_enumerate(particle_containers) do (container_index, container)
         v = wrap_v(v_ode, container_index, container, semi)
         u = wrap_u(u_ode, container_index, container, semi)
 
         update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Final update step for all remaining containers
+    foreach_enumerate(particle_containers) do (container_index, container)
+        v = wrap_v(v_ode, container_index, container, semi)
+        u = wrap_u(u_ode, container_index, container, semi)
+
+        update4!(container, container_index, v, u, v_ode, u_ode, semi, t)
     end
 end
 
@@ -455,18 +436,29 @@ function update2!(container, container_index, v, u, v_ode, u_ode, semi, t)
     return container
 end
 
-function update2!(container::FluidParticleContainer, container_index, v, u,
+function update2!(container::Union{FluidParticleContainer, BoundaryParticleContainer}, container_index, v, u,
                   v_ode, u_ode, semi, t)
     # Only update fluid containers
-    update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    #update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    update_density!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
 function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
-    # Update all other containers
-    update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    return container
 end
 
-function update3!(container::SolidParticleContainer, container_index, v, u, v_ode, u_ode,
+function update3!(container::FluidParticleContainer, container_index, v, u,
+    v_ode, u_ode, semi, t)
+    # Only update fluid container
+    update_pressure!(container, container_index, v, u, v_ode, u_ode, semi, t)
+end
+
+function update4!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    # Update pressure of all other containers (except SolidParticleContainer and FluidParticleContainer)
+    update_pressure!(container, container_index, v, u, v_ode, u_ode, semi, t)
+end
+
+function update4!(container::SolidParticleContainer, container_index, v, u, v_ode, u_ode,
                   semi, t)
     @unpack boundary_model = container
 
@@ -474,7 +466,7 @@ function update3!(container::SolidParticleContainer, container_index, v, u, v_od
     update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
 end
 
-function update3!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+function update4!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                   semi, t)
     return container
 end

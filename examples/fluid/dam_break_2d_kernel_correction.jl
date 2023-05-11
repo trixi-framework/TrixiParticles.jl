@@ -13,7 +13,7 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.5
+particle_spacing = 0.1
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -74,7 +74,7 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
 
-tspan = (0.0, 0.3)
+tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

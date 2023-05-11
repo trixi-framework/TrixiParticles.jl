@@ -179,40 +179,29 @@ end
 # Nothing to initialize for this container
 initialize!(container::FluidParticleContainer, neighborhood_search) = container
 
-function initialize_density!(container::FluidParticleContainer, container_index, v, u,
-                             v_ode, u_ode, semi)
-    compute_density!(container, container_index, v, u, u_ode, semi, NoCorrection())
-    return container
-end
-
-function print_density(container::FluidParticleContainer)
-    return container
-end
-
-function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+function update_density!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
                  semi, t)
-    @unpack density_calculator = container
+    @unpack density_calculator, correction = container
 
-    compute_quantities(v, u, density_calculator, container, container_index, u_ode, semi)
+    compute_density!(container, container_index, v, u, u_ode, semi, density_calculator, NoCorrection())
+    #compute_density!(container, container_index, v, u, u_ode, semi, density_calculator, correction)
 
     return container
 end
 
-function compute_quantities(v, u, ::ContinuityDensity, container, container_index, u_ode,
-                            semi)
+function update_pressure!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+    semi, t)
+
     compute_pressure!(container, v)
+
+    return container
 end
 
-function compute_quantities(v, u, ::SummationDensity, container, container_index, u_ode,
-                            semi)
-    @unpack correction = container
-
-    #compute_density!(container, container_index, v, u, u_ode, semi, NoCorrection())
-    compute_density!(container, container_index, v, u, u_ode, semi, correction)
-    compute_pressure!(container, v)
+function compute_density!(container::FluidParticleContainer, container_index, v, u, u_ode, semi, ::ContinuityDensity, correction)
+    return container
 end
 
-function compute_density!(container, container_index, v, u, u_ode, semi, ::NoCorrection)
+function compute_density!(container::FluidParticleContainer, container_index, v, u, u_ode, semi, ::SummationDensity, ::NoCorrection)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache, correction = container
     @unpack density = cache # Density is in the cache for SummationDensity
@@ -233,7 +222,7 @@ function compute_density!(container, container_index, v, u, u_ode, semi, ::NoCor
     end
 end
 
-function compute_density!(container, container_index, v, u, u_ode, semi, ::KernelCorrection)
+function compute_density!(container, container_index, v, u, u_ode, semi, ::SummationDensity, ::KernelCorrection)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
     @unpack density = cache # Density is in the cache for SummationDensity
