@@ -203,6 +203,47 @@ end
                       for cell in neighboring_cells)
 end
 
+# Loop over all pairs of particles and neighbors within the kernel cutoff.
+# `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
+# By default, loop over `each_moving_particle(container)`.
+@inline function for_particle_neighbor(f, container, neighbor_container,
+                                       container_coords, neighbor_coords,
+                                       neighborhood_search;
+                                       particles=each_moving_particle(container))
+    @threaded for particle in particles
+        for_particle_neighbor_inner(f, container, neighbor_container,
+                                    container_coords, neighbor_coords, neighborhood_search,
+                                    particle)
+    end
+
+    return nothing
+end
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
+# with @batch (@threaded).
+# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function for_particle_neighbor_inner(f, container, neighbor_container,
+                                             container_coords, neighbor_container_coords,
+                                             neighborhood_search, particle)
+    particle_coords = extract_svector(container_coords, container, particle)
+    for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        neighbor_coords = extract_svector(neighbor_container_coords, neighbor_container,
+                                          neighbor)
+
+        pos_diff = particle_coords - neighbor_coords
+        distance2 = dot(pos_diff, pos_diff)
+
+        if distance2 <= compact_support(container, neighbor_container)^2
+            distance = sqrt(distance2)
+
+            # Inline to avoid loss of performance
+            # compared to not using `for_particle_neighbor`.
+            @inline f(particle, neighbor, pos_diff, distance)
+        end
+    end
+end
+
 @inline function particles_in_cell(cell_index, neighborhood_search)
     @unpack hashtable, empty_vector = neighborhood_search
 
