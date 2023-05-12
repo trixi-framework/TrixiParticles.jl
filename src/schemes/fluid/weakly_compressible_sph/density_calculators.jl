@@ -11,7 +11,10 @@ where ``r_b`` denotes the coordinates and ``m_b`` the mass of particle ``b``.
 struct SummationDensity end
 
 @doc raw"""
-    ContinuityDensity()
+    ContinuityDensity(initial_densities)
+
+# Arguments
+    - `initial_densities`:    Initial density of each particle
 
 Density calculator to integrate the density from the continuity equation
 ```math
@@ -21,7 +24,15 @@ where ``\rho_a`` denotes the density of particle ``a``, ``r_a`` and ``r_b`` deno
 of particles ``a`` and ``b`` respectively, and ``v_{ab} = v_a - v_b`` is the difference of the
 velocities of particles ``a`` and ``b``.
 """
-struct ContinuityDensity end
+struct ContinuityDensity{ELTYPE}
+    initial_density::Vector{ELTYPE} # [particle]
+
+    function ContinuityDensity(densities)
+        eltype(densities)
+
+        return new{ELTYPE}(densities)
+    end
+end
 
 @inline function particle_density(v, container, particle)
     particle_density(v, container.density_calculator, container, particle)

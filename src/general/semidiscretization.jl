@@ -12,11 +12,12 @@ semi = Semidiscretization(fluid_container, boundary_container; neighborhood_sear
 ```
 """
 struct Semidiscretization{PC, RU, RV, NS, DC}
-    particle_containers::PC
-    ranges_u::RU
-    ranges_v::RV
-    neighborhood_searches::NS
-    damping_coefficient::DC
+    particle_schemes      :: PC
+    ranges_u              :: RU
+    ranges_v              :: RV
+    container_indices     :: Dict{TrixiParticles.ParticleSchemes, Int}
+    neighborhood_searches :: NS
+    damping_coefficient   :: DC
 
     function Semidiscretization(particle_containers...; neighborhood_search=nothing,
                                 damping_coefficient=nothing)
@@ -79,7 +80,7 @@ function create_neighborhood_search(_, neighbor, ::Val{nothing})
 end
 
 function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
-    radius = compact_support(container, neighbor)
+    radius = compact_support(container.scheme, neighbor.scheme)
     search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
@@ -88,60 +89,36 @@ function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSea
     return search
 end
 
-@inline function compact_support(container, neighbor)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function compact_support(scheme, neighbor_scheme)
+    @unpack smoothing_kernel, smoothing_length = scheme
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(container::Union{SolidParticleContainer,
-                                                  BoundaryParticleContainer},
+@inline function compact_support(scheme::TotalLagrangianSPH,
                                  neighbor)
-    return compact_support(container, container.boundary_model, neighbor)
+    compact_support(scheme.boundary_scheme, neighbor)
 end
 
-@inline function compact_support(container::SolidParticleContainer,
-                                 neighbor::SolidParticleContainer)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function compact_support(scheme::TotalLagrangianSPH,
+                                 neighbor_scheme::TotalLagrangianSPH)
+    @unpack smoothing_kernel, smoothing_length = scheme
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(container, model, neighbor)
+@inline function compact_support(scheme::BoundarySchemeMonaghanKajtar, neighbor_scheme)
     # This NHS is never used.
     return 0.0
-end
-
-@inline function compact_support(container, model::BoundaryModelDummyParticles, neighbor)
-    @unpack smoothing_kernel, smoothing_length = model
-    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 function nhs_init_function(container, neighbor)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container::SolidParticleContainer,
-                           neighbor::SolidParticleContainer)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(container::Union{SolidParticleContainer,
-                                            BoundaryParticleContainer},
+function nhs_init_function(container::ParticleContainer{BoundarySchemeMonaghanKajtar},
                            neighbor)
-    return nhs_init_function(container, container.boundary_model, neighbor)
-end
-
-function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(container, model, neighbor)
     # This NHS is never used. Don't initialize NHS.
     return nothing
 end
-
-# Create Tuple of containers for single container
-digest_containers(boundary_condition) = (boundary_condition,)
-digest_containers(boundary_condition::Tuple) = boundary_condition
 
 """
     semidiscretize(semi, tspan)
@@ -370,6 +347,11 @@ function gravity_and_damping!(dv_ode, v_ode, semi)
 end
 
 @inline function add_acceleration!(dv, particle, container)
+    add_acceleration!(dv, particle, container, container.scheme)
+end
+
+# This can be dispatched by scheme.
+@inline function add_acceleration!(dv, particle, container, scheme)
     @unpack acceleration = container
 
     for i in 1:ndims(container)
@@ -378,8 +360,6 @@ end
 
     return dv
 end
-
-@inline add_acceleration!(dv, particle, container::BoundaryParticleContainer) = dv
 
 @inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle,
                                     container)
@@ -456,18 +436,19 @@ function update3!(container::FluidParticleContainer, container_index, v, u, v_od
 end
 
 # NHS updates
-function nhs_coords(container::FluidParticleContainer,
-                    neighbor::FluidParticleContainer, u)
+
+function nhs_coords(container, neighbor, u)
+    return nhs_coords(container, neighbor, container.scheme, neighbor.scheme, u)
+end
+
+# By default, these are the neighbor coordinates. This can be dispatched by scheme.
+function nhs_coords(container, neighbor, scheme, neighbor_scheme, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::FluidParticleContainer,
-                    neighbor::SolidParticleContainer, u)
-    return current_coordinates(u, neighbor)
-end
-
-function nhs_coords(container::FluidParticleContainer,
-                    neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container, neighbor, scheme,
+                    neighbor_scheme::Union{BoundarySchemeDummyParticles,
+                                           BoundarySchemeMonaghanKajtar}, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
     end
@@ -476,55 +457,21 @@ function nhs_coords(container::FluidParticleContainer,
     return nothing
 end
 
-function nhs_coords(container::SolidParticleContainer,
-                    neighbor::FluidParticleContainer, u)
-    return current_coordinates(u, neighbor)
-end
-
-function nhs_coords(container::SolidParticleContainer,
-                    neighbor::SolidParticleContainer, u)
+function nhs_coords(container, neighbor, ::TotalLagrangianSPH, ::TotalLagrangianSPH, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::SolidParticleContainer,
-                    neighbor::BoundaryParticleContainer, u)
-    if neighbor.ismoving[1]
-        return current_coordinates(u, neighbor)
-    end
-
+function nhs_coords(container, neighbor, scheme::BoundarySchemeDummyParticles,
+                    neighbor_scheme::Union{TotalLagrangianSPH,
+                                           BoundarySchemeDummyParticles}, u)
+    # TODO: moving boundaries
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::FluidParticleContainer, u)
-    @unpack boundary_model = container
-
-    return nhs_coords(container, neighbor, boundary_model, u)
-end
-
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::FluidParticleContainer,
-                    boundary_model, u)
-    # Don't update
-    return nothing
-end
-
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::FluidParticleContainer,
-                    boundary_model::BoundaryModelDummyParticles, u)
-    return current_coordinates(u, neighbor)
-end
-
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::SolidParticleContainer, u)
-    # Don't update
-    return nothing
-end
-
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container, neighbor,
+                    scheme::BoundarySchemeMonaghanKajtar, neighbor_scheme, u)
     # Don't update
     return nothing
 end
