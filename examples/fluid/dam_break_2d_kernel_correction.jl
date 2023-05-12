@@ -13,8 +13,8 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-#particle_spacing = 0.05
-particle_spacing = 0.01
+particle_spacing = 0.05
+#particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -107,8 +107,8 @@ positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
-#tspan = (0.0, 5.7 / sqrt(9.81))
-tspan = (0.0, 2.5)
+tspan = (0.0, 5.7 / sqrt(9.81))
+#tspan = (0.0, 2.5)
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
