@@ -251,7 +251,7 @@ function update_pressure!(container::FluidParticleContainer, container_index, v,
 end
 
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
-    density_calculator, ::NoCorrection)
+                                density_calculator, ::NoCorrection)
     #skip correction step
     return container
 end
@@ -281,7 +281,7 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
     end
     for particle in eachparticle(container)
         #println("particle $(particle) with  $(cw[particle])") #todo: remove
-        corrected_density = particle_density(v, container, particle)/cw[particle]
+        corrected_density = particle_density(v, container, particle) / cw[particle]
         set_particle_density(particle, v, container, corrected_density)
     end
     # println("correction end") #todo: remove
