@@ -436,7 +436,8 @@ function update2!(container, container_index, v, u, v_ode, u_ode, semi, t)
     return container
 end
 
-function update2!(container::Union{FluidParticleContainer, BoundaryParticleContainer}, container_index, v, u,
+function update2!(container::Union{FluidParticleContainer, BoundaryParticleContainer},
+                  container_index, v, u,
                   v_ode, u_ode, semi, t)
     # Only update fluid containers
     #update!(container, container_index, v, u, v_ode, u_ode, semi, t)
@@ -448,7 +449,7 @@ function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
 function update3!(container::FluidParticleContainer, container_index, v, u,
-    v_ode, u_ode, semi, t)
+                  v_ode, u_ode, semi, t)
     # Only update fluid container
     update_pressure!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end

@@ -13,7 +13,8 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.1
+#particle_spacing = 0.05
+particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -28,7 +29,7 @@ tank_height = 4
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
-smoothing_length = 1.3 * particle_spacing
+smoothing_length = 1.15 * particle_spacing
 smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
@@ -65,6 +66,12 @@ particle_container = FluidParticleContainer(setup, SummationDensity(), state_equ
                                             acceleration=(0.0, gravity),
                                             correction=KernelCorrection())
 
+# particle_container = FluidParticleContainer(setup, SummationDensity(), state_equation,
+# smoothing_kernel, smoothing_length,
+# viscosity=viscosity,
+# acceleration=(0.0, gravity),
+# correction=NoCorrection())
+
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
@@ -74,10 +81,12 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
 
-tspan = (0.0, 1.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
+saving_callback_relaxation = SolutionSavingCallback(interval=100, prefix="relaxation")
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -91,18 +100,15 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=info_callback);
-
-# sol = solve(ode, Euler(),
-#             dt=1e-5,
-#             save_everystep=false, callback=info_callback);
+            save_everystep=false, callback=callbacks_relaxation);
 
 # Move right boundary
 positions = (0, tank_width, 0, 0)
 reset_wall!(setup, reset_faces, positions)
 
 # Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+#tspan = (0.0, 5.7 / sqrt(9.81))
+tspan = (0.0, 2.5)
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
@@ -111,7 +117,7 @@ semi = Semidiscretization(particle_container, boundary_container,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="correction")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice

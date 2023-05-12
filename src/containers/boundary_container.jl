@@ -450,32 +450,24 @@ end
     return boundary_model
 end
 
-function update_density!(container::BoundaryParticleContainer, container_index, v, u, v_ode, u_ode,
-    semi, t)
+function update_density!(container::BoundaryParticleContainer, container_index, v, u, v_ode,
+                         u_ode,
+                         semi, t)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
-    compute_density!(container, container_index, v, u, u_ode, semi, density_calculator, NoCorrection())
-    #compute_density!(container, container_index, v, u, u_ode, semi, density_calculator, correction)
+    compute_density!(container, container_index, v, u, u_ode, semi, density_calculator)
 
     return container
 end
 
-function update_pressure!(container::BoundaryParticleContainer, container_index, v, u, v_ode, u_ode,
-    semi, t)
-    @unpack boundary_model = container
-    @unpack density_calculator = boundary_model
-
-    compute_pressure!(boundary_model, density_calculator, container, container_index, v, u, v_ode, u_ode, semi)
-
+function compute_density!(container::BoundaryParticleContainer, container_index, v, u,
+                          u_ode, semi, ::ContinuityDensity)
     return container
 end
 
-function compute_density!(container::BoundaryParticleContainer, container_index, v, u, u_ode, semi, ::ContinuityDensity, correction)
-    return container
-end
-
-function compute_density!(container::BoundaryParticleContainer, container_index, v, u, u_ode, semi, ::SummationDensity, ::NoCorrection)
+function compute_density!(container::BoundaryParticleContainer, container_index, v, u,
+                          u_ode, semi, ::SummationDensity)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack boundary_model = container
     @unpack cache = boundary_model
@@ -524,8 +516,20 @@ end
     end
 end
 
+function update_pressure!(container::BoundaryParticleContainer, container_index, v, u,
+                          v_ode, u_ode,
+                          semi, t)
+    @unpack boundary_model = container
+    @unpack density_calculator = boundary_model
+
+    compute_pressure!(boundary_model, density_calculator, container, container_index, v, u,
+                      v_ode, u_ode, semi)
+
+    return container
+end
+
 function compute_pressure!(boundary_model, ::Union{ContinuityDensity, SummationDensity},
-                             container, container_index, v, u, v_ode, u_ode, semi)
+                           container, container_index, v, u, v_ode, u_ode, semi)
     @unpack pressure, state_equation = boundary_model
 
     for particle in eachparticle(container)
