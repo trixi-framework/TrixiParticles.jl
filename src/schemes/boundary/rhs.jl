@@ -1,56 +1,39 @@
-# Boundary-fluid interaction
+# Interaction of boundary  with other containers
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer,
                    neighbor_container)
+    # TODO Solids and moving boundaries should be considered in the continuity equation
+    return dv
+end
+
+# Boundary-fluid interaction with dummy particles model
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
+                   particle_container::BoundaryParticleContainer{BoundaryModelDummyParticles
+                                                                 },
+                   neighbor_container::FluidParticleContainer)
+    @unpack density_calculator = particle_container.boundary_model
+
+    interact!(dv, v_particle_container, u_particle_container,
+              v_neighbor_container, u_neighbor_container, neighborhood_search,
+              particle_container, neighbor_container, density_calculator)
+end
+
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
+                   particle_container::BoundaryParticleContainer,
+                   neighbor_container, density_calculator)
+    return dv
+end
+
+# With `ContinuityDensity` solve the continuity equation
+function interact!(dv, v_particle_container, u_particle_container,
+                   v_neighbor_container, u_neighbor_container, neighborhood_search,
+                   particle_container::BoundaryParticleContainer,
+                   neighbor_container, ::ContinuityDensity)
     @unpack boundary_model = particle_container
 
-    interact!(dv, v_particle_container, u_particle_container,
-              v_neighbor_container, u_neighbor_container, neighborhood_search,
-              particle_container, neighbor_container, boundary_model)
-end
-
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
-                   neighbor_container::BoundaryParticleContainer)
-    # TODO moving boundaries
-    return dv
-end
-
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
-                   neighbor_container,
-                   boundary_model)
-    return dv
-end
-
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
-                   neighbor_container,
-                   boundary_model::BoundaryModelDummyParticles)
-    @unpack density_calculator = boundary_model
-
-    interact!(dv, v_particle_container, u_particle_container,
-              v_neighbor_container, u_neighbor_container, neighborhood_search,
-              particle_container, neighbor_container, boundary_model, density_calculator)
-end
-
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
-                   neighbor_container, boundary_model,
-                   density_calculator)
-    return dv
-end
-
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
-                   neighbor_container, boundary_model,
-                   ::ContinuityDensity)
     container_coords = current_coordinates(u_particle_container, particle_container)
     neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
 

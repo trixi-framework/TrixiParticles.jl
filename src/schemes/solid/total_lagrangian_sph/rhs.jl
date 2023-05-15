@@ -61,7 +61,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                    particle_container::SolidParticleContainer,
                    neighbor_container::FluidParticleContainer)
     @unpack state_equation, viscosity, smoothing_length = neighbor_container
-    @unpack boundary_model = particle_container
 
     container_coords = current_coordinates(u_particle_container, particle_container)
     neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
@@ -118,8 +117,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                                particle_container.mass[particle]
         end
 
-        continuity_equation!(dv, boundary_model,
-                             v_particle_container, v_neighbor_container,
+        continuity_equation!(dv, v_particle_container, v_neighbor_container,
                              particle, neighbor, pos_diff, distance,
                              particle_container, neighbor_container)
     end
@@ -127,25 +125,33 @@ function interact!(dv, v_particle_container, u_particle_container,
     return dv
 end
 
-@inline function continuity_equation!(dv, boundary_model,
-                                      v_particle_container, v_neighbor_container,
+@inline function continuity_equation!(dv, v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
                                       neighbor_container::FluidParticleContainer)
     return dv
 end
 
-@inline function continuity_equation!(dv, boundary_model::BoundaryModelDummyParticles,
-                                      v_particle_container, v_neighbor_container,
+@inline function continuity_equation!(dv, v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
+                                      particle_container::SolidParticleContainer{
+                                                                                 BoundaryModelDummyParticles
+                                                                                 },
                                       neighbor_container::FluidParticleContainer)
-    @unpack density_calculator = boundary_model
+    @unpack density_calculator = particle_container.boundary_model
 
     continuity_equation!(dv, density_calculator,
                          v_particle_container, v_neighbor_container,
                          particle, neighbor, pos_diff, distance,
                          particle_container, neighbor_container)
+end
+
+@inline function continuity_equation!(dv, density_calculator,
+                                      u_particle_container, u_neighbor_container,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_container::SolidParticleContainer,
+                                      neighbor_container::FluidParticleContainer)
+    return dv
 end
 
 @inline function continuity_equation!(dv, ::ContinuityDensity,
@@ -162,14 +168,6 @@ end
                                                          distance))
 
     return dv
-end
-
-@inline function continuity_equation!(du, ::SummationDensity,
-                                      u_particle_container, u_neighbor_container,
-                                      particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
-    return du
 end
 
 # Solid-boundary interaction

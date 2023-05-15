@@ -65,7 +65,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                                         size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
-        nparticles = size(particle_coordinates, 2)
+        n_particles = size(particle_coordinates, 2)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
@@ -79,7 +79,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        if length(particle_masses) != nparticles
+        if length(particle_masses) != n_particles
             throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
@@ -166,13 +166,15 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
 end
 
 @inline function v_nvariables(container::FluidParticleContainer)
-    v_nvariables(container, container.density_calculator)
+    return v_nvariables(container, container.density_calculator)
 end
-@inline function v_nvariables(container::FluidParticleContainer, ::SummationDensity)
-    ndims(container)
+
+@inline function v_nvariables(container::FluidParticleContainer, density_calculator)
+    return ndims(container)
 end
+
 @inline function v_nvariables(container::FluidParticleContainer, ::ContinuityDensity)
-    ndims(container) + 1
+    return ndims(container) + 1
 end
 
 @inline function hydrodynamic_mass(container::FluidParticleContainer, particle)
