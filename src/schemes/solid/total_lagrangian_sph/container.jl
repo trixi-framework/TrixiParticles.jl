@@ -380,39 +380,6 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, container,
-                                     penalty_force::PenaltyForceGanzenmueller)
-    @unpack mass, material_density, current_coordinates, young_modulus = container
-
-    current_pos_diff = current_coords(container, particle) -
-                       current_coords(container, neighbor)
-    current_distance = norm(current_pos_diff)
-
-    volume_particle = mass[particle] / material_density[particle]
-    volume_neighbor = mass[neighbor] / material_density[neighbor]
-
-    kernel_ = smoothing_kernel(container, initial_distance)
-
-    J_a = deformation_gradient(container, particle)
-    J_b = deformation_gradient(container, neighbor)
-
-    # Use the symmetry of epsilon to simplify computations
-    eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
-    delta_sum = dot(eps_sum, current_pos_diff) / current_distance
-
-    f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-        kernel_ / initial_distance^2 * young_modulus * delta_sum *
-        current_pos_diff / current_distance
-
-    for i in 1:ndims(container)
-        # Divide force by mass to obtain acceleration
-        dv[i, particle] += f[i] / mass[particle]
-    end
-
-    return dv
-end
-
-@inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container, ::Nothing)
     return dv
 end

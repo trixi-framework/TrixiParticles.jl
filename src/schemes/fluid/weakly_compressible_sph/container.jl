@@ -67,7 +67,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
         ELTYPE = eltype(particle_coordinates)
         n_particles = size(particle_coordinates, 2)
 
-        pressure = Vector{ELTYPE}(undef, nparticles)
+        pressure = Vector{ELTYPE}(undef, n_particles)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -83,7 +83,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
-        density = Vector{ELTYPE}(undef, nparticles)
+        density = Vector{ELTYPE}(undef, n_particles)
         cache = (; density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
