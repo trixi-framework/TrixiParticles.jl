@@ -6,7 +6,7 @@ using TrixiParticles
 using OrdinaryDiffEq
 using Printf
 
-include("n_body_system.jl")
+include("n_body_container.jl")
 
 # ==========================================================================================
 # ==== Systems

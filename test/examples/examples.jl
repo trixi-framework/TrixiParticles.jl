@@ -91,10 +91,10 @@
     end
 
     @testset verbose=true "N-Body" begin
-        @trixi_testset "n_body/n_body_solar_system.jl" begin
+        @trixi_testset "n_body/n_body_solar_container.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "n_body",
-                                                "n_body_solar_system.jl"))
+                                                "n_body_solar_container.jl"))
             @test sol.retcode == ReturnCode.Success
         end
 
