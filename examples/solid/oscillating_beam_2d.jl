@@ -44,7 +44,7 @@ solid = MergeShapes(beam, fixed_particles)
 # ==========================================================================================
 # ==== Containers
 
-particle_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
+solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                               solid.masses, solid.densities,
                                               smoothing_kernel, smoothing_length,
                                               E, nu,
@@ -55,7 +55,7 @@ particle_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocitie
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(solid_system, neighborhood_search=SpatialHashingSearch)
 tspan = (0.0, 5.0)
 
 ode = semidiscretize(semi, tspan)

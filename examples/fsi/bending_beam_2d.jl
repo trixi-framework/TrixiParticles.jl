@@ -116,7 +116,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==========================================================================================
 # ==== Containers
 
-solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
+solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                            solid.masses, solid.densities,
                                            solid_smoothing_kernel, solid_smoothing_length,
                                            E, nu, boundary_model_solid,
@@ -124,7 +124,7 @@ solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                            acceleration=(0.0, 0.0),
                                            penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-fluid_container = WeaklyCompressibleSPHSystem(fluid.coordinates,
+fluid_system = WeaklyCompressibleSPHSystem(fluid.coordinates,
                                               zeros(size(fluid.coordinates)),
                                               fluid.masses, fluid.densities,
                                               ContinuityDensity(), state_equation,
@@ -133,14 +133,14 @@ fluid_container = WeaklyCompressibleSPHSystem(fluid.coordinates,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity))
 
-# rigid_solid_container = BoundarySPHSystem(particle_coordinates, boundary_model_solid)
+# rigid_solid_system = BoundarySPHSystem(particle_coordinates, boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation
 
 tspan = (0.0, 2.0)
 
-semi = Semidiscretization(solid_container, fluid_container,# rigid_solid_container,
+semi = Semidiscretization(solid_system, fluid_system,# rigid_solid_system,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=10.0)
 
@@ -177,7 +177,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # Lubliner, J. & Papadopoulos, P., "Introduction to Solid Mechanics", Ch. 8,
 # DOI: 10.1007/978-3-319-18878-2
 
-function plot_analytical(solid_container)
+function plot_analytical(solid_system)
     # distributed transverse force
     q_0 = gravity * solid_density * thickness_beam^2
 
@@ -196,9 +196,9 @@ function plot_analytical(solid_container)
 
     # In a homogeneous linearly elastic beam in pure bending, the neutral fiber (zero stress)
     # coincides with the centroidal fiber
-    neutral_fiber_position = [solid_container.current_coordinates[:, i]
-                              for i in TrixiParticles.each_moving_particle(solid_container)
-                              if isapprox(solid_container.initial_coordinates[2, i],
+    neutral_fiber_position = [solid_system.current_coordinates[:, i]
+                              for i in TrixiParticles.each_moving_particle(solid_system)
+                              if isapprox(solid_system.initial_coordinates[2, i],
                                           -centroidal_fiber_position)]
 
     neutral_fiber_position = hcat(neutral_fiber_position...)

@@ -52,17 +52,17 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
                                                  smoothing_kernel, smoothing_length,
                                                  viscosity=viscosity,
                                                  acceleration=(0.0, gravity))
 
-boundary_container = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, boundary_container,
+semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)

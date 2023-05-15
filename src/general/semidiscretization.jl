@@ -8,7 +8,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_container, boundary_container; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
 struct Semidiscretization{PC, RU, RV, NS, DC}

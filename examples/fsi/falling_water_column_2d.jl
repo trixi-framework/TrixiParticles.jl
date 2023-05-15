@@ -12,8 +12,8 @@ water_width = 0.525
 water_height = 1.0125
 water_density = 1000.0
 
-container_width = 4.0
-container_height = 4.0
+tank_width = 4.0
+tank_height = 4.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
 
@@ -84,7 +84,7 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
 # ==========================================================================================
 # ==== Containers
 
-fluid_container = WeaklyCompressibleSPHSystem(setup.coordinates,
+fluid_system = WeaklyCompressibleSPHSystem(setup.coordinates,
                                               zeros(Float64, size(setup.coordinates)),
                                               setup.masses, setup.densities,
                                               ContinuityDensity(), state_equation,
@@ -92,7 +92,7 @@ fluid_container = WeaklyCompressibleSPHSystem(setup.coordinates,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity))
 
-solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
+solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                            solid.masses, solid.densities,
                                            smoothing_kernel, smoothing_length,
                                            E, nu,
@@ -103,7 +103,7 @@ solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(fluid_container, solid_container,
+semi = Semidiscretization(fluid_system, solid_system,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 1.0)
