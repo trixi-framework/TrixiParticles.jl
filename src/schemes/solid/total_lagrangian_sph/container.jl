@@ -179,11 +179,23 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     end
 end
 
-@inline function v_nvariables(container::SolidParticleContainer)
-    v_nvariables(container, container.boundary_model)
+@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelMonaghanKajtar
+                                                                })
+    return ndims(container)
 end
-# This is dispatched in boundary_container.jl
-@inline v_nvariables(container::SolidParticleContainer, model) = ndims(container)
+
+@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelDummyParticles
+                                                                })
+    return v_nvariables(container, container.boundary_model.density_calculator)
+end
+
+@inline function v_nvariables(container::SolidParticleContainer, density_calculator)
+    return ndims(container)
+end
+
+@inline function v_nvariables(container::SolidParticleContainer, ::ContinuityDensity)
+    return ndims(container) + 1
+end
 
 @inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
 
@@ -204,6 +216,14 @@ end
     end
 
     return extract_svector(v, container, particle)
+end
+
+@inline function particle_density(v, container::SolidParticleContainer, particle)
+    return particle_density(v, container, container.boundary_model, particle)
+end
+
+@inline function hydrodynamic_mass(container::SolidParticleContainer, particle)
+    return container.boundary_model.hydrodynamic_mass[particle]
 end
 
 @inline function correction_matrix(container, particle)
@@ -424,17 +444,22 @@ function write_v0!(v0, container::SolidParticleContainer)
     return v0
 end
 
-# This is dispatched in boundary_container.jl
-function write_v0!(v0, boundary_model, container)
+function write_v0!(v0, ::BoundaryModelMonaghanKajtar, container::SolidParticleContainer)
     return v0
 end
 
-function write_v0!(v0, boundary_model, density_calculator, container)
+function write_v0!(v0, ::BoundaryModelDummyParticles, container::SolidParticleContainer)
+    @unpack density_calculator = container.boundary_model
+
+    write_v0!(v0, density_calculator, container)
+end
+
+function write_v0!(v0, density_calculator, container::SolidParticleContainer)
     return v0
 end
 
-function write_v0!(v0, boundary_model, ::ContinuityDensity, container)
-    @unpack cache = boundary_model
+function write_v0!(v0, ::ContinuityDensity, container::SolidParticleContainer)
+    @unpack cache = container.boundary_model
     @unpack initial_density = cache
 
     for particle in each_moving_particle(container)

@@ -499,21 +499,12 @@ end
 
 function nhs_coords(container::BoundaryParticleContainer,
                     neighbor::FluidParticleContainer, u)
-    @unpack boundary_model = container
-
-    return nhs_coords(container, neighbor, boundary_model, u)
-end
-
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::FluidParticleContainer,
-                    boundary_model, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::FluidParticleContainer,
-                    boundary_model::BoundaryModelDummyParticles, u)
+function nhs_coords(container::BoundaryParticleContainer{BoundaryModelDummyParticles},
+                    neighbor::FluidParticleContainer, u)
     return current_coordinates(u, neighbor)
 end
 

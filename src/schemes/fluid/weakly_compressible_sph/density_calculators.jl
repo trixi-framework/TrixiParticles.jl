@@ -49,9 +49,3 @@ end
 @inline function set_particle_density(particle, v, ::ContinuityDensity, container, density)
     v[end, particle] = density
 end
-
-# This is dispatched in fluid_container.jl and boundary_container.jl
-@inline function hydrodynamic_mass(container, particle)
-    @unpack boundary_model = container
-    hydrodynamic_mass(container, boundary_model, particle)
-end

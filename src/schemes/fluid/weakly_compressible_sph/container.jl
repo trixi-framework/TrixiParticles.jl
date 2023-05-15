@@ -65,7 +65,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                                                         size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
-        nparticles = size(particle_coordinates, 2)
+        n_particles = size(particle_coordinates, 2)
 
         pressure = Vector{ELTYPE}(undef, nparticles)
 
@@ -79,7 +79,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
             throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        if length(particle_masses) != nparticles
+        if length(particle_masses) != n_particles
             throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
