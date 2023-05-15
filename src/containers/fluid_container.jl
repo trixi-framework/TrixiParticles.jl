@@ -211,7 +211,7 @@ function update_density!(container::FluidParticleContainer, container_index, v, 
 end
 
 function compute_density!(container::FluidParticleContainer, container_index, v, u, u_ode,
-                          semi, ::ContinuityDensity, correction)
+                          semi, ::ContinuityDensity)
     return container
 end
 
@@ -258,6 +258,7 @@ end
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                                 density_calculator, ::NoCorrection)
     #skip correction step
+    println("no correction step")
     return container
 end
 
@@ -292,13 +293,6 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
 
             cw[particle] += volume * smoothing_kernel(container, distance)
         end
-
-        # @threaded for particle in eachparticle(container)
-        #     kernel_correct_density_per_particle(cw, particle, v_neighbor_container, u,
-        #                                         u_neighbor_container,
-        #                                         container, neighbor_container,
-        #                                         neighborhood_searches[container_index][neighbor_container_index])
-        # end
     end
 
     for particle in eachparticle(container)
@@ -307,34 +301,10 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
     end
 end
 
-# @inline function kernel_correct_density_per_particle(cw, particle, v_neighbor_container,
-#                                                      u_particle_container,
-#                                                      u_neighbor_container,
-#                                                      particle_container::FluidParticleContainer,
-#                                                      neighbor_container,
-#                                                      neighborhood_search)
-#     @unpack cache = particle_container
-#     @unpack density = cache # Density is in the cache for SummationDensity
-
-#     particle_coords = current_coords(u_particle_container, particle_container, particle)
-#     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-#         m_b = hydrodynamic_mass(neighbor_container, neighbor)
-#         neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
-#                                          neighbor)
-#         distance = norm(particle_coords - neighbor_coords)
-
-#         if distance <= compact_support(particle_container)
-#             rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
-#             volume = m_b / rho_b
-
-#             cw[particle] += volume * smoothing_kernel(particle_container, distance)
-#         end
-#     end
-# end
-
 function compute_pressure!(container, v)
     @unpack state_equation, pressure = container
 
+    println("fluid->compute pressure")
     # Note that @threaded makes this slower
     for particle in eachparticle(container)
         pressure[particle] = state_equation(particle_density(v, container, particle))
