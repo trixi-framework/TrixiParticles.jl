@@ -118,7 +118,7 @@ particle_container = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), sta
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                          solid.masses, solid.densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu,

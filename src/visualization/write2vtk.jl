@@ -64,7 +64,7 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
 end
 
 vtkname(container::WeaklyCompressibleSPHSystem) = "fluid"
-vtkname(container::SolidParticleContainer) = "solid"
+vtkname(container::TotalLagrangianSPHSystem) = "solid"
 vtkname(container::BoundaryParticleContainer) = "boundary"
 
 function write2vtk!(vtk, v, u, t, container::WeaklyCompressibleSPHSystem)
@@ -78,7 +78,7 @@ function write2vtk!(vtk, v, u, t, container::WeaklyCompressibleSPHSystem)
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, container::SolidParticleContainer)
+function write2vtk!(vtk, v, u, t, container::TotalLagrangianSPHSystem)
     n_fixed_particles = nparticles(container) - n_moving_particles(container)
 
     vtk["velocity"] = hcat(view(v, 1:ndims(container), :),

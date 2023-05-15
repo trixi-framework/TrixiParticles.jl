@@ -1,4 +1,4 @@
-@testset verbose=true "SolidParticleContainer" begin
+@testset verbose=true "TotalLagrangianSPHSystem" begin
     @testset verbose=true "Constructor" begin
         coordinates_ = [
             [1.0 2.0
@@ -21,11 +21,11 @@
             E = 2.5
             boundary_model = Val(:boundary_model)
 
-            container = SolidParticleContainer(coordinates, velocities, masses,
+            container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                                material_densities, smoothing_kernel,
                                                smoothing_length, E, nu, boundary_model)
 
-            @test container isa SolidParticleContainer
+            @test container isa TotalLagrangianSPHSystem
             @test ndims(container) == NDIMS
             @test container.initial_coordinates == coordinates
             @test container.current_coordinates == coordinates
@@ -58,17 +58,17 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = SolidParticleContainer(coordinates, velocities, masses,
+        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                            material_densities, smoothing_kernel,
                                            smoothing_length, E, nu, boundary_model)
 
-        show_compact = "SolidParticleContainer{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
+        show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
         @test repr(container) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ SolidParticleContainer{2}                                                                        │
+        │ TotalLagrangianSPHSystem{2}                                                                        │
         │ ═════════════════════════                                                                        │
         │ total #particles: ………………………………… 2                                                                │
         │ #fixed particles: ………………………………… 0                                                                │
@@ -199,7 +199,7 @@
                 search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                                smoothing_length)
 
-                container = SolidParticleContainer(particle_coordinates,
+                container = TotalLagrangianSPHSystem(particle_coordinates,
                                                    particle_velocities,
                                                    particle_masses, particle_densities,
                                                    smoothing_kernel, smoothing_length,
@@ -285,7 +285,7 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = SolidParticleContainer(coordinates, velocities, masses,
+        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                            material_densities, smoothing_kernel,
                                            smoothing_length, E, nu, boundary_model)
 
@@ -309,7 +309,7 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = SolidParticleContainer(coordinates, velocities, masses,
+        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                            material_densities, smoothing_kernel,
                                            smoothing_length, E, nu, boundary_model)
 

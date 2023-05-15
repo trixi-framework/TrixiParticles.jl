@@ -137,7 +137,7 @@ boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
                                                     boundary_model_gate,
                                                     movement_function=movement_function)
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                          solid.masses, solid.densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu, boundary_model_solid,

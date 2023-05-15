@@ -92,7 +92,7 @@ fluid_container = WeaklyCompressibleSPHSystem(setup.coordinates,
                                          viscosity=viscosity,
                                          acceleration=(0.0, gravity))
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                          solid.masses, solid.densities,
                                          smoothing_kernel, smoothing_length,
                                          E, nu,

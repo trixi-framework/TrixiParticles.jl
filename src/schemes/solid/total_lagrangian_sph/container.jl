@@ -1,5 +1,5 @@
 @doc raw"""
-    SolidParticleContainer(particle_coordinates, particle_velocities,
+    TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
                            particle_masses, particle_material_densities,
                            hydrodynamic_density_calculator,
                            smoothing_kernel, smoothing_length,
@@ -77,7 +77,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleContainer{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
@@ -97,7 +97,7 @@ struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleConta
     boundary_model      :: BM
     penalty_force       :: PF
 
-    function SolidParticleContainer(particle_coordinates, particle_velocities,
+    function TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
                                     particle_masses, particle_material_densities,
                                     smoothing_kernel, smoothing_length,
                                     young_modulus, poisson_ratio, boundary_model;
@@ -146,10 +146,10 @@ struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleConta
     end
 end
 
-function Base.show(io::IO, container::SolidParticleContainer)
+function Base.show(io::IO, container::TotalLagrangianSPHSystem)
     @nospecialize container # reduce precompilation time
 
-    print(io, "SolidParticleContainer{", ndims(container), "}(")
+    print(io, "TotalLagrangianSPHSystem{", ndims(container), "}(")
     print(io, container.young_modulus)
     print(io, ", ", container.poisson_ratio)
     print(io, ", ", container.smoothing_kernel)
@@ -159,7 +159,7 @@ function Base.show(io::IO, container::SolidParticleContainer)
     print(io, ") with ", nparticles(container), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer)
+function Base.show(io::IO, ::MIME"text/plain", container::TotalLagrangianSPHSystem)
     @nospecialize container # reduce precompilation time
 
     if get(io, :compact, false)
@@ -167,7 +167,7 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     else
         n_fixed_particles = nparticles(container) - n_moving_particles(container)
 
-        summary_header(io, "SolidParticleContainer{$(ndims(container))}")
+        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(container))}")
         summary_line(io, "total #particles", nparticles(container))
         summary_line(io, "#fixed particles", n_fixed_particles)
         summary_line(io, "Young's modulus", container.young_modulus)
@@ -180,38 +180,38 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     end
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelMonaghanKajtar
+@inline function v_nvariables(container::TotalLagrangianSPHSystem{BoundaryModelMonaghanKajtar
                                                                 })
     return ndims(container)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelDummyParticles
+@inline function v_nvariables(container::TotalLagrangianSPHSystem{BoundaryModelDummyParticles
                                                                 })
     return v_nvariables(container, container.boundary_model.density_calculator)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer, density_calculator)
+@inline function v_nvariables(container::TotalLagrangianSPHSystem, density_calculator)
     return ndims(container)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer, ::ContinuityDensity)
+@inline function v_nvariables(container::TotalLagrangianSPHSystem, ::ContinuityDensity)
     return ndims(container) + 1
 end
 
-@inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
+@inline n_moving_particles(container::TotalLagrangianSPHSystem) = container.n_moving_particles
 
-@inline function current_coordinates(u, container::SolidParticleContainer)
+@inline function current_coordinates(u, container::TotalLagrangianSPHSystem)
     return container.current_coordinates
 end
 
-@inline function current_coords(container::SolidParticleContainer, particle)
+@inline function current_coords(container::TotalLagrangianSPHSystem, particle)
     # For this container, the current coordinates are stored in the container directly,
     # so we don't need a `u` array. This function is only to be used in this file
     # when no `u` is available.
     current_coords(nothing, container, particle)
 end
 
-@inline function current_velocity(v, container::SolidParticleContainer, particle)
+@inline function current_velocity(v, container::TotalLagrangianSPHSystem, particle)
     if particle > n_moving_particles(container)
         return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
     end
@@ -219,11 +219,11 @@ end
     return extract_svector(v, container, particle)
 end
 
-@inline function particle_density(v, container::SolidParticleContainer, particle)
+@inline function particle_density(v, container::TotalLagrangianSPHSystem, particle)
     return particle_density(v, container.boundary_model, container, particle)
 end
 
-@inline function hydrodynamic_mass(container::SolidParticleContainer, particle)
+@inline function hydrodynamic_mass(container::TotalLagrangianSPHSystem, particle)
     return container.boundary_model.hydrodynamic_mass[particle]
 end
 
@@ -237,7 +237,7 @@ end
     extract_smatrix(container.pk1_corrected, container, particle)
 end
 
-function initialize!(container::SolidParticleContainer, neighborhood_search)
+function initialize!(container::TotalLagrangianSPHSystem, neighborhood_search)
     @unpack correction_matrix = container
 
     # Calculate kernel correction matrix
@@ -285,7 +285,7 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, container)
     return corr_matrix
 end
 
-function update!(container::SolidParticleContainer, container_index, v, u,
+function update!(container::TotalLagrangianSPHSystem, container_index, v, u,
                  v_ode, u_ode, semi, t)
     @unpack neighborhood_searches = semi
 
@@ -384,7 +384,7 @@ end
     return dv
 end
 
-function write_u0!(u0, container::SolidParticleContainer)
+function write_u0!(u0, container::TotalLagrangianSPHSystem)
     @unpack initial_coordinates = container
 
     for particle in each_moving_particle(container)
@@ -397,7 +397,7 @@ function write_u0!(u0, container::SolidParticleContainer)
     return u0
 end
 
-function write_v0!(v0, container::SolidParticleContainer)
+function write_v0!(v0, container::TotalLagrangianSPHSystem)
     @unpack initial_velocity, boundary_model = container
 
     for particle in each_moving_particle(container)
@@ -412,21 +412,21 @@ function write_v0!(v0, container::SolidParticleContainer)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, container::SolidParticleContainer)
+function write_v0!(v0, ::BoundaryModelMonaghanKajtar, container::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, container::SolidParticleContainer)
+function write_v0!(v0, ::BoundaryModelDummyParticles, container::TotalLagrangianSPHSystem)
     @unpack density_calculator = container.boundary_model
 
     write_v0!(v0, density_calculator, container)
 end
 
-function write_v0!(v0, density_calculator, container::SolidParticleContainer)
+function write_v0!(v0, density_calculator, container::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, container::SolidParticleContainer)
+function write_v0!(v0, ::ContinuityDensity, container::TotalLagrangianSPHSystem)
     @unpack cache = container.boundary_model
     @unpack initial_density = cache
 

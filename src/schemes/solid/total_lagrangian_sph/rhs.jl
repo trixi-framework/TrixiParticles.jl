@@ -1,8 +1,8 @@
 # Solid-solid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::SolidParticleContainer,
-                   neighbor_container::SolidParticleContainer)
+                   particle_container::TotalLagrangianSPHSystem,
+                   neighbor_container::TotalLagrangianSPHSystem)
     interact_solid_solid!(dv, neighborhood_search, particle_container, neighbor_container)
 end
 
@@ -58,7 +58,7 @@ end
 # Solid-fluid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::SolidParticleContainer,
+                   particle_container::TotalLagrangianSPHSystem,
                    neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack state_equation, viscosity, smoothing_length = neighbor_container
 
@@ -127,14 +127,14 @@ end
 
 @inline function continuity_equation!(dv, v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
+                                      particle_container::TotalLagrangianSPHSystem,
                                       neighbor_container::WeaklyCompressibleSPHSystem)
     return dv
 end
 
 @inline function continuity_equation!(dv, v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer{
+                                      particle_container::TotalLagrangianSPHSystem{
                                                                                  BoundaryModelDummyParticles
                                                                                  },
                                       neighbor_container::WeaklyCompressibleSPHSystem)
@@ -149,7 +149,7 @@ end
 @inline function continuity_equation!(dv, density_calculator,
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
+                                      particle_container::TotalLagrangianSPHSystem,
                                       neighbor_container::WeaklyCompressibleSPHSystem)
     return dv
 end
@@ -157,7 +157,7 @@ end
 @inline function continuity_equation!(dv, ::ContinuityDensity,
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::SolidParticleContainer,
+                                      particle_container::TotalLagrangianSPHSystem,
                                       neighbor_container::WeaklyCompressibleSPHSystem)
     vdiff = current_velocity(v_particle_container, particle_container, particle) -
             current_velocity(v_neighbor_container, neighbor_container, neighbor)
@@ -173,7 +173,7 @@ end
 # Solid-boundary interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::SolidParticleContainer,
+                   particle_container::TotalLagrangianSPHSystem,
                    neighbor_container::BoundaryParticleContainer)
     # TODO continuity equation?
     return dv

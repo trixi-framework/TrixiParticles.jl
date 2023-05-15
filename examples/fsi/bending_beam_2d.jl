@@ -116,7 +116,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==========================================================================================
 # ==== Containers
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                          solid.masses, solid.densities,
                                          solid_smoothing_kernel, solid_smoothing_length,
                                          E, nu, boundary_model_solid,

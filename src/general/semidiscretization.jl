@@ -93,14 +93,14 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(container::Union{SolidParticleContainer,
+@inline function compact_support(container::Union{TotalLagrangianSPHSystem,
                                                   BoundaryParticleContainer},
                                  neighbor)
     return compact_support(container, container.boundary_model, neighbor)
 end
 
-@inline function compact_support(container::SolidParticleContainer,
-                                 neighbor::SolidParticleContainer)
+@inline function compact_support(container::TotalLagrangianSPHSystem,
+                                 neighbor::TotalLagrangianSPHSystem)
     @unpack smoothing_kernel, smoothing_length = container
     return compact_support(smoothing_kernel, smoothing_length)
 end
@@ -119,12 +119,12 @@ function nhs_init_function(container, neighbor)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container::SolidParticleContainer,
-                           neighbor::SolidParticleContainer)
+function nhs_init_function(container::TotalLagrangianSPHSystem,
+                           neighbor::TotalLagrangianSPHSystem)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container::Union{SolidParticleContainer,
+function nhs_init_function(container::Union{TotalLagrangianSPHSystem,
                                             BoundaryParticleContainer},
                            neighbor)
     return nhs_init_function(container, container.boundary_model, neighbor)
@@ -421,7 +421,7 @@ function update1!(container, container_index, v, u, v_ode, u_ode, semi, t)
     return container
 end
 
-function update1!(container::SolidParticleContainer, container_index, v, u,
+function update1!(container::TotalLagrangianSPHSystem, container_index, v, u,
                   v_ode, u_ode, semi, t)
     # Only update solid containers
     update!(container, container_index, v, u, v_ode, u_ode, semi, t)
@@ -442,7 +442,7 @@ function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
     update!(container, container_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update3!(container::SolidParticleContainer, container_index, v, u, v_ode, u_ode,
+function update3!(container::TotalLagrangianSPHSystem, container_index, v, u, v_ode, u_ode,
                   semi, t)
     @unpack boundary_model = container
 
@@ -462,7 +462,7 @@ function nhs_coords(container::WeaklyCompressibleSPHSystem,
 end
 
 function nhs_coords(container::WeaklyCompressibleSPHSystem,
-                    neighbor::SolidParticleContainer, u)
+                    neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
@@ -476,18 +476,18 @@ function nhs_coords(container::WeaklyCompressibleSPHSystem,
     return nothing
 end
 
-function nhs_coords(container::SolidParticleContainer,
+function nhs_coords(container::TotalLagrangianSPHSystem,
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::SolidParticleContainer,
-                    neighbor::SolidParticleContainer, u)
+function nhs_coords(container::TotalLagrangianSPHSystem,
+                    neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::SolidParticleContainer,
+function nhs_coords(container::TotalLagrangianSPHSystem,
                     neighbor::BoundaryParticleContainer, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -509,7 +509,7 @@ function nhs_coords(container::BoundaryParticleContainer{BoundaryModelDummyParti
 end
 
 function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::SolidParticleContainer, u)
+                    neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end

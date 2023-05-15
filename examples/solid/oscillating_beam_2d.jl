@@ -44,7 +44,7 @@ solid = MergeShapes(beam, fixed_particles)
 # ==========================================================================================
 # ==== Containers
 
-particle_container = SolidParticleContainer(solid.coordinates, solid.velocities,
+particle_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                             solid.masses, solid.densities,
                                             smoothing_kernel, smoothing_length,
                                             E, nu,
