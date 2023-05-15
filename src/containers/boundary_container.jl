@@ -421,7 +421,8 @@ function update!(container::BoundaryParticleContainer, container_index,
     container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
                                                      t)
 
-    update_after_density_calc!(container, container_index, v, u, v_ode, u_ode, semi, t, boundary_model)
+    update_after_density_calc!(container, container_index, v, u, v_ode, u_ode, semi, t,
+                               boundary_model)
 
     return container
 end
@@ -447,7 +448,6 @@ end
     compute_pressure!(boundary_model, density_calculator, container, container_index, v, u,
                       v_ode, u_ode, semi)
 
-
     return boundary_model
 end
 
@@ -461,14 +461,15 @@ function update_density!(container::BoundaryParticleContainer, container_index, 
 end
 
 function compute_density!(container, container_index, v, u,
-    u_ode, semi, ::BoundaryModelMonaghanKajtar)
+                          u_ode, semi, ::BoundaryModelMonaghanKajtar)
     return container
 end
 
 function compute_density!(container, container_index, v, u,
-    u_ode, semi, boundary_model)
+                          u_ode, semi, boundary_model)
     @unpack density_calculator = boundary_model
-    compute_density!(container, container_index, v, u, u_ode, semi, boundary_model, density_calculator)
+    compute_density!(container, container_index, v, u, u_ode, semi, boundary_model,
+                     density_calculator)
 
     return container
 end
@@ -511,7 +512,9 @@ function compute_density!(container, container_index, v, u,
     end
 end
 
-function update_after_density_calc!(container::BoundaryParticleContainer, container_index, v, u, v_ode, u_ode, semi, t, boundary_model::BoundaryModelMonaghanKajtar)
+function update_after_density_calc!(container::BoundaryParticleContainer, container_index,
+                                    v, u, v_ode, u_ode, semi, t,
+                                    boundary_model::BoundaryModelMonaghanKajtar)
     return container
 end
 
