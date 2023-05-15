@@ -238,8 +238,8 @@ function compute_density!(container::FluidParticleContainer, container_index, v,
         for_particle_neighbor(container, neighbor_container,
                               container_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-            mass = hydrodynamic_mass(neighbor_container, neighbor)
-            density[particle] += mass * smoothing_kernel(container, distance)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            density[particle] += m_b * smoothing_kernel(container, distance)
         end
     end
 end
@@ -278,43 +278,59 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
                                       semi)
 
-        @threaded for particle in eachparticle(container)
-            kernel_correct_density_per_particle(cw, particle, v_neighbor_container, u,
-                                                u_neighbor_container,
-                                                container, neighbor_container,
-                                                neighborhood_searches[container_index][neighbor_container_index])
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container, container_coords,
+                              neighbor_coords, neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            volume = m_b / rho_b
+
+            cw[particle] += volume * smoothing_kernel(container, distance)
         end
+
+        # @threaded for particle in eachparticle(container)
+        #     kernel_correct_density_per_particle(cw, particle, v_neighbor_container, u,
+        #                                         u_neighbor_container,
+        #                                         container, neighbor_container,
+        #                                         neighborhood_searches[container_index][neighbor_container_index])
+        # end
     end
+
     for particle in eachparticle(container)
         corrected_density = particle_density(v, container, particle) / cw[particle]
         set_particle_density(particle, v, container, corrected_density)
     end
 end
 
-@inline function kernel_correct_density_per_particle(cw, particle, v_neighbor_container,
-                                                     u_particle_container,
-                                                     u_neighbor_container,
-                                                     particle_container::FluidParticleContainer,
-                                                     neighbor_container,
-                                                     neighborhood_search)
-    @unpack cache = particle_container
-    @unpack density = cache # Density is in the cache for SummationDensity
+# @inline function kernel_correct_density_per_particle(cw, particle, v_neighbor_container,
+#                                                      u_particle_container,
+#                                                      u_neighbor_container,
+#                                                      particle_container::FluidParticleContainer,
+#                                                      neighbor_container,
+#                                                      neighborhood_search)
+#     @unpack cache = particle_container
+#     @unpack density = cache # Density is in the cache for SummationDensity
 
-    particle_coords = current_coords(u_particle_container, particle_container, particle)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        m_b = hydrodynamic_mass(neighbor_container, neighbor)
-        neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
-                                         neighbor)
-        distance = norm(particle_coords - neighbor_coords)
+#     particle_coords = current_coords(u_particle_container, particle_container, particle)
+#     for neighbor in eachneighbor(particle_coords, neighborhood_search)
+#         m_b = hydrodynamic_mass(neighbor_container, neighbor)
+#         neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
+#                                          neighbor)
+#         distance = norm(particle_coords - neighbor_coords)
 
-        if distance <= compact_support(particle_container)
-            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
-            volume = m_b / rho_b
+#         if distance <= compact_support(particle_container)
+#             rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+#             volume = m_b / rho_b
 
-            cw[particle] += volume * smoothing_kernel(particle_container, distance)
-        end
-    end
-end
+#             cw[particle] += volume * smoothing_kernel(particle_container, distance)
+#         end
+#     end
+# end
 
 function compute_pressure!(container, v)
     @unpack state_equation, pressure = container
