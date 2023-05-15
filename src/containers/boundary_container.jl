@@ -481,36 +481,18 @@ function compute_density!(container::BoundaryParticleContainer, container_index,
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
 
-        @threaded for particle in eachparticle(container)
-            compute_density_per_particle(particle, u, u_neighbor_container,
-                                         container, neighbor_container,
-                                         neighborhood_searches[container_index][neighbor_container_index])
-        end
-    end
-end
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
 
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_density_per_particle(particle, u_particle_container,
-                                              u_neighbor_container,
-                                              particle_container::Union{
-                                                                        BoundaryParticleContainer,
-                                                                        SolidParticleContainer
-                                                                        },
-                                              neighbor_container, neighborhood_search)
-    @unpack boundary_model = particle_container
-    @unpack cache = boundary_model
-    @unpack density = cache # Density is in the cache for SummationDensity
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
 
-    particle_coords = current_coords(u_particle_container, particle_container, particle)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        mass = hydrodynamic_mass(neighbor_container, neighbor)
-        distance = norm(particle_coords -
-                        current_coords(u_neighbor_container, neighbor_container,
-                                       neighbor))
-
-        if distance <= compact_support(boundary_model)
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container,
+                              container_coords, neighbor_coords,
+                              neighborhood_search;
+                              particles=eachparticle(container)) do particle, neighbor,
+                                                                    pos_diff, distance
+            mass = hydrodynamic_mass(neighbor_container, neighbor)
             density[particle] += mass * smoothing_kernel(boundary_model, distance)
         end
     end
@@ -546,7 +528,7 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     density .= zero(eltype(density))
     volume .= zero(eltype(volume))
 
-    # Use all other containers for the pressure summation
+    # Use all other containers for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,
                                                                                                  neighbor_container)
         v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
@@ -554,13 +536,14 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
         u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
                                       neighbor_container, semi)
 
-        @threaded for particle in eachparticle(container)
-            compute_pressure_per_particle(particle, u,
-                                          v_neighbor_container, u_neighbor_container,
-                                          container, neighbor_container,
-                                          neighborhood_searches[container_index][neighbor_container_index],
-                                          boundary_model)
-        end
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        adami_pressure_extrapolation!(boundary_model, container, neighbor_container,
+                                      container_coords, neighbor_coords,
+                                      v_neighbor_container, neighborhood_search)
     end
 
     pressure ./= volume
@@ -570,46 +553,41 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
     end
 end
 
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function compute_pressure_per_particle(particle, u_particle_container,
-                                               v_neighbor_container, u_neighbor_container,
-                                               particle_container,
+@inline function adami_pressure_extrapolation!(boundary_model, container,
                                                neighbor_container::FluidParticleContainer,
-                                               neighborhood_search, boundary_model)
+                                               container_coords, neighbor_coords,
+                                               v_neighbor_container, neighborhood_search)
     @unpack pressure, cache = boundary_model
     @unpack volume = cache
 
-    particle_coords = current_coords(u_particle_container, particle_container, particle)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        pos_diff = particle_coords -
-                   current_coords(u_neighbor_container, neighbor_container, neighbor)
-        distance = norm(pos_diff)
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    for_particle_neighbor(container, neighbor_container,
+                          container_coords, neighbor_coords,
+                          neighborhood_search;
+                          particles=eachparticle(container)) do particle, neighbor,
+                                                                pos_diff, distance
+        density_neighbor = particle_density(v_neighbor_container, neighbor_container,
+                                            neighbor)
 
-        if distance <= compact_support(boundary_model)
-            density_neighbor = particle_density(v_neighbor_container, neighbor_container,
-                                                neighbor)
-
-            # TODO moving boundaries
-            pressure[particle] += (neighbor_container.pressure[neighbor] +
-                                   dot(neighbor_container.acceleration,
-                                       density_neighbor * pos_diff)) *
-                                  smoothing_kernel(boundary_model, distance)
-            volume[particle] += smoothing_kernel(boundary_model, distance)
-        end
+        # TODO moving boundaries
+        pressure[particle] += (neighbor_container.pressure[neighbor] +
+                               dot(neighbor_container.acceleration,
+                                   density_neighbor * pos_diff)) *
+                              smoothing_kernel(boundary_model, distance)
+        volume[particle] += smoothing_kernel(boundary_model, distance)
     end
 
     # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    pressure[particle] = max(pressure[particle], 0.0)
+    for particle in eachparticle(container)
+        pressure[particle] = max(pressure[particle], 0.0)
+    end
 end
 
-@inline function compute_pressure_per_particle(particle, u_particle_container,
-                                               v_neighbor_container, u_neighbor_container,
-                                               particle_container, neighbor_container,
-                                               neighborhood_search,
-                                               boundary_model)
-    return nothing
+@inline function adami_pressure_extrapolation!(boundary_model, container,
+                                               neighbor_container,
+                                               container_coords, neighbor_coords,
+                                               v_neighbor_container, neighborhood_search)
+    return boundary_model
 end
 
 function write_u0!(u0, container::BoundaryParticleContainer)
