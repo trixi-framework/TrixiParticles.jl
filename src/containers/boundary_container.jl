@@ -438,7 +438,8 @@ move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 end
 
 @inline function update_after_density_calc!(boundary_model::BoundaryModelDummyParticles,
-                         container, container_index, v, u, v_ode, u_ode, semi)
+                                            container, container_index, v, u, v_ode, u_ode,
+                                            semi)
     @unpack pressure, density_calculator = boundary_model
     @unpack particle_containers, neighborhood_searches = semi
 
@@ -462,7 +463,8 @@ function update_density!(container::BoundaryParticleContainer, container_index, 
 end
 
 function compute_density!(container::BoundaryParticleContainer, container_index, v, u,
-                          u_ode, semi, ::Union{ContinuityDensity, AdamiPressureExtrapolation})
+                          u_ode, semi,
+                          ::Union{ContinuityDensity, AdamiPressureExtrapolation})
     return container
 end
 
@@ -498,9 +500,10 @@ function compute_density!(container::BoundaryParticleContainer, container_index,
     end
 end
 
-function update_after_density_calc!(container::BoundaryParticleContainer, container_index, v, u,
-                          v_ode, u_ode,
-                          semi, t)
+function update_after_density_calc!(container::BoundaryParticleContainer, container_index,
+                                    v, u,
+                                    v_ode, u_ode,
+                                    semi, t)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
@@ -520,7 +523,7 @@ function compute_pressure!(boundary_model, ::Union{ContinuityDensity, SummationD
 end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
-                             container, container_index, v, u, v_ode, u_ode, semi)
+                           container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack pressure, state_equation, cache = boundary_model
     @unpack density, volume = cache
@@ -528,7 +531,6 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     density .= zero(eltype(density))
     volume .= zero(eltype(volume))
     pressure .= zero(eltype(pressure))
-
 
     # Use all other containers for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,

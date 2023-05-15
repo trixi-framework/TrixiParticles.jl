@@ -244,8 +244,9 @@ function compute_density!(container::FluidParticleContainer, container_index, v,
     end
 end
 
-function update_after_density_calc!(container::FluidParticleContainer, container_index, v, u, v_ode,
-                          u_ode, semi, t)
+function update_after_density_calc!(container::FluidParticleContainer, container_index, v,
+                                    u, v_ode,
+                                    u_ode, semi, t)
     @unpack density_calculator, correction = container
 
     kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
@@ -285,7 +286,8 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(container, neighbor_container, container_coords,
-                              neighbor_coords, neighborhood_search) do particle, neighbor, pos_diff, distance
+                              neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
             rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
