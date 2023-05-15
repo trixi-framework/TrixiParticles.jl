@@ -77,7 +77,3 @@ end
     @unpack smoothing_kernel, smoothing_length = container
     return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end
-
-include("fluid_container.jl")
-include("solid_container.jl")
-include("boundary_container.jl") # This depends on fluid and solid containers

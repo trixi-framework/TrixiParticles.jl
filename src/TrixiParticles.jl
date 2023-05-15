@@ -22,12 +22,11 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("setups/setups.jl")
-include("schemes/fluid/weakly_compressible_sph/density_calculators.jl") # TODO remove this
-include("schemes/solid/total_lagrangian_sph/penalty_force.jl") # TODO remove this
 include("general/general.jl")
-include("containers/container.jl")
-include("general/semidiscretization.jl") # TODO remove this
 include("schemes/schemes.jl")
+# Note that `semidiscretization.jl` depends on the container types and has to be
+# included separately.
+include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!

@@ -25,7 +25,8 @@
                                                material_densities, smoothing_kernel,
                                                smoothing_length, E, nu, boundary_model)
 
-            @test container isa SolidParticleContainer{NDIMS}
+            @test container isa SolidParticleContainer
+            @test ndims(container) == NDIMS
             @test container.initial_coordinates == coordinates
             @test container.current_coordinates == coordinates
             @test container.initial_velocity == velocities
