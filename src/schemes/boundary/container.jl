@@ -41,10 +41,10 @@ struct BoundaryParticleContainer{BM, NDIMS, ELTYPE <: Real, MF} <: ParticleConta
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(model), typeof(movement_function)}(coordinates,
-                                                                                         model,
-                                                                                         movement_function,
-                                                                                         ismoving)
+        return new{typeof(model), NDIMS,
+                   eltype(coordinates),
+                   typeof(movement_function)}(coordinates, model,
+                                              movement_function, ismoving)
     end
 end
 
@@ -367,10 +367,10 @@ end
 end
 
 @inline function particle_density(v, container::BoundaryParticleContainer, particle)
-    return particle_density(v, container, container.boundary_model, particle)
+    return particle_density(v, container.boundary_model, container, particle)
 end
 
-@inline function particle_density(v, container, model::BoundaryModelMonaghanKajtar,
+@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, container,
                                   particle)
     @unpack hydrodynamic_mass, boundary_particle_spacing = model
 
@@ -379,21 +379,16 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(container)
 end
 
-@inline function particle_density(v, container, model::BoundaryModelDummyParticles,
+@inline function particle_density(v, model::BoundaryModelDummyParticles, container,
                                   particle)
-    @unpack density_calculator = model
-
-    particle_density(v, container, density_calculator, particle)
+    return particle_density(v, container, model.density_calculator, particle)
 end
 
-@inline function particle_density(v, container, ::AdamiPressureExtrapolation, particle)
+# Note that the other density calculators are dispatched in `density_calculators.jl`
+@inline function particle_density(v, ::AdamiPressureExtrapolation, container, particle)
     @unpack cache = container.boundary_model
 
     return cache.density[particle]
-end
-
-@inline function particle_density(v, container, ::ContinuityDensity, particle)
-    return v[end, particle]
 end
 
 @inline function hydrodynamic_mass(container::BoundaryParticleContainer, particle)

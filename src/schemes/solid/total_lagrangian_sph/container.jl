@@ -77,7 +77,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleContainer{NDIMS}
+struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
@@ -132,8 +132,9 @@ struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleConta
 
         # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
 
-        return new{NDIMS, ELTYPE,
-                   typeof(smoothing_kernel), typeof(boundary_model),
+        return new{typeof(boundary_model),
+                   NDIMS, ELTYPE,
+                   typeof(smoothing_kernel),
                    typeof(penalty_force)}(particle_coordinates, current_coordinates,
                                           particle_velocities, particle_masses,
                                           correction_matrix, pk1_corrected,
@@ -219,7 +220,7 @@ end
 end
 
 @inline function particle_density(v, container::SolidParticleContainer, particle)
-    return particle_density(v, container, container.boundary_model, particle)
+    return particle_density(v, container.boundary_model, container, particle)
 end
 
 @inline function hydrodynamic_mass(container::SolidParticleContainer, particle)
