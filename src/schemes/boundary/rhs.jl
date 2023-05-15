@@ -1,54 +1,54 @@
-# Interaction of boundary  with other containers
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundarySPHSystem,
-                   neighbor_container)
+# Interaction of boundary  with other systems
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   particle_system::BoundarySPHSystem,
+                   neighbor_system)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
 end
 
 # Boundary-fluid interaction with dummy particles model
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundarySPHSystem{
-                                                         <:BoundaryModelDummyParticles
-                                                         },
-                   neighbor_container::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator = particle_container.boundary_model
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   particle_system::BoundarySPHSystem{
+                                                      <:BoundaryModelDummyParticles
+                                                      },
+                   neighbor_system::WeaklyCompressibleSPHSystem)
+    @unpack density_calculator = particle_system.boundary_model
 
-    interact!(dv, v_particle_container, u_particle_container,
-              v_neighbor_container, u_neighbor_container, neighborhood_search,
-              particle_container, neighbor_container, density_calculator)
+    interact!(dv, v_particle_system, u_particle_system,
+              v_neighbor_system, u_neighbor_system, neighborhood_search,
+              particle_system, neighbor_system, density_calculator)
 end
 
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundarySPHSystem,
-                   neighbor_container, density_calculator)
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   particle_system::BoundarySPHSystem,
+                   neighbor_system, density_calculator)
     return dv
 end
 
 # With `ContinuityDensity` solve the continuity equation
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundarySPHSystem,
-                   neighbor_container, ::ContinuityDensity)
-    @unpack boundary_model = particle_container
+function interact!(dv, v_particle_system, u_particle_system,
+                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   particle_system::BoundarySPHSystem,
+                   neighbor_system, ::ContinuityDensity)
+    @unpack boundary_model = particle_system
 
-    container_coords = current_coordinates(u_particle_container, particle_container)
-    neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_container, neighbor_container,
-                          container_coords, neighbor_coords,
+    for_particle_neighbor(particle_system, neighbor_system,
+                          system_coords, neighbor_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Continuity equation
-        vdiff = current_velocity(v_particle_container, particle_container, particle) -
-                current_velocity(v_neighbor_container, neighbor_container, neighbor)
+        vdiff = current_velocity(v_particle_system, particle_system, particle) -
+                current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         # For boundary particles, the velocity is not integrated.
         # Therefore, the density is stored in the first dimension of `dv`.
-        dv[1, particle] += sum(neighbor_container.mass[neighbor] * vdiff .*
+        dv[1, particle] += sum(neighbor_system.mass[neighbor] * vdiff .*
                                smoothing_kernel_grad(boundary_model, pos_diff,
                                                      distance))
     end

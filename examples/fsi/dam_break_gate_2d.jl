@@ -123,7 +123,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    hydrodynamic_masses)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
 fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,

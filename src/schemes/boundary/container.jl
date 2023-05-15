@@ -2,7 +2,7 @@
     BoundarySPHSystem(coordinates, mass, model;
                       movement_function=nothing)
 
-Container for boundaries modeled by boundary particles.
+System for boundaries modeled by boundary particles.
 The container is initialized with the coordinates of the particles and their masses.
 The interaction between fluid and boundary particles is specified by the boundary model.
 

@@ -114,7 +114,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # boundary_model_solid = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
 solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                         solid.masses, solid.densities,

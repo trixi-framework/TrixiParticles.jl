@@ -1,31 +1,31 @@
 # Implies number of dimensions and a field with the name `initial_coordinates`.
 abstract type SPHSystem{NDIMS} end
 
-initialize!(container, neighborhood_search) = container
-update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
+initialize!(system, neighborhood_search) = system
+update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 
 @inline Base.ndims(::SPHSystem{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(container::SPHSystem) = eltype(container.initial_coordinates)
+@inline Base.eltype(system::SPHSystem) = eltype(system.initial_coordinates)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
-@inline u_nvariables(container) = ndims(container)
+@inline u_nvariables(system) = ndims(system)
 
 # Number of integrated variables in the second component
 # of the ODE system (velocity and sometimes density)
-@inline v_nvariables(container) = ndims(container)
+@inline v_nvariables(system) = ndims(system)
 
-# Number of particles in the container
-@inline nparticles(container) = length(container.mass)
+# Number of particles in the system
+@inline nparticles(system) = length(system.mass)
 
-# Number of particles in the container whose positions are to be integrated (corresponds to the size of u and du)
-@inline n_moving_particles(container) = nparticles(container)
+# Number of particles in the system whose positions are to be integrated (corresponds to the size of u and du)
+@inline n_moving_particles(system) = nparticles(system)
 
-@inline eachparticle(container) = Base.OneTo(nparticles(container))
-@inline each_moving_particle(container) = Base.OneTo(n_moving_particles(container))
+@inline eachparticle(system) = Base.OneTo(nparticles(system))
+@inline each_moving_particle(system) = Base.OneTo(n_moving_particles(system))
 
-# This should not be dispatched by container type. We always expect to get a column of `A`.
-@inline function extract_svector(A, container, i)
-    extract_svector(A, Val(ndims(container)), i)
+# This should not be dispatched by system type. We always expect to get a column of `A`.
+@inline function extract_svector(A, system, i)
+    extract_svector(A, Val(ndims(system)), i)
 end
 
 # Return the `i`-th column of the array `A` as an `SVector`.
@@ -34,46 +34,46 @@ end
 end
 
 # Return `A[:, :, i]` as an `SMatrix`.
-@inline function extract_smatrix(A, container, particle)
+@inline function extract_smatrix(A, system, particle)
     # Extract the matrix elements for this particle as a tuple to pass to SMatrix
-    return SMatrix{ndims(container), ndims(container)}(
-                                                       # Convert linear index to Cartesian index
-                                                       ntuple(@inline(i->A[mod(i - 1, ndims(container)) + 1,
-                                                                           div(i - 1, ndims(container)) + 1,
-                                                                           particle]),
-                                                              Val(ndims(container)^2)))
+    return SMatrix{ndims(system), ndims(system)}(
+                                                 # Convert linear index to Cartesian index
+                                                 ntuple(@inline(i->A[mod(i - 1, ndims(system)) + 1,
+                                                                     div(i - 1, ndims(system)) + 1,
+                                                                     particle]),
+                                                        Val(ndims(system)^2)))
 end
 
-# Specifically get the current coordinates of a particle for all container types.
-@inline function current_coords(u, container, particle)
-    return extract_svector(current_coordinates(u, container), container, particle)
+# Specifically get the current coordinates of a particle for all system types.
+@inline function current_coords(u, system, particle)
+    return extract_svector(current_coordinates(u, system), system, particle)
 end
 
-# This can be dispatched by container type, since for some containers, the current coordinates
-# are stored in u, for others in the container itself. By default, try to extract them from u.
-@inline current_coordinates(u, container) = u
+# This can be dispatched by system type, since for some systems, the current coordinates
+# are stored in u, for others in the system itself. By default, try to extract them from u.
+@inline current_coordinates(u, system) = u
 
-# Specifically get the initial coordinates of a particle for all container types.
-@inline function initial_coords(container, particle)
-    return extract_svector(initial_coordinates(container), container, particle)
+# Specifically get the initial coordinates of a particle for all system types.
+@inline function initial_coords(system, particle)
+    return extract_svector(initial_coordinates(system), system, particle)
 end
 
-# This can be dispatched by container type.
-@inline initial_coordinates(container) = container.initial_coordinates
+# This can be dispatched by system type.
+@inline initial_coordinates(system) = system.initial_coordinates
 
-@inline current_velocity(v, container, particle) = extract_svector(v, container, particle)
+@inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
-@inline function smoothing_kernel(container, distance)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function smoothing_kernel(system, distance)
+    @unpack smoothing_kernel, smoothing_length = system
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_deriv(container, distance)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function smoothing_kernel_deriv(system, distance)
+    @unpack smoothing_kernel, smoothing_length = system
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_grad(container, pos_diff, distance)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function smoothing_kernel_grad(system, pos_diff, distance)
+    @unpack smoothing_kernel, smoothing_length = system
     return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end

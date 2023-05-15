@@ -52,14 +52,14 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            # Mock the container
-            container = Val{:mock_container_interact}()
-            TrixiParticles.ndims(::Val{:mock_container_interact}) = 2
+            # Mock the system
+            system = Val{:mock_system_interact}()
+            TrixiParticles.ndims(::Val{:mock_system_interact}) = 2
             Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
 
             # @unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}
-            function Base.getproperty(::Val{:mock_container_interact}, f::Symbol)
+            function Base.getproperty(::Val{:mock_system_interact}, f::Symbol)
                 if f === :initial_coordinates
                     return initial_coordinates
                 elseif f === :current_coordinates
@@ -78,31 +78,31 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            function TrixiParticles.each_moving_particle(::Val{:mock_container_interact})
+            function TrixiParticles.each_moving_particle(::Val{:mock_system_interact})
                 each_moving_particle
             end
-            TrixiParticles.eachparticle(::Val{:mock_container_interact}) = eachparticle
+            TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
             TrixiParticles.eachneighbor(_, ::Val{:nhs}) = eachneighbor
             TrixiParticles.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
 
-            function TrixiParticles.pk1_corrected(::Val{:mock_container_dv}, particle_)
+            function TrixiParticles.pk1_corrected(::Val{:mock_system_dv}, particle_)
                 if particle_ == particle[i]
                     return pk1_particle_corrected[i]
                 end
                 return pk1_neighbor_corrected[i]
             end
 
-            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_container_interact})
+            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_system_interact})
                 nothing
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
             #### Verification
-            dv = zeros(ndims(container), 10)
+            dv = zeros(ndims(system), 10)
             dv_expected = copy(dv)
             dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-            TrixiParticles.interact_solid_solid!(dv, Val(:nhs), container, container)
+            TrixiParticles.interact_solid_solid!(dv, Val(:nhs), system, system)
 
             @test dv ≈ dv_expected
         end

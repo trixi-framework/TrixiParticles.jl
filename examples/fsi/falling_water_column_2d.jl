@@ -82,7 +82,7 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
                                              hydrodynamic_masses)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
 fluid_system = WeaklyCompressibleSPHSystem(setup.coordinates,
                                            zeros(Float64, size(setup.coordinates)),

@@ -1,7 +1,7 @@
 """
-    Semidiscretization(particle_containers...; neighborhood_search=nothing, damping_coefficient=nothing)
+    Semidiscretization(particle_systems...; neighborhood_search=nothing, damping_coefficient=nothing)
 
-The semidiscretization couples the passed particle containers to one simulation.
+The semidiscretization couples the passed particle systems to one simulation.
 
 The type of neighborhood search to be used in the simulation can be specified with
 the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
@@ -12,32 +12,32 @@ semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=Spa
 ```
 """
 struct Semidiscretization{PC, RU, RV, NS, DC}
-    particle_containers::PC
+    particle_systems::PC
     ranges_u::RU
     ranges_v::RV
     neighborhood_searches::NS
     damping_coefficient::DC
 
-    function Semidiscretization(particle_containers...; neighborhood_search=nothing,
+    function Semidiscretization(particle_systems...; neighborhood_search=nothing,
                                 damping_coefficient=nothing)
-        sizes_u = [u_nvariables(container) * n_moving_particles(container)
-                   for container in particle_containers]
+        sizes_u = [u_nvariables(system) * n_moving_particles(system)
+                   for system in particle_systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                          for i in eachindex(sizes_u))
-        sizes_v = [v_nvariables(container) * n_moving_particles(container)
-                   for container in particle_containers]
+        sizes_v = [v_nvariables(system) * n_moving_particles(system)
+                   for system in particle_systems]
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
-        # Create (and initialize) a tuple of n neighborhood searches for each of the n containers
-        # We will need one neighborhood search for each pair of containers.
-        searches = Tuple(Tuple(create_neighborhood_search(container, neighbor,
+        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
+        # We will need one neighborhood search for each pair of systems.
+        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
                                                           Val(neighborhood_search))
-                               for neighbor in particle_containers)
-                         for container in particle_containers)
+                               for neighbor in particle_systems)
+                         for system in particle_systems)
 
-        new{typeof(particle_containers), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(particle_containers, ranges_u,
+        new{typeof(particle_systems), typeof(ranges_u), typeof(ranges_v),
+            typeof(searches), typeof(damping_coefficient)}(particle_systems, ranges_u,
                                                            ranges_v, searches,
                                                            damping_coefficient)
     end
@@ -48,8 +48,8 @@ function Base.show(io::IO, semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
     print(io, "Semidiscretization(")
-    for container in semi.particle_containers
-        print(io, container, ", ")
+    for system in semi.particle_systems
+        print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
     print(io, semi.neighborhood_searches |> eltype |> eltype |> nameof)
@@ -64,12 +64,12 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         show(io, semi)
     else
         summary_header(io, "Semidiscretization")
-        summary_line(io, "#spatial dimensions", ndims(semi.particle_containers[1]))
-        summary_line(io, "#containers", length(semi.particle_containers))
+        summary_line(io, "#spatial dimensions", ndims(semi.particle_systems[1]))
+        summary_line(io, "#systems", length(semi.particle_systems))
         summary_line(io, "neighborhood search",
                      semi.neighborhood_searches |> eltype |> eltype |> nameof)
         summary_line(io, "damping coefficient", semi.damping_coefficient)
-        summary_line(io, "total #particles", sum(nparticles.(semi.particle_containers)))
+        summary_line(io, "total #particles", sum(nparticles.(semi.particle_systems)))
         summary_footer(io)
     end
 end
@@ -78,70 +78,70 @@ function create_neighborhood_search(_, neighbor, ::Val{nothing})
     TrivialNeighborhoodSearch(eachparticle(neighbor))
 end
 
-function create_neighborhood_search(container, neighbor, ::Val{SpatialHashingSearch})
-    radius = compact_support(container, neighbor)
-    search = SpatialHashingSearch{ndims(container)}(radius, nparticles(neighbor))
+function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch})
+    radius = compact_support(system, neighbor)
+    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(container, neighbor))
+    initialize!(search, nhs_init_function(system, neighbor))
 
     return search
 end
 
-@inline function compact_support(container, neighbor)
-    @unpack smoothing_kernel, smoothing_length = container
+@inline function compact_support(system, neighbor)
+    @unpack smoothing_kernel, smoothing_length = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(container::Union{TotalLagrangianSPHSystem,
-                                                  BoundarySPHSystem},
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem,
+                                               BoundarySPHSystem},
                                  neighbor)
-    return compact_support(container, container.boundary_model, neighbor)
+    return compact_support(system, system.boundary_model, neighbor)
 end
 
-@inline function compact_support(container::TotalLagrangianSPHSystem,
+@inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
-    @unpack smoothing_kernel, smoothing_length = container
+    @unpack smoothing_kernel, smoothing_length = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(container, model, neighbor)
+@inline function compact_support(system, model, neighbor)
     # This NHS is never used.
     return 0.0
 end
 
-@inline function compact_support(container, model::BoundaryModelDummyParticles, neighbor)
+@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
     @unpack smoothing_kernel, smoothing_length = model
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-function nhs_init_function(container, neighbor)
+function nhs_init_function(system, neighbor)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container::TotalLagrangianSPHSystem,
+function nhs_init_function(system::TotalLagrangianSPHSystem,
                            neighbor::TotalLagrangianSPHSystem)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container::Union{TotalLagrangianSPHSystem,
-                                            BoundarySPHSystem},
+function nhs_init_function(system::Union{TotalLagrangianSPHSystem,
+                                         BoundarySPHSystem},
                            neighbor)
-    return nhs_init_function(container, container.boundary_model, neighbor)
+    return nhs_init_function(system, system.boundary_model, neighbor)
 end
 
-function nhs_init_function(container, model::BoundaryModelDummyParticles, neighbor)
+function nhs_init_function(system, model::BoundaryModelDummyParticles, neighbor)
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(container, model, neighbor)
+function nhs_init_function(system, model, neighbor)
     # This NHS is never used. Don't initialize NHS.
     return nothing
 end
 
-# Create Tuple of containers for single container
-digest_containers(boundary_condition) = (boundary_condition,)
-digest_containers(boundary_condition::Tuple) = boundary_condition
+# Create Tuple of systems for single system
+digest_systems(boundary_condition) = (boundary_condition,)
+digest_systems(boundary_condition::Tuple) = boundary_condition
 
 """
     semidiscretize(semi, tspan)
@@ -149,34 +149,34 @@ digest_containers(boundary_condition::Tuple) = boundary_condition
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
 function semidiscretize(semi, tspan)
-    @unpack particle_containers, neighborhood_searches = semi
+    @unpack particle_systems, neighborhood_searches = semi
 
-    @assert all(container -> eltype(container) === eltype(particle_containers[1]),
-                particle_containers)
-    ELTYPE = eltype(particle_containers[1])
+    @assert all(system -> eltype(system) === eltype(particle_systems[1]),
+                particle_systems)
+    ELTYPE = eltype(particle_systems[1])
 
-    # Initialize all particle containers
-    @trixi_timeit timer() "initialize particle containers" begin for (container_index, container) in pairs(particle_containers)
-        # Get the neighborhood search for this container
-        neighborhood_search = neighborhood_searches[container_index][container_index]
+    # Initialize all particle systems
+    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(particle_systems)
+        # Get the neighborhood search for this system
+        neighborhood_search = neighborhood_searches[system_index][system_index]
 
-        # Initialize this container
-        initialize!(container, neighborhood_search)
+        # Initialize this system
+        initialize!(system, neighborhood_search)
     end end
 
-    sizes_u = (u_nvariables(container) * n_moving_particles(container)
-               for container in particle_containers)
-    sizes_v = (v_nvariables(container) * n_moving_particles(container)
-               for container in particle_containers)
+    sizes_u = (u_nvariables(system) * n_moving_particles(system)
+               for system in particle_systems)
+    sizes_v = (v_nvariables(system) * n_moving_particles(system)
+               for system in particle_systems)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
-    for (container_index, container) in pairs(particle_containers)
-        u0_container = wrap_u(u0_ode, container_index, container, semi)
-        v0_container = wrap_v(v0_ode, container_index, container, semi)
+    for (system_index, system) in pairs(particle_systems)
+        u0_system = wrap_u(u0_ode, system_index, system, semi)
+        v0_system = wrap_v(v0_ode, system_index, system, semi)
 
-        write_u0!(u0_container, container)
-        write_v0!(v0_container, container)
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
@@ -185,79 +185,79 @@ end
 """
     restart_with!(semi, sol)
 
-Set the initial coordinates and velocities of all containers in `semi` to the final values
+Set the initial coordinates and velocities of all systems in `semi` to the final values
 in the solution `sol`.
 [`semidiscretize`](@ref) has to be called again afterwards, or another
-[`Semidiscretization`](@ref) can be created with the updated containers.
+[`Semidiscretization`](@ref) can be created with the updated systems.
 
 # Arguments
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
 function restart_with!(semi, sol)
-    @unpack particle_containers = semi
+    @unpack particle_systems = semi
 
-    foreach_enumerate(particle_containers) do (container_index, container)
-        v_end = wrap_v(sol[end].x[1], container_index, container, semi)
-        u_end = wrap_u(sol[end].x[2], container_index, container, semi)
+    foreach_enumerate(particle_systems) do (system_index, system)
+        v_end = wrap_v(sol[end].x[1], system_index, system, semi)
+        u_end = wrap_u(sol[end].x[2], system_index, system, semi)
 
-        for particle in each_moving_particle(container)
-            container.initial_coordinates[:, particle] .= u_end[:, particle]
-            container.initial_velocity[:, particle] .= v_end[1:ndims(container), particle]
+        for particle in each_moving_particle(system)
+            system.initial_coordinates[:, particle] .= u_end[:, particle]
+            system.initial_velocity[:, particle] .= v_end[1:ndims(system), particle]
         end
     end
 
     return semi
 end
 
-# We have to pass `container` here for type stability,
-# since the type of `container` determines the return type.
-@inline function wrap_u(u_ode, i, container, semi)
-    @unpack particle_containers, ranges_u = semi
+# We have to pass `system` here for type stability,
+# since the type of `system` determines the return type.
+@inline function wrap_u(u_ode, i, system, semi)
+    @unpack particle_systems, ranges_u = semi
 
     range = ranges_u[i]
 
     @boundscheck begin
         @assert length(range) ==
-                u_nvariables(container) * n_moving_particles(container)
+                u_nvariables(system) * n_moving_particles(system)
     end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
-    #                    (u_nvariables(container), n_moving_particles(container)))
+    #                    (u_nvariables(system), n_moving_particles(system)))
     return PtrArray(pointer(view(u_ode, range)),
-                    (StaticInt(u_nvariables(container)), n_moving_particles(container)))
+                    (StaticInt(u_nvariables(system)), n_moving_particles(system)))
 end
 
-@inline function wrap_v(v_ode, i, container, semi)
-    @unpack particle_containers, ranges_v = semi
+@inline function wrap_v(v_ode, i, system, semi)
+    @unpack particle_systems, ranges_v = semi
 
     range = ranges_v[i]
 
     @boundscheck begin
         @assert length(range) ==
-                v_nvariables(container) * n_moving_particles(container)
+                v_nvariables(system) * n_moving_particles(system)
     end
 
     return PtrArray(pointer(view(v_ode, range)),
-                    (StaticInt(v_nvariables(container)), n_moving_particles(container)))
+                    (StaticInt(v_nvariables(system)), n_moving_particles(system)))
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
-    @unpack particle_containers = semi
+    @unpack particle_systems = semi
 
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-        # Set velocity and add acceleration for each container
-        foreach_enumerate(particle_containers) do (container_index, container)
-            du = wrap_u(du_ode, container_index, container, semi)
-            v = wrap_v(v_ode, container_index, container, semi)
+        # Set velocity and add acceleration for each system
+        foreach_enumerate(particle_systems) do (system_index, system)
+            du = wrap_u(du_ode, system_index, system, semi)
+            v = wrap_v(v_ode, system_index, system, semi)
 
-            @threaded for particle in each_moving_particle(container)
-                # This can be dispatched per container
-                add_velocity!(du, v, particle, container)
+            @threaded for particle in each_moving_particle(system)
+                # This can be dispatched per system
+                add_velocity!(du, v, particle, system)
             end
         end end
     end
@@ -265,32 +265,32 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, particle, container)
-    for i in 1:ndims(container)
+@inline function add_velocity!(du, v, particle, system)
+    for i in 1:ndims(system)
         du[i, particle] = v[i, particle]
     end
 
     return du
 end
 
-@inline add_velocity!(du, v, particle, container::BoundarySPHSystem) = du
+@inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack particle_containers, neighborhood_searches = semi
+    @unpack particle_systems, neighborhood_searches = semi
 
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
-        @trixi_timeit timer() "update containers and nhs" update_containers_and_nhs(v_ode,
-                                                                                    u_ode,
-                                                                                    semi, t)
+        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode,
+                                                                              u_ode,
+                                                                              semi, t)
 
         @trixi_timeit timer() "gravity and damping" gravity_and_damping!(dv_ode, v_ode,
                                                                          semi)
 
-        @trixi_timeit timer() "container interaction" container_interaction!(dv_ode,
-                                                                             v_ode, u_ode,
-                                                                             semi)
+        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode,
+                                                                       v_ode, u_ode,
+                                                                       semi)
     end
 
     return dv_ode
@@ -302,112 +302,112 @@ end
     return du
 end
 
-function update_containers_and_nhs(v_ode, u_ode, semi, t)
-    @unpack particle_containers = semi
+function update_systems_and_nhs(v_ode, u_ode, semi, t)
+    @unpack particle_systems = semi
 
     # First update step before updating the NHS
-    # (for example for writing the current coordinates in the solid container)
-    foreach_enumerate(particle_containers) do (container_index, container)
-        v = wrap_v(v_ode, container_index, container, semi)
-        u = wrap_u(u_ode, container_index, container, semi)
+    # (for example for writing the current coordinates in the solid system)
+    foreach_enumerate(particle_systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
 
-        update1!(container, container_index, v, u, v_ode, u_ode, semi, t)
+        update1!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
     # Second update step.
-    # This is used to calculate density and pressure of the fluid containers
-    # before updating the boundary containers,
+    # This is used to calculate density and pressure of the fluid systems
+    # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_enumerate(particle_containers) do (container_index, container)
-        v = wrap_v(v_ode, container_index, container, semi)
-        u = wrap_u(u_ode, container_index, container, semi)
+    foreach_enumerate(particle_systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
 
-        update2!(container, container_index, v, u, v_ode, u_ode, semi, t)
+        update2!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Final update step for all remaining containers
-    foreach_enumerate(particle_containers) do (container_index, container)
-        v = wrap_v(v_ode, container_index, container, semi)
-        u = wrap_u(u_ode, container_index, container, semi)
+    # Final update step for all remaining systems
+    foreach_enumerate(particle_systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
 
-        update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
+        update3!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 end
 
 function update_nhs(u_ode, semi)
-    @unpack particle_containers, neighborhood_searches = semi
+    @unpack particle_systems, neighborhood_searches = semi
 
-    # Update NHS for each pair of containers
-    foreach_enumerate(particle_containers) do (container_index, container)
-        foreach_enumerate(particle_containers) do (neighbor_index, neighbor)
+    # Update NHS for each pair of systems
+    foreach_enumerate(particle_systems) do (system_index, system)
+        foreach_enumerate(particle_systems) do (neighbor_index, neighbor)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
-            neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+            neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            update!(neighborhood_search, nhs_coords(container, neighbor, u_neighbor))
+            update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
         end
     end
 end
 
 function gravity_and_damping!(dv_ode, v_ode, semi)
-    @unpack particle_containers, damping_coefficient = semi
+    @unpack particle_systems, damping_coefficient = semi
 
-    # Set velocity and add acceleration for each container
-    foreach_enumerate(particle_containers) do (container_index, container)
-        dv = wrap_v(dv_ode, container_index, container, semi)
-        v = wrap_v(v_ode, container_index, container, semi)
+    # Set velocity and add acceleration for each system
+    foreach_enumerate(particle_systems) do (system_index, system)
+        dv = wrap_v(dv_ode, system_index, system, semi)
+        v = wrap_v(v_ode, system_index, system, semi)
 
-        @threaded for particle in each_moving_particle(container)
-            # This can be dispatched per container
-            add_acceleration!(dv, particle, container)
-            add_damping_force!(dv, damping_coefficient, v, particle, container)
+        @threaded for particle in each_moving_particle(system)
+            # This can be dispatched per system
+            add_acceleration!(dv, particle, system)
+            add_damping_force!(dv, damping_coefficient, v, particle, system)
         end
     end
 
     return dv_ode
 end
 
-@inline function add_acceleration!(dv, particle, container)
-    @unpack acceleration = container
+@inline function add_acceleration!(dv, particle, system)
+    @unpack acceleration = system
 
-    for i in 1:ndims(container)
+    for i in 1:ndims(system)
         dv[i, particle] += acceleration[i]
     end
 
     return dv
 end
 
-@inline add_acceleration!(dv, particle, container::BoundarySPHSystem) = dv
+@inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
 @inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle,
-                                    container)
-    for i in 1:ndims(container)
+                                    system)
+    for i in 1:ndims(system)
         dv[i, particle] -= damping_coefficient * v[i, particle]
     end
 
     return dv
 end
 
-@inline add_damping_force!(dv, ::Nothing, v, particle, container) = dv
+@inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
 
-function container_interaction!(dv_ode, v_ode, u_ode, semi)
-    @unpack particle_containers, neighborhood_searches = semi
+function system_interaction!(dv_ode, v_ode, u_ode, semi)
+    @unpack particle_systems, neighborhood_searches = semi
 
-    # Call `interact!` for each pair of containers
-    foreach_enumerate(particle_containers) do (container_index, container)
-        dv = wrap_v(dv_ode, container_index, container, semi)
-        v_container = wrap_v(v_ode, container_index, container, semi)
-        u_container = wrap_u(u_ode, container_index, container, semi)
+    # Call `interact!` for each pair of systems
+    foreach_enumerate(particle_systems) do (system_index, system)
+        dv = wrap_v(dv_ode, system_index, system, semi)
+        v_system = wrap_v(v_ode, system_index, system, semi)
+        u_system = wrap_u(u_ode, system_index, system, semi)
 
-        foreach_enumerate(particle_containers) do (neighbor_index, neighbor)
+        foreach_enumerate(particle_systems) do (neighbor_index, neighbor)
             v_neighbor = wrap_v(v_ode, neighbor_index, neighbor, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
-            neighborhood_search = neighborhood_searches[container_index][neighbor_index]
+            neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            interact!(dv, v_container, u_container, v_neighbor, u_neighbor,
-                      neighborhood_search, container, neighbor)
+            interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                      neighborhood_search, system, neighbor)
         end
     end
 
@@ -416,58 +416,58 @@ end
 
 ##### Updates
 
-# Container update orders, see comments in update_containers_and_nhs!
-function update1!(container, container_index, v, u, v_ode, u_ode, semi, t)
-    return container
+# System update orders, see comments in update_systems_and_nhs!
+function update1!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
-function update1!(container::TotalLagrangianSPHSystem, container_index, v, u,
+function update1!(system::TotalLagrangianSPHSystem, system_index, v, u,
                   v_ode, u_ode, semi, t)
-    # Only update solid containers
-    update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    # Only update solid systems
+    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update2!(container, container_index, v, u, v_ode, u_ode, semi, t)
-    return container
+function update2!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
-function update2!(container::WeaklyCompressibleSPHSystem, container_index, v, u,
+function update2!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                   v_ode, u_ode, semi, t)
-    # Only update fluid containers
-    update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+    # Only update fluid systems
+    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update3!(container, container_index, v, u, v_ode, u_ode, semi, t)
-    # Update all other containers
-    update!(container, container_index, v, u, v_ode, u_ode, semi, t)
+function update3!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    # Update all other systems
+    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
 
-function update3!(container::TotalLagrangianSPHSystem, container_index, v, u, v_ode, u_ode,
+function update3!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
                   semi, t)
-    @unpack boundary_model = container
+    @unpack boundary_model = system
 
     # Only update boundary model
-    update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
+    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
-function update3!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode,
+function update3!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
                   u_ode,
                   semi, t)
-    return container
+    return system
 end
 
 # NHS updates
-function nhs_coords(container::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::WeaklyCompressibleSPHSystem,
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::WeaklyCompressibleSPHSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::WeaklyCompressibleSPHSystem,
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -477,18 +477,18 @@ function nhs_coords(container::WeaklyCompressibleSPHSystem,
     return nothing
 end
 
-function nhs_coords(container::TotalLagrangianSPHSystem,
+function nhs_coords(system::TotalLagrangianSPHSystem,
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::TotalLagrangianSPHSystem,
+function nhs_coords(system::TotalLagrangianSPHSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::TotalLagrangianSPHSystem,
+function nhs_coords(system::TotalLagrangianSPHSystem,
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -498,24 +498,24 @@ function nhs_coords(container::TotalLagrangianSPHSystem,
     return nothing
 end
 
-function nhs_coords(container::BoundarySPHSystem,
+function nhs_coords(system::BoundarySPHSystem,
                     neighbor::WeaklyCompressibleSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::BoundarySPHSystem,
+function nhs_coords(system::BoundarySPHSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundarySPHSystem,
+function nhs_coords(system::BoundarySPHSystem,
                     neighbor::BoundarySPHSystem, u)
     # Don't update
     return nothing

@@ -42,7 +42,7 @@ beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
 solid = MergeShapes(beam, fixed_particles)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
 solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                         solid.masses, solid.densities,

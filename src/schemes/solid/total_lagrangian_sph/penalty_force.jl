@@ -52,21 +52,21 @@ struct PenaltyForceGanzenmueller{ELTYPE}
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, container,
+                                     initial_distance, system,
                                      penalty_force::PenaltyForceGanzenmueller)
-    @unpack mass, material_density, current_coordinates, young_modulus = container
+    @unpack mass, material_density, current_coordinates, young_modulus = system
 
-    current_pos_diff = current_coords(container, particle) -
-                       current_coords(container, neighbor)
+    current_pos_diff = current_coords(system, particle) -
+                       current_coords(system, neighbor)
     current_distance = norm(current_pos_diff)
 
     volume_particle = mass[particle] / material_density[particle]
     volume_neighbor = mass[neighbor] / material_density[neighbor]
 
-    kernel_ = smoothing_kernel(container, initial_distance)
+    kernel_ = smoothing_kernel(system, initial_distance)
 
-    J_a = deformation_gradient(container, particle)
-    J_b = deformation_gradient(container, neighbor)
+    J_a = deformation_gradient(system, particle)
+    J_b = deformation_gradient(system, neighbor)
 
     # Use the symmetry of epsilon to simplify computations
     eps_sum = (J_a + J_b) * initial_pos_diff - 2 * current_pos_diff
@@ -76,7 +76,7 @@ end
         kernel_ / initial_distance^2 * young_modulus * delta_sum *
         current_pos_diff / current_distance
 
-    for i in 1:ndims(container)
+    for i in 1:ndims(system)
         # Divide force by mass to obtain acceleration
         dv[i, particle] += f[i] / mass[particle]
     end

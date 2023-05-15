@@ -8,7 +8,7 @@
                              acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
                              penalty_force=nothing)
 
-Container for particles of an elastic solid.
+System for particles of an elastic solid.
 
 A Total Lagrangian framework is used wherein the governing equations are forumlated such that
 all relevant quantities and operators are measured with respect to the
