@@ -112,7 +112,7 @@ struct SolidParticleContainer{NDIMS, ELTYPE <: Real, K, BM, PF} <: ParticleConta
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            error("Acceleration must be of length $NDIMS for a $(NDIMS)D problem")
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         if ndims(smoothing_kernel) != NDIMS
@@ -324,7 +324,7 @@ function deformation_gradient(particle, neighborhood_search, container)
         end
     end
 
-    # Mulitply by L_{0a}
+    # Multiply by L_{0a}
     result *= correction_matrix(container, particle)'
 
     return result

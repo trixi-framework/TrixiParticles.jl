@@ -1,23 +1,23 @@
 """
-    CircularShape(particle_spacing, R, center_position;
-                  shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
+    CircularShape(particle_spacing, R, center_position, density;
+                  shape_type=FillCircle(), init_velocity=(0.0, 0.0))
 
 Either a circle filled with particles or a circumference drawn by particles.
 
 # Arguments
-- `particle_spacing`:   Spacing between the particles.
-- `R`:                  Radius of the circle
-- `center_position`:    The position of the circle center as `(x,y)`.
+- `particle_spacing`:           Spacing between the particles.
+- `R`:                          Radius of the circle.
+- `center_position::Tuple`:     The position of the circle center as `(x,y)`.
+- `density`:                    Initial density of particles.
 
 # Keywords
-- `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref))
-- `density`:       Specify the density if the `densities` or `masses` fields will be used
+- `shape_type`:    `Type` to specify the circular shape (see [`FillCircle`](@ref) and [`DrawCircle`](@ref)).
 - `init_velocity`: The initial velocity of the fluid particles as `(vel_x, vel_y)`.
 
 # Fields
-- `coordinates::Matrix`: Coordinates of the particles
-- `masses::Vector`: Masses of the particles
-- `densities::Vector`: Densities of the particles
+- `coordinates::Matrix`:    Coordinates of the particles.
+- `masses::Vector`:         Masses of the particles.
+- `densities::Vector`:      Densities of the particles.
 
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
@@ -30,19 +30,27 @@ struct CircularShape{NDIMS, ELTYPE <: Real}
     particle_spacing :: ELTYPE
     n_particles      :: Int
 
-    function CircularShape(particle_spacing, R, center_position;
-                           shape_type=FillCircle(), density=0.0, init_velocity=(0.0, 0.0))
+    function CircularShape(particle_spacing, R, center_position, density;
+                           shape_type=FillCircle(), init_velocity=(0.0, 0.0))
+        if particle_spacing < eps()
+            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())."))
+        end
+
+        if density < eps()
+            throw(ArgumentError("Density needs to be positive and larger than $(eps())."))
+        end
+
         NDIMS = 2
         ELTYPE = eltype(particle_spacing)
 
         x_center, y_center = center_position
 
-        coordinates = generate_particles(shape_type, R, x_center, y_center,
-                                         particle_spacing)
+        coordinates = circular_shape_coords(shape_type, R, x_center, y_center,
+                                            particle_spacing)
 
         n_particles = size(coordinates, 2)
         densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^2 * ones(ELTYPE, n_particles)
+        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
         velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
         return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
@@ -122,7 +130,7 @@ struct DrawCircle{}
     end
 end
 
-function generate_particles(shape::FillCircle, R, x_center, y_center, particle_spacing)
+function circular_shape_coords(shape::FillCircle, R, x_center, y_center, particle_spacing)
     @unpack x_recess, y_recess = shape
 
     x_vec = Vector{Float64}(undef, 0)
@@ -155,7 +163,7 @@ function generate_particles(shape::FillCircle, R, x_center, y_center, particle_s
     return particle_coords
 end
 
-function generate_particles(shape::DrawCircle, R, x_center, y_center, particle_spacing)
+function circular_shape_coords(shape::DrawCircle, R, x_center, y_center, particle_spacing)
     @unpack n_layers, layer_inwards = shape
 
     x_vec = Vector{Float64}(undef, 0)
