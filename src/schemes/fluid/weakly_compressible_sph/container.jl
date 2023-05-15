@@ -166,13 +166,15 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
 end
 
 @inline function v_nvariables(container::FluidParticleContainer)
-    v_nvariables(container, container.density_calculator)
+    return v_nvariables(container, container.density_calculator)
 end
-@inline function v_nvariables(container::FluidParticleContainer, ::SummationDensity)
-    ndims(container)
+
+@inline function v_nvariables(container::FluidParticleContainer, density_calculator)
+    return ndims(container)
 end
+
 @inline function v_nvariables(container::FluidParticleContainer, ::ContinuityDensity)
-    ndims(container) + 1
+    return ndims(container) + 1
 end
 
 @inline function hydrodynamic_mass(container::FluidParticleContainer, particle)
