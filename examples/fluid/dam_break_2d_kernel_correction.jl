@@ -60,63 +60,91 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup, SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity),
-                                            correction=KernelCorrection())
+particle_containers = (FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
+                                              correction=NoCorrection()),
+                       FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
+                                              correction=KernelCorrection()),
+                       FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
+                                              correction=AkinciFreeSurfaceCorrection()))
+
+function container_to_name(container)
+    if container.correction isa NoCorrection
+        return "no_correction"
+    elseif container.correction isa KernelCorrection
+        return "kernel_correction"
+    elseif container.correction isa AkinciFreeSurfaceCorrection
+        return "akinci_free_surf_correction"
+    end
+    return "undefined"
+end
 
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, boundary_container,
-                          neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=1e-5)
+for particle_container in particle_containers
+    semi = Semidiscretization(particle_container, boundary_container,
+                              neighborhood_search=SpatialHashingSearch,
+                              damping_coefficient=1e-5)
 
-tspan = (0.0, 3.0)
-ode = semidiscretize(semi, tspan)
+    tspan = (0.0, 3.0)
+    ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
-saving_callback_relaxation = SolutionSavingCallback(interval=100, prefix="relaxation")
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
+    info_callback = InfoCallback(interval=100)
+    saving_callback_relaxation = SolutionSavingCallback(interval=100,
+                                                        prefix="$(container_to_name(particle_container))_relaxation")
+    callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks_relaxation);
+    # Use a Runge-Kutta method with automatic (error based) time step size control.
+    # Enable threading of the RK method for better performance on multiple threads.
+    # Limiting of the maximum stepsize is necessary to prevent crashing.
+    # When particles are approaching a wall in a uniform way, they can be advanced
+    # with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+    # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
+    # become extremely large when fluid particles are very close to boundary particles,
+    # and the time integration method interprets this as an instability.
+    sol = solve(ode, RDPK3SpFSAL49(),
+                abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+                reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+                dtmax=1e-2, # Limit stepsize to prevent crashing
+                save_everystep=false, callback=callbacks_relaxation)
 
-# Move right boundary
-positions = (0, tank_width, 0, 0)
-reset_wall!(setup, reset_faces, positions)
+    # Move right boundary
+    positions = (0, tank_width, 0, 0)
+    reset_wall!(setup, reset_faces, positions)
 
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
-#tspan = (0.0, 2.5)
+    # Run full simulation
+    tspan = (0.0, 5.7 / sqrt(9.81))
+    #tspan = (0.0, 2.5)
 
-# Use solution of the relaxing step as initial coordinates
-restart_with!(semi, sol)
+    # Use solution of the relaxing step as initial coordinates
+    restart_with!(semi, sol)
 
-semi = Semidiscretization(particle_container, boundary_container,
-                          neighborhood_search=SpatialHashingSearch)
-ode = semidiscretize(semi, tspan)
+    semi = Semidiscretization(particle_container, boundary_container,
+                              neighborhood_search=SpatialHashingSearch)
+    ode = semidiscretize(semi, tspan)
 
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="correction")
-callbacks = CallbackSet(info_callback, saving_callback)
+    saving_callback = SolutionSavingCallback(dt=0.02,
+                                             prefix="$(container_to_name(particle_container))_correction")
+    callbacks = CallbackSet(info_callback, saving_callback)
 
-# See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+    # See above for an explanation of the parameter choice
+    sol = solve(ode, RDPK3SpFSAL49(),
+                abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+                reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+                dtmax=1e-2, # Limit stepsize to prevent crashing
+                save_everystep=false, callback=callbacks)
+end

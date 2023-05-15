@@ -3,8 +3,8 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::FluidParticleContainer,
                    neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_container
+    @unpack density_calculator, state_equation, viscosity, smoothing_length,
+    correction = particle_container
 
     container_coords = current_coordinates(u_particle_container, particle_container)
     neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
@@ -24,6 +24,11 @@ function interact!(dv, v_particle_container, u_particle_container,
         rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
+        # determine correction values
+        viscosity_correction, pressure_correction = fluid_corrections(correction,
+                                                                      particle_container,
+                                                                      rho_mean)
+
         pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
                           distance, rho_mean, smoothing_length)
 
@@ -32,8 +37,9 @@ function interact!(dv, v_particle_container, u_particle_container,
         m_b = neighbor_container.mass[neighbor]
         dv_pressure = -m_b *
                       (particle_container.pressure[particle] / rho_a^2 +
-                       neighbor_container.pressure[neighbor] / rho_b^2) * grad_kernel
-        dv_viscosity = -m_b * pi_ab * grad_kernel
+                       neighbor_container.pressure[neighbor] / rho_b^2) * grad_kernel *
+                      pressure_correction
+        dv_viscosity = -m_b * pi_ab * grad_kernel * viscosity_correction
 
         for i in 1:ndims(particle_container)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]

@@ -28,6 +28,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
     state_equation      :: SE
     smoothing_kernel    :: K
     smoothing_length    :: ELTYPE
+    rho0                :: ELTYPE
     viscosity           :: V
     acceleration        :: SVector{NDIMS, ELTYPE}
     correction          :: COR
@@ -35,7 +36,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
     # convenience constructor for passing a setup as first argument
     function FluidParticleContainer(setup, density_calculator::SummationDensity,
-                                    state_equation, smoothing_kernel, smoothing_length;
+                                    state_equation, smoothing_kernel, smoothing_length,
+                                    rho0;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)),
@@ -43,13 +45,15 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
+                                      rho0,
                                       viscosity=viscosity, acceleration=acceleration,
                                       correction=correction)
     end
 
     # convenience constructor for passing a setup as first argument
     function FluidParticleContainer(setup, density_calculator::ContinuityDensity,
-                                    state_equation, smoothing_kernel, smoothing_length;
+                                    state_equation, smoothing_kernel, smoothing_length,
+                                    rho0;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)),
@@ -57,6 +61,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
+                                      rho0,
                                       viscosity=viscosity, acceleration=acceleration,
                                       correction=correction)
     end
@@ -64,7 +69,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses,
                                     density_calculator::SummationDensity, state_equation,
-                                    smoothing_kernel, smoothing_length;
+                                    smoothing_kernel, smoothing_length, rho0;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
@@ -102,13 +107,14 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                    typeof(cache)
                    }(particle_coordinates, particle_velocities, particle_masses, pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     rho0,
                      viscosity, acceleration_, correction, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
                                     particle_masses, particle_densities,
                                     density_calculator::ContinuityDensity, state_equation,
-                                    smoothing_kernel, smoothing_length;
+                                    smoothing_kernel, smoothing_length, rho0;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
@@ -149,6 +155,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                    typeof(cache)
                    }(particle_coordinates, particle_velocities, particle_masses, pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     rho0,
                      viscosity, acceleration_, correction, cache)
     end
 end
@@ -158,10 +165,12 @@ function Base.show(io::IO, container::FluidParticleContainer)
 
     print(io, "FluidParticleContainer{", ndims(container), "}(")
     print(io, container.density_calculator)
+    print(io, container.correction)
     print(io, ", ", container.state_equation)
     print(io, ", ", container.smoothing_kernel)
     print(io, ", ", container.viscosity)
     print(io, ", ", container.acceleration)
+    print(io, ", ", container.rho0)
     print(io, ") with ", nparticles(container), " particles")
 end
 
@@ -175,10 +184,13 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
         summary_line(io, "#particles", nparticles(container))
         summary_line(io, "density calculator",
                      container.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     container.correction |> typeof |> nameof)
         summary_line(io, "state equation", container.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", container.viscosity)
         summary_line(io, "acceleration", container.acceleration)
+        summary_line(io, "rho0", container.rho0)
         summary_footer(io)
     end
 end
@@ -257,7 +269,7 @@ function update_after_density_calc!(container::FluidParticleContainer, container
 end
 
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
-                                density_calculator, ::NoCorrection)
+                                density_calculator, ::Any)
     #skip correction step
     return container
 end
