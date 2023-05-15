@@ -22,8 +22,8 @@
             boundary_model = Val(:boundary_model)
 
             system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                                 material_densities, smoothing_kernel,
-                                                 smoothing_length, E, nu, boundary_model)
+                                              material_densities, smoothing_kernel,
+                                              smoothing_length, E, nu, boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -59,8 +59,8 @@
         boundary_model = Val(:boundary_model)
 
         system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                             material_densities, smoothing_kernel,
-                                             smoothing_length, E, nu, boundary_model)
+                                          material_densities, smoothing_kernel,
+                                          smoothing_length, E, nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
@@ -125,7 +125,7 @@
                 TrixiParticles.ndims(::Val{:mock_system_tensor}) = 2
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
                 function TrixiParticles.current_coords(system::Val{:mock_system_tensor
-                                                                      },
+                                                                   },
                                                        particle)
                     return TrixiParticles.extract_svector(current_coordinates[i], system,
                                                           particle)
@@ -200,10 +200,10 @@
                                                                smoothing_length)
 
                 system = TotalLagrangianSPHSystem(particle_coordinates,
-                                                     particle_velocities,
-                                                     particle_masses, particle_densities,
-                                                     smoothing_kernel, smoothing_length,
-                                                     1.0, 1.0, nothing)
+                                                  particle_velocities,
+                                                  particle_masses, particle_densities,
+                                                  smoothing_kernel, smoothing_length,
+                                                  1.0, 1.0, nothing)
                 nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(system))
                 TrixiParticles.initialize!(system, nhs)
 
@@ -286,8 +286,8 @@
         boundary_model = Val(:boundary_model)
 
         system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                             material_densities, smoothing_kernel,
-                                             smoothing_length, E, nu, boundary_model)
+                                          material_densities, smoothing_kernel,
+                                          smoothing_length, E, nu, boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -310,8 +310,8 @@
         boundary_model = Val(:boundary_model)
 
         system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                             material_densities, smoothing_kernel,
-                                             smoothing_length, E, nu, boundary_model)
+                                          material_densities, smoothing_kernel,
+                                          smoothing_length, E, nu, boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))

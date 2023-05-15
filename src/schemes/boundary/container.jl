@@ -344,8 +344,8 @@ end
 end
 
 @inline function n_moving_particles(system::BoundarySPHSystem{
-                                                                 <:BoundaryModelDummyParticles
-                                                                 })
+                                                              <:BoundaryModelDummyParticles
+                                                              })
     return n_moving_particles(system, system.boundary_model.density_calculator)
 end
 
@@ -408,7 +408,7 @@ function update!(system::BoundarySPHSystem, system_index,
     @unpack initial_coordinates, movement_function, boundary_model = system
 
     system.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
-                                                     t)
+                                                  t)
 
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
@@ -449,9 +449,9 @@ function compute_quantities!(boundary_model, ::SummationDensity,
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute density" foreach_enumerate(particle_systems) do (neighbor_system_index,
-                                                                                       neighbor_system)
+                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
-                                      neighbor_system, semi)
+                                   neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -463,7 +463,7 @@ function compute_quantities!(boundary_model, ::SummationDensity,
                               system_coords, neighbor_coords,
                               neighborhood_search;
                               particles=eachparticle(system)) do particle, neighbor,
-                                                                    pos_diff, distance
+                                                                 pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             density[particle] += mass * smoothing_kernel(boundary_model, distance)
         end
@@ -495,11 +495,11 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
 
     # Use all other systems for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_systems) do (neighbor_system_index,
-                                                                                                 neighbor_system)
+                                                                                              neighbor_system)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index,
-                                      neighbor_system, semi)
+                                   neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
-                                      neighbor_system, semi)
+                                   neighbor_system, semi)
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
@@ -530,7 +530,7 @@ end
                           system_coords, neighbor_coords,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
-                                                                pos_diff, distance
+                                                             pos_diff, distance
         density_neighbor = particle_density(v_neighbor_system, neighbor_system,
                                             neighbor)
 

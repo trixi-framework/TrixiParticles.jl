@@ -24,9 +24,9 @@
             # SummationDensity
             density_calculator = SummationDensity()
             system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                    density_calculator,
-                                                    state_equation, smoothing_kernel,
-                                                    smoothing_length)
+                                                 density_calculator,
+                                                 state_equation, smoothing_kernel,
+                                                 smoothing_length)
 
             @test system isa WeaklyCompressibleSPHSystem{NDIMS}
             @test system.initial_coordinates == coordinates
@@ -61,10 +61,10 @@
             # ContinuityDensity
             density_calculator = ContinuityDensity()
             system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                    densities,
-                                                    density_calculator, state_equation,
-                                                    smoothing_kernel,
-                                                    smoothing_length)
+                                                 densities,
+                                                 density_calculator, state_equation,
+                                                 smoothing_kernel,
+                                                 smoothing_length)
 
             @test system isa WeaklyCompressibleSPHSystem{NDIMS}
             @test system.initial_coordinates == coordinates
@@ -111,9 +111,9 @@
         density_calculator = SummationDensity()
 
         system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                density_calculator,
-                                                state_equation, smoothing_kernel,
-                                                smoothing_length)
+                                             density_calculator,
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
         show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), " *
                        "Val{:state_equation}(), Val{:smoothing_kernel}(), " *
@@ -146,9 +146,9 @@
         density_calculator = SummationDensity()
 
         system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                density_calculator,
-                                                state_equation, smoothing_kernel,
-                                                smoothing_length)
+                                             density_calculator,
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -169,9 +169,9 @@
 
         # SummationDensity
         system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                SummationDensity(),
-                                                state_equation, smoothing_kernel,
-                                                smoothing_length)
+                                             SummationDensity(),
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -181,9 +181,9 @@
 
         # ContinuityDensity
         system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses, densities,
-                                                ContinuityDensity(),
-                                                state_equation, smoothing_kernel,
-                                                smoothing_length)
+                                             ContinuityDensity(),
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))

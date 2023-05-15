@@ -181,14 +181,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
 end
 
 @inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                                  <:BoundaryModelMonaghanKajtar
-                                                                  })
+                                                               <:BoundaryModelMonaghanKajtar
+                                                               })
     return ndims(system)
 end
 
 @inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                                  <:BoundaryModelDummyParticles
-                                                                  })
+                                                               <:BoundaryModelDummyParticles
+                                                               })
     return v_nvariables(system, system.boundary_model.density_calculator)
 end
 
@@ -261,8 +261,8 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
                           initial_coords, initial_coords,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
-                                                                initial_pos_diff,
-                                                                initial_distance
+                                                             initial_pos_diff,
+                                                             initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -342,8 +342,8 @@ end
                           initial_coords, initial_coords,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
-                                                                initial_pos_diff,
-                                                                initial_distance
+                                                             initial_pos_diff,
+                                                             initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 

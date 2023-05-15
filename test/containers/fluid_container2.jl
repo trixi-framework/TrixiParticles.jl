@@ -28,8 +28,8 @@
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             system = WeaklyCompressibleSPHSystem(setup, density_calculator,
-                                                    state_equation, smoothing_kernel,
-                                                    smoothing_length)
+                                                 state_equation, smoothing_kernel,
+                                                 smoothing_length)
 
             @test system isa WeaklyCompressibleSPHSystem{NDIMS}
             @test system.initial_coordinates == setup.coordinates
