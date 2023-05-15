@@ -503,7 +503,7 @@ function nhs_coords(container::BoundaryParticleContainer,
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer{BoundaryModelDummyParticles},
+function nhs_coords(container::BoundaryParticleContainer{<:BoundaryModelDummyParticles},
                     neighbor::FluidParticleContainer, u)
     return current_coordinates(u, neighbor)
 end
