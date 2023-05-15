@@ -65,7 +65,7 @@ end
 
 vtkname(container::WeaklyCompressibleSPHSystem) = "fluid"
 vtkname(container::TotalLagrangianSPHSystem) = "solid"
-vtkname(container::BoundaryParticleContainer) = "boundary"
+vtkname(container::BoundarySPHSystem) = "boundary"
 
 function write2vtk!(vtk, v, u, t, container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, cache = container
@@ -88,7 +88,7 @@ function write2vtk!(vtk, v, u, t, container::TotalLagrangianSPHSystem)
     write2vtk!(vtk, v, u, t, container.boundary_model, container)
 end
 
-function write2vtk!(vtk, v, u, t, container::BoundaryParticleContainer)
+function write2vtk!(vtk, v, u, t, container::BoundarySPHSystem)
     write2vtk!(vtk, v, u, t, container.boundary_model, container)
 end
 

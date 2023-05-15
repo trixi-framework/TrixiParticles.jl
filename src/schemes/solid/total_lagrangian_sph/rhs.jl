@@ -174,7 +174,7 @@ end
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::TotalLagrangianSPHSystem,
-                   neighbor_container::BoundaryParticleContainer)
+                   neighbor_container::BoundarySPHSystem)
     # TODO continuity equation?
     return dv
 end

@@ -61,7 +61,7 @@ particle_container = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), sta
                                                  viscosity=viscosity,
                                                  acceleration=(0.0, gravity, 0.0))
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_container = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

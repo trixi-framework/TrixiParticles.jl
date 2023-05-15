@@ -130,12 +130,12 @@ particle_container = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), sta
                                                  viscosity=viscosity,
                                                  acceleration=(0.0, gravity))
 
-boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates,
-                                                    boundary_model_tank)
+boundary_container_tank = BoundarySPHSystem(setup.boundary_coordinates,
+                                            boundary_model_tank)
 
-boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
-                                                    boundary_model_gate,
-                                                    movement_function=movement_function)
+boundary_container_gate = BoundarySPHSystem(setup_gate.coordinates,
+                                            boundary_model_gate,
+                                            movement_function=movement_function)
 
 solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
                                            solid.masses, solid.densities,

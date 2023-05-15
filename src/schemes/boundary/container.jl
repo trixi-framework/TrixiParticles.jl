@@ -1,6 +1,6 @@
 """
-    BoundaryParticleContainer(coordinates, mass, model;
-                              movement_function=nothing)
+    BoundarySPHSystem(coordinates, mass, model;
+                      movement_function=nothing)
 
 Container for boundaries modeled by boundary particles.
 The container is initialized with the coordinates of the particles and their masses.
@@ -31,13 +31,13 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct BoundaryParticleContainer{BM, NDIMS, ELTYPE <: Real, MF} <: ParticleContainer{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2}
     boundary_model      :: BM
     movement_function   :: MF
     ismoving            :: Vector{Bool}
 
-    function BoundaryParticleContainer(coordinates, model; movement_function=nothing)
+    function BoundarySPHSystem(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
@@ -48,22 +48,22 @@ struct BoundaryParticleContainer{BM, NDIMS, ELTYPE <: Real, MF} <: ParticleConta
     end
 end
 
-function Base.show(io::IO, container::BoundaryParticleContainer)
+function Base.show(io::IO, container::BoundarySPHSystem)
     @nospecialize container # reduce precompilation time
 
-    print(io, "BoundaryParticleContainer{", ndims(container), "}(")
+    print(io, "BoundarySPHSystem{", ndims(container), "}(")
     print(io, container.boundary_model)
     print(io, ", ", container.movement_function)
     print(io, ") with ", nparticles(container), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContainer)
+function Base.show(io::IO, ::MIME"text/plain", container::BoundarySPHSystem)
     @nospecialize container # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, container)
     else
-        summary_header(io, "BoundaryParticleContainer{$(ndims(container))}")
+        summary_header(io, "BoundarySPHSystem{$(ndims(container))}")
         summary_line(io, "#particles", nparticles(container))
         summary_line(io, "boundary model", container.boundary_model)
         summary_line(io, "movement function", container.movement_function)
@@ -71,7 +71,7 @@ function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContai
     end
 end
 
-# Note that we don't dispatch by `BoundaryParticleContainer{BoundaryModel}` here because
+# Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
 # this is also used by the `SolidParticleContainer`.
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
@@ -333,48 +333,48 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-@inline function nparticles(container::BoundaryParticleContainer)
+@inline function nparticles(container::BoundarySPHSystem)
     length(container.boundary_model.hydrodynamic_mass)
 end
 
 # No particle positions are advanced for boundary containers,
 # except when using BoundaryModelDummyParticles with ContinuityDensity.
-@inline function n_moving_particles(container::BoundaryParticleContainer)
+@inline function n_moving_particles(container::BoundarySPHSystem)
     return 0
 end
 
-@inline function n_moving_particles(container::BoundaryParticleContainer{
-                                                                         <:BoundaryModelDummyParticles
-                                                                         })
+@inline function n_moving_particles(container::BoundarySPHSystem{
+                                                                 <:BoundaryModelDummyParticles
+                                                                 })
     return n_moving_particles(container, container.boundary_model.density_calculator)
 end
 
-@inline function n_moving_particles(container::BoundaryParticleContainer,
+@inline function n_moving_particles(container::BoundarySPHSystem,
                                     density_calculator)
     return 0
 end
 
-@inline function n_moving_particles(container::BoundaryParticleContainer,
+@inline function n_moving_particles(container::BoundarySPHSystem,
                                     ::ContinuityDensity)
     nparticles(container)
 end
 
-@inline u_nvariables(container::BoundaryParticleContainer) = 0
+@inline u_nvariables(container::BoundarySPHSystem) = 0
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
-@inline v_nvariables(container::BoundaryParticleContainer) = 1
+@inline v_nvariables(container::BoundarySPHSystem) = 1
 
-@inline function current_coordinates(u, container::BoundaryParticleContainer)
+@inline function current_coordinates(u, container::BoundarySPHSystem)
     return container.initial_coordinates
 end
 
-@inline function current_velocity(v, container::BoundaryParticleContainer, particle)
+@inline function current_velocity(v, container::BoundarySPHSystem, particle)
     # TODO moving boundaries
     return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
 end
 
-@inline function particle_density(v, container::BoundaryParticleContainer, particle)
+@inline function particle_density(v, container::BoundarySPHSystem, particle)
     return particle_density(v, container.boundary_model, container, particle)
 end
 
@@ -399,11 +399,11 @@ end
     return cache.density[particle]
 end
 
-@inline function hydrodynamic_mass(container::BoundaryParticleContainer, particle)
+@inline function hydrodynamic_mass(container::BoundarySPHSystem, particle)
     return container.boundary_model.hydrodynamic_mass[particle]
 end
 
-function update!(container::BoundaryParticleContainer, container_index,
+function update!(container::BoundarySPHSystem, container_index,
                  v, u, v_ode, u_ode, semi, t)
     @unpack initial_coordinates, movement_function, boundary_model = container
 
@@ -555,25 +555,25 @@ end
     return boundary_model
 end
 
-function write_u0!(u0, container::BoundaryParticleContainer)
+function write_u0!(u0, container::BoundarySPHSystem)
     return u0
 end
 
-function write_v0!(v0, container::BoundaryParticleContainer{<:BoundaryModelMonaghanKajtar})
+function write_v0!(v0, container::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar})
     return v0
 end
 
-function write_v0!(v0, container::BoundaryParticleContainer{<:BoundaryModelDummyParticles})
+function write_v0!(v0, container::BoundarySPHSystem{<:BoundaryModelDummyParticles})
     @unpack density_calculator = container.boundary_model
 
     write_v0!(v0, density_calculator, container)
 end
 
-function write_v0!(v0, density_calculator, container::BoundaryParticleContainer)
+function write_v0!(v0, density_calculator, container::BoundarySPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, container::BoundaryParticleContainer)
+function write_v0!(v0, ::ContinuityDensity, container::BoundarySPHSystem)
     @unpack cache = container.boundary_model
     @unpack initial_density = cache
 

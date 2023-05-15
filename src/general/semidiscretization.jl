@@ -94,7 +94,7 @@ end
 end
 
 @inline function compact_support(container::Union{TotalLagrangianSPHSystem,
-                                                  BoundaryParticleContainer},
+                                                  BoundarySPHSystem},
                                  neighbor)
     return compact_support(container, container.boundary_model, neighbor)
 end
@@ -125,7 +125,7 @@ function nhs_init_function(container::TotalLagrangianSPHSystem,
 end
 
 function nhs_init_function(container::Union{TotalLagrangianSPHSystem,
-                                            BoundaryParticleContainer},
+                                            BoundarySPHSystem},
                            neighbor)
     return nhs_init_function(container, container.boundary_model, neighbor)
 end
@@ -273,7 +273,7 @@ end
     return du
 end
 
-@inline add_velocity!(du, v, particle, container::BoundaryParticleContainer) = du
+@inline add_velocity!(du, v, particle, container::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @unpack particle_containers, neighborhood_searches = semi
@@ -379,7 +379,7 @@ end
     return dv
 end
 
-@inline add_acceleration!(dv, particle, container::BoundaryParticleContainer) = dv
+@inline add_acceleration!(dv, particle, container::BoundarySPHSystem) = dv
 
 @inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle,
                                     container)
@@ -468,7 +468,7 @@ function nhs_coords(container::WeaklyCompressibleSPHSystem,
 end
 
 function nhs_coords(container::WeaklyCompressibleSPHSystem,
-                    neighbor::BoundaryParticleContainer, u)
+                    neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
     end
@@ -489,7 +489,7 @@ function nhs_coords(container::TotalLagrangianSPHSystem,
 end
 
 function nhs_coords(container::TotalLagrangianSPHSystem,
-                    neighbor::BoundaryParticleContainer, u)
+                    neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
     end
@@ -498,25 +498,25 @@ function nhs_coords(container::TotalLagrangianSPHSystem,
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer,
+function nhs_coords(container::BoundarySPHSystem,
                     neighbor::WeaklyCompressibleSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer{<:BoundaryModelDummyParticles},
+function nhs_coords(container::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(container::BoundaryParticleContainer,
+function nhs_coords(container::BoundarySPHSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer,
-                    neighbor::BoundaryParticleContainer, u)
+function nhs_coords(container::BoundarySPHSystem,
+                    neighbor::BoundarySPHSystem, u)
     # Don't update
     return nothing
 end

@@ -1,7 +1,7 @@
 # Interaction of boundary  with other containers
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
+                   particle_container::BoundarySPHSystem,
                    neighbor_container)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
@@ -10,9 +10,9 @@ end
 # Boundary-fluid interaction with dummy particles model
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer{
-                                                                 <:BoundaryModelDummyParticles
-                                                                 },
+                   particle_container::BoundarySPHSystem{
+                                                         <:BoundaryModelDummyParticles
+                                                         },
                    neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator = particle_container.boundary_model
 
@@ -23,7 +23,7 @@ end
 
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
+                   particle_container::BoundarySPHSystem,
                    neighbor_container, density_calculator)
     return dv
 end
@@ -31,7 +31,7 @@ end
 # With `ContinuityDensity` solve the continuity equation
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::BoundaryParticleContainer,
+                   particle_container::BoundarySPHSystem,
                    neighbor_container, ::ContinuityDensity)
     @unpack boundary_model = particle_container
 

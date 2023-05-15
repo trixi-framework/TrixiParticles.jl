@@ -75,7 +75,7 @@ end
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::WeaklyCompressibleSPHSystem,
-                   neighbor_container::Union{BoundaryParticleContainer,
+                   neighbor_container::Union{BoundarySPHSystem,
                                              TotalLagrangianSPHSystem})
     @unpack density_calculator, state_equation, viscosity,
     smoothing_length = particle_container
