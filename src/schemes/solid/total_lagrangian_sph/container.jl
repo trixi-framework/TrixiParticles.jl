@@ -180,12 +180,14 @@ function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer
     end
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelMonaghanKajtar
+@inline function v_nvariables(container::SolidParticleContainer{
+                                                                <:BoundaryModelMonaghanKajtar
                                                                 })
     return ndims(container)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{BoundaryModelDummyParticles
+@inline function v_nvariables(container::SolidParticleContainer{
+                                                                <:BoundaryModelDummyParticles
                                                                 })
     return v_nvariables(container, container.boundary_model.density_calculator)
 end
