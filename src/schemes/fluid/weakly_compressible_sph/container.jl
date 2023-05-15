@@ -1,25 +1,25 @@
 """
     WeaklyCompressibleSPHSystem(setup,
-                           density_calculator, state_equation,
-                           smoothing_kernel, smoothing_length;
-                           viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                density_calculator, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=NoViscosity(),
+                                acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
     WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses,
-                           density_calculator::SummationDensity, state_equation,
-                           smoothing_kernel, smoothing_length;
-                           viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                density_calculator::SummationDensity, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=NoViscosity(),
+                                acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
     WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses, particle_densities,
-                           density_calculator::ContinuityDensity, state_equation,
-                           smoothing_kernel, smoothing_length;
-                           viscosity=NoViscosity(),
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+                                density_calculator::ContinuityDensity, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=NoViscosity(),
+                                acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
-       ParticleContainer{NDIMS}
+       SPHSystem{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]

@@ -1,12 +1,12 @@
 @doc raw"""
     TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
-                           particle_masses, particle_material_densities,
-                           hydrodynamic_density_calculator,
-                           smoothing_kernel, smoothing_length,
-                           young_modulus, poisson_ratio;
-                           n_fixed_particles=0,
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                           penalty_force=nothing)
+                             particle_masses, particle_material_densities,
+                             hydrodynamic_density_calculator,
+                             smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio;
+                             n_fixed_particles=0,
+                             acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                             penalty_force=nothing)
 
 Container for particles of an elastic solid.
 
@@ -77,8 +77,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <:
-       ParticleContainer{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SPHSystem{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]

@@ -1,7 +1,7 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodyContainer{NDIMS, ELTYPE <: Real} <: TrixiParticles.ParticleContainer{NDIMS}
+struct NBodyContainer{NDIMS, ELTYPE <: Real} <: TrixiParticles.SPHSystem{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]

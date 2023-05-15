@@ -31,7 +31,7 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: ParticleContainer{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: SPHSystem{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2}
     boundary_model      :: BM
     movement_function   :: MF
@@ -72,7 +72,7 @@ function Base.show(io::IO, ::MIME"text/plain", container::BoundarySPHSystem)
 end
 
 # Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
-# this is also used by the `SolidParticleContainer`.
+# this is also used by the `TotalLagrangianSPHSystem`.
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           v_particle_container, v_boundary_container,
                                           particle_container, boundary_container,

@@ -1,11 +1,11 @@
 # Implies number of dimensions and a field with the name `initial_coordinates`.
-abstract type ParticleContainer{NDIMS} end
+abstract type SPHSystem{NDIMS} end
 
 initialize!(container, neighborhood_search) = container
 update!(container, container_index, v, u, v_ode, u_ode, semi, t) = container
 
-@inline Base.ndims(::ParticleContainer{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(container::ParticleContainer) = eltype(container.initial_coordinates)
+@inline Base.ndims(::SPHSystem{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(container::SPHSystem) = eltype(container.initial_coordinates)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(container) = ndims(container)
