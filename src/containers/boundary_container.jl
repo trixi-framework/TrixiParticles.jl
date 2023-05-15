@@ -525,10 +525,10 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     @unpack pressure, state_equation, cache = boundary_model
     @unpack density, volume = cache
 
-    println("bnd->compute pressure")
-
     density .= zero(eltype(density))
     volume .= zero(eltype(volume))
+    pressure .= zero(eltype(pressure))
+
 
     # Use all other containers for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(particle_containers) do (neighbor_container_index,

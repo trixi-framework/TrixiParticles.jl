@@ -258,7 +258,6 @@ end
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                                 density_calculator, ::NoCorrection)
     #skip correction step
-    println("no correction step")
     return container
 end
 
@@ -304,7 +303,6 @@ end
 function compute_pressure!(container, v)
     @unpack state_equation, pressure = container
 
-    println("fluid->compute pressure")
     # Note that @threaded makes this slower
     for particle in eachparticle(container)
         pressure[particle] = state_equation(particle_density(v, container, particle))
