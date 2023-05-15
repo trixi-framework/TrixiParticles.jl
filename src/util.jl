@@ -252,3 +252,53 @@ function find_assignment(expr, destination)
 
     result
 end
+
+"""
+    @autoinfiltrate
+    @autoinfiltrate condition::Bool
+
+Invoke the `@infiltrate` macro of the package Infiltrator.jl to create a breakpoint for ad-hoc
+interactive debugging in the REPL. If the optional argument `condition` is given, the breakpoint is
+only enabled if `condition` evaluates to `true`.
+
+As opposed to using `Infiltrator.@infiltrate` directly, this macro does not require Infiltrator.jl
+to be added as a dependency to TrixiParticles.jl. As a bonus, the macro will also attempt to load
+the Infiltrator module if it has not yet been loaded manually.
+
+Note: For this macro to work, the Infiltrator.jl package needs to be installed in your current Julia
+environment stack.
+
+See also: [Infiltrator.jl](https://github.com/JuliaDebug/Infiltrator.jl)
+
+!!! warning "Internal use only"
+    Please note that this macro is intended for internal use only. It is *not* part of the public
+    API of TrixiParticles.jl, and it thus can altered (or be removed) at any time without it being
+    considered a breaking change.
+"""
+macro autoinfiltrate(condition = true)
+    pkgid = Base.PkgId(Base.UUID("5903a43b-9cc3-4c30-8d17-598619ec4e9b"), "Infiltrator")
+    if !haskey(Base.loaded_modules, pkgid)
+        try
+            Base.eval(Main, :(using Infiltrator))
+        catch err
+            @error "Cannot load Infiltrator.jl. Make sure it is included in your environment stack."
+        end
+    end
+    i = get(Base.loaded_modules, pkgid, nothing)
+    lnn = LineNumberNode(__source__.line, __source__.file)
+  
+    if i === nothing
+        return Expr(
+            :macrocall,
+            Symbol("@warn"),
+            lnn,
+            "Could not load Infiltrator.")
+    end
+  
+    return Expr(
+        :macrocall,
+        Expr(:., i, QuoteNode(Symbol("@infiltrate"))),
+        lnn,
+        esc(condition)
+    )
+end
