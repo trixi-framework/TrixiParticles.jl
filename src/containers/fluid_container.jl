@@ -88,6 +88,11 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
 
+        if correction isa KernelCorrection
+            cw = similar(density)
+            cache = (; cw, cache...)
+        end
+
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
@@ -122,6 +127,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
         initial_density = particle_densities
         cache = (; initial_density)
+        if correction isa KernelCorrection
+            cw = similar(initial_density)
+            cache = (; cw, cache...)
+        end
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
@@ -260,9 +269,10 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
                                 ::SummationDensity,
                                 ::KernelCorrection)
     @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+    @unpack cw = cache # Density is in the cache for SummationDensity
 
-    cw = zeros(Float64, nparticles(container))
-    # println("correction start") #todo: remove
+    cw .= zero(eltype(cw))
 
     # Use all other containers for the density summation
     @trixi_timeit timer() "compute density with correction" foreach_enumerate(particle_containers) do (neighbor_container_index,
@@ -280,11 +290,9 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
         end
     end
     for particle in eachparticle(container)
-        #println("particle $(particle) with  $(cw[particle])") #todo: remove
         corrected_density = particle_density(v, container, particle) / cw[particle]
         set_particle_density(particle, v, container, corrected_density)
     end
-    # println("correction end") #todo: remove
 end
 
 @inline function kernel_correct_density_per_particle(cw, particle, v_neighbor_container,
@@ -310,26 +318,6 @@ end
             cw[particle] += volume * smoothing_kernel(particle_container, distance)
         end
     end
-    # if cw > eps()
-    #     println(cw, typeof(neighbor_container)) #todo: remove
-
-    #     if isinf(cw)
-
-    #         for neighbor in eachneighbor(particle_coords, neighborhood_search)
-    #             m_b = hydrodynamic_mass(neighbor_container, neighbor)
-    #             neighbor_coords = current_coords(u_neighbor_container, neighbor_container,
-    #                                              neighbor)
-    #             distance = norm(particle_coords - neighbor_coords)
-
-    #             if distance <= compact_support(particle_container)
-    #                 rho_b = old_density[neighbor]
-    #                 volume = m_b / rho_b
-    #                 println("$(neighbor) vol: ", volume, " rho_b ", rho_b, " m_b s", m_b)
-    #             end
-    #         end
-    #     end
-    #     density[particle] /= cw
-    # end
 end
 
 function compute_pressure!(container, v)
