@@ -51,7 +51,6 @@ struct PenaltyForceGanzenmueller{ELTYPE}
     end
 end
 
-
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, container,
                                      penalty_force::PenaltyForceGanzenmueller)
