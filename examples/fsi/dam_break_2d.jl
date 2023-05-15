@@ -112,20 +112,20 @@ solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==== Containers
 
 fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
-                                                 smoothing_kernel, smoothing_length,
-                                                 viscosity=viscosity,
-                                                 acceleration=(0.0, gravity))
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
 boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
 
 solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                           solid.masses, solid.densities,
-                                           solid_smoothing_kernel, solid_smoothing_length,
-                                           E, nu,
-                                           n_fixed_particles=n_particles_x,
-                                           acceleration=(0.0, gravity),
-                                           solid_boundary_model,
-                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                                        solid.masses, solid.densities,
+                                        solid_smoothing_kernel, solid_smoothing_length,
+                                        E, nu,
+                                        n_fixed_particles=n_particles_x,
+                                        acceleration=(0.0, gravity),
+                                        solid_boundary_model,
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 # ==========================================================================================
 # ==== Simulation

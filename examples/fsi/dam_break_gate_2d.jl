@@ -126,23 +126,23 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==== Containers
 
 fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
-                                                 smoothing_kernel, smoothing_length,
-                                                 viscosity=viscosity,
-                                                 acceleration=(0.0, gravity))
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
 boundary_system_tank = BoundarySPHSystem(setup.boundary_coordinates,
-                                            boundary_model_tank)
+                                         boundary_model_tank)
 
 boundary_system_gate = BoundarySPHSystem(setup_gate.coordinates,
-                                            boundary_model_gate,
-                                            movement_function=movement_function)
+                                         boundary_model_gate,
+                                         movement_function=movement_function)
 
 solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                           solid.masses, solid.densities,
-                                           solid_smoothing_kernel, solid_smoothing_length,
-                                           E, nu, boundary_model_solid,
-                                           n_fixed_particles=n_particles_x,
-                                           acceleration=(0.0, gravity))
+                                        solid.masses, solid.densities,
+                                        solid_smoothing_kernel, solid_smoothing_length,
+                                        E, nu, boundary_model_solid,
+                                        n_fixed_particles=n_particles_x,
+                                        acceleration=(0.0, gravity))
 
 # ==========================================================================================
 # ==== Simulation

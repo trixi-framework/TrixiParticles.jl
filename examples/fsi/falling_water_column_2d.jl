@@ -85,20 +85,20 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
 # ==== Containers
 
 fluid_system = WeaklyCompressibleSPHSystem(setup.coordinates,
-                                              zeros(Float64, size(setup.coordinates)),
-                                              setup.masses, setup.densities,
-                                              ContinuityDensity(), state_equation,
-                                              smoothing_kernel, smoothing_length,
-                                              viscosity=viscosity,
-                                              acceleration=(0.0, gravity))
+                                           zeros(Float64, size(setup.coordinates)),
+                                           setup.masses, setup.densities,
+                                           ContinuityDensity(), state_equation,
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
 solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                           solid.masses, solid.densities,
-                                           smoothing_kernel, smoothing_length,
-                                           E, nu,
-                                           n_fixed_particles=fixed_particles.n_particles,
-                                           acceleration=(0.0, gravity), boundary_model,
-                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+                                        solid.masses, solid.densities,
+                                        smoothing_kernel, smoothing_length,
+                                        E, nu,
+                                        n_fixed_particles=fixed_particles.n_particles,
+                                        acceleration=(0.0, gravity), boundary_model,
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Simulation
