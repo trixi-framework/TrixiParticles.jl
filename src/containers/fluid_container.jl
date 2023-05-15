@@ -248,7 +248,7 @@ end
     end
 end
 
-function update_pressure!(container::FluidParticleContainer, container_index, v, u, v_ode,
+function update_after_density_calc!(container::FluidParticleContainer, container_index, v, u, v_ode,
                           u_ode, semi, t)
     @unpack density_calculator, correction = container
 

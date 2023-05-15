@@ -516,7 +516,7 @@ end
     end
 end
 
-function update_pressure!(container::BoundaryParticleContainer, container_index, v, u,
+function update_after_density_calc!(container::BoundaryParticleContainer, container_index, v, u,
                           v_ode, u_ode,
                           semi, t)
     @unpack boundary_model = container
