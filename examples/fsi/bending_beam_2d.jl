@@ -117,20 +117,21 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==== Containers
 
 solid_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                         solid.masses, solid.densities,
-                                         solid_smoothing_kernel, solid_smoothing_length,
-                                         E, nu, boundary_model_solid,
-                                         n_fixed_particles=n_fixed_particles,
-                                         acceleration=(0.0, 0.0),
-                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+                                           solid.masses, solid.densities,
+                                           solid_smoothing_kernel, solid_smoothing_length,
+                                           E, nu, boundary_model_solid,
+                                           n_fixed_particles=n_fixed_particles,
+                                           acceleration=(0.0, 0.0),
+                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 fluid_container = WeaklyCompressibleSPHSystem(fluid.coordinates,
-                                         zeros(size(fluid.coordinates)),
-                                         fluid.masses, fluid.densities,
-                                         ContinuityDensity(), state_equation,
-                                         fluid_smoothing_kernel, fluid_smoothing_length,
-                                         viscosity=viscosity,
-                                         acceleration=(0.0, gravity))
+                                              zeros(size(fluid.coordinates)),
+                                              fluid.masses, fluid.densities,
+                                              ContinuityDensity(), state_equation,
+                                              fluid_smoothing_kernel,
+                                              fluid_smoothing_length,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity))
 
 # rigid_solid_container = BoundaryParticleContainer(particle_coordinates, boundary_model_solid)
 

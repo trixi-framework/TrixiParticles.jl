@@ -34,35 +34,40 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
 
     # convenience constructor for passing a setup as first argument
     function WeaklyCompressibleSPHSystem(setup, density_calculator::SummationDensity,
-                                    state_equation, smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(setup.coordinates, 1)))
-        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities, setup.masses,
-                                      density_calculator,
-                                      state_equation, smoothing_kernel, smoothing_length,
-                                      viscosity=viscosity, acceleration=acceleration)
+                                         state_equation, smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(setup.coordinates, 1)))
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities,
+                                           setup.masses,
+                                           density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,
+                                           viscosity=viscosity, acceleration=acceleration)
     end
 
     # convenience constructor for passing a setup as first argument
     function WeaklyCompressibleSPHSystem(setup, density_calculator::ContinuityDensity,
-                                    state_equation, smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(setup.coordinates, 1)))
-        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities, setup.masses,
-                                      setup.densities, density_calculator,
-                                      state_equation, smoothing_kernel, smoothing_length,
-                                      viscosity=viscosity, acceleration=acceleration)
+                                         state_equation, smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(setup.coordinates, 1)))
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities,
+                                           setup.masses,
+                                           setup.densities, density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,
+                                           viscosity=viscosity, acceleration=acceleration)
     end
 
     function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
-                                    particle_masses,
-                                    density_calculator::SummationDensity, state_equation,
-                                    smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
+                                         particle_masses,
+                                         density_calculator::SummationDensity,
+                                         state_equation,
+                                         smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
         n_particles = size(particle_coordinates, 2)
@@ -94,12 +99,13 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
     end
 
     function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
-                                    particle_masses, particle_densities,
-                                    density_calculator::ContinuityDensity, state_equation,
-                                    smoothing_kernel, smoothing_length;
-                                    viscosity=NoViscosity(),
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)))
+                                         particle_masses, particle_densities,
+                                         density_calculator::ContinuityDensity,
+                                         state_equation,
+                                         smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(particle_coordinates, 1)))
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
         nparticles = size(particle_coordinates, 2)
@@ -184,7 +190,8 @@ end
 # Nothing to initialize for this container
 initialize!(container::WeaklyCompressibleSPHSystem, neighborhood_search) = container
 
-function update!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode, u_ode,
+function update!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode,
+                 u_ode,
                  semi, t)
     @unpack density_calculator = container
 

@@ -45,12 +45,12 @@ solid = MergeShapes(beam, fixed_particles)
 # ==== Containers
 
 particle_container = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                            solid.masses, solid.densities,
-                                            smoothing_kernel, smoothing_length,
-                                            E, nu,
-                                            n_fixed_particles=fixed_particles.n_particles,
-                                            acceleration=(0.0, acceleration),
-                                            nothing) # No boundary model
+                                              solid.masses, solid.densities,
+                                              smoothing_kernel, smoothing_length,
+                                              E, nu,
+                                              n_fixed_particles=fixed_particles.n_particles,
+                                              acceleration=(0.0, acceleration),
+                                              nothing) # No boundary model
 
 # ==========================================================================================
 # ==== Simulation

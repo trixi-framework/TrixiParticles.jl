@@ -77,7 +77,8 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleContainer{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <:
+       ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
@@ -98,13 +99,13 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleCon
     penalty_force       :: PF
 
     function TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
-                                    particle_masses, particle_material_densities,
-                                    smoothing_kernel, smoothing_length,
-                                    young_modulus, poisson_ratio, boundary_model;
-                                    n_fixed_particles=0,
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)),
-                                    penalty_force=nothing)
+                                      particle_masses, particle_material_densities,
+                                      smoothing_kernel, smoothing_length,
+                                      young_modulus, poisson_ratio, boundary_model;
+                                      n_fixed_particles=0,
+                                      acceleration=ntuple(_ -> 0.0,
+                                                          size(particle_coordinates, 1)),
+                                      penalty_force=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -180,13 +181,15 @@ function Base.show(io::IO, ::MIME"text/plain", container::TotalLagrangianSPHSyst
     end
 end
 
-@inline function v_nvariables(container::TotalLagrangianSPHSystem{BoundaryModelMonaghanKajtar
-                                                                })
+@inline function v_nvariables(container::TotalLagrangianSPHSystem{
+                                                                  <:BoundaryModelMonaghanKajtar
+                                                                  })
     return ndims(container)
 end
 
-@inline function v_nvariables(container::TotalLagrangianSPHSystem{BoundaryModelDummyParticles
-                                                                })
+@inline function v_nvariables(container::TotalLagrangianSPHSystem{
+                                                                  <:BoundaryModelDummyParticles
+                                                                  })
     return v_nvariables(container, container.boundary_model.density_calculator)
 end
 
@@ -198,7 +201,9 @@ end
     return ndims(container) + 1
 end
 
-@inline n_moving_particles(container::TotalLagrangianSPHSystem) = container.n_moving_particles
+@inline function n_moving_particles(container::TotalLagrangianSPHSystem)
+    container.n_moving_particles
+end
 
 @inline function current_coordinates(u, container::TotalLagrangianSPHSystem)
     return container.current_coordinates

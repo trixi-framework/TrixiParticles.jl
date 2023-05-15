@@ -450,7 +450,8 @@ function update3!(container::TotalLagrangianSPHSystem, container_index, v, u, v_
     update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
 end
 
-function update3!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode, u_ode,
+function update3!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode,
+                  u_ode,
                   semi, t)
     return container
 end
@@ -503,7 +504,7 @@ function nhs_coords(container::BoundaryParticleContainer,
     return nothing
 end
 
-function nhs_coords(container::BoundaryParticleContainer{BoundaryModelDummyParticles},
+function nhs_coords(container::BoundaryParticleContainer{<:BoundaryModelDummyParticles},
                     neighbor::WeaklyCompressibleSPHSystem, u)
     return current_coordinates(u, neighbor)
 end

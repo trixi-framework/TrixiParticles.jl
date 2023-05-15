@@ -71,6 +71,21 @@ function Base.show(io::IO, ::MIME"text/plain", container::BoundaryParticleContai
     end
 end
 
+# Note that we don't dispatch by `BoundaryParticleContainer{BoundaryModel}` here because
+# this is also used by the `SolidParticleContainer`.
+@inline function boundary_particle_impact(particle, boundary_particle,
+                                          v_particle_container, v_boundary_container,
+                                          particle_container, boundary_container,
+                                          pos_diff, distance, m_b)
+    @unpack boundary_model = boundary_container
+
+    boundary_particle_impact(particle, boundary_particle,
+                             boundary_model,
+                             v_particle_container, v_boundary_container,
+                             particle_container, boundary_container,
+                             pos_diff, distance, m_b)
+end
+
 @doc raw"""
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
 
@@ -141,14 +156,11 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
+                                          boundary_model::BoundaryModelMonaghanKajtar,
                                           v_particle_container, v_boundary_container,
-                                          particle_container,
-                                          boundary_container::BoundaryParticleContainer{
-                                                                                        BoundaryModelMonaghanKajtar
-                                                                                        },
+                                          particle_container, boundary_container,
                                           pos_diff, distance, m_b)
     @unpack smoothing_length = particle_container
-    @unpack boundary_model = boundary_container
     @unpack K, beta, boundary_particle_spacing = boundary_model
 
     NDIMS = ndims(particle_container)
@@ -268,14 +280,10 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
 end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
+                                          boundary_model::BoundaryModelDummyParticles,
                                           v_particle_container, v_boundary_container,
-                                          particle_container,
-                                          boundary_container::BoundaryParticleContainer{
-                                                                                        BoundaryModelDummyParticles
-                                                                                        },
+                                          particle_container, boundary_container,
                                           pos_diff, distance, m_b)
-    @unpack boundary_model = boundary_container
-
     rho_a = particle_density(v_particle_container, particle_container, particle)
     rho_b = particle_density(v_boundary_container, boundary_container, boundary_particle)
 
@@ -336,7 +344,7 @@ end
 end
 
 @inline function n_moving_particles(container::BoundaryParticleContainer{
-                                                                         BoundaryModelDummyParticles
+                                                                         <:BoundaryModelDummyParticles
                                                                          })
     return n_moving_particles(container, container.boundary_model.density_calculator)
 end
@@ -381,7 +389,7 @@ end
 
 @inline function particle_density(v, model::BoundaryModelDummyParticles, container,
                                   particle)
-    return particle_density(v, container, model.density_calculator, particle)
+    return particle_density(v, model.density_calculator, container, particle)
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
@@ -551,11 +559,11 @@ function write_u0!(u0, container::BoundaryParticleContainer)
     return u0
 end
 
-function write_v0!(v0, container::BoundaryParticleContainer{BoundaryModelMonaghanKajtar})
+function write_v0!(v0, container::BoundaryParticleContainer{<:BoundaryModelMonaghanKajtar})
     return v0
 end
 
-function write_v0!(v0, container::BoundaryParticleContainer{BoundaryModelDummyParticles})
+function write_v0!(v0, container::BoundaryParticleContainer{<:BoundaryModelDummyParticles})
     @unpack density_calculator = container.boundary_model
 
     write_v0!(v0, density_calculator, container)

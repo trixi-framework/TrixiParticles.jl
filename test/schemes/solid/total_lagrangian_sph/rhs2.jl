@@ -50,9 +50,9 @@
         smoothing_length = 0.07
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         container = TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
-                                           particle_masses, particle_densities,
-                                           smoothing_kernel, smoothing_length,
-                                           E, nu, nothing)
+                                             particle_masses, particle_densities,
+                                             smoothing_kernel, smoothing_length,
+                                             E, nu, nothing)
 
         semi = Semidiscretization(container)
         tspan = (0.0, 1.0)
