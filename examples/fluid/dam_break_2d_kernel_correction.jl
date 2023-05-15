@@ -66,12 +66,6 @@ particle_container = FluidParticleContainer(setup, SummationDensity(), state_equ
                                             acceleration=(0.0, gravity),
                                             correction=KernelCorrection())
 
-# particle_container = FluidParticleContainer(setup, SummationDensity(), state_equation,
-# smoothing_kernel, smoothing_length,
-# viscosity=viscosity,
-# acceleration=(0.0, gravity),
-# correction=NoCorrection())
-
 boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
 
 # ==========================================================================================
