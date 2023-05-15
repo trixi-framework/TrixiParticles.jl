@@ -27,29 +27,29 @@
         smoothing_length = 0.362
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
-            container = WeaklyCompressibleSPHSystem(setup, density_calculator,
+            system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                     state_equation, smoothing_kernel,
                                                     smoothing_length)
 
-            @test container isa WeaklyCompressibleSPHSystem{NDIMS}
-            @test container.initial_coordinates == setup.coordinates
-            @test container.initial_velocity == setup.velocities
-            @test container.mass == setup.masses
-            @test container.density_calculator == density_calculator
-            @test container.state_equation == state_equation
-            @test container.smoothing_kernel == smoothing_kernel
-            @test container.smoothing_length == smoothing_length
-            @test container.viscosity isa TrixiParticles.NoViscosity
-            @test container.acceleration == [0.0 for _ in 1:NDIMS]
-            @test length(container.mass) == size(setup.coordinates, 2)
+            @test system isa WeaklyCompressibleSPHSystem{NDIMS}
+            @test system.initial_coordinates == setup.coordinates
+            @test system.initial_velocity == setup.velocities
+            @test system.mass == setup.masses
+            @test system.density_calculator == density_calculator
+            @test system.state_equation == state_equation
+            @test system.smoothing_kernel == smoothing_kernel
+            @test system.smoothing_length == smoothing_length
+            @test system.viscosity isa TrixiParticles.NoViscosity
+            @test system.acceleration == [0.0 for _ in 1:NDIMS]
+            @test length(system.mass) == size(setup.coordinates, 2)
 
             if density_calculator isa SummationDensity
-                @test length(container.cache.density) == size(setup.coordinates, 2)
+                @test length(system.cache.density) == size(setup.coordinates, 2)
             end
 
             if density_calculator isa ContinuityDensity
-                @test length(container.cache.initial_density) == size(setup.coordinates, 2)
-                @test container.cache.initial_density == setup.densities
+                @test length(system.cache.initial_density) == size(setup.coordinates, 2)
+                @test system.cache.initial_density == setup.densities
             end
         end
     end

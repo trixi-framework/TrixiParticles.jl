@@ -21,26 +21,26 @@
             E = 2.5
             boundary_model = Val(:boundary_model)
 
-            container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
+            system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                                  material_densities, smoothing_kernel,
                                                  smoothing_length, E, nu, boundary_model)
 
-            @test container isa TotalLagrangianSPHSystem
-            @test ndims(container) == NDIMS
-            @test container.initial_coordinates == coordinates
-            @test container.current_coordinates == coordinates
-            @test container.initial_velocity == velocities
-            @test container.mass == masses
-            @test container.material_density == material_densities
-            @test container.n_moving_particles == 2
-            @test container.young_modulus == E
-            @test container.poisson_ratio == nu
-            @test container.lame_lambda == 1.0
-            @test container.lame_mu == 1.0
-            @test container.smoothing_kernel == smoothing_kernel
-            @test container.smoothing_length == smoothing_length
-            @test container.acceleration == [0.0 for _ in 1:NDIMS]
-            @test container.boundary_model == boundary_model
+            @test system isa TotalLagrangianSPHSystem
+            @test ndims(system) == NDIMS
+            @test system.initial_coordinates == coordinates
+            @test system.current_coordinates == coordinates
+            @test system.initial_velocity == velocities
+            @test system.mass == masses
+            @test system.material_density == material_densities
+            @test system.n_moving_particles == 2
+            @test system.young_modulus == E
+            @test system.poisson_ratio == nu
+            @test system.lame_lambda == 1.0
+            @test system.lame_mu == 1.0
+            @test system.smoothing_kernel == smoothing_kernel
+            @test system.smoothing_length == smoothing_length
+            @test system.acceleration == [0.0 for _ in 1:NDIMS]
+            @test system.boundary_model == boundary_model
         end
     end
 
@@ -58,13 +58,13 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
+        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                              material_densities, smoothing_kernel,
                                              smoothing_length, E, nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
-        @test repr(container) == show_compact
+        @test repr(system) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -79,7 +79,7 @@
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
         │ penalty force: ………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", container) == show_box
+        @test repr("text/plain", system) == show_box
     end
 
     @testset verbose=true "Deformation Gradient" begin
@@ -90,7 +90,7 @@
             # the need for any mocking packages or modifying source code.
             #
             # We construct a lowest-level unit test where we mock all function calls and don't use
-            # a real container object.
+            # a real system object.
             # We replace all objects that we don't need by objects of the type Val{:mock_something},
             # for which we define specific behaviour below.
             # This makes it easy to calculate the deformation gradient by hand, since we can
@@ -120,23 +120,23 @@
                 kernel_derivative = 1.0
 
                 #### Mocking
-                # Mock the container
-                container = Val(:mock_container_tensor)
-                TrixiParticles.ndims(::Val{:mock_container_tensor}) = 2
+                # Mock the system
+                system = Val(:mock_system_tensor)
+                TrixiParticles.ndims(::Val{:mock_system_tensor}) = 2
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
-                function TrixiParticles.current_coords(container::Val{:mock_container_tensor
+                function TrixiParticles.current_coords(system::Val{:mock_system_tensor
                                                                       },
                                                        particle)
-                    return TrixiParticles.extract_svector(current_coordinates[i], container,
+                    return TrixiParticles.extract_svector(current_coordinates[i], system,
                                                           particle)
                 end
 
-                TrixiParticles.compact_support(::Val{:mock_container_tensor}, _) = Inf
+                TrixiParticles.compact_support(::Val{:mock_system_tensor}, _) = Inf
 
                 # All @unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
-                function Base.getproperty(::Val{:mock_container_tensor}, f::Symbol)
+                function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
                     if f === :initial_coordinates
                         return initial_coordinates[i]
                     elseif f === :correction_matrix
@@ -160,7 +160,7 @@
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
                 TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:mock_nhs),
-                                                      container)
+                                                      system)
 
                 #### Verification
                 @test deformation_grad[:, :, particle] == expected[i]
@@ -199,24 +199,24 @@
                 search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                                smoothing_length)
 
-                container = TotalLagrangianSPHSystem(particle_coordinates,
+                system = TotalLagrangianSPHSystem(particle_coordinates,
                                                      particle_velocities,
                                                      particle_masses, particle_densities,
                                                      smoothing_kernel, smoothing_length,
                                                      1.0, 1.0, nothing)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(container))
-                TrixiParticles.initialize!(container, nhs)
+                nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(system))
+                TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
-                for particle in TrixiParticles.eachparticle(container)
-                    new_coords = deformation(container.initial_coordinates[:, particle])
-                    container.current_coordinates[:, particle] = new_coords
+                for particle in TrixiParticles.eachparticle(system)
+                    new_coords = deformation(system.initial_coordinates[:, particle])
+                    system.current_coordinates[:, particle] = new_coords
                 end
 
                 # Compute the deformation gradient for the particle in the middle
-                TrixiParticles.calc_deformation_grad!(container.deformation_grad,
-                                                      nhs, container)
-                J = TrixiParticles.deformation_gradient(container, 41)
+                TrixiParticles.calc_deformation_grad!(system.deformation_grad,
+                                                      nhs, system)
+                J = TrixiParticles.deformation_gradient(system, 41)
 
                 #### Verification
                 @test J ≈ deformation_gradients[deformation_name]
@@ -248,14 +248,14 @@
             lame_mu = 1.0
 
             #### Mocking
-            # It is easier to mock the container and specify the Lamé constants
-            # and deformation gradient than to actually construct a container.
-            container = Val(:mock_container)
+            # It is easier to mock the system and specify the Lamé constants
+            # and deformation gradient than to actually construct a system.
+            system = Val(:mock_system)
 
             # All @unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have the actual
             # Lamé constants as properties.
-            function Base.getproperty(::Val{:mock_container}, f::Symbol)
+            function Base.getproperty(::Val{:mock_system}, f::Symbol)
                 if f === :lame_lambda
                     return lame_lambda
                 elseif f === :lame_mu
@@ -267,8 +267,8 @@
             end
 
             #### Verification
-            @test TrixiParticles.pk2_stress_tensor(J, container) ≈ expected_pk2[deformation]
-            @test TrixiParticles.pk1_stress_tensor(J, container) ≈ expected_pk1[deformation]
+            @test TrixiParticles.pk2_stress_tensor(J, system) ≈ expected_pk2[deformation]
+            @test TrixiParticles.pk1_stress_tensor(J, system) ≈ expected_pk1[deformation]
         end
     end
 
@@ -285,13 +285,13 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
+        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                              material_densities, smoothing_kernel,
                                              smoothing_length, E, nu, boundary_model)
 
-        u0 = zeros(TrixiParticles.u_nvariables(container),
-                   TrixiParticles.n_moving_particles(container))
-        TrixiParticles.write_u0!(u0, container)
+        u0 = zeros(TrixiParticles.u_nvariables(system),
+                   TrixiParticles.n_moving_particles(system))
+        TrixiParticles.write_u0!(u0, system)
 
         @test u0 == coordinates
     end
@@ -309,13 +309,13 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        container = TotalLagrangianSPHSystem(coordinates, velocities, masses,
+        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
                                              material_densities, smoothing_kernel,
                                              smoothing_length, E, nu, boundary_model)
 
-        v0 = zeros(TrixiParticles.v_nvariables(container),
-                   TrixiParticles.n_moving_particles(container))
-        TrixiParticles.write_v0!(v0, container)
+        v0 = zeros(TrixiParticles.v_nvariables(system),
+                   TrixiParticles.n_moving_particles(system))
+        TrixiParticles.write_v0!(v0, system)
 
         @test v0 == velocities
     end
