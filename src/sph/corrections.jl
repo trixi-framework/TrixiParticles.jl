@@ -15,5 +15,5 @@ Kernel correction uses Shepard interpolation to obtain a 0-th order accurate res
 
 # sorted in order of computational cost
 
-# also refered to as 0th order correction (cheapest)
+# also referred to as 0th order correction (cheapest)
 struct KernelCorrection end
