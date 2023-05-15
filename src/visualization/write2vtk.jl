@@ -63,11 +63,11 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     return file
 end
 
-vtkname(container::FluidParticleContainer) = "fluid"
+vtkname(container::WeaklyCompressibleSPHSystem) = "fluid"
 vtkname(container::SolidParticleContainer) = "solid"
 vtkname(container::BoundaryParticleContainer) = "boundary"
 
-function write2vtk!(vtk, v, u, t, container::FluidParticleContainer)
+function write2vtk!(vtk, v, u, t, container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, cache = container
 
     vtk["velocity"] = view(v, 1:ndims(container), :)

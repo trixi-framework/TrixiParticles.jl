@@ -124,7 +124,7 @@ solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
                                          acceleration=(0.0, 0.0),
                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-fluid_container = FluidParticleContainer(fluid.coordinates,
+fluid_container = WeaklyCompressibleSPHSystem(fluid.coordinates,
                                          zeros(size(fluid.coordinates)),
                                          fluid.masses, fluid.densities,
                                          ContinuityDensity(), state_equation,

@@ -84,7 +84,7 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
 # ==========================================================================================
 # ==== Containers
 
-fluid_container = FluidParticleContainer(setup.coordinates,
+fluid_container = WeaklyCompressibleSPHSystem(setup.coordinates,
                                          zeros(Float64, size(setup.coordinates)),
                                          setup.masses, setup.densities,
                                          ContinuityDensity(), state_equation,

@@ -27,11 +27,11 @@
         smoothing_length = 0.362
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
-            container = FluidParticleContainer(setup, density_calculator,
+            container = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                state_equation, smoothing_kernel,
                                                smoothing_length)
 
-            @test container isa FluidParticleContainer{NDIMS}
+            @test container isa WeaklyCompressibleSPHSystem{NDIMS}
             @test container.initial_coordinates == setup.coordinates
             @test container.initial_velocity == setup.velocities
             @test container.mass == setup.masses
@@ -66,7 +66,7 @@
 
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
-            @test_throws ArgumentError(error_str) FluidParticleContainer(setup,
+            @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
                                                                          density_calculator,
                                                                          state_equation,
                                                                          smoothing_kernel,

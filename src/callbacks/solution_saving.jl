@@ -42,7 +42,7 @@ function v_mag(v, u, t, container)
     # Ignore for other containers.
     return nothing
 end
-function v_mag(v, u, t, container::FluidParticleContainer)
+function v_mag(v, u, t, container::WeaklyCompressibleSPHSystem)
     return [norm(v[1:ndims(container), i]) for i in axes(v, 2)]
 end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)

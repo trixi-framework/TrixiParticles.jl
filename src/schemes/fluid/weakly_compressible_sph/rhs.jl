@@ -1,8 +1,8 @@
 # Fluid-fluid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer,
-                   neighbor_container::FluidParticleContainer)
+                   particle_container::WeaklyCompressibleSPHSystem,
+                   neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, state_equation, viscosity,
     smoothing_length = particle_container
 
@@ -51,7 +51,7 @@ end
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container::FluidParticleContainer,
+                                      particle_container::WeaklyCompressibleSPHSystem,
                                       neighbor_container)
     mass = hydrodynamic_mass(neighbor_container, neighbor)
     vdiff = current_velocity(v_particle_container, particle_container, particle) -
@@ -74,7 +74,7 @@ end
 # Fluid-boundary and fluid-solid interaction
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer,
+                   particle_container::WeaklyCompressibleSPHSystem,
                    neighbor_container::Union{BoundaryParticleContainer,
                                              SolidParticleContainer})
     @unpack density_calculator, state_equation, viscosity,

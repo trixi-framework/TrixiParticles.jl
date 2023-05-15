@@ -511,7 +511,7 @@ function compute_quantities!(boundary_model, ::AdamiPressureExtrapolation,
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, container,
-                                               neighbor_container::FluidParticleContainer,
+                                               neighbor_container::WeaklyCompressibleSPHSystem,
                                                container_coords, neighbor_coords,
                                                v_neighbor_container, neighborhood_search)
     @unpack pressure, cache = boundary_model

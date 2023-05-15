@@ -12,7 +12,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::BoundaryParticleContainer{BoundaryModelDummyParticles
                                                                  },
-                   neighbor_container::FluidParticleContainer)
+                   neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator = particle_container.boundary_model
 
     interact!(dv, v_particle_container, u_particle_container,

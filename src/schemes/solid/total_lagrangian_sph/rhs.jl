@@ -59,7 +59,7 @@ end
 function interact!(dv, v_particle_container, u_particle_container,
                    v_neighbor_container, u_neighbor_container, neighborhood_search,
                    particle_container::SolidParticleContainer,
-                   neighbor_container::FluidParticleContainer)
+                   neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack state_equation, viscosity, smoothing_length = neighbor_container
 
     container_coords = current_coordinates(u_particle_container, particle_container)
@@ -128,7 +128,7 @@ end
 @inline function continuity_equation!(dv, v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
+                                      neighbor_container::WeaklyCompressibleSPHSystem)
     return dv
 end
 
@@ -137,7 +137,7 @@ end
                                       particle_container::SolidParticleContainer{
                                                                                  BoundaryModelDummyParticles
                                                                                  },
-                                      neighbor_container::FluidParticleContainer)
+                                      neighbor_container::WeaklyCompressibleSPHSystem)
     @unpack density_calculator = particle_container.boundary_model
 
     continuity_equation!(dv, density_calculator,
@@ -150,7 +150,7 @@ end
                                       u_particle_container, u_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
+                                      neighbor_container::WeaklyCompressibleSPHSystem)
     return dv
 end
 
@@ -158,7 +158,7 @@ end
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::SolidParticleContainer,
-                                      neighbor_container::FluidParticleContainer)
+                                      neighbor_container::WeaklyCompressibleSPHSystem)
     vdiff = current_velocity(v_particle_container, particle_container, particle) -
             current_velocity(v_neighbor_container, neighbor_container, neighbor)
 

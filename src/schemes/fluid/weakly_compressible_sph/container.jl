@@ -1,16 +1,16 @@
 """
-    FluidParticleContainer(setup,
+    WeaklyCompressibleSPHSystem(setup,
                            density_calculator, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
-    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses,
+    WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses,
                            density_calculator::SummationDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
                            acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-    FluidParticleContainer(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+    WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses, particle_densities,
                            density_calculator::ContinuityDensity, state_equation,
                            smoothing_kernel, smoothing_length;
                            viscosity=NoViscosity(),
@@ -18,7 +18,7 @@
 
 Container for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
-struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
        ParticleContainer{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
@@ -33,30 +33,30 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
     cache               :: C
 
     # convenience constructor for passing a setup as first argument
-    function FluidParticleContainer(setup, density_calculator::SummationDensity,
+    function WeaklyCompressibleSPHSystem(setup, density_calculator::SummationDensity,
                                     state_equation, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)))
-        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
     end
 
     # convenience constructor for passing a setup as first argument
-    function FluidParticleContainer(setup, density_calculator::ContinuityDensity,
+    function WeaklyCompressibleSPHSystem(setup, density_calculator::ContinuityDensity,
                                     state_equation, smoothing_kernel, smoothing_length;
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)))
-        return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
                                       viscosity=viscosity, acceleration=acceleration)
     end
 
-    function FluidParticleContainer(particle_coordinates, particle_velocities,
+    function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
                                     particle_masses,
                                     density_calculator::SummationDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
@@ -93,7 +93,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
                      viscosity, acceleration_, cache)
     end
 
-    function FluidParticleContainer(particle_coordinates, particle_velocities,
+    function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
                                     particle_masses, particle_densities,
                                     density_calculator::ContinuityDensity, state_equation,
                                     smoothing_kernel, smoothing_length;
@@ -135,10 +135,10 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
     end
 end
 
-function Base.show(io::IO, container::FluidParticleContainer)
+function Base.show(io::IO, container::WeaklyCompressibleSPHSystem)
     @nospecialize container # reduce precompilation time
 
-    print(io, "FluidParticleContainer{", ndims(container), "}(")
+    print(io, "WeaklyCompressibleSPHSystem{", ndims(container), "}(")
     print(io, container.density_calculator)
     print(io, ", ", container.state_equation)
     print(io, ", ", container.smoothing_kernel)
@@ -147,13 +147,13 @@ function Base.show(io::IO, container::FluidParticleContainer)
     print(io, ") with ", nparticles(container), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer)
+function Base.show(io::IO, ::MIME"text/plain", container::WeaklyCompressibleSPHSystem)
     @nospecialize container # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, container)
     else
-        summary_header(io, "FluidParticleContainer{$(ndims(container))}")
+        summary_header(io, "WeaklyCompressibleSPHSystem{$(ndims(container))}")
         summary_line(io, "#particles", nparticles(container))
         summary_line(io, "density calculator",
                      container.density_calculator |> typeof |> nameof)
@@ -165,26 +165,26 @@ function Base.show(io::IO, ::MIME"text/plain", container::FluidParticleContainer
     end
 end
 
-@inline function v_nvariables(container::FluidParticleContainer)
+@inline function v_nvariables(container::WeaklyCompressibleSPHSystem)
     return v_nvariables(container, container.density_calculator)
 end
 
-@inline function v_nvariables(container::FluidParticleContainer, density_calculator)
+@inline function v_nvariables(container::WeaklyCompressibleSPHSystem, density_calculator)
     return ndims(container)
 end
 
-@inline function v_nvariables(container::FluidParticleContainer, ::ContinuityDensity)
+@inline function v_nvariables(container::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
     return ndims(container) + 1
 end
 
-@inline function hydrodynamic_mass(container::FluidParticleContainer, particle)
+@inline function hydrodynamic_mass(container::WeaklyCompressibleSPHSystem, particle)
     return container.mass[particle]
 end
 
 # Nothing to initialize for this container
-initialize!(container::FluidParticleContainer, neighborhood_search) = container
+initialize!(container::WeaklyCompressibleSPHSystem, neighborhood_search) = container
 
-function update!(container::FluidParticleContainer, container_index, v, u, v_ode, u_ode,
+function update!(container::WeaklyCompressibleSPHSystem, container_index, v, u, v_ode, u_ode,
                  semi, t)
     @unpack density_calculator = container
 
@@ -238,7 +238,7 @@ function compute_pressure!(container, v)
     end
 end
 
-function write_u0!(u0, container::FluidParticleContainer)
+function write_u0!(u0, container::WeaklyCompressibleSPHSystem)
     @unpack initial_coordinates = container
 
     for particle in eachparticle(container)
@@ -251,7 +251,7 @@ function write_u0!(u0, container::FluidParticleContainer)
     return u0
 end
 
-function write_v0!(v0, container::FluidParticleContainer)
+function write_v0!(v0, container::WeaklyCompressibleSPHSystem)
     @unpack initial_velocity, density_calculator = container
 
     for particle in eachparticle(container)
@@ -266,11 +266,11 @@ function write_v0!(v0, container::FluidParticleContainer)
     return v0
 end
 
-function write_v0!(v0, ::SummationDensity, container::FluidParticleContainer)
+function write_v0!(v0, ::SummationDensity, container::WeaklyCompressibleSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, container::FluidParticleContainer)
+function write_v0!(v0, ::ContinuityDensity, container::WeaklyCompressibleSPHSystem)
     @unpack cache = container
     @unpack initial_density = cache
 
