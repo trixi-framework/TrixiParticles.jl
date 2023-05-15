@@ -416,12 +416,12 @@ end
 
 function update!(container::BoundaryParticleContainer, container_index,
                  v, u, v_ode, u_ode, semi, t)
-    @unpack initial_coordinates, movement_function, boundary_model = container
+    @unpack initial_coordinates, movement_function = container
 
     container.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
                                                      t)
 
-    update!(boundary_model, container, container_index, v, u, v_ode, u_ode, semi)
+    update_after_density_calc!(container, container_index, v, u, v_ode, u_ode, semi, t)
 
     return container
 end
@@ -431,22 +431,24 @@ function move_boundary_particles!(movement_function, coordinates, t)
 end
 move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
+# version used with SolidParticleContainer
 @inline function update!(boundary_model::BoundaryModelMonaghanKajtar, container,
                          container_index, v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
 
-@inline function update_after_density_calc!(boundary_model::BoundaryModelDummyParticles,
+# version used with SolidParticleContainer
+@inline function update!(boundary_model::BoundaryModelDummyParticles,
                                             container, container_index, v, u, v_ode, u_ode,
                                             semi)
     @unpack pressure, density_calculator = boundary_model
     @unpack particle_containers, neighborhood_searches = semi
 
-    pressure .= zero(eltype(pressure))
+    compute_density!(container, container_index, v, u, u_ode, semi, density_calculator)
+    compute_pressure!(boundary_model, density_calculator, container, container_index, v, u,
+                      v_ode, u_ode, semi)
 
-    compute_quantities!(boundary_model, density_calculator,
-                        container, container_index, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end
@@ -501,9 +503,7 @@ function compute_density!(container::BoundaryParticleContainer, container_index,
 end
 
 function update_after_density_calc!(container::BoundaryParticleContainer, container_index,
-                                    v, u,
-                                    v_ode, u_ode,
-                                    semi, t)
+                                    v, u, v_ode, u_ode, semi, t)
     @unpack boundary_model = container
     @unpack density_calculator = boundary_model
 
