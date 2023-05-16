@@ -13,7 +13,7 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.05
+particle_spacing = 0.2
 #particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
@@ -45,9 +45,9 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
 reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
+original_positions = (0, new_wall_position, 0, 0)
 
-reset_wall!(setup, reset_faces, positions)
+reset_wall!(setup, reset_faces, original_positions)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -65,24 +65,37 @@ particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
-                                              correction=NoCorrection()),
+                                              correction=KernelGradientCorrection()),
                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
-                                              correction=KernelCorrection()),
-                       FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                              smoothing_kernel, smoothing_length,
-                                              water_density,
-                                              viscosity=viscosity,
-                                              acceleration=(0.0, gravity),
-                                              correction=AkinciFreeSurfaceCorrection()))
+                                              correction=KernelGradientCorrection()))
+
+# particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+#                                               smoothing_kernel, smoothing_length,
+#                                               water_density,
+#                                               viscosity=viscosity,
+#                                               acceleration=(0.0, gravity),
+#                                               correction=NoCorrection()),
+#                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+#                                               smoothing_kernel, smoothing_length,
+#                                               water_density,
+#                                               viscosity=viscosity,
+#                                               acceleration=(0.0, gravity),
+#                                               correction=KernelCorrection()),
+#                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+#                                               smoothing_kernel, smoothing_length,
+#                                               water_density,
+#                                               viscosity=viscosity,
+#                                               acceleration=(0.0, gravity),
+#                                               correction=AkinciFreeSurfaceCorrection()))
 
 function container_to_name(container)
     if container.correction isa NoCorrection
         return "no_correction"
-    elseif container.correction isa KernelCorrection
+    elseif container.correction isa KernelGradientCorrection
         return "kernel_correction"
     elseif container.correction isa AkinciFreeSurfaceCorrection
         return "akinci_free_surf_correction"
@@ -98,8 +111,7 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, bound
 for particle_container in particle_containers
 
     # Move right boundary
-    positions = (0, water_width + particle_spacing, 0, 0)
-    reset_wall!(setup, reset_faces, positions)
+    reset_wall!(setup, reset_faces, original_positions)
 
     semi = Semidiscretization(particle_container, boundary_container,
                               neighborhood_search=SpatialHashingSearch,
@@ -109,8 +121,8 @@ for particle_container in particle_containers
     ode = semidiscretize(semi, tspan)
 
     info_callback = InfoCallback(interval=100)
-    saving_callback_relaxation = SolutionSavingCallback(interval=100,
-                                                        prefix="$(container_to_name(particle_container))_relaxation")
+    saving_callback_relaxation = SolutionSavingCallback(interval=1,
+                                                        prefix="test_$(container_to_name(particle_container))_relaxation")
     callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
     # Use a Runge-Kutta method with automatic (error based) time step size control.
@@ -152,4 +164,5 @@ for particle_container in particle_containers
                 reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
                 dtmax=1e-2, # Limit stepsize to prevent crashing
                 save_everystep=false, callback=callbacks)
+    exit()
 end

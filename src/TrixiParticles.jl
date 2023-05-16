@@ -43,6 +43,6 @@ export examples_dir, trixi_include
 export trixi2vtk
 export MergeShapes, RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
-export NoCorrection, KernelCorrection, AkinciFreeSurfaceCorrection
+export NoCorrection, KernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 
 end # module

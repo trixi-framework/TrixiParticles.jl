@@ -102,6 +102,13 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
             cache = (; cw, cache...)
         end
 
+        if correction isa KernelGradientCorrection
+            cw = similar(density)
+            cache = (; cw, cache...)
+            dcw = Array{ELTYPE}(undef, NDIMS, NDIMS, nparticles)
+            cache = (; dcw, cache...)
+        end
+
         # copy all input arrays before assignment
         c_particle_coordinates = copy(particle_coordinates)
         c_particle_velocities = copy(particle_velocities)
@@ -148,11 +155,17 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
             throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
+        if correction isa KernelCorrection
+            throw(ArgumentError("`KernelCorrection` cannot be used with `ContinuityDensity`!"))
+        end
+
         initial_density = copy(particle_densities)
         cache = (; initial_density)
-        if correction isa KernelCorrection
+        if  correction isa KernelGradientCorrection
             cw = similar(initial_density)
             cache = (; cw, cache...)
+            dcw = Array{ELTYPE}(undef, NDIMS, NDIMS, nparticles)
+            cache = (; dcw, cache...)
         end
 
         # copy all input arrays before assignment
@@ -268,15 +281,32 @@ function compute_density!(container::FluidParticleContainer, container_index, v,
 end
 
 function update_after_density_calc!(container::FluidParticleContainer, container_index, v,
-                                    u, v_ode,
-                                    u_ode, semi, t)
+                                    u, v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = container
 
+    determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                density_calculator, correction)
     kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                            density_calculator, correction)
     compute_pressure!(container, v)
 
     return container
+end
+
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     ::SummationDensity, ::NoCorrection)
+    # skip no correction method is active
+end
+
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     ::SummationDensity, ::KernelCorrection)
+    kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+end
+
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     ::Union{SummationDensity, ContinuityDensity},
+                                     ::KernelGradientCorrection)
+    kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
@@ -287,38 +317,7 @@ end
 
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                                 ::SummationDensity,
-                                ::KernelCorrection)
-    @unpack particle_containers, neighborhood_searches = semi
-    @unpack cache = container
-    @unpack cw = cache # Density is in the cache for SummationDensity
-
-    cw .= zero(eltype(cw))
-
-    # Use all other containers for the density summation
-    @trixi_timeit timer() "compute density with correction" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                                       neighbor_container)
-        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
-                                      semi)
-        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
-                                      semi)
-
-        container_coords = current_coordinates(u, container)
-        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
-
-        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
-
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(container, neighbor_container, container_coords,
-                              neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
-            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
-            m_b = hydrodynamic_mass(neighbor_container, neighbor)
-            volume = m_b / rho_b
-
-            cw[particle] += volume * smoothing_kernel(container, distance)
-        end
-    end
-
+                                ::Union{KernelCorrection, KernelGradientCorrection})
     for particle in eachparticle(container)
         corrected_density = particle_density(v, container, particle) / cw[particle]
         set_particle_density(particle, v, container, corrected_density)

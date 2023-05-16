@@ -15,8 +15,77 @@ Kernel correction uses Shepard interpolation to obtain a 0-th order accurate res
 
 # sorted in order of computational cost
 
-# also referred to as 0th order correction (cheapest)
+# also referred to as 0th order scalar correction (cheapest)
 struct KernelCorrection end
+
+# also referred to as 0th order correction of scalars and gradients (cheapest)
+struct KernelGradientCorrection end
+
+function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+    @unpack cw = cache
+
+    cw .= zero(eltype(cw))
+
+    # Use all other containers for the density summation
+    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                       neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container, container_coords,
+                              neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            volume = m_b / rho_b
+
+            cw[particle] += volume * smoothing_kernel(container, distance)
+        end
+    end
+end
+
+function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+    @unpack cw = cache
+
+    cw .= zero(eltype(cw))
+
+    # Use all other containers for the density summation
+    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                                neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container, container_coords,
+                              neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            volume = m_b / rho_b
+
+            cw[particle] += volume * smoothing_kernel(container, distance)
+        end
+    end
+end
 
 # Use the free surface correction as used in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 struct AkinciFreeSurfaceCorrection end
