@@ -159,12 +159,12 @@
 
             smoothing_length = 0.07
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            container = SolidParticleContainer(particle_coordinates, particle_velocities,
+            system = SolidParticleContainer(particle_coordinates, particle_velocities,
                                                particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                E, nu, nothing)
 
-            semi = Semidiscretization(container)
+            semi = Semidiscretization(system)
             tspan = (0.0, 1.0)
             semidiscretize(semi, tspan)
 
@@ -178,7 +178,7 @@
             #### Verification for the particle in the middle
             particle = 41
 
-            dv = zeros(ndims(container), 81)
+            dv = zeros(ndims(system), 81)
             TrixiParticles.kick!(dv, v, u, semi, 0.0)
 
             @test isapprox(dv[:, particle], dv_expected_41[deformation],
