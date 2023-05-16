@@ -29,7 +29,7 @@
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             container = FluidParticleContainer(setup, density_calculator,
                                                state_equation, smoothing_kernel,
-                                               smoothing_length)
+                                               smoothing_length, 1000.0)
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == setup.coordinates
@@ -71,6 +71,7 @@
                                                                          state_equation,
                                                                          smoothing_kernel,
                                                                          smoothing_length,
+                                                                         1000.0,
                                                                          acceleration=(0.0))
         end
     end
