@@ -176,7 +176,7 @@ function Base.show(io::IO, container::FluidParticleContainer)
 
     print(io, "FluidParticleContainer{", ndims(container), "}(")
     print(io, container.density_calculator)
-    print(io, container.correction)
+    print(io, ", ", container.correction)
     print(io, ", ", container.state_equation)
     print(io, ", ", container.smoothing_kernel)
     print(io, ", ", container.viscosity)

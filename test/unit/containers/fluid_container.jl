@@ -26,7 +26,7 @@
             container = FluidParticleContainer(coordinates, velocities, masses,
                                                density_calculator,
                                                state_equation, smoothing_kernel,
-                                               smoothing_length)
+                                               smoothing_length, 1000.0)
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == coordinates
@@ -47,7 +47,7 @@
                                                                           state_equation,
                                                                           smoothing_kernel,
                                                                           smoothing_length,
-                                                                          acceleration=(0.0))
+                                                                          acceleration=(0.0), 1000.0)
 
             error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"
             @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
@@ -56,14 +56,14 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel2,
-                                                                          smoothing_length)
+                                                                          smoothing_length, 1000.0)
 
             # ContinuityDensity
             density_calculator = ContinuityDensity()
             container = FluidParticleContainer(coordinates, velocities, masses, densities,
                                                density_calculator, state_equation,
                                                smoothing_kernel,
-                                               smoothing_length)
+                                               smoothing_length, 1000.0)
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == coordinates
@@ -83,7 +83,7 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel,
-                                                                          smoothing_length,
+                                                                          smoothing_length, 1000.0,
                                                                           acceleration=(0.0))
 
             @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
@@ -93,7 +93,7 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel2,
-                                                                          smoothing_length)
+                                                                          smoothing_length, 1000.0)
         end
     end
 
@@ -112,11 +112,11 @@
         container = FluidParticleContainer(coordinates, velocities, masses,
                                            density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length)
+                                           smoothing_length, 1000.0)
 
-        show_compact = "FluidParticleContainer{2}(SummationDensity(), " *
+        show_compact = "FluidParticleContainer{2}(SummationDensity(), NoCorrection(), " *
                        "Val{:state_equation}(), Val{:smoothing_kernel}(), " *
-                       "TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
+                       "TrixiParticles.NoViscosity(), [0.0, 0.0], 1000.0) with 2 particles"
         @test repr(container) == show_compact
 
         show_box = """
@@ -125,10 +125,12 @@
         │ ═════════════════════════                                                                        │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
+        │ correction method: ……………………………… NoCorrection                                                     │
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
+        │ rho0: ………………………………………………………………… 1000.0                                                           │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", container) == show_box
     end
@@ -147,7 +149,7 @@
         container = FluidParticleContainer(coordinates, velocities, masses,
                                            density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length)
+                                           smoothing_length, 1000)
 
         u0 = zeros(TrixiParticles.u_nvariables(container),
                    TrixiParticles.n_moving_particles(container))
@@ -170,7 +172,7 @@
         container = FluidParticleContainer(coordinates, velocities, masses,
                                            SummationDensity(),
                                            state_equation, smoothing_kernel,
-                                           smoothing_length)
+                                           smoothing_length, 1000)
 
         v0 = zeros(TrixiParticles.v_nvariables(container),
                    TrixiParticles.n_moving_particles(container))
@@ -182,7 +184,7 @@
         container = FluidParticleContainer(coordinates, velocities, masses, densities,
                                            ContinuityDensity(),
                                            state_equation, smoothing_kernel,
-                                           smoothing_length)
+                                           smoothing_length, 1000)
 
         v0 = zeros(TrixiParticles.v_nvariables(container),
                    TrixiParticles.n_moving_particles(container))
