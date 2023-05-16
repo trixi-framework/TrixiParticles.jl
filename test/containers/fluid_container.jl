@@ -147,7 +147,8 @@
                 end
 
                 if density_calculator isa ContinuityDensity
-                    @test length(container.cache.initial_density) == size(setup.coordinates, 2)
+                    @test length(container.cache.initial_density) ==
+                          size(setup.coordinates, 2)
                     @test container.cache.initial_density == setup.densities
                 end
             end
