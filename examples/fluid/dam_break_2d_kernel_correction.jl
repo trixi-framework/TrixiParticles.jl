@@ -96,6 +96,12 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, bound
 # ==== Simulation
 
 for particle_container in particle_containers
+
+    # Move right boundary
+    positions = (0, water_width + particle_spacing, 0, 0)
+    reset_wall!(setup, reset_faces, positions)
+
+
     semi = Semidiscretization(particle_container, boundary_container,
                               neighborhood_search=SpatialHashingSearch,
                               damping_coefficient=1e-5)
@@ -138,7 +144,7 @@ for particle_container in particle_containers
     ode = semidiscretize(semi, tspan)
 
     saving_callback = SolutionSavingCallback(dt=0.02,
-                                             prefix="$(container_to_name(particle_container))_correction")
+                                             prefix="$(container_to_name(particle_container))")
     callbacks = CallbackSet(info_callback, saving_callback)
 
     # See above for an explanation of the parameter choice

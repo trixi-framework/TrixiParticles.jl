@@ -102,13 +102,18 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
             cache = (; cw, cache...)
         end
 
+        # copy all input arrays before assignment
+        c_particle_coordinates = copy(particle_coordinates)
+        c_particle_velocities = copy(particle_velocities)
+        c_particle_masses = copy(particle_masses)
+
+
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
-                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses, pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
-                     rho0,
-                     viscosity, acceleration_, correction, cache)
+                     rho0, viscosity, acceleration_, correction, cache)
     end
 
     function FluidParticleContainer(particle_coordinates, particle_velocities,
@@ -143,17 +148,22 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
             throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
         end
 
-        initial_density = particle_densities
+        initial_density = copy(particle_densities)
         cache = (; initial_density)
         if correction isa KernelCorrection
             cw = similar(initial_density)
             cache = (; cw, cache...)
         end
 
+        # copy all input arrays before assignment
+        c_particle_coordinates = copy(particle_coordinates)
+        c_particle_velocities = copy(particle_velocities)
+        c_particle_masses = copy(particle_masses)
+
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
-                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses, pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
                      rho0,
                      viscosity, acceleration_, correction, cache)
