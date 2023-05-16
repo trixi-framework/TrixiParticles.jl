@@ -198,9 +198,6 @@
                        "Val{:state_equation}(), Val{:smoothing_kernel}(), " *
                        "TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
-        if isdefined(Main, :Infiltrator)
-            Main.Infiltrator.infiltrate(@__MODULE__, Base.@locals, @__FILE__, @__LINE__)
-          end
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ WeaklyCompressibleSPHSystem{2}                                                                   │
