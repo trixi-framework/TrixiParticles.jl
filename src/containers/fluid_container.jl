@@ -107,11 +107,11 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         c_particle_velocities = copy(particle_velocities)
         c_particle_masses = copy(particle_masses)
 
-
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
-                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses, pressure,
+                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses,
+                     pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
                      rho0, viscosity, acceleration_, correction, cache)
     end
@@ -163,7 +163,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
-                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses, pressure,
+                   }(c_particle_coordinates, c_particle_velocities, c_particle_masses,
+                     pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
                      rho0,
                      viscosity, acceleration_, correction, cache)

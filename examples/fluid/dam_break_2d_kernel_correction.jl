@@ -101,7 +101,6 @@ for particle_container in particle_containers
     positions = (0, water_width + particle_spacing, 0, 0)
     reset_wall!(setup, reset_faces, positions)
 
-
     semi = Semidiscretization(particle_container, boundary_container,
                               neighborhood_search=SpatialHashingSearch,
                               damping_coefficient=1e-5)
