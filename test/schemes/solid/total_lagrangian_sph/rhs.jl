@@ -108,7 +108,7 @@
         end
     end
 
-    @testset verbose=true "interact! with Container and Deformation Function" begin
+    @testset verbose=true "interact! with System and Deformation Function" begin
         deformations = Dict("rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
                             "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
                             "rotate and stretch" => x -> [cos(0.3) -sin(0.3);
@@ -159,7 +159,7 @@
 
             smoothing_length = 0.07
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            system = SolidParticleContainer(particle_coordinates, particle_velocities,
+            system = TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
                                                particle_masses, particle_densities,
                                                smoothing_kernel, smoothing_length,
                                                E, nu, nothing)
