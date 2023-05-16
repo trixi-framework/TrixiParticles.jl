@@ -47,7 +47,8 @@
                                                                           state_equation,
                                                                           smoothing_kernel,
                                                                           smoothing_length,
-                                                                          acceleration=(0.0), 1000.0)
+                                                                          acceleration=(0.0),
+                                                                          1000.0)
 
             error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"
             @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
@@ -56,7 +57,8 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel2,
-                                                                          smoothing_length, 1000.0)
+                                                                          smoothing_length,
+                                                                          1000.0)
 
             # ContinuityDensity
             density_calculator = ContinuityDensity()
@@ -83,7 +85,8 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel,
-                                                                          smoothing_length, 1000.0,
+                                                                          smoothing_length,
+                                                                          1000.0,
                                                                           acceleration=(0.0))
 
             @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
@@ -93,7 +96,8 @@
                                                                           density_calculator,
                                                                           state_equation,
                                                                           smoothing_kernel2,
-                                                                          smoothing_length, 1000.0)
+                                                                          smoothing_length,
+                                                                          1000.0)
         end
     end
 
