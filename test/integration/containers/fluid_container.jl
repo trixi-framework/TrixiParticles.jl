@@ -5,6 +5,8 @@
         RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0),
         RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492), 1020.0),
         CircularShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+        RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
+        RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
     ]
     setup_names = [
         "RectangularShape 2D",
@@ -12,15 +14,21 @@
         "RectangularTank 2D",
         "RectangularTank 3D",
         "CircularShape",
+        "RectangularShape 2D with KernelCorrection",
+        "RectangularShape 2D with AkinciFreeSurfaceCorrection",
     ]
-    NDIMS_ = [2, 3, 2, 3, 2]
+    NDIMS_ = [2, 3, 2, 3, 2, 2, 2]
     density_calculators = [
         SummationDensity(),
         ContinuityDensity(),
     ]
+    correction = [NoCorrection(), NoCorrection(), NoCorrection(), NoCorrection(), NoCorrection(), KernelCorrection(), AkinciFreeSurfaceCorrection()]
+
+
     @testset "$(setup_names[i])" for i in eachindex(setups)
         setup = setups[i]
         NDIMS = NDIMS_[i]
+        corr  = correction[i]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
@@ -29,7 +37,7 @@
         @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
             container = FluidParticleContainer(setup, density_calculator,
                                                state_equation, smoothing_kernel,
-                                               smoothing_length, 1000.0)
+                                               smoothing_length, 1000.0, correction=corr)
 
             @test container isa FluidParticleContainer{NDIMS}
             @test container.initial_coordinates == setup.coordinates
@@ -50,6 +58,9 @@
             if density_calculator isa ContinuityDensity
                 @test length(container.cache.initial_density) == size(setup.coordinates, 2)
                 @test container.cache.initial_density == setup.densities
+            end
+            if corr isa KernelCorrection
+                @test length(container.cache.cw) == size(setup.coordinates, 2)
             end
         end
     end
