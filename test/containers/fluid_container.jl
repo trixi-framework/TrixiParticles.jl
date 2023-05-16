@@ -128,8 +128,8 @@
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length)
+                                                     state_equation, smoothing_kernel,
+                                                     smoothing_length)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_coordinates == setup.coordinates
@@ -168,11 +168,11 @@
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
                 @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
-                                                                             density_calculator,
-                                                                             state_equation,
-                                                                             smoothing_kernel,
-                                                                             smoothing_length,
-                                                                             acceleration=(0.0))
+                                                                                  density_calculator,
+                                                                                  state_equation,
+                                                                                  smoothing_kernel,
+                                                                                  smoothing_length,
+                                                                                  acceleration=(0.0))
             end
         end
     end
