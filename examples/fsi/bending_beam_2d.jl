@@ -129,6 +129,7 @@ fluid_container = FluidParticleContainer(fluid.coordinates,
                                          fluid.masses, fluid.densities,
                                          ContinuityDensity(), state_equation,
                                          fluid_smoothing_kernel, fluid_smoothing_length,
+                                         water_density,
                                          viscosity=viscosity,
                                          acceleration=(0.0, gravity))
 

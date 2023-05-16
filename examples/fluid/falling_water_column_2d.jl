@@ -54,6 +54,7 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 
 particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                             smoothing_kernel, smoothing_length,
+                                            water_density,
                                             viscosity=viscosity,
                                             acceleration=(0.0, gravity))
 
