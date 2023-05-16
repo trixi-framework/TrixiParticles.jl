@@ -22,13 +22,20 @@
         SummationDensity(),
         ContinuityDensity(),
     ]
-    correction = [NoCorrection(), NoCorrection(), NoCorrection(), NoCorrection(), NoCorrection(), KernelCorrection(), AkinciFreeSurfaceCorrection()]
-
+    correction = [
+        NoCorrection(),
+        NoCorrection(),
+        NoCorrection(),
+        NoCorrection(),
+        NoCorrection(),
+        KernelCorrection(),
+        AkinciFreeSurfaceCorrection(),
+    ]
 
     @testset "$(setup_names[i])" for i in eachindex(setups)
         setup = setups[i]
         NDIMS = NDIMS_[i]
-        corr  = correction[i]
+        corr = correction[i]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
