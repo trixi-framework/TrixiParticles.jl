@@ -161,7 +161,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
         initial_density = copy(particle_densities)
         cache = (; initial_density)
-        if  correction isa KernelGradientCorrection
+        if correction isa KernelGradientCorrection
             cw = similar(initial_density)
             cache = (; cw, cache...)
             dcw = Array{ELTYPE}(undef, NDIMS, NDIMS, nparticles)
