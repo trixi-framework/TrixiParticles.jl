@@ -50,13 +50,8 @@ setup = RectangularTank(particle_spacing, (water_width, water_height, water_dept
 See also: [`reset_wall!`](@ref)
 """
 struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
-    coordinates               :: Array{ELTYPE, 2}
-    velocities                :: Array{ELTYPE, 2}
-    densities                 :: Vector{ELTYPE}
-    masses                    :: Vector{ELTYPE}
-    boundary_coordinates      :: Array{ELTYPE, 2}
-    boundary_masses           :: Vector{ELTYPE}
-    boundary_densities        :: Vector{ELTYPE}
+    fluid                     :: InitialCondition{ELTYPE}
+    boundary                  :: InitialCondition{ELTYPE}
     faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
     face_indices              :: NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
     particle_spacing          :: ELTYPE
@@ -88,17 +83,19 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         tank_size = tank_size .+ particle_spacing
 
         # Boundary particle data
-        n_boundaries_per_dim,
-        tank_size = boundary_particles_per_dimension(tank_size, particle_spacing,
-                                                     spacing_ratio)
+        n_boundaries_per_dim, tank_size = boundary_particles_per_dimension(tank_size,
+                                                                           particle_spacing,
+                                                                           spacing_ratio)
 
-        boundary_coordinates,
-        face_indices = initialize_boundaries(particle_spacing / spacing_ratio, tank_size,
-                                             n_boundaries_per_dim, n_layers, faces)
+        boundary_coordinates, face_indices = initialize_boundaries(particle_spacing /
+                                                                   spacing_ratio, tank_size,
+                                                                   n_boundaries_per_dim,
+                                                                   n_layers, faces)
 
         boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^2 *
                           ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
+        boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
 
         # Particle data
         n_particles_x = fluid_particles_per_dimension(fluid_size[1], particle_spacing,
@@ -128,11 +125,14 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
-        return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
-                                             boundary_coordinates, boundary_masses,
-                                             boundary_densities, faces,
-                                             face_indices,
+        fluid = InitialCondition(particle_coordinates, particle_velocities,
+                                 particle_masses, particle_densities)
+
+        boundary = InitialCondition(boundary_coordinates, boundary_velocities,
+                                    boundary_masses, boundary_densities)
+
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary,
+                                             faces, face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension)
     end
@@ -172,6 +172,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^3 *
                           ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
+        boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
 
         # Particle data
         n_particles_x = fluid_particles_per_dimension(fluid_size[1], particle_spacing,
@@ -208,11 +209,14 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         mass = fluid_density * particle_spacing^3
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
-        return new{NDIMS, 2 * NDIMS, ELTYPE}(particle_coordinates, particle_velocities,
-                                             particle_densities, particle_masses,
-                                             boundary_coordinates, boundary_masses,
-                                             boundary_densities, faces,
-                                             face_indices,
+        fluid = InitialCondition(particle_coordinates, particle_velocities,
+                                 particle_masses, particle_densities)
+
+        boundary = InitialCondition(boundary_coordinates, boundary_velocities,
+                                    boundary_masses, boundary_densities)
+
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary,
+                                             faces, face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dimension)
     end
