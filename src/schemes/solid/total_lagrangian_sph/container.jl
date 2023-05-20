@@ -80,7 +80,6 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
     correction_matrix   :: Array{ELTYPE, 3} # [i, j, particle]
     pk1_corrected       :: Array{ELTYPE, 3} # [i, j, particle]
@@ -97,8 +96,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     boundary_model      :: BM
     penalty_force       :: PF
 
-    function TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
-                                      particle_masses, particle_material_densities,
+    function TotalLagrangianSPHSystem(particle_coordinates, particle_masses,
+                                      particle_material_densities,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
                                       n_fixed_particles=0,
@@ -107,7 +106,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                                       penalty_force=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
-        nparticles = length(particle_masses)
+        n_particles = length(particle_masses)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -120,23 +119,23 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
         end
 
         current_coordinates = copy(particle_coordinates)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
-        n_moving_particles = nparticles - n_fixed_particles
+        n_moving_particles = n_particles - n_fixed_particles
 
         lame_lambda = young_modulus * poisson_ratio /
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
+        # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, n_particles)
 
         return new{typeof(boundary_model),
                    NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
                    typeof(penalty_force)}(particle_coordinates, current_coordinates,
-                                          particle_velocities, particle_masses,
+                                          particle_masses,
                                           correction_matrix, pk1_corrected,
                                           deformation_grad, particle_material_densities,
                                           n_moving_particles, young_modulus, poisson_ratio,
@@ -388,55 +387,52 @@ end
     return dv
 end
 
-function write_u0!(u0, system::TotalLagrangianSPHSystem)
-    @unpack initial_coordinates = system
-
+function write_u0!(u0, system::TotalLagrangianSPHSystem, initial_condition)
     for particle in each_moving_particle(system)
         # Write particle coordinates
         for dim in 1:ndims(system)
-            u0[dim, particle] = initial_coordinates[dim, particle]
+            u0[dim, particle] = initial_condition.coordinates[dim, particle]
         end
     end
 
     return u0
 end
 
-function write_v0!(v0, system::TotalLagrangianSPHSystem)
-    @unpack initial_velocity, boundary_model = system
-
+function write_v0!(v0, system::TotalLagrangianSPHSystem, initial_condition)
     for particle in each_moving_particle(system)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = initial_velocity[dim, particle]
+            v0[dim, particle] = initial_condition.velocity[dim, particle]
         end
     end
 
-    write_v0!(v0, boundary_model, system)
+    write_v0!(v0, system.boundary_model, system)
 
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem,
+                   initial_condition)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem,
+                   initial_condition)
     @unpack density_calculator = system.boundary_model
 
-    write_v0!(v0, density_calculator, system)
+    write_v0!(v0, density_calculator, system, initial_condition)
 end
 
-function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem,
+                   initial_condition)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
-
+function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem,
+                   initial_condition)
     for particle in each_moving_particle(system)
         # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_density[particle]
+        v0[ndims(system) + 1, particle] = initial_condition.density[particle]
     end
 
     return v0

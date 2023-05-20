@@ -555,31 +555,30 @@ end
     return boundary_model
 end
 
-function write_u0!(u0, system::BoundarySPHSystem)
+function write_u0!(u0, system::BoundarySPHSystem, initial_condition)
     return u0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar})
+function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                   initial_condition)
     return v0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
+function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                   initial_condition)
     @unpack density_calculator = system.boundary_model
 
     write_v0!(v0, density_calculator, system)
 end
 
-function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
+function write_v0!(v0, density_calculator, system::BoundarySPHSystem, initial_condition)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
-
+function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem, initial_condition)
     for particle in eachparticle(system)
         # Set particle densities
-        v0[1, particle] = initial_density[particle]
+        v0[1, particle] = initial_condition.density[particle]
     end
 
     return v0
