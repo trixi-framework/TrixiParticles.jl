@@ -6,8 +6,8 @@ struct TrivialNeighborhoodSearch{E}
     end
 end
 
-@inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
-@inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
+@inline initialize!(search::TrivialNeighborhoodSearch, x, y) = search
+@inline update!(search::TrivialNeighborhoodSearch, x, y, y_has_changed) = search
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
 
 @doc raw"""
@@ -60,14 +60,14 @@ end
     return size(neighborhood_search.cell_buffer, 1)
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing, ::Nothing)
     # No particle coordinates function -> don't initialize.
     return neighborhood_search
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
-                     x::AbstractArray) where {NDIMS}
-    initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
+                     x::AbstractArray, y::AbstractArray) where {NDIMS}
+    initialize!(neighborhood_search, i -> extract_svector(y, Val(NDIMS), i))
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
@@ -94,14 +94,16 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
     return neighborhood_search
 end
 
-function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function update!(neighborhood_search, ::Nothing, ::Nothing, y_has_changed)
     # No particle coordinates function -> don't update.
     return neighborhood_search
 end
 
 function update!(neighborhood_search::SpatialHashingSearch{NDIMS},
-                 x::AbstractArray) where {NDIMS}
-    update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
+                 x::AbstractArray, y::AbstractArray, y_has_changed) where {NDIMS}
+    if y_has_changed
+        update!(neighborhood_search, i -> extract_svector(y, Val(NDIMS), i))
+    end
 end
 
 # Modify the existing hash table by moving particles into their new cells
@@ -296,4 +298,62 @@ end
     cell = cell_coords(coords, neighborhood_search) .+ 1
 
     return cartesian2morton(SVector(cell))
+end
+
+
+mutable struct CellListMapNeighborhoodSearch{CL, B}
+    cell_list :: CL
+    box       :: B
+
+    function CellListMapNeighborhoodSearch(search_radius)
+        x = [-100.0 100.0; -100.0 100.0]
+        y = zeros(2, 1)
+        box = Box(limits(x, x), search_radius)
+        cell_list = CellList(x, x, box)
+
+        return new{typeof(cell_list), typeof(box)}(cell_list, box)
+    end
+end
+
+function initialize!(neighborhood_search::CellListMapNeighborhoodSearch,
+                     x, y)
+    update!(neighborhood_search, x, y, true)
+end
+
+function update!(neighborhood_search::CellListMapNeighborhoodSearch,
+                 x::Nothing, y::Nothing, y_has_changed)
+    return neighborhood_search
+end
+
+function update!(neighborhood_search::CellListMapNeighborhoodSearch,
+                 x, y, y_has_changed)
+    @unpack cell_list = neighborhood_search
+
+    box = Box(limits(x, y), neighborhood_search.box.cutoff)
+    UpdateCellList!(x, y, box, cell_list)
+    neighborhood_search.box = box
+
+    return neighborhood_search
+end
+
+@inline function for_particle_neighbor(f, system, neighbor_system,
+                                       system_coords, neighbor_coords,
+                                       neighborhood_search::CellListMapNeighborhoodSearch;
+                                       particles=each_moving_particle(system))
+    @unpack cell_list, box = neighborhood_search
+
+    map_pairwise!(0, box, cell_list) do x, y, i, j, d2, output
+        if !(i in particles)
+            return output
+        end
+
+        pos_diff = x - y
+        distance = sqrt(dot(pos_diff, pos_diff))
+
+        @inline f(i, j, pos_diff, distance)
+
+        return output
+    end
+
+    return nothing
 end

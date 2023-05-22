@@ -2,6 +2,7 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using CellListMap: Box, CellList, UpdateCellList!, map_pairwise!, limits
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr

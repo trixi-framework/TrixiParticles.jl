@@ -82,7 +82,17 @@ function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch
     search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor))
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(system, neighbor))
+    initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))
+
+    return search
+end
+
+function create_neighborhood_search(system, neighbor, ::Val{CellListMapNeighborhoodSearch})
+    radius = compact_support(system, neighbor)
+    search = CellListMapNeighborhoodSearch(radius)
+
+    # Initialize neighborhood search
+    initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))
 
     return search
 end
@@ -207,10 +217,8 @@ end
 
     range = ranges_u[i]
 
-    @boundscheck begin
-        @assert length(range) ==
-                u_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck begin @assert length(range) ==
+                               u_nvariables(system) * n_moving_particles(system) end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -224,10 +232,8 @@ end
 
     range = ranges_v[i]
 
-    @boundscheck begin
-        @assert length(range) ==
-                v_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck begin @assert length(range) ==
+                               v_nvariables(system) * n_moving_particles(system) end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
@@ -330,11 +336,14 @@ function update_nhs(u_ode, semi)
 
     # Update NHS for each pair of systems
     foreach_enumerate(systems) do (system_index, system)
+        u_system = wrap_u(u_ode, system_index, system, semi)
+
         foreach_enumerate(systems) do (neighbor_index, neighbor)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
+            x, y, y_has_changed = nhs_coords(system, neighbor, u_system, u_neighbor)
+            update!(neighborhood_search, x, y, y_has_changed)
         end
     end
 end
@@ -403,65 +412,57 @@ end
 
 # NHS updates
 function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
-    return current_coordinates(u, neighbor)
+                    neighbor::WeaklyCompressibleSPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor), true
 end
 
 function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
-    return current_coordinates(u, neighbor)
+                    neighbor::TotalLagrangianSPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor), true
 end
 
 function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
-        return current_coordinates(u, neighbor)
-    end
-
-    # Don't update
-    return nothing
+                    neighbor::BoundarySPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor),
+           neighbor.ismoving[1]
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
-    return current_coordinates(u, neighbor)
+                    neighbor::WeaklyCompressibleSPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor), true
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
+                    neighbor::TotalLagrangianSPHSystem, u, u_neighbor)
     # Don't update
-    return nothing
+    return nothing, nothing, false
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
-        return current_coordinates(u, neighbor)
-    end
-
-    # Don't update
-    return nothing
+                    neighbor::BoundarySPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor),
+           neighbor.ismoving[1]
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::WeaklyCompressibleSPHSystem, u, u_neighbor)
     # Don't update
-    return nothing
+    return nothing, nothing, false
 end
 
 function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                    neighbor::WeaklyCompressibleSPHSystem, u)
-    return current_coordinates(u, neighbor)
+                    neighbor::WeaklyCompressibleSPHSystem, u, u_neighbor)
+    return current_coordinates(u, system), current_coordinates(u_neighbor, neighbor), true
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
+                    neighbor::TotalLagrangianSPHSystem, u, u_neighbor)
     # Don't update
-    return nothing
+    return nothing, nothing, false
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::BoundarySPHSystem, u)
+                    neighbor::BoundarySPHSystem, u, u_neighbor)
     # Don't update
-    return nothing
+    return nothing, nothing, false
 end
