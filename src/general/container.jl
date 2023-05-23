@@ -1,11 +1,11 @@
 # Implies number of dimensions and a field with the name `initial_coordinates`.
-abstract type SPHSystem{NDIMS} end
+abstract type System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
 update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 
-@inline Base.ndims(::SPHSystem{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::SPHSystem) = eltype(system.initial_coordinates)
+@inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(system::System) = eltype(system.initial_coordinates)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)

@@ -42,7 +42,7 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing - 1),
                              n_particles_y)
 
-# shift the beam outwards since coordinates start in negative coordinate directions
+# Shift the beam outwards since coordinates start in negative coordinate directions
 y_position = -(n_particles_y - 1) * solid_particle_spacing
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
@@ -133,7 +133,8 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid.coordinates,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-# rigid_solid_system = BoundarySPHSystem(particle_coordinates, boundary_model_solid)
+# Replace the elastic solid by a boundary for testing purposes.
+# rigid_solid_system = BoundarySPHSystem(solid.coordinates, boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation
@@ -170,7 +171,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # In the following, the y deflection of the beam is compared with the analytical
 # deflection curve (one of the most widely used formulas in structural engineering).
-# Note that this is not the correct analytical soluation for this example,
+# Note that this is not the correct analytical solution for this example,
 # but just an approximation (see comment at the top of this file).
 #
 # The equation is derived in e.g.:
@@ -178,10 +179,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # DOI: 10.1007/978-3-319-18878-2
 
 function plot_analytical(solid_system)
-    # distributed transverse force
+    # Distributed transverse force
     q_0 = gravity * solid_density * thickness_beam^2
 
-    # second moment of area about z-axis (beam bends in the plane perpendicular to the z-axis)
+    # Second moment of area about z-axis (beam bends in the plane perpendicular to the z-axis)
     I_z = thickness_beam^4 / 12
 
     L = length_beam

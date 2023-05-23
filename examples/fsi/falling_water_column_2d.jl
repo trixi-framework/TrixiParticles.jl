@@ -12,9 +12,6 @@ water_width = 0.525
 water_height = 1.0125
 water_density = 1000.0
 
-tank_width = 4.0
-tank_height = 4.0
-
 sound_speed = 10 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * fluid_particle_spacing
@@ -59,7 +56,7 @@ fixed_particles = CircularShape(solid_particle_spacing,
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
-# cantilever and clamped particles
+# Cantilever and clamped particles
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 

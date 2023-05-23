@@ -18,8 +18,7 @@
 
 System for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <:
-       SPHSystem{NDIMS}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: System{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
@@ -207,15 +206,15 @@ end
 
 function compute_quantities(v, u, ::SummationDensity, system, system_index, u_ode,
                             semi)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack density = cache # Density is in the cache for SummationDensity
 
     density .= zero(eltype(density))
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute density" foreach_enumerate(particle_systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
+    @trixi_timeit timer() "compute density" foreach_enumerate(systems) do (neighbor_system_index,
+                                                                           neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
                                    neighbor_system, semi)
 

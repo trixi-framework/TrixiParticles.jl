@@ -101,7 +101,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator)
     semi = integrator.p
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
-    systems = semi.particle_systems
+    systems = semi.systems
     for system in systems
         show(io_context, MIME"text/plain"(), system)
         println(io, "\n")

@@ -1,16 +1,16 @@
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack particle_systems = semi
+    @unpack systems = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
     # system type.
     # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
-    cnames = particle_systems .|> vtkname
+    cnames = systems .|> vtkname
     filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
                  for i in eachindex(cnames)]
 
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
         trixi2vtk(v, u, t, system; output_directory=output_directory,

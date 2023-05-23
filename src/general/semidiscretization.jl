@@ -1,7 +1,7 @@
 """
-    Semidiscretization(particle_systems...; neighborhood_search=nothing, damping_coefficient=nothing)
+    Semidiscretization(systems...; neighborhood_search=nothing, damping_coefficient=nothing)
 
-The semidiscretization couples the passed particle systems to one simulation.
+The semidiscretization couples the passed systems to one simulation.
 
 The type of neighborhood search to be used in the simulation can be specified with
 the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
@@ -11,21 +11,21 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{PC, RU, RV, NS, DC}
-    particle_systems::PC
-    ranges_u::RU
-    ranges_v::RV
-    neighborhood_searches::NS
-    damping_coefficient::DC
+struct Semidiscretization{S, RU, RV, NS, DC}
+    systems               :: S
+    ranges_u              :: RU
+    ranges_v              :: RV
+    neighborhood_searches :: NS
+    damping_coefficient   :: DC
 
-    function Semidiscretization(particle_systems...; neighborhood_search=nothing,
+    function Semidiscretization(systems...; neighborhood_search=nothing,
                                 damping_coefficient=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
-                   for system in particle_systems]
+                   for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
                          for i in eachindex(sizes_u))
         sizes_v = [v_nvariables(system) * n_moving_particles(system)
-                   for system in particle_systems]
+                   for system in systems]
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
@@ -33,11 +33,11 @@ struct Semidiscretization{PC, RU, RV, NS, DC}
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
                                                           Val(neighborhood_search))
-                               for neighbor in particle_systems)
-                         for system in particle_systems)
+                               for neighbor in systems)
+                         for system in systems)
 
-        new{typeof(particle_systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(particle_systems, ranges_u,
+        new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
+            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u,
                                                            ranges_v, searches,
                                                            damping_coefficient)
     end
@@ -48,7 +48,7 @@ function Base.show(io::IO, semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
     print(io, "Semidiscretization(")
-    for system in semi.particle_systems
+    for system in semi.systems
         print(io, system, ", ")
     end
     print(io, "neighborhood_search=")
@@ -64,12 +64,12 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         show(io, semi)
     else
         summary_header(io, "Semidiscretization")
-        summary_line(io, "#spatial dimensions", ndims(semi.particle_systems[1]))
-        summary_line(io, "#systems", length(semi.particle_systems))
+        summary_line(io, "#spatial dimensions", ndims(semi.systems[1]))
+        summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
                      semi.neighborhood_searches |> eltype |> eltype |> nameof)
         summary_line(io, "damping coefficient", semi.damping_coefficient)
-        summary_line(io, "total #particles", sum(nparticles.(semi.particle_systems)))
+        summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_footer(io)
     end
 end
@@ -139,24 +139,20 @@ function nhs_init_function(system, model, neighbor)
     return nothing
 end
 
-# Create Tuple of systems for single system
-digest_systems(boundary_condition) = (boundary_condition,)
-digest_systems(boundary_condition::Tuple) = boundary_condition
-
 """
     semidiscretize(semi, tspan)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
 function semidiscretize(semi, tspan)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
 
-    @assert all(system -> eltype(system) === eltype(particle_systems[1]),
-                particle_systems)
-    ELTYPE = eltype(particle_systems[1])
+    @assert all(system -> eltype(system) === eltype(systems[1]),
+                systems)
+    ELTYPE = eltype(systems[1])
 
     # Initialize all particle systems
-    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(particle_systems)
+    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(systems)
         # Get the neighborhood search for this system
         neighborhood_search = neighborhood_searches[system_index][system_index]
 
@@ -165,13 +161,13 @@ function semidiscretize(semi, tspan)
     end end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system)
-               for system in particle_systems)
+               for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system)
-               for system in particle_systems)
+               for system in systems)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
-    for (system_index, system) in pairs(particle_systems)
+    for (system_index, system) in pairs(systems)
         u0_system = wrap_u(u0_ode, system_index, system, semi)
         v0_system = wrap_v(v0_ode, system_index, system, semi)
 
@@ -195,9 +191,9 @@ in the solution `sol`.
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
 function restart_with!(semi, sol)
-    @unpack particle_systems = semi
+    @unpack systems = semi
 
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         v_end = wrap_v(sol[end].x[1], system_index, system, semi)
         u_end = wrap_u(sol[end].x[2], system_index, system, semi)
 
@@ -213,7 +209,7 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, i, system, semi)
-    @unpack particle_systems, ranges_u = semi
+    @unpack systems, ranges_u = semi
 
     range = ranges_u[i]
 
@@ -230,7 +226,7 @@ end
 end
 
 @inline function wrap_v(v_ode, i, system, semi)
-    @unpack particle_systems, ranges_v = semi
+    @unpack systems, ranges_v = semi
 
     range = ranges_v[i]
 
@@ -244,14 +240,14 @@ end
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
-    @unpack particle_systems = semi
+    @unpack systems = semi
 
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
         # Set velocity and add acceleration for each system
-        foreach_enumerate(particle_systems) do (system_index, system)
+        foreach_enumerate(systems) do (system_index, system)
             du = wrap_u(du_ode, system_index, system, semi)
             v = wrap_v(v_ode, system_index, system, semi)
 
@@ -276,7 +272,7 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
 
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
@@ -303,11 +299,11 @@ end
 end
 
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
-    @unpack particle_systems = semi
+    @unpack systems = semi
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
@@ -321,7 +317,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
@@ -329,7 +325,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
@@ -338,11 +334,11 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 end
 
 function update_nhs(u_ode, semi)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
 
     # Update NHS for each pair of systems
-    foreach_enumerate(particle_systems) do (system_index, system)
-        foreach_enumerate(particle_systems) do (neighbor_index, neighbor)
+    foreach_enumerate(systems) do (system_index, system)
+        foreach_enumerate(systems) do (neighbor_index, neighbor)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
@@ -352,10 +348,10 @@ function update_nhs(u_ode, semi)
 end
 
 function gravity_and_damping!(dv_ode, v_ode, semi)
-    @unpack particle_systems, damping_coefficient = semi
+    @unpack systems, damping_coefficient = semi
 
     # Set velocity and add acceleration for each system
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         dv = wrap_v(dv_ode, system_index, system, semi)
         v = wrap_v(v_ode, system_index, system, semi)
 
@@ -393,15 +389,15 @@ end
 @inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
 
     # Call `interact!` for each pair of systems
-    foreach_enumerate(particle_systems) do (system_index, system)
+    foreach_enumerate(systems) do (system_index, system)
         dv = wrap_v(dv_ode, system_index, system, semi)
         v_system = wrap_v(v_ode, system_index, system, semi)
         u_system = wrap_u(u_ode, system_index, system, semi)
 
-        foreach_enumerate(particle_systems) do (neighbor_index, neighbor)
+        foreach_enumerate(systems) do (neighbor_index, neighbor)
             v_neighbor = wrap_v(v_ode, neighbor_index, neighbor, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
