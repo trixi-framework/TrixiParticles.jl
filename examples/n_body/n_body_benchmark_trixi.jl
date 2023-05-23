@@ -8,7 +8,7 @@ using TrixiParticles
 using Printf
 using Polyester
 
-include("n_body_container.jl")
+include("n_body_system.jl")
 
 # Redefine interact in a more optimized way.
 function TrixiParticles.interact!(du, u_particle_system, u_neighbor_system,
