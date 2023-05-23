@@ -83,8 +83,8 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
 
 fluid_system = WeaklyCompressibleSPHSystem(setup.coordinates,
                                            zeros(Float64, size(setup.coordinates)),
-                                           setup.masses, setup.densities,
-                                           ContinuityDensity(), state_equation,
+                                           setup.masses,
+                                           ContinuityDensity(setup.densities), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
