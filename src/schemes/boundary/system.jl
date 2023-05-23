@@ -316,16 +316,6 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
-function create_cache(initial_density, ::SummationDensity)
-    density = similar(initial_density)
-
-    return (; density)
-end
-
-function create_cache(initial_density, ::ContinuityDensity)
-    return (; initial_density)
-end
-
 function create_cache(initial_density, ::AdamiPressureExtrapolation)
     density = similar(initial_density)
     volume = similar(initial_density)
@@ -573,13 +563,11 @@ function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
+function write_v0!(v0, density_calculator::ContinuityDensity, system::BoundarySPHSystem)
 
     for particle in eachparticle(system)
         # Set particle densities
-        v0[1, particle] = initial_density[particle]
+        v0[1, particle] =  density_calculator.initial_density[particle]
     end
 
     return v0
