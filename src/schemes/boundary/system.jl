@@ -420,8 +420,8 @@ function move_boundary_particles!(movement_function, coordinates, t)
 end
 move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                         system_index, v, u, v_ode, u_ode, semi)
+@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system, system_index,
+                         v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
@@ -433,14 +433,14 @@ end
 
     pressure .= zero(eltype(pressure))
 
-    compute_quantities!(boundary_model, density_calculator,
-                        system, system_index, v, u, v_ode, u_ode, semi)
+    compute_quantities!(boundary_model, density_calculator, system, system_index, v, u,
+                        v_ode, u_ode, semi)
 
     return boundary_model
 end
 
-function compute_quantities!(boundary_model, ::SummationDensity,
-                             system, system_index, v, u, v_ode, u_ode, semi)
+function compute_quantities!(boundary_model, ::SummationDensity, system, system_index, v, u,
+                             v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack state_equation, pressure, cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity

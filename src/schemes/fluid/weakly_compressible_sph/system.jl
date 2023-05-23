@@ -189,8 +189,7 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
-                 u_ode,
+function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
                  semi, t)
     @unpack density_calculator = system
 
@@ -199,13 +198,11 @@ function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
     return system
 end
 
-function compute_quantities(v, u, ::ContinuityDensity, system, system_index, u_ode,
-                            semi)
+function compute_quantities(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
     compute_pressure!(system, v)
 end
 
-function compute_quantities(v, u, ::SummationDensity, system, system_index, u_ode,
-                            semi)
+function compute_quantities(v, u, ::SummationDensity, system, system_index, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack density = cache # Density is in the cache for SummationDensity
