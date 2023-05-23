@@ -59,9 +59,8 @@
                                                                                smoothing_length)
 
             # ContinuityDensity
-            density_calculator = ContinuityDensity()
+            density_calculator = ContinuityDensity(densities)
             system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
-                                                 densities,
                                                  density_calculator, state_equation,
                                                  smoothing_kernel,
                                                  smoothing_length)
@@ -80,7 +79,6 @@
             @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(coordinates,
                                                                                velocities,
                                                                                masses,
-                                                                               densities,
                                                                                density_calculator,
                                                                                state_equation,
                                                                                smoothing_kernel,
@@ -90,7 +88,6 @@
             @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(coordinates,
                                                                                velocities,
                                                                                masses,
-                                                                               densities,
                                                                                density_calculator,
                                                                                state_equation,
                                                                                smoothing_kernel2,
@@ -114,9 +111,9 @@
             "CircularShape",
         ]
         NDIMS_ = [2, 3, 2, 3, 2]
-        density_calculators = [
+        density_calculators(densities) = [
             SummationDensity(),
-            ContinuityDensity(),
+            ContinuityDensity(densities),
         ]
         @testset "$(setup_names[i])" for i in eachindex(setups)
             setup = setups[i]
@@ -126,7 +123,7 @@
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators(setup.densities)
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length)
@@ -148,9 +145,8 @@
                 end
 
                 if density_calculator isa ContinuityDensity
-                    @test length(system.cache.initial_density) ==
-                          size(setup.coordinates, 2)
-                    @test system.cache.initial_density == setup.densities
+                    @test length(system.cache) == 0
+                    @test density_calculator.initial_density == setup.densities
                 end
             end
         end
@@ -165,7 +161,7 @@
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = NDIMS
             smoothing_length = 0.362
 
-            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+            @testset "$(typeof(density_calculator))" for density_calculator in density_calculators(setup.densities)
                 error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
                 @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
                                                                                   density_calculator,
@@ -258,8 +254,8 @@
         @test v0 == velocities
 
         # ContinuityDensity
-        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses, densities,
-                                             ContinuityDensity(),
+        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                             ContinuityDensity(densities),
                                              state_equation, smoothing_kernel,
                                              smoothing_length)
 
