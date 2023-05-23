@@ -564,10 +564,9 @@ function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
 end
 
 function write_v0!(v0, density_calculator::ContinuityDensity, system::BoundarySPHSystem)
-
     for particle in eachparticle(system)
         # Set particle densities
-        v0[1, particle] =  density_calculator.initial_density[particle]
+        v0[1, particle] = density_calculator.initial_density[particle]
     end
 
     return v0

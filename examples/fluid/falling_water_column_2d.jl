@@ -52,7 +52,8 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(setup.densities), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(setup.densities),
+                                           state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))

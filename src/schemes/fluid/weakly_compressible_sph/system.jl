@@ -232,7 +232,6 @@ end
 
 function write_v0!(v0, density_calculator::ContinuityDensity,
                    system::WeaklyCompressibleSPHSystem)
-
     for particle in eachparticle(system)
         # Set particle densities
         v0[ndims(system) + 1, particle] = density_calculator.initial_density[particle]
