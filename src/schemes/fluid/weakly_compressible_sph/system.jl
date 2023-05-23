@@ -189,48 +189,17 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
-                 u_ode,
+function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
                  semi, t)
-    @unpack density_calculator = system
-
-    compute_quantities(v, u, density_calculator, system, system_index, u_ode, semi)
+    compute_quantities(system, system_index, v, u, u_ode, semi)
 
     return system
 end
 
-function compute_quantities(v, u, ::ContinuityDensity, system, system_index, u_ode,
-                            semi)
-    compute_pressure!(system, v)
-end
+function compute_quantities(system, system_index, v, u, u_ode, semi)
+    @unpack density_calculator = system
 
-function compute_quantities(v, u, ::SummationDensity, system, system_index, u_ode,
-                            semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack cache = system
-    @unpack density = cache # Density is in the cache for SummationDensity
-
-    density .= zero(eltype(density))
-
-    # Use all other systems for the density summation
-    @trixi_timeit timer() "compute density" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                           neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
-                                   neighbor_system, semi)
-
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
-
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(system, neighbor_system,
-                              system_coords, neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
-            mass = hydrodynamic_mass(neighbor_system, neighbor)
-            density[particle] += mass * smoothing_kernel(system, distance)
-        end
-    end
+    compute_density!(system, system_index, semi, u, u_ode, density_calculator)
 
     compute_pressure!(system, v)
 end

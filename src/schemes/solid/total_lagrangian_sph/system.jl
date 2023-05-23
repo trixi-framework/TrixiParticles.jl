@@ -289,8 +289,8 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
     return corr_matrix
 end
 
-function update!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                 v_ode, u_ode, semi, t)
+function update!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
+                 semi, t)
     @unpack neighborhood_searches = semi
 
     # Update current coordinates
@@ -440,4 +440,26 @@ function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
     end
 
     return v0
+end
+
+@inline function compute_density!(system::TotalLagrangianSPHSystem, system_index, semi, u,
+                                  u_ode, ::SummationDensity)
+    @unpack boundary_model = system
+    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, system_index, semi, u, u_ode, density,
+                       particles=eachparticle(system))
+end
+
+@inline function compute_density!(system::TotalLagrangianSPHSystem, system_index, semi, u,
+                                  u_ode, ::AdamiPressureExtrapolation)
+    @unpack boundary_model = system
+    @unpack pressure, state_equation, cache = boundary_model
+    @unpack density = cache
+
+    density .= zero(eltype(density))
+
+    for particle in eachparticle(system)
+        density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    end
 end
