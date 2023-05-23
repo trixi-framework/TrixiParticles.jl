@@ -23,29 +23,29 @@ velocities of particles ``a`` and ``b``.
 """
 struct ContinuityDensity end
 
-@inline function particle_density(v, container, particle)
-    particle_density(v, container.density_calculator, container, particle)
+@inline function particle_density(v, system, particle)
+    particle_density(v, system.density_calculator, system, particle)
 end
 
-@inline function particle_density(v, ::SummationDensity, container, particle)
-    return container.cache.density[particle]
+@inline function particle_density(v, ::SummationDensity, system, particle)
+    return system.cache.density[particle]
 end
 
-@inline function particle_density(v, ::ContinuityDensity, container, particle)
+@inline function particle_density(v, ::ContinuityDensity, system, particle)
     return v[end, particle]
 end
 
 # *Note* that these functions are intended to internally set the density for buffer particles
 # and density correction. It cannot be used to set up an initial condition,
 # as the particle density depends on the particle positions.
-@inline function set_particle_density(particle, v, container, density)
-    set_particle_density(particle, v, container.density_calculator, container, density)
+@inline function set_particle_density(particle, v, system, density)
+    set_particle_density(particle, v, system.density_calculator, system, density)
 end
 
-@inline function set_particle_density(particle, v, ::SummationDensity, container, density)
-    container.cache.density[particle] = density
+@inline function set_particle_density(particle, v, ::SummationDensity, system, density)
+    system.cache.density[particle] = density
 end
 
-@inline function set_particle_density(particle, v, ::ContinuityDensity, container, density)
+@inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
     v[end, particle] = density
 end

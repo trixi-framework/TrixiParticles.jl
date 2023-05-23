@@ -109,29 +109,29 @@ solid_boundary_model = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    hydrodynamic_masses)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
-                                         solid.masses, solid.densities,
-                                         solid_smoothing_kernel, solid_smoothing_length,
-                                         E, nu,
-                                         n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, gravity),
-                                         solid_boundary_model,
-                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
+                                        solid.masses, solid.densities,
+                                        solid_smoothing_kernel, solid_smoothing_length,
+                                        E, nu,
+                                        n_fixed_particles=n_particles_x,
+                                        acceleration=(0.0, gravity),
+                                        solid_boundary_model,
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 # ==========================================================================================
 # ==== Simulation
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container,
+semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
 
@@ -164,7 +164,7 @@ tspan = (0.0, 1.0)
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
 
-semi = Semidiscretization(particle_container, boundary_container, solid_container,
+semi = Semidiscretization(fluid_system, boundary_system, solid_system,
                           neighborhood_search=SpatialHashingSearch)
 ode = semidiscretize(semi, tspan)
 

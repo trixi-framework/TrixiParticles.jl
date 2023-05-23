@@ -1,5 +1,5 @@
-# Include all container types first. The rhs depends on the containers to define
-# interactions between the different container types.
+# Include all system types first. The rhs depends on the systems to define
+# interactions between the different system types.
 include("fluid/weakly_compressible_sph/container.jl")
 include("boundary/container.jl")
 include("solid/total_lagrangian_sph/container.jl")

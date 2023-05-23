@@ -1,61 +1,61 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodyContainer{NDIMS, ELTYPE <: Real} <: TrixiParticles.ParticleContainer{NDIMS}
+struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
     mass                :: Array{ELTYPE, 1} # [particle]
     G                   :: ELTYPE
 
-    function NBodyContainer(coordinates, velocities, masses, G)
+    function NBodySystem(coordinates, velocities, masses, G)
         new{size(coordinates, 1), eltype(coordinates)}(coordinates, velocities, masses, G)
     end
 end
 
-@inline function TrixiParticles.add_acceleration!(dv, particle, container::NBodyContainer)
+@inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
     return dv
 end
 
-function TrixiParticles.write_u0!(u0, container::NBodyContainer)
-    u0 .= container.initial_coordinates
+function TrixiParticles.write_u0!(u0, system::NBodySystem)
+    u0 .= system.initial_coordinates
 
     return u0
 end
 
-function TrixiParticles.write_v0!(v0, container::NBodyContainer)
-    v0 .= container.initial_velocity
+function TrixiParticles.write_v0!(v0, system::NBodySystem)
+    v0 .= system.initial_velocity
 
     return v0
 end
 
 # NHS update
-function TrixiParticles.nhs_coords(container::NBodyContainer,
-                                   neighbor::NBodyContainer, u)
+function TrixiParticles.nhs_coords(system::NBodySystem,
+                                   neighbor::NBodySystem, u)
     return u
 end
 
-function TrixiParticles.compact_support(container::NBodyContainer,
-                                        neighbor::NBodyContainer)
+function TrixiParticles.compact_support(system::NBodySystem,
+                                        neighbor::NBodySystem)
     # There is no cutoff. All particles interact with each other.
     return Inf
 end
 
-function TrixiParticles.interact!(dv, v_particle_container, u_particle_container,
-                                  v_neighbor_container, u_neighbor_container,
+function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
+                                  v_neighbor_system, u_neighbor_system,
                                   neighborhood_search,
-                                  particle_container::NBodyContainer,
-                                  neighbor_container::NBodyContainer)
-    @unpack mass, G = neighbor_container
+                                  particle_system::NBodySystem,
+                                  neighbor_system::NBodySystem)
+    @unpack mass, G = neighbor_system
 
-    container_coords = TrixiParticles.current_coordinates(u_particle_container,
-                                                          particle_container)
+    system_coords = TrixiParticles.current_coordinates(u_particle_system,
+                                                       particle_system)
 
-    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_container,
-                                                         neighbor_container)
+    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system,
+                                                         neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    TrixiParticles.for_particle_neighbor(particle_container, neighbor_container,
-                                         container_coords, neighbor_coords,
+    TrixiParticles.for_particle_neighbor(particle_system, neighbor_system,
+                                         system_coords, neighbor_coords,
                                          neighborhood_search) do particle, neighbor,
                                                                  pos_diff, distance
         # Only consider particles with a distance > 0.
@@ -68,7 +68,7 @@ function TrixiParticles.interact!(dv, v_particle_container, u_particle_container
         # Multiplying by (1 / norm) is also faster than dividing by norm
         tmp = -G * mass[neighbor] * (1 / distance^3)
 
-        @inbounds for i in 1:ndims(particle_container)
+        @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += tmp * pos_diff[i]
         end
     end
@@ -76,21 +76,21 @@ function TrixiParticles.interact!(dv, v_particle_container, u_particle_container
     return dv
 end
 
-function energy(v_ode, u_ode, container, semi)
-    @unpack mass = container
+function energy(v_ode, u_ode, system, semi)
+    @unpack mass = system
 
-    e = zero(eltype(container))
+    e = zero(eltype(system))
 
-    v = TrixiParticles.wrap_v(v_ode, 1, container, semi)
-    u = TrixiParticles.wrap_u(u_ode, 1, container, semi)
+    v = TrixiParticles.wrap_v(v_ode, 1, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, 1, system, semi)
 
-    for particle in TrixiParticles.eachparticle(container)
+    for particle in TrixiParticles.eachparticle(system)
         e += 0.5 * mass[particle] *
-             sum(TrixiParticles.current_velocity(v, container, particle) .^ 2)
+             sum(TrixiParticles.current_velocity(v, system, particle) .^ 2)
 
-        particle_coords = TrixiParticles.current_coords(u, container, particle)
-        for neighbor in (particle + 1):TrixiParticles.nparticles(container)
-            neighbor_coords = TrixiParticles.current_coords(u, container, neighbor)
+        particle_coords = TrixiParticles.current_coords(u, system, particle)
+        for neighbor in (particle + 1):TrixiParticles.nparticles(system)
+            neighbor_coords = TrixiParticles.current_coords(u, system, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
@@ -102,10 +102,10 @@ function energy(v_ode, u_ode, container, semi)
     return e
 end
 
-TrixiParticles.vtkname(container::NBodyContainer) = "n-body"
+TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, container::NBodyContainer)
-    @unpack mass = container
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
+    @unpack mass = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass
@@ -113,17 +113,17 @@ function TrixiParticles.write2vtk!(vtk, v, u, t, container::NBodyContainer)
     return vtk
 end
 
-function Base.show(io::IO, container::NBodyContainer)
-    print(io, "NBodyContainer{", ndims(container), "}() with ")
-    print(io, TrixiParticles.nparticles(container), " particles")
+function Base.show(io::IO, system::NBodySystem)
+    print(io, "NBodySystem{", ndims(system), "}() with ")
+    print(io, TrixiParticles.nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", container::NBodyContainer)
+function Base.show(io::IO, ::MIME"text/plain", system::NBodySystem)
     if get(io, :compact, false)
-        show(io, container)
+        show(io, system)
     else
-        TrixiParticles.summary_header(io, "NBodyContainer{$(ndims(container))}")
-        TrixiParticles.summary_line(io, "#particles", TrixiParticles.nparticles(container))
+        TrixiParticles.summary_header(io, "NBodySystem{$(ndims(system))}")
+        TrixiParticles.summary_line(io, "#particles", TrixiParticles.nparticles(system))
         TrixiParticles.summary_footer(io)
     end
 end

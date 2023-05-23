@@ -98,36 +98,37 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      fluid_smoothing_length)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            fluid_smoothing_kernel, fluid_smoothing_length,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+                                           fluid_smoothing_kernel,
+                                           fluid_smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
 
-solid_container_1 = SolidParticleContainer(particle_coordinates_1, particle_velocities_1,
-                                           particle_masses_1, particle_densities_1,
-                                           solid_smoothing_kernel, solid_smoothing_length,
-                                           E1, nu,
-                                           acceleration=(0.0, gravity),
-                                           solid_boundary_model_1,
-                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+solid_system_1 = TotalLagrangianSPHSystem(particle_coordinates_1, particle_velocities_1,
+                                          particle_masses_1, particle_densities_1,
+                                          solid_smoothing_kernel, solid_smoothing_length,
+                                          E1, nu,
+                                          acceleration=(0.0, gravity),
+                                          solid_boundary_model_1,
+                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
-solid_container_2 = SolidParticleContainer(particle_coordinates_2, particle_velocities_2,
-                                           particle_masses_2, particle_densities_2,
-                                           solid_smoothing_kernel, solid_smoothing_length,
-                                           E2, nu,
-                                           acceleration=(0.0, gravity),
-                                           solid_boundary_model_2,
-                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
+solid_system_2 = TotalLagrangianSPHSystem(particle_coordinates_2, particle_velocities_2,
+                                          particle_masses_2, particle_densities_2,
+                                          solid_smoothing_kernel, solid_smoothing_length,
+                                          E2, nu,
+                                          acceleration=(0.0, gravity),
+                                          solid_boundary_model_2,
+                                          penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, boundary_container, solid_container_1,
-                          solid_container_2,
+semi = Semidiscretization(fluid_system, boundary_system, solid_system_1,
+                          solid_system_2,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)

@@ -24,13 +24,13 @@ include("callbacks/callbacks.jl")
 include("setups/setups.jl")
 include("general/general.jl")
 include("schemes/schemes.jl")
-# Note that `semidiscretization.jl` depends on the container types and has to be
+# Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
+export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller

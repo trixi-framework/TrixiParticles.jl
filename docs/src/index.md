@@ -7,7 +7,7 @@ Modules = [TrixiParticles]
 Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
 ```
 
-## Containers
+## Systems
 
 ```@autodocs
 Modules = [TrixiParticles]

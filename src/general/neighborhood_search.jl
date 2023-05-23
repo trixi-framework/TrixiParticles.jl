@@ -205,14 +205,14 @@ end
 
 # Loop over all pairs of particles and neighbors within the kernel cutoff.
 # `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-# By default, loop over `each_moving_particle(container)`.
-@inline function for_particle_neighbor(f, container, neighbor_container,
-                                       container_coords, neighbor_coords,
+# By default, loop over `each_moving_particle(system)`.
+@inline function for_particle_neighbor(f, system, neighbor_system,
+                                       system_coords, neighbor_coords,
                                        neighborhood_search;
-                                       particles=each_moving_particle(container))
+                                       particles=each_moving_particle(system))
     @threaded for particle in particles
-        for_particle_neighbor_inner(f, container, neighbor_container,
-                                    container_coords, neighbor_coords, neighborhood_search,
+        for_particle_neighbor_inner(f, system, neighbor_system,
+                                    system_coords, neighbor_coords, neighborhood_search,
                                     particle)
     end
 
@@ -223,18 +223,18 @@ end
 # with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function for_particle_neighbor_inner(f, container, neighbor_container,
-                                             container_coords, neighbor_container_coords,
+@inline function for_particle_neighbor_inner(f, system, neighbor_system,
+                                             system_coords, neighbor_system_coords,
                                              neighborhood_search, particle)
-    particle_coords = extract_svector(container_coords, container, particle)
+    particle_coords = extract_svector(system_coords, system, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        neighbor_coords = extract_svector(neighbor_container_coords, neighbor_container,
+        neighbor_coords = extract_svector(neighbor_system_coords, neighbor_system,
                                           neighbor)
 
         pos_diff = particle_coords - neighbor_coords
         distance2 = dot(pos_diff, pos_diff)
 
-        if distance2 <= compact_support(container, neighbor_container)^2
+        if distance2 <= compact_support(system, neighbor_system)^2
             distance = sqrt(distance2)
 
             # Inline to avoid loss of performance
@@ -279,11 +279,11 @@ end
 
 # Sorting only really makes sense in longer simulations where particles
 # end up very unordered
-function z_index_sort!(coordinates, container)
-    @unpack mass, pressure, neighborhood_search = container
+function z_index_sort!(coordinates, system)
+    @unpack mass, pressure, neighborhood_search = system
 
-    perm = sortperm(eachparticle(container),
-                    by=(i -> cell_z_index(extract_svector(coordinates, container, i),
+    perm = sortperm(eachparticle(system),
+                    by=(i -> cell_z_index(extract_svector(coordinates, system, i),
                                           neighborhood_search)))
 
     permute!(mass, perm)

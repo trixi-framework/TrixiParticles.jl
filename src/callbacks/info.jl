@@ -101,9 +101,9 @@ function initialize_info_callback(discrete_callback, u, t, integrator)
     semi = integrator.p
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
-    containers = semi.particle_containers
-    for container in containers
-        show(io_context, MIME"text/plain"(), container)
+    systems = semi.systems
+    for system in systems
+        show(io_context, MIME"text/plain"(), system)
         println(io, "\n")
     end
 

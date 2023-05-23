@@ -11,22 +11,22 @@ using Polyester
 include("n_body_container.jl")
 
 # Redefine interact in a more optimized way.
-function TrixiParticles.interact!(du, u_particle_container, u_neighbor_container,
+function TrixiParticles.interact!(du, u_particle_system, u_neighbor_system,
                                   neighborhood_search,
-                                  particle_container::NBodyContainer,
-                                  neighbor_container::NBodyContainer)
-    @unpack mass, G = neighbor_container
+                                  particle_system::NBodySystem,
+                                  neighbor_system::NBodySystem)
+    @unpack mass, G = neighbor_system
 
-    for particle in TrixiParticles.each_moving_particle(particle_container)
-        particle_coords = TrixiParticles.current_coords(u_particle_container,
-                                                        particle_container, particle)
+    for particle in TrixiParticles.each_moving_particle(particle_system)
+        particle_coords = TrixiParticles.current_coords(u_particle_system,
+                                                        particle_system, particle)
 
         # This makes `interact!` about 20% faster than looping over all particles
         # and checking for `particle < neighbor`.
-        # Note that this doesn't work if we have multiple containers.
-        for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_container)
-            neighbor_coords = TrixiParticles.current_coords(u_neighbor_container,
-                                                            neighbor_container, neighbor)
+        # Note that this doesn't work if we have multiple systems.
+        for neighbor in (particle + 1):TrixiParticles.nparticles(neighbor_system)
+            neighbor_coords = TrixiParticles.current_coords(u_neighbor_system,
+                                                            neighbor_system, neighbor)
             pos_diff = particle_coords - neighbor_coords
 
             # Multiplying by pos_diff later makes this slightly faster.
@@ -35,8 +35,8 @@ function TrixiParticles.interact!(du, u_particle_container, u_neighbor_container
             tmp1 = mass[neighbor] * tmp
             tmp2 = mass[particle] * tmp
 
-            for i in 1:ndims(particle_container)
-                j = i + ndims(particle_container)
+            for i in 1:ndims(particle_system)
+                j = i + ndims(particle_system)
                 # This is slightly faster than du[...] += tmp1 * pos_diff[i]
                 du[j, particle] = muladd(tmp1, pos_diff[i], du[j, particle])
                 du[j, neighbor] = muladd(tmp2, -pos_diff[i], du[j, neighbor])
@@ -48,7 +48,7 @@ function TrixiParticles.interact!(du, u_particle_container, u_neighbor_container
 end
 
 # ==========================================================================================
-# ==== Container
+# ==== Systems
 
 const SOLAR_MASS = 4 * pi * pi
 const DAYS_PER_YEAR = 365.24
@@ -70,12 +70,12 @@ masses = [
 velocities[:, 1] = -velocities[:, 2:end] * masses[2:end] / SOLAR_MASS
 
 G = 1.0
-particle_container = NBodyContainer(coordinates, velocities, masses, G)
+particle_system = NBodySystem(coordinates, velocities, masses, G)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container)
+semi = Semidiscretization(particle_system)
 
 # This is significantly faster than using OrdinaryDiffEq.
 function symplectic_euler!(velocities, coordinates, semi)
@@ -102,14 +102,14 @@ end
 # One RHS evaluation is so fast that timers make it multiple times slower.
 TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
 
-@printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
+@printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
 
 # Disable multithreading, since it adds a significant overhead for this small problem.
 disable_polyester_threads() do
     symplectic_euler!(velocities, coordinates, semi)
 end
 
-@printf("%.9f\n", energy(velocities, coordinates, particle_container, semi))
+@printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
 
 # Enable timers again.
 TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)

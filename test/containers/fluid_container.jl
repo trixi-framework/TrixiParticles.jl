@@ -1,4 +1,4 @@
-@testset verbose=true "FluidParticleContainer" begin
+@testset verbose=true "WeaklyCompressibleSPHSystem" begin
     @testset verbose=true "Constructors" begin
         coordinates_ = [
             [1.0 2.0
@@ -23,77 +23,78 @@
 
             # SummationDensity
             density_calculator = SummationDensity()
-            container = FluidParticleContainer(coordinates, velocities, masses,
-                                               density_calculator,
-                                               state_equation, smoothing_kernel,
-                                               smoothing_length)
+            system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                                 density_calculator,
+                                                 state_equation, smoothing_kernel,
+                                                 smoothing_length)
 
-            @test container isa FluidParticleContainer{NDIMS}
-            @test container.initial_coordinates == coordinates
-            @test container.initial_velocity == velocities
-            @test container.mass == masses
-            @test container.density_calculator == density_calculator
-            @test container.state_equation == state_equation
-            @test container.smoothing_kernel == smoothing_kernel
-            @test container.smoothing_length == smoothing_length
-            @test container.viscosity isa TrixiParticles.NoViscosity
-            @test container.acceleration == [0.0 for _ in 1:NDIMS]
+            @test system isa WeaklyCompressibleSPHSystem{NDIMS}
+            @test system.initial_coordinates == coordinates
+            @test system.initial_velocity == velocities
+            @test system.mass == masses
+            @test system.density_calculator == density_calculator
+            @test system.state_equation == state_equation
+            @test system.smoothing_kernel == smoothing_kernel
+            @test system.smoothing_length == smoothing_length
+            @test system.viscosity isa TrixiParticles.NoViscosity
+            @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
             error_str1 = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
-            @test_throws ArgumentError(error_str1) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel,
-                                                                          smoothing_length,
-                                                                          acceleration=(0.0))
+            @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(coordinates,
+                                                                               velocities,
+                                                                               masses,
+                                                                               density_calculator,
+                                                                               state_equation,
+                                                                               smoothing_kernel,
+                                                                               smoothing_length,
+                                                                               acceleration=(0.0))
 
             error_str2 = "Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"
-            @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel2,
-                                                                          smoothing_length)
+            @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(coordinates,
+                                                                               velocities,
+                                                                               masses,
+                                                                               density_calculator,
+                                                                               state_equation,
+                                                                               smoothing_kernel2,
+                                                                               smoothing_length)
 
             # ContinuityDensity
             density_calculator = ContinuityDensity()
-            container = FluidParticleContainer(coordinates, velocities, masses, densities,
-                                               density_calculator, state_equation,
-                                               smoothing_kernel,
-                                               smoothing_length)
+            system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                                 densities,
+                                                 density_calculator, state_equation,
+                                                 smoothing_kernel,
+                                                 smoothing_length)
 
-            @test container isa FluidParticleContainer{NDIMS}
-            @test container.initial_coordinates == coordinates
-            @test container.initial_velocity == velocities
-            @test container.mass == masses
-            @test container.density_calculator == density_calculator
-            @test container.state_equation == state_equation
-            @test container.smoothing_kernel == smoothing_kernel
-            @test container.smoothing_length == smoothing_length
-            @test container.viscosity isa TrixiParticles.NoViscosity
-            @test container.acceleration == [0.0 for _ in 1:NDIMS]
+            @test system isa WeaklyCompressibleSPHSystem{NDIMS}
+            @test system.initial_coordinates == coordinates
+            @test system.initial_velocity == velocities
+            @test system.mass == masses
+            @test system.density_calculator == density_calculator
+            @test system.state_equation == state_equation
+            @test system.smoothing_kernel == smoothing_kernel
+            @test system.smoothing_length == smoothing_length
+            @test system.viscosity isa TrixiParticles.NoViscosity
+            @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
-            @test_throws ArgumentError(error_str1) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses,
-                                                                          densities,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel,
-                                                                          smoothing_length,
-                                                                          acceleration=(0.0))
+            @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(coordinates,
+                                                                               velocities,
+                                                                               masses,
+                                                                               densities,
+                                                                               density_calculator,
+                                                                               state_equation,
+                                                                               smoothing_kernel,
+                                                                               smoothing_length,
+                                                                               acceleration=(0.0))
 
-            @test_throws ArgumentError(error_str2) FluidParticleContainer(coordinates,
-                                                                          velocities,
-                                                                          masses,
-                                                                          densities,
-                                                                          density_calculator,
-                                                                          state_equation,
-                                                                          smoothing_kernel2,
-                                                                          smoothing_length)
+            @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(coordinates,
+                                                                               velocities,
+                                                                               masses,
+                                                                               densities,
+                                                                               density_calculator,
+                                                                               state_equation,
+                                                                               smoothing_kernel2,
+                                                                               smoothing_length)
         end
     end
 
@@ -126,30 +127,30 @@
             smoothing_length = 0.362
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
-                container = FluidParticleContainer(setup, density_calculator,
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length)
+                system = WeaklyCompressibleSPHSystem(setup, density_calculator,
+                                                     state_equation, smoothing_kernel,
+                                                     smoothing_length)
 
-                @test container isa FluidParticleContainer{NDIMS}
-                @test container.initial_coordinates == setup.coordinates
-                @test container.initial_velocity == setup.velocities
-                @test container.mass == setup.masses
-                @test container.density_calculator == density_calculator
-                @test container.state_equation == state_equation
-                @test container.smoothing_kernel == smoothing_kernel
-                @test container.smoothing_length == smoothing_length
-                @test container.viscosity isa TrixiParticles.NoViscosity
-                @test container.acceleration == [0.0 for _ in 1:NDIMS]
-                @test length(container.mass) == size(setup.coordinates, 2)
+                @test system isa WeaklyCompressibleSPHSystem{NDIMS}
+                @test system.initial_coordinates == setup.coordinates
+                @test system.initial_velocity == setup.velocities
+                @test system.mass == setup.masses
+                @test system.density_calculator == density_calculator
+                @test system.state_equation == state_equation
+                @test system.smoothing_kernel == smoothing_kernel
+                @test system.smoothing_length == smoothing_length
+                @test system.viscosity isa TrixiParticles.NoViscosity
+                @test system.acceleration == [0.0 for _ in 1:NDIMS]
+                @test length(system.mass) == size(setup.coordinates, 2)
 
                 if density_calculator isa SummationDensity
-                    @test length(container.cache.density) == size(setup.coordinates, 2)
+                    @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
 
                 if density_calculator isa ContinuityDensity
-                    @test length(container.cache.initial_density) ==
+                    @test length(system.cache.initial_density) ==
                           size(setup.coordinates, 2)
-                    @test container.cache.initial_density == setup.densities
+                    @test system.cache.initial_density == setup.densities
                 end
             end
         end
@@ -166,12 +167,12 @@
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 error_str = "Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"
-                @test_throws ArgumentError(error_str) FluidParticleContainer(setup,
-                                                                             density_calculator,
-                                                                             state_equation,
-                                                                             smoothing_kernel,
-                                                                             smoothing_length,
-                                                                             acceleration=(0.0))
+                @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
+                                                                                  density_calculator,
+                                                                                  state_equation,
+                                                                                  smoothing_kernel,
+                                                                                  smoothing_length,
+                                                                                  acceleration=(0.0))
             end
         end
     end
@@ -188,20 +189,19 @@
         smoothing_length = 0.362
         density_calculator = SummationDensity()
 
-        container = FluidParticleContainer(coordinates, velocities, masses,
-                                           density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length)
+        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                             density_calculator,
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
-        show_compact = "FluidParticleContainer{2}(SummationDensity(), " *
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), " *
                        "Val{:state_equation}(), Val{:smoothing_kernel}(), " *
                        "TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
-        @test repr(container) == show_compact
-
+        @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-        │ FluidParticleContainer{2}                                                                        │
-        │ ═════════════════════════                                                                        │
+        │ WeaklyCompressibleSPHSystem{2}                                                                   │
+        │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
         │ state equation: ……………………………………… Val                                                              │
@@ -209,7 +209,7 @@
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", container) == show_box
+        @test repr("text/plain", system) == show_box
     end
 
     @testset verbose=true "write_u0!" begin
@@ -223,14 +223,14 @@
         smoothing_length = 0.362
         density_calculator = SummationDensity()
 
-        container = FluidParticleContainer(coordinates, velocities, masses,
-                                           density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length)
+        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                             density_calculator,
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
-        u0 = zeros(TrixiParticles.u_nvariables(container),
-                   TrixiParticles.n_moving_particles(container))
-        TrixiParticles.write_u0!(u0, container)
+        u0 = zeros(TrixiParticles.u_nvariables(system),
+                   TrixiParticles.n_moving_particles(system))
+        TrixiParticles.write_u0!(u0, system)
 
         @test u0 == coordinates
     end
@@ -246,26 +246,26 @@
         smoothing_length = 0.362
 
         # SummationDensity
-        container = FluidParticleContainer(coordinates, velocities, masses,
-                                           SummationDensity(),
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length)
+        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses,
+                                             SummationDensity(),
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
-        v0 = zeros(TrixiParticles.v_nvariables(container),
-                   TrixiParticles.n_moving_particles(container))
-        TrixiParticles.write_v0!(v0, container)
+        v0 = zeros(TrixiParticles.v_nvariables(system),
+                   TrixiParticles.n_moving_particles(system))
+        TrixiParticles.write_v0!(v0, system)
 
         @test v0 == velocities
 
         # ContinuityDensity
-        container = FluidParticleContainer(coordinates, velocities, masses, densities,
-                                           ContinuityDensity(),
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length)
+        system = WeaklyCompressibleSPHSystem(coordinates, velocities, masses, densities,
+                                             ContinuityDensity(),
+                                             state_equation, smoothing_kernel,
+                                             smoothing_length)
 
-        v0 = zeros(TrixiParticles.v_nvariables(container),
-                   TrixiParticles.n_moving_particles(container))
-        TrixiParticles.write_v0!(v0, container)
+        v0 = zeros(TrixiParticles.v_nvariables(system),
+                   TrixiParticles.n_moving_particles(system))
+        TrixiParticles.write_v0!(v0, system)
 
         @test v0 == vcat(velocities, densities')
     end

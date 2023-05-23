@@ -1,14 +1,14 @@
 @doc raw"""
-    SolidParticleContainer(particle_coordinates, particle_velocities,
-                           particle_masses, particle_material_densities,
-                           hydrodynamic_density_calculator,
-                           smoothing_kernel, smoothing_length,
-                           young_modulus, poisson_ratio;
-                           n_fixed_particles=0,
-                           acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
-                           penalty_force=nothing)
+    TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
+                             particle_masses, particle_material_densities,
+                             hydrodynamic_density_calculator,
+                             smoothing_kernel, smoothing_length,
+                             young_modulus, poisson_ratio;
+                             n_fixed_particles=0,
+                             acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)),
+                             penalty_force=nothing)
 
-Container for particles of an elastic solid.
+System for particles of an elastic solid.
 
 A Total Lagrangian framework is used wherein the governing equations are forumlated such that
 all relevant quantities and operators are measured with respect to the
@@ -77,7 +77,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleContainer{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
@@ -97,14 +97,14 @@ struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleConta
     boundary_model      :: BM
     penalty_force       :: PF
 
-    function SolidParticleContainer(particle_coordinates, particle_velocities,
-                                    particle_masses, particle_material_densities,
-                                    smoothing_kernel, smoothing_length,
-                                    young_modulus, poisson_ratio, boundary_model;
-                                    n_fixed_particles=0,
-                                    acceleration=ntuple(_ -> 0.0,
-                                                        size(particle_coordinates, 1)),
-                                    penalty_force=nothing)
+    function TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
+                                      particle_masses, particle_material_densities,
+                                      smoothing_kernel, smoothing_length,
+                                      young_modulus, poisson_ratio, boundary_model;
+                                      n_fixed_particles=0,
+                                      acceleration=ntuple(_ -> 0.0,
+                                                          size(particle_coordinates, 1)),
+                                      penalty_force=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_masses)
         nparticles = length(particle_masses)
@@ -146,140 +146,142 @@ struct SolidParticleContainer{BM, NDIMS, ELTYPE <: Real, K, PF} <: ParticleConta
     end
 end
 
-function Base.show(io::IO, container::SolidParticleContainer)
-    @nospecialize container # reduce precompilation time
+function Base.show(io::IO, system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
 
-    print(io, "SolidParticleContainer{", ndims(container), "}(")
-    print(io, container.young_modulus)
-    print(io, ", ", container.poisson_ratio)
-    print(io, ", ", container.smoothing_kernel)
-    print(io, ", ", container.acceleration)
-    print(io, ", ", container.boundary_model)
-    print(io, ", ", container.penalty_force)
-    print(io, ") with ", nparticles(container), " particles")
+    print(io, "TotalLagrangianSPHSystem{", ndims(system), "}(")
+    print(io, system.young_modulus)
+    print(io, ", ", system.poisson_ratio)
+    print(io, ", ", system.smoothing_kernel)
+    print(io, ", ", system.acceleration)
+    print(io, ", ", system.boundary_model)
+    print(io, ", ", system.penalty_force)
+    print(io, ") with ", nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", container::SolidParticleContainer)
-    @nospecialize container # reduce precompilation time
+function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
+    @nospecialize system # reduce precompilation time
 
     if get(io, :compact, false)
-        show(io, container)
+        show(io, system)
     else
-        n_fixed_particles = nparticles(container) - n_moving_particles(container)
+        n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
-        summary_header(io, "SolidParticleContainer{$(ndims(container))}")
-        summary_line(io, "total #particles", nparticles(container))
+        summary_header(io, "TotalLagrangianSPHSystem{$(ndims(system))}")
+        summary_line(io, "total #particles", nparticles(system))
         summary_line(io, "#fixed particles", n_fixed_particles)
-        summary_line(io, "Young's modulus", container.young_modulus)
-        summary_line(io, "Poisson ratio", container.poisson_ratio)
-        summary_line(io, "smoothing kernel", container.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "acceleration", container.acceleration)
-        summary_line(io, "boundary model", container.boundary_model)
-        summary_line(io, "penalty force", container.penalty_force |> typeof |> nameof)
+        summary_line(io, "Young's modulus", system.young_modulus)
+        summary_line(io, "Poisson ratio", system.poisson_ratio)
+        summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "penalty force", system.penalty_force |> typeof |> nameof)
         summary_footer(io)
     end
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{
-                                                                <:BoundaryModelMonaghanKajtar
-                                                                })
-    return ndims(container)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{
+                                                               <:BoundaryModelMonaghanKajtar
+                                                               })
+    return ndims(system)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer{
-                                                                <:BoundaryModelDummyParticles
-                                                                })
-    return v_nvariables(container, container.boundary_model.density_calculator)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{
+                                                               <:BoundaryModelDummyParticles
+                                                               })
+    return v_nvariables(system, system.boundary_model.density_calculator)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer, density_calculator)
-    return ndims(container)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem, density_calculator)
+    return ndims(system)
 end
 
-@inline function v_nvariables(container::SolidParticleContainer, ::ContinuityDensity)
-    return ndims(container) + 1
+@inline function v_nvariables(system::TotalLagrangianSPHSystem, ::ContinuityDensity)
+    return ndims(system) + 1
 end
 
-@inline n_moving_particles(container::SolidParticleContainer) = container.n_moving_particles
-
-@inline function current_coordinates(u, container::SolidParticleContainer)
-    return container.current_coordinates
+@inline function n_moving_particles(system::TotalLagrangianSPHSystem)
+    system.n_moving_particles
 end
 
-@inline function current_coords(container::SolidParticleContainer, particle)
-    # For this container, the current coordinates are stored in the container directly,
+@inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
+    return system.current_coordinates
+end
+
+@inline function current_coords(system::TotalLagrangianSPHSystem, particle)
+    # For this system, the current coordinates are stored in the system directly,
     # so we don't need a `u` array. This function is only to be used in this file
     # when no `u` is available.
-    current_coords(nothing, container, particle)
+    current_coords(nothing, system, particle)
 end
 
-@inline function current_velocity(v, container::SolidParticleContainer, particle)
-    if particle > n_moving_particles(container)
-        return SVector(ntuple(_ -> 0.0, Val(ndims(container))))
+@inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
+    if particle > n_moving_particles(system)
+        return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
     end
 
-    return extract_svector(v, container, particle)
+    return extract_svector(v, system, particle)
 end
 
-@inline function particle_density(v, container::SolidParticleContainer, particle)
-    return particle_density(v, container.boundary_model, container, particle)
+@inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
+    return particle_density(v, system.boundary_model, system, particle)
 end
 
-@inline function hydrodynamic_mass(container::SolidParticleContainer, particle)
-    return container.boundary_model.hydrodynamic_mass[particle]
+@inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
+    return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function correction_matrix(container, particle)
-    extract_smatrix(container.correction_matrix, container, particle)
+@inline function correction_matrix(system, particle)
+    extract_smatrix(system.correction_matrix, system, particle)
 end
-@inline function deformation_gradient(container, particle)
-    extract_smatrix(container.deformation_grad, container, particle)
+@inline function deformation_gradient(system, particle)
+    extract_smatrix(system.deformation_grad, system, particle)
 end
-@inline function pk1_corrected(container, particle)
-    extract_smatrix(container.pk1_corrected, container, particle)
+@inline function pk1_corrected(system, particle)
+    extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(container::SolidParticleContainer, neighborhood_search)
-    @unpack correction_matrix = container
+function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
+    @unpack correction_matrix = system
 
     # Calculate kernel correction matrix
-    calc_correction_matrix!(correction_matrix, neighborhood_search, container)
+    calc_correction_matrix!(correction_matrix, neighborhood_search, system)
 end
 
-function calc_correction_matrix!(corr_matrix, neighborhood_search, container)
-    @unpack mass, material_density = container
+function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
+    @unpack mass, material_density = system
 
     set_zero!(corr_matrix)
 
     # Calculate kernel correction matrix
-    initial_coords = initial_coordinates(container)
+    initial_coords = initial_coordinates(system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(container, container,
+    for_particle_neighbor(system, system,
                           initial_coords, initial_coords,
                           neighborhood_search;
-                          particles=eachparticle(container)) do particle, neighbor,
-                                                                initial_pos_diff,
-                                                                initial_distance
+                          particles=eachparticle(system)) do particle, neighbor,
+                                                             initial_pos_diff,
+                                                             initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
         volume = mass[neighbor] / material_density[neighbor]
 
-        grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
                                             initial_distance)
         result = volume * grad_kernel * initial_pos_diff'
 
-        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             corr_matrix[i, j, particle] -= result[i, j]
         end
     end
 
-    @threaded for particle in eachparticle(container)
-        L = correction_matrix(container, particle)
+    @threaded for particle in eachparticle(system)
+        L = correction_matrix(system, particle)
         result = inv(L)
 
-        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             corr_matrix[i, j, particle] = result[i, j]
         end
     end
@@ -287,76 +289,76 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, container)
     return corr_matrix
 end
 
-function update!(container::SolidParticleContainer, container_index, v, u,
+function update!(system::TotalLagrangianSPHSystem, system_index, v, u,
                  v_ode, u_ode, semi, t)
     @unpack neighborhood_searches = semi
 
     # Update current coordinates
-    update_current_coordinates(u, container)
+    update_current_coordinates(u, system)
 
     # Precompute PK1 stress tensor
-    neighborhood_search = neighborhood_searches[container_index][container_index]
+    neighborhood_search = neighborhood_searches[system_index][system_index]
     @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 container)
+                                                                 system)
 
-    return container
+    return system
 end
 
-@inline function update_current_coordinates(u, container)
-    @unpack current_coordinates = container
+@inline function update_current_coordinates(u, system)
+    @unpack current_coordinates = system
 
-    for particle in each_moving_particle(container)
-        for i in 1:ndims(container)
+    for particle in each_moving_particle(system)
+        for i in 1:ndims(system)
             current_coordinates[i, particle] = u[i, particle]
         end
     end
 end
 
-@inline function compute_pk1_corrected(neighborhood_search, container)
-    @unpack deformation_grad = container
+@inline function compute_pk1_corrected(neighborhood_search, system)
+    @unpack deformation_grad = system
 
-    calc_deformation_grad!(deformation_grad, neighborhood_search, container)
+    calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
-    @threaded for particle in eachparticle(container)
-        J_particle = deformation_gradient(container, particle)
-        pk1_particle = pk1_stress_tensor(J_particle, container)
-        pk1_particle_corrected = pk1_particle * correction_matrix(container, particle)
+    @threaded for particle in eachparticle(system)
+        J_particle = deformation_gradient(system, particle)
+        pk1_particle = pk1_stress_tensor(J_particle, system)
+        pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
-        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
-            container.pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            system.pk1_corrected[i, j, particle] = pk1_particle_corrected[i, j]
         end
     end
 end
 
-@inline function calc_deformation_grad!(deformation_grad, neighborhood_search, container)
-    @unpack mass, material_density = container
+@inline function calc_deformation_grad!(deformation_grad, neighborhood_search, system)
+    @unpack mass, material_density = system
 
     # Reset deformation gradient
     set_zero!(deformation_grad)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    initial_coords = initial_coordinates(container)
-    for_particle_neighbor(container, container,
+    initial_coords = initial_coordinates(system)
+    for_particle_neighbor(system, system,
                           initial_coords, initial_coords,
                           neighborhood_search;
-                          particles=eachparticle(container)) do particle, neighbor,
-                                                                initial_pos_diff,
-                                                                initial_distance
+                          particles=eachparticle(system)) do particle, neighbor,
+                                                             initial_pos_diff,
+                                                             initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
         volume = mass[neighbor] / material_density[neighbor]
-        pos_diff = current_coords(container, particle) - current_coords(container, neighbor)
+        pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(container, initial_pos_diff,
+        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
                                             initial_distance)
 
         result = volume * pos_diff * grad_kernel'
 
         # Multiply by L_{0a}
-        result *= correction_matrix(container, particle)'
+        result *= correction_matrix(system, particle)'
 
-        @inbounds for j in 1:ndims(container), i in 1:ndims(container)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             deformation_grad[i, j, particle] -= result[i, j]
         end
     end
@@ -365,15 +367,15 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(J, container)
-    S = pk2_stress_tensor(J, container)
+@inline function pk1_stress_tensor(J, system)
+    S = pk2_stress_tensor(J, system)
 
     return J * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(J, container)
-    @unpack lame_lambda, lame_mu = container
+@inline function pk2_stress_tensor(J, system)
+    @unpack lame_lambda, lame_mu = system
 
     # Compute the Green-Lagrange strain
     E = 0.5 * (transpose(J) * J - I)
@@ -382,16 +384,16 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, container, ::Nothing)
+                                     initial_distance, system, ::Nothing)
     return dv
 end
 
-function write_u0!(u0, container::SolidParticleContainer)
-    @unpack initial_coordinates = container
+function write_u0!(u0, system::TotalLagrangianSPHSystem)
+    @unpack initial_coordinates = system
 
-    for particle in each_moving_particle(container)
+    for particle in each_moving_particle(system)
         # Write particle coordinates
-        for dim in 1:ndims(container)
+        for dim in 1:ndims(system)
             u0[dim, particle] = initial_coordinates[dim, particle]
         end
     end
@@ -399,42 +401,42 @@ function write_u0!(u0, container::SolidParticleContainer)
     return u0
 end
 
-function write_v0!(v0, container::SolidParticleContainer)
-    @unpack initial_velocity, boundary_model = container
+function write_v0!(v0, system::TotalLagrangianSPHSystem)
+    @unpack initial_velocity, boundary_model = system
 
-    for particle in each_moving_particle(container)
+    for particle in each_moving_particle(system)
         # Write particle velocities
-        for dim in 1:ndims(container)
+        for dim in 1:ndims(system)
             v0[dim, particle] = initial_velocity[dim, particle]
         end
     end
 
-    write_v0!(v0, boundary_model, container)
+    write_v0!(v0, boundary_model, system)
 
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, container::SolidParticleContainer)
+function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, container::SolidParticleContainer)
-    @unpack density_calculator = container.boundary_model
+function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
+    @unpack density_calculator = system.boundary_model
 
-    write_v0!(v0, density_calculator, container)
+    write_v0!(v0, density_calculator, system)
 end
 
-function write_v0!(v0, density_calculator, container::SolidParticleContainer)
+function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, container::SolidParticleContainer)
-    @unpack cache = container.boundary_model
+function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
+    @unpack cache = system.boundary_model
     @unpack initial_density = cache
 
-    for particle in each_moving_particle(container)
+    for particle in each_moving_particle(system)
         # Set particle densities
-        v0[ndims(container) + 1, particle] = initial_density[particle]
+        v0[ndims(system) + 1, particle] = initial_density[particle]
     end
 
     return v0

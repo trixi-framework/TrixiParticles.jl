@@ -11,9 +11,9 @@ or pass `dt` to save in intervals of `dt` in terms of integration time by adding
 additional `tstops` (note that this may change the solution).
 
 Additional user-defined quantities can be saved by passing functions
-as keyword arguments, which map `(v, u, t, container)` to an `Array` where
+as keyword arguments, which map `(v, u, t, system)` to an `Array` where
 the columns represent the particles in the same order as in `u`.
-To ignore a custom quantity for a specific container, return `nothing`.
+To ignore a custom quantity for a specific system, return `nothing`.
 
 # Keywords
 - `interval=0`:                 Save the solution every `interval` time steps.
@@ -36,14 +36,14 @@ saving_callback = SolutionSavingCallback(interval=100)
 # Save in intervals of 0.1 in terms of simulation time.
 saving_callback = SolutionSavingCallback(dt=0.1)
 
-# Additionally store the norm of the particle velocity for fluid containers as "v_mag".
+# Additionally store the norm of the particle velocity for fluid systems as "v_mag".
 using LinearAlgebra
-function v_mag(v, u, t, container)
-    # Ignore for other containers.
+function v_mag(v, u, t, system)
+    # Ignore for other systems.
     return nothing
 end
-function v_mag(v, u, t, container::FluidParticleContainer)
-    return [norm(v[1:ndims(container), i]) for i in axes(v, 2)]
+function v_mag(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return [norm(v[1:ndims(system), i]) for i in axes(v, 2)]
 end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 ```
@@ -104,10 +104,10 @@ end
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
     # Save initial solution
     if solution_callback.save_initial_solution
-        # Update containers to compute quantities like density and pressure.
+        # Update systems to compute quantities like density and pressure.
         semi = integrator.p
         v_ode, u_ode = u.x
-        update_containers_and_nhs(v_ode, u_ode, semi, t)
+        update_systems_and_nhs(v_ode, u_ode, semi, t)
 
         # Apply the callback.
         solution_callback(integrator)

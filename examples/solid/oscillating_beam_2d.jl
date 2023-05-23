@@ -42,20 +42,20 @@ beam = RectangularShape(particle_spacing, n_particles_per_dimension, (0, 0),
 solid = MergeShapes(beam, fixed_particles)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-particle_container = SolidParticleContainer(solid.coordinates, solid.velocities,
-                                            solid.masses, solid.densities,
-                                            smoothing_kernel, smoothing_length,
-                                            E, nu,
-                                            n_fixed_particles=fixed_particles.n_particles,
-                                            acceleration=(0.0, acceleration),
-                                            nothing) # No boundary model
+solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
+                                        solid.masses, solid.densities,
+                                        smoothing_kernel, smoothing_length,
+                                        E, nu,
+                                        n_fixed_particles=fixed_particles.n_particles,
+                                        acceleration=(0.0, acceleration),
+                                        nothing) # No boundary model
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(solid_system, neighborhood_search=SpatialHashingSearch)
 tspan = (0.0, 5.0)
 
 ode = semidiscretize(semi, tspan)
