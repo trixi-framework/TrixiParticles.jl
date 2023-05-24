@@ -349,13 +349,11 @@ end
     return n_moving_particles(system, system.boundary_model.density_calculator)
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem,
-                                    density_calculator)
+@inline function n_moving_particles(system::BoundarySPHSystem, density_calculator)
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem,
-                                    ::ContinuityDensity)
+@inline function n_moving_particles(system::BoundarySPHSystem, ::ContinuityDensity)
     nparticles(system)
 end
 
@@ -387,8 +385,7 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
-@inline function particle_density(v, model::BoundaryModelDummyParticles, system,
-                                  particle)
+@inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
     return particle_density(v, model.density_calculator, system, particle)
 end
 
@@ -403,8 +400,7 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-function update!(system::BoundarySPHSystem, system_index,
-                 v, u, v_ode, u_ode, semi, t)
+function update!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
     @unpack initial_coordinates, movement_function, boundary_model = system
 
     system.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
@@ -418,10 +414,11 @@ end
 function move_boundary_particles!(movement_function, coordinates, t)
     movement_function(coordinates, t)
 end
+
 move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                         system_index, v, u, v_ode, u_ode, semi)
+@inline function update!(boundary_model::BoundaryModelMonaghanKajtar,
+                         system, system_index, v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
