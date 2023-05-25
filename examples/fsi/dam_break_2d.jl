@@ -37,8 +37,8 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
+                       (tank_width, tank_height), water_density,
+                       n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.

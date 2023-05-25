@@ -29,8 +29,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
+                       (tank_width, tank_height), water_density,
+                       n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move water column
 for i in axes(tank.fluid.coordinates, 2)

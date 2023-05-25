@@ -100,7 +100,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                                       young_modulus, poisson_ratio, boundary_model;
                                       n_fixed_particles=0,
                                       acceleration=ntuple(_ -> 0.0,
-                                                          size(initial_condition.coordinates, 1)),
+                                                          size(initial_condition.coordinates,
+                                                               1)),
                                       penalty_force=nothing)
         NDIMS = size(initial_condition.coordinates, 1)
         ELTYPE = eltype(initial_condition.coordinates)

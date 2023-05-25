@@ -8,23 +8,24 @@
 System for fluid particles.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: System{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    mass                :: Array{ELTYPE, 1} # [particle]
-    pressure            :: Array{ELTYPE, 1} # [particle]
-    density_calculator  :: DC
-    state_equation      :: SE
-    smoothing_kernel    :: K
-    smoothing_length    :: ELTYPE
-    viscosity           :: V
-    acceleration        :: SVector{NDIMS, ELTYPE}
-    cache               :: C
+    initial_condition  :: InitialCondition{ELTYPE}
+    mass               :: Array{ELTYPE, 1} # [particle]
+    pressure           :: Array{ELTYPE, 1} # [particle]
+    density_calculator :: DC
+    state_equation     :: SE
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    acceleration       :: SVector{NDIMS, ELTYPE}
+    cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
-                                                             size(initial_condition.coordinates, 1)))
+                                                             size(initial_condition.coordinates,
+                                                                  1)))
         NDIMS = size(initial_condition.coordinates, 1)
         ELTYPE = eltype(initial_condition.coordinates)
         n_particles = size(initial_condition.coordinates, 2)

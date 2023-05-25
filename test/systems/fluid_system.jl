@@ -27,11 +27,12 @@
                 TrixiParticles.ndims(::Val{:smoothing_kernel2}) = i % 2 + 2
                 smoothing_length = 0.362
 
-                initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+                initial_condition = InitialCondition(coordinates, velocities, masses,
+                                                     densities)
                 system = WeaklyCompressibleSPHSystem(initial_condition,
-                                                    density_calculator,
-                                                    state_equation, smoothing_kernel,
-                                                    smoothing_length)
+                                                     density_calculator,
+                                                     state_equation, smoothing_kernel,
+                                                     smoothing_length)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == initial_condition
@@ -49,18 +50,18 @@
 
                 error_str1 = "`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"
                 @test_throws ArgumentError(error_str1) WeaklyCompressibleSPHSystem(initial_condition,
-                                                                                density_calculator,
-                                                                                state_equation,
-                                                                                smoothing_kernel,
-                                                                                smoothing_length,
-                                                                                acceleration=(0.0))
+                                                                                   density_calculator,
+                                                                                   state_equation,
+                                                                                   smoothing_kernel,
+                                                                                   smoothing_length,
+                                                                                   acceleration=(0.0))
 
                 error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
                 @test_throws ArgumentError(error_str2) WeaklyCompressibleSPHSystem(initial_condition,
-                                                                                density_calculator,
-                                                                                state_equation,
-                                                                                smoothing_kernel2,
-                                                                                smoothing_length)
+                                                                                   density_calculator,
+                                                                                   state_equation,
+                                                                                   smoothing_kernel2,
+                                                                                   smoothing_length)
             end
         end
     end
@@ -70,7 +71,8 @@
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
             RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
-            RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492), 1020.0).fluid,
+            RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
+                            1020.0).fluid,
             CircularShape(0.52, 0.1, (-0.2, 0.123), 1.0),
         ]
         setup_names = [

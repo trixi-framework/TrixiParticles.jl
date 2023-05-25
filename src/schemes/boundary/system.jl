@@ -32,10 +32,10 @@ end
 ```
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: System{NDIMS}
-    coordinates         :: Array{ELTYPE, 2}
-    boundary_model      :: BM
-    movement_function   :: MF
-    ismoving            :: Vector{Bool}
+    coordinates       :: Array{ELTYPE, 2}
+    boundary_model    :: BM
+    movement_function :: MF
+    ismoving          :: Vector{Bool}
 
     function BoundarySPHSystem(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)

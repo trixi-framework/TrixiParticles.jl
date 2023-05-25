@@ -21,7 +21,8 @@
             E = 2.5
             boundary_model = Val(:boundary_model)
 
-            initial_condition = InitialCondition(coordinates, velocities, masses, material_densities)
+            initial_condition = InitialCondition(coordinates, velocities, masses,
+                                                 material_densities)
             system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                               smoothing_length, E, nu, boundary_model)
 
@@ -58,7 +59,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, material_densities)
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
@@ -201,7 +203,8 @@
                 search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                                smoothing_length)
 
-                initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+                initial_condition = InitialCondition(coordinates, velocities, masses,
+                                                     densities)
                 system = TotalLagrangianSPHSystem(initial_condition,
                                                   smoothing_kernel, smoothing_length,
                                                   1.0, 1.0, nothing)
@@ -286,7 +289,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, material_densities)
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
@@ -310,7 +314,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, material_densities)
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 

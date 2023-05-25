@@ -9,7 +9,8 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
     function NBodySystem(initial_condition, G)
         mass = copy(initial_condition.mass)
 
-        new{size(initial_condition.coordinates, 1), eltype(mass)}(initial_condition, mass, G)
+        new{size(initial_condition.coordinates, 1),
+            eltype(mass)}(initial_condition, mass, G)
     end
 end
 

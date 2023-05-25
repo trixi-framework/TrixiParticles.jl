@@ -32,8 +32,8 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height, water_length),
-                        (tank_width, tank_height, tank_length), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
+                       (tank_width, tank_height, tank_length), water_density,
+                       n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 new_wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing

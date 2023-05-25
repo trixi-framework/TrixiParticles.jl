@@ -42,16 +42,16 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=tank_layers, spacing_ratio=beta_tank)
+                       (tank_width, tank_height), water_density,
+                       n_layers=tank_layers, spacing_ratio=beta_tank)
 
 gate_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 
 gate = RectangularShape(fluid_particle_spacing / beta_gate,
-                              (gate_layers,
-                               round(Int, gate_height / fluid_particle_spacing * beta_gate)),
-                              (gate_position, fluid_particle_spacing / beta_gate),
-                              water_density)
+                        (gate_layers,
+                         round(Int, gate_height / fluid_particle_spacing * beta_gate)),
+                        (gate_position, fluid_particle_spacing / beta_gate),
+                        water_density)
 
 # No moving boundaries for the relaxing step
 movement_function(coordinates, t) = false
