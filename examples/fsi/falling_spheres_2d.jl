@@ -59,16 +59,6 @@ sphere_1 = CircularShape(solid_particle_spacing, solid_radius_1, (0.5, 1.6),
 sphere_2 = CircularShape(solid_particle_spacing, solid_radius_2, (1.5, 1.6),
                          solid_density_2)
 
-particle_coordinates_1 = sphere_1.coordinates
-particle_velocities_1 = zeros(Float64, size(particle_coordinates_1))
-particle_masses_1 = sphere_1.masses
-particle_densities_1 = sphere_1.densities
-
-particle_coordinates_2 = sphere_2.coordinates
-particle_velocities_2 = zeros(Float64, size(particle_coordinates_2))
-particle_masses_2 = sphere_2.masses
-particle_densities_2 = sphere_2.densities
-
 # ==========================================================================================
 # ==== Boundary models
 
@@ -79,7 +69,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                              fluid_smoothing_length)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites_1 = water_density * ones(size(particle_densities_1))
+hydrodynamic_densites_1 = water_density * ones(size(sphere_1.density))
 hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^2
 
 solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
@@ -88,7 +78,7 @@ solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
 
-hydrodynamic_densites_2 = water_density * ones(size(particle_densities_2))
+hydrodynamic_densites_2 = water_density * ones(size(sphere_2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^2
 
 solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
@@ -100,7 +90,7 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            fluid_smoothing_kernel,
                                            fluid_smoothing_length,
                                            viscosity=viscosity,
@@ -108,16 +98,14 @@ fluid_system = WeaklyCompressibleSPHSystem(tank, ContinuityDensity(), state_equa
 
 boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
-solid_system_1 = TotalLagrangianSPHSystem(particle_coordinates_1, particle_velocities_1,
-                                          particle_masses_1, particle_densities_1,
+solid_system_1 = TotalLagrangianSPHSystem(sphere_1,
                                           solid_smoothing_kernel, solid_smoothing_length,
                                           E1, nu,
                                           acceleration=(0.0, gravity),
                                           solid_boundary_model_1,
                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
-solid_system_2 = TotalLagrangianSPHSystem(particle_coordinates_2, particle_velocities_2,
-                                          particle_masses_2, particle_densities_2,
+solid_system_2 = TotalLagrangianSPHSystem(sphere_2,
                                           solid_smoothing_kernel, solid_smoothing_length,
                                           E2, nu,
                                           acceleration=(0.0, gravity),

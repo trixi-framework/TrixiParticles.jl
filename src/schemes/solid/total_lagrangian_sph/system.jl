@@ -109,7 +109,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            throw(ArgumentError("acceleration must be of length $NDIMS for a $(NDIMS)D problem"))
+            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         if ndims(smoothing_kernel) != NDIMS
@@ -203,6 +203,8 @@ end
 @inline function n_moving_particles(system::TotalLagrangianSPHSystem)
     system.n_moving_particles
 end
+
+@inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
 
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates

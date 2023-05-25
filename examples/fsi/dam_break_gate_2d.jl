@@ -47,7 +47,7 @@ tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
 
 gate_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 
-tank_gate = RectangularShape(fluid_particle_spacing / beta_gate,
+gate = RectangularShape(fluid_particle_spacing / beta_gate,
                               (gate_layers,
                                round(Int, gate_height / fluid_particle_spacing * beta_gate)),
                               (gate_position, fluid_particle_spacing / beta_gate),
@@ -85,7 +85,7 @@ fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_per_dimension[1], 1), (0.6, 0.0),
                                    solid_density)
 
-solid = MergeShapes(plate, fixed_particles)
+solid = InitialCondition(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -104,9 +104,9 @@ boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
 K_gate = 9.81 * water_height
 boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
                                                   fluid_particle_spacing / beta_gate,
-                                                  tank_gate.masses)
+                                                  gate.mass)
 
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
@@ -125,7 +125,7 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
@@ -133,12 +133,11 @@ fluid_system = WeaklyCompressibleSPHSystem(tank, ContinuityDensity(), state_equa
 boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates,
                                          boundary_model_tank)
 
-boundary_system_gate = BoundarySPHSystem(tank_gate.coordinates,
+boundary_system_gate = BoundarySPHSystem(gate.coordinates,
                                          boundary_model_gate,
                                          movement_function=movement_function)
 
-solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                        solid.masses, solid.densities,
+solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model_solid,
                                         n_fixed_particles=n_particles_x,

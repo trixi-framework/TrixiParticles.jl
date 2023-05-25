@@ -2,28 +2,31 @@ using TrixiParticles
 using LinearAlgebra
 
 struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
-    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
-    mass                :: Array{ELTYPE, 1} # [particle]
-    G                   :: ELTYPE
+    initial_condition :: InitialCondition{ELTYPE}
+    mass              :: Array{ELTYPE, 1} # [particle]
+    G                 :: ELTYPE
 
-    function NBodySystem(coordinates, velocities, masses, G)
-        new{size(coordinates, 1), eltype(coordinates)}(coordinates, velocities, masses, G)
+    function NBodySystem(initial_condition, G)
+        mass = copy(initial_condition.mass)
+
+        new{size(initial_condition.coordinates, 1), eltype(mass)}(initial_condition, mass, G)
     end
 end
+
+@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
 
 @inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
     return dv
 end
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
-    u0 .= system.initial_coordinates
+    u0 .= system.initial_condition.coordinates
 
     return u0
 end
 
 function TrixiParticles.write_v0!(v0, system::NBodySystem)
-    v0 .= system.initial_velocity
+    v0 .= system.initial_condition.velocity
 
     return v0
 end

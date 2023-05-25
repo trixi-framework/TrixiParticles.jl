@@ -35,7 +35,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
-            throw(ArgumentError("acceleration must be of length $NDIMS for a $(NDIMS)D problem"))
+            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
         if ndims(smoothing_kernel) != NDIMS
