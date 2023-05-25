@@ -18,7 +18,7 @@
 
 Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
 equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
-for small density variations. For the choice of the appropiate `density_calculator`
+for small density variations. For the choice of the appropriate `density_calculator`
 see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
 ## References:
