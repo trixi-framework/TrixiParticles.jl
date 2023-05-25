@@ -67,6 +67,15 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, "BoundaryModelMonaghanKajtar")
 end
 
+@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system,
+                                  particle)
+    @unpack hydrodynamic_mass, boundary_particle_spacing = model
+
+    # This model does not use any particle density. However, a mean density is used for
+    # `ArtificialViscosityMonaghan` in the fluid interaction.
+    return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
+end
+
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           boundary_model::BoundaryModelMonaghanKajtar,
                                           v_particle_system, v_boundary_system,
@@ -91,4 +100,10 @@ end
 
     # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
     return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
+end
+
+@inline function update!(boundary_model::BoundaryModelMonaghanKajtar,
+                         system, system_index, v, u, v_ode, u_ode, semi)
+    # Nothing to do in the update step
+    return boundary_model
 end
