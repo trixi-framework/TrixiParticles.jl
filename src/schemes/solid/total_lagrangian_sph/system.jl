@@ -444,8 +444,6 @@ end
 
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     for particle in each_moving_particle(system)
-        system.initial_condition.coordinates[:, particle] .= u[:, particle]
-        system.initial_coordinates[:, particle] .= u[:, particle]
         system.current_coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
     end
