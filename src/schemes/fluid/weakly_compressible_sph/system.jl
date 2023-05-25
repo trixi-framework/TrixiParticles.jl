@@ -16,7 +16,15 @@
                                 viscosity=NoViscosity(),
                                 acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-System for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
+Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
+equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
+for small density variations. For the choice of the appropiate `density_calculator`
+see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+
+## References:
+- Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
+  In: Journal of Computational Physics 110 (1994), pages 399-406.
+  [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: System{NDIMS}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
