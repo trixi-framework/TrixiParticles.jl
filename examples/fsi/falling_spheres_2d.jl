@@ -32,7 +32,7 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
                         n_layers=boundary_layers, spacing_ratio=beta,
                         faces=(true, true, true, false))
@@ -72,8 +72,8 @@ particle_densities_2 = sphere_2.densities
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                             tank.boundary.mass, state_equation,
                                              AdamiPressureExtrapolation(),
                                              fluid_smoothing_kernel,
                                              fluid_smoothing_length)
@@ -100,13 +100,13 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank, ContinuityDensity(), state_equation,
                                            fluid_smoothing_kernel,
                                            fluid_smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
 solid_system_1 = TotalLagrangianSPHSystem(particle_coordinates_1, particle_velocities_1,
                                           particle_masses_1, particle_densities_1,

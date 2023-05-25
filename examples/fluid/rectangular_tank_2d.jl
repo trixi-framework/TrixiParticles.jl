@@ -28,32 +28,32 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, (water_width, water_height),
+tank = RectangularTank(particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
                         n_layers=boundary_layers, spacing_ratio=beta)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                             tank.boundary.mass, state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel,
                                              smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              setup.boundary_masses)
+#                                              tank.boundary.mass)
 
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation

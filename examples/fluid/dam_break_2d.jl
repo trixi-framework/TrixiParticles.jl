@@ -36,39 +36,39 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, (water_width, water_height),
+tank = RectangularTank(particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
                         n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move right boundary
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+new_wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing
 reset_faces = (false, true, false, false)
 positions = (0, new_wall_position, 0, 0)
 
-reset_wall!(setup, reset_faces, positions)
+reset_wall!(tank, reset_faces, positions)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                             tank.boundary.mass, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              setup.boundary_masses)
+#                                              tank.boundary.mass)
 
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(setup, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
@@ -100,7 +100,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # Move right boundary
 positions = (0, tank_width, 0, 0)
-reset_wall!(setup, reset_faces, positions)
+reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(9.81))
