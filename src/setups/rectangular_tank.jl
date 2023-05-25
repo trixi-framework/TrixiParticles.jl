@@ -676,7 +676,7 @@ The selected walls of the tank will be placed at the new positions.
     There are overlapping particles when adjacent walls are moved inwards simultaneously.
 """
 function reset_wall!(rectangular_tank, reset_faces, positions)
-    @unpack boundary_coordinates, particle_spacing, spacing_ratio,
+    @unpack boundary, particle_spacing, spacing_ratio,
     n_layers, face_indices = rectangular_tank
 
     for face in eachindex(reset_faces)
@@ -696,7 +696,7 @@ function reset_wall!(rectangular_tank, reset_faces, positions)
                 end
 
                 # set position
-                boundary_coordinates[dim, particle] = positions[face] + layer_shift
+                boundary.coordinates[dim, particle] = positions[face] + layer_shift
             end
         end
     end
