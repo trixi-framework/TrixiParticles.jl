@@ -1,4 +1,5 @@
-# Separate file that one can execute to only run unit tests
+# Separate file that can be executed to only run unit tests.
+# Include `test_util.jl` first.
 @testset verbose=true "Unit Tests" begin
     include("systems/systems.jl")
     include("general/general.jl")

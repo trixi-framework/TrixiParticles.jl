@@ -57,12 +57,14 @@
             TrixiParticles.ndims(::Val{:mock_system_interact}) = 2
             Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
 
+            function TrixiParticles.initial_coordinates(::Val{:mock_system_interact})
+                return initial_coordinates
+            end
+
             # @unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}
             function Base.getproperty(::Val{:mock_system_interact}, f::Symbol)
-                if f === :initial_coordinates
-                    return initial_coordinates
-                elseif f === :current_coordinates
+                if f === :current_coordinates
                     return current_coordinates
                 elseif f === :material_density
                     return material_density
@@ -140,12 +142,12 @@
 
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
-            particle_coordinates = Array{Float64, 2}(undef, 2,
+            coordinates = Array{Float64, 2}(undef, 2,
                                                      prod(n_particles_per_dimension))
-            particle_velocities = Array{Float64, 2}(undef, 2,
+            velocities = Array{Float64, 2}(undef, 2,
                                                     prod(n_particles_per_dimension))
-            particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
-            particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+            masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+            densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
             for y in 1:n_particles_per_dimension[2],
                 x in 1:n_particles_per_dimension[1]
@@ -153,14 +155,15 @@
                 particle = (x - 1) * n_particles_per_dimension[2] + y
 
                 # Coordinates
-                particle_coordinates[1, particle] = x * 0.1
-                particle_coordinates[2, particle] = y * 0.1
+                coordinates[1, particle] = x * 0.1
+                coordinates[2, particle] = y * 0.1
             end
 
             smoothing_length = 0.07
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            system = TotalLagrangianSPHSystem(particle_coordinates, particle_velocities,
-                                              particle_masses, particle_densities,
+
+            initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+            system = TotalLagrangianSPHSystem(initial_condition,
                                               smoothing_kernel, smoothing_length,
                                               E, nu, nothing)
 
@@ -171,8 +174,7 @@
             # Apply the deformation matrix
             for particle in axes(u, 2)
                 # Apply deformation
-                u[1:2, particle] = deformations[deformation](particle_coordinates[:,
-                                                                                  particle])
+                u[1:2, particle] = deformations[deformation](coordinates[:, particle])
             end
 
             #### Verification for the particle in the middle

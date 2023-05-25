@@ -1,4 +1,4 @@
-@testset verbose=true "Rectangular tank 2D" begin
+@testset verbose=true "Rectangular Tank 2D" begin
     @testset verbose=true "One Boundary Layer" begin
         water_width = 0.5
         water_height = 0.5
@@ -52,7 +52,7 @@
 
             expected_velocities = [1.0 1.0 1.0 1.0; 2.5 2.5 2.5 2.5]
 
-            @test isapprox(tank.velocities, expected_velocities)
+            @test isapprox(tank.fluid.velocity, expected_velocities)
         end
 
         @testset "Reset Wall" begin
@@ -230,7 +230,7 @@
     end
 end
 
-@testset verbose=true "Rectangular tank 3D" begin
+@testset verbose=true "Rectangular Tank 3D" begin
     @testset verbose=true "One Boundary Layer" begin
         water_width = 0.4
         water_height = 0.4
@@ -279,7 +279,7 @@ end
                                            spacing_ratio=spacing_ratio)
 
                     boundary_coords_index += 1
-                    @test isapprox(tank.coordinates, expected_fluid_coords[i])
+                    @test isapprox(tank.fluid.coordinates, expected_fluid_coords[i])
                     @test isapprox(tank.boundary.coordinates,
                                    expected_bound_coords[boundary_coords_index])
                 end
