@@ -117,7 +117,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
         end
 
         initial_coordinates = copy(initial_condition.coordinates)
-        current_coordinates = similar(initial_coordinates)
+        current_coordinates = copy(initial_condition.coordinates)
         mass = copy(initial_condition.mass)
         material_density = copy(initial_condition.density)
         correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
@@ -446,6 +446,7 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     for particle in each_moving_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_coordinates[:, particle] .= u[:, particle]
+        system.current_coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
     end
 
