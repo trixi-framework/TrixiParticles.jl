@@ -11,16 +11,15 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, IC, DC}
+struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
-    initial_conditions    :: IC
     damping_coefficient   :: DC
 
-    function Semidiscretization(systems_and_initial_conditions...;
-                                neighborhood_search=nothing, damping_coefficient=nothing)
+    function Semidiscretization(systems...; neighborhood_search=nothing,
+                                damping_coefficient=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -37,11 +36,9 @@ struct Semidiscretization{S, RU, RV, NS, IC, DC}
                                for neighbor in systems)
                          for system in systems)
 
-        systems, initial_conditions = zip(systems_and_initial_conditions...)
-
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, initial_conditions,
+            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u,
+                                                           ranges_v, searches,
                                                            damping_coefficient)
     end
 end
@@ -148,7 +145,7 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
 function semidiscretize(semi, tspan)
-    @unpack systems, neighborhood_searches, initial_conditions = semi
+    @unpack systems, neighborhood_searches = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
@@ -174,8 +171,8 @@ function semidiscretize(semi, tspan)
         u0_system = wrap_u(u0_ode, system_index, system, semi)
         v0_system = wrap_v(v0_ode, system_index, system, semi)
 
-        write_u0!(u0_system, system, initial_conditions[system_index])
-        write_v0!(v0_system, system, initial_conditions[system_index])
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
@@ -194,17 +191,15 @@ in the solution `sol`.
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
 function restart_with!(semi, sol)
-    @unpack systems, initial_conditions = semi
+    @unpack systems = semi
 
     foreach_enumerate(systems) do (system_index, system)
         v_end = wrap_v(sol[end].x[1], system_index, system, semi)
         u_end = wrap_u(sol[end].x[2], system_index, system, semi)
 
-        initial_condition = initial_conditions[system_index]
-
         for particle in each_moving_particle(system)
-            initial_condition.coordinates[:, particle] .= u_end[:, particle]
-            initial_condition.velocity[:, particle] .= v_end[1:ndims(system), particle]
+            system.initial_coordinates[:, particle] .= u_end[:, particle]
+            system.initial_velocity[:, particle] .= v_end[1:ndims(system), particle]
         end
     end
 
@@ -218,8 +213,10 @@ end
 
     range = ranges_u[i]
 
-    @boundscheck begin @assert length(range) ==
-                               u_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                u_nvariables(system) * n_moving_particles(system)
+    end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -233,8 +230,10 @@ end
 
     range = ranges_v[i]
 
-    @boundscheck begin @assert length(range) ==
-                               v_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                v_nvariables(system) * n_moving_particles(system)
+    end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))

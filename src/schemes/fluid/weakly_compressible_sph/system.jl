@@ -1,32 +1,75 @@
 """
-    WeaklyCompressibleSPHSystem(particle_masses,
+    WeaklyCompressibleSPHSystem(setup,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
                                 viscosity=NoViscosity(),
                                 acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+    WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses,
+                                density_calculator::SummationDensity, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=NoViscosity(),
+                                acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
 
-System for fluid particles.
+    WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities, particle_masses, particle_densities,
+                                density_calculator::ContinuityDensity, state_equation,
+                                smoothing_kernel, smoothing_length;
+                                viscosity=NoViscosity(),
+                                acceleration=ntuple(_ -> 0.0, size(particle_coordinates, 1)))
+
+System for fluid particles. With [`ContinuityDensity`](@ref), the `particle_densities` array has to be passed.
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: System{NDIMS}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    viscosity          :: V
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    cache              :: C
+    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
+    initial_velocity    :: Array{ELTYPE, 2} # [dimension, particle]
+    mass                :: Array{ELTYPE, 1} # [particle]
+    pressure            :: Array{ELTYPE, 1} # [particle]
+    density_calculator  :: DC
+    state_equation      :: SE
+    smoothing_kernel    :: K
+    smoothing_length    :: ELTYPE
+    viscosity           :: V
+    acceleration        :: SVector{NDIMS, ELTYPE}
+    cache               :: C
 
-    function WeaklyCompressibleSPHSystem(particle_masses,
-                                         density_calculator, state_equation,
+    # convenience constructor for passing a setup as first argument
+    function WeaklyCompressibleSPHSystem(setup, density_calculator::SummationDensity,
+                                         state_equation, smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(setup.coordinates, 1)))
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities,
+                                           setup.masses,
+                                           density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,
+                                           viscosity=viscosity, acceleration=acceleration)
+    end
+
+    # convenience constructor for passing a setup as first argument
+    function WeaklyCompressibleSPHSystem(setup, density_calculator::ContinuityDensity,
+                                         state_equation, smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(setup.coordinates, 1)))
+        return WeaklyCompressibleSPHSystem(setup.coordinates, setup.velocities,
+                                           setup.masses,
+                                           setup.densities, density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,
+                                           viscosity=viscosity, acceleration=acceleration)
+    end
+
+    function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
+                                         particle_masses,
+                                         density_calculator::SummationDensity,
+                                         state_equation,
                                          smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)))
-        NDIMS = ndims(smoothing_kernel)
-        ELTYPE = eltype(particle_masses)
-        n_particles = size(particle_masses, 2)
+                                                             size(particle_coordinates, 1)))
+        NDIMS = size(particle_coordinates, 1)
+        ELTYPE = eltype(particle_coordinates)
+        n_particles = size(particle_coordinates, 2)
 
         pressure = Vector{ELTYPE}(undef, n_particles)
 
@@ -36,33 +79,65 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
             throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
         end
 
-        # TODO: Move that to the initialization when we have the initial condition
-        # if ndims(smoothing_kernel) != NDIMS
-        #     throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
-        # end
-        #
-        # if length(particle_masses) != n_particles
-        #     throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
-        # end
+        if ndims(smoothing_kernel) != NDIMS
+            throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
+        end
 
-        cache = create_cache(n_particles, ELTYPE, density_calculator)
+        if length(particle_masses) != n_particles
+            throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
+        end
+
+        density = Vector{ELTYPE}(undef, n_particles)
+        cache = (; density)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
-                   }(particle_masses, pressure,
+                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
                      density_calculator, state_equation, smoothing_kernel, smoothing_length,
                      viscosity, acceleration_, cache)
     end
-end
 
-function create_cache(n_particles, ELTYPE, ::SummationDensity)
-    density = Vector{ELTYPE}(undef, n_particles)
+    function WeaklyCompressibleSPHSystem(particle_coordinates, particle_velocities,
+                                         particle_masses, particle_densities,
+                                         density_calculator::ContinuityDensity,
+                                         state_equation,
+                                         smoothing_kernel, smoothing_length;
+                                         viscosity=NoViscosity(),
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             size(particle_coordinates, 1)))
+        NDIMS = size(particle_coordinates, 1)
+        ELTYPE = eltype(particle_coordinates)
+        nparticles = size(particle_coordinates, 2)
 
-    return (; density)
-end
+        pressure = Vector{ELTYPE}(undef, nparticles)
 
-function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
-    return (;)
+        # Make acceleration an SVector
+        acceleration_ = SVector(acceleration...)
+        if length(acceleration_) != NDIMS
+            throw(ArgumentError("Acceleration must be of length $NDIMS for a $(NDIMS)D problem!"))
+        end
+
+        if ndims(smoothing_kernel) != NDIMS
+            throw(ArgumentError("Smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem!"))
+        end
+
+        if length(particle_densities) != nparticles
+            throw(ArgumentError("`particle_densities` must be a vector of length $(n_particles) when using `ContinuityDensity`!"))
+        end
+
+        if length(particle_masses) != nparticles
+            throw(ArgumentError("`particle_masses` must be a vector of length $(n_particles)!"))
+        end
+
+        initial_density = particle_densities
+        cache = (; initial_density)
+
+        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   }(particle_coordinates, particle_velocities, particle_masses, pressure,
+                     density_calculator, state_equation, smoothing_kernel, smoothing_length,
+                     viscosity, acceleration_, cache)
+    end
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -169,40 +244,45 @@ function compute_pressure!(system, v)
     end
 end
 
-function write_u0!(u0, system::WeaklyCompressibleSPHSystem, initial_condition)
+function write_u0!(u0, system::WeaklyCompressibleSPHSystem)
+    @unpack initial_coordinates = system
+
     for particle in eachparticle(system)
         # Write particle coordinates
         for dim in 1:ndims(system)
-            u0[dim, particle] = initial_condition.coordinates[dim, particle]
+            u0[dim, particle] = initial_coordinates[dim, particle]
         end
     end
 
     return u0
 end
 
-function write_v0!(v0, system::WeaklyCompressibleSPHSystem, initial_condition)
+function write_v0!(v0, system::WeaklyCompressibleSPHSystem)
+    @unpack initial_velocity, density_calculator = system
+
     for particle in eachparticle(system)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
+            v0[dim, particle] = initial_velocity[dim, particle]
         end
     end
 
-    write_v0!(v0, system.density_calculator, system, initial_condition)
+    write_v0!(v0, density_calculator, system)
 
     return v0
 end
 
-function write_v0!(v0, ::SummationDensity, system::WeaklyCompressibleSPHSystem,
-                   initial_condition)
+function write_v0!(v0, ::SummationDensity, system::WeaklyCompressibleSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::ContinuityDensity, system::WeaklyCompressibleSPHSystem,
-                   initial_condition)
+function write_v0!(v0, ::ContinuityDensity, system::WeaklyCompressibleSPHSystem)
+    @unpack cache = system
+    @unpack initial_density = cache
+
     for particle in eachparticle(system)
         # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_condition.density[particle]
+        v0[ndims(system) + 1, particle] = initial_density[particle]
     end
 
     return v0
