@@ -437,8 +437,8 @@ function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_o
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
-                  semi, t)
+function update_final!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+                       v_ode, u_ode, semi, t)
     return system
 end
 
