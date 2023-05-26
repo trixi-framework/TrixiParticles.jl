@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(coordinates, mass, model;
+    BoundarySPHSystem(coordinates, model;
                       movement_function=nothing)
 
 System for boundaries modeled by boundary particles.
@@ -32,10 +32,10 @@ end
 ```
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: System{NDIMS}
-    initial_coordinates :: Array{ELTYPE, 2}
-    boundary_model      :: BM
-    movement_function   :: MF
-    ismoving            :: Vector{Bool}
+    coordinates       :: Array{ELTYPE, 2}
+    boundary_model    :: BM
+    movement_function :: MF
+    ismoving          :: Vector{Bool}
 
     function BoundarySPHSystem(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)
@@ -71,6 +71,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
     end
 end
 
+@inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
+
+# This does not account for moving boundaries, but it's only used to initialize the
+# neighborhood search, anyway.
+@inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
+
 # Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
 # this is also used by the `TotalLagrangianSPHSystem`.
 @inline function boundary_particle_impact(particle, boundary_particle,
@@ -102,13 +108,11 @@ end
     return n_moving_particles(system, system.boundary_model.density_calculator)
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem,
-                                    density_calculator)
+@inline function n_moving_particles(system::BoundarySPHSystem, density_calculator)
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem,
-                                    ::ContinuityDensity)
+@inline function n_moving_particles(system::BoundarySPHSystem, ::ContinuityDensity)
     nparticles(system)
 end
 
@@ -119,7 +123,7 @@ end
 @inline v_nvariables(system::BoundarySPHSystem) = 1
 
 @inline function current_coordinates(u, system::BoundarySPHSystem)
-    return system.initial_coordinates
+    return system.coordinates
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
@@ -141,122 +145,13 @@ end
 end
 
 function update!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    @unpack initial_coordinates, movement_function, boundary_model = system
+    @unpack coordinates, movement_function, boundary_model = system
 
-    system.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
-                                                  t)
+    system.ismoving[1] = move_boundary_particles!(movement_function, coordinates, t)
 
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
-end
-
-function move_boundary_particles!(movement_function, coordinates, t)
-    movement_function(coordinates, t)
-end
-move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
-
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                         system_index, v, u, v_ode, u_ode, semi)
-    # Nothing to do in the update step
-    return boundary_model
-end
-
-@inline function update!(boundary_model::BoundaryModelDummyParticles, system, system_index,
-                         v, u, v_ode, u_ode, semi)
-    @unpack density_calculator = boundary_model
-
-    compute_pressure1!(boundary_model, density_calculator, system, system_index, v, u,
-                       v_ode, u_ode, semi)
-
-    compute_density!(system, system_index, semi, u, u_ode, density_calculator)
-
-    compute_pressure2!(boundary_model, density_calculator, system, v, semi)
-
-    return boundary_model
-end
-
-function compute_pressure1!(boundary_model, density_calculator, system, system_index, v, u,
-                            v_ode, u_ode, semi)
-    return boundary_model
-end
-
-function compute_pressure1!(boundary_model, ::AdamiPressureExtrapolation, system,
-                            system_index, v, u, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack pressure, cache = boundary_model
-    @unpack volume = cache
-
-    pressure .= zero(eltype(pressure))
-    volume .= zero(eltype(volume))
-
-    # Use all other systems for the pressure extrapolation
-    @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                     neighbor_system)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index,
-                                   neighbor_system, semi)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
-                                   neighbor_system, semi)
-
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
-
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                      system_coords, neighbor_coords,
-                                      v_neighbor_system, neighborhood_search)
-    end
-
-    pressure ./= volume
-end
-
-function compute_pressure2!(boundary_model, density_calculator, system, v, semi)
-    @unpack pressure, state_equation = boundary_model
-
-    for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
-    end
-end
-
-function compute_pressure2!(boundary_model, ::AdamiPressureExtrapolation, system, v, semi)
-    return boundary_model
-end
-
-@inline function adami_pressure_extrapolation!(boundary_model, system,
-                                               neighbor_system::WeaklyCompressibleSPHSystem,
-                                               system_coords, neighbor_coords,
-                                               v_neighbor_system, neighborhood_search)
-    @unpack pressure, cache = boundary_model
-    @unpack volume = cache
-
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             pos_diff, distance
-        density_neighbor = particle_density(v_neighbor_system, neighbor_system,
-                                            neighbor)
-
-        # TODO moving boundaries
-        pressure[particle] += (neighbor_system.pressure[neighbor] +
-                               dot(neighbor_system.acceleration,
-                                   density_neighbor * pos_diff)) *
-                              smoothing_kernel(boundary_model, distance)
-        volume[particle] += smoothing_kernel(boundary_model, distance)
-    end
-
-    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    for particle in eachparticle(system)
-        pressure[particle] = max(pressure[particle], 0.0)
-    end
-end
-
-@inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords,
-                                               v_neighbor_system, neighborhood_search)
-    return boundary_model
 end
 
 @inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
@@ -280,6 +175,12 @@ end
         density[particle] = inverse_state_equation(state_equation, pressure[particle])
     end
 end
+
+function move_boundary_particles!(movement_function, coordinates, t)
+    movement_function(coordinates, t)
+end
+
+move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
 function write_u0!(u0, system::BoundarySPHSystem)
     return u0
@@ -309,4 +210,30 @@ function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
     end
 
     return v0
+end
+
+function restart_with!(system::BoundarySPHSystem, v, u)
+    restart_with!(system, system.boundary_model, v, u)
+end
+
+function restart_with!(system, ::BoundaryModelMonaghanKajtar, v, u)
+    return system
+end
+
+function restart_with!(system, model::BoundaryModelDummyParticles, v, u)
+    restart_with!(system, model, model.density_calculator, v, u)
+end
+
+function restart_with!(system, model, density_calculator, v, u)
+    return system
+end
+
+function restart_with!(system, model, ::ContinuityDensity, v, u)
+    @unpack initial_density = model.cache
+
+    for particle in eachparticle(system)
+        initial_density[particle] = v[1, particle]
+    end
+
+    return system
 end

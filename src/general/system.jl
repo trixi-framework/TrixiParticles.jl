@@ -1,11 +1,10 @@
-# Implies number of dimensions and a field with the name `initial_coordinates`.
 abstract type System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
 update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::System) = eltype(system.initial_coordinates)
+@inline Base.eltype(system::System) = eltype(system.initial_condition)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
@@ -59,7 +58,7 @@ end
 end
 
 # This can be dispatched by system type.
-@inline initial_coordinates(system) = system.initial_coordinates
+@inline initial_coordinates(system) = system.initial_condition.coordinates
 
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 

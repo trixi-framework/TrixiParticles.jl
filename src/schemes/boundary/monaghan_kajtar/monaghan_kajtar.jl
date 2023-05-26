@@ -1,4 +1,3 @@
-
 @doc raw"""
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
 
@@ -94,8 +93,7 @@ end
     return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
 end
 
-@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system,
-                                  particle)
+@inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
     @unpack hydrodynamic_mass, boundary_particle_spacing = model
 
     # This model does not use any particle density. However, a mean density is used for
@@ -103,8 +101,8 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                         system_index, v, u, v_ode, u_ode, semi)
+@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system, system_index,
+                         v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end

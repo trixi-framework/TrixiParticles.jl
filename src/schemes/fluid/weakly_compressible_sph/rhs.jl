@@ -75,8 +75,7 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
-                   neighbor_system::Union{BoundarySPHSystem,
-                                          TotalLagrangianSPHSystem})
+                   neighbor_system::Union{BoundarySPHSystem, TotalLagrangianSPHSystem})
     @unpack density_calculator, state_equation, viscosity,
     smoothing_length = particle_system
     @unpack sound_speed = state_equation

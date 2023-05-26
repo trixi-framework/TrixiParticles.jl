@@ -1,4 +1,3 @@
-
 @doc raw"""
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
                                 density_calculator, smoothing_kernel, smoothing_length)
@@ -151,14 +150,13 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-@inline function particle_density(v, model::BoundaryModelDummyParticles, system,
-                                  particle)
-    return particle_density(v, model.density_calculator, model, particle)
+@inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
+    return particle_density(v, model.density_calculator, system, particle)
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
-    @unpack cache = boundary_model
+@inline function particle_density(v, ::AdamiPressureExtrapolation, system, particle)
+    @unpack cache = system.boundary_model
 
     return cache.density[particle]
 end
@@ -258,26 +256,4 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
-end
-
-@inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
-                                  ::SummationDensity)
-    @unpack boundary_model = system
-    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, system_index, semi, u, u_ode, density,
-                       particles=eachparticle(system))
-end
-
-@inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
-                                  ::AdamiPressureExtrapolation)
-    @unpack boundary_model = system
-    @unpack pressure, state_equation, cache = boundary_model
-    @unpack density = cache
-
-    density .= zero(eltype(density))
-
-    for particle in eachparticle(system)
-        density[particle] = inverse_state_equation(state_equation, pressure[particle])
-    end
 end
