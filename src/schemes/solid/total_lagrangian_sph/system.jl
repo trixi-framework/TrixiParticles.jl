@@ -106,14 +106,14 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
 
+        if ndims(smoothing_kernel) != NDIMS
+            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+        end
+
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
         initial_coordinates = copy(initial_condition.coordinates)

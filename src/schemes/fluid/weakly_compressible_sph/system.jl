@@ -32,14 +32,14 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
         mass = copy(initial_condition.mass)
         pressure = Vector{ELTYPE}(undef, n_particles)
 
+        if ndims(smoothing_kernel) != NDIMS
+            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+        end
+
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
