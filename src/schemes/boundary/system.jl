@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(coordinates, mass, model;
+    BoundarySPHSystem(coordinates, model;
                       movement_function=nothing)
 
 System for boundaries modeled by boundary particles.
@@ -32,10 +32,10 @@ end
 ```
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: System{NDIMS}
-    initial_coordinates :: Array{ELTYPE, 2}
-    boundary_model      :: BM
-    movement_function   :: MF
-    ismoving            :: Vector{Bool}
+    coordinates       :: Array{ELTYPE, 2}
+    boundary_model    :: BM
+    movement_function :: MF
+    ismoving          :: Vector{Bool}
 
     function BoundarySPHSystem(coordinates, model; movement_function=nothing)
         NDIMS = size(coordinates, 1)
@@ -70,6 +70,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_footer(io)
     end
 end
+
+@inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
+
+# This does not account for moving boundaries, but it's only used to initialize the
+# neighborhood search, anyway.
+@inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
 
 # Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
 # this is also used by the `TotalLagrangianSPHSystem`.
@@ -364,7 +370,7 @@ end
 @inline v_nvariables(system::BoundarySPHSystem) = 1
 
 @inline function current_coordinates(u, system::BoundarySPHSystem)
-    return system.initial_coordinates
+    return system.coordinates
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
@@ -401,10 +407,9 @@ end
 end
 
 function update!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    @unpack initial_coordinates, movement_function, boundary_model = system
+    @unpack coordinates, movement_function, boundary_model = system
 
-    system.ismoving[1] = move_boundary_particles!(movement_function, initial_coordinates,
-                                                  t)
+    system.ismoving[1] = move_boundary_particles!(movement_function, coordinates, t)
 
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
@@ -580,4 +585,30 @@ function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
     end
 
     return v0
+end
+
+function restart_with!(system::BoundarySPHSystem, v, u)
+    restart_with!(system, system.boundary_model, v, u)
+end
+
+function restart_with!(system, ::BoundaryModelMonaghanKajtar, v, u)
+    return system
+end
+
+function restart_with!(system, model::BoundaryModelDummyParticles, v, u)
+    restart_with!(system, model, model.density_calculator, v, u)
+end
+
+function restart_with!(system, model, density_calculator, v, u)
+    return system
+end
+
+function restart_with!(system, model, ::ContinuityDensity, v, u)
+    @unpack initial_density = model.cache
+
+    for particle in eachparticle(system)
+        initial_density[particle] = v[1, particle]
+    end
+
+    return system
 end
