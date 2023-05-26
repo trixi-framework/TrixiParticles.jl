@@ -1,5 +1,5 @@
 @doc raw"""
-    TotalLagrangianSPHSystem(initial_condition
+    TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
                              young_modulus, poisson_ratio, boundary_model;
                              n_fixed_particles=0,
@@ -100,12 +100,11 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                                       young_modulus, poisson_ratio, boundary_model;
                                       n_fixed_particles=0,
                                       acceleration=ntuple(_ -> 0.0,
-                                                          size(initial_condition.coordinates,
-                                                               1)),
+                                                          ndims(smoothing_kernel)),
                                       penalty_force=nothing)
-        NDIMS = size(initial_condition.coordinates, 1)
-        ELTYPE = eltype(initial_condition.coordinates)
-        nparticles = size(initial_condition.coordinates, 2)
+        NDIMS = ndims(initial_condition)
+        ELTYPE = eltype(initial_condition)
+        n_particles = nparticles(initial_condition)
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -121,17 +120,15 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
         current_coordinates = copy(initial_condition.coordinates)
         mass = copy(initial_condition.mass)
         material_density = copy(initial_condition.density)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
-        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, nparticles)
+        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
 
-        n_moving_particles = nparticles - n_fixed_particles
+        n_moving_particles = n_particles - n_fixed_particles
 
         lame_lambda = young_modulus * poisson_ratio /
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
-
-        # cache = create_cache(hydrodynamic_density_calculator, ELTYPE, nparticles)
 
         return new{typeof(boundary_model),
                    NDIMS, ELTYPE,

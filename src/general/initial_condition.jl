@@ -33,4 +33,12 @@ struct InitialCondition{ELTYPE}
     end
 end
 
+@inline function Base.ndims(initial_condition::InitialCondition)
+    return size(initial_condition.coordinates, 1)
+end
+
+@inline function Base.eltype(initial_condition::InitialCondition)
+    return eltype(initial_condition.coordinates)
+end
+
 @inline nparticles(initial_condition::InitialCondition) = length(initial_condition.mass)

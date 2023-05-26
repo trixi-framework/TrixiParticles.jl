@@ -24,11 +24,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
                                          smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
-                                                             size(initial_condition.coordinates,
-                                                                  1)))
-        NDIMS = size(initial_condition.coordinates, 1)
-        ELTYPE = eltype(initial_condition.coordinates)
-        n_particles = size(initial_condition.coordinates, 2)
+                                                             ndims(smoothing_kernel)))
+        NDIMS = ndims(initial_condition)
+        ELTYPE = eltype(initial_condition)
+        n_particles = nparticles(initial_condition)
 
         mass = copy(initial_condition.mass)
         pressure = Vector{ELTYPE}(undef, n_particles)

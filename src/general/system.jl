@@ -4,7 +4,7 @@ initialize!(system, neighborhood_search) = system
 update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
-@inline Base.eltype(system::System) = eltype(system.initial_condition.coordinates)
+@inline Base.eltype(system::System) = eltype(system.initial_condition)
 
 # Number of integrated variables in the first component of the ODE system (coordinates)
 @inline u_nvariables(system) = ndims(system)
