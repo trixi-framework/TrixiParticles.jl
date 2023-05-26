@@ -55,7 +55,7 @@ n_boundary_layers = 5
 # Since coordinates start in negative coordinate directions,
 # shift x and y coordinates outwards and downwards respectively.
 x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
-x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
+x_start_clamp_B = (n_particles_per_dimension[1] + 1) * solid_particle_spacing
 
 n_particles_per_dimension_clamp = (n_boundary_layers, 10 * n_particles_y)
 n_fixed_particles = prod(n_particles_per_dimension_clamp) * 2
@@ -69,7 +69,7 @@ clamp_A = RectangularShape(solid_particle_spacing, n_particles_per_dimension_cla
 clamp_B = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
                            (x_start_clamp_B, y_start_clamp), solid_density)
 
-solid = MergeShapes(beam, clamp_A, clamp_B)
+solid = InitialCondition(beam, clamp_A, clamp_B)
 
 # ==========================================================================================
 # ==== Fluid
@@ -100,7 +100,7 @@ fluid = RectangularShape(fluid_particle_spacing, n_particles_per_dimension,
 # ==========================================================================================
 # ==== Boundary models
 
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
@@ -116,20 +116,16 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # ==========================================================================================
 # ==== Systems
 
-solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                        solid.masses, solid.densities,
+solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model_solid,
                                         n_fixed_particles=n_fixed_particles,
                                         acceleration=(0.0, 0.0),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid.coordinates,
-                                           zeros(size(fluid.coordinates)),
-                                           fluid.masses, fluid.densities,
+fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                            ContinuityDensity(), state_equation,
-                                           fluid_smoothing_kernel,
-                                           fluid_smoothing_length,
+                                           fluid_smoothing_kernel, fluid_smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 

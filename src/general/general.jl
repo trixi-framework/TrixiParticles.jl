@@ -3,4 +3,5 @@
 include("neighborhood_search.jl")
 include("smoothing_kernels.jl")
 include("density_calculators.jl")
+include("initial_condition.jl")
 include("system.jl")

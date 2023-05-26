@@ -10,9 +10,7 @@ end
 # Boundary-fluid interaction with dummy particles model
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySPHSystem{
-                                                      <:BoundaryModelDummyParticles
-                                                      },
+                   particle_system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                    neighbor_system::WeaklyCompressibleSPHSystem)
     @unpack density_calculator = particle_system.boundary_model
 
@@ -23,16 +21,14 @@ end
 
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySPHSystem,
-                   neighbor_system, density_calculator)
+                   particle_system::BoundarySPHSystem, neighbor_system, density_calculator)
     return dv
 end
 
 # With `ContinuityDensity` solve the continuity equation
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySPHSystem,
-                   neighbor_system, ::ContinuityDensity)
+                   particle_system::BoundarySPHSystem, neighbor_system, ::ContinuityDensity)
     @unpack boundary_model = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
