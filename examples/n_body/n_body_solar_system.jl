@@ -23,8 +23,10 @@ masses = [
     1.99e30, 3.30e23, 4.87e24, 5.97e24, 6.42e23, 1.90e27, 5.68e26, 8.68e25, 1.02e26,
 ]
 
+initial_condition = InitialCondition(coordinates, velocities, masses, zeros(size(masses)))
+
 G = 6.6743e-11
-particle_system = NBodySystem(coordinates, velocities, masses, G)
+particle_system = NBodySystem(initial_condition, G)
 
 # ==========================================================================================
 # ==== Simulation
