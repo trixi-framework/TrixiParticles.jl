@@ -418,7 +418,7 @@ function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode
     return system
 end
 
-function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
+function update_quantities!(system, system_index, v, u, v_ode,
                             u_ode, semi, t)
     # Only update fluid systems
     update!(system, system_index, v, u, v_ode, u_ode, semi, t)
