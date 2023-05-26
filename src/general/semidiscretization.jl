@@ -413,7 +413,6 @@ function update_position!(system::TotalLagrangianSPHSystem, system_index, v, u,
     update_current_coordinates(u, system)
 end
 
-
 function update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
     update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
