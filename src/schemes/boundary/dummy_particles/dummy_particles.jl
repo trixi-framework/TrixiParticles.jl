@@ -151,12 +151,12 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
 end
 
 @inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
-    return particle_density(v, model.density_calculator, system, particle)
+    return particle_density(v, model.density_calculator, model, particle)
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v, ::AdamiPressureExtrapolation, system, particle)
-    @unpack cache = system.boundary_model
+@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
+    @unpack cache = boundary_model
 
     return cache.density[particle]
 end
