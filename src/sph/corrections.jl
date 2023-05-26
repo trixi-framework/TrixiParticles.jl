@@ -21,6 +21,18 @@ struct KernelCorrection end
 # also referred to as 0th order correction of scalars and gradients (cheapest)
 struct KernelGradientCorrection end
 
+function cw(container, particle)
+    cw(container, particle, container.correction)
+end
+
+function cw(container, particle, ::Any)
+    #skip
+end
+
+function cw(container, particle, ::Union{KernelCorrection, KernelGradientCorrection})
+    return container.cache.cw[particle]
+end
+
 function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
@@ -54,12 +66,26 @@ function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, se
     end
 end
 
+function dw_gamma(container, particle)
+    cw(container, particle, container.correction)
+end
+
+function dw_gamma(container, particle, ::Any)
+    #skip
+end
+
+function dw_gamma(container, particle, ::KernelGradientCorrection)
+    return container.cache.dw_gamma[particle]
+end
+
+
 function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
-    @unpack cw = cache
+    @unpack cw, dw_gamma = cache
 
     cw .= zero(eltype(cw))
+    dw_gamma .= zero(eltype(dw_gamma))
 
     # Use all other containers for the density summation
     @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
@@ -83,6 +109,10 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
             volume = m_b / rho_b
 
             cw[particle] += volume * smoothing_kernel(container, distance)
+            dw_gamma[:, particle] += volume * smoothing_kernel_grad(container, pos_diff, distance)
+        end
+        for particle in eachparticle(container)
+            dw_gamma[:, particle] ./= cw[particle]
         end
     end
 end

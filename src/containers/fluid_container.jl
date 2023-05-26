@@ -105,8 +105,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         if correction isa KernelGradientCorrection
             cw = similar(density)
             cache = (; cw, cache...)
-            dcw = Array{ELTYPE}(undef, NDIMS, NDIMS, nparticles)
-            cache = (; dcw, cache...)
+            dw_gamma = Array{ELTYPE}(undef, NDIMS, nparticles)
+            cache = (; dw_gamma, cache...)
         end
 
         # copy all input arrays before assignment
@@ -164,8 +164,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         if correction isa KernelGradientCorrection
             cw = similar(initial_density)
             cache = (; cw, cache...)
-            dcw = Array{ELTYPE}(undef, NDIMS, NDIMS, nparticles)
-            cache = (; dcw, cache...)
+            dw_gamma = Array{ELTYPE}(undef, NDIMS, nparticles)
+            cache = (; dw_gamma, cache...)
         end
 
         # copy all input arrays before assignment
@@ -286,6 +286,7 @@ function update_after_density_calc!(container::FluidParticleContainer, container
 
     determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
                                 density_calculator, correction)
+    # step only performed for "SummationDensity"
     kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                            density_calculator, correction)
     compute_pressure!(container, v)

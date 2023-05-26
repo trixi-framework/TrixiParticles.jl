@@ -33,7 +33,7 @@ function interact!(dv, v_particle_container, u_particle_container,
                           distance, rho_mean, smoothing_length)
 
         # Pressure forces
-        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance, correction=correction, cw=cw(particle_container, particle), dw_gamma=dw_gamma(particle_container, particle))
         m_b = neighbor_container.mass[neighbor]
         dv_pressure = -m_b *
                       (particle_container.pressure[particle] / rho_a^2 +
@@ -48,7 +48,7 @@ function interact!(dv, v_particle_container, u_particle_container,
         continuity_equation!(dv, density_calculator,
                              v_particle_container, v_neighbor_container,
                              particle, neighbor, pos_diff, distance,
-                             particle_container, neighbor_container)
+                             particle_container, neighbor_container, grad_kernel)
     end
 
     return dv
@@ -58,14 +58,13 @@ end
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
                                       particle_container::FluidParticleContainer,
-                                      neighbor_container)
+                                      neighbor_container, grad_kernel)
     mass = hydrodynamic_mass(neighbor_container, neighbor)
     vdiff = current_velocity(v_particle_container, particle_container, particle) -
             current_velocity(v_neighbor_container, neighbor_container, neighbor)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_container, pos_diff,
-                                                         distance))
+    grad_kernel)
 
     return dv
 end
@@ -73,7 +72,7 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_container, v_neighbor_container,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_container, neighbor_container)
+                                      particle_container, neighbor_container, grad_kernel)
     return dv
 end
 
@@ -112,8 +111,9 @@ function interact!(dv, v_particle_container, u_particle_container,
 
         pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean,
                           smoothing_length)
-        dv_viscosity = -m_b * pi_ab *
-                       smoothing_kernel_grad(particle_container, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
+        dv_viscosity = -m_b * pi_ab * grad_kernel
+
 
         # Boundary forces
         dv_boundary = boundary_particle_impact(particle, neighbor,
@@ -128,7 +128,7 @@ function interact!(dv, v_particle_container, u_particle_container,
         continuity_equation!(dv, density_calculator,
                              v_particle_container, v_neighbor_container,
                              particle, neighbor, pos_diff, distance,
-                             particle_container, neighbor_container)
+                             particle_container, neighbor_container, grad_kernel)
     end
 
     return dv
