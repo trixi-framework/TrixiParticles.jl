@@ -413,19 +413,21 @@ function update_position!(system::TotalLagrangianSPHSystem, system_index, v, u,
     update_current_coordinates(u, system)
 end
 
+
+function update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
+end
+
 function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                             semi, t)
     return system
 end
 
-function update_quantities!(system, system_index, v, u, v_ode,
-                            u_ode, semi, t)
-    # Only update fluid systems
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
+function update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
-function update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    # Update all other systems
+function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
     update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
 
@@ -435,11 +437,6 @@ function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_o
 
     # Only update boundary model
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
-end
-
-function update_final!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
-                       v_ode, u_ode, semi, t)
-    return system
 end
 
 # NHS updates
