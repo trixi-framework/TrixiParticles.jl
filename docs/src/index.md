@@ -15,6 +15,12 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "density_calculators.jl")]
 ```
 
+### File initial_condition.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "initial_condition.jl")]
+```
+
 ### File neighborhood_search.jl
 ```@autodocs
 Modules = [TrixiParticles]
@@ -37,7 +43,7 @@ Pages = [joinpath("general", "smoothing_kernels.jl")]
 
 ### Boundary
 
-#### File boundary.jl
+#### File system.jl
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = map(file -> joinpath("boundary", file), readdir(joinpath("..", "src", "schemes", "boundary")))
@@ -106,12 +112,6 @@ Pages = [joinpath("setups", "rectangular_shape.jl")]
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("setups", "circular_shape.jl")]
-```
-
-### File merge_shapes.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("setups", "merge_shapes.jl")]
 ```
 
 ## Util
