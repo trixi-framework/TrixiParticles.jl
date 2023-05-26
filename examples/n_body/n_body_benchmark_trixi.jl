@@ -3,7 +3,6 @@
 # This example does not benefit from using multiple threads.
 # Multithreading is disabled below.
 #
-
 using TrixiParticles
 using Printf
 using Polyester
@@ -69,8 +68,10 @@ masses = [
 # Offset sun momentum
 velocities[:, 1] = -velocities[:, 2:end] * masses[2:end] / SOLAR_MASS
 
+initial_condition = InitialCondition(coordinates, velocities, masses, zeros(size(masses)))
+
 G = 1.0
-particle_system = NBodySystem(coordinates, velocities, masses, G)
+particle_system = NBodySystem(initial_condition, G)
 
 # ==========================================================================================
 # ==== Simulation

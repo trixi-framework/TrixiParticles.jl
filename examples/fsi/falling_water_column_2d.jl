@@ -22,7 +22,7 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularShape(fluid_particle_spacing,
+fluid = RectangularShape(fluid_particle_spacing,
                          (round(Int, (water_width / fluid_particle_spacing)),
                           round(Int, (water_height / fluid_particle_spacing))), (0.1, 0.2),
                          water_density)
@@ -63,7 +63,7 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0),
                         solid_density)
 
-solid = MergeShapes(beam, fixed_particles)
+solid = InitialCondition(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -72,7 +72,7 @@ K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
@@ -81,19 +81,16 @@ boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(setup.coordinates,
-                                           zeros(Float64, size(setup.coordinates)),
-                                           setup.masses, setup.densities,
+fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                            ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-solid_system = TotalLagrangianSPHSystem(solid.coordinates, solid.velocities,
-                                        solid.masses, solid.densities,
+solid_system = TotalLagrangianSPHSystem(solid,
                                         smoothing_kernel, smoothing_length,
                                         E, nu,
-                                        n_fixed_particles=fixed_particles.n_particles,
+                                        n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, gravity), boundary_model,
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 

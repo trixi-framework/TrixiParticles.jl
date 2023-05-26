@@ -191,13 +191,10 @@ function restart_with!(semi, sol)
     @unpack systems = semi
 
     foreach_enumerate(systems) do (system_index, system)
-        v_end = wrap_v(sol[end].x[1], system_index, system, semi)
-        u_end = wrap_u(sol[end].x[2], system_index, system, semi)
+        v = wrap_v(sol[end].x[1], system_index, system, semi)
+        u = wrap_u(sol[end].x[2], system_index, system, semi)
 
-        for particle in each_moving_particle(system)
-            system.initial_coordinates[:, particle] .= u_end[:, particle]
-            system.initial_velocity[:, particle] .= v_end[1:ndims(system), particle]
-        end
+        restart_with!(system, v, u)
     end
 
     return semi
