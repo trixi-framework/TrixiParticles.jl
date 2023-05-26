@@ -294,7 +294,7 @@ function update_after_density_calc!(container::FluidParticleContainer, container
 end
 
 function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
-                                     ::SummationDensity, ::NoCorrection)
+                                     ::SummationDensity, ::Any)
     # skip no correction method is active
 end
 
@@ -318,6 +318,9 @@ end
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
                                 ::SummationDensity,
                                 ::Union{KernelCorrection, KernelGradientCorrection})
+    @unpack cache = container
+    @unpack cw = cache
+
     for particle in eachparticle(container)
         corrected_density = particle_density(v, container, particle) / cw[particle]
         set_particle_density(particle, v, container, corrected_density)
