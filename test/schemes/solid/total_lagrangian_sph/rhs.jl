@@ -142,10 +142,8 @@
 
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
-            coordinates = Array{Float64, 2}(undef, 2,
-                                            prod(n_particles_per_dimension))
-            velocities = Array{Float64, 2}(undef, 2,
-                                           prod(n_particles_per_dimension))
+            coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
+            velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
             masses = 10 * ones(Float64, prod(n_particles_per_dimension))
             densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
