@@ -42,7 +42,7 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing - 1),
                              n_particles_y)
 
-# shift the beam outwards since coordinates start in negative coordinate directions
+# Shift the beam outwards since coordinates start in negative coordinate directions
 y_position = -(n_particles_y - 1) * solid_particle_spacing
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
@@ -55,7 +55,7 @@ n_boundary_layers = 5
 # Since coordinates start in negative coordinate directions,
 # shift x and y coordinates outwards and downwards respectively.
 x_start_clamp_A = -(n_boundary_layers - 1) * solid_particle_spacing
-x_start_clamp_B = (beam.n_particles_per_dimension[1] + 1) * solid_particle_spacing
+x_start_clamp_B = (n_particles_per_dimension[1] + 1) * solid_particle_spacing
 
 n_particles_per_dimension_clamp = (n_boundary_layers, 10 * n_particles_y)
 n_fixed_particles = prod(n_particles_per_dimension_clamp) * 2
@@ -69,7 +69,7 @@ clamp_A = RectangularShape(solid_particle_spacing, n_particles_per_dimension_cla
 clamp_B = RectangularShape(solid_particle_spacing, n_particles_per_dimension_clamp,
                            (x_start_clamp_B, y_start_clamp), solid_density)
 
-solid = MergeShapes(beam, clamp_A, clamp_B)
+solid = InitialCondition(beam, clamp_A, clamp_B)
 
 # ==========================================================================================
 # ==== Fluid
@@ -100,7 +100,7 @@ fluid = RectangularShape(fluid_particle_spacing, n_particles_per_dimension,
 # ==========================================================================================
 # ==== Boundary models
 
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
@@ -114,32 +114,30 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 # boundary_model_solid = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
-                                         solid.masses, solid.densities,
-                                         solid_smoothing_kernel, solid_smoothing_length,
-                                         E, nu, boundary_model_solid,
-                                         n_fixed_particles=n_fixed_particles,
-                                         acceleration=(0.0, 0.0),
-                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+solid_system = TotalLagrangianSPHSystem(solid,
+                                        solid_smoothing_kernel, solid_smoothing_length,
+                                        E, nu, boundary_model_solid,
+                                        n_fixed_particles=n_fixed_particles,
+                                        acceleration=(0.0, 0.0),
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
-fluid_container = FluidParticleContainer(fluid.coordinates,
-                                         zeros(size(fluid.coordinates)),
-                                         fluid.masses, fluid.densities,
-                                         ContinuityDensity(), state_equation,
-                                         fluid_smoothing_kernel, fluid_smoothing_length,
-                                         viscosity=viscosity,
-                                         acceleration=(0.0, gravity))
+fluid_system = WeaklyCompressibleSPHSystem(fluid,
+                                           ContinuityDensity(), state_equation,
+                                           fluid_smoothing_kernel, fluid_smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-# rigid_solid_container = BoundaryParticleContainer(particle_coordinates, boundary_model_solid)
+# Replace the elastic solid by a boundary for testing purposes.
+# rigid_solid_system = BoundarySPHSystem(solid.coordinates, boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation
 
 tspan = (0.0, 2.0)
 
-semi = Semidiscretization(solid_container, fluid_container,# rigid_solid_container,
+semi = Semidiscretization(solid_system, fluid_system,# rigid_solid_system,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=10.0)
 
@@ -169,18 +167,18 @@ sol = solve(ode, RDPK3SpFSAL49(),
 
 # In the following, the y deflection of the beam is compared with the analytical
 # deflection curve (one of the most widely used formulas in structural engineering).
-# Note that this is not the correct analytical soluation for this example,
+# Note that this is not the correct analytical solution for this example,
 # but just an approximation (see comment at the top of this file).
 #
 # The equation is derived in e.g.:
 # Lubliner, J. & Papadopoulos, P., "Introduction to Solid Mechanics", Ch. 8,
 # DOI: 10.1007/978-3-319-18878-2
 
-function plot_analytical(solid_container)
-    # distributed transverse force
+function plot_analytical(solid_system)
+    # Distributed transverse force
     q_0 = gravity * solid_density * thickness_beam^2
 
-    # second moment of area about z-axis (beam bends in the plane perpendicular to the z-axis)
+    # Second moment of area about z-axis (beam bends in the plane perpendicular to the z-axis)
     I_z = thickness_beam^4 / 12
 
     L = length_beam
@@ -195,9 +193,9 @@ function plot_analytical(solid_container)
 
     # In a homogeneous linearly elastic beam in pure bending, the neutral fiber (zero stress)
     # coincides with the centroidal fiber
-    neutral_fiber_position = [solid_container.current_coordinates[:, i]
-                              for i in TrixiParticles.each_moving_particle(solid_container)
-                              if isapprox(solid_container.initial_coordinates[2, i],
+    neutral_fiber_position = [solid_system.current_coordinates[:, i]
+                              for i in TrixiParticles.each_moving_particle(solid_system)
+                              if isapprox(solid_system.initial_coordinates[2, i],
                                           -centroidal_fiber_position)]
 
     neutral_fiber_position = hcat(neutral_fiber_position...)

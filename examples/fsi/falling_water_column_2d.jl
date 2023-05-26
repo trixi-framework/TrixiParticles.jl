@@ -12,9 +12,6 @@ water_width = 0.525
 water_height = 1.0125
 water_density = 1000.0
 
-container_width = 4.0
-container_height = 4.0
-
 sound_speed = 10 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * fluid_particle_spacing
@@ -25,7 +22,7 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularShape(fluid_particle_spacing,
+fluid = RectangularShape(fluid_particle_spacing,
                          (round(Int, (water_width / fluid_particle_spacing)),
                           round(Int, (water_height / fluid_particle_spacing))), (0.1, 0.2),
                          water_density)
@@ -59,14 +56,14 @@ fixed_particles = CircularShape(solid_particle_spacing,
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
-# cantilever and clamped particles
+# Cantilever and clamped particles
 n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
                              n_particles_clamp_x + 1, n_particles_y)
 
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension, (0, 0),
                         solid_density)
 
-solid = MergeShapes(beam, fixed_particles)
+solid = InitialCondition(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -75,35 +72,32 @@ K = 9.81 * water_height
 beta = fluid_particle_spacing / solid_particle_spacing
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 boundary_model = BoundaryModelMonaghanKajtar(K, beta, solid_particle_spacing,
                                              hydrodynamic_masses)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-fluid_container = FluidParticleContainer(setup.coordinates,
-                                         zeros(Float64, size(setup.coordinates)),
-                                         setup.masses, setup.densities,
-                                         ContinuityDensity(), state_equation,
-                                         smoothing_kernel, smoothing_length,
-                                         viscosity=viscosity,
-                                         acceleration=(0.0, gravity))
+fluid_system = WeaklyCompressibleSPHSystem(fluid,
+                                           ContinuityDensity(), state_equation,
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
-                                         solid.masses, solid.densities,
-                                         smoothing_kernel, smoothing_length,
-                                         E, nu,
-                                         n_fixed_particles=fixed_particles.n_particles,
-                                         acceleration=(0.0, gravity), boundary_model,
-                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
+solid_system = TotalLagrangianSPHSystem(solid,
+                                        smoothing_kernel, smoothing_length,
+                                        E, nu,
+                                        n_fixed_particles=nparticles(fixed_particles),
+                                        acceleration=(0.0, gravity), boundary_model,
+                                        penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(fluid_container, solid_container,
+semi = Semidiscretization(fluid_system, solid_system,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 1.0)
