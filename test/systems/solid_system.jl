@@ -21,15 +21,16 @@
             E = 2.5
             boundary_model = Val(:boundary_model)
 
-            system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                              material_densities, smoothing_kernel,
+            initial_condition = InitialCondition(coordinates, velocities, masses,
+                                                 material_densities)
+            system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                               smoothing_length, E, nu, boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
+            @test system.initial_condition == initial_condition
             @test system.initial_coordinates == coordinates
             @test system.current_coordinates == coordinates
-            @test system.initial_velocity == velocities
             @test system.mass == masses
             @test system.material_density == material_densities
             @test system.n_moving_particles == 2
@@ -58,8 +59,9 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                          material_densities, smoothing_kernel,
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
@@ -131,15 +133,17 @@
                                                           particle)
                 end
 
+                function TrixiParticles.initial_coordinates(::Val{:mock_system_tensor})
+                    return initial_coordinates[i]
+                end
+
                 TrixiParticles.compact_support(::Val{:mock_system_tensor}, _) = Inf
 
                 # All @unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
                 function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
-                    if f === :initial_coordinates
-                        return initial_coordinates[i]
-                    elseif f === :correction_matrix
+                    if f === :correction_matrix
                         return correction_matrix
                     elseif f === :mass
                         return mass
@@ -187,21 +191,21 @@
 
                 # 9 x 9 grid of particles with spacing 0.1
                 range = 0.1:0.1:0.9
-                particle_coordinates = hcat(collect.(Iterators.product(range, range))...)
+                coordinates = hcat(collect.(Iterators.product(range, range))...)
 
                 n_particles_per_dimension = (9, 9)
-                particle_velocities = zero(particle_coordinates)
-                particle_masses = 10 * ones(Float64, prod(n_particles_per_dimension))
-                particle_densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+                velocities = zero(coordinates)
+                masses = 10 * ones(Float64, prod(n_particles_per_dimension))
+                densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
                 smoothing_length = 0.12
                 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
                 search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                                smoothing_length)
 
-                system = TotalLagrangianSPHSystem(particle_coordinates,
-                                                  particle_velocities,
-                                                  particle_masses, particle_densities,
+                initial_condition = InitialCondition(coordinates, velocities, masses,
+                                                     densities)
+                system = TotalLagrangianSPHSystem(initial_condition,
                                                   smoothing_kernel, smoothing_length,
                                                   1.0, 1.0, nothing)
                 nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(system))
@@ -285,8 +289,9 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                          material_densities, smoothing_kernel,
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
@@ -309,8 +314,9 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        system = TotalLagrangianSPHSystem(coordinates, velocities, masses,
-                                          material_densities, smoothing_kernel,
+        initial_condition = InitialCondition(coordinates, velocities, masses,
+                                             material_densities)
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
