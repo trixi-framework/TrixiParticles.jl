@@ -37,9 +37,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u,
-                                                           ranges_v, searches,
-                                                           damping_coefficient)
+            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
+                                                           searches, damping_coefficient)
     end
 end
 
@@ -93,8 +92,7 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem,
-                                               BoundarySPHSystem},
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
 end
@@ -124,8 +122,7 @@ function nhs_init_function(system::TotalLagrangianSPHSystem,
     return i -> initial_coords(neighbor, i)
 end
 
-function nhs_init_function(system::Union{TotalLagrangianSPHSystem,
-                                         BoundarySPHSystem},
+function nhs_init_function(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
                            neighbor)
     return nhs_init_function(system, system.boundary_model, neighbor)
 end
@@ -274,15 +271,13 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
-        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode,
-                                                                              u_ode,
+        @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
                                                                               semi, t)
 
         @trixi_timeit timer() "gravity and damping" gravity_and_damping!(dv_ode, v_ode,
                                                                          semi)
 
-        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode,
-                                                                       v_ode, u_ode,
+        @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
     end
 
@@ -374,8 +369,7 @@ end
 
 @inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
-@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle,
-                                    system)
+@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle, system)
     for i in 1:ndims(system)
         dv[i, particle] -= damping_coefficient * v[i, particle]
     end
@@ -414,8 +408,8 @@ function update1!(system, system_index, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update1!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                  v_ode, u_ode, semi, t)
+function update1!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
+                  semi, t)
     # Only update solid systems
     update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
@@ -424,8 +418,8 @@ function update2!(system, system_index, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update2!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
-                  v_ode, u_ode, semi, t)
+function update2!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
+                  semi, t)
     # Only update fluid systems
     update!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
@@ -443,8 +437,7 @@ function update3!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
-function update3!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode,
-                  u_ode,
+function update3!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
                   semi, t)
     return system
 end

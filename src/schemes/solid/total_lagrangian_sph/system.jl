@@ -289,8 +289,8 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
     return corr_matrix
 end
 
-function update!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                 v_ode, u_ode, semi, t)
+function update!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
+                 semi, t)
     @unpack neighborhood_searches = semi
 
     # Update current coordinates
