@@ -299,7 +299,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
-        update_position!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
@@ -399,43 +399,6 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
-end
-
-##### Updates
-
-# System update orders, see comments in update_systems_and_nhs!
-function update_position!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-function update_position!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                          v_ode, u_ode, semi, t)
-    update_current_coordinates(u, system)
-end
-
-function update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
-end
-
-function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                            semi, t)
-    return system
-end
-
-function update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
-end
-
-function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                       semi, t)
-    @unpack boundary_model = system
-
-    # Only update boundary model
-    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 # NHS updates

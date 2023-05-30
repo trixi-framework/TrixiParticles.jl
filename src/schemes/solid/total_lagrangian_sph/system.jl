@@ -289,8 +289,17 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
     return corr_matrix
 end
 
-function update!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                 semi, t)
+function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
+                          v_ode, u_ode, semi, t)
+    update_current_coordinates(u, system)
+end
+
+function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u,
+                            v_ode, u_ode, semi, t)
+    update!(system, system_index, semi)
+end
+
+function update!(system::TotalLagrangianSPHSystem, system_index, semi)
     @unpack neighborhood_searches = semi
 
     # Precompute PK1 stress tensor
@@ -299,6 +308,14 @@ function update!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_
                                                                  system)
 
     return system
+end
+
+function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
+                       semi, t)
+    @unpack boundary_model = system
+
+    # Only update boundary model
+    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 @inline function update_current_coordinates(u, system)
