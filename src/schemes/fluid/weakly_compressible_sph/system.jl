@@ -127,6 +127,14 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
     compute_pressure!(system, v)
 end
 
+function compute_density!(system::WeaklyCompressibleSPHSystem, system_index, semi, u, u_ode,
+                          ::SummationDensity)
+    @unpack cache = system
+    @unpack density = cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, system_index, semi, u, u_ode, density)
+end
+
 function compute_pressure!(system, v)
     @unpack state_equation, pressure = system
 

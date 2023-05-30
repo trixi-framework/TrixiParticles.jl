@@ -50,14 +50,6 @@ end
     v[end, particle] = density
 end
 
-# This is dispatched in `BoundarySPHSystem` and `TotalLagrangianSPHSystem`
-function compute_density!(system, system_index, semi, u, u_ode, ::SummationDensity)
-    @unpack cache = system
-    @unpack density = cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, system_index, semi, u, u_ode, density)
-end
-
 compute_density!(system, system_index, semi, u, u_ode, ::ContinuityDensity) = system
 
 function summation_density!(system, system_index, semi, u, u_ode, density;

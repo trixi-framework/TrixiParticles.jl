@@ -165,28 +165,18 @@ end
                          v, u, v_ode, u_ode, semi)
     @unpack density_calculator = boundary_model
 
-    compute_pressure1!(boundary_model, density_calculator, system, system_index, v, u,
-                       v_ode, u_ode, semi)
-
-    compute_density!(system, system_index, semi, u, u_ode, density_calculator)
-
-    compute_pressure2!(boundary_model, density_calculator, system, v, semi)
-
-    return boundary_model
+    update!(density_calculator, boundary_model, system, system_index, v, u,
+            v_ode, u_ode, semi)
 end
 
-function compute_pressure1!(boundary_model, density_calculator, system, system_index, v, u,
-                            v_ode, u_ode, semi)
-    return boundary_model
-end
-
-function compute_pressure1!(boundary_model, ::AdamiPressureExtrapolation, system,
-                            system_index, v, u, v_ode, u_ode, semi)
+@inline function update!(density_calculator::AdamiPressureExtrapolation,
+                         boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack pressure, cache = boundary_model
-    @unpack volume = cache
+    @unpack volume, density = cache
 
     pressure .= zero(eltype(pressure))
+    density .= zero(eltype(density))
     volume .= zero(eltype(volume))
 
     # Use all other systems for the pressure extrapolation
@@ -208,18 +198,21 @@ function compute_pressure1!(boundary_model, ::AdamiPressureExtrapolation, system
     end
 
     pressure ./= volume
+
+    for particle in eachparticle(system)
+        density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    end
 end
 
-function compute_pressure2!(boundary_model, density_calculator, system, v, semi)
-    @unpack pressure, state_equation = boundary_model
+@inline function update!(density_calculator,
+                         boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    @unpack density_calculator = boundary_model
+
+    compute_density!(system, system_index, semi, u, u_ode, density_calculator)
 
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
-end
-
-function compute_pressure2!(boundary_model, ::AdamiPressureExtrapolation, system, v, semi)
-    return boundary_model
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system,
@@ -256,4 +249,13 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
+end
+
+@inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
+                                  ::SummationDensity)
+    @unpack boundary_model = system
+    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, system_index, semi, u, u_ode, density,
+                       particles=eachparticle(system))
 end
