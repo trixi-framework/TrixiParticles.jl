@@ -295,7 +295,7 @@ function update_after_density_calc!(container::FluidParticleContainer, container
 end
 
 function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
-                                     ::SummationDensity, ::Any)
+                                     ::Any, ::Any)
     # skip no correction method is active
 end
 

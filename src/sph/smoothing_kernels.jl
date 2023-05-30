@@ -10,7 +10,6 @@ end
 end
 
 @inline function kernel_grad(kernel, pos_diff, distance, h, cw, dw_gamma, ::KernelGradientCorrection)
-    #println(kernel_deriv(kernel, distance, h) * pos_diff / distance,  dw_gamma)
     return (kernel_deriv(kernel, distance, h) * pos_diff / distance .- dw_gamma)/cw
 end
 

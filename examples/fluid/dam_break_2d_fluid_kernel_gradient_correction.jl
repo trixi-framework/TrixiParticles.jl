@@ -65,32 +65,13 @@ particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
-                                              correction=KernelGradientCorrection()),
+                                              correction=NoCorrection()),
                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
                                               correction=KernelGradientCorrection()))
-
-# particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-#                                               smoothing_kernel, smoothing_length,
-#                                               water_density,
-#                                               viscosity=viscosity,
-#                                               acceleration=(0.0, gravity),
-#                                               correction=NoCorrection()),
-#                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-#                                               smoothing_kernel, smoothing_length,
-#                                               water_density,
-#                                               viscosity=viscosity,
-#                                               acceleration=(0.0, gravity),
-#                                               correction=KernelCorrection()),
-#                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-#                                               smoothing_kernel, smoothing_length,
-#                                               water_density,
-#                                               viscosity=viscosity,
-#                                               acceleration=(0.0, gravity),
-#                                               correction=AkinciFreeSurfaceCorrection()))
 
 function container_to_name(container)
     if container.correction isa NoCorrection
@@ -164,5 +145,4 @@ for particle_container in particle_containers
                 reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
                 dtmax=1e-2, # Limit stepsize to prevent crashing
                 save_everystep=false, callback=callbacks)
-    exit()
 end
