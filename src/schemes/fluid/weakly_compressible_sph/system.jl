@@ -118,8 +118,8 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-function update!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
-                 semi, t)
+function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+                            v_ode, u_ode, semi, t)
     @unpack density_calculator = system
 
     compute_quantities(v, u, density_calculator, system, system_index, u_ode, semi)
