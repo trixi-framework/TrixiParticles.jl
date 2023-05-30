@@ -24,14 +24,24 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 ``v_{ab} = v_a - v_b`` is the difference of their velocities,
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
+TODO: Check the following statement, since in Monaghan 2005 p. 1741 (10.1088/0034-4885/68/8/r01) this was meant for "interstellar cloud collisions"
 The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their values should usually be near
 ``\alpha = 1, \beta = 2`` (Monaghan 1992, p. 551).
 The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
+
+Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
+To do so, Monaghan (Monaghan 2005) defined an equivalent effecive physical kinematic viscosity ``\nu`` by
+```math
+\nu = \frac{\alpha h c }{\rho_{ab}}.
+```
 
 ## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
   In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
   [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)
+- Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
+  In: Reports on Progress in Physics (2005), pages 1703-1759.
+  [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 - Joseph J. Monaghan. "On the Problem of Penetration in Particle Methods".
   In: Journal of Computational Physics 82.1, pages 1–15.
   [doi: 10.1016/0021-9991(89)90032-6](https://doi.org/10.1016/0021-9991(89)90032-6)
@@ -53,6 +63,10 @@ function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
     # v_ab ⋅ r_ab
     vr = sum(v_diff .* pos_diff)
 
+    # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
+    # "In the case of shock tube problems, it is usual to turn the viscosity on for
+    # approaching  particles and turn it off for receding particles. In this way, the
+    # viscosity is used for shocks and not rarefactions."
     if vr < 0
         mu = h * vr / (distance^2 + epsilon * h^2)
         return -(alpha * c * mu + beta * mu^2) / rho_mean

@@ -50,14 +50,17 @@ identical to the density of the fluid particle.
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: Vector{ELTYPE}
+    viscosity                 :: V
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
-        return new{typeof(K)}(K, beta, boundary_particle_spacing, mass)
+    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
+                                         viscosity=NoViscosity())
+        return new{typeof(K), typeof(viscosity)}(K, beta, boundary_particle_spacing, mass,
+                                                 viscosity)
     end
 end
 
