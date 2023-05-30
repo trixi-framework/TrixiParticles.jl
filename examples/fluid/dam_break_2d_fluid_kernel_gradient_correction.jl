@@ -13,7 +13,7 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.2
+particle_spacing = 0.1
 #particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
@@ -54,7 +54,7 @@ reset_wall!(setup, reset_faces, original_positions)
 
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
-                                             SummationDensity(), smoothing_kernel,
+                                             AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 # ==========================================================================================
