@@ -73,9 +73,12 @@ end
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_grad(container, pos_diff, distance; correction=NoCorrection(), dw_gamma=nothing, cw=nothing)
+@inline function smoothing_kernel_grad(container, pos_diff, distance;
+                                       correction=NoCorrection(), dw_gamma=nothing,
+                                       cw=nothing)
     @unpack smoothing_kernel, smoothing_length = container
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length, cw, dw_gamma, correction)
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length, cw, dw_gamma,
+                       correction)
 end
 
 include("fluid_container.jl")

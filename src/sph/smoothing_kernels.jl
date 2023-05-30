@@ -9,8 +9,9 @@ end
     return kernel_deriv(kernel, distance, h) * pos_diff / distance
 end
 
-@inline function kernel_grad(kernel, pos_diff, distance, h, cw, dw_gamma, ::KernelGradientCorrection)
-    return (kernel_deriv(kernel, distance, h) * pos_diff / distance .- dw_gamma)/cw
+@inline function kernel_grad(kernel, pos_diff, distance, h, cw, dw_gamma,
+                             ::KernelGradientCorrection)
+    return (kernel_deriv(kernel, distance, h) * pos_diff / distance .- dw_gamma) / cw
 end
 
 @doc raw"""

@@ -77,9 +77,7 @@ function container_to_name(container)
     if container.correction isa NoCorrection
         return "no_correction"
     elseif container.correction isa KernelGradientCorrection
-        return "kernel_correction"
-    elseif container.correction isa AkinciFreeSurfaceCorrection
-        return "akinci_free_surf_correction"
+        return "kernel_gradient_correction"
     end
     return "undefined"
 end
@@ -103,7 +101,7 @@ for particle_container in particle_containers
 
     info_callback = InfoCallback(interval=100)
     saving_callback_relaxation = SolutionSavingCallback(interval=1,
-                                                        prefix="test_$(container_to_name(particle_container))_relaxation")
+                                                        prefix="$(container_to_name(particle_container))_relaxation")
     callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
     # Use a Runge-Kutta method with automatic (error based) time step size control.

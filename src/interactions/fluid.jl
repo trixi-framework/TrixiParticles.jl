@@ -33,7 +33,10 @@ function interact!(dv, v_particle_container, u_particle_container,
                           distance, rho_mean, smoothing_length)
 
         # Pressure forces
-        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance, correction=correction, cw=cw(particle_container, particle), dw_gamma=dw_gamma(particle_container, particle))
+        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance,
+                                            correction=correction,
+                                            cw=cw(particle_container, particle),
+                                            dw_gamma=dw_gamma(particle_container, particle))
         m_b = neighbor_container.mass[neighbor]
         dv_pressure = -m_b *
                       (particle_container.pressure[particle] / rho_a^2 +
@@ -64,7 +67,7 @@ end
             current_velocity(v_neighbor_container, neighbor_container, neighbor)
     NDIMS = ndims(particle_container)
     dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-    grad_kernel)
+                                   grad_kernel)
 
     return dv
 end
@@ -113,7 +116,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                           smoothing_length)
         grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
         dv_viscosity = -m_b * pi_ab * grad_kernel
-
 
         # Boundary forces
         dv_boundary = boundary_particle_impact(particle, neighbor,
