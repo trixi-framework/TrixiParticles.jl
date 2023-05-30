@@ -457,19 +457,6 @@ end
                        particles=eachparticle(system))
 end
 
-@inline function compute_density!(system::TotalLagrangianSPHSystem, system_index, semi, u,
-                                  u_ode, ::AdamiPressureExtrapolation)
-    @unpack boundary_model = system
-    @unpack pressure, state_equation, cache = boundary_model
-    @unpack density = cache
-
-    density .= zero(eltype(density))
-
-    for particle in eachparticle(system)
-        density[particle] = inverse_state_equation(state_equation, pressure[particle])
-    end
-end
-
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     for particle in each_moving_particle(system)
         system.current_coordinates[:, particle] .= u[:, particle]
