@@ -290,7 +290,7 @@ function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                          v_ode, u_ode, semi, t)
+                           v_ode, u_ode, semi, t)
     update_current_coordinates(u, system)
 end
 
