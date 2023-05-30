@@ -139,7 +139,9 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-function update!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
+# This update depends on the computed quantities of the fluid system and therefore
+# has to be in `update_final!` after `update_quantities!`.
+function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
     @unpack coordinates, movement_function, boundary_model = system
 
     system.ismoving[1] = move_boundary_particles!(movement_function, coordinates, t)

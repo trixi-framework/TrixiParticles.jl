@@ -299,7 +299,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
-        update1!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
@@ -313,7 +313,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
-        update2!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
@@ -321,7 +321,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
 
-        update3!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 end
 
@@ -399,47 +399,6 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
-end
-
-##### Updates
-
-# System update orders, see comments in update_systems_and_nhs!
-function update1!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-function update1!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                  semi, t)
-    # Only update solid systems
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
-end
-
-function update2!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    return system
-end
-
-function update2!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
-                  semi, t)
-    # Only update fluid systems
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
-end
-
-function update3!(system, system_index, v, u, v_ode, u_ode, semi, t)
-    # Update all other systems
-    update!(system, system_index, v, u, v_ode, u_ode, semi, t)
-end
-
-function update3!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                  semi, t)
-    @unpack boundary_model = system
-
-    # Only update boundary model
-    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
-end
-
-function update3!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode,
-                  semi, t)
-    return system
 end
 
 # NHS updates
