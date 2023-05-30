@@ -5,6 +5,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, state_equation, viscosity,
     smoothing_length = particle_system
+    @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -16,16 +17,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        # Viscosity
-        v_diff = current_velocity(v_particle_system, particle_system, particle) -
-                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
-
-        pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                          distance, rho_mean, smoothing_length)
 
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
@@ -33,7 +26,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_pressure = -m_b *
                       (particle_system.pressure[particle] / rho_a^2 +
                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
-        dv_viscosity = -m_b * pi_ab * grad_kernel
+
+        dv_viscosity = calc_viscosity(viscosity, particle_system, neighbor_system,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      sound_speed, m_b)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
@@ -76,9 +73,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::Union{BoundarySPHSystem, TotalLagrangianSPHSystem})
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_system
+    @unpack density_calculator, state_equation, smoothing_length = particle_system
     @unpack sound_speed = state_equation
+    @unpack boundary_model = neighbor_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -94,24 +91,18 @@ function interact!(dv, v_particle_system, u_particle_system,
         # corresponding to the rest density of the fluid and not the material density.
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        # Viscosity
-        v_a = current_velocity(v_particle_system, particle_system, particle)
-        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_diff = v_a - v_b
-
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
-
-        pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean,
-                          smoothing_length)
-        dv_viscosity = -m_b * pi_ab *
-                       smoothing_kernel_grad(particle_system, pos_diff, distance)
+        dv_viscosity = calc_viscosity(boundary_model.viscosity,
+                                      particle_system, neighbor_system,
+                                      v_particle_system, v_neighbor_system, particle,
+                                      neighbor, pos_diff,
+                                      distance, sound_speed, m_b)
 
         # Boundary forces
-        dv_boundary = boundary_particle_impact(particle, neighbor,
-                                               v_particle_system, v_neighbor_system,
-                                               particle_system, neighbor_system,
+        dv_boundary = boundary_particle_impact(particle, neighbor, boundary_model,
+                                               v_particle_system,
+                                               v_neighbor_system,
+                                               particle_system,
+                                               neighbor_system,
                                                pos_diff, distance, m_b)
 
         for i in 1:ndims(particle_system)
@@ -125,4 +116,29 @@ function interact!(dv, v_particle_system, u_particle_system,
     end
 
     return dv
+end
+
+@inline function calc_viscosity(viscosity,
+                                particle_system, neighbor_system, v_particle_system,
+                                v_neighbor_system, particle, neighbor, pos_diff, distance,
+                                sound_speed, m_b)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+end
+
+@inline function calc_viscosity(viscosity::ArtificialViscosityMonaghan,
+                                particle_system, neighbor_system, v_particle_system,
+                                v_neighbor_system, particle, neighbor, pos_diff, distance,
+                                sound_speed, m_b)
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    rho_mean = (rho_a + rho_b) / 2
+
+    pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean,
+                      particle_system.smoothing_length)
+
+    return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
 end
