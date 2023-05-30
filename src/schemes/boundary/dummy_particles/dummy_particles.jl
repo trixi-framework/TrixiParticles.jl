@@ -172,7 +172,7 @@ end
 @inline function update!(density_calculator::AdamiPressureExtrapolation,
                          boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
-    @unpack pressure, cache = boundary_model
+    @unpack pressure, state_equation, cache = boundary_model
     @unpack volume, density = cache
 
     pressure .= zero(eltype(pressure))
@@ -206,7 +206,7 @@ end
 
 @inline function update!(density_calculator,
                          boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack density_calculator = boundary_model
+    @unpack density_calculator, state_equation = boundary_model
 
     compute_density!(system, system_index, semi, u, u_ode, density_calculator)
 
@@ -249,13 +249,4 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
-end
-
-@inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
-                                  ::SummationDensity)
-    @unpack boundary_model = system
-    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, system_index, semi, u, u_ode, density,
-                       particles=eachparticle(system))
 end

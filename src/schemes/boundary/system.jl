@@ -156,6 +156,15 @@ function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_o
     return system
 end
 
+@inline function compute_density!(system::BoundarySPHSystem, system_index, semi, u, u_ode,
+                                  ::SummationDensity)
+    @unpack boundary_model = system
+    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, system_index, semi, u, u_ode, density,
+                       particles=eachparticle(system))
+end
+
 function move_boundary_particles!(movement_function, coordinates, t)
     movement_function(coordinates, t)
 end
