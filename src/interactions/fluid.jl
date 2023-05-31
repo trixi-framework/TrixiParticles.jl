@@ -38,11 +38,6 @@ function interact!(dv, v_particle_container, u_particle_container,
                                             cw=cw(particle_container, particle),
                                             dw_gamma=dw_gamma(particle_container, particle))
 
-        # grad_kernel2 = smoothing_kernel_grad(particle_container, pos_diff, distance)
-
-
-        # println(grad_kernel, grad_kernel2)
-
         m_b = neighbor_container.mass[neighbor]
         dv_pressure = -m_b *
                       (particle_container.pressure[particle] / rho_a^2 +
