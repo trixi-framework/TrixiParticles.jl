@@ -165,7 +165,7 @@ end
                          v, u, v_ode, u_ode, semi)
     @unpack density_calculator = boundary_model
 
-    update!(density_calculator, boundary_model, system, system_index, v, u,
+    update!(boundary_model, density_calculator, system, system_index, v, u,
             v_ode, u_ode, semi)
 end
 
