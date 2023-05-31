@@ -38,7 +38,7 @@ export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
-export ArtificialViscosityMonaghan. ViscousInteractionAdami
+export ArtificialViscosityMonaghan, ViscousInteractionAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export SpatialHashingSearch
 export examples_dir, trixi_include

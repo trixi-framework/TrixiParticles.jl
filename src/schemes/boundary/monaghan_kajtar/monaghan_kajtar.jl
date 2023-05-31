@@ -67,7 +67,9 @@ end
 function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     @nospecialize model # reduce precompilation time
 
-    print(io, "BoundaryModelMonaghanKajtar")
+    print(io, "BoundaryModelMonaghanKajtar(")
+    print(io, model.viscosity |> typeof |> nameof)
+    print(io, ")")
 end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
