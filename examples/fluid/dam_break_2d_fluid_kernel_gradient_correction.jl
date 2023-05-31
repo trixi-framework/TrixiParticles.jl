@@ -13,7 +13,7 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.1
+particle_spacing = 0.05
 #particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
@@ -54,7 +54,7 @@ reset_wall!(setup, reset_faces, original_positions)
 
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
 # ==========================================================================================
@@ -96,11 +96,11 @@ for particle_container in particle_containers
                               neighborhood_search=SpatialHashingSearch,
                               damping_coefficient=1e-5)
 
-    tspan = (0.0, 3.0)
+    tspan = (0.0, 0.5)
     ode = semidiscretize(semi, tspan)
 
     info_callback = InfoCallback(interval=100)
-    saving_callback_relaxation = SolutionSavingCallback(interval=1,
+    saving_callback_relaxation = SolutionSavingCallback(interval=100,
                                                         prefix="$(container_to_name(particle_container))_relaxation")
     callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 

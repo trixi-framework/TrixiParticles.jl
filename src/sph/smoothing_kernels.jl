@@ -5,7 +5,7 @@ abstract type SmoothingKernel{NDIMS} end
     return kernel_deriv(kernel, distance, h) * pos_diff / distance
 end
 
-@inline function kernel_grad(kernel, pos_diff, distance, h, cw, dw_gamma, ::NoCorrection)
+@inline function kernel_grad(kernel, pos_diff, distance, h, cw, dw_gamma, ::Any)
     return kernel_deriv(kernel, distance, h) * pos_diff / distance
 end
 

@@ -67,7 +67,7 @@ function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, se
 end
 
 function dw_gamma(container, particle)
-    cw(container, particle, container.correction)
+    dw_gamma(container, particle, container.correction)
 end
 
 function dw_gamma(container, particle, ::Any)
@@ -75,7 +75,7 @@ function dw_gamma(container, particle, ::Any)
 end
 
 function dw_gamma(container, particle, ::KernelGradientCorrection)
-    return container.cache.dw_gamma[particle]
+    return container.cache.dw_gamma[:, particle]
 end
 
 function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
@@ -108,12 +108,15 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
             volume = m_b / rho_b
 
             cw[particle] += volume * smoothing_kernel(container, distance)
-            dw_gamma[:, particle] += volume *
-                                     smoothing_kernel_grad(container, pos_diff, distance)
+            if distance > sqrt(eps())
+                dw_gamma[:, particle] += volume *
+                                        smoothing_kernel_grad(container, pos_diff, distance)
+            end
         end
-        for particle in eachparticle(container)
-            dw_gamma[:, particle] ./= cw[particle]
-        end
+    end
+
+    for particle in eachparticle(container)
+        dw_gamma[:, particle] ./= cw[particle]
     end
 end
 
