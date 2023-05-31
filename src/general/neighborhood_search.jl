@@ -306,8 +306,7 @@ mutable struct CellListMapSearch{CL, B}
     box       :: B
 
     function CellListMapSearch(search_radius)
-        x = [-100.0 100.0; -100.0 100.0]
-        y = zeros(2, 1)
+        x = zeros(2, 1)
         box = Box(limits(x, x), search_radius)
         cell_list = CellList(x, x, box)
 
