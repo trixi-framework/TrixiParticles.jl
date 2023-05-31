@@ -13,8 +13,8 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.05
-#particle_spacing = 0.01
+#particle_spacing = 0.05
+particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -71,13 +71,23 @@ particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
+                                              correction=KernelGradientCorrection()),
+                        FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
                                               correction=KernelGradientCorrection()))
 
 function container_to_name(container)
     if container.correction isa NoCorrection
         return "no_correction"
     elseif container.correction isa KernelGradientCorrection
-        return "kernel_gradient_correction"
+        if container.density_calculator isa SummationDensity
+            return "kernel_gradient_sum_correction"
+        else
+            return "kernel_gradient_cont_correction"
+        end
     end
     return "undefined"
 end
