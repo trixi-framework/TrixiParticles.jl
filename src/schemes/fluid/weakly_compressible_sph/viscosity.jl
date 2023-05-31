@@ -100,3 +100,39 @@ end
 
     return 0.0
 end
+
+@doc raw"""
+    ViscousInteractionAdami(eta)
+
+# Arguments
+- `eta`: Kinematic viscosity
+
+Shear force for the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles.
+Since the [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
+Adami (Adami et al 2012) imposes a no-slip boundary condition by extrapolating the smoothed
+velocity field of the fluid to the dummy particle position.
+The viscous interaction is then calculated with the shear force for incompressible flows given by
+```math
+f_{fw} = \sum_w \bar{\eta}_{fw} \left( V_f^2 + V_w^2 \right) \frac{v_{fw}}{||r_{fw}||} \frac{\partial W}{\partial ||r_{fw}||},
+```
+where the subindices ``f`` and ``w`` denote fluid and boundary particles respectively,
+``\bar{\eta}_{fw}`` is the inter-particle-averaged shear stress and ``V`` is the particle volume.
+
+The velocity of particle ``w`` is calculated by the prescribed boundary particle velocity ``v_a`` and the exptrapolated velocity:
+```math
+v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
+```
+where the sum is over all fluid particles.
+
+## References:
+- S. Adami et al. "A generalized wall boundary condition for smoothed particle hydrodynamics".
+  In: Journal of Computational Physics 231 (2012), pages 7057-7075.
+  [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
+"""
+struct ViscousInteractionAdami{ELTYPE}
+    eta::ELTYPE
+
+    function ViscousInteractionAdami(eta)
+        new{typeof(eta)}(eta)
+    end
+end
