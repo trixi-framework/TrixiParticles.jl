@@ -41,7 +41,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
-export SpatialHashingSearch
+export SpatialHashingSearch, CellListMapSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape

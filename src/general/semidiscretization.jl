@@ -87,9 +87,9 @@ function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch
     return search
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{CellListMapNeighborhoodSearch})
+function create_neighborhood_search(system, neighbor, ::Val{CellListMapSearch})
     radius = compact_support(system, neighbor)
-    search = CellListMapNeighborhoodSearch(radius)
+    search = CellListMapSearch(radius)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))

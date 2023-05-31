@@ -301,11 +301,11 @@ end
 end
 
 
-mutable struct CellListMapNeighborhoodSearch{CL, B}
+mutable struct CellListMapSearch{CL, B}
     cell_list :: CL
     box       :: B
 
-    function CellListMapNeighborhoodSearch(search_radius)
+    function CellListMapSearch(search_radius)
         x = [-100.0 100.0; -100.0 100.0]
         y = zeros(2, 1)
         box = Box(limits(x, x), search_radius)
@@ -315,17 +315,17 @@ mutable struct CellListMapNeighborhoodSearch{CL, B}
     end
 end
 
-function initialize!(neighborhood_search::CellListMapNeighborhoodSearch,
+function initialize!(neighborhood_search::CellListMapSearch,
                      x, y)
     update!(neighborhood_search, x, y, true)
 end
 
-function update!(neighborhood_search::CellListMapNeighborhoodSearch,
+function update!(neighborhood_search::CellListMapSearch,
                  x::Nothing, y::Nothing, y_has_changed)
     return neighborhood_search
 end
 
-function update!(neighborhood_search::CellListMapNeighborhoodSearch,
+function update!(neighborhood_search::CellListMapSearch,
                  x, y, y_has_changed)
     @unpack cell_list = neighborhood_search
 
@@ -338,7 +338,7 @@ end
 
 @inline function for_particle_neighbor(f, system, neighbor_system,
                                        system_coords, neighbor_coords,
-                                       neighborhood_search::CellListMapNeighborhoodSearch;
+                                       neighborhood_search::CellListMapSearch;
                                        particles=each_moving_particle(system))
     @unpack cell_list, box = neighborhood_search
 
