@@ -50,8 +50,6 @@ end
     v[end, particle] = density
 end
 
-compute_density!(system, system_index, semi, u, u_ode, ::ContinuityDensity) = system
-
 function summation_density!(system, system_index, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     @unpack systems, neighborhood_searches = semi

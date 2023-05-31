@@ -169,8 +169,8 @@ end
             v_ode, u_ode, semi)
 end
 
-@inline function update!(density_calculator::AdamiPressureExtrapolation,
-                         boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+@inline function update!(boundary_model, density_calculator::AdamiPressureExtrapolation,
+                         system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack pressure, state_equation, cache = boundary_model
     @unpack volume, density = cache
@@ -201,17 +201,6 @@ end
 
     for particle in eachparticle(system)
         density[particle] = inverse_state_equation(state_equation, pressure[particle])
-    end
-end
-
-@inline function update!(density_calculator,
-                         boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack density_calculator, state_equation = boundary_model
-
-    compute_density!(system, system_index, semi, u, u_ode, density_calculator)
-
-    for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
 end
 
@@ -249,4 +238,25 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
+end
+
+@inline function update!(boundary_model, density_calculator::SummationDensity,
+                         system, system_index, v, u, v_ode, u_ode, semi)
+    @unpack cache, state_equation = boundary_model
+
+    summation_density!(system, system_index, semi, u, u_ode, cache.density,
+                       particles=eachparticle(system))
+
+    for particle in eachparticle(system)
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
+    end
+end
+
+@inline function update!(boundary_model, density_calculator::ContinuityDensity,
+                         system, system_index, v, u, v_ode, u_ode, semi)
+    @unpack state_equation = boundary_model
+
+    for particle in eachparticle(system)
+        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
+    end
 end

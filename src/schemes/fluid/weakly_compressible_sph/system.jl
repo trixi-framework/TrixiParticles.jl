@@ -135,6 +135,8 @@ function compute_density!(system::WeaklyCompressibleSPHSystem, system_index, sem
     summation_density!(system, system_index, semi, u, u_ode, density)
 end
 
+compute_density!(system, system_index, semi, u, u_ode, ::ContinuityDensity) = system
+
 function compute_pressure!(system, v)
     @unpack state_equation, pressure = system
 

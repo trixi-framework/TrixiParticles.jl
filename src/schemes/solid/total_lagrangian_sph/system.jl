@@ -448,15 +448,6 @@ function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-@inline function compute_density!(system::TotalLagrangianSPHSystem, system_index, semi, u,
-                                  u_ode, ::SummationDensity)
-    @unpack boundary_model = system
-    @unpack density = boundary_model.cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, system_index, semi, u, u_ode, density,
-                       particles=eachparticle(system))
-end
-
 function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     for particle in each_moving_particle(system)
         system.current_coordinates[:, particle] .= u[:, particle]
