@@ -13,8 +13,8 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-#particle_spacing = 0.05
-particle_spacing = 0.01
+particle_spacing = 0.05
+#particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
