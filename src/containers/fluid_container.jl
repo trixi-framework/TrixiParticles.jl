@@ -139,10 +139,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
         initial_density = particle_densities
         cache = (; initial_density)
-        if correction isa KernelCorrection
-            cw = similar(initial_density)
-            cache = (; cw, cache...)
-        end
+        cache = (; kernel_correction_cache(correction, density)..., cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
@@ -152,6 +149,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                      viscosity, acceleration_, correction, cache)
     end
 end
+
+kernel_correction_cache(correction, density) = (;)
+kernel_correction_cache(::KernelCorrection, density) = (; cw=similar(density))
 
 function Base.show(io::IO, container::FluidParticleContainer)
     @nospecialize container # reduce precompilation time
