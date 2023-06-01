@@ -82,15 +82,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
-        dv_viscosity = calc_viscosity(boundary_model.viscosity,
-                                      neighbor_system,
-                                      particle_system,
-                                      v_neighbor_system,
-                                      v_particle_system,
-                                      neighbor, particle,
-                                      pos_diff, distance, sound_speed, m_a)
+        dv_viscosity = viscosity(neighbor_system, particle_system,
+                                 v_neighbor_system, v_particle_system,
+                                 neighbor, particle,
+                                 pos_diff, distance, sound_speed, m_b, m_a)
 
         # Boundary forces
         dv_boundary = boundary_particle_impact(neighbor, particle, boundary_model,
