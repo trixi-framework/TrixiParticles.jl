@@ -3,8 +3,10 @@ struct InitialCondition{ELTYPE}
     velocity    :: Array{ELTYPE, 2}
     mass        :: Array{ELTYPE, 1}
     density     :: Array{ELTYPE, 1}
+    pressure    :: Array{ELTYPE, 1}
 
-    function InitialCondition(coordinates, velocities, masses, densities)
+    function InitialCondition(coordinates, velocities, masses, densities;
+                              pressure=[])
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
@@ -14,7 +16,8 @@ struct InitialCondition{ELTYPE}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
-        return new{eltype(coordinates)}(coordinates, velocities, masses, densities)
+        return new{eltype(coordinates)}(coordinates, velocities, masses, densities,
+                                        pressure)
     end
 
     function InitialCondition(initial_conditions...)
@@ -27,9 +30,15 @@ struct InitialCondition{ELTYPE}
         velocity = hcat((ic.velocity for ic in initial_conditions)...)
         mass = vcat((ic.mass for ic in initial_conditions)...)
         density = vcat((ic.density for ic in initial_conditions)...)
+        pressure = vcat((ic.pressure for ic in initial_conditions)...)
+
+        if any(ic -> !isempty(ic.pressure), initial_conditions) &&
+           size(pressure) != size(density)
+            throw(ArgumentError("all passed initial pressures must have the same length"))
+        end
 
         # TODO: Throw warning when particles are overlapping
-        return new{eltype(coordinates)}(coordinates, velocity, mass, density)
+        return new{eltype(coordinates)}(coordinates, velocity, mass, density, pressure)
     end
 end
 
