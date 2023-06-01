@@ -198,9 +198,9 @@ function fill_cache!(cache, viscosity::ViscousInteractionAdami, neighbor_system,
                      v_neighbor_system, smoothing_kernel, particle, neighbor)
     cache.volume[particle] += smoothing_kernel
 
-    v_b = current_velocity(v_neighbor_system, system, neighbor)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    for dim in 1:ndims(system)
+    for dim in 1:ndims(neighbor_system)
         cache.velocity[dim, particle] += smoothing_kernel * v_b[dim]
     end
 

@@ -53,7 +53,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
+    function ArtificialViscosityMonaghan(alpha, beta; epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -130,9 +130,44 @@ where the sum is over all fluid particles.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
 """
 struct ViscousInteractionAdami{ELTYPE}
-    eta::ELTYPE
+    eta     :: ELTYPE
+    epsilon :: ELTYPE
 
-    function ViscousInteractionAdami(eta)
-        new{typeof(eta)}(eta)
+    function ViscousInteractionAdami(eta; epsilon=0.01)
+        new{typeof(eta)}(eta, epsilon)
     end
 end
+
+@inline function (viscosity::ViscousInteractionAdami)(particle_system, neighbor_system,
+                                                      v_particle_system, v_neighbor_system,
+                                                      particle, neighbor, pos_diff,
+                                                      distance, sound_speed, m_a, m_b)
+    @unpack epsilon, eta = viscosity
+    @unpack smoothing_length = particle_system
+
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+    eta_a = eta * rho_a
+    eta_b = eta * rho_b
+
+    eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
+
+    # TODO For variable smoothing_length use average smoothing length
+    tmp = eta_tilde / (distance^2 - epsilon * smoothing_length^2)
+
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+
+    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
+    visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
+
+    return visc .* v_diff
+end
+
+@inline viscous_velocity(v, system, particle) = current_velocity(v, system, particle)
