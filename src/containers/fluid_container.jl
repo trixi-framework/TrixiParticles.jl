@@ -91,11 +91,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
+        cache = (; kernel_correction_cache(correction, density)..., cache...)
 
-        if correction isa KernelCorrection
-            cw = similar(density)
-            cache = (; cw, cache...)
-        end
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
@@ -139,7 +136,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 
         initial_density = particle_densities
         cache = (; initial_density)
-        cache = (; kernel_correction_cache(correction, density)..., cache...)
+        cache = (; kernel_correction_cache(correction, initial_density)..., cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
@@ -151,7 +148,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 end
 
 kernel_correction_cache(correction, density) = (;)
-kernel_correction_cache(::KernelCorrection, density) = (; cw=similar(density))
+kernel_correction_cache(::KernelCorrection, density) = (; kernel_correction_coefficient=similar(density))
 
 function Base.show(io::IO, container::FluidParticleContainer)
     @nospecialize container # reduce precompilation time
@@ -267,9 +264,9 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
                                 ::KernelCorrection)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
-    @unpack cw = cache # Density is in the cache for SummationDensity
+    @unpack kernel_correction_coefficient = cache # Density is in the cache for SummationDensity
 
-    cw .= zero(eltype(cw))
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
 
     # Use all other containers for the density summation
     @trixi_timeit timer() "compute density with correction" foreach_enumerate(particle_containers) do (neighbor_container_index,
@@ -292,12 +289,12 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            cw[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
         end
     end
 
     for particle in eachparticle(container)
-        corrected_density = particle_density(v, container, particle) / cw[particle]
+        corrected_density = particle_density(v, container, particle) / kernel_correction_coefficient[particle]
         set_particle_density(particle, v, container, corrected_density)
     end
 end
