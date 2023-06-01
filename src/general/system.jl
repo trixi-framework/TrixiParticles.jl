@@ -1,4 +1,5 @@
 abstract type System{NDIMS} end
+abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
 update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system

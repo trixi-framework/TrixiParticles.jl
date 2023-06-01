@@ -11,7 +11,7 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                   neighbor_system::WeaklyCompressibleSPHSystem)
+                   neighbor_system::FluidSystem)
     @unpack density_calculator = particle_system.boundary_model
 
     interact!(dv, v_particle_system, u_particle_system,
