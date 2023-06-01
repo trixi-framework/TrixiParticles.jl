@@ -60,7 +60,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size,
-                             fluid_density; pressure=[],
+                             fluid_density; pressure=0.0,
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
         if particle_spacing < eps()
@@ -121,6 +121,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64,
                                                   prod(n_particles_per_dimension))
+        pressure = pressure *
+                   ones(Float64, prod(n_particles_per_dimension) * (pressure > 0.0))
 
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
@@ -138,7 +140,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     end
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
-                             fluid_density; pressure=[],
+                             fluid_density; pressure=0.0,
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(6)))
         NDIMS = 3
@@ -205,6 +207,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
+        pressure = pressure *
+                   ones(Float64, prod(n_particles_per_dimension) * (pressure > 0.0))
 
         mass = fluid_density * particle_spacing^3
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
