@@ -64,8 +64,7 @@ particle_containers = (FluidParticleContainer(setup, SummationDensity(), state_e
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
-                                              acceleration=(0.0, gravity),
-                                              correction=NoCorrection()),
+                                              acceleration=(0.0, gravity)),
                        FluidParticleContainer(setup, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
@@ -80,7 +79,7 @@ particle_containers = (FluidParticleContainer(setup, SummationDensity(), state_e
                                               correction=AkinciFreeSurfaceCorrection()))
 
 function container_to_name(container)
-    if container.correction isa NoCorrection
+    if container.correction isa Nothing
         return "no_correction"
     elseif container.correction isa KernelCorrection
         return "kernel_correction"
