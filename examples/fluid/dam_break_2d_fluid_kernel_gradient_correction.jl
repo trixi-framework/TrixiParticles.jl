@@ -72,7 +72,7 @@ particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
                                               correction=KernelGradientCorrection()),
-                        FluidParticleContainer(setup, SummationDensity(), state_equation,
+                       FluidParticleContainer(setup, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,

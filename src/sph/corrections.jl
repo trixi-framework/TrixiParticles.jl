@@ -110,7 +110,8 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
             cw[particle] += volume * smoothing_kernel(container, distance)
             if distance > sqrt(eps())
                 dw_gamma[:, particle] += volume *
-                                        smoothing_kernel_grad(container, pos_diff, distance)
+                                         smoothing_kernel_grad(container, pos_diff,
+                                                               distance)
             end
         end
     end
