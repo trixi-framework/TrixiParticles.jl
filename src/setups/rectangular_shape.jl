@@ -30,46 +30,36 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0)
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 1000.0)
 ```
 """
-struct RectangularShape{NDIMS, ELTYPE <: Real}
-    coordinates               :: Array{ELTYPE, 2}
-    velocities                :: Array{ELTYPE, 2}
-    masses                    :: Vector{ELTYPE}
-    densities                 :: Vector{ELTYPE}
-    particle_spacing          :: ELTYPE
-    n_particles_per_dimension :: NTuple{NDIMS, Int}
-
-    function RectangularShape(particle_spacing, n_particles_per_dimension,
-                              particle_position, density; loop_order=:x_first,
-                              init_velocity=ntuple(_ -> 0.0,
-                                                   length(n_particles_per_dimension)))
-        if particle_spacing < eps()
-            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())."))
-        end
-
-        NDIMS = length(n_particles_per_dimension)
-
-        if length(particle_position) != NDIMS
-            throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem."))
-        end
-
-        if density < eps()
-            throw(ArgumentError("Density needs to be positive and larger than $(eps())."))
-        end
-
-        ELTYPE = eltype(particle_spacing)
-
-        n_particles = prod(n_particles_per_dimension)
-
-        coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                               particle_position, loop_order=loop_order)
-        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
-
-        densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
-
-        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
-                                  particle_spacing, n_particles_per_dimension)
+function RectangularShape(particle_spacing, n_particles_per_dimension,
+                          particle_position, density; loop_order=:x_first,
+                          init_velocity=ntuple(_ -> 0.0,
+                                               length(n_particles_per_dimension)))
+    if particle_spacing < eps()
+        throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
+
+    NDIMS = length(n_particles_per_dimension)
+
+    if length(particle_position) != NDIMS
+        throw(ArgumentError("`particle_position` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    if density < eps()
+        throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
+    end
+
+    ELTYPE = eltype(particle_spacing)
+
+    n_particles = prod(n_particles_per_dimension)
+
+    coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+                                           particle_position, loop_order=loop_order)
+    velocities = init_velocity .* ones(ELTYPE, size(coordinates))
+
+    densities = density * ones(ELTYPE, n_particles)
+    masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
+
+    return InitialCondition(coordinates, velocities, masses, densities)
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,

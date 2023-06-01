@@ -20,16 +20,18 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
-include("sph/sph.jl")
-include("setups/setups.jl")
-include("containers/container.jl")
-include("semidiscretization/semidiscretization.jl")
-include("interactions/interactions.jl")
 include("callbacks/callbacks.jl")
+include("general/general.jl")
+include("setups/setups.jl")
+include("schemes/schemes.jl")
+# Note that `semidiscretization.jl` depends on the system types and has to be
+# included separately.
+include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export FluidParticleContainer, SolidParticleContainer, BoundaryParticleContainer
+export InitialCondition
+export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
@@ -41,8 +43,9 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export MergeShapes, RectangularTank, RectangularShape, CircularShape
+export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
 export KernelCorrection
+export nparticles
 
 end # module

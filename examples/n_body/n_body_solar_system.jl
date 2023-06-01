@@ -6,10 +6,10 @@ using TrixiParticles
 using OrdinaryDiffEq
 using Printf
 
-include("n_body_container.jl")
+include("n_body_system.jl")
 
 # ==========================================================================================
-# ==== Container
+# ==== Systems
 
 # Data from https://de.mathworks.com/help/sm/ug/model-planet-orbit-due-to-gravity.html;jsessionid=1c983e477bd0e1231ad25ef4c5d1
 coordinates = [5.5850e+08 5.1979e+10 -1.5041e+10 -1.1506e+09 -4.8883e+10 -8.1142e+11 -4.2780e+11 2.7878e+12 4.2097e+12;
@@ -23,13 +23,15 @@ masses = [
     1.99e30, 3.30e23, 4.87e24, 5.97e24, 6.42e23, 1.90e27, 5.68e26, 8.68e25, 1.02e26,
 ]
 
+initial_condition = InitialCondition(coordinates, velocities, masses, zeros(size(masses)))
+
 G = 6.6743e-11
-particle_container = NBodyContainer(coordinates, velocities, masses, G)
+particle_system = NBodySystem(initial_condition, G)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container)
+semi = Semidiscretization(particle_system)
 
 day = 24 * 3600.0
 year = 365day
@@ -48,8 +50,8 @@ sol = solve(ode, SymplecticEuler(),
             dt=1.0e5,
             save_everystep=false, callback=callbacks);
 
-@printf("%.9e\n", energy(ode.u0.x..., particle_container, semi))
-@printf("%.9e\n", energy(sol[end].x..., particle_container, semi))
+@printf("%.9e\n", energy(ode.u0.x..., particle_system, semi))
+@printf("%.9e\n", energy(sol[end].x..., particle_system, semi))
 
 # Enable timers again.
 TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)

@@ -22,40 +22,30 @@ Either a circle filled with particles or a circumference drawn by particles.
 For adding a recess in the particle filled circle or for only drawing the circumference
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
-struct CircularShape{NDIMS, ELTYPE <: Real}
-    coordinates      :: Array{ELTYPE, 2}
-    velocities       :: Array{ELTYPE, 2}
-    masses           :: Vector{ELTYPE}
-    densities        :: Vector{ELTYPE}
-    particle_spacing :: ELTYPE
-    n_particles      :: Int
-
-    function CircularShape(particle_spacing, R, center_position, density;
-                           shape_type=FillCircle(), init_velocity=(0.0, 0.0))
-        if particle_spacing < eps()
-            throw(ArgumentError("Particle spacing needs to be positive and larger than $(eps())."))
-        end
-
-        if density < eps()
-            throw(ArgumentError("Density needs to be positive and larger than $(eps())."))
-        end
-
-        NDIMS = 2
-        ELTYPE = eltype(particle_spacing)
-
-        x_center, y_center = center_position
-
-        coordinates = circular_shape_coords(shape_type, R, x_center, y_center,
-                                            particle_spacing)
-
-        n_particles = size(coordinates, 2)
-        densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
-        velocities = init_velocity .* ones(ELTYPE, size(coordinates))
-
-        return new{NDIMS, ELTYPE}(coordinates, velocities, masses, densities,
-                                  particle_spacing, n_particles)
+function CircularShape(particle_spacing, R, center_position, density;
+                       shape_type=FillCircle(), init_velocity=(0.0, 0.0))
+    if particle_spacing < eps()
+        throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
+
+    if density < eps()
+        throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
+    end
+
+    NDIMS = 2
+    ELTYPE = eltype(particle_spacing)
+
+    x_center, y_center = center_position
+
+    coordinates = circular_shape_coords(shape_type, R, x_center, y_center,
+                                        particle_spacing)
+
+    n_particles = size(coordinates, 2)
+    densities = density * ones(ELTYPE, n_particles)
+    masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
+    velocities = init_velocity .* ones(ELTYPE, size(coordinates))
+
+    return InitialCondition(coordinates, velocities, masses, densities)
 end
 
 """
