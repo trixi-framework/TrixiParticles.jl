@@ -63,7 +63,7 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     return file
 end
 
-vtkname(system::WeaklyCompressibleSPHSystem) = "fluid"
+vtkname(system::FluidSystem) = "fluid"
 vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
@@ -74,6 +74,16 @@ function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
     vtk["pressure"] = system.pressure
+
+    return vtk
+end
+
+function write2vtk!(vtk, v, u, t, system::EntropicallyDampedSPH)
+    vtk["velocity"] = view(v, 1:ndims(system), :)
+    vtk["density"] = [particle_density(v, system, particle)
+                      for particle in eachparticle(system)]
+    vtk["pressure"] = [particle_pressure(v, system, particle)
+                       for particle in eachparticle(system)]
 
     return vtk
 end
