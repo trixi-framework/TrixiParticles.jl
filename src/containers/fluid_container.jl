@@ -39,7 +39,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)),
-                                    correction=NoCorrection())
+                                    correction=nothing)
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -53,7 +53,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(setup.coordinates, 1)),
-                                    correction=NoCorrection())
+                                    correction=nothing)
         return FluidParticleContainer(setup.coordinates, setup.velocities, setup.masses,
                                       setup.densities, density_calculator,
                                       state_equation, smoothing_kernel, smoothing_length,
@@ -68,7 +68,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
-                                    correction=NoCorrection())
+                                    correction=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
         nparticles = size(particle_coordinates, 2)
@@ -112,7 +112,7 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
                                     viscosity=NoViscosity(),
                                     acceleration=ntuple(_ -> 0.0,
                                                         size(particle_coordinates, 1)),
-                                    correction=NoCorrection())
+                                    correction=nothing)
         NDIMS = size(particle_coordinates, 1)
         ELTYPE = eltype(particle_coordinates)
         nparticles = size(particle_coordinates, 2)
@@ -257,7 +257,7 @@ function update_after_density_calc!(container::FluidParticleContainer, container
 end
 
 function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, semi,
-                                density_calculator, ::NoCorrection)
+                                density_calculator, ::Nothing)
     #skip correction step
     return container
 end

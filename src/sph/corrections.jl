@@ -1,5 +1,3 @@
-struct NoCorrection end
-
 @doc raw"""
 KernelCorrection()
 KernelGradientCorrection()
