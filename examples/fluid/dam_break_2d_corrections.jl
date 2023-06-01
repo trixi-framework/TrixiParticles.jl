@@ -45,13 +45,14 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 # Recompute the new water column width since the width has been rounded in `RectangularTank`.
 new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
 reset_faces = (false, true, false, false)
-original_positions = (0, new_wall_position, 0, 0)
+positions = (0, new_wall_position, 0, 0)
 
-reset_wall!(setup, reset_faces, original_positions)
+reset_wall!(setup, reset_faces, positions)
 
 # ==========================================================================================
 # ==== Boundary models
 
+# Doesn't work with AdamiPressureExtrapolation
 boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
                                              setup.boundary_masses, state_equation,
                                              SummationDensity(), smoothing_kernel,
@@ -60,12 +61,24 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
 # ==========================================================================================
 # ==== Containers
 
-particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_equation,
+particle_containers = (FluidParticleContainer(setup, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
                                               correction=NoCorrection()),
+                       FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
+                                              correction=KernelCorrection()),
+                       FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              smoothing_kernel, smoothing_length,
+                                              water_density,
+                                              viscosity=viscosity,
+                                              acceleration=(0.0, gravity),
+                                              correction=AkinciFreeSurfaceCorrection()),
                        FluidParticleContainer(setup, ContinuityDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
@@ -82,12 +95,16 @@ particle_containers = (FluidParticleContainer(setup, ContinuityDensity(), state_
 function container_to_name(container)
     if container.correction isa NoCorrection
         return "no_correction"
+    elseif container.correction isa KernelCorrection
+        return "kernel_correction"
     elseif container.correction isa KernelGradientCorrection
         if container.density_calculator isa SummationDensity
             return "kernel_gradient_sum_correction"
         else
             return "kernel_gradient_cont_correction"
         end
+    elseif container.correction isa AkinciFreeSurfaceCorrection
+        return "akinci_free_surf_correction"
     end
     return "undefined"
 end
@@ -100,13 +117,14 @@ boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, bound
 for particle_container in particle_containers
 
     # Move right boundary
-    reset_wall!(setup, reset_faces, original_positions)
+    positions = (0, water_width + particle_spacing, 0, 0)
+    reset_wall!(setup, reset_faces, positions)
 
     semi = Semidiscretization(particle_container, boundary_container,
                               neighborhood_search=SpatialHashingSearch,
                               damping_coefficient=1e-5)
 
-    tspan = (0.0, 0.5)
+    tspan = (0.0, 3.0)
     ode = semidiscretize(semi, tspan)
 
     info_callback = InfoCallback(interval=100)
