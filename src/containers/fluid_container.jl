@@ -93,7 +93,6 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         cache = (; density)
         cache = (; kernel_correction_cache(correction, density)..., cache...)
 
-
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
                    typeof(cache)
@@ -148,7 +147,9 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 end
 
 kernel_correction_cache(correction, density) = (;)
-kernel_correction_cache(::KernelCorrection, density) = (; kernel_correction_coefficient=similar(density))
+function kernel_correction_cache(::KernelCorrection, density)
+    (; kernel_correction_coefficient=similar(density))
+end
 
 function Base.show(io::IO, container::FluidParticleContainer)
     @nospecialize container # reduce precompilation time
@@ -289,12 +290,14 @@ function kernel_correct_density(container, container_index, v, u, v_ode, u_ode, 
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(container, distance)
         end
     end
 
     for particle in eachparticle(container)
-        corrected_density = particle_density(v, container, particle) / kernel_correction_coefficient[particle]
+        corrected_density = particle_density(v, container, particle) /
+                            kernel_correction_coefficient[particle]
         set_particle_density(particle, v, container, corrected_density)
     end
 end
