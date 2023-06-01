@@ -1,6 +1,6 @@
 @doc raw"""
-KernelCorrection()
-KernelGradientCorrection()
+    KernelCorrection()
+    KernelGradientCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result.
 
