@@ -1,7 +1,9 @@
 struct NoViscosity end
 
-function (::NoViscosity)(c, v_diff, pos_diff, distance, rho_mean, h)
-    return 0.0
+@inline function (::NoViscosity)(particle_system, neighbor_system, v_particle_system,
+                                 v_neighbor_system, particle, neighbor, pos_diff, distance,
+                                 sound_speed, m_a, m_b)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
 end
 
 @doc raw"""
@@ -56,23 +58,37 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     end
 end
 
-function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
-                                                  rho_mean, h)
+@inline function (viscosity::ArtificialViscosityMonaghan)(particle_system, neighbor_system,
+                                                          v_particle_system,
+                                                          v_neighbor_system,
+                                                          particle, neighbor, pos_diff,
+                                                          distance, sound_speed, m_a, m_b)
     @unpack alpha, beta, epsilon = viscosity
+    @unpack smoothing_length = particle_system
+
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    rho_mean = (rho_a + rho_b) / 2
 
     # v_ab ⋅ r_ab
-    vr = sum(v_diff .* pos_diff)
+    vr = dot(v_diff, pos_diff)
 
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
     # "In the case of shock tube problems, it is usual to turn the viscosity on for
     # approaching  particles and turn it off for receding particles. In this way, the
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
-        mu = h * vr / (distance^2 + epsilon * h^2)
-        return -(alpha * c * mu + beta * mu^2) / rho_mean
+        mu = smoothing_length * vr / (distance^2 + epsilon * smoothing_length^2)
+        pi_ab = -(alpha * sound_speed * mu + beta * mu^2) / rho_mean
+
+        return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
     end
 
-    return 0.0
+    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
 end
 
 @doc raw"""
