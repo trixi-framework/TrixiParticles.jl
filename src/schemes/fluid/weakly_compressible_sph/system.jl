@@ -112,7 +112,7 @@ end
     return ndims(system) + 1
 end
 
-@inline function hydrodynamic_mass(system::WeaklyCompressibleSPHSystem, particle)
+@inline function hydrodynamic_mass(system::FluidSystem, particle)
     return system.mass[particle]
 end
 
@@ -147,7 +147,7 @@ function compute_pressure!(system, v)
     end
 end
 
-function write_u0!(u0, system::WeaklyCompressibleSPHSystem)
+function write_u0!(u0, system::FluidSystem)
     @unpack initial_condition = system
 
     for particle in eachparticle(system)
