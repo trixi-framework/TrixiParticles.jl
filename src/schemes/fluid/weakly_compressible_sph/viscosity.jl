@@ -92,10 +92,10 @@ end
 end
 
 @doc raw"""
-    ViscousInteractionAdami(eta)
+    ViscousInteractionAdami(nu)
 
 # Arguments
-- `eta`: Kinematic viscosity
+- `nu`: Kinematic viscosity
 
 Shear force for the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles.
 Since the [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
@@ -120,11 +120,11 @@ where the sum is over all fluid particles.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
 """
 struct ViscousInteractionAdami{ELTYPE}
-    eta     :: ELTYPE
-    epsilon :: ELTYPE
+    nu::ELTYPE
+    epsilon::ELTYPE
 
-    function ViscousInteractionAdami(eta; epsilon=0.01)
-        new{typeof(eta)}(eta, epsilon)
+    function ViscousInteractionAdami(nu; epsilon=0.01)
+        new{typeof(nu)}(nu, epsilon)
     end
 end
 
@@ -132,7 +132,7 @@ end
                                                       v_particle_system, v_neighbor_system,
                                                       particle, neighbor, pos_diff,
                                                       distance, sound_speed, m_a, m_b)
-    @unpack epsilon, eta = viscosity
+    @unpack epsilon, nu = viscosity
     @unpack smoothing_length = particle_system
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
@@ -142,8 +142,8 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-    eta_a = eta * rho_a
-    eta_b = eta * rho_b
+    eta_a = nu * rho_a
+    eta_b = nu * rho_b
 
     eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
 

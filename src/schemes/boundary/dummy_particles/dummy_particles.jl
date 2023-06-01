@@ -161,7 +161,7 @@ function create_cache(size_velocity, viscosity::NoViscosity)
 end
 
 function create_cache(size_velocity, viscosity::ViscousInteractionAdami)
-    ELTYPE = eltype(viscosity.eta)
+    ELTYPE = eltype(viscosity.nu)
 
     velocity = zeros(ELTYPE, size_velocity)
 
@@ -218,6 +218,10 @@ end
     return cache.density[particle]
 end
 
+@inline function particle_pressure(v, model::BoundaryModelDummyParticles, system, particle)
+    return model.pressure[particle]
+end
+
 @inline function update!(boundary_model::BoundaryModelDummyParticles, system, system_index,
                          v, u, v_ode, u_ode, semi)
     @unpack density_calculator = boundary_model
@@ -262,7 +266,7 @@ end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system,
-                                               neighbor_system::WeaklyCompressibleSPHSystem,
+                                               neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     @unpack pressure, cache, viscosity = boundary_model
@@ -279,7 +283,8 @@ end
         kernel_ = smoothing_kernel(boundary_model, distance)
 
         # TODO moving boundaries
-        pressure[particle] += (neighbor_system.pressure[neighbor] +
+        pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+                                                 neighbor) +
                                dot(neighbor_system.acceleration,
                                    density_neighbor * pos_diff)) * kernel_
 
