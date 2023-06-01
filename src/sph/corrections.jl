@@ -75,7 +75,7 @@ function dw_gamma(container, particle, ::Any)
 end
 
 function dw_gamma(container, particle, ::KernelGradientCorrection)
-    return container.cache.dw_gamma[:, particle]
+    return extract_svector(container.cache.dw_gamma, container, particle)
 end
 
 function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
