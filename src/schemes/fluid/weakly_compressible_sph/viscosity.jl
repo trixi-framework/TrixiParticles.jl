@@ -158,7 +158,7 @@ end
     eta_tilde = 2 * (eta_a * eta_b) / (eta_a + eta_b)
 
     # TODO For variable smoothing_length use average smoothing length
-    tmp = eta_tilde / (distance^2 - epsilon * smoothing_length^2)
+    tmp = eta_tilde / (distance^2 + epsilon * smoothing_length^2)
 
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
