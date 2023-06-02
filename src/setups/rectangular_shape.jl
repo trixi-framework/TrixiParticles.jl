@@ -57,7 +57,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
     densities = density * ones(ELTYPE, n_particles)
-    pressure = pressure * ones(ELTYPE, n_particles * (!isempty(pressure)))
+    !isempty(pressure) && (pressure = pressure * ones(ELTYPE, n_particles))
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
 
     return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure)
