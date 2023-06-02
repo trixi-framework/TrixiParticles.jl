@@ -176,8 +176,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     @unpack density_calculator, correction = system
 
     kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
-                           density_calculator,
-                           correction)
+                            density_calculator, correction)
     compute_pressure!(system, v)
 
     return system
@@ -190,7 +189,7 @@ function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
     return system
 end
 
-function kernel_correct_density(v, u, system, system_index, u_ode, v_ode, semi,
+function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
                                 ::SummationDensity, ::ShepardKernelCorrection)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
@@ -208,7 +207,6 @@ function kernel_correct_density(v, u, system, system_index, u_ode, v_ode, semi,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
-
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
