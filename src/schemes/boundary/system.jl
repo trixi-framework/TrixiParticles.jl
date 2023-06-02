@@ -1,50 +1,26 @@
 """
-    BoundarySPHSystem(coordinates, model;
-                      movement_function=nothing)
+    BoundarySPHSystem(coordinates, model; move_coordinates=nothing)
 
 System for boundaries modeled by boundary particles.
 The system is initialized with the coordinates of the particles and their masses.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-The `movement_function` is to define in which way the boundary particles move over time. Its
-boolean return value is mandatory to determine in each timestep if the particles are moving or not.
-This determines if the neighborhood search will be updated.
-In the example below the `movement_function` only returns `true` (system is moving)
-if the simulation time is lower than `0.1`.
-
-
-# Examples
-```julia
-function movement_function(coordinates, t)
-
-    if t < 0.1
-        f(t) = 0.5*t^2 + t
-        pos_1 = coordinates[2,1]
-        pos_2 = f(t)
-        diff_pos = pos_2 - pos_1
-        coordinates[2,:] .+= diff_pos
-
-        return true
-    end
-
-    return false
-end
-```
+The `move_coordinates` function is to define in which way the boundary particles move over time.
+    (See [`MovementFunction`](@ref))
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: System{NDIMS}
     coordinates       :: Array{ELTYPE, 2}
     boundary_model    :: BM
-    movement_function :: MF
+    move_coordinates! :: MF
     ismoving          :: Vector{Bool}
 
-    function BoundarySPHSystem(coordinates, model; movement_function=nothing)
+    function BoundarySPHSystem(coordinates, model; move_coordinates=nothing)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
         return new{typeof(model), NDIMS,
                    eltype(coordinates),
-                   typeof(movement_function)}(coordinates, model,
-                                              movement_function, ismoving)
+                   typeof(move_coordinates)}(coordinates, model, move_coordinates, ismoving)
     end
 end
 
@@ -53,7 +29,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
 
     print(io, "BoundarySPHSystem{", ndims(system), "}(")
     print(io, system.boundary_model)
-    print(io, ", ", system.movement_function)
+    print(io, ", ", system.move_coordinates!)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -66,7 +42,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function", system.movement_function)
+        summary_line(io, "movement function", system.move_coordinates!)
         summary_footer(io)
     end
 end
@@ -76,6 +52,77 @@ end
 # This does not account for moving boundaries, but it's only used to initialize the
 # neighborhood search, anyway.
 @inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
+
+"""
+    MovementFunction(movement_function, coordinates, keep_moving)
+
+# Arguments
+- `movement_function`: Tuple containing a time dependent function in each dimension
+- `coordinates`: Coordinates of the initial positions
+- `keep_moving`: Function to determine in each timestep if the particles are moving or not. Its
+    boolean return value is mandatory to determines if the neighborhood search will be updated.
+
+
+In the example below `move_coordinates` desribes two particles moving in a circle as long as
+the time is lower than `1.5`.
+
+# Examples
+```julia
+f_x(t) = cos(2pi*t)
+f_y(t) = sin(2pi*t)
+keep_moving(t) = t < 1.5
+
+move_coordinates = MovementFunction((f_x, f_y), [0.0 1.0; 1.0 1.0], keep_moving)
+```
+"""
+struct MovementFunction{NDIMS, ELTYPE <: Real, MF, KM}
+    initial_position  :: Array{ELTYPE, 2}
+    velocity          :: Array{ELTYPE, 2}
+    acceleration      :: Array{ELTYPE, 2}
+    movement_function :: MF
+    keep_moving       :: KM
+
+    function MovementFunction(movement_function, coordinates, keep_moving)
+        NDIMS = size(coordinates, 1)
+        velocity = zeros(size(coordinates))
+        acceleration = zeros(size(coordinates))
+        initial_position = copy(coordinates)
+
+        return new{NDIMS, eltype(initial_position), typeof(movement_function),
+                   typeof(keep_moving)}(initial_position, velocity, acceleration,
+                                        movement_function, keep_moving)
+    end
+end
+
+function (move_coordinates!::MovementFunction)(system, t)
+    @unpack coordinates = system
+    @unpack initial_position, movement_function, keep_moving,
+    velocity, acceleration = move_coordinates!
+
+    system.ismoving[1] = keep_moving(t)
+
+    if keep_moving(t)
+        for particle in eachparticle(system)
+            for i in 1:ndims(system)
+                coordinates[i, particle] = movement_function[i](t) +
+                                           initial_position[i, particle]
+
+                velocity[i, particle] = ForwardDiff.derivative(movement_function[i], t)
+                acceleration[i, particle] = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function[i],
+                                                                                                t_),
+                                                                   t)
+            end
+        end
+    end
+
+    return system
+end
+
+function (move_coordinates!::Nothing)(system, t)
+    system.ismoving[1] = false
+
+    return system
+end
 
 # Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
 # this is also used by the `TotalLagrangianSPHSystem`.
@@ -127,7 +174,23 @@ end
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
-    # TODO moving boundaries
+    @unpack move_coordinates!, ismoving = system
+
+    ismoving[1] && (return extract_svector(move_coordinates!.velocity, system, particle))
+
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function current_acceleration(system, particle)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function current_acceleration(system::BoundarySPHSystem, particle)
+    @unpack move_coordinates!, ismoving = system
+
+    ismoving[1] &&
+        (return extract_svector(move_coordinates!.acceleration, system, particle))
+
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
@@ -144,23 +207,24 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
+function update_positions!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
+                           semi, t)
+    @unpack move_coordinates! = system
+
+    move_coordinates!(system, t)
+
+    return system
+end
+
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
 function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    @unpack coordinates, movement_function, boundary_model = system
-
-    system.ismoving[1] = move_boundary_particles!(movement_function, coordinates, t)
+    @unpack boundary_model = system
 
     update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
 end
-
-function move_boundary_particles!(movement_function, coordinates, t)
-    movement_function(coordinates, t)
-end
-
-move_boundary_particles!(movement_function::Nothing, coordinates, t) = false
 
 function write_u0!(u0, system::BoundarySPHSystem)
     return u0
