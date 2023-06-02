@@ -65,7 +65,7 @@ particle_container = WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity()
                                                  smoothing_kernel, smoothing_length,
                                                  viscosity=viscosity,
                                                  acceleration=(0.0, -gravity),
-                                                 correction=KernelCorrection())
+                                                 correction=ShepardKernelCorrection())
 
 boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 
