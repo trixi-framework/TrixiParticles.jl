@@ -139,6 +139,11 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
+@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
+    @unpack smoothing_kernel, smoothing_length = system.boundary_model
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
 function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
