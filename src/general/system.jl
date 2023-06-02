@@ -1,4 +1,6 @@
 abstract type System{NDIMS} end
+abstract type FluidSystem{NDIMS} <: System{NDIMS} end
+abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
 update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
@@ -83,6 +85,10 @@ function update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
 end
 
 function update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function update_pressure!(system, system_index, v, u, v_ode, u_ode, semi, t)
     return system
 end
 

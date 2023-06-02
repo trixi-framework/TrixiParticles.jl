@@ -316,6 +316,14 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
     end
 
+    # Perform correction and pressure calculation
+    foreach_enumerate(systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
+
+        update_pressure!(system, system_index, v, u, v_ode, u_ode, semi, t)
+    end
+
     # Final update step for all remaining systems
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)

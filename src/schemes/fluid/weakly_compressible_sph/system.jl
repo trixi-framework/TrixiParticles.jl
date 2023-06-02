@@ -15,7 +15,8 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: System{NDIMS}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
+       FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]
@@ -25,6 +26,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
     smoothing_length   :: ELTYPE
     viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
+    correction         :: COR
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
@@ -32,7 +34,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
                                          smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)))
+                                                             ndims(smoothing_kernel)),
+                                         correction=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -51,12 +54,20 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, C} <: Sy
         end
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
+        cache = (; kernel_correction_cache(correction, initial_condition.density)..., cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(cache)
+                   typeof(smoothing_kernel), typeof(viscosity),
+                   typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, viscosity, acceleration_, cache)
+                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
+                     correction, cache)
     end
+end
+
+kernel_correction_cache(correction, density) = (;)
+function kernel_correction_cache(::KernelCorrection, density)
+    (; kernel_correction_coefficient=similar(density))
 end
 
 function create_cache(n_particles, ELTYPE, ::SummationDensity)
@@ -122,16 +133,16 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
                             v_ode, u_ode, semi, t)
     @unpack density_calculator = system
 
-    compute_quantities(v, u, density_calculator, system, system_index, u_ode, semi)
+    compute_density(v, u, density_calculator, system, system_index, u_ode, semi)
 
     return system
 end
 
-function compute_quantities(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
-    compute_pressure!(system, v)
+function compute_density(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
+    #skip
 end
 
-function compute_quantities(v, u, ::SummationDensity, system, system_index, u_ode, semi)
+function compute_density(v, u, ::SummationDensity, system, system_index, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack density = cache # Density is in the cache for SummationDensity
@@ -153,12 +164,65 @@ function compute_quantities(v, u, ::SummationDensity, system, system_index, u_od
         for_particle_neighbor(system, neighbor_system,
                               system_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-            mass = hydrodynamic_mass(neighbor_system, neighbor)
-            density[particle] += mass * smoothing_kernel(system, distance)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+            density[particle] += m_b * smoothing_kernel(system, distance)
+        end
+    end
+end
+
+function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+                          v_ode, u_ode, semi, t)
+    @unpack density_calculator, correction = system
+
+    kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi, density_calculator,
+                           correction)
+    compute_pressure!(system, v)
+
+    return system
+end
+
+function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi, density_calculator,
+                                ::Nothing)
+    #skip correction step
+    return system
+end
+
+function kernel_correct_density(v, u, system, system_index, u_ode, v_ode, semi,
+                                ::SummationDensity, ::KernelCorrection)
+    @unpack systems, neighborhood_searches = semi
+    @unpack cache = system
+    @unpack kernel_correction_coefficient = cache
+
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
+
+    # Use all other containers for the density summation
+    @trixi_timeit timer() "compute density with correction" foreach_enumerate(systems) do (neighbor_system_index,
+                                                                                           neighbor_system)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system, semi)
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
+            volume = m_b / rho_b
+            println(volume)
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(system, distance)
         end
     end
 
-    compute_pressure!(system, v)
+    for particle in eachparticle(system)
+        corrected_density = particle_density(v, system, particle) /
+                            kernel_correction_coefficient[particle]
+        set_particle_density(particle, v, system, corrected_density)
+    end
 end
 
 function compute_pressure!(system, v)
