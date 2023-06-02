@@ -97,8 +97,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         density = Vector{ELTYPE}(undef, nparticles)
         cache = (; density)
         cache = (; kernel_correction_cache(correction, density)..., cache...)
-        cache = (; kernel_gradient_correction_cache(correction, NDIMS, nparticles)..., cache...)
-
+        cache = (; kernel_gradient_correction_cache(correction, NDIMS, nparticles)...,
+                 cache...)
 
         # copy all input arrays before assignment
         c_particle_coordinates = copy(particle_coordinates)
@@ -153,7 +153,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
         initial_density = copy(particle_densities)
         cache = (; initial_density)
         cache = (; kernel_correction_cache(correction, initial_density)..., cache...)
-        cache = (; kernel_gradient_correction_cache(correction, NDIMS, nparticles)..., cache...)
+        cache = (; kernel_gradient_correction_cache(correction, NDIMS, nparticles)...,
+                 cache...)
 
         # copy all input arrays before assignment
         c_particle_coordinates = copy(particle_coordinates)
@@ -172,7 +173,8 @@ struct FluidParticleContainer{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
 end
 
 kernel_correction_cache(correction, density) = (;)
-function kernel_correction_cache(::Union{KernelCorrection, KernelGradientCorrection}, density)
+function kernel_correction_cache(::Union{KernelCorrection, KernelGradientCorrection},
+                                 density)
     (; kernel_correction_coefficient=similar(density))
 end
 

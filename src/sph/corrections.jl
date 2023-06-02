@@ -31,7 +31,8 @@ function kernel_correction_coefficient(container, particle, ::Any)
     #skip
 end
 
-function kernel_correction_coefficient(container, particle, ::Union{KernelCorrection, KernelGradientCorrection})
+function kernel_correction_coefficient(container, particle,
+                                       ::Union{KernelCorrection, KernelGradientCorrection})
     return container.cache.kernel_correction_coefficient[particle]
 end
 
@@ -63,7 +64,8 @@ function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, se
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(container, distance)
         end
     end
 end
@@ -109,7 +111,8 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(container, distance)
             if distance > sqrt(eps())
                 dw_gamma[:, particle] += volume *
                                          smoothing_kernel_grad(container, pos_diff,

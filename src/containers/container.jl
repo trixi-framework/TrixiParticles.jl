@@ -77,7 +77,8 @@ end
                                        correction=nothing, dw_gamma=nothing,
                                        kernel_correction_coefficient=nothing)
     @unpack smoothing_kernel, smoothing_length = container
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length, kernel_correction_coefficient, dw_gamma,
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+                       kernel_correction_coefficient, dw_gamma,
                        correction)
 end
 
