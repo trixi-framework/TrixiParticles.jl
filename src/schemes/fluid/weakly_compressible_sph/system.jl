@@ -54,7 +54,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         end
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
-        cache = (; kernel_correction_cache(correction, initial_condition.density)..., cache...)
+        cache = (; kernel_correction_cache(correction, initial_condition.density)...,
+                 cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -174,14 +175,16 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
                           v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = system
 
-    kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi, density_calculator,
+    kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
+                           density_calculator,
                            correction)
     compute_pressure!(system, v)
 
     return system
 end
 
-function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi, density_calculator,
+function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
+                                density_calculator,
                                 ::Nothing)
     #skip correction step
     return system

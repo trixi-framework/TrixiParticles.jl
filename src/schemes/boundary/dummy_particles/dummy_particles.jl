@@ -162,7 +162,8 @@ end
     return cache.density[particle]
 end
 
-@inline function particle_density(v, ::SummationDensity, system::BoundaryModelDummyParticles, particle)
+@inline function particle_density(v, ::SummationDensity,
+                                  system::BoundaryModelDummyParticles, particle)
     return system.cache.density[particle]
 end
 
@@ -188,13 +189,13 @@ end
     return boundary_model
 end
 
-function compute_density!(boundary_model, ::Union{ContinuityDensity, AdamiPressureExtrapolation},
-    system, system_index, v, u, v_ode, u_ode, semi)
-
+function compute_density!(boundary_model,
+                          ::Union{ContinuityDensity, AdamiPressureExtrapolation},
+                          system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function compute_density!(boundary_model, ::SummationDensity,
-                             system, system_index, v, u, v_ode, u_ode, semi)
+                          system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack state_equation, pressure, cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
@@ -225,7 +226,7 @@ function compute_density!(boundary_model, ::SummationDensity,
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
-                             system, system_index, v, u, v_ode, u_ode, semi)
+                           system, system_index, v, u, v_ode, u_ode, semi)
     @unpack state_equation, pressure = boundary_model
 
     for particle in eachparticle(system)
@@ -234,7 +235,7 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
 end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
-                             system, system_index, v, u, v_ode, u_ode, semi)
+                           system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack pressure, state_equation, cache = boundary_model
     @unpack density, volume = cache
