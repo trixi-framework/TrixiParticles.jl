@@ -67,7 +67,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 end
 
 kernel_correction_cache(correction, density) = (;)
-function kernel_correction_cache(::KernelCorrection, density)
+function kernel_correction_cache(::ShepardKernelCorrection, density)
     (; kernel_correction_coefficient=similar(density))
 end
 
@@ -191,7 +191,7 @@ function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
 end
 
 function kernel_correct_density(v, u, system, system_index, u_ode, v_ode, semi,
-                                ::SummationDensity, ::KernelCorrection)
+                                ::SummationDensity, ::ShepardKernelCorrection)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache

@@ -1,6 +1,6 @@
 @doc raw"""
-    KernelCorrection()
-    KernelGradientCorrection()
+    ShepardKernelCorrection()
+    ShepardGradientKernelCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result.
 
@@ -18,4 +18,4 @@ Kernel correction uses Shepard interpolation to obtain a 0-th order accurate res
 # sorted in order of computational cost
 
 # also referred to as 0th order correction (cheapest)
-struct KernelCorrection end
+struct ShepardKernelCorrection end
