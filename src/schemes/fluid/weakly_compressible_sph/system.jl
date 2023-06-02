@@ -215,7 +215,6 @@ function kernel_correct_density(v, u, system, system_index, u_ode, v_ode, semi,
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
-            println(volume)
             kernel_correction_coefficient[particle] += volume *
                                                        smoothing_kernel(system, distance)
         end
