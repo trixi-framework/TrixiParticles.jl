@@ -242,7 +242,7 @@ end
 
 @inline function update!(boundary_model, density_calculator::SummationDensity,
                          system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack cache, state_equation = boundary_model
+    @unpack cache, state_equation, pressure = boundary_model
 
     summation_density!(system, system_index, semi, u, u_ode, cache.density,
                        particles=eachparticle(system))
@@ -254,7 +254,7 @@ end
 
 @inline function update!(boundary_model, density_calculator::ContinuityDensity,
                          system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack state_equation = boundary_model
+    @unpack state_equation, pressure = boundary_model
 
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
