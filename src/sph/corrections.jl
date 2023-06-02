@@ -23,24 +23,24 @@ struct KernelCorrection end
 # also referred to as 0th order correction of scalars and gradients (cheapest)
 struct KernelGradientCorrection end
 
-function cw(container, particle)
-    cw(container, particle, container.correction)
+function kernel_correction_coefficient(container, particle)
+    kernel_correction_coefficient(container, particle, container.correction)
 end
 
-function cw(container, particle, ::Any)
+function kernel_correction_coefficient(container, particle, ::Any)
     #skip
 end
 
-function cw(container, particle, ::Union{KernelCorrection, KernelGradientCorrection})
-    return container.cache.cw[particle]
+function kernel_correction_coefficient(container, particle, ::Union{KernelCorrection, KernelGradientCorrection})
+    return container.cache.kernel_correction_coefficient[particle]
 end
 
 function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
-    @unpack cw = cache
+    @unpack kernel_correction_coefficient = cache
 
-    cw .= zero(eltype(cw))
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
 
     # Use all other containers for the density summation
     @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
@@ -63,7 +63,7 @@ function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, se
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            cw[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
         end
     end
 end
@@ -83,9 +83,9 @@ end
 function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
     @unpack particle_containers, neighborhood_searches = semi
     @unpack cache = container
-    @unpack cw, dw_gamma = cache
+    @unpack kernel_correction_coefficient, dw_gamma = cache
 
-    cw .= zero(eltype(cw))
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
     dw_gamma .= zero(eltype(dw_gamma))
 
     # Use all other containers for the density summation
@@ -109,7 +109,7 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
             m_b = hydrodynamic_mass(neighbor_container, neighbor)
             volume = m_b / rho_b
 
-            cw[particle] += volume * smoothing_kernel(container, distance)
+            kernel_correction_coefficient[particle] += volume * smoothing_kernel(container, distance)
             if distance > sqrt(eps())
                 dw_gamma[:, particle] += volume *
                                          smoothing_kernel_grad(container, pos_diff,
@@ -119,7 +119,7 @@ function kernel_gradient_correct_value(container, container_index, v, u, v_ode, 
     end
 
     for particle in eachparticle(container)
-        dw_gamma[:, particle] ./= cw[particle]
+        dw_gamma[:, particle] ./= kernel_correction_coefficient[particle]
     end
 end
 

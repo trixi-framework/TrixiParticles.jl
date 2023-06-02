@@ -176,9 +176,9 @@ function kernel_correction_cache(::Union{KernelCorrection, KernelGradientCorrect
     (; kernel_correction_coefficient=similar(density))
 end
 
-kernel_gradient_correction_cache(correction, density) = (;)
+kernel_gradient_correction_cache(correction, NDIMS, nparticles) = (;)
 function kernel_gradient_correction_cache(::KernelGradientCorrection, NDIMS, nparticles)
-    dw_gamma = Array{ELTYPE}(undef, NDIMS, nparticles)
+    dw_gamma = Array{Float64}(undef, NDIMS, nparticles)
     (; dw_gamma)
 end
 

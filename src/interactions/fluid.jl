@@ -35,7 +35,7 @@ function interact!(dv, v_particle_container, u_particle_container,
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance,
                                             correction=correction,
-                                            cw=cw(particle_container, particle),
+                                            kernel_correction_coefficient=kernel_correction_coefficient(particle_container, particle),
                                             dw_gamma=dw_gamma(particle_container, particle))
 
         m_b = neighbor_container.mass[neighbor]
