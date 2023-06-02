@@ -50,11 +50,13 @@ gate_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 gate = RectangularShape(fluid_particle_spacing / beta_gate,
                         (gate_layers,
                          round(Int, gate_height / fluid_particle_spacing * beta_gate)),
-                        (gate_position, fluid_particle_spacing / beta_gate),
-                        water_density)
+                        (gate_position, fluid_particle_spacing / beta_gate), water_density)
 
-# No moving boundaries for the relaxing step
-movement_function(coordinates, t) = false
+f_x(t) = 0.0
+f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
+keep_moving(t) = false # No moving boundaries for the relaxing step
+
+move_coordinates = MovementFunction((f_x, f_y), gate.coordinates, keep_moving)
 
 # ==========================================================================================
 # ==== Solid
@@ -127,15 +129,12 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           viscosity=viscosity, acceleration=(0.0, gravity))
 
-boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates,
-                                         boundary_model_tank)
+boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates, boundary_model_tank)
 
-boundary_system_gate = BoundarySPHSystem(gate.coordinates,
-                                         boundary_model_gate,
-                                         movement_function=movement_function)
+boundary_system_gate = BoundarySPHSystem(gate.coordinates, boundary_model_gate,
+                                         move_coordinates=move_coordinates)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
@@ -173,20 +172,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # Run full simulation
 tspan = (0.0, 1.0)
 
-function movement_function(coordinates, t)
-    if t < 0.1
-        particle_spacing = coordinates[2, 2] - coordinates[2, 1]
-        f(t) = -285.115t^3 + 72.305t^2 + 0.1463t + particle_spacing
-        pos_1 = coordinates[2, 1]
-        pos_2 = f(t)
-        diff_pos = pos_2 - pos_1
-        coordinates[2, :] .+= diff_pos
-
-        return true
-    end
-
-    return false
-end
+keep_moving(t) = t < 0.1
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
