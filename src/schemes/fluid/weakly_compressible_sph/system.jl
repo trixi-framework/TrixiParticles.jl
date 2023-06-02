@@ -116,6 +116,10 @@ end
     return system.mass[particle]
 end
 
+@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+    return system.pressure[particle]
+end
+
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
