@@ -34,7 +34,7 @@ struct InitialCondition{ELTYPE, B}
         end
 
         if any(ic -> ic.buffer ≠ nothing, initial_conditions)
-            throw(ArgumentError("only pass `buffer` once"))
+            throw(ArgumentError("You have passed `buffer` before. Please pass `buffer` only here."))
         end
 
         coordinates = hcat((ic.coordinates for ic in initial_conditions)...)

@@ -116,6 +116,10 @@ end
     nparticles(system)
 end
 
+@inline function each_moving_particle(system::BoundarySPHSystem)
+    return Base.OneTo(n_moving_particles(system))
+end
+
 @inline u_nvariables(system::BoundarySPHSystem) = 0
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.

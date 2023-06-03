@@ -85,6 +85,6 @@ end
     @test shape_2.buffer isa SystemBuffer
     @test initial_condition.buffer isa SystemBuffer
 
-    error_str = "only pass `buffer` once"
+    error_str = "You have passed `buffer` before. Please pass `buffer` only here."
     @test_throws ArgumentError(error_str) InitialCondition(shape_1, shape_2)
 end
