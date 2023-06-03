@@ -20,7 +20,12 @@ update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 @inline n_moving_particles(system) = nparticles(system)
 
 @inline eachparticle(system) = Base.OneTo(nparticles(system))
-@inline each_moving_particle(system) = Base.OneTo(n_moving_particles(system))
+
+@inline function each_moving_particle(system)
+    each_moving_particle(system, system.initial_condition.buffer)
+end
+
+@inline each_moving_particle(system, buffer) = Base.OneTo(n_moving_particles(system))
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @inline function extract_svector(A, system, i)

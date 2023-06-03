@@ -1,10 +1,11 @@
-struct InitialCondition{ELTYPE}
+struct InitialCondition{ELTYPE, B}
     coordinates :: Array{ELTYPE, 2}
     velocity    :: Array{ELTYPE, 2}
     mass        :: Array{ELTYPE, 1}
     density     :: Array{ELTYPE, 1}
+    buffer      :: B
 
-    function InitialCondition(coordinates, velocities, masses, densities)
+    function InitialCondition(coordinates, velocities, masses, densities; buffer=nothing)
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
@@ -14,10 +15,16 @@ struct InitialCondition{ELTYPE}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
-        return new{eltype(coordinates)}(coordinates, velocities, masses, densities)
+        (buffer ≠ nothing) && (buffer isa Int) &&
+            (buffer = SystemBuffer(size(coordinates, 2), buffer))
+
+        allocate_buffer!(coordinates, velocity, mass, density, buffer)
+
+        return new{eltype(coordinates),
+                   typeof(buffer)}(coordinates, velocities, masses, densities, buffer)
     end
 
-    function InitialCondition(initial_conditions...)
+    function InitialCondition(initial_conditions...; buffer=nothing)
         NDIMS = size(first(initial_conditions).coordinates, 1)
         if any(ic -> size(ic.coordinates, 1) != NDIMS, initial_conditions)
             throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
@@ -28,8 +35,14 @@ struct InitialCondition{ELTYPE}
         mass = vcat((ic.mass for ic in initial_conditions)...)
         density = vcat((ic.density for ic in initial_conditions)...)
 
+        (buffer ≠ nothing) && (buffer isa Int) &&
+            (buffer = SystemBuffer(size(coordinates, 2), buffer))
+
+        allocate_buffer!(coordinates, velocity, mass, density, buffer)
+
         # TODO: Throw warning when particles are overlapping
-        return new{eltype(coordinates)}(coordinates, velocity, mass, density)
+        return new{eltype(coordinates),
+                   typeof(buffer)}(coordinates, velocity, mass, density, buffer)
     end
 end
 
