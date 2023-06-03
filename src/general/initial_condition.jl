@@ -18,7 +18,10 @@ struct InitialCondition{ELTYPE, B}
         (buffer ≠ nothing) && (buffer isa Int) &&
             (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
-        allocate_buffer!(coordinates, velocity, mass, density, buffer)
+        coordinates, velocities, masses, densities = allocate_buffer(coordinates,
+                                                                     velocities,
+                                                                     masses, densities,
+                                                                     buffer)
 
         return new{eltype(coordinates),
                    typeof(buffer)}(coordinates, velocities, masses, densities, buffer)
@@ -30,6 +33,10 @@ struct InitialCondition{ELTYPE, B}
             throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
         end
 
+        if any(ic -> ic.buffer ≠ nothing, initial_conditions)
+            throw(ArgumentError("only pass `buffer` once"))
+        end
+
         coordinates = hcat((ic.coordinates for ic in initial_conditions)...)
         velocity = hcat((ic.velocity for ic in initial_conditions)...)
         mass = vcat((ic.mass for ic in initial_conditions)...)
@@ -38,7 +45,8 @@ struct InitialCondition{ELTYPE, B}
         (buffer ≠ nothing) && (buffer isa Int) &&
             (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
-        allocate_buffer!(coordinates, velocity, mass, density, buffer)
+        coordinates, velocity, mass, density = allocate_buffer(coordinates, velocity,
+                                                               mass, density, buffer)
 
         # TODO: Throw warning when particles are overlapping
         return new{eltype(coordinates),

@@ -21,11 +21,11 @@ end
     buffer.eachparticle .= new_eachparticle
 end
 
-function allocate_buffer!(coords, velocities, masses, densities, buffer)
-    return coords, velocities, masses, densities, pressure
+function allocate_buffer(coords, velocities, masses, densities, buffer)
+    return coords, velocities, masses, densities
 end
 
-function allocate_buffer!(coordinates, velocity, mass, density, buffer::SystemBuffer)
+function allocate_buffer(coordinates, velocity, mass, density, buffer::SystemBuffer)
     @unpack buffer_size = buffer
 
     coordinates = hcat(coordinates, similar(coordinates, size(coordinates, 1), buffer_size))

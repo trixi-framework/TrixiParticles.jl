@@ -23,7 +23,7 @@ For adding a recess in the particle filled circle or for only drawing the circum
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
 function CircularShape(particle_spacing, R, center_position, density;
-                       shape_type=FillCircle(), init_velocity=(0.0, 0.0))
+                       shape_type=FillCircle(), init_velocity=(0.0, 0.0), buffer=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -45,7 +45,7 @@ function CircularShape(particle_spacing, R, center_position, density;
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    return InitialCondition(coordinates, velocities, masses, densities)
+    return InitialCondition(coordinates, velocities, masses, densities, buffer=buffer)
 end
 
 """
