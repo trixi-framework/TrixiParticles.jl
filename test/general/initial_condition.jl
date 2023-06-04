@@ -82,9 +82,13 @@ end
     @test size(initial_condition.density) == (38 + buffer_particles,)
 
     @test shape_1.buffer == nothing
-    @test shape_2.buffer isa SystemBuffer
-    @test initial_condition.buffer isa SystemBuffer
+    @test shape_2.buffer isa TrixiParticles.SystemBuffer
+    @test initial_condition.buffer isa TrixiParticles.SystemBuffer
 
     error_str = "You have passed `buffer` before. Please pass `buffer` only here."
     @test_throws ArgumentError(error_str) InitialCondition(shape_1, shape_2)
+
+    error_str = "invalid buffer: 1.0 of type Float64"
+    @test_throws ArgumentError(error_str) RectangularShape(0.1, (2, 2), (0, 0), 1.0,
+                                                           buffer=1.0)
 end

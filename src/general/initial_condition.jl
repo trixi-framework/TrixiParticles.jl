@@ -15,8 +15,7 @@ struct InitialCondition{ELTYPE, B}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
-        (buffer ≠ nothing) && (buffer isa Int) &&
-            (buffer = SystemBuffer(size(coordinates, 2), buffer))
+        (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
         coordinates, velocities, masses, densities = allocate_buffer(coordinates,
                                                                      velocities,
@@ -42,8 +41,7 @@ struct InitialCondition{ELTYPE, B}
         mass = vcat((ic.mass for ic in initial_conditions)...)
         density = vcat((ic.density for ic in initial_conditions)...)
 
-        (buffer ≠ nothing) && (buffer isa Int) &&
-            (buffer = SystemBuffer(size(coordinates, 2), buffer))
+        (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
         coordinates, velocity, mass, density = allocate_buffer(coordinates, velocity,
                                                                mass, density, buffer)

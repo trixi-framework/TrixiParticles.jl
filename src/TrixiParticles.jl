@@ -30,7 +30,7 @@ include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
-export InitialCondition, SystemBuffer
+export InitialCondition
 export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity

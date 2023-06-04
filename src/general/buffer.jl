@@ -4,6 +4,10 @@ struct SystemBuffer{}
     buffer_size     :: Int
 
     function SystemBuffer(active_size, buffer_size)
+        if !(buffer_size isa Int)
+            throw(ArgumentError("invalid buffer: $buffer_size of type $(eltype(buffer_size))"))
+        end
+
         active_particle = vcat(trues(active_size), falses(buffer_size))
         eachparticle = collect(1:active_size)
 
