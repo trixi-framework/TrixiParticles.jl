@@ -15,6 +15,7 @@ struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
+    system_indices        :: Dict{System, Int}
     neighborhood_searches :: NS
     damping_coefficient   :: DC
 
@@ -33,12 +34,14 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
                                                           Val(neighborhood_search))
-                               for neighbor in systems)
-                         for system in systems)
+                               for neighbor in systems) for system in systems)
+
+        system_indices = Dict(systems[i] => i for i in eachindex(systems))
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
             typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, damping_coefficient)
+                                                           system_indices, searches,
+                                                           damping_coefficient)
     end
 end
 
@@ -56,6 +59,7 @@ function Base.show(io::IO, semi::Semidiscretization)
 end
 
 # Show used during summary printout
+# TODO: info about number of active and inactive particles
 function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     @nospecialize semi # reduce precompilation time
 
@@ -240,7 +244,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-        # Set velocity and add acceleration for each system
+        # Set velocity for each system
         foreach_enumerate(systems) do (system_index, system)
             du = wrap_u(du_ode, system_index, system, semi)
             v = wrap_v(v_ode, system_index, system, semi)
@@ -266,8 +270,6 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack systems, neighborhood_searches = semi
-
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 

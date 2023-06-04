@@ -1,12 +1,13 @@
-struct InitialCondition{ELTYPE}
+struct InitialCondition{ELTYPE, B}
     coordinates :: Array{ELTYPE, 2}
     velocity    :: Array{ELTYPE, 2}
     mass        :: Array{ELTYPE, 1}
     density     :: Array{ELTYPE, 1}
     pressure    :: Array{ELTYPE, 1}
+    buffer      :: B
 
-    function InitialCondition(coordinates, velocities, masses, densities;
-                              pressure=[])
+    function InitialCondition(coordinates, velocities, masses, densities; pressure=[],
+                              buffer=nothing)
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
@@ -16,14 +17,26 @@ struct InitialCondition{ELTYPE}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
-        return new{eltype(coordinates)}(coordinates, velocities, masses, densities,
-                                        pressure)
+        (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
+
+        coordinates, velocities, masses, densities = allocate_buffer(coordinates,
+                                                                     velocities, masses,
+                                                                     densities, pressure,
+                                                                     buffer)
+
+        return new{eltype(coordinates),
+                   typeof(buffer)}(coordinates, velocities, masses, densities, pressure,
+                                   buffer)
     end
 
-    function InitialCondition(initial_conditions...)
+    function InitialCondition(initial_conditions...; buffer=nothing)
         NDIMS = size(first(initial_conditions).coordinates, 1)
         if any(ic -> size(ic.coordinates, 1) != NDIMS, initial_conditions)
             throw(ArgumentError("all passed initial conditions must have the same dimensionality"))
+        end
+
+        if any(ic -> ic.buffer ≠ nothing, initial_conditions)
+            throw(ArgumentError("You have passed `buffer` before. Please pass `buffer` only here."))
         end
 
         coordinates = hcat((ic.coordinates for ic in initial_conditions)...)
@@ -37,8 +50,14 @@ struct InitialCondition{ELTYPE}
             throw(ArgumentError("all passed initial pressures must have the same length"))
         end
 
+        (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
+
+        coordinates, velocity, mass, density = allocate_buffer(coordinates, velocity,
+                                                               mass, density, buffer)
+
         # TODO: Throw warning when particles are overlapping
-        return new{eltype(coordinates)}(coordinates, velocity, mass, density, pressure)
+        return new{eltype(coordinates),
+                   typeof(buffer)}(coordinates, velocity, mass, density, pressure, buffer)
     end
 end
 
