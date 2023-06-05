@@ -134,16 +134,16 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
                             v_ode, u_ode, semi, t)
     @unpack density_calculator = system
 
-    compute_density(v, u, density_calculator, system, system_index, u_ode, semi)
+    compute_density!(v, u, density_calculator, system, system_index, u_ode, semi)
 
     return system
 end
 
-function compute_density(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
+function compute_density!(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
     #skip
 end
 
-function compute_density(v, u, ::SummationDensity, system, system_index, u_ode, semi)
+function compute_density!(v, u, ::SummationDensity, system, system_index, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack density = cache # Density is in the cache for SummationDensity
