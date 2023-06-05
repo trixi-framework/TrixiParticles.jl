@@ -140,7 +140,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
 end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
-    #skip
+    # No density update with `ContinuityDensity`
 end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
