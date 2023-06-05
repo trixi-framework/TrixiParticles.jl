@@ -225,8 +225,6 @@ function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
     end
 end
 
-compute_density!(system, system_index, semi, u, u_ode, ::ContinuityDensity) = system
-
 function compute_pressure!(system, v)
     @unpack state_equation, pressure = system
 

@@ -160,6 +160,11 @@ function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_o
     return system
 end
 
+@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
+    @unpack smoothing_kernel, smoothing_length = system.boundary_model
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
 function move_boundary_particles!(movement_function, coordinates, t)
     movement_function(coordinates, t)
 end
