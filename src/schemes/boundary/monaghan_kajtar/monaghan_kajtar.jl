@@ -106,3 +106,9 @@ end
     # Nothing to do in the update step
     return boundary_model
 end
+
+@inline function update_density!(boundary_model::BoundaryModelMonaghanKajtar, system, system_index,
+    v, u, v_ode, u_ode, semi)
+    # Nothing to do in the update step
+    return boundary_model
+end
