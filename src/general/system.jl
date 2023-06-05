@@ -3,7 +3,6 @@ abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
-update!(system, system_index, v, u, v_ode, u_ode, semi, t) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(system::System) = eltype(system.initial_condition)

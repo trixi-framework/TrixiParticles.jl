@@ -156,7 +156,7 @@ end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
 @inline function particle_density(v, ::Union{AdamiPressureExtrapolation, SummationDensity},
-                                  system::BoundarySystem, particle)
+                                  system, particle)
     @unpack cache = system.boundary_model
 
     return cache.density[particle]

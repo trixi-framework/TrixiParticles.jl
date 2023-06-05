@@ -101,7 +101,7 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
-@inline function update!(boundary_model::BoundaryModelMonaghanKajtar, system, system_index,
+@inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system, system_index,
                          v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
