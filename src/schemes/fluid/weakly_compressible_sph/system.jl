@@ -176,7 +176,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     @unpack density_calculator, correction = system
 
     kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
-                            density_calculator, correction)
+                           density_calculator, correction)
     compute_pressure!(system, v)
 
     return system
