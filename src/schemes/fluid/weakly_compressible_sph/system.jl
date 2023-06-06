@@ -66,6 +66,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 end
 
 create_cache(::Nothing, density) = (;)
+
 function create_cache(::ShepardKernelCorrection, density)
     (; kernel_correction_coefficient=similar(density))
 end
