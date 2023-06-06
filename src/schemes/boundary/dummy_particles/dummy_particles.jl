@@ -219,9 +219,9 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     @unpack pressure, state_equation, cache = boundary_model
     @unpack volume, density = cache
 
-    density .= zero(eltype(density))
-    volume .= zero(eltype(volume))
-    pressure .= zero(eltype(pressure))
+    set_zero!(density)
+    set_zero!(volume)
+    set_zero!(pressure)
 
     # Use all other systems for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(systems) do (neighbor_system_index,

@@ -1,3 +1,9 @@
+@inline function set_zero!(du)
+    du .= zero(eltype(du))
+
+    return du
+end
+
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included later.
 include("corrections.jl")

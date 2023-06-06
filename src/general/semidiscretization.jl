@@ -284,12 +284,6 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
-@inline function set_zero!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     @unpack systems = semi
 

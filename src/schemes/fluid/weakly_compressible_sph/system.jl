@@ -174,7 +174,7 @@ function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
 
-    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
+    set_zero!(kernel_correction_coefficient)
 
     # Use all other containers for the density summation
     @trixi_timeit timer() "compute density with correction" foreach_enumerate(systems) do (neighbor_system_index,
