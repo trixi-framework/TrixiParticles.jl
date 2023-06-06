@@ -40,14 +40,6 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (tank_width, tank_height), water_density,
                         n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move right boundary
-# Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
-reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
-
-reset_wall!(setup, reset_faces, positions)
-
 # ==========================================================================================
 # ==== Boundary models
 
@@ -63,26 +55,26 @@ particle_containers = (WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
-                                              acceleration=(0.0, gravity)),
-                                              WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
+                                              acceleration=(0.0, -gravity)),
+                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
-                                              acceleration=(0.0, gravity),
-                                              correction=KernelCorrection()),
+                                              acceleration=(0.0, -gravity),
+                                              correction=ShepardKernelCorrection()),
                        WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                  state_equation,
                                                    smoothing_kernel, smoothing_length,
                                                    water_density,
                                               viscosity=viscosity,
                                                    acceleration=(0.0, -gravity),
-                                                   correction=ShepardAkinciFreeSurfaceCorrection()))
+                                                   correction=AkinciFreeSurfaceCorrection()))
 
 function container_to_name(container)
     if container.correction isa Nothing
         return "no_correction"
-    elseif container.correction isa KernelCorrection
-        return "kernel_correction"
+    elseif container.correction isa ShepardKernelCorrection
+        return "shepard_kernel_correction"
     elseif container.correction isa AkinciFreeSurfaceCorrection
         return "akinci_free_surf_correction"
     end
@@ -97,7 +89,11 @@ boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_mode
 for particle_container in particle_containers
 
     # Move right boundary
-    positions = (0, water_width + particle_spacing, 0, 0)
+    # Recompute the new water column width since the width has been rounded in `RectangularTank`.
+    new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+    reset_faces = (false, true, false, false)
+    positions = (0, new_wall_position, 0, 0)
+
     reset_wall!(setup, reset_faces, positions)
 
     semi = Semidiscretization(particle_container, boundary_container,
