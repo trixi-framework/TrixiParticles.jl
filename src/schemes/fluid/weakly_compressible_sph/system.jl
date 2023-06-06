@@ -24,6 +24,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     state_equation     :: SE
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
+    rho0               :: ELTYPE
     viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
     correction         :: COR
@@ -31,7 +32,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
-                                         smoothing_kernel, smoothing_length;
+                                         smoothing_kernel, smoothing_length, rho0;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -60,7 +61,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
+                     smoothing_kernel, smoothing_length, rho0, viscosity, acceleration_,
                      correction, cache)
     end
 end
@@ -86,10 +87,12 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
 
     print(io, "WeaklyCompressibleSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
+    print(io, ", ", system.correction)
     print(io, ", ", system.state_equation)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.rho0)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -103,10 +106,13 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     container.correction |> typeof |> nameof)
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "rho0", container.rho0)
         summary_footer(io)
     end
 end
@@ -161,7 +167,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Nothing,
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Union{Nothing, AkinciiFreeSurfaceCorrection},
                                  density_calculator)
     return system
 end

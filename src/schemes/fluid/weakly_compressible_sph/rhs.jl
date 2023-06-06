@@ -1,19 +1,10 @@
 # Fluid-fluid interaction
-<<<<<<< HEAD:src/interactions/fluid.jl
-function interact!(dv, v_particle_container, u_particle_container,
-                   v_neighbor_container, u_neighbor_container, neighborhood_search,
-                   particle_container::FluidParticleContainer,
-                   neighbor_container::FluidParticleContainer)
-    @unpack density_calculator, state_equation, viscosity, smoothing_length,
-    correction = particle_container
-=======
 function interact!(dv, v_particle_system, u_particle_system,
-                   v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::WeaklyCompressibleSPHSystem,
-                   neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_system
->>>>>>> kernel_correction_summation_density:src/schemes/fluid/weakly_compressible_sph/rhs.jl
+                    v_neighbor_system, u_neighbor_system, neighborhood_search,
+                    particle_system::WeaklyCompressibleSPHSystem,
+                    neighbor_system::WeaklyCompressibleSPHSystem)
+    @unpack density_calculator, state_equation, viscosity, smoothing_length,
+    correction = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -35,7 +26,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # determine correction values
         viscosity_correction, pressure_correction = fluid_corrections(correction,
-                                                                      particle_container,
+                                                                      particle_system,
                                                                       rho_mean)
 
         pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
@@ -45,16 +36,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
         m_b = neighbor_system.mass[neighbor]
         dv_pressure = -m_b *
-<<<<<<< HEAD:src/interactions/fluid.jl
-                      (particle_container.pressure[particle] / rho_a^2 +
-                       neighbor_container.pressure[neighbor] / rho_b^2) * grad_kernel *
+                      (particle_system.pressure[particle] / rho_a^2 +
+                      neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel *
                       pressure_correction
         dv_viscosity = -m_b * pi_ab * grad_kernel * viscosity_correction
-=======
-                      (particle_system.pressure[particle] / rho_a^2 +
-                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
-        dv_viscosity = -m_b * pi_ab * grad_kernel
->>>>>>> kernel_correction_summation_density:src/schemes/fluid/weakly_compressible_sph/rhs.jl
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]

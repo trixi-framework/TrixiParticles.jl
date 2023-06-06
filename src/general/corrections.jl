@@ -29,37 +29,32 @@ as especially for free surfaces.
 
 # sorted in order of computational cost
 
-<<<<<<< HEAD:src/sph/corrections.jl
-# also referred to as 0th order correction (cheapest)
-struct KernelCorrection end
-
-# Use the free surface correction as used in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+# Use the free surface correction as used in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids" (2D: +1-2% computational time)
 struct AkinciFreeSurfaceCorrection end
+
+# also referred to as 0th order correction (2D: +5-6% computational time)
+struct ShepardKernelCorrection end
 
 # number of correction values
 @inline ncvals(::Any) = 3
 
-@inline function fluid_corrections(::AkinciFreeSurfaceCorrection, particle_container,
+@inline function fluid_corrections(::AkinciFreeSurfaceCorrection, particle_system,
                                    rho_mean)
-    return akinci_free_surface_correction(particle_container, rho_mean)
+    return akinci_free_surface_correction(particle_system, rho_mean)
 end
 
-@inline function fluid_corrections(::Any, particle_container, rho_mean)
-    return ones(SVector{ncvals(particle_container), eltype(particle_container)})
+@inline function fluid_corrections(::Any, particle_system, rho_mean)
+    return ones(SVector{ncvals(particle_system), eltype(particle_system)})
 end
 
 # correction term for free surfaces
-@inline function akinci_free_surface_correction(particle_container, rho_mean)
+@inline function akinci_free_surface_correction(particle_system, rho_mean)
     # at a free surface rho_mean < rho0 as such the surface tension and viscosity force are reduced
     # this is an unphysical correlation!
 
     # equation 4 in ref
-    k = particle_container.rho0 / rho_mean
+    k = particle_system.rho0 / rho_mean
 
     # viscosity, pressure, surface_tension
     return k, 1.0, k
 end
-=======
-# Also referred to as 0th order correction (cheapest)
-struct ShepardKernelCorrection end
->>>>>>> kernel_correction_summation_density:src/general/corrections.jl
