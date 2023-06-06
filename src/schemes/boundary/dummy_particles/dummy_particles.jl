@@ -161,11 +161,6 @@ end
     return cache.density[particle]
 end
 
-# @inline function particle_density(v, ::SummationDensity,
-#                                   system::BoundaryModelDummyParticles, particle)
-#     return system.cache.density[particle]
-# end
-
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, system_index, v, u, v_ode, u_ode, semi)
     @unpack pressure, density_calculator = boundary_model
@@ -177,20 +172,22 @@ end
     return boundary_model
 end
 
+function compute_density!(boundary_model,
+                          ::Union{ContinuityDensity, AdamiPressureExtrapolation},
+                          system, system_index, v, u, v_ode, u_ode, semi)
+    # No density update for `ContinuityDensity`.
+    # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
+end
+
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
-                                  system, system_index, v, u, v_ode, u_ode, semi)
+    system, system_index, v, u, v_ode, u_ode, semi)
     @unpack pressure, density_calculator = boundary_model
     @unpack systems, neighborhood_searches = semi
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
-                      u_ode, semi)
+    u_ode, semi)
 
     return boundary_model
-end
-
-function compute_density!(boundary_model,
-                          ::Union{ContinuityDensity, AdamiPressureExtrapolation},
-                          system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function compute_density!(boundary_model, ::SummationDensity,
@@ -210,6 +207,8 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
     end
+
+    return boundary_model
 end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
