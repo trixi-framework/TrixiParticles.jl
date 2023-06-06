@@ -180,12 +180,12 @@ function compute_density!(boundary_model,
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
-    system, system_index, v, u, v_ode, u_ode, semi)
+                                  system, system_index, v, u, v_ode, u_ode, semi)
     @unpack pressure, density_calculator = boundary_model
     @unpack systems, neighborhood_searches = semi
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
-    u_ode, semi)
+                      u_ode, semi)
 
     return boundary_model
 end

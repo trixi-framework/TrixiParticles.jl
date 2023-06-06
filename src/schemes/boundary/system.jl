@@ -139,6 +139,11 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
+@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
+    @unpack smoothing_kernel, smoothing_length = system.boundary_model
+    return kernel(smoothing_kernel, distance, smoothing_length)
+end
+
 function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                             semi, t)
     @unpack coordinates, boundary_model = system
@@ -158,11 +163,6 @@ function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_o
     update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
-end
-
-@inline function smoothing_kernel(system::BoundarySPHSystem, distance)
-    @unpack smoothing_kernel, smoothing_length = system.boundary_model
-    return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
 function move_boundary_particles!(movement_function, coordinates, t)

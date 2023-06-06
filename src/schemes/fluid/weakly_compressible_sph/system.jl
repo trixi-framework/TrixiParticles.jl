@@ -134,16 +134,16 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
                             v_ode, u_ode, semi, t)
     @unpack density_calculator = system
 
-    compute_density!(v, u, density_calculator, system, system_index, u_ode, semi)
+    compute_density!(system, system_index, u, u_ode, semi, density_calculator)
 
     return system
 end
 
-function compute_density!(v, u, ::ContinuityDensity, system, system_index, u_ode, semi)
+function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
     #skip
 end
 
-function compute_density!(v, u, ::SummationDensity, system, system_index, u_ode, semi)
+function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
     @unpack cache = system
     @unpack density = cache # Density is in the cache for SummationDensity
 
@@ -154,22 +154,21 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
                           v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = system
 
-    kernel_correct_density(correction, v, u, system, system_index, v_ode, u_ode, semi,
-                           density_calculator)
+    kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
+                            density_calculator)
     compute_pressure!(system, v)
 
     return system
 end
 
-function kernel_correct_density(::Nothing, v, u, system, system_index, v_ode, u_ode, semi,
-                                density_calculator)
-    #skip correction step
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Nothing,
+                                 density_calculator)
     return system
 end
 
-function kernel_correct_density(::ShepardKernelCorrection, v, u, system, system_index,
-                                v_ode, u_ode, semi,
-                                ::SummationDensity)
+function kernel_correct_density!(system, system_index, v, u,
+                                 v_ode, u_ode, semi, ::ShepardKernelCorrection,
+                                 ::SummationDensity)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
@@ -186,6 +185,7 @@ function kernel_correct_density(::ShepardKernelCorrection, v, u, system, system_
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
