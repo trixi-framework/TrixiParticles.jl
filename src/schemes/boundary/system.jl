@@ -31,7 +31,7 @@ function movement_function(coordinates, t)
 end
 ```
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: BoundarySystem{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, MF} <: System{NDIMS}
     coordinates       :: Array{ELTYPE, 2}
     boundary_model    :: BM
     movement_function :: MF

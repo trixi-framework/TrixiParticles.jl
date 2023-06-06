@@ -1,6 +1,5 @@
 abstract type System{NDIMS} end
 abstract type FluidSystem{NDIMS} <: System{NDIMS} end
-abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 
 initialize!(system, neighborhood_search) = system
 
