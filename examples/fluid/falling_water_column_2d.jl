@@ -28,42 +28,42 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
+tank = RectangularTank(particle_spacing, (water_width, water_height),
+                       (tank_width, tank_height), water_density,
+                       n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move water column
-for i in axes(setup.coordinates, 2)
-    setup.coordinates[:, i] .+= [0.5 * tank_width - 0.5 * water_width, 0.2]
+for i in axes(tank.fluid.coordinates, 2)
+    tank.fluid.coordinates[:, i] .+= [0.5 * tank_width - 0.5 * water_width, 0.2]
 end
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                             tank.boundary.mass, state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              setup.boundary_masses)
+#                                              tank.boundary.mass)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
+                                           smoothing_kernel, smoothing_length,
                                             water_density,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container, boundary_container,
+semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 2.0)

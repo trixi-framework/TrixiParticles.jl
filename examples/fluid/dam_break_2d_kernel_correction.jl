@@ -8,13 +8,12 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+gravity = 9.81
 
 # ==========================================================================================
 # ==== Fluid
 
 particle_spacing = 0.05
-#particle_spacing = 0.01
 
 # Spacing ratio between fluid and boundary particles
 beta = 1
@@ -27,7 +26,7 @@ water_density = 1000.0
 tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 tank_height = 4
 
-sound_speed = 20 * sqrt(9.81 * water_height)
+sound_speed = 20 * sqrt(gravity * water_height)
 
 smoothing_length = 1.15 * particle_spacing
 smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
@@ -52,31 +51,32 @@ reset_wall!(setup, reset_faces, positions)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
+boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
+                                             setup.boundary.mass, state_equation,
                                              SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
 # ==========================================================================================
 # ==== Containers
 
-particle_containers = (FluidParticleContainer(setup, SummationDensity(), state_equation,
+particle_containers = (WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity)),
-                       FluidParticleContainer(setup, SummationDensity(), state_equation,
+                                              WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
                                               smoothing_kernel, smoothing_length,
                                               water_density,
                                               viscosity=viscosity,
                                               acceleration=(0.0, gravity),
                                               correction=KernelCorrection()),
-                       FluidParticleContainer(setup, SummationDensity(), state_equation,
-                                              smoothing_kernel, smoothing_length,
-                                              water_density,
+                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
+                                                 state_equation,
+                                                   smoothing_kernel, smoothing_length,
+                                                   water_density,
                                               viscosity=viscosity,
-                                              acceleration=(0.0, gravity),
-                                              correction=AkinciFreeSurfaceCorrection()))
+                                                   acceleration=(0.0, -gravity),
+                                                   correction=ShepardAkinciFreeSurfaceCorrection()))
 
 function container_to_name(container)
     if container.correction isa Nothing
@@ -89,7 +89,7 @@ function container_to_name(container)
     return "undefined"
 end
 
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
@@ -130,9 +130,8 @@ for particle_container in particle_containers
     positions = (0, tank_width, 0, 0)
     reset_wall!(setup, reset_faces, positions)
 
-    # Run full simulation
-    tspan = (0.0, 5.7 / sqrt(9.81))
-    #tspan = (0.0, 2.5)
+# Run full simulation
+tspan = (0.0, 5.7 / sqrt(9.81))
 
     # Use solution of the relaxing step as initial coordinates
     restart_with!(semi, sol)
