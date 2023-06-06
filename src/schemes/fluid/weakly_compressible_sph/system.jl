@@ -16,7 +16,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
-       FluidSystem{NDIMS}
+       System{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]

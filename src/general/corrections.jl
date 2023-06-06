@@ -29,5 +29,5 @@ as especially for free surfaces.
 
 # sorted in order of computational cost
 
-# also referred to as 0th order correction (cheapest)
+# Also referred to as 0th order correction (cheapest)
 struct ShepardKernelCorrection end
