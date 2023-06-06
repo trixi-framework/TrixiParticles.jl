@@ -154,22 +154,21 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
                           v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = system
 
-    kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
-                           density_calculator, correction)
+    kernel_correct_density(correction, v, u, system, system_index, v_ode, u_ode, semi,
+                           density_calculator)
     compute_pressure!(system, v)
 
     return system
 end
 
-function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
-                                density_calculator,
-                                ::Nothing)
+function kernel_correct_density(::Nothing, v, u, system, system_index, v_ode, u_ode, semi,
+                                density_calculator)
     #skip correction step
     return system
 end
 
-function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
-                                ::SummationDensity, ::ShepardKernelCorrection)
+function kernel_correct_density(::ShepardKernelCorrection, v, u, system, system_index, v_ode, u_ode, semi,
+                                ::SummationDensity)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
@@ -197,11 +196,7 @@ function kernel_correct_density(v, u, system, system_index, v_ode, u_ode, semi,
         end
     end
 
-    for particle in eachparticle(system)
-        corrected_density = particle_density(v, system, particle) /
-                            kernel_correction_coefficient[particle]
-        set_particle_density(particle, v, system, corrected_density)
-    end
+    cache.density ./= kernel_correction_coefficient
 end
 
 function compute_pressure!(system, v)
