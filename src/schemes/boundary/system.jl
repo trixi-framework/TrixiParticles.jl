@@ -146,7 +146,7 @@ end
 
 function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                             semi, t)
-    @unpack coordinates, boundary_model = system
+    @unpack boundary_model = system
 
     update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 

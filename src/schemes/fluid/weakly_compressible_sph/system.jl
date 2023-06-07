@@ -167,9 +167,8 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u,
-                                 v_ode, u_ode, semi, ::ShepardKernelCorrection,
-                                 ::SummationDensity)
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+                                 ::ShepardKernelCorrection, ::SummationDensity)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache

@@ -181,8 +181,7 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack pressure, density_calculator = boundary_model
-    @unpack systems, neighborhood_searches = semi
+    @unpack density_calculator = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                       u_ode, semi)
@@ -192,10 +191,9 @@ end
 
 function compute_density!(boundary_model, ::SummationDensity,
                           system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack state_equation, pressure, cache = boundary_model
-
+    @unpack cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
+
     summation_density!(system, system_index, semi, u, u_ode, density,
                        particles=eachparticle(system))
 end
