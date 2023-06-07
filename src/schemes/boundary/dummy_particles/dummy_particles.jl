@@ -177,6 +177,7 @@ function compute_density!(boundary_model,
                           system, system_index, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`.
     # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
+    return boundary_model
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
