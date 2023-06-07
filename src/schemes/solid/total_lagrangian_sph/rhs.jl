@@ -60,7 +60,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
+    @unpack boundary_model = particle_system
     @unpack state_equation, viscosity, smoothing_length = neighbor_system
+    @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -80,31 +82,18 @@ function interact!(dv, v_particle_system, u_particle_system,
         # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
-
-        # Viscosity
-        v_a = current_velocity(v_particle_system, particle_system, particle)
-        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-        # Flip sign to get the same force as for the fluid-solid direction.
-        v_diff = -(v_a - v_b)
-
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
-
-        pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff, distance,
-                          rho_mean, smoothing_length)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
-        dv_viscosity = -m_a * pi_ab *
-                       smoothing_kernel_grad(neighbor_system, pos_diff, distance)
+        dv_viscosity = viscosity(neighbor_system, particle_system,
+                                 v_neighbor_system, v_particle_system,
+                                 neighbor, particle,
+                                 pos_diff, distance, sound_speed, m_b, m_a)
 
         # Boundary forces
-        dv_boundary = boundary_particle_impact(neighbor, particle,
-                                               v_neighbor_system,
-                                               v_particle_system,
-                                               neighbor_system,
-                                               particle_system,
+        dv_boundary = boundary_particle_impact(neighbor, particle, boundary_model,
+                                               v_neighbor_system, v_particle_system,
+                                               neighbor_system, particle_system,
                                                pos_diff, distance, m_a)
         dv_particle = dv_boundary + dv_viscosity
 
