@@ -45,6 +45,7 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
+export ShepardKernelCorrection
 export nparticles
 
 end # module
