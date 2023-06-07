@@ -149,12 +149,14 @@ function semidiscretize(semi, tspan)
     ELTYPE = eltype(systems[1])
 
     # Initialize all particle systems
-    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(systems)
-        # Get the neighborhood search for this system
-        neighborhood_search = neighborhood_searches[system_index][system_index]
+    @trixi_timeit timer() "initialize particle systems" begin
+        for (system_index, system) in pairs(systems)
+            # Get the neighborhood search for this system
+            neighborhood_search = neighborhood_searches[system_index][system_index]
 
-        # Initialize this system
-        initialize!(system, neighborhood_search)
+            # Initialize this system
+            initialize!(system, neighborhood_search)
+        end
     end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system)
@@ -240,14 +242,15 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-        # Set velocity and add acceleration for each system
-        foreach_enumerate(systems) do (system_index, system)
-            du = wrap_u(du_ode, system_index, system, semi)
-            v = wrap_v(v_ode, system_index, system, semi)
+            # Set velocity and add acceleration for each system
+            foreach_enumerate(systems) do (system_index, system)
+                du = wrap_u(du_ode, system_index, system, semi)
+                v = wrap_v(v_ode, system_index, system, semi)
 
-            @threaded for particle in each_moving_particle(system)
-                # This can be dispatched per system
-                add_velocity!(du, v, particle, system)
+                @threaded for particle in each_moving_particle(system)
+                    # This can be dispatched per system
+                    add_velocity!(du, v, particle, system)
+                end
             end
         end
     end
