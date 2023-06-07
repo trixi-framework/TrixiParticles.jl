@@ -26,24 +26,20 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                       particle_system,
                                                                       rho_mean)
 
-        pi_ab = viscosity(state_equation.sound_speed, v_diff, pos_diff,
-                          distance, rho_mean, smoothing_length)
-
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
         m_a = neighbor_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
-        dv_pressure = -m_b *
+        dv_pressure = pressure_correction * (-m_b *
                       (particle_system.pressure[particle] / rho_a^2 +
-                      neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel *
-                      pressure_correction
+                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
 
-        dv_viscosity = viscosity(particle_system, neighbor_system,
+        dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b) * viscosity_correction
+                                 sound_speed, m_a, m_b)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]

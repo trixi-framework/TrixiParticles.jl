@@ -132,7 +132,7 @@
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
                 if corr isa ShepardKernelCorrection
-                    @test length(container.cache.kernel_correction_coefficient) == size(setup.coordinates, 2)
+                    @test length(system.cache.kernel_correction_coefficient) == size(setup.coordinates, 2)
                 end
             end
         end
@@ -186,7 +186,7 @@
         │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
         │ density calculator: …………………………… SummationDensity                                                 │
-        │ correction method: ……………………………… Nothing                                                     │
+        │ correction method: ……………………………… Nothing                                                          │
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
