@@ -119,10 +119,10 @@ for particle_container in particle_containers
     # become extremely large when fluid particles are very close to boundary particles,
     # and the time integration method interprets this as an instability.
     global sol = solve(ode, RDPK3SpFSAL49(),
-                abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-                reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-                dtmax=1e-2, # Limit stepsize to prevent crashing
-                save_everystep=false, callback=callbacks_relaxation)
+                       abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+                       reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+                       dtmax=1e-2, # Limit stepsize to prevent crashing
+                       save_everystep=false, callback=callbacks_relaxation)
 
     # Move right boundary
     positions = (0, tank_width, 0, 0)
@@ -144,8 +144,8 @@ for particle_container in particle_containers
 
     # See above for an explanation of the parameter choice
     global sol = solve(ode, RDPK3SpFSAL49(),
-                abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-                reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-                dtmax=1e-2, # Limit stepsize to prevent crashing
-                save_everystep=false, callback=callbacks)
+                       abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+                       reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+                       dtmax=1e-2, # Limit stepsize to prevent crashing
+                       save_everystep=false, callback=callbacks)
 end
