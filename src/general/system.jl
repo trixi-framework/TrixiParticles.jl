@@ -76,7 +76,6 @@ end
     @unpack smoothing_kernel, smoothing_length = system
     return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end
-#
 
 # System update orders. This can be dispatched if needed.
 function update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
