@@ -1,8 +1,8 @@
 # Fluid-fluid interaction
 function interact!(dv, v_particle_system, u_particle_system,
-                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                    particle_system::WeaklyCompressibleSPHSystem,
-                    neighbor_system::WeaklyCompressibleSPHSystem)
+                   v_neighbor_system, u_neighbor_system, neighborhood_search,
+                   particle_system::WeaklyCompressibleSPHSystem,
+                   neighbor_system::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, state_equation, viscosity, smoothing_length,
     correction = particle_system
     @unpack sound_speed = state_equation
@@ -33,8 +33,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = neighbor_system.mass[neighbor]
 
         dv_pressure = pressure_correction * (-m_b *
-                      (particle_system.pressure[particle] / rho_a^2 +
-                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
+                       (particle_system.pressure[particle] / rho_a^2 +
+                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
 
         dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,

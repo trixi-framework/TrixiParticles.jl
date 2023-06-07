@@ -54,7 +54,8 @@
                                                                                    density_calculator,
                                                                                    state_equation,
                                                                                    smoothing_kernel,
-                                                                                   smoothing_length, rho0,
+                                                                                   smoothing_length,
+                                                                                   rho0,
                                                                                    acceleration=(0.0))
 
                 error_str2 = "smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"
@@ -62,7 +63,8 @@
                                                                                    density_calculator,
                                                                                    state_equation,
                                                                                    smoothing_kernel2,
-                                                                                   smoothing_length, rho0)
+                                                                                   smoothing_length,
+                                                                                   rho0)
             end
         end
     end
@@ -115,7 +117,8 @@
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
-                                                     smoothing_length, rho0, correction=corr)
+                                                     smoothing_length, rho0,
+                                                     correction=corr)
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == setup
@@ -132,7 +135,8 @@
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
                 if corr isa ShepardKernelCorrection
-                    @test length(system.cache.kernel_correction_coefficient) == size(setup.coordinates, 2)
+                    @test length(system.cache.kernel_correction_coefficient) ==
+                          size(setup.coordinates, 2)
                 end
             end
         end
@@ -153,7 +157,8 @@
                                                                                   density_calculator,
                                                                                   state_equation,
                                                                                   smoothing_kernel,
-                                                                                  smoothing_length, rho0,
+                                                                                  smoothing_length,
+                                                                                  rho0,
                                                                                   acceleration=(0.0))
             end
         end
@@ -178,8 +183,8 @@
                                              state_equation, smoothing_kernel,
                                              smoothing_length, rho0)
 
-                                             show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0], 1000.0) with 2 particles"
-                                             @test repr(system) == show_compact
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0], 1000.0) with 2 particles"
+        @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ WeaklyCompressibleSPHSystem{2}                                                                   │

@@ -16,7 +16,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
-      System{NDIMS}
+       System{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]
@@ -107,7 +107,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
         summary_line(io, "correction method",
-        system.correction |> typeof |> nameof)
+                     system.correction |> typeof |> nameof)
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
@@ -168,7 +168,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Union{Nothing, AkinciFreeSurfaceCorrection},
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+                                 ::Union{Nothing, AkinciFreeSurfaceCorrection},
                                  density_calculator)
     return system
 end

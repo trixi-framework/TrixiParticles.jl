@@ -51,22 +51,24 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
 # ==========================================================================================
 # ==== Containers
 
-particle_containers = (WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
-                                              smoothing_kernel, smoothing_length,
-                                              water_density,
-                                              viscosity=viscosity,
-                                              acceleration=(0.0, -gravity)),
-                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(), state_equation,
-                                              smoothing_kernel, smoothing_length,
-                                              water_density,
-                                              viscosity=viscosity,
-                                              acceleration=(0.0, -gravity),
-                                              correction=ShepardKernelCorrection()),
-                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
-                                                 state_equation,
+particle_containers = (WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
+                                                   state_equation,
                                                    smoothing_kernel, smoothing_length,
                                                    water_density,
-                                              viscosity=viscosity,
+                                                   viscosity=viscosity,
+                                                   acceleration=(0.0, -gravity)),
+                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
+                                                   state_equation,
+                                                   smoothing_kernel, smoothing_length,
+                                                   water_density,
+                                                   viscosity=viscosity,
+                                                   acceleration=(0.0, -gravity),
+                                                   correction=ShepardKernelCorrection()),
+                       WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
+                                                   state_equation,
+                                                   smoothing_kernel, smoothing_length,
+                                                   water_density,
+                                                   viscosity=viscosity,
                                                    acceleration=(0.0, -gravity),
                                                    correction=AkinciFreeSurfaceCorrection()))
 
@@ -126,8 +128,8 @@ for particle_container in particle_containers
     positions = (0, tank_width, 0, 0)
     reset_wall!(setup, reset_faces, positions)
 
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+    # Run full simulation
+    tspan = (0.0, 5.7 / sqrt(9.81))
 
     # Use solution of the relaxing step as initial coordinates
     restart_with!(semi, sol)

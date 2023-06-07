@@ -127,7 +127,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                            ContinuityDensity(), state_equation,
                                            fluid_smoothing_kernel, fluid_smoothing_length,
                                            water_density,
-                                         viscosity=viscosity,
+                                           viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
 # Replace the elastic solid by a boundary for testing purposes.
