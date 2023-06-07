@@ -92,10 +92,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Boundary forces
         dv_boundary = boundary_particle_impact(neighbor, particle, boundary_model,
-                                               v_neighbor_system,
-                                               v_particle_system,
-                                               neighbor_system,
-                                               particle_system,
+                                               v_neighbor_system, v_particle_system,
+                                               neighbor_system, particle_system,
                                                pos_diff, distance, m_a)
         dv_particle = dv_boundary + dv_viscosity
 
