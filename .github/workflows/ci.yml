@@ -25,7 +25,7 @@ jobs:
           version: '1'
       - name: Apply JuliaFormatter and check format
         run: |
-          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
+          julia -e 'using Pkg; Pkg.add(name="JuliaFormatter", version="1.0.32")'
           julia -e 'using JuliaFormatter; !format(".", verbose=true) &&
             error("Code not properly formatted")'
       - name: Build package
