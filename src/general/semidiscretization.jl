@@ -249,7 +249,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 # This can be dispatched per system
                 add_velocity!(du, v, particle, system)
             end
-        end end
+        end
     end
 
     return du_ode
