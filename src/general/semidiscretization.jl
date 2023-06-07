@@ -155,7 +155,7 @@ function semidiscretize(semi, tspan)
 
         # Initialize this system
         initialize!(system, neighborhood_search)
-    end end
+    end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system)
                for system in systems)
