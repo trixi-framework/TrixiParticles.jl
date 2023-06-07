@@ -300,7 +300,6 @@ end
     return cartesian2morton(SVector(cell))
 end
 
-
 mutable struct CellListMapSearch{CL, B}
     cell_list :: CL
     box       :: B

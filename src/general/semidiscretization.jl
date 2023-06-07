@@ -219,8 +219,10 @@ end
 
     range = ranges_u[i]
 
-    @boundscheck begin @assert length(range) ==
-                               u_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                u_nvariables(system) * n_moving_particles(system)
+    end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -234,8 +236,10 @@ end
 
     range = ranges_v[i]
 
-    @boundscheck begin @assert length(range) ==
-                               v_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                v_nvariables(system) * n_moving_particles(system)
+    end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
