@@ -15,8 +15,8 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
-       System{NDIMS}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, COR, C} <:
+      System{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]
@@ -62,11 +62,12 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, rho0, viscosity, acceleration_,
+                     correction,
                      correction, cache)
     end
 end
 
-create_cache(::Union{Nothing, AkinciFreeSurfaceCorrection}, density) = (;)
+create_cache(::Nothing, density) = (;)
 
 function create_cache(::ShepardKernelCorrection, density)
     (; kernel_correction_coefficient=similar(density))
@@ -146,7 +147,8 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v
 end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
-    #skip
+    # No density update with `ContinuityDensity`
+    return system
 end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
@@ -167,14 +169,13 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Union{Nothing, AkinciFreeSurfaceCorrection},
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Nothing,
                                  density_calculator)
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u,
-                                 v_ode, u_ode, semi, ::ShepardKernelCorrection,
-                                 ::SummationDensity)
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+                                 ::ShepardKernelCorrection, ::SummationDensity)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache

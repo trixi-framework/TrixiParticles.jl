@@ -77,21 +77,6 @@ end
 # neighborhood search, anyway.
 @inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
 
-# Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
-# this is also used by the `TotalLagrangianSPHSystem`.
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
-    @unpack boundary_model = boundary_system
-
-    boundary_particle_impact(particle, boundary_particle,
-                             boundary_model,
-                             v_particle_system, v_boundary_system,
-                             particle_system, boundary_system,
-                             pos_diff, distance, m_b)
-end
-
 @inline function nparticles(system::BoundarySPHSystem)
     length(system.boundary_model.hydrodynamic_mass)
 end
@@ -146,7 +131,7 @@ end
 
 function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                             semi, t)
-    @unpack coordinates, boundary_model = system
+    @unpack boundary_model = system
 
     update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 

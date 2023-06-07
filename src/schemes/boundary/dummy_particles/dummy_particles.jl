@@ -65,26 +65,27 @@ We provide three options to compute the boundary density and pressure, determine
   In: Computers, Materials and Continua 5 (2007), pages 173-184.
   [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
-struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, C}
+struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
+    viscosity          :: V
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length)
+                                         smoothing_length; viscosity=NoViscosity())
         pressure = similar(initial_density)
 
         cache = create_cache(initial_density, density_calculator)
 
         new{eltype(initial_density), typeof(state_equation),
-            typeof(density_calculator), typeof(smoothing_kernel),
+            typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
             typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
-                           smoothing_kernel, smoothing_length, cache)
+                           smoothing_kernel, smoothing_length, viscosity, cache)
     end
 end
 
@@ -177,12 +178,12 @@ function compute_density!(boundary_model,
                           system, system_index, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`.
     # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
+    return boundary_model
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack pressure, density_calculator = boundary_model
-    @unpack systems, neighborhood_searches = semi
+    @unpack density_calculator = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                       u_ode, semi)
@@ -192,10 +193,9 @@ end
 
 function compute_density!(boundary_model, ::SummationDensity,
                           system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack state_equation, pressure, cache = boundary_model
-
+    @unpack cache = boundary_model
     @unpack density = cache # Density is in the cache for SummationDensity
+
     summation_density!(system, system_index, semi, u, u_ode, density,
                        particles=eachparticle(system))
 end
