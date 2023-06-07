@@ -141,6 +141,7 @@ end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
+    return system
 end
 
 function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
