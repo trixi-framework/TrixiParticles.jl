@@ -87,7 +87,7 @@ boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_mode
 
 # ==========================================================================================
 # ==== Simulation
-
+sol = nothing
 for particle_container in particle_containers
 
     # Move right boundary
@@ -118,7 +118,7 @@ for particle_container in particle_containers
     # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
     # become extremely large when fluid particles are very close to boundary particles,
     # and the time integration method interprets this as an instability.
-    sol = solve(ode, RDPK3SpFSAL49(),
+    global sol = solve(ode, RDPK3SpFSAL49(),
                 abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
                 reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
                 dtmax=1e-2, # Limit stepsize to prevent crashing
@@ -143,7 +143,7 @@ for particle_container in particle_containers
     callbacks = CallbackSet(info_callback, saving_callback)
 
     # See above for an explanation of the parameter choice
-    sol = solve(ode, RDPK3SpFSAL49(),
+    global sol = solve(ode, RDPK3SpFSAL49(),
                 abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
                 reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
                 dtmax=1e-2, # Limit stepsize to prevent crashing
