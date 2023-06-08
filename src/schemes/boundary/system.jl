@@ -63,7 +63,7 @@ end
     boolean return value is mandatory to determines if the neighborhood search will be updated.
 
 
-In the example below `move_coordinates` desribes two particles moving in a circle as long as
+In the example below `move_coordinates` describes two particles moving in a circle as long as
 the time is lower than `1.5`.
 
 # Examples
