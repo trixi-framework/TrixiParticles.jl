@@ -124,21 +124,6 @@ function (move_coordinates!::Nothing)(system, t)
     return system
 end
 
-# Note that we don't dispatch by `BoundarySPHSystem{BoundaryModel}` here because
-# this is also used by the `TotalLagrangianSPHSystem`.
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
-    @unpack boundary_model = boundary_system
-
-    boundary_particle_impact(particle, boundary_particle,
-                             boundary_model,
-                             v_particle_system, v_boundary_system,
-                             particle_system, boundary_system,
-                             pos_diff, distance, m_b)
-end
-
 @inline function nparticles(system::BoundarySPHSystem)
     length(system.boundary_model.hydrodynamic_mass)
 end
@@ -212,6 +197,13 @@ function update_positions!(system::BoundarySPHSystem, system_index, v, u, v_ode,
     @unpack move_coordinates! = system
 
     move_coordinates!(system, t)
+end
+
+function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
+                            semi, t)
+    @unpack boundary_model = system
+
+    update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -221,7 +213,7 @@ end
 function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
     @unpack boundary_model = system
 
-    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
 end
