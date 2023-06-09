@@ -1,4 +1,23 @@
-# Fluid-fluid interaction
+"""
+    interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
+              u_neighbor_system, neighborhood_search, particle_system,
+              neighbor_system)
+
+Update the velocity differentials `dv` for interacting particles in a WeaklyCompressibleSPHSystem.
+
+This function computes the interactions between particles and their neighbors within the kernel cutoff
+and updates the `dv` array accordingly. It takes into account pressure forces, viscosity, and
+for 'ContinuityDensity' updates the density using the continuity equation.
+
+# Arguments
+- `dv`: Array of velocity differentials to be updated.
+- `particle_system`: A WeaklyCompressibleSPHSystem object.
+- `neighbor_system`: A WeaklyCompressibleSPHSystem object including the same system.
+
+# Return
+- Updated `dv` array.
+
+"""
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
@@ -20,12 +39,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
         m_a = neighbor_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
+        # Pressure forces
         dv_pressure = -m_b *
                       (particle_system.pressure[particle] / rho_a^2 +
                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
@@ -48,18 +67,36 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+"""
+    continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
+                         particle, neighbor, pos_diff, distance, particle_system, neighbor_system)
+
+Use the continuity equation to update the density.
+
+# Arguments
+- `dv`: Array of velocity differentials to be updated with the density saved at NDIMS+1.
+- `particle`: Index of the current particle.
+- `neighbor`: Index of the neighbor particle.
+- `pos_diff`: Difference in positions between the target particle and the neighbor particle.
+- `distance`: Distance between the current particle and the neighbor particle.
+
+# Return
+- Updated `dv` array.
+
+"""
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system)
-    mass = hydrodynamic_mass(neighbor_system, neighbor)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_system, pos_diff,
-                                                         distance))
+
+    dv[ndims(particle_system) + 1, particle] += m_b * dot(vdiff,
+                                                    smoothing_kernel_grad(particle_system,
+                                                                          pos_diff,
+                                                                          distance))
 
     return dv
 end
@@ -68,10 +105,32 @@ end
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system, neighbor_system)
+    # Density for summation density is updated in one of the updates of semidiscretization->update_systems_and_nhs()
     return dv
 end
 
 # Fluid-boundary and fluid-solid interaction
+
+"""
+    interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
+              u_neighbor_system, neighborhood_search, particle_system,
+              neighbor_system)
+
+Update the velocity differentials `dv` for interacting particles in a WeaklyCompressibleSPHSystem
+and either a BoundarySPHSystem or TotalLagrangianSPHSystem.
+This function computes the interactions between particles and their neighbors within the kernel
+cutoff and updates the `dv` array accordingly. It takes into account viscosity and boundary
+forces as well as for 'ContinuityDensity' updates the density using the continuity equation.
+
+# Arguments
+- `dv`: Array of velocity differentials to be updated.
+- `particle_system`: A WeaklyCompressibleSPHSystem object.
+- `neighbor_system`: Either a BoundarySPHSystem or TotalLagrangianSPHSystem.
+
+# Return
+- Updated `dv` array.
+
+"""
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
