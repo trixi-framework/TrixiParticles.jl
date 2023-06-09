@@ -118,6 +118,7 @@ end
 
 Update the velocity differentials `dv` for interacting particles in a WeaklyCompressibleSPHSystem
 and either a BoundarySPHSystem or TotalLagrangianSPHSystem.
+
 This function computes the interactions between particles and their neighbors within the kernel
 cutoff and updates the `dv` array accordingly. It takes into account viscosity and boundary
 forces as well as for 'ContinuityDensity' updates the density using the continuity equation.

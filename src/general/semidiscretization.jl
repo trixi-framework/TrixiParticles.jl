@@ -287,6 +287,25 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
+"""
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
+
+Update the systems and neighborhood search (NHS) for a simulation at time `t`.
+
+This function performs the necessary updates for the particle systems and the neighborhood search.
+It consists of several steps: updating the positions of the systems, updating the NHS, updating quantities
+such as density and pressure, performing correction and pressure calculations, and finalizing the updates.
+
+# Arguments
+- `v_ode`: Velocity ODE system.
+- `u_ode`: Coordinate ODE system.
+- `semi`: Semidiscretization.
+- `t`: Current time of the simulation.
+
+# Return
+- None.
+
+"""
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     @unpack systems = semi
 
