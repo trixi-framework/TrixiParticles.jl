@@ -43,9 +43,7 @@ function setup_simulation()
     # Move right boundary
     # Recompute the new water column width since the width has been rounded in `RectangularTank`.
     new_wall_position = (tank.n_particles_per_dimension[1] + 1) * PARTICLE_SPACING
-    reset_faces = (false, true, false, false)
-    positions = (0, new_wall_position, 0, 0)
-    reset_wall!(tank, reset_faces, positions)
+    move_wall(tank, new_wall_position)
 
     boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                                  tank.boundary.mass, state_equation,
@@ -62,6 +60,12 @@ function setup_simulation()
     bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
     return fluid_system, bnd_system, tank
+end
+
+function move_wall(tank, new_wall_position)
+    reset_faces = (false, true, false, false)
+    positions = (0, new_wall_position, 0, 0)
+    reset_wall!(tank, reset_faces, positions)
 end
 
 """
@@ -93,9 +97,7 @@ semi = Semidiscretization(fluid_system, bnd_system,
 sol_relaxation = run(semi, tspan_relaxation, "relaxation")
 
 # Move right boundary
-reset_faces = (false, true, false, false)
-positions = (0, tank.tank_size[1], 0, 0)
-reset_wall!(tank, reset_faces, positions)
+move_wall(tank, tank.tank_size[1])
 
 restart_with!(semi, sol_relaxation)
 # Run full simulation
