@@ -33,6 +33,7 @@ jobs:
       - name: Run unit tests
         uses: julia-actions/julia-runtest@v1
         with:
+          annotate: true
           coverage: true
         env:
           TRIXIPARTICLES_TEST: unit
