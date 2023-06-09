@@ -8,7 +8,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+const gravity = 9.81
+const athmospheric_pressure = 100000.0
 
 # ==========================================================================================
 # ==== Fluid
@@ -23,16 +24,17 @@ water_width = 2.0
 water_height = 1.0
 water_density = 1000.0
 
+# Tank properties
 tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 tank_height = 4
 
-sound_speed = 20 * sqrt(9.81 * water_height)
+sound_speed = 20 * sqrt(gravity * water_height)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
+state_equation = StateEquationCole(sound_speed, 7, water_density, athmospheric_pressure,
+                                   background_pressure=athmospheric_pressure)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
@@ -66,7 +68,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           acceleration=(0.0, -gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
@@ -103,7 +105,7 @@ positions = (0, tank_width, 0, 0)
 reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
