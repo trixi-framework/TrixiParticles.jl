@@ -10,6 +10,19 @@ equation of state (see  [`StateEquationCole`](@ref)) that generates large pressu
 for small density variations. For the choice of the appropriate `density_calculator`
 see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
+# Arguments
+- `initial_condition`: Initial condition representing the system's particles.
+- `density_calculator`: Density calculator for the SPH system.
+- `state_equation`: Equation of state for the SPH system.
+- `viscosity`: Viscosity model for the SPH system. (default: `NoViscosity()`)
+- `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
+- `correction`: Correction method used for this SPH system. (default: `nothing`)
+
+# Fields
+- `mass`: Array of masses of the particles.
+- `pressure`: Array of pressures of the particles.
+- `cache`: Cache for storing optional values that depend on the selection of some model or method.
+
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
   In: Journal of Computational Physics 110 (1994), pages 399-406.

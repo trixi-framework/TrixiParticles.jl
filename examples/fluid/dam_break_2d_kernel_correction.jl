@@ -100,6 +100,7 @@ sol_relaxation = run(semi, tspan_relaxation, "relaxation")
 move_wall(tank, tank.tank_size[1])
 
 restart_with!(semi, sol_relaxation)
+
 # Run full simulation
 tspan = (0.0, 5.7 / sqrt(GRAVITY))
 sol = run(semi, tspan, "simulation")
