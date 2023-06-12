@@ -27,27 +27,24 @@ as especially for free surfaces.
   [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
 """
 
-# sorted in order of computational cost
+# Sorted in order of computational cost
 
 # Use the free surface correction as used in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids" (2D: +1-2% computational time)
 struct AkinciFreeSurfaceCorrection end
 
-# also referred to as 0th order correction (2D: +5-6% computational time)
+# Also referred to as 0th order correction (2D: +5-6% computational time)
 struct ShepardKernelCorrection end
-
-# number of correction values
-@inline ncvals(::Any) = 3
 
 @inline function fluid_corrections(::AkinciFreeSurfaceCorrection, particle_system,
                                    rho_mean)
     return akinci_free_surface_correction(particle_system, rho_mean)
 end
 
-@inline function fluid_corrections(::Any, particle_system, rho_mean)
-    return ones(SVector{ncvals(particle_system), eltype(particle_system)})
+@inline function fluid_corrections(correction, particle_system, rho_mean)
+    return ones(SVector{3, eltype(particle_system)})
 end
 
-# correction term for free surfaces
+# Correction term for free surfaces
 @inline function akinci_free_surface_correction(particle_system, rho_mean)
     # at a free surface rho_mean < rho0 as such the surface tension and viscosity force are reduced
     # this is an unphysical correlation!
