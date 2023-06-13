@@ -2,9 +2,10 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
-                   neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_system
+                   neighbor_system::Union{WeaklyCompressibleSPHSystem,
+                                          OpenBoundarySPHSystem})
+    @unpack density_calculator, state_equation, smoothing_length = particle_system
+    @unpack viscosity = neighbor_system
     @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -23,7 +24,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-        m_a = neighbor_system.mass[particle]
+        m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_pressure = -m_b *

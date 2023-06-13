@@ -60,7 +60,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size,
-                             fluid_density; pressure=[],
+                             fluid_density; pressure=[], buffer=nothing,
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(4)))
         if particle_spacing < eps()
@@ -128,7 +128,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         fluid = InitialCondition(particle_coordinates, particle_velocities,
-                                 particle_masses, particle_densities, pressure=pressure)
+                                 particle_masses, particle_densities, pressure=pressure,
+                                 buffer=buffer)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities, pressure=pressure)
@@ -140,7 +141,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     end
 
     function RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size,
-                             fluid_density; pressure=[],
+                             fluid_density; pressure=[], buffer=nothing,
                              n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
                              boundary_density=fluid_density, faces=Tuple(trues(6)))
         NDIMS = 3
@@ -213,7 +214,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
         fluid = InitialCondition(particle_coordinates, particle_velocities,
-                                 particle_masses, particle_densities, pressure=pressure)
+                                 particle_masses, particle_densities, pressure=pressure,
+                                 buffer=buffer)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities, pressure=pressure)

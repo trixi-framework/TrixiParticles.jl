@@ -66,6 +66,10 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
+@inline function initial_velocity(system, particle)
+    extract_svector(system.initial_condition.velocity, system, particle)
+end
+
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
 @inline function smoothing_kernel(system, distance)

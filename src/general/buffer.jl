@@ -25,19 +25,23 @@ end
     buffer.eachparticle .= new_eachparticle
 end
 
-function allocate_buffer(coords, velocities, masses, densities, buffer)
-    return coords, velocities, masses, densities
+function allocate_buffer(coords, velocities, masses, densities, pressure, buffer)
+    return coords, velocities, masses, densities, pressure
 end
 
-function allocate_buffer(coordinates, velocity, mass, density, buffer::SystemBuffer)
+function allocate_buffer(coordinates, velocity, mass, density, pressure,
+                         buffer::SystemBuffer)
     @unpack buffer_size = buffer
 
-    coordinates = hcat(coordinates, similar(coordinates, size(coordinates, 1), buffer_size))
-    velocity = hcat(velocity, similar(velocity, size(velocity, 1), buffer_size))
+    # TODO_open_boundary
+    coordinates = hcat(coordinates, rand(10.0:0.05:50.0, size(coordinates, 1), buffer_size))
+    velocity = hcat(velocity, rand(10.0:0.05:50.0, size(velocity, 1), buffer_size))
     mass = mass[1] * ones(eltype(mass), length(mass) + buffer_size)
     density = density[1] * ones(eltype(density), length(density) + buffer_size)
+    !isempty(pressure) &&
+        (pressure = pressure[1] * ones(eltype(pressure), length(pressure) + buffer_size))
 
-    return coordinates, velocity, mass, density
+    return coordinates, velocity, mass, density, pressure
 end
 
 @inline function each_moving_particle(system, buffer::SystemBuffer)

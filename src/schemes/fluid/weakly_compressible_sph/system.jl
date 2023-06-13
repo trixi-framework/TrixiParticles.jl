@@ -116,7 +116,7 @@ end
     return system.mass[particle]
 end
 
-@inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
+@inline function particle_pressure(v, system::FluidSystem, particle)
     return system.pressure[particle]
 end
 

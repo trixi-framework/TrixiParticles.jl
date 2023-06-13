@@ -4,7 +4,7 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
-using LinearAlgebra: norm, dot, I, tr
+using LinearAlgebra: norm, normalize, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
@@ -32,7 +32,7 @@ include("visualization/write2vtk.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPH, TotalLagrangianSPHSystem,
-       BoundarySPHSystem
+       BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller

@@ -19,10 +19,12 @@ struct InitialCondition{ELTYPE, B}
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
-        coordinates, velocities, masses, densities = allocate_buffer(coordinates,
-                                                                     velocities, masses,
-                                                                     densities, pressure,
-                                                                     buffer)
+        coordinates, velocities, masses, densities, pressure = allocate_buffer(coordinates,
+                                                                               velocities,
+                                                                               masses,
+                                                                               densities,
+                                                                               pressure,
+                                                                               buffer)
 
         return new{eltype(coordinates),
                    typeof(buffer)}(coordinates, velocities, masses, densities, pressure,
@@ -52,8 +54,10 @@ struct InitialCondition{ELTYPE, B}
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
-        coordinates, velocity, mass, density = allocate_buffer(coordinates, velocity,
-                                                               mass, density, buffer)
+        coordinates, velocity, mass, density, pressure = allocate_buffer(coordinates,
+                                                                         velocity,
+                                                                         mass, density,
+                                                                         pressure, buffer)
 
         # TODO: Throw warning when particles are overlapping
         return new{eltype(coordinates),

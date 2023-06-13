@@ -96,6 +96,11 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem, neighbor)
+    @unpack smoothing_kernel, smoothing_length = system.interior_system
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
 @inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
