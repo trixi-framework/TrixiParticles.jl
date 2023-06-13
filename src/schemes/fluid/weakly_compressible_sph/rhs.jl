@@ -23,8 +23,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # determine correction values
         viscosity_correction, pressure_correction = free_surface_correction(correction,
-                                                                      particle_system,
-                                                                      rho_mean)
+                                                                            particle_system,
+                                                                            rho_mean)
 
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)

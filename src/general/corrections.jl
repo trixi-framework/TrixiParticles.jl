@@ -42,8 +42,9 @@ end
 # Also referred to as 0th order correction (2D: +5-6% computational time)
 struct ShepardKernelCorrection end
 
-@inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection, particle_system,
-                                   rho_mean)
+@inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
+                                         particle_system,
+                                         rho_mean)
     return akinci_free_surface_correction(correction.rho0, rho_mean)
 end
 
