@@ -29,7 +29,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-        m_a = neighbor_system.mass[particle]
+        m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_pressure = pressure_correction * (-m_b *
