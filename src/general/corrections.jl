@@ -31,7 +31,7 @@ as especially for free surfaces.
 
 # Use the free surface correction as used in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids" (2D: +1-2% computational time)
 struct AkinciFreeSurfaceCorrection{ELTYPE}
-    rho0               :: ELTYPE
+    rho0::ELTYPE
 
     function AkinciFreeSurfaceCorrection(rho0)
         ELTYPE = eltype(rho0)
