@@ -24,7 +24,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     state_equation     :: SE
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    rho0               :: ELTYPE
     viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
     correction         :: COR
@@ -32,7 +31,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
-                                         smoothing_kernel, smoothing_length, rho0;
+                                         smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -61,7 +60,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, rho0, viscosity, acceleration_,
+                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
                      correction, cache)
     end
 end
@@ -92,7 +91,6 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.acceleration)
-    print(io, ", ", system.rho0)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -112,7 +110,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "acceleration", system.acceleration)
-        summary_line(io, "rho0", system.rho0)
         summary_footer(io)
     end
 end

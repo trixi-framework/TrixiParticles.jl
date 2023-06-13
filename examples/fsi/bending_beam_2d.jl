@@ -126,7 +126,6 @@ solid_system = TotalLagrangianSPHSystem(solid,
 fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                            ContinuityDensity(), state_equation,
                                            fluid_smoothing_kernel, fluid_smoothing_length,
-                                           water_density,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 

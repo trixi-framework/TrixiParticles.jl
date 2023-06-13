@@ -54,23 +54,20 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
 particle_containers = (WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length,
-                                                   water_density,
                                                    viscosity=viscosity,
                                                    acceleration=(0.0, -gravity)),
                        WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length,
-                                                   water_density,
                                                    viscosity=viscosity,
                                                    acceleration=(0.0, -gravity),
                                                    correction=ShepardKernelCorrection()),
                        WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length,
-                                                   water_density,
                                                    viscosity=viscosity,
                                                    acceleration=(0.0, -gravity),
-                                                   correction=AkinciFreeSurfaceCorrection()))
+                                                   correction=AkinciFreeSurfaceCorrection(water_density)))
 
 function container_to_name(container)
     if container.correction isa Nothing
