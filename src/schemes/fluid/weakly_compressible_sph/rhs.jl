@@ -21,7 +21,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
-        # determine correction values
+        # Determine correction values
         viscosity_correction, pressure_correction = free_surface_correction(correction,
                                                                             particle_system,
                                                                             rho_mean)
