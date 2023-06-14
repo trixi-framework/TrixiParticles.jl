@@ -2,8 +2,9 @@
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPH,
-                   neighbor_system::Union{EntropicallyDampedSPH, BoundarySPHSystem})
-    @unpack viscosity, sound_speed, smoothing_length = particle_system
+                   neighbor_system)#::Union{EntropicallyDampedSPH, BoundarySPHSystem})
+    @unpack sound_speed, smoothing_length = particle_system
+    viscosity = viscosity_function(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -85,3 +86,6 @@ end
 
     return dv
 end
+
+@inline viscosity_function(system) = system.viscosity
+@inline viscosity_function(system::BoundarySPHSystem) = system.boundary_model.viscosity

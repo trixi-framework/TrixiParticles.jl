@@ -102,9 +102,16 @@ end
 @inline function particle_density(v, system::EntropicallyDampedSPH, particle)
     return system.density[particle]
 end
+@inline function set_particle_density(particle, v, system::EntropicallyDampedSPH, density)
+    system.density[particle] = density
+end
 
 @inline function particle_pressure(v, system::EntropicallyDampedSPH, particle)
     return v[end, particle]
+end
+
+@inline function set_particle_pressure(particle, v, system::EntropicallyDampedSPH, pressure)
+    return v[end, particle] = pressure
 end
 
 @inline function v_nvariables(system::EntropicallyDampedSPH)
