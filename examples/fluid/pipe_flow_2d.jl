@@ -15,7 +15,6 @@ particle_spacing = 0.01 * domain_length
 water_density = 1000.0
 pressure = 0.0
 
-flow_direction = 1 # 1: x, 2: y
 prescribed_velocity = (0.1, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
@@ -61,9 +60,10 @@ outflow = RectangularShape(particle_spacing, (open_bounary_cols, n_particles_y),
                            buffer=n_buffer_particles,
                            init_velocity=prescribed_velocity, pressure=pressure)
 
-# First entry is in down stream direction
+# First vector is in down stream direction
 zone_points_in = ([end_inflow_zone; 0.0], [end_inflow_zone; height_open_boundary])
 zone_points_out = ([end_outflow_zone; 0.0], [end_outflow_zone; height_open_boundary])
+
 # ==========================================================================================
 # ==== Boundary
 n_boundary_particles_x = n_particles_x + 2 * (open_bounary_cols + 1) + 10
@@ -77,7 +77,7 @@ top_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, boundary_
                              n_particles_y * particle_spacing), water_density)
 boundary = InitialCondition(bottom_wall, top_wall)
 
-wall_viscosity = ViscousInteractionAdami(0.1)
+wall_viscosity = ViscousInteractionAdami(1e-5)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -92,7 +92,7 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
+                                           #viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
@@ -108,15 +108,15 @@ boundary_system = BoundarySPHSystem(boundary.coordinates, boundary_model)
 
 semi = Semidiscretization(fluid_system,
                           open_boundary_in,
-                          #open_boundary_out,
+                          open_boundary_out,
                           boundary_system,
                           neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 0.1)
+tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(interval=1)
+saving_callback = SolutionSavingCallback(interval=10)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

@@ -125,11 +125,11 @@ end
 end
 
 @inline function viscous_velocity(v, ::ViscousInteractionAdami, system, particle)
-    return extract_svector(system.cache.velocity, system, particle)
+    return extract_svector(system.boundary_model.cache.velocity, system, particle)
 end
 
 @inline function viscous_velocity(v, viscosity, system, particle)
-    return current_velocity(v, system::BoundarySPHSystem, particle)
+    return current_velocity(v, system, particle)
 end
 
 @inline function particle_density(v, system::BoundarySPHSystem, particle)

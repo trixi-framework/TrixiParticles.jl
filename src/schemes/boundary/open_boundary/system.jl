@@ -43,7 +43,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
             zone[:, dim] .= zone_points[dim] - zone_origin_
         end
 
-        unit_normal_ = SVector{NDIMS}(normalize(zone[1, :]))
+        unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE,
                    typeof(viscosity)}(initial_condition, mass, volume, density, pressure,
@@ -249,10 +249,10 @@ end
 
     for particle in each_moving_particle(system)
         density[particle] = initial_condition.density[particle] +
-                            (-characteristics[1, particle] +
-                             0.5 *
-                             (characteristics[2, particle] + characteristics[3, particle])) /
-                            sound_speed^2
+                            ((-characteristics[1, particle] +
+                              0.5 *
+                              (characteristics[2, particle] + characteristics[3, particle])) /
+                             sound_speed^2)
         pressure[particle] = initial_condition.pressure[particle] +
                              0.5 *
                              (characteristics[2, particle] + characteristics[3, particle])
@@ -311,11 +311,12 @@ end
         activate_particle!(interior_system, system, particle, v_interior, u_interior, v, u)
 
         # reset position and velocity of particle
-        u_particle = current_coords(u, system, particle)
+        u_particle_ref = current_coords(u, system, particle) -
+                         current_coords(zone, system, 1)
         v_particle_ref = initial_velocity(system, particle)
 
         for dim in 1:ndims(system)
-            u[dim, particle] = u_particle[dim] - zone[1, dim]
+            u[dim, particle] = u_particle_ref[dim]
             v[dim, particle] = v_particle_ref[dim]
         end
 
@@ -347,15 +348,22 @@ end
     # exchange densities
     density = particle_density(v_old, system_old, particle_old)
     set_particle_density(particle_new, v_new, system_new, density)
+    density_ref = system_old.initial_condition.density[particle_old]
+    system_new.initial_condition.density[particle_new] = density_ref
 
     # exchange pressure
     pressure = particle_pressure(v_old, system_old, particle_old)
     set_particle_pressure(particle_new, v_new, system_new, pressure)
+    pressure_ref = system_old.initial_condition.pressure[particle_old]
+    system_new.initial_condition.pressure[particle_new] = pressure_ref
+
+    v_ref_new = initial_velocity(system_old, particle_old)
 
     # exchange position and velocity
     for dim in 1:ndims(system_new)
         u_new[dim, particle_new] = u_old[dim, particle_old]
         v_new[dim, particle_new] = v_old[dim, particle_old]
+        system_new.initial_condition.velocity[dim, particle_new] = v_ref_new[dim]
     end
 
     return system_new

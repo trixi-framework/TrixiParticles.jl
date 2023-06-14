@@ -35,7 +35,7 @@ function allocate_buffer(coordinates, velocity, mass, density, pressure,
 
     # TODO_open_boundary
     coordinates = hcat(coordinates, rand(10.0:0.05:50.0, size(coordinates, 1), buffer_size))
-    velocity = hcat(velocity, rand(10.0:0.05:50.0, size(velocity, 1), buffer_size))
+    velocity = hcat(velocity, rand(100.0:0.05:200.0, size(velocity, 1), buffer_size))
     mass = mass[1] * ones(eltype(mass), length(mass) + buffer_size)
     density = density[1] * ones(eltype(density), length(density) + buffer_size)
     !isempty(pressure) &&
