@@ -23,7 +23,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-        m_a = neighbor_system.mass[particle]
+        m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_pressure = -m_b *
@@ -102,10 +102,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # Boundary forces
         dv_boundary = boundary_particle_impact(particle, neighbor, boundary_model,
-                                               v_particle_system,
-                                               v_neighbor_system,
-                                               particle_system,
-                                               neighbor_system,
+                                               v_particle_system, v_neighbor_system,
+                                               particle_system, neighbor_system,
                                                pos_diff, distance, m_b)
 
         for i in 1:ndims(particle_system)

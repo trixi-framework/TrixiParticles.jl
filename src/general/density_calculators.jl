@@ -54,7 +54,7 @@ function summation_density!(system, system_index, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     @unpack systems, neighborhood_searches = semi
 
-    density .= zero(eltype(density))
+    set_zero!(density)
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute density" foreach_enumerate(systems) do (neighbor_system_index,
