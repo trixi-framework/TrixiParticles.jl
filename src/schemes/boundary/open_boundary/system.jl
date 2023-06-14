@@ -34,7 +34,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
         zone_origin_ = SVector{NDIMS}(zone_origin)
         zone = zeros(NDIMS, NDIMS)
 
-        # TODO either check if the vectores are perpendicular to the faces, or obtain perpendicular
+        # TODO either check if the vectors are perpendicular to the faces, or obtain perpendicular
         # vectors by using the cross-product (?):
         # zone[1, :] = cross(zone[2, :], zone[3, :])
         # zone[2, :] = cross(zone[1, :], zone[3, :])

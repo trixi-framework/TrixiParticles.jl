@@ -38,9 +38,9 @@ fluid = RectangularShape(particle_spacing, (n_particles_x, n_particles_y), (0.0,
 
 # ==========================================================================================
 # ==== Open Boundary
-open_bounary_cols = 4
+open_boundary_cols = 4
 
-length_open_boundary = particle_spacing * open_bounary_cols
+length_open_boundary = particle_spacing * open_boundary_cols
 height_open_boundary = particle_spacing * n_particles_y
 
 end_inflow_zone = 0.0 - particle_spacing / 2
@@ -51,11 +51,11 @@ end_outflow_zone = start_outflow_zone + length_open_boundary
 zone_origin_in = (end_inflow_zone - length_open_boundary, 0.0)
 zone_origin_out = ((start_outflow_zone - particle_spacing / 2), 0.0)
 
-inflow = RectangularShape(particle_spacing, (open_bounary_cols, n_particles_y),
+inflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_y),
                           (-length_open_boundary, 0.0), water_density,
                           buffer=n_buffer_particles,
                           init_velocity=prescribed_velocity, pressure=pressure)
-outflow = RectangularShape(particle_spacing, (open_bounary_cols, n_particles_y),
+outflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_y),
                            (start_outflow_zone, 0.0), water_density,
                            buffer=n_buffer_particles,
                            init_velocity=prescribed_velocity, pressure=pressure)
@@ -66,7 +66,7 @@ zone_points_out = ([end_outflow_zone; 0.0], [end_outflow_zone; height_open_bound
 
 # ==========================================================================================
 # ==== Boundary
-n_boundary_particles_x = n_particles_x + 2 * (open_bounary_cols + 1) + 10
+n_boundary_particles_x = n_particles_x + 2 * (open_boundary_cols + 1) + 10
 boundary_layers = 3
 
 bottom_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, boundary_layers),
