@@ -51,7 +51,8 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
 # ==========================================================================================
 # ==== Containers
 
-correction_list = (Nothing(), ShepardKernelCorrection(), AkinciFreeSurfaceCorrection(water_density))
+correction_list = (Nothing(), ShepardKernelCorrection(),
+                   AkinciFreeSurfaceCorrection(water_density))
 
 function container_to_name(container)
     if container.correction isa Nothing
@@ -70,13 +71,12 @@ boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_mode
 # ==== Simulation
 sol = nothing
 for correction in correction_list
-
     particle_container = WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
-                            state_equation,
-                            smoothing_kernel, smoothing_length,
-                            viscosity=viscosity,
-                            acceleration=(0.0, -gravity),
-                            correction=correction)
+                                                     state_equation,
+                                                     smoothing_kernel, smoothing_length,
+                                                     viscosity=viscosity,
+                                                     acceleration=(0.0, -gravity),
+                                                     correction=correction)
 
     # Move right boundary
     # Recompute the new water column width since the width has been rounded in `RectangularTank`.
