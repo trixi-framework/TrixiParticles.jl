@@ -53,7 +53,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta; epsilon=0.01)
+    function ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -63,7 +63,6 @@ end
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
                                                           distance, sound_speed, m_a, m_b)
-    @unpack alpha, beta, epsilon = viscosity
     @unpack smoothing_length = particle_system
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
@@ -74,21 +73,32 @@ end
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
     rho_mean = (rho_a + rho_b) / 2
 
+    pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, smoothing_length)
+
+    if pi_ab < eps()
+        return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+    end
+
+    return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
+end
+
+@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
+                                                          rho_mean, h)
+    @unpack alpha, beta, epsilon = viscosity
+
     # v_ab ⋅ r_ab
     vr = dot(v_diff, pos_diff)
 
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
     # "In the case of shock tube problems, it is usual to turn the viscosity on for
-    # approaching  particles and turn it off for receding particles. In this way, the
+    # approaching particles and turn it off for receding particles. In this way, the
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
-        mu = smoothing_length * vr / (distance^2 + epsilon * smoothing_length^2)
-        pi_ab = -(alpha * sound_speed * mu + beta * mu^2) / rho_mean
-
-        return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
+        mu = h * vr / (distance^2 + epsilon * h^2)
+        return -(alpha * c * mu + beta * mu^2) / rho_mean
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+    return 0.0
 end
 
 @doc raw"""

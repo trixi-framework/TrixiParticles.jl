@@ -321,7 +321,7 @@ function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_o
     @unpack boundary_model = system
 
     # Only update boundary model
-    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, system)

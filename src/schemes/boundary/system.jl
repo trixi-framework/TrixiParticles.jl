@@ -149,6 +149,15 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
+function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
+                            semi, t)
+    @unpack boundary_model = system
+
+    update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+
+    return system
+end
+
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
 function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
@@ -156,7 +165,7 @@ function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_o
 
     system.ismoving[1] = move_boundary_particles!(movement_function, coordinates, t)
 
-    update!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
     return system
 end
