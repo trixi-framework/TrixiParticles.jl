@@ -41,17 +41,17 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(fluid_particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=tank_layers, spacing_ratio=beta_tank)
+tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
+                       (tank_width, tank_height), water_density,
+                       n_layers=tank_layers, spacing_ratio=beta_tank)
 
-gate_position = (setup.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
+gate_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
 
-setup_gate = RectangularShape(fluid_particle_spacing / beta_gate,
-                              (gate_layers,
-                               round(Int, gate_height / fluid_particle_spacing * beta_gate)),
-                              (gate_position, fluid_particle_spacing / beta_gate),
-                              water_density)
+gate = RectangularShape(fluid_particle_spacing / beta_gate,
+                        (gate_layers,
+                         round(Int, gate_height / fluid_particle_spacing * beta_gate)),
+                        (gate_position, fluid_particle_spacing / beta_gate),
+                        water_density)
 
 # No moving boundaries for the relaxing step
 movement_function(coordinates, t) = false
@@ -85,13 +85,13 @@ fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_per_dimension[1], 1), (0.6, 0.0),
                                    solid_density)
 
-solid = MergeShapes(plate, fixed_particles)
+solid = InitialCondition(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
-                                                  setup.boundary_masses, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
+                                                  tank.boundary.mass, state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel,
                                                   smoothing_length)
@@ -99,14 +99,14 @@ boundary_model_tank = BoundaryModelDummyParticles(setup.boundary_densities,
 # K_tank = 9.81 * water_height
 # boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
 #                                                   fluid_particle_spacing / beta_tank,
-#                                                   setup.boundary_masses)
+#                                                   tank.boundary.mass)
 
 K_gate = 9.81 * water_height
 boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
                                                   fluid_particle_spacing / beta_gate,
-                                                  setup_gate.masses)
+                                                  gate.mass)
 
-hydrodynamic_densites = water_density * ones(size(solid.densities))
+hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
@@ -123,34 +123,32 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 #                                                    hydrodynamic_masses)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            water_density,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
+                                           smoothing_kernel, smoothing_length,
+                                           viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
-boundary_container_tank = BoundaryParticleContainer(setup.boundary_coordinates,
-                                                    boundary_model_tank)
+boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates,
+                                         boundary_model_tank)
 
-boundary_container_gate = BoundaryParticleContainer(setup_gate.coordinates,
-                                                    boundary_model_gate,
-                                                    movement_function=movement_function)
+boundary_system_gate = BoundarySPHSystem(gate.coordinates,
+                                         boundary_model_gate,
+                                         movement_function=movement_function)
 
-solid_container = SolidParticleContainer(solid.coordinates, solid.velocities,
-                                         solid.masses, solid.densities,
-                                         solid_smoothing_kernel, solid_smoothing_length,
-                                         E, nu, boundary_model_solid,
-                                         n_fixed_particles=n_particles_x,
-                                         acceleration=(0.0, gravity))
+solid_system = TotalLagrangianSPHSystem(solid,
+                                        solid_smoothing_kernel, solid_smoothing_length,
+                                        E, nu, boundary_model_solid,
+                                        n_fixed_particles=n_particles_x,
+                                        acceleration=(0.0, gravity))
 
 # ==========================================================================================
 # ==== Simulation
 
 # Relaxing of the fluid without solid
-semi = Semidiscretization(particle_container, boundary_container_tank,
-                          boundary_container_gate,
+semi = Semidiscretization(fluid_system, boundary_system_tank,
+                          boundary_system_gate,
                           neighborhood_search=SpatialHashingSearch)
 
 tspan = (0.0, 3.0)
@@ -193,8 +191,8 @@ end
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
 
-semi = Semidiscretization(particle_container, boundary_container_tank,
-                          boundary_container_gate, solid_container,
+semi = Semidiscretization(fluid_system, boundary_system_tank,
+                          boundary_system_gate, solid_system,
                           neighborhood_search=SpatialHashingSearch)
 
 ode = semidiscretize(semi, tspan)
