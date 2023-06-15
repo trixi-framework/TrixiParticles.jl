@@ -45,11 +45,7 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
-<<<<<<< HEAD
-export KernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
-=======
-export ShepardKernelCorrection, AkinciFreeSurfaceCorrection
+export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
->>>>>>> adami_correction
 
 end # module
