@@ -48,35 +48,25 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
                                              SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
-# ==========================================================================================
-# ==== Containers
 
-correction_list = (Nothing(), ShepardKernelCorrection(),
-                   AkinciFreeSurfaceCorrection(water_density))
-
-function container_to_name(container)
-    if container.correction isa Nothing
-        return "no_correction"
-    elseif container.correction isa ShepardKernelCorrection
-        return "shepard_kernel_correction"
-    elseif container.correction isa AkinciFreeSurfaceCorrection
-        return "akinci_free_surf_correction"
-    end
-    return "undefined"
-end
+correction_dict = Dict(
+    "no_correction" => Nothing(),
+    "shepard_kernel_correction" => ShepardKernelCorrection(),
+    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density)
+)
 
 boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 sol = nothing
-for correction in correction_list
+for correction_name  in keys(correction_dict)
     particle_container = WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                      state_equation,
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     correction=correction)
+                                                     correction=correction_dict[correction_name])
 
     # Move right boundary
     # Recompute the new water column width since the width has been rounded in `RectangularTank`.
@@ -95,7 +85,7 @@ for correction in correction_list
 
     info_callback = InfoCallback(interval=100)
     saving_callback_relaxation = SolutionSavingCallback(interval=100,
-                                                        prefix="$(container_to_name(particle_container))_relaxation")
+                                                        prefix="$(correction_name)_relaxation")
     callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
     # Use a Runge-Kutta method with automatic (error based) time step size control.
@@ -127,7 +117,7 @@ for correction in correction_list
     ode = semidiscretize(semi, tspan)
 
     saving_callback = SolutionSavingCallback(dt=0.02,
-                                             prefix="$(container_to_name(particle_container))")
+                                             prefix="$(correction_name)")
     callbacks = CallbackSet(info_callback, saving_callback)
 
     # See above for an explanation of the parameter choice
