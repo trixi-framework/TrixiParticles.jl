@@ -1,7 +1,7 @@
 # Sorted in order of computational cost
 
 @doc raw"""
-AkinciFreeSurfaceCorrection(rho0)
+    AkinciFreeSurfaceCorrection(rho0)
 
 Free surface correction according to Akinci et al. (2013).
 At a free surface, the mean density is typically lower than the reference density,
