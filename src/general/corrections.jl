@@ -29,10 +29,8 @@ struct AkinciFreeSurfaceCorrection{ELTYPE}
     end
 end
 
-# # Arguments
-# - `rho_mean`: Mean density of the fluid near the free surface.
-# # Returns
-# - A tuple `(viscosity_correction, pressure_correction, surface_tension_correction)` representing the correction terms.
+# `rho_mean` is the mean density of the fluid, which is used to determine correction values near the free surface.
+#  Return a tuple `(viscosity_correction, pressure_correction, surface_tension_correction)` representing the correction terms.
 @inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
                                          particle_system, rho_mean)
     # Equation 4 in ref
