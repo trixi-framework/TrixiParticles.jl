@@ -39,29 +39,7 @@ Apply free surface correction to a particle system using the appropriate method.
 - The `rho_mean` is the mean density of the fluid near the free surface.
 - This function internally calls specific correction methods to compute the correction terms.
 - For `AkinciFreeSurfaceCorrection`, the correction terms are computed using the Akinci et al. method.
-
-"""
-@inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
-                                         particle_system,
-                                         rho_mean)
-    return akinci_free_surface_correction(correction.rho0, rho_mean)
-end
-
-@inline function free_surface_correction(correction, particle_system, rho_mean)
-    return 1.0, 1.0, 1.0
-end
-
-@doc raw"""
-Compute the correction terms for free surfaces following (@ref)
-
-# Arguments
-- `rho0`: Reference density of the fluid.
-- `rho_mean`: Mean density of the fluid near the free surface.
-
-# Returns
-- A tuple `(viscosity_correction, pressure_correction, surface_tension_correction)` representing the correction terms.
-
-# Notes
+- The reference density `rho0` is used which is set in the correction object.
 - The correction terms are used to adjust the viscosity, pressure, and surface tension forces near free surfaces.
 - In the case of a free surface, the mean density (`rho_mean`) is typically lower than the reference density (`rho0`), resulting in reduced surface tension and viscosity forces.
 - It's important to note that this correlation is unphysical and serves as an approximation.
@@ -71,13 +49,20 @@ Compute the correction terms for free surfaces following (@ref)
   "Versatile Surface Tension and Adhesion for SPH Fluids".
   ACM Transactions on Graphics (TOG), 32(6), 182.
   [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508405)
+
 """
-@inline function akinci_free_surface_correction(rho0, rho_mean)
+@inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
+                                         particle_system,
+                                         rho_mean)
     # equation 4 in ref
-    k = rho0 / rho_mean
+    k = correction.rho0 / rho_mean
 
     # viscosity, pressure, surface_tension
     return k, 1.0, k
+end
+
+@inline function free_surface_correction(correction, particle_system, rho_mean)
+    return 1.0, 1.0, 1.0
 end
 
 @doc raw"""
