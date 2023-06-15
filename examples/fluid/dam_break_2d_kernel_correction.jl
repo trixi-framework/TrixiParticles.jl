@@ -48,19 +48,16 @@ boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
                                              SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
-
-correction_dict = Dict(
-    "no_correction" => Nothing(),
-    "shepard_kernel_correction" => ShepardKernelCorrection(),
-    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density)
-)
+correction_dict = Dict("no_correction" => Nothing(),
+                       "shepard_kernel_correction" => ShepardKernelCorrection(),
+                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density))
 
 boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 sol = nothing
-for correction_name  in keys(correction_dict)
+for correction_name in keys(correction_dict)
     particle_container = WeaklyCompressibleSPHSystem(setup.fluid, SummationDensity(),
                                                      state_equation,
                                                      smoothing_kernel, smoothing_length,
