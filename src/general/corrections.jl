@@ -52,8 +52,7 @@ Apply free surface correction to a particle system using the appropriate method.
 
 """
 @inline function free_surface_correction(correction::AkinciFreeSurfaceCorrection,
-                                         particle_system,
-                                         rho_mean)
+                                         particle_system, rho_mean)
     # equation 4 in ref
     k = correction.rho0 / rho_mean
 
