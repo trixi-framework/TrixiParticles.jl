@@ -60,7 +60,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
         cache = (;
-                 create_cache(correction, initial_condition.density, NDIMS, nparticles)...,
+                 create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
                  cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
@@ -74,12 +74,12 @@ end
 
 create_cache(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache(::ShepardKernelCorrection, density, NDIMS, nparticles)
+function create_cache(::ShepardKernelCorrection, density, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache(::KernelGradientCorrection, density, NDIMS, nparticles)
-    dw_gamma = Array{Float64}(undef, NDIMS, nparticles)
+function create_cache(::KernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 

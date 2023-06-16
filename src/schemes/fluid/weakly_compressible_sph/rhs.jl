@@ -105,7 +105,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
         dv_viscosity = viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system, particle,
                                  neighbor, pos_diff, distance, sound_speed, m_a, m_b)

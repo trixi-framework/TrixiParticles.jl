@@ -94,14 +94,14 @@ function kernel_correction_coefficient(system, particle,
 end
 
 function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
 
     kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
+    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(systems) do (neighbor_system_index,
                                                                                                     neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
@@ -140,7 +140,7 @@ function dw_gamma(system, particle, ::KernelGradientCorrection)
 end
 
 function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack particle_systems, neighborhood_searches = semi
+    @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient, dw_gamma = cache
 
@@ -148,7 +148,7 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
     dw_gamma .= zero(eltype(dw_gamma))
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
+    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(systems) do (neighbor_system_index,
                                                                                                              neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
