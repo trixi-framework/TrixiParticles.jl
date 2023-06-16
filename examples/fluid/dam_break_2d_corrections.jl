@@ -60,13 +60,13 @@ density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "kernel_gradien_sum_correction" => SummationDensity(),
                                "kernel_gradient_cont_correction" => ContinuityDensity())
 
-boundary_container = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 sol = nothing
 for correction_name in keys(correction_dict)
-    particle_container = WeaklyCompressibleSPHSystem(setup.fluid,
+    particle_system = WeaklyCompressibleSPHSystem(setup.fluid,
                                                      density_calculator_dict[correction_name],
                                                      state_equation,
                                                      smoothing_kernel, smoothing_length,
@@ -82,7 +82,7 @@ for correction_name in keys(correction_dict)
 
     reset_wall!(setup, reset_faces, positions)
 
-    semi = Semidiscretization(particle_container, boundary_container,
+    semi = Semidiscretization(particle_system, boundary_system,
                               neighborhood_search=SpatialHashingSearch,
                               damping_coefficient=1e-5)
 
@@ -118,7 +118,7 @@ for correction_name in keys(correction_dict)
     # Use solution of the relaxing step as initial coordinates
     restart_with!(semi, sol)
 
-    semi = Semidiscretization(particle_container, boundary_container,
+    semi = Semidiscretization(particle_system, boundary_system,
                               neighborhood_search=SpatialHashingSearch)
     ode = semidiscretize(semi, tspan)
 
