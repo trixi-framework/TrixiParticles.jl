@@ -67,12 +67,12 @@ boundary_system = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
 sol = nothing
 for correction_name in keys(correction_dict)
     particle_system = WeaklyCompressibleSPHSystem(setup.fluid,
-                                                     density_calculator_dict[correction_name],
-                                                     state_equation,
-                                                     smoothing_kernel, smoothing_length,
-                                                     viscosity=viscosity,
-                                                     acceleration=(0.0, -gravity),
-                                                     correction=correction_dict[correction_name])
+                                                  density_calculator_dict[correction_name],
+                                                  state_equation,
+                                                  smoothing_kernel, smoothing_length,
+                                                  viscosity=viscosity,
+                                                  acceleration=(0.0, -gravity),
+                                                  correction=correction_dict[correction_name])
 
     # Move right boundary
     # Recompute the new water column width since the width has been rounded in `RectangularTank`.
