@@ -80,9 +80,9 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
                                          smoothing_length; viscosity=NoViscosity())
         pressure = similar(initial_density)
 
-        size_velocity_array = (ndims(smoothing_kernel), length(initial_density))
+        n_particles = length(initial_density)
 
-        cache = (; create_cache(size_velocity_array, viscosity)...,
+        cache = (; create_cache(viscosity, n_particles, ndims(smoothing_kernel))...,
                  create_cache(initial_density, density_calculator)...)
 
         new{eltype(initial_density), typeof(state_equation),
@@ -156,14 +156,14 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-function create_cache(size_velocity, viscosity::NoViscosity)
+function create_cache(viscosity::NoViscosity, n_particles, n_dims)
     return (;)
 end
 
-function create_cache(size_velocity, viscosity::ViscosityAdami)
+function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
     ELTYPE = eltype(viscosity.nu)
 
-    wall_velocity = zeros(ELTYPE, size_velocity)
+    wall_velocity = zeros(ELTYPE, n_dims, n_particles)
 
     return (; wall_velocity)
 end
