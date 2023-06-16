@@ -88,7 +88,8 @@ function kernel_correction_coefficient(system, particle, correction)
 end
 
 function kernel_correction_coefficient(system, particle,
-                                       ::Union{ShepardKernelCorrection, KernelGradientCorrection})
+                                       ::Union{ShepardKernelCorrection,
+                                               KernelGradientCorrection})
     return system.cache.kernel_correction_coefficient[particle]
 end
 
@@ -101,11 +102,11 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
-                                                                                                       neighbor_system)
+                                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                      semi)
+                                   semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                      semi)
+                                   semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -148,11 +149,11 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
-                                                                                                                neighbor_system)
+                                                                                                             neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                      semi)
+                                   semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                      semi)
+                                   semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
