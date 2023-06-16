@@ -98,7 +98,7 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
 
-    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
+    set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(systems) do (neighbor_system_index,
@@ -144,8 +144,8 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
     @unpack cache = system
     @unpack kernel_correction_coefficient, dw_gamma = cache
 
-    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
-    dw_gamma .= zero(eltype(dw_gamma))
+    set_zero!(kernel_correction_coefficient)
+    set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(systems) do (neighbor_system_index,
