@@ -255,6 +255,8 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 
     set_zero!(pressure)
 
+    # Set `volume` and `density` to zero.
+    # For `ViscosityAdami` the `velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     # Use all other systems for the pressure extrapolation
@@ -355,9 +357,14 @@ end
     # particle isn't surrounded by fluid particles.
     # Check the volume to avoid NaNs in velocity.
     if volume[particle] > eps()
+
+        # Prescribed velocity of the boundary particle.
+        # This velocity is zero when not using moving boundaries.
         v_boundary = current_velocity(system_coords, system, particle)
 
         for dim in 1:ndims(system)
+
+            # The second term is the precalculated smoothed velocity field of the fluid.
             wall_velocity[dim, particle] = 2 * v_boundary[dim] -
                                            wall_velocity[dim, particle] / volume[particle]
         end
