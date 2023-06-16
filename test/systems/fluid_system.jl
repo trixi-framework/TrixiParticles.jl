@@ -99,6 +99,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
+            KernelGradientCorrection(),
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
@@ -111,6 +112,16 @@
             smoothing_length = 0.362
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+                if density_calculator isa ContinuityDensity &&
+                   correction isa ShepardKernelCorrection
+                    error_str = "`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"
+                    @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
+                                                                                      density_calculator,
+                                                                                      state_equation,
+                                                                                      smoothing_kernel,
+                                                                                      smoothing_length,
+                                                                                      correction=corr)
+                end
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length,
@@ -130,7 +141,7 @@
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
-                if corr isa ShepardKernelCorrection
+                if corr isa ShepardKernelCorrection || corr isa KernelGradientCorrection
                     @test length(system.cache.kernel_correction_coefficient) ==
                           size(setup.coordinates, 2)
                 end
