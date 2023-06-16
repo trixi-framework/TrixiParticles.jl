@@ -102,7 +102,7 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                                    neighbor_system)
+                                                                                           neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
@@ -149,7 +149,7 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                                             neighbor_system)
+                                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
