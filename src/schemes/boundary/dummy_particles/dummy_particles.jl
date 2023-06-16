@@ -161,11 +161,11 @@ function create_cache(size_velocity, viscosity::NoViscosity)
 end
 
 function create_cache(size_velocity, viscosity::ViscousInteractionAdami)
-    ELTYPE = eltype(viscosity.eta)
+    ELTYPE = eltype(viscosity.nu)
 
-    velocity = zeros(ELTYPE, size_velocity)
+    wall_velocity = zeros(ELTYPE, size_velocity)
 
-    return (; velocity)
+    return (; wall_velocity)
 end
 
 function reset_cache!(cache, viscosity)
@@ -178,11 +178,11 @@ function reset_cache!(cache, viscosity)
 end
 
 function reset_cache!(cache, viscosity::ViscousInteractionAdami)
-    @unpack density, volume, velocity = cache
+    @unpack density, volume, wall_velocity = cache
 
     set_zero!(density)
     set_zero!(volume)
-    set_zero!(velocity)
+    set_zero!(wall_velocity)
 
     return cache
 end
@@ -201,7 +201,7 @@ function fill_cache!(cache, viscosity::ViscousInteractionAdami, neighbor_system,
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     for dim in 1:ndims(neighbor_system)
-        cache.velocity[dim, particle] += smoothing_kernel * v_b[dim]
+        cache.wall_velocity[dim, particle] += smoothing_kernel * v_b[dim]
     end
 
     return cache
@@ -351,15 +351,17 @@ end
                                         system_coords, particle)
     @unpack boundary_model = system
     @unpack cache = boundary_model
-    @unpack volume, velocity = cache
+    @unpack volume, wall_velocity = cache
 
-    # Avoid NaNs in velocity
+    # The summation is only over fluid particles, thus the volume stays zero when a boundary
+    # particle isn't surrounded by fluid particles.
+    # Check the volume to avoid NaNs in velocity.
     if volume[particle] > eps()
         v_boundary = current_velocity(system_coords, system, particle)
 
         for dim in 1:ndims(system)
-            velocity[dim, particle] = 2 * v_boundary[dim] -
-                                      velocity[dim, particle] / volume[particle]
+            wall_velocity[dim, particle] = 2 * v_boundary[dim] -
+                                           wall_velocity[dim, particle] / volume[particle]
         end
     end
 
