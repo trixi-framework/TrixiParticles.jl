@@ -56,7 +56,7 @@ correction_dict = Dict("no_correction" => Nothing(),
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "shepard_kernel_correction" => SummationDensity(),
-                               "akinci_free_surf_correction" => SummationDensity(water_density),
+                               "akinci_free_surf_correction" => SummationDensity(),
                                "kernel_gradien_sum_correction" => SummationDensity(),
                                "kernel_gradient_cont_correction" => ContinuityDensity())
 
