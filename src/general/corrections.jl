@@ -46,6 +46,7 @@ end
 
 @doc raw"""
     ShepardKernelCorrection()
+    KernelGradientCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al.
@@ -76,3 +77,107 @@ as especially for free surfaces.
   [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
 """
 struct ShepardKernelCorrection end
+struct KernelGradientCorrection end
+
+function kernel_correction_coefficient(container, particle)
+    kernel_correction_coefficient(container, particle, container.correction)
+end
+
+function kernel_correction_coefficient(container, particle, correction)
+    #skip
+end
+
+function kernel_correction_coefficient(container, particle,
+                                       ::Union{KernelCorrection, KernelGradientCorrection})
+    return container.cache.kernel_correction_coefficient[particle]
+end
+
+function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+    @unpack kernel_correction_coefficient = cache
+
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
+
+    # Use all other containers for the density summation
+    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                       neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container, container_coords,
+                              neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            volume = m_b / rho_b
+
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(container, distance)
+        end
+    end
+end
+
+function dw_gamma(container, particle)
+    dw_gamma(container, particle, container.correction)
+end
+
+function dw_gamma(container, particle, ::Any)
+    #skip
+end
+
+function dw_gamma(container, particle, ::KernelGradientCorrection)
+    return extract_svector(container.cache.dw_gamma, container, particle)
+end
+
+function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+    @unpack kernel_correction_coefficient, dw_gamma = cache
+
+    kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
+    dw_gamma .= zero(eltype(dw_gamma))
+
+    # Use all other containers for the density summation
+    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                                                neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+                                      semi)
+
+        container_coords = current_coordinates(u, container)
+        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+
+        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(container, neighbor_container, container_coords,
+                              neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
+            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            volume = m_b / rho_b
+
+            kernel_correction_coefficient[particle] += volume *
+                                                       smoothing_kernel(container, distance)
+            if distance > sqrt(eps())
+                dw_gamma[:, particle] += volume *
+                                         smoothing_kernel_grad(container, pos_diff,
+                                                               distance)
+            end
+        end
+    end
+
+    for particle in eachparticle(container)
+        dw_gamma[:, particle] ./= kernel_correction_coefficient[particle]
+    end
+end
