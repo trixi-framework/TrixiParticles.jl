@@ -111,6 +111,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
     end
 end
 
+timer_name(::WeaklyCompressibleSPHSystem) = "fluid"
+
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
 end
