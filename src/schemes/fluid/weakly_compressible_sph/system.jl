@@ -53,12 +53,15 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        if correction isa ShepardKernelCorrection && density_calculator isa ContinuityDensity
+        if correction isa ShepardKernelCorrection &&
+           density_calculator isa ContinuityDensity
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`!"))
         end
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
-        cache = (; create_cache(correction, initial_condition.density, NDIMS, nparticles)..., cache...)
+        cache = (;
+                 create_cache(correction, initial_condition.density, NDIMS, nparticles)...,
+                 cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -178,28 +181,29 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
 end
 
 function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
-    density_calculator, correction)
-# skip no correction method is active
+                                     density_calculator, correction)
+    # skip no correction method is active
 end
 
 function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
-    ::SummationDensity, ::ShepardKernelCorrection)
-kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+                                     ::SummationDensity, ::ShepardKernelCorrection)
+    kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
 end
 
 function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
-    ::Union{SummationDensity, ContinuityDensity},
-    ::KernelGradientCorrection)
-kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+                                     ::Union{SummationDensity, ContinuityDensity},
+                                     ::KernelGradientCorrection)
+    kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
-    correction, density_calculator)
+                                 correction, density_calculator)
     return system
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
-                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection} , ::SummationDensity)
+                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection},
+                                 ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 

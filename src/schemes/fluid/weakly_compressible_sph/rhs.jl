@@ -30,7 +30,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance,
                                             correction=correction,
                                             kernel_correction_coefficient=
-                                            kernel_correction_coefficient(particle_system, particle),
+                                            kernel_correction_coefficient(particle_system,
+                                                                          particle),
                                             dw_gamma=dw_gamma(particle_system, particle))
 
         m_a = particle_system.mass[particle]
