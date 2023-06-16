@@ -79,105 +79,105 @@ as especially for free surfaces.
 struct ShepardKernelCorrection end
 struct KernelGradientCorrection end
 
-function kernel_correction_coefficient(container, particle)
-    kernel_correction_coefficient(container, particle, container.correction)
+function kernel_correction_coefficient(system, particle)
+    kernel_correction_coefficient(system, particle, system.correction)
 end
 
-function kernel_correction_coefficient(container, particle, correction)
+function kernel_correction_coefficient(system, particle, correction)
     #skip
 end
 
-function kernel_correction_coefficient(container, particle,
-                                       ::Union{KernelCorrection, KernelGradientCorrection})
-    return container.cache.kernel_correction_coefficient[particle]
+function kernel_correction_coefficient(system, particle,
+                                       ::Union{ShepardKernelCorrection, KernelGradientCorrection})
+    return system.cache.kernel_correction_coefficient[particle]
 end
 
-function kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
-    @unpack particle_containers, neighborhood_searches = semi
-    @unpack cache = container
+function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_systems, neighborhood_searches = semi
+    @unpack cache = system
     @unpack kernel_correction_coefficient = cache
 
     kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
 
-    # Use all other containers for the density summation
-    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                                       neighbor_container)
-        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+    # Use all other systems for the density summation
+    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
+                                                                                                       neighbor_system)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                       semi)
-        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
                                       semi)
 
-        container_coords = current_coordinates(u, container)
-        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(container, neighbor_container, container_coords,
+        for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
-            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(container, distance)
+                                                       smoothing_kernel(system, distance)
         end
     end
 end
 
-function dw_gamma(container, particle)
-    dw_gamma(container, particle, container.correction)
+function dw_gamma(system, particle)
+    dw_gamma(system, particle, system.correction)
 end
 
-function dw_gamma(container, particle, ::Any)
+function dw_gamma(system, particle, correction)
     #skip
 end
 
-function dw_gamma(container, particle, ::KernelGradientCorrection)
-    return extract_svector(container.cache.dw_gamma, container, particle)
+function dw_gamma(system, particle, ::KernelGradientCorrection)
+    return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
-    @unpack particle_containers, neighborhood_searches = semi
-    @unpack cache = container
+function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+    @unpack particle_systems, neighborhood_searches = semi
+    @unpack cache = system
     @unpack kernel_correction_coefficient, dw_gamma = cache
 
     kernel_correction_coefficient .= zero(eltype(kernel_correction_coefficient))
     dw_gamma .= zero(eltype(dw_gamma))
 
-    # Use all other containers for the density summation
-    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                                                neighbor_container)
-        u_neighbor_container = wrap_u(u_ode, neighbor_container_index, neighbor_container,
+    # Use all other systems for the density summation
+    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(particle_systems) do (neighbor_system_index,
+                                                                                                                neighbor_system)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                       semi)
-        v_neighbor_container = wrap_v(v_ode, neighbor_container_index, neighbor_container,
+        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
                                       semi)
 
-        container_coords = current_coordinates(u, container)
-        neighbor_coords = current_coordinates(u_neighbor_container, neighbor_container)
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[container_index][neighbor_container_index]
+        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(container, neighbor_container, container_coords,
+        for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-            rho_b = particle_density(v_neighbor_container, neighbor_container, neighbor)
-            m_b = hydrodynamic_mass(neighbor_container, neighbor)
+            rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+            m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
 
             kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(container, distance)
+                                                       smoothing_kernel(system, distance)
             if distance > sqrt(eps())
                 dw_gamma[:, particle] += volume *
-                                         smoothing_kernel_grad(container, pos_diff,
+                                         smoothing_kernel_grad(system, pos_diff,
                                                                distance)
             end
         end
     end
 
-    for particle in eachparticle(container)
+    for particle in eachparticle(system)
         dw_gamma[:, particle] ./= kernel_correction_coefficient[particle]
     end
 end
