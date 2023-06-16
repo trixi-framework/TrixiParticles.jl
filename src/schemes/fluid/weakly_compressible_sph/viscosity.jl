@@ -102,7 +102,7 @@ end
 end
 
 @doc raw"""
-    ViscousInteractionAdami(nu)
+    ViscosityAdami(nu)
 
 Shear force for the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles.
 Since the [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
@@ -132,19 +132,19 @@ where the sum is over all fluid particles.
   In: Journal of Computational Physics 231 (2012), pages 7057-7075.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
 """
-struct ViscousInteractionAdami{ELTYPE}
+struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscousInteractionAdami(nu; epsilon=0.01)
+    function ViscosityAdami(nu; epsilon=0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
 
-@inline function (viscosity::ViscousInteractionAdami)(particle_system, neighbor_system,
-                                                      v_particle_system, v_neighbor_system,
-                                                      particle, neighbor, pos_diff,
-                                                      distance, sound_speed, m_a, m_b)
+@inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b)
     @unpack epsilon, nu = viscosity
     @unpack smoothing_length = particle_system
 
