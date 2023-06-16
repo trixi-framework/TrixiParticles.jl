@@ -76,6 +76,7 @@
             CircularShape(0.52, 0.1, (-0.2, 0.123), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
         ]
         setup_names = [
             "RectangularShape 2D",
@@ -85,8 +86,9 @@
             "CircularShape",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
+            "RectangularShape 2D with KernelGradientCorrection",
         ]
-        NDIMS_ = [2, 3, 2, 3, 2, 2, 2]
+        NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
             SummationDensity(),
             ContinuityDensity(),
@@ -113,7 +115,7 @@
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 if density_calculator isa ContinuityDensity &&
-                   correction isa ShepardKernelCorrection
+                   corr isa ShepardKernelCorrection
                     error_str = "`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"
                     @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
                                                                                       density_calculator,
@@ -121,6 +123,7 @@
                                                                                       smoothing_kernel,
                                                                                       smoothing_length,
                                                                                       correction=corr)
+                    continue
                 end
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
