@@ -71,7 +71,7 @@ end
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_grad(container, pos_diff, distance;
+@inline function smoothing_kernel_grad(system, pos_diff, distance;
                                        correction=nothing, dw_gamma=nothing,
                                        kernel_correction_coefficient=nothing)
     @unpack smoothing_kernel, smoothing_length = system
