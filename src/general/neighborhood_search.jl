@@ -39,21 +39,93 @@ a lot faster (although not parallelizable).
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
 struct SpatialHashingSearch{NDIMS, ELTYPE}
-    hashtable           :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    search_radius       :: ELTYPE
-    empty_vector        :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
-    cell_buffer         :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
-    cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
+    hashtable             :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    search_radius         :: ELTYPE
+    empty_vector          :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
+    cell_buffer           :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
+    cell_buffer_indices   :: Vector{Int} # Store which entries of `cell_buffer` are initialized
+    periodic_box_size     :: SVector{NDIMS, ELTYPE}
+    bound_and_ghost_cells :: Vector{NTuple{NDIMS, Int}}
 
-    function SpatialHashingSearch{NDIMS}(search_radius, n_particles) where {NDIMS}
+    function SpatialHashingSearch{NDIMS}(search_radius, n_particles;
+                                         min_corner=nothing,
+                                         max_corner=nothing) where {NDIMS}
+        ELTYPE = typeof(search_radius)
+
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
-        empty_vector = Vector{Int}()
+        empty_vector = Int[]
         cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        new{NDIMS, typeof(search_radius)}(hashtable, search_radius, empty_vector,
-                                          cell_buffer, cell_buffer_indices)
+        if min_corner === nothing && max_corner === nothing
+            # No periodicity
+            periodic_box_size = zeros(SVector{NDIMS, ELTYPE})
+            bound_and_ghost_cells = NTuple{NDIMS, Int}[]
+        elseif min_corner !== nothing && max_corner !== nothing
+            periodic_box_size = max_corner - min_corner
+            min_cell = cell_coords(min_corner .+
+                                   0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
+                                   search_radius)
+            max_cell = cell_coords(max_corner .-
+                                   0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
+                                   search_radius)
+            bound_and_ghost_cells = initialize_boundary_and_ghost_cells(hashtable,
+                                                                        min_cell, max_cell)
+        else
+            throw(ArgumentError("`min_corner` and `max_corner` either must be " *
+                                "both `nothing` or both an array"))
+        end
+
+        new{NDIMS, ELTYPE}(hashtable, search_radius, empty_vector,
+                           cell_buffer, cell_buffer_indices,
+                           periodic_box_size, bound_and_ghost_cells)
     end
+end
+
+function initialize_boundary_and_ghost_cells(hashtable, min_cell, max_cell)
+    # To make sure that the hashtable starts empty.
+    # Then, we can just return the keyset after we initialized all boundary and ghost cells.
+    empty!(hashtable)
+
+    # Initialize boundary and ghost cells
+    for y in min_cell[2]:max_cell[2]
+        # -x boundary cells
+        hashtable[(min_cell[1], y)] = Int[]
+
+        # +x boundary cells
+        hashtable[(max_cell[1], y)] = Int[]
+
+        # -x ghost cells
+        hashtable[(min_cell[1] - 1, y)] = hashtable[(max_cell[1], y)]
+
+        # +x ghost cells
+        hashtable[(max_cell[1] + 1, y)] = hashtable[(min_cell[1], y)]
+    end
+
+    for x in min_cell[1]:max_cell[1]
+        # Avoid setting corner boundary cells again
+        if min_cell[1] < x < max_cell[1]
+            # -y boundary cells
+            hashtable[(x, min_cell[2])] = Int[]
+
+            # +y boundary cells
+            hashtable[(x, max_cell[2])] = Int[]
+        end
+
+        # -y ghost cells
+        hashtable[(x, min_cell[2] - 1)] = hashtable[(x, max_cell[2])]
+
+        # +y ghost cells
+        hashtable[(x, max_cell[2] + 1)] = hashtable[(x, min_cell[2])]
+    end
+
+    # Corner ghost cells
+    hashtable[(min_cell[1] - 1, min_cell[2] - 1)] = hashtable[(max_cell[1], max_cell[2])]
+    hashtable[(max_cell[1] + 1, min_cell[2] - 1)] = hashtable[(min_cell[1], max_cell[2])]
+    hashtable[(min_cell[1] - 1, max_cell[2] + 1)] = hashtable[(max_cell[1], min_cell[2])]
+    hashtable[(max_cell[1] + 1, max_cell[2] + 1)] = hashtable[(min_cell[1], min_cell[2])]
+
+    return collect(keys(hashtable))
 end
 
 @inline function nparticles(neighborhood_search::SpatialHashingSearch)
@@ -71,9 +143,19 @@ function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
 end
 
 function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
-    @unpack hashtable, search_radius = neighborhood_search
+    @unpack hashtable, search_radius, bound_and_ghost_cells = neighborhood_search
 
-    empty!(hashtable)
+    # Delete all cells that are not boundary or ghost cells
+    for cell in keys(hashtable)
+        if !(cell in bound_and_ghost_cells)
+            delete!(hashtable, cell)
+        end
+    end
+
+    # Empty boundary cells
+    for cell in bound_and_ghost_cells
+        empty!(hashtable[cell])
+    end
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
@@ -81,7 +163,7 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
 
     for particle in 1:nparticles(neighborhood_search)
         # Get cell index of the particle's cell
-        cell = cell_coords(coords_fun(particle), neighborhood_search)
+        cell = cell_coords(coords_fun(particle), search_radius)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell)
@@ -106,11 +188,8 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
-    @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
-
-    @inline function cell_coords_(particle)
-        cell_coords(coords_fun(particle), neighborhood_search)
-    end
+    @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices,
+    bound_and_ghost_cells = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
@@ -134,12 +213,13 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
 
             # Find all particles whose coordinates do not match this cell
             moved_particle_indices = (i for i in eachindex(particles)
-                                      if cell_coords_(particles[i]) != cell)
+                                      if cell_coords(coords_fun(particles[i]),
+                                                     search_radius) != cell)
 
             # Add moved particles to new cell
             for i in moved_particle_indices
                 particle = particles[i]
-                new_cell_coords = cell_coords_(particle)
+                new_cell_coords = cell_coords(coords_fun(particle), search_radius)
 
                 # Add particle to corresponding cell or create cell if it does not exist
                 if haskey(hashtable, new_cell_coords)
@@ -150,7 +230,8 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
             end
 
             # Remove moved particles from this cell or delete the cell if it is now empty
-            if count(_ -> true, moved_particle_indices) == length(particles)
+            if !(cell in bound_and_ghost_cells) &&
+               count(_ -> true, moved_particle_indices) == length(particles)
                 delete!(hashtable, cell)
             else
                 deleteat!(particles, moved_particle_indices)
@@ -166,10 +247,10 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
-    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+    @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
 
     for particle in hashtable[cell]
-        if cell_coords(coords_fun(particle), neighborhood_search) != cell
+        if cell_coords(coords_fun(particle), search_radius) != cell
             # Mark this cell and continue with the next one.
             #
             # `cell_buffer` is preallocated,
@@ -182,7 +263,7 @@ end
 end
 
 @inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
-    cell = cell_coords(coords, neighborhood_search)
+    cell = cell_coords(coords, neighborhood_search.search_radius)
     x, y = cell
     # Generator of all neighboring cells to consider
     neighboring_cells = ((x + i, y + j) for i in -1:1, j in -1:1)
@@ -193,7 +274,7 @@ end
 end
 
 @inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
-    cell = cell_coords(coords, neighborhood_search)
+    cell = cell_coords(coords, neighborhood_search.search_radius)
     x, y, z = cell
     # Generator of all neighboring cells to consider
     neighboring_cells = ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
@@ -225,6 +306,8 @@ end
 @inline function for_particle_neighbor_inner(f, system, neighbor_system,
                                              system_coords, neighbor_system_coords,
                                              neighborhood_search, particle)
+    @unpack search_radius, periodic_box_size = neighborhood_search
+
     particle_coords = extract_svector(system_coords, system, particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
         neighbor_coords = extract_svector(neighbor_system_coords, neighbor_system,
@@ -232,6 +315,12 @@ end
 
         pos_diff = particle_coords - neighbor_coords
         distance2 = dot(pos_diff, pos_diff)
+
+        if distance2 > compact_support(system, neighbor_system)^2
+            # Use periodic pos_diff
+            pos_diff -= periodic_box_size .* round.(pos_diff ./ periodic_box_size)
+            distance2 = dot(pos_diff, pos_diff)
+        end
 
         if distance2 <= compact_support(system, neighbor_system)^2
             distance = sqrt(distance2)
@@ -251,9 +340,7 @@ end
     return get(hashtable, cell_index, empty_vector)
 end
 
-@inline function cell_coords(coords, neighborhood_search)
-    @unpack search_radius = neighborhood_search
-
+@inline function cell_coords(coords, search_radius)
     return Tuple(floor_to_int.(coords / search_radius))
 end
 
@@ -277,7 +364,8 @@ end
 end
 
 # Sorting only really makes sense in longer simulations where particles
-# end up very unordered
+# end up very unordered.
+# WARNING: This is currently unmaintained.
 function z_index_sort!(coordinates, system)
     @unpack mass, pressure, neighborhood_search = system
 
@@ -293,7 +381,7 @@ function z_index_sort!(coordinates, system)
 end
 
 @inline function cell_z_index(coords, neighborhood_search)
-    cell = cell_coords(coords, neighborhood_search) .+ 1
+    cell = cell_coords(coords, neighborhood_search.search_radius) .+ 1
 
     return cartesian2morton(SVector(cell))
 end
