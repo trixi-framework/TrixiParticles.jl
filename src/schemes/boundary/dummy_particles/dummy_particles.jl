@@ -256,7 +256,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     set_zero!(pressure)
 
     # Set `volume` and `density` to zero.
-    # For `ViscosityAdami` the `velocity` is also set to zero.
+    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     # Use all other systems for the pressure extrapolation
