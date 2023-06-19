@@ -398,7 +398,8 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            @trixi_timeit timer() "$(timer_name(system))-$(timer_name(neighbor))" begin
+            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
                           neighborhood_search, system, neighbor)
             end
