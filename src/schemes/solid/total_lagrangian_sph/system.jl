@@ -457,3 +457,7 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     # This is dispatched in the boundary system.jl file
     restart_with!(system, system.boundary_model, v, u)
 end
+
+function system_viscosity(system::TotalLagrangianSPHSystem)
+    return system.boundary_model.viscosity
+end

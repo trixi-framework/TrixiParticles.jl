@@ -62,7 +62,8 @@ end
                                                           v_particle_system,
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
-                                                          distance, sound_speed, m_a, m_b, rho_mean)
+                                                          distance, sound_speed, m_a, m_b,
+                                                          rho_mean)
     @unpack smoothing_length = particle_system
 
     v_a = current_velocity(v_particle_system, particle_system, particle)

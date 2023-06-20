@@ -211,3 +211,7 @@ function restart_with!(system, model, ::ContinuityDensity, v, u)
 
     return system
 end
+
+function system_viscosity(system::BoundarySPHSystem)
+    return system.boundary_model.viscosity
+end

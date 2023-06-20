@@ -63,7 +63,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
-                   }(initial_condition, mass, pressure, dv_pressure, dv_viscosity, density_calculator, state_equation,
+                   }(initial_condition, mass, pressure, dv_pressure, dv_viscosity,
+                     density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
                      correction, cache)
     end
@@ -278,4 +279,8 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     end
 
     return system
+end
+
+function system_viscosity(system::WeaklyCompressibleSPHSystem)
+    return system.viscosity
 end
