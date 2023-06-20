@@ -35,7 +35,6 @@
 
         neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(fluid_system))
 
-        v_fluid = [0 1 -1 0.7 0.3; -1 1 0 0.2 0.8]
         velocities = [[0; -1], [1; 1], [-1; 0], [0.7; 0.2], [0.3; 0.8]]
 
         @testset "Wall Velocity $v_fluid" for v_fluid in velocities
@@ -49,16 +48,21 @@
                                                          neighborhood_search)
 
             v_wall = zeros(size(boundary.coordinates))
-            v_wall[:, Base.OneTo(particles_in_compact_support)] .= -v_fluid
+            v_wall[:, 1:particles_in_compact_support] .= -v_fluid
 
             @test isapprox(boundary_system.boundary_model.cache.wall_velocity, v_wall)
         end
 
         scale_v = [1, 0.5, 0.7, 1.8, 67.5]
         @testset "Wall Velocity Staggerd: Factor $scale" for scale in scale_v
+
+            # For a constant velocity profile (each fluid particle has the same velocity)
+            # the wall velocity is `v_wall = -v_fluid` (see eq. 22 in Adami_2012).
+            # Thus, generate a staggered velocity profile to test the smoothed velocity field
+            # for a variable velocity profile.
             v_fluid = zeros(size(fluid.coordinates))
-            for i in Base.OneTo(TrixiParticles.nparticles(fluid_system))
-                if true == mod(i, 2)
+            for i in TrixiParticles.eachparticle(fluid_system)
+                if mod(i, 2) == 1
                     v_fluid[:, i] .= scale
                 end
             end
@@ -72,20 +76,28 @@
 
             v_wall = zeros(size(boundary.coordinates))
 
-            # first boundary row
-            for i in Base.OneTo(length(boundary_1.mass))
-                if true == mod(i, 2)
+            # First boundary row
+            for i in 1:length(boundary_1.mass)
+                if mod(i, 2) == 1
+
+                    # Particles with a diagonal distance to a fluid particle with `v_fluid > 0.0`
                     v_wall[:, i] .= -0.42040669416720744 * scale
                 else
+
+                    # Particles with a orthogonal distance to a fluid particle with `v_fluid > 0.0`
                     v_wall[:, i] .= -0.5795933058327924 * scale
                 end
             end
 
-            # second boundary row
+            # Second boundary row
             for i in (length(boundary_1.mass) + 1):particles_in_compact_support
                 if true == mod(i, 2)
+
+                    # Particles with a diagonal distance to a fluid particle with `v_fluid > 0.0`
                     v_wall[:, i] .= -0.12101100073462243 * scale
                 else
+
+                    # Particles with a orthogonal distance to a fluid particle with `v_fluid > 0.0`
                     v_wall[:, i] .= -0.8789889992653775 * scale
                 end
             end
