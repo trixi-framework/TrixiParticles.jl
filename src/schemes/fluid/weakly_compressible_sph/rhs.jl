@@ -4,11 +4,14 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
     @unpack density_calculator, state_equation, viscosity, smoothing_length,
-    correction = particle_system
+    correction, dv_pressure, dv_viscosity = particle_system
     @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    set_zero!(dv_pressure)
+    set_zero!(dv_viscosity)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
@@ -32,23 +35,27 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
-        dv_pressure = pressure_correction * (-m_b *
+        tmp_a = extract_svector(dv_pressure, particle_system, particle)
+        dv_pressure[:, particle] = tmp_a + pressure_correction * (-m_b *
                        (particle_system.pressure[particle] / rho_a^2 +
                         neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
 
-        dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
+        tmp_b = extract_svector(dv_viscosity, particle_system, particle)
+        dv_viscosity[:, particle] = tmp_b + viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
 
-        for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
-        end
-
         continuity_equation!(dv, density_calculator,
-                             v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                                v_particle_system, v_neighbor_system,
+                                particle, neighbor, pos_diff, distance,
+                                particle_system, neighbor_system)
+    end
+
+    for particle in each_moving_particle(particle_system)
+        for i in 1:ndims(particle_system)
+            dv[i, particle] += dv_pressure[i, particle] + dv_viscosity[i, particle]
+        end
     end
 
     return dv
