@@ -14,6 +14,8 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
     end
 end
 
+TrixiParticles.timer_name(::NBodySystem) = "nbody"
+
 @inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
 
 @inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
