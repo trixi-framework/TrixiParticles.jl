@@ -74,6 +74,8 @@ function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
     vtk["pressure"] = system.pressure
+    vtk["dv_pressure"] = view(system.dv_pressure, 1:ndims(system), :)
+    vtk["dv_viscosity"] = view(system.dv_viscosity, 1:ndims(system), :)
 
     return vtk
 end

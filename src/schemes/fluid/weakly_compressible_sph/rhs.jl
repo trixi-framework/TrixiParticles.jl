@@ -35,16 +35,16 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        tmp_a = extract_svector(dv_pressure, particle_system, particle)
-        dv_pressure[:, particle] = tmp_a +
+        tmp_pressure = extract_svector(dv_pressure, particle_system, particle)
+        dv_pressure[:, particle] = tmp_pressure +
                                    calc_pressure_eq(pressure_correction, m_b, particle,
                                                     particle_system, v_particle_system,
                                                     neighbor, neighbor_system,
                                                     v_neighbor_system, rho_a, rho_b,
                                                     pos_diff, distance, grad_kernel)
 
-        tmp_b = extract_svector(dv_viscosity, particle_system, particle)
-        dv_viscosity[:, particle] = tmp_b +
+        tmp_viscosity = extract_svector(dv_viscosity, particle_system, particle)
+        dv_viscosity[:, particle] = tmp_viscosity +
                                     viscosity_correction *
                                     viscosity(particle_system, neighbor_system,
                                               v_particle_system, v_neighbor_system,
