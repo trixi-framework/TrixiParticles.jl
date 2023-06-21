@@ -10,26 +10,25 @@ using OrdinaryDiffEq
 
 const GRAVITY = 9.81
 
+# Fluid properties
 const WATER_DENSITY = 1000.0
 const WATER_WIDTH = 2.0
 const WATER_HEIGHT = 1.0
+const SOUND_SPEED = 20 * sqrt(GRAVITY * WATER_HEIGHT)
+
+# Numerical settings
+const PARTICLE_SPACING = 0.05
+const SMOOTHING_LENGTH = 1.15 * PARTICLE_SPACING
+const BOUNDARY_LAYERS = 3
+
+# Tank properties
+const TANK_WIDTH = floor(5.366 / PARTICLE_SPACING) * PARTICLE_SPACING
+const TANK_HEIGHT = 4
 
 """
 Set up the fluid properties and tank configuration.
 """
 function setup_simulation(density_calculator, correction_method)
-    # Fluid properties
-    PARTICLE_SPACING = 0.05
-    BETA = 1
-    BOUNDARY_LAYERS = 3
-
-    # Tank properties
-    TANK_WIDTH = floor(5.366 / PARTICLE_SPACING * BETA) * PARTICLE_SPACING / BETA
-    TANK_HEIGHT = 4
-
-    SOUND_SPEED = 20 * sqrt(GRAVITY * WATER_HEIGHT)
-    SMOOTHING_LENGTH = 1.15 * PARTICLE_SPACING
-
     smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 
     state_equation = StateEquationCole(SOUND_SPEED, 7, WATER_DENSITY, 100000.0,
@@ -39,7 +38,7 @@ function setup_simulation(density_calculator, correction_method)
     # Tank setup
     tank = RectangularTank(PARTICLE_SPACING, (WATER_WIDTH, WATER_HEIGHT),
                            (TANK_WIDTH, TANK_HEIGHT), WATER_DENSITY,
-                           n_layers=BOUNDARY_LAYERS, spacing_ratio=BETA)
+                           n_layers=BOUNDARY_LAYERS)
 
     # Move right boundary
     # Recompute the new water column width since the width has been rounded in `RectangularTank`.
