@@ -10,17 +10,18 @@ using OrdinaryDiffEq
 
 const GRAVITY = 9.81
 
+const WATER_DENSITY = 1000.0
+const WATER_WIDTH = 2.0
+const WATER_HEIGHT = 1.0
+
 """
 Set up the fluid properties and tank configuration.
 """
-function setup_simulation()
+function setup_simulation(density_calculator, correction_method)
     # Fluid properties
     PARTICLE_SPACING = 0.05
     BETA = 1
     BOUNDARY_LAYERS = 3
-    WATER_WIDTH = 2.0
-    WATER_HEIGHT = 1.0
-    WATER_DENSITY = 1000.0
 
     # Tank properties
     TANK_WIDTH = floor(5.366 / PARTICLE_SPACING * BETA) * PARTICLE_SPACING / BETA
@@ -50,12 +51,12 @@ function setup_simulation()
                                                  SummationDensity(), smoothing_kernel,
                                                  SMOOTHING_LENGTH)
 
-    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(),
+    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, density_calculator,
                                                state_equation,
                                                smoothing_kernel, SMOOTHING_LENGTH,
                                                viscosity=viscosity,
                                                acceleration=(0.0, -GRAVITY),
-                                               correction=ShepardKernelCorrection())
+                                               correction=correction_method)
 
     bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
@@ -85,22 +86,40 @@ function run(semi, tspan::Tuple{Real, Real}, prefix)
     return sol
 end
 
-# Setup simulation
-fluid_system, bnd_system, tank = setup_simulation()
+correction_dict = Dict("no_correction" => Nothing(),
+                       "shepard_kernel_correction" => ShepardKernelCorrection(),
+                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
+                       "kernel_gradien_sum_correction" => KernelGradientCorrection(),
+                       "kernel_gradient_cont_correction" => KernelGradientCorrection())
 
-# Run relaxation step
-tspan_relaxation = (0.0, 3.0)
-semi = Semidiscretization(fluid_system, bnd_system,
-                          neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=1e-5)
+density_calculator_dict = Dict("no_correction" => SummationDensity(),
+                               "shepard_kernel_correction" => SummationDensity(),
+                               "akinci_free_surf_correction" => SummationDensity(),
+                               "kernel_gradien_sum_correction" => SummationDensity(),
+                               "kernel_gradient_cont_correction" => ContinuityDensity())
 
-sol_relaxation = run(semi, tspan_relaxation, "relaxation")
 
-# Move right boundary
-move_wall(tank, tank.tank_size[1])
+for correction_name in keys(correction_dict)
+    density_calculator = density_calculator_dict[correction_name]
+    correction_method = correction_dict[correction_name]
 
-restart_with!(semi, sol_relaxation)
+    # Setup simulation
+    fluid_system, bnd_system, tank = setup_simulation(density_calculator, correction_method)
 
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(GRAVITY))
-sol = run(semi, tspan, "simulation")
+    # Run relaxation step
+    tspan_relaxation = (0.0, 3.0)
+    semi = Semidiscretization(fluid_system, bnd_system,
+                            neighborhood_search=SpatialHashingSearch,
+                            damping_coefficient=1e-5)
+
+    sol_relaxation = run(semi, tspan_relaxation, "$(correction_name)_relaxation")
+
+    # Move right boundary
+    move_wall(tank, tank.tank_size[1])
+
+    restart_with!(semi, sol_relaxation)
+
+    # Run full simulation
+    tspan = (0.0, 5.7 / sqrt(GRAVITY))
+    global sol = run(semi, tspan, "$(correction_name)_simulation")
+end

@@ -100,7 +100,7 @@ Use the continuity equation to update the density.
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel)
-    mass = hydrodynamic_mass(neighbor_system, neighbor)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
     NDIMS = ndims(particle_system)
