@@ -57,7 +57,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
         cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        if min_corner === nothing && max_corner === nothing
+        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
             # No periodicity
             periodic_box_size = zeros(SVector{NDIMS, ELTYPE})
             bound_and_ghost_cells = NTuple{NDIMS, Int}[]
@@ -127,6 +127,8 @@ function initialize_boundary_and_ghost_cells(hashtable, min_cell, max_cell)
 
     return collect(keys(hashtable))
 end
+
+@inline Base.ndims(neighborhood_search::SpatialHashingSearch{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function nparticles(neighborhood_search::SpatialHashingSearch)
     return size(neighborhood_search.cell_buffer, 1)
@@ -290,9 +292,24 @@ end
 @inline function for_particle_neighbor(f, system, neighbor_system,
                                        system_coords, neighbor_coords, neighborhood_search;
                                        particles=each_moving_particle(system))
+    for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
+                          particles=particles)
+end
+
+@inline function for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
+                                       particles=axes(system_coords, 2))
     @threaded for particle in particles
-        for_particle_neighbor_inner(f, system, neighbor_system,
-                                    system_coords, neighbor_coords, neighborhood_search,
+        for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
+                                    particle)
+    end
+
+    return nothing
+end
+
+@inline function for_particle_neighbor_serial(f, system_coords, neighbor_coords, neighborhood_search;
+                                       particles=axes(system_coords, 2))
+    for particle in particles
+        for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
                                     particle)
     end
 
@@ -303,26 +320,26 @@ end
 # with @batch (@threaded).
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function for_particle_neighbor_inner(f, system, neighbor_system,
-                                             system_coords, neighbor_system_coords,
+@inline function for_particle_neighbor_inner(f, system_coords, neighbor_system_coords,
                                              neighborhood_search, particle)
     @unpack search_radius, periodic_box_size = neighborhood_search
 
-    particle_coords = extract_svector(system_coords, system, particle)
+    particle_coords = extract_svector(system_coords, Val(ndims(neighborhood_search)),
+                                      particle)
     for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        neighbor_coords = extract_svector(neighbor_system_coords, neighbor_system,
-                                          neighbor)
+        neighbor_coords = extract_svector(neighbor_system_coords,
+                                          Val(ndims(neighborhood_search)), neighbor)
 
         pos_diff = particle_coords - neighbor_coords
         distance2 = dot(pos_diff, pos_diff)
 
-        if distance2 > compact_support(system, neighbor_system)^2
+        if distance2 > search_radius^2
             # Use periodic pos_diff
             pos_diff -= periodic_box_size .* round.(pos_diff ./ periodic_box_size)
             distance2 = dot(pos_diff, pos_diff)
         end
 
-        if distance2 <= compact_support(system, neighbor_system)^2
+        if distance2 <= search_radius^2
             distance = sqrt(distance2)
 
             # Inline to avoid loss of performance

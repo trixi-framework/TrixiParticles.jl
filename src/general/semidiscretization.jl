@@ -79,7 +79,10 @@ end
 
 function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch})
     radius = compact_support(system, neighbor)
-    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor))
+    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                 min_corner=[0.0, -0.24],
+                                                 max_corner=[0.96, 0.72]
+                                                 )
 
     # Initialize neighborhood search
     initialize!(search, nhs_init_function(system, neighbor))
