@@ -3,11 +3,11 @@
     @testset "Viscosity Adami: Wall Velocity" begin
         particle_spacing = 0.1
 
-        # boundary particles in fluid compact support
+        # Boundary particles in fluid compact support
         boundary_1 = RectangularShape(particle_spacing, (10, 1), (0.0, 0.2), 257.0)
         boundary_2 = RectangularShape(particle_spacing, (10, 1), (0.0, 0.1), 257.0)
 
-        # boundary particles out of fluid compact support
+        # Boundary particles out of fluid compact support
         boundary_3 = RectangularShape(particle_spacing, (10, 1), (0, 0), 257.0)
 
         boundary = InitialCondition(boundary_1, boundary_2, boundary_3)
