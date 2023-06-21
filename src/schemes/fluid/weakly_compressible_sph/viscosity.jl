@@ -121,7 +121,7 @@ The inter-particle-averaged shear stress  is
 where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
 
 For the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles,
-Adami (Adami et al. 2012) imposes a no-slip boundary condition by assigning a wall velocity ``v_w`
+Adami (Adami et al. 2012) imposes a no-slip boundary condition by assigning a wall velocity ``v_w``
 to the boundary particle.
 
 The wall velocity of particle ``a`` is calculated from the prescribed boundary particle velocity ``v_a`` and the smoothed velocity field
