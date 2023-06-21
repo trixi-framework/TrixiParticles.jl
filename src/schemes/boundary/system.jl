@@ -71,6 +71,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
     end
 end
 
+timer_name(::BoundarySPHSystem) = "boundary"
+
 @inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
 
 # This does not account for moving boundaries, but it's only used to initialize the

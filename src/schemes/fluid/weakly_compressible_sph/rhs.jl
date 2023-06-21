@@ -4,7 +4,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::Union{WeaklyCompressibleSPHSystem,
                                           OpenBoundarySPHSystem})
-    @unpack density_calculator, state_equation, smoothing_length = particle_system
+    @unpack density_calculator, state_equation, smoothing_length,
+    correction = particle_system
     @unpack viscosity = neighbor_system
     @unpack sound_speed = state_equation
 
@@ -20,6 +21,12 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = (rho_a + rho_b) / 2
+
+        # Determine correction values
+        viscosity_correction, pressure_correction = free_surface_correction(correction,
+                                                                            particle_system,
+                                                                            rho_mean)
 
         # Pressure forces
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
@@ -27,11 +34,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
-        dv_pressure = -m_b *
-                      (particle_system.pressure[particle] / rho_a^2 +
-                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
+        dv_pressure = pressure_correction * (-m_b *
+                       (particle_system.pressure[particle] / rho_a^2 +
+                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
 
-        dv_viscosity = viscosity(particle_system, neighbor_system,
+        dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
