@@ -41,7 +41,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                     particle_system, v_particle_system,
                                                     neighbor, neighbor_system,
                                                     v_neighbor_system, rho_a, rho_b,
-                                                    pos_diff, distance, grad_kernel, density_calculator)
+                                                    pos_diff, distance, grad_kernel,
+                                                    density_calculator)
 
         tmp_viscosity = extract_svector(dv_viscosity, particle_system, particle)
         dv_viscosity[:, particle] = tmp_viscosity +
@@ -67,29 +68,31 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth
-# Particle Hydrodynamic formulations" by Boney and Lok, 1999 for a consistent formulation this form has to be used with ContinuityDensity
+# Particle Hydrodynamic formulations" by Bonet and Lok, 1999 for a consistent formulation
+# this form has to be used with ContinuityDensity
 @inline function calc_pressure_eq(pressure_correction, m_b, particle, particle_system,
                                   v_particle_system, neighbor,
                                   neighbor_system::WeaklyCompressibleSPHSystem,
                                   v_neighbor_system, rho_a, rho_b, pos_diff, distance,
                                   grad_kernel, ::ContinuityDensity)
     return (-m_b *
-            (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) / (rho_a * rho_b) * grad_kernel) *
-            pressure_correction
+            (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
+            (rho_a * rho_b) * grad_kernel) *
+           pressure_correction
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth
-# Particle Hydrodynamic formulations" by Boney and Lok, 1999 for a consistent formulation this form has to be used with SummationDensity
+# Particle Hydrodynamic formulations" by Bonet and Lok, 1999 for a consistent formulation
+# this form has to be used with SummationDensity
 @inline function calc_pressure_eq(pressure_correction, m_b, particle, particle_system,
-    v_particle_system, neighbor,
-    neighbor_system::WeaklyCompressibleSPHSystem,
-    v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-    grad_kernel, ::SummationDensity)
-
-return (-m_b *
-        (particle_system.pressure[particle] / rho_a^2 +
-         neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
-       pressure_correction
+                                  v_particle_system, neighbor,
+                                  neighbor_system::WeaklyCompressibleSPHSystem,
+                                  v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                  grad_kernel, ::SummationDensity)
+    return (-m_b *
+            (particle_system.pressure[particle] / rho_a^2 +
+             neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
+           pressure_correction
 end
 
 @inline function calc_pressure_eq(pressure_correction, m_b, particle, particle_system,
