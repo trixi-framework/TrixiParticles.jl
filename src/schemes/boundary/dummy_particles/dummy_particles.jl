@@ -312,7 +312,6 @@ end
     end
 
     for particle in eachparticle(system)
-
         # Limit pressure to be non-negative to avoid negative pressures at free surfaces
         pressure[particle] = max(pressure[particle], 0.0)
 
@@ -364,7 +363,6 @@ end
         v_boundary = current_velocity(system_coords, system, particle)
 
         for dim in 1:ndims(system)
-
             # The second term is the precalculated smoothed velocity field of the fluid.
             wall_velocity[dim, particle] = 2 * v_boundary[dim] -
                                            wall_velocity[dim, particle] / volume[particle]
