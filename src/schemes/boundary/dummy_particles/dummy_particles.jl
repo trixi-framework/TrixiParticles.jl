@@ -312,6 +312,7 @@ end
     end
 
     for particle in eachparticle(system)
+
         # Limit pressure to be non-negative to avoid negative pressures at free surfaces
         pressure[particle] = max(pressure[particle], 0.0)
 
