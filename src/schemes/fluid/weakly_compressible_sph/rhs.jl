@@ -22,8 +22,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_system
+    @unpack density_calculator, state_equation, viscosity, smoothing_length,
+    correction = particle_system
     @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -38,18 +38,29 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = (rho_a + rho_b) / 2
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
-        m_a = neighbor_system.mass[particle]
-        m_b = neighbor_system.mass[neighbor]
+        # Determine correction values
+        viscosity_correction, pressure_correction = free_surface_correction(correction,
+                                                                            particle_system,
+                                                                            rho_mean)
 
         # Pressure forces
-        dv_pressure = -m_b *
-                      (particle_system.pressure[particle] / rho_a^2 +
-                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance,
+                                            correction=correction,
+                                            kernel_correction_coefficient=
+                                            kernel_correction_coefficient(particle_system,
+                                                                          particle),
+                                            dw_gamma=dw_gamma(particle_system, particle))
 
-        dv_viscosity = viscosity(particle_system, neighbor_system,
+        m_a = particle_system.mass[particle]
+        m_b = neighbor_system.mass[neighbor]
+
+        dv_pressure = pressure_correction * (-m_b *
+                       (particle_system.pressure[particle] / rho_a^2 +
+                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
+
+        dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
@@ -61,7 +72,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv
@@ -88,15 +99,12 @@ Use the continuity equation to update the density.
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
-                                      neighbor_system)
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+                                      neighbor_system, grad_kernel)
+    mass = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-
-    dv[ndims(particle_system) + 1, particle] += m_b * dot(vdiff,
-                                                    smoothing_kernel_grad(particle_system,
-                                                                          pos_diff,
-                                                                          distance))
+    NDIMS = ndims(particle_system)
+    dv[NDIMS + 1, particle] += m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
@@ -104,8 +112,7 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system)
-    # Density for summation density is updated in one of the updates of semidiscretization->update_systems_and_nhs()
+                                      particle_system, neighbor_system, grad_kernel)
     return dv
 end
 
@@ -156,6 +163,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
         dv_viscosity = viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system, particle,
                                  neighbor, pos_diff, distance, sound_speed, m_a, m_b)
@@ -173,7 +181,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv

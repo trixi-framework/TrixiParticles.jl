@@ -5,6 +5,17 @@ abstract type SmoothingKernel{NDIMS} end
     return kernel_deriv(kernel, distance, h) * pos_diff / distance
 end
 
+@inline function kernel_grad(kernel, pos_diff, distance, h, kernel_correction_coefficient,
+                             dw_gamma, correction)
+    return kernel_deriv(kernel, distance, h) * pos_diff / distance
+end
+
+@inline function kernel_grad(kernel, pos_diff, distance, h, kernel_correction_coefficient,
+                             dw_gamma, ::KernelGradientCorrection)
+    return (kernel_deriv(kernel, distance, h) * pos_diff / distance .- dw_gamma) /
+           kernel_correction_coefficient
+end
+
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 

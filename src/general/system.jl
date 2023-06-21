@@ -71,9 +71,12 @@ end
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_grad(system, pos_diff, distance)
+@inline function smoothing_kernel_grad(system, pos_diff, distance;
+                                       correction=nothing, dw_gamma=nothing,
+                                       kernel_correction_coefficient=nothing)
     @unpack smoothing_kernel, smoothing_length = system
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+                       kernel_correction_coefficient, dw_gamma, correction)
 end
 
 # System update orders. This can be dispatched if needed.

@@ -66,8 +66,15 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
+        if correction isa ShepardKernelCorrection &&
+           density_calculator isa ContinuityDensity
+            throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
+        end
+
         cache = create_cache(n_particles, ELTYPE, density_calculator)
-        cache = (; create_cache(correction, initial_condition.density)..., cache...)
+        cache = (;
+                 create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
+                 cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -78,10 +85,15 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     end
 end
 
-create_cache(::Nothing, density) = (;)
+create_cache(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache(::ShepardKernelCorrection, density)
+function create_cache(::ShepardKernelCorrection, density, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density))
+end
+
+function create_cache(::KernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
 function create_cache(n_particles, ELTYPE, ::SummationDensity)
@@ -99,6 +111,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
 
     print(io, "WeaklyCompressibleSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
+    print(io, ", ", system.correction)
     print(io, ", ", system.state_equation)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
@@ -116,6 +129,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     system.correction |> typeof |> nameof)
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
@@ -123,6 +138,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_footer(io)
     end
 end
+
+timer_name(::WeaklyCompressibleSPHSystem) = "fluid"
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
@@ -168,6 +185,9 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
                           v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = system
 
+    determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
+                                density_calculator, correction)
+    # kernel_correct_density! only performed for "SummationDensity"
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
@@ -175,42 +195,31 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Nothing,
-                                 density_calculator)
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     density_calculator, correction)
+    # skip no correction method is active
+end
+
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     ::SummationDensity, ::ShepardKernelCorrection)
+    kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+end
+
+function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+                                     ::Union{SummationDensity, ContinuityDensity},
+                                     ::KernelGradientCorrection)
+    kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+end
+
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+                                 correction, density_calculator)
     return system
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
-                                 ::ShepardKernelCorrection, ::SummationDensity)
-    @unpack systems, neighborhood_searches = semi
-    @unpack cache = system
-    @unpack kernel_correction_coefficient = cache
-
-    set_zero!(kernel_correction_coefficient)
-
-    # Use all other containers for the density summation
-    @trixi_timeit timer() "compute density with correction" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                           neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system, semi)
-
-        system_coords = current_coordinates(u, system)
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
-
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
-            rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-            m_b = hydrodynamic_mass(neighbor_system, neighbor)
-            volume = m_b / rho_b
-            kernel_correction_coefficient[particle] += volume *
-                                                       smoothing_kernel(system, distance)
-        end
-    end
-
-    cache.density ./= kernel_correction_coefficient
+                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection},
+                                 ::SummationDensity)
+    system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
 function compute_pressure!(system, v)
