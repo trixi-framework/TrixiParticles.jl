@@ -173,7 +173,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     @unpack density_calculator, correction = system
 
     compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
-                                density_calculator, correction)
+                              density_calculator, correction)
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
@@ -183,18 +183,18 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
 end
 
 function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
-                                     density_calculator, correction)
+                                   density_calculator, correction)
     return system
 end
 
 function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
-                                     ::SummationDensity, ::ShepardKernelCorrection)
+                                   ::SummationDensity, ::ShepardKernelCorrection)
     kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
-                                     ::Union{SummationDensity, ContinuityDensity},
-                                     ::KernelGradientCorrection)
+                                   ::Union{SummationDensity, ContinuityDensity},
+                                   ::KernelGradientCorrection)
     kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
@@ -282,7 +282,9 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
-@inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff, distance, particle)
-    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length,
+@inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff,
+                                       distance, particle)
+    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
+                                 system.smoothing_length,
                                  system.correction, system, particle)
 end
