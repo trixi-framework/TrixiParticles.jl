@@ -167,14 +167,6 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function dw_gamma(system, particle)
-    dw_gamma(system, particle, system.correction)
-end
-
-function dw_gamma(system, particle, correction)
-    #skip
-end
-
-function dw_gamma(system, particle, ::KernelGradientCorrection)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
