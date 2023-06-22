@@ -172,7 +172,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
                           v_ode, u_ode, semi, t)
     @unpack density_calculator, correction = system
 
-    determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
+    compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                 density_calculator, correction)
     # kernel_correct_density! only performed for "SummationDensity"
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
@@ -182,17 +182,17 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      density_calculator, correction)
     # skip no correction method is active
 end
 
-function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      ::SummationDensity, ::ShepardKernelCorrection)
-    kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
-function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
                                      ::Union{SummationDensity, ContinuityDensity},
                                      ::KernelGradientCorrection)
     kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
