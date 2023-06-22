@@ -174,7 +174,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
 
     compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                 density_calculator, correction)
-    # kernel_correct_density! only performed for "SummationDensity"
+    # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
