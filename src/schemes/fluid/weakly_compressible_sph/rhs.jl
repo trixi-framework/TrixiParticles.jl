@@ -64,11 +64,11 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel)
-    mass = hydrodynamic_mass(neighbor_system, neighbor)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
     NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(mass * vdiff .* grad_kernel)
+    dv[NDIMS + 1, particle] += m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
