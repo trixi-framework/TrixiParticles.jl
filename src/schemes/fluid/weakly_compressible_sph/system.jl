@@ -184,7 +184,7 @@ end
 
 function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      density_calculator, correction)
-    # skip no correction method is active
+    return system
 end
 
 function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
@@ -192,10 +192,10 @@ function compute_correction_values(system, system_index, v, u, v_ode, u_ode, sem
     kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
-function compute_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      ::Union{SummationDensity, ContinuityDensity},
                                      ::KernelGradientCorrection)
-    kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
