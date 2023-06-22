@@ -10,7 +10,6 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, ::KernelGradientCorrection, system, particle)
-    @unpack kernel_correction_coefficient, dw_gamma = system.cache
     return (kernel_grad(kernel, pos_diff, distance, h) .- dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end

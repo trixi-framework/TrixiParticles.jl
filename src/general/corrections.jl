@@ -142,7 +142,7 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
@@ -181,7 +181,7 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
