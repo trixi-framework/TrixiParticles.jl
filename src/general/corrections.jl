@@ -119,16 +119,6 @@ as especially for free surfaces.
 struct KernelGradientCorrection end
 
 function kernel_correction_coefficient(system, particle)
-    kernel_correction_coefficient(system, particle, system.correction)
-end
-
-function kernel_correction_coefficient(system, particle, correction)
-    #skip
-end
-
-function kernel_correction_coefficient(system, particle,
-                                       ::Union{ShepardKernelCorrection,
-                                               KernelGradientCorrection})
     return system.cache.kernel_correction_coefficient[particle]
 end
 
