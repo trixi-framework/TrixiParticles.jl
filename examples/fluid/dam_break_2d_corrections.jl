@@ -59,7 +59,11 @@ function setup_simulation(density_calculator, correction_method)
 
     bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
-    return fluid_system, bnd_system, tank
+    semi = Semidiscretization(fluid_system, bnd_system,
+                              neighborhood_search=SpatialHashingSearch,
+                              damping_coefficient=1e-5)
+
+    return semi, tank
 end
 
 function move_wall(tank, new_wall_position)
@@ -71,12 +75,16 @@ end
 """
 Run simulation.
 """
-function run(semi, tspan::Tuple{Real, Real}, prefix)
+function run(semi, tspan::Tuple{Real, Real}, prefix; density_reinit=false)
     ode = semidiscretize(semi, tspan)
 
     info_callback = InfoCallback(interval=100)
     saving_callback_correction = SolutionSavingCallback(dt=0.02, prefix=prefix)
-    callbacks_correction = CallbackSet(info_callback, saving_callback_correction)
+    density_reinit_cb =density_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.05) : nothing
+    callbacks_correction = density_reinit ?
+                           CallbackSet(info_callback, saving_callback_correction,
+                                       density_reinit_cb) :
+                           CallbackSet(info_callback, saving_callback_correction)
 
     sol = solve(ode, RDPK3SpFSAL49(),
                 abstol=1e-6, reltol=1e-5, dtmax=1e-2,
@@ -86,38 +94,43 @@ function run(semi, tspan::Tuple{Real, Real}, prefix)
 end
 
 correction_dict = Dict("no_correction" => Nothing(),
-                       "shepard_kernel_correction" => ShepardKernelCorrection(),
-                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
-                       "kernel_gradien_sum_correction" => KernelGradientCorrection(),
-                       "kernel_gradient_cont_correction" => KernelGradientCorrection())
+                    #    "shepard_kernel_correction" => ShepardKernelCorrection(),
+                    #    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
+                    #    "kernel_gradient_sum_correction" => KernelGradientCorrection(),
+                    #    "kernel_gradient_cont_correction" => KernelGradientCorrection(),
+                       "density_reinit" => Nothing())
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
-                               "shepard_kernel_correction" => SummationDensity(),
-                               "akinci_free_surf_correction" => SummationDensity(),
-                               "kernel_gradien_sum_correction" => SummationDensity(),
-                               "kernel_gradient_cont_correction" => ContinuityDensity())
+                            #    "shepard_kernel_correction" => SummationDensity(),
+                            #    "akinci_free_surf_correction" => SummationDensity(),
+                            #    "kernel_gradient_sum_correction" => SummationDensity(),
+                            #    "kernel_gradient_cont_correction" => ContinuityDensity(),
+                               "density_reinit" => ContinuityDensity())
+
+reinit_dict = Dict("no_correction" => false,
+                #    "shepard_kernel_correction" => false,
+                #    "akinci_free_surf_correction" => false,
+                #    "kernel_gradient_sum_correction" => false,
+                #    "kernel_gradient_cont_correction" => false,
+                   "density_reinit" => true)
 
 for correction_name in keys(correction_dict)
     density_calculator = density_calculator_dict[correction_name]
     correction_method = correction_dict[correction_name]
 
-    # Setup simulation
-    fluid_system, bnd_system, tank = setup_simulation(density_calculator, correction_method)
+    semi, tank = setup_simulation(density_calculator, correction_method)
 
     # Run relaxation step
     tspan_relaxation = (0.0, 3.0)
-    semi = Semidiscretization(fluid_system, bnd_system,
-                              neighborhood_search=SpatialHashingSearch,
-                              damping_coefficient=1e-5)
-
-    sol_relaxation = run(semi, tspan_relaxation, "$(correction_name)_relaxation")
+    sol_relaxation = run(semi, tspan_relaxation, "$(correction_name)_relaxation",
+                         density_reinit=reinit_dict[correction_name])
 
     # Move right boundary
     move_wall(tank, tank.tank_size[1])
-
     restart_with!(semi, sol_relaxation)
 
     # Run full simulation
     tspan = (0.0, 5.7 / sqrt(GRAVITY))
-    global sol = run(semi, tspan, "$(correction_name)_simulation")
+    global sol = run(semi, tspan, "$(correction_name)_simulation",
+                     density_reinit=reinit_dict[correction_name])
 end

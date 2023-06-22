@@ -93,10 +93,8 @@ function kernel_correction_coefficient(system, particle,
     return system.cache.kernel_correction_coefficient[particle]
 end
 
-function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
     @unpack systems, neighborhood_searches = semi
-    @unpack cache = system
-    @unpack kernel_correction_coefficient = cache
 
     set_zero!(kernel_correction_coefficient)
 

@@ -200,15 +200,15 @@ function determine_correction_values(container, container_index, v, u, v_ode, u_
     # skip no correction method is active
 end
 
-function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      ::SummationDensity, ::ShepardKernelCorrection)
-    kernel_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, system.cache.kernel_correction_coefficient)
 end
 
-function determine_correction_values(container, container_index, v, u, v_ode, u_ode, semi,
+function determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      ::Union{SummationDensity, ContinuityDensity},
                                      ::KernelGradientCorrection)
-    kernel_gradient_correct_value(container, container_index, v, u, v_ode, u_ode, semi)
+    kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
@@ -220,6 +220,18 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
                                  ::Union{ShepardKernelCorrection, KernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function reinit_density!(v, u, system::WeaklyCompressibleSPHSystem, system_index, u_ode, v_ode,
+    semi, t)
+    summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+    kernel_correction_coefficient = zeros(size(v[end, :]))
+    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
+    v[end, :] ./= kernel_correction_coefficient
+    compute_pressure!(system, v)
+end
+
+function reinit_density!(v, u, system, system_index, u_ode, v_ode, semi, t)
 end
 
 function compute_pressure!(system, v)
