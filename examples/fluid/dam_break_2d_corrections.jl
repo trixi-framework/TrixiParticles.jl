@@ -97,7 +97,6 @@ density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "kernel_gradien_sum_correction" => SummationDensity(),
                                "kernel_gradient_cont_correction" => ContinuityDensity())
 
-
 for correction_name in keys(correction_dict)
     density_calculator = density_calculator_dict[correction_name]
     correction_method = correction_dict[correction_name]
@@ -108,8 +107,8 @@ for correction_name in keys(correction_dict)
     # Run relaxation step
     tspan_relaxation = (0.0, 3.0)
     semi = Semidiscretization(fluid_system, bnd_system,
-                            neighborhood_search=SpatialHashingSearch,
-                            damping_coefficient=1e-5)
+                              neighborhood_search=SpatialHashingSearch,
+                              damping_coefficient=1e-5)
 
     sol_relaxation = run(semi, tspan_relaxation, "$(correction_name)_relaxation")
 
