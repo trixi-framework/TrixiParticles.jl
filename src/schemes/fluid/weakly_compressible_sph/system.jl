@@ -202,7 +202,8 @@ end
 
 function determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
                                      ::SummationDensity, ::ShepardKernelCorrection)
-    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, system.cache.kernel_correction_coefficient)
+    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
+                         system.cache.kernel_correction_coefficient)
 end
 
 function determine_correction_values(system, system_index, v, u, v_ode, u_ode, semi,
@@ -222,11 +223,13 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function reinit_density!(v, u, system::WeaklyCompressibleSPHSystem, system_index, u_ode, v_ode,
-    semi, t)
+function reinit_density!(v, u, system::WeaklyCompressibleSPHSystem, system_index, u_ode,
+                         v_ode,
+                         semi, t)
     summation_density!(system, system_index, semi, u, u_ode, v[end, :])
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
+    kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
+                         kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
     compute_pressure!(system, v)
 end

@@ -59,7 +59,6 @@ function setup_simulation(density_calculator, correction_method)
 
     bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
-
     return fluid_system, bnd_system, tank
 end
 
@@ -77,7 +76,8 @@ function run(semi, tspan::Tuple{Real, Real}, prefix; density_reinit=false)
 
     info_callback = InfoCallback(interval=100)
     saving_callback_correction = SolutionSavingCallback(dt=0.02, prefix=prefix)
-    density_reinit_cb =density_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.05) : nothing
+    density_reinit_cb = density_reinit ?
+                        DensityReinitializationCallback(semi.systems[1], dt=0.05) : nothing
     callbacks_correction = density_reinit ?
                            CallbackSet(info_callback, saving_callback_correction,
                                        density_reinit_cb) :
@@ -91,24 +91,24 @@ function run(semi, tspan::Tuple{Real, Real}, prefix; density_reinit=false)
 end
 
 correction_dict = Dict("no_correction" => Nothing(),
-                    #    "shepard_kernel_correction" => ShepardKernelCorrection(),
-                    #    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
-                    #    "kernel_gradient_sum_correction" => KernelGradientCorrection(),
-                    #    "kernel_gradient_cont_correction" => KernelGradientCorrection(),
+                       #    "shepard_kernel_correction" => ShepardKernelCorrection(),
+                       #    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
+                       #    "kernel_gradient_sum_correction" => KernelGradientCorrection(),
+                       #    "kernel_gradient_cont_correction" => KernelGradientCorrection(),
                        "density_reinit" => Nothing())
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
-                            #    "shepard_kernel_correction" => SummationDensity(),
-                            #    "akinci_free_surf_correction" => SummationDensity(),
-                            #    "kernel_gradient_sum_correction" => SummationDensity(),
-                            #    "kernel_gradient_cont_correction" => ContinuityDensity(),
+                               #    "shepard_kernel_correction" => SummationDensity(),
+                               #    "akinci_free_surf_correction" => SummationDensity(),
+                               #    "kernel_gradient_sum_correction" => SummationDensity(),
+                               #    "kernel_gradient_cont_correction" => ContinuityDensity(),
                                "density_reinit" => ContinuityDensity())
 
 reinit_dict = Dict("no_correction" => false,
-                #    "shepard_kernel_correction" => false,
-                #    "akinci_free_surf_correction" => false,
-                #    "kernel_gradient_sum_correction" => false,
-                #    "kernel_gradient_cont_correction" => false,
+                   #    "shepard_kernel_correction" => false,
+                   #    "akinci_free_surf_correction" => false,
+                   #    "kernel_gradient_sum_correction" => false,
+                   #    "kernel_gradient_cont_correction" => false,
                    "density_reinit" => true)
 
 for correction_name in keys(correction_dict)
@@ -118,8 +118,8 @@ for correction_name in keys(correction_dict)
     fluid_system, bnd_system, tank = setup_simulation(density_calculator, correction_method)
 
     semi = Semidiscretization(fluid_system, bnd_system,
-                                neighborhood_search=SpatialHashingSearch,
-                                damping_coefficient=1e-5)
+                              neighborhood_search=SpatialHashingSearch,
+                              damping_coefficient=1e-5)
 
     # Run relaxation step
     tspan_relaxation = (0.0, 3.0)
@@ -132,8 +132,8 @@ for correction_name in keys(correction_dict)
     restart_with!(semi, sol_relaxation)
     # reinitialize the neighborhood search
     semi = Semidiscretization(fluid_system, bnd_system,
-                                neighborhood_search=SpatialHashingSearch,
-                                damping_coefficient=1e-5)
+                              neighborhood_search=SpatialHashingSearch,
+                              damping_coefficient=1e-5)
 
     # Run full simulation
     tspan = (0.0, 5.7 / sqrt(GRAVITY))
