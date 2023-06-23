@@ -91,24 +91,24 @@ function run(semi, tspan::Tuple{Real, Real}, prefix; density_reinit=false)
 end
 
 correction_dict = Dict("no_correction" => Nothing(),
-                       #    "shepard_kernel_correction" => ShepardKernelCorrection(),
-                       #    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
-                       #    "kernel_gradient_sum_correction" => KernelGradientCorrection(),
-                       #    "kernel_gradient_cont_correction" => KernelGradientCorrection(),
+                       "shepard_kernel_correction" => ShepardKernelCorrection(),
+                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
+                       "kernel_gradient_sum_correction" => KernelGradientCorrection(),
+                       "kernel_gradient_cont_correction" => KernelGradientCorrection(),
                        "density_reinit" => Nothing())
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
-                               #    "shepard_kernel_correction" => SummationDensity(),
-                               #    "akinci_free_surf_correction" => SummationDensity(),
-                               #    "kernel_gradient_sum_correction" => SummationDensity(),
-                               #    "kernel_gradient_cont_correction" => ContinuityDensity(),
+                               "shepard_kernel_correction" => SummationDensity(),
+                               "akinci_free_surf_correction" => SummationDensity(),
+                               "kernel_gradient_sum_correction" => SummationDensity(),
+                               "kernel_gradient_cont_correction" => ContinuityDensity(),
                                "density_reinit" => ContinuityDensity())
 
 reinit_dict = Dict("no_correction" => false,
-                   #    "shepard_kernel_correction" => false,
-                   #    "akinci_free_surf_correction" => false,
-                   #    "kernel_gradient_sum_correction" => false,
-                   #    "kernel_gradient_cont_correction" => false,
+                   "shepard_kernel_correction" => false,
+                   "akinci_free_surf_correction" => false,
+                   "kernel_gradient_sum_correction" => false,
+                   "kernel_gradient_cont_correction" => false,
                    "density_reinit" => true)
 
 for correction_name in keys(correction_dict)
