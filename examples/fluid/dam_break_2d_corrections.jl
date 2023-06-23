@@ -59,11 +59,8 @@ function setup_simulation(density_calculator, correction_method)
 
     bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
 
-    semi = Semidiscretization(fluid_system, bnd_system,
-                              neighborhood_search=SpatialHashingSearch,
-                              damping_coefficient=1e-5)
 
-    return semi, tank
+    return fluid_system, bnd_system, tank
 end
 
 function move_wall(tank, new_wall_position)
@@ -118,7 +115,11 @@ for correction_name in keys(correction_dict)
     density_calculator = density_calculator_dict[correction_name]
     correction_method = correction_dict[correction_name]
 
-    semi, tank = setup_simulation(density_calculator, correction_method)
+    fluid_system, bnd_system, tank = setup_simulation(density_calculator, correction_method)
+
+    semi = Semidiscretization(fluid_system, bnd_system,
+                                neighborhood_search=SpatialHashingSearch,
+                                damping_coefficient=1e-5)
 
     # Run relaxation step
     tspan_relaxation = (0.0, 3.0)
@@ -127,7 +128,12 @@ for correction_name in keys(correction_dict)
 
     # Move right boundary
     move_wall(tank, tank.tank_size[1])
+    # set relaxation result within the systems
     restart_with!(semi, sol_relaxation)
+    # reinitialize the neighborhood search
+    semi = Semidiscretization(fluid_system, bnd_system,
+                                neighborhood_search=SpatialHashingSearch,
+                                damping_coefficient=1e-5)
 
     # Run full simulation
     tspan = (0.0, 5.7 / sqrt(GRAVITY))
