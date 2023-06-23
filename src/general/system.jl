@@ -75,6 +75,7 @@ end
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end
 
+# This is dispatched for some system types
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end

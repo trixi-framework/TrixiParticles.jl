@@ -72,7 +72,8 @@ as especially for free surfaces.
   "Robustness and accuracy of SPH formulations for viscous flow".
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-- S.F. Li, W.K. Liu, "Moving least square Kernel Galerkin method (II) Fourier analysis",
+-  Shaofan Li, Wing Kam Liu.
+  "Moving least square Kernel Galerkin method (II) Fourier analysis",
   Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
   [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
 """
@@ -82,8 +83,8 @@ struct ShepardKernelCorrection end
     KernelGradientCorrection()
 
 Kernel gradient correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by Li et al.. This can be further extended to obtain a kernel corrected gradient
-as shown by Basa et al..
+was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
+as shown by Basa et al.
 
 The kernel correction coefficient is determined by
 ```math
@@ -94,7 +95,6 @@ The gradient of corrected kernel is determined by
 \nabla \tilde(W)_{b}(x) = \frac{\naba W_{b}(x) - \gamma(x)}{\sum_{b=1}^{N} V_b W_b(x)}
 \gamma(x) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(x)}{\sum_{b=1}^{N} V_b W_b(x)}
 ```
-
 
 This correction can be applied with SummationDensity and ContinuityDensity which leads to an improvement
 as especially for free surfaces.
@@ -122,7 +122,13 @@ function kernel_correction_coefficient(system, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
 
-function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+                                    density_calculator, correction)
+    return system
+end
+
+function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+                                    ::SummationDensity, ::ShepardKernelCorrection)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient = cache
@@ -160,7 +166,9 @@ function dw_gamma(system, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+                                    ::Union{SummationDensity, ContinuityDensity},
+                                    ::KernelGradientCorrection)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient, dw_gamma = cache
