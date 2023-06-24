@@ -54,6 +54,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
     end
 end
 
+timer_name(::OpenBoundarySPHSystem) = "open_boundary"
+
 # TODO
 function Base.show(io::IO, system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time
@@ -103,7 +105,7 @@ function (boundary_zone::Union{InFlow, OutFlow})(particle_coords, particle, zone
     position = particle_coords - zone_origin
 
     for dim in 1:ndims(system)
-        direction = current_coords(zone, system, dim)
+        direction = extract_svector(zone, system, dim)
 
         if !(0 <= dot(position, direction) <= dot(direction, direction))
 
@@ -120,7 +122,7 @@ function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
                                   system::OpenBoundarySPHSystem)
     position = particle_coords - zone_origin
     for dim in 1:ndims(system)
-        direction = current_coords(zone, system, dim)
+        direction = extract_svector(zone, system, dim)
 
         if !(0 <= dot(position, direction) <= dot(direction, direction))
 
@@ -136,8 +138,10 @@ function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
     return true
 end
 
-function update_final!(system::OpenBoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                       semi, t)
+function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_ode, u_ode, semi)
+    u = wrap_u(u_ode, system_index, system, semi)
+    v = wrap_v(v_ode, system_index, system, semi)
+
     evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
 
     compute_quantities!(system, v)
@@ -312,7 +316,7 @@ end
 
         # reset position and velocity of particle
         u_particle_ref = current_coords(u, system, particle) -
-                         current_coords(zone, system, 1)
+                         extract_svector(zone, system, 1)
         v_particle_ref = initial_velocity(system, particle)
 
         for dim in 1:ndims(system)

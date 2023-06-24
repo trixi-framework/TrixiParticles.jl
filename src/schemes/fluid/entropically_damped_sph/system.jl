@@ -73,6 +73,8 @@ struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V} <: FluidSystem{NDI
     end
 end
 
+timer_name(::EntropicallyDampedSPH) = "edac"
+
 function Base.show(io::IO, system::EntropicallyDampedSPH)
     @nospecialize system # reduce precompilation time
 

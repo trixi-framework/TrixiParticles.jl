@@ -15,7 +15,7 @@ particle_spacing = 0.01 * domain_length
 water_density = 1000.0
 pressure = 0.0
 
-prescribed_velocity = (0.1, 0.0)
+prescribed_velocity = (1.0, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
 
@@ -77,24 +77,26 @@ top_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, boundary_
                              n_particles_y * particle_spacing), water_density)
 boundary = InitialCondition(bottom_wall, top_wall)
 
-wall_viscosity = ViscousInteractionAdami(1e-5)
+wall_viscosity = ViscosityAdami(1e-4)
 
 # ==========================================================================================
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              state_equation, AdamiPressureExtrapolation(),
-                                             #viscosity=wall_viscosity,
+                                             viscosity=wall_viscosity,
                                              smoothing_kernel, smoothing_length)
 
 # ==========================================================================================
-# ==== Containers
+# ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
-                                           #viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
-
+#fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(), state_equation,
+#                                           smoothing_kernel, smoothing_length,
+#                                           viscosity=viscosity,
+#                                           acceleration=(0.0, gravity))
+fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
+                                     sound_speed, viscosity=ViscosityAdami(0.05), #wall_viscosity,
+                                     acceleration=(0.0, gravity))
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
                                          zone_origin_in, fluid_system)
 
@@ -112,13 +114,13 @@ semi = Semidiscretization(fluid_system,
                           boundary_system,
                           neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 2.0)
+tspan = (0.0, 20.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(interval=10)
+saving_callback = SolutionSavingCallback(dt=0.02)
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateAfterTimeStep())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -128,9 +130,15 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, Euler(),
-            dt=1e-3,
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
+#sol = solve(ode, Euler(),
+#            dt=1e-3,
+#            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+#            reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+#            dtmax=1e-3, # Limit stepsize to prevent crashing
+#            save_everystep=false, callback=callbacks);
+
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
