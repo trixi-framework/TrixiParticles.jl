@@ -225,6 +225,10 @@ end
     return extract_svector(v, system, particle)
 end
 
+@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+end
+
 @inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
     return particle_density(v, system.boundary_model, system, particle)
 end

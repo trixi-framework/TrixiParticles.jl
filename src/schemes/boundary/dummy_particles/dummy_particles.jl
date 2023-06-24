@@ -80,7 +80,10 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
                                          smoothing_length; viscosity=NoViscosity())
         pressure = similar(initial_density)
 
-        cache = create_cache(initial_density, density_calculator)
+        n_particles = length(initial_density)
+
+        cache = (; create_cache(viscosity, n_particles, ndims(smoothing_kernel))...,
+                 create_cache(initial_density, density_calculator)...)
 
         new{eltype(initial_density), typeof(state_equation),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
@@ -94,6 +97,8 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
 
     print(io, "BoundaryModelDummyParticles(")
     print(io, model.density_calculator |> typeof |> nameof)
+    print(io, ", ")
+    print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
 
@@ -149,6 +154,37 @@ function create_cache(initial_density, ::AdamiPressureExtrapolation)
     volume = similar(initial_density)
 
     return (; density, volume)
+end
+
+function create_cache(viscosity::NoViscosity, n_particles, n_dims)
+    return (;)
+end
+
+function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
+    ELTYPE = eltype(viscosity.nu)
+
+    wall_velocity = zeros(ELTYPE, n_dims, n_particles)
+
+    return (; wall_velocity)
+end
+
+function reset_cache!(cache, viscosity)
+    @unpack density, volume = cache
+
+    set_zero!(density)
+    set_zero!(volume)
+
+    return cache
+end
+
+function reset_cache!(cache, viscosity::ViscosityAdami)
+    @unpack density, volume, wall_velocity = cache
+
+    set_zero!(density)
+    set_zero!(volume)
+    set_zero!(wall_velocity)
+
+    return cache
 end
 
 @inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
@@ -214,12 +250,14 @@ end
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                            system, system_index, v, u, v_ode, u_ode, semi)
     @unpack systems, neighborhood_searches = semi
-    @unpack pressure, state_equation, cache = boundary_model
+    @unpack pressure, state_equation, cache, viscosity = boundary_model
     @unpack volume, density = cache
 
-    set_zero!(density)
-    set_zero!(volume)
     set_zero!(pressure)
+
+    # Set `volume` and `density` to zero.
+    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    reset_cache!(cache, viscosity)
 
     # Use all other systems for the pressure extrapolation
     @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(systems) do (neighbor_system_index,
@@ -250,8 +288,7 @@ end
                                                neighbor_system::WeaklyCompressibleSPHSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
-    @unpack pressure, cache = boundary_model
-    @unpack volume = cache
+    @unpack pressure, cache, viscosity = boundary_model
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system,
@@ -262,17 +299,24 @@ end
         density_neighbor = particle_density(v_neighbor_system, neighbor_system,
                                             neighbor)
 
+        kernel_weight = smoothing_kernel(boundary_model, distance)
+
         # TODO moving boundaries
         pressure[particle] += (neighbor_system.pressure[neighbor] +
                                dot(neighbor_system.acceleration,
-                                   density_neighbor * pos_diff)) *
-                              smoothing_kernel(boundary_model, distance)
-        volume[particle] += smoothing_kernel(boundary_model, distance)
+                                   density_neighbor * pos_diff)) * kernel_weight
+
+        cache.volume[particle] += kernel_weight
+        compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                                   kernel_weight, particle, neighbor)
     end
 
-    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
     for particle in eachparticle(system)
+        # Limit pressure to be non-negative to avoid negative pressures at free surfaces
         pressure[particle] = max(pressure[particle], 0.0)
+
+        # To impose no-slip condition
+        compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
 end
 
@@ -280,4 +324,50 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
+end
+
+function compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                                    kernel_weight, particle, neighbor)
+    return cache
+end
+
+function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami,
+                                    neighbor_system, v_neighbor_system, kernel_weight,
+                                    particle, neighbor)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    for dim in 1:ndims(neighbor_system)
+        cache.wall_velocity[dim, particle] += kernel_weight * v_b[dim]
+    end
+
+    return cache
+end
+
+@inline function compute_wall_velocity!(viscosity, system, system_coords, particle)
+    return viscosity
+end
+
+@inline function compute_wall_velocity!(viscosity::ViscosityAdami, system,
+                                        system_coords, particle)
+    @unpack boundary_model = system
+    @unpack cache = boundary_model
+    @unpack volume, wall_velocity = cache
+
+    # The summation is only over fluid particles, thus the volume stays zero when a boundary
+    # particle isn't surrounded by fluid particles.
+    # Check the volume to avoid NaNs in velocity.
+    if volume[particle] > eps()
+
+        # Prescribed velocity of the boundary particle.
+        # This velocity is zero when not using moving boundaries.
+        v_boundary = current_velocity(system_coords, system, particle)
+
+        for dim in 1:ndims(system)
+            # The second term is the precalculated smoothed velocity field of the fluid.
+            wall_velocity[dim, particle] = 2 * v_boundary[dim] -
+                                           wall_velocity[dim, particle] / volume[particle]
+        end
+    end
+
+    return viscosity
 end
