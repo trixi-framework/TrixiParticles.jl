@@ -62,8 +62,7 @@ end
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += m_b * dot(vdiff, grad_kernel)
+    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
