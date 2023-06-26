@@ -73,9 +73,9 @@ as especially for free surfaces.
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 -  Shaofan Li, Wing Kam Liu.
-  "Moving least square Kernel Galerkin method (II) Fourier analysis",
-  Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
-  [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
+  "Moving least-square reproducing kernel method Part II: Fourier analysis".
+  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
+  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct ShepardKernelCorrection end
 
