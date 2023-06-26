@@ -96,7 +96,7 @@ The gradient of corrected kernel is determined by
 ```
 
 This correction can be applied with SummationDensity and ContinuityDensity which leads to an improvement
-as especially for free surfaces.
+especially for free surfaces.
 
 # Notes
 - Also referred to as 0th order correction (2D: +10-15% computational time)
