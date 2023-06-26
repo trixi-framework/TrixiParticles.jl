@@ -46,7 +46,6 @@ end
 
 @doc raw"""
     ShepardKernelCorrection()
-    KernelGradientCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al.
