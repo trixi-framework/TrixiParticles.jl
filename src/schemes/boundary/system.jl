@@ -71,6 +71,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
     end
 end
 
+timer_name(::BoundarySPHSystem) = "boundary"
+
 @inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
 
 # This does not account for moving boundaries, but it's only used to initialize the
@@ -120,12 +122,12 @@ end
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
 
-@inline function viscous_velocity(v, ::ViscousInteractionAdami, system, particle)
-    return extract_svector(system.boundary_model.cache.velocity, system, particle)
+@inline function viscous_velocity(v, ::ViscosityAdami, system, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function viscous_velocity(v, viscosity, system, particle)
-    return current_velocity(v, system::BoundarySPHSystem, particle)
+    return current_velocity(v, system, particle)
 end
 
 @inline function particle_density(v, system::BoundarySPHSystem, particle)

@@ -27,7 +27,7 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, pressure,
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()#SchoenbergCubicSplineKernel{2}()
 
-viscosity = ViscousInteractionAdami(1.0e-6)
+viscosity = ViscosityAdami(1.0e-6)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,

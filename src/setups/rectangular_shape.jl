@@ -1,6 +1,6 @@
 """
-    RectangularShape(particle_spacing, n_particles_per_dimension, density,
-                     particle_position; loop_order=:x_first,
+    RectangularShape(particle_spacing, n_particles_per_dimension, particle_position
+                     density,; loop_order=:x_first,
                      init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)))
 
 Rectangular shape filled with particles.

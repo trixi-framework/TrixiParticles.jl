@@ -178,6 +178,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     end
 end
 
+timer_name(::TotalLagrangianSPHSystem) = "solid"
+
 @inline function v_nvariables(system::TotalLagrangianSPHSystem{
                                                                <:BoundaryModelMonaghanKajtar
                                                                })
@@ -224,7 +226,7 @@ end
 end
 
 @inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
-    return extract_svector(system.boundary_model.cache.velocity, system, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
 @inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)

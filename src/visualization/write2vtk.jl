@@ -107,9 +107,23 @@ function write2vtk!(vtk, v, u, t, model, system)
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
+    write2vtk!(vtk, v, u, t, model, model.viscosity, system)
+end
+
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity, system)
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
+
+    return vtk
+end
+
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
+                    viscosity::ViscosityAdami, system)
+    vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
+                                   for particle in eachparticle(system)]
+    vtk["pressure"] = model.pressure
+    vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
 
     return vtk
 end

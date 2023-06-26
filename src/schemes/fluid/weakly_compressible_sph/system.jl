@@ -65,7 +65,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     end
 end
 
-create_cache(::Nothing, density) = (;)
+create_cache(correction, density) = (;)
 
 function create_cache(::ShepardKernelCorrection, density)
     (; kernel_correction_coefficient=similar(density))
@@ -86,6 +86,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
 
     print(io, "WeaklyCompressibleSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
+    print(io, ", ", system.correction)
     print(io, ", ", system.state_equation)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
@@ -103,6 +104,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
+        summary_line(io, "correction method",
+                     system.correction |> typeof |> nameof)
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
@@ -110,6 +113,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_footer(io)
     end
 end
+
+timer_name(::WeaklyCompressibleSPHSystem) = "fluid"
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem)
     return v_nvariables(system, system.density_calculator)
@@ -166,8 +171,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, ::Nothing,
-                                 density_calculator)
+function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+                                 correction, density_calculator)
     return system
 end
 
