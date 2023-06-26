@@ -62,10 +62,10 @@ end
     mass = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_system, pos_diff,
-                                                         distance))
+
+    dv[end, particle] += sum(mass * vdiff .*
+                             smoothing_kernel_grad(particle_system, pos_diff,
+                                                   distance))
 
     return dv
 end
