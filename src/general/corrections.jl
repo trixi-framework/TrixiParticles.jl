@@ -137,7 +137,7 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(systems) do (neighbor_system_index,
+    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
                                                                                            neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
