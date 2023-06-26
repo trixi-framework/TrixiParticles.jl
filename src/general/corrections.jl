@@ -201,14 +201,15 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
             kernel_correction_coefficient[particle] += volume *
                                                        smoothing_kernel(system, distance)
             if distance > sqrt(eps())
-                dw_gamma[:, particle] += volume *
-                                         smoothing_kernel_grad(system, pos_diff,
-                                                               distance)
+                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance)
+                for i in axes(dw_gamma, 1)
+                    dw_gamma[i, particle] += tmp[i]
+                end
             end
         end
     end
 
-    for particle in eachparticle(system)
-        dw_gamma[:, particle] ./= kernel_correction_coefficient[particle]
+    for particle in eachparticle(system), i in axes(dw_gamma, 1)
+        dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
     end
 end
