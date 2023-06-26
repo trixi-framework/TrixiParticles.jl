@@ -46,7 +46,6 @@ end
 
 @doc raw"""
     ShepardKernelCorrection()
-    KernelGradientCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al.
@@ -72,24 +71,55 @@ as especially for free surfaces.
   "Robustness and accuracy of SPH formulations for viscous flow".
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
+-  Shaofan Li, Wing Kam Liu.
+  "Moving least-square reproducing kernel method Part II: Fourier analysis".
+  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
+  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
+"""
+struct ShepardKernelCorrection end
+
+@doc raw"""
+    KernelGradientCorrection()
+
+Kernel gradient correction uses Shepard interpolation to obtain a 0-th order accurate result, which
+was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
+as shown by Basa et al.
+
+The kernel correction coefficient is determined by
+```math
+c(x) = \sum_{b=1}^{N} V_b W_b(x)
+```
+The gradient of corrected kernel is determined by
+```math
+\nabla \tilde(W)_{b}(x) = \frac{\naba W_{b}(x) - \gamma(x)}{\sum_{b=1}^{N} V_b W_b(x)}
+\gamma(x) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(x)}{\sum_{b=1}^{N} V_b W_b(x)}
+```
+
+This correction can be applied with SummationDensity and ContinuityDensity which leads to an improvement
+especially for free surfaces.
+
+# Notes
+- This only works when the boundary model uses `SummationDensity` (yet).
+- It is also referred to as 0th order correction.
+- In 2D, we can expect an increase of about 10-15% in computation time.
+
+
+## References:
+- J. Bonet, T.-S.L. Lok.
+  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
+  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
+  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
+- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
+  "Robustness and accuracy of SPH formulations for viscous flow".
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 - S.F. Li, W.K. Liu, "Moving least square Kernel Galerkin method (II) Fourier analysis",
   Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
   [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
 """
-struct ShepardKernelCorrection end
 struct KernelGradientCorrection end
 
 function kernel_correction_coefficient(system, particle)
-    kernel_correction_coefficient(system, particle, system.correction)
-end
-
-function kernel_correction_coefficient(system, particle, correction)
-    #skip
-end
-
-function kernel_correction_coefficient(system, particle,
-                                       ::Union{ShepardKernelCorrection,
-                                               KernelGradientCorrection})
     return system.cache.kernel_correction_coefficient[particle]
 end
 
@@ -100,8 +130,8 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute kernel correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                           neighbor_system)
+    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
+                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
@@ -112,7 +142,7 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
@@ -127,18 +157,12 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
 end
 
 function dw_gamma(system, particle)
-    dw_gamma(system, particle, system.correction)
-end
-
-function dw_gamma(system, particle, correction)
-    #skip
-end
-
-function dw_gamma(system, particle, ::KernelGradientCorrection)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode, semi)
+function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+                                    ::Union{SummationDensity, ContinuityDensity},
+                                    ::KernelGradientCorrection)
     @unpack systems, neighborhood_searches = semi
     @unpack cache = system
     @unpack kernel_correction_coefficient, dw_gamma = cache
@@ -147,8 +171,8 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute kernel gradient correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                                    neighbor_system)
+    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
+                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
@@ -159,7 +183,7 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
 
         neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
 
-        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
@@ -170,14 +194,15 @@ function kernel_gradient_correct_value(system, system_index, v, u, v_ode, u_ode,
             kernel_correction_coefficient[particle] += volume *
                                                        smoothing_kernel(system, distance)
             if distance > sqrt(eps())
-                dw_gamma[:, particle] += volume *
-                                         smoothing_kernel_grad(system, pos_diff,
-                                                               distance)
+                tmp = volume * smoothing_kernel_grad(system, pos_diff, distance)
+                for i in axes(dw_gamma, 1)
+                    dw_gamma[i, particle] += tmp[i]
+                end
             end
         end
     end
 
-    for particle in eachparticle(system)
-        dw_gamma[:, particle] ./= kernel_correction_coefficient[particle]
+    for particle in eachparticle(system), i in axes(dw_gamma, 1)
+        dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
     end
 end

@@ -93,15 +93,15 @@ end
 correction_dict = Dict("no_correction" => Nothing(),
                        "shepard_kernel_correction" => ShepardKernelCorrection(),
                        "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
-                       "kernel_gradient_sum_correction" => KernelGradientCorrection(),
-                       "kernel_gradient_cont_correction" => KernelGradientCorrection(),
+                       "kernel_gradient_summation_correction" => KernelGradientCorrection(),
+                       "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
                        "density_reinit" => Nothing())
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "shepard_kernel_correction" => SummationDensity(),
                                "akinci_free_surf_correction" => SummationDensity(),
-                               "kernel_gradient_sum_correction" => SummationDensity(),
-                               "kernel_gradient_cont_correction" => ContinuityDensity(),
+                               "kernel_gradient_summation_correction" => SummationDensity(),
+                               "kernel_gradient_continuity_correction" => ContinuityDensity(),
                                "density_reinit" => ContinuityDensity())
 
 reinit_dict = Dict("no_correction" => false,

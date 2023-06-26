@@ -151,10 +151,9 @@ end
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(neighbor_system.mass[neighbor] * vdiff .*
-                                   smoothing_kernel_grad(neighbor_system, pos_diff,
-                                                         distance))
+    dv[end, particle] += sum(neighbor_system.mass[neighbor] * vdiff .*
+                             smoothing_kernel_grad(neighbor_system, pos_diff,
+                                                   distance))
 
     return dv
 end
