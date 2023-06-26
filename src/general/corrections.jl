@@ -138,7 +138,7 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                           neighbor_system)
+                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
@@ -179,7 +179,7 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
 
     # Use all other systems for the density summation
     @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                                    neighbor_system)
+                                                                                    neighbor_system)
         u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
                                    semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
