@@ -99,7 +99,9 @@ This correction can be applied with SummationDensity and ContinuityDensity which
 especially for free surfaces.
 
 # Notes
-- Also referred to as 0th order correction (2D: +10-15% computational time)
+- This only works when the boundary model uses `SummationDensity` (yet).
+- It is also referred to as 0th order correction.
+- In 2D, we can expect an increase of about 10-15% in computation time.
 
 
 ## References:
