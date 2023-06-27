@@ -118,6 +118,10 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
+@inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+end
+
 @inline function particle_density(v, system::BoundarySPHSystem, particle)
     return particle_density(v, system.boundary_model, system, particle)
 end

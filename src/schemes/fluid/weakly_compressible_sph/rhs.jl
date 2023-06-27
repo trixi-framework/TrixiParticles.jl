@@ -30,7 +30,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                                                             particle_system,
                                                                             rho_mean)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -54,7 +54,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     for particle in each_moving_particle(particle_system)
@@ -95,14 +95,11 @@ end
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
-                                      neighbor_system)
-    mass = hydrodynamic_mass(neighbor_system, neighbor)
+                                      neighbor_system, grad_kernel)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_system, pos_diff,
-                                                         distance))
+    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
@@ -110,6 +107,6 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system)
+                                      particle_system, neighbor_system, grad_kernel)
     return dv
 end

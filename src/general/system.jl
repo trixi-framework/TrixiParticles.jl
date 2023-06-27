@@ -72,8 +72,12 @@ end
 end
 
 @inline function smoothing_kernel_grad(system, pos_diff, distance)
-    @unpack smoothing_kernel, smoothing_length = system
-    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+    return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
+end
+
+# This is dispatched for some system types
+@inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
+    return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end
 
 # System update orders. This can be dispatched if needed.
