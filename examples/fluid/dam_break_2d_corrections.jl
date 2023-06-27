@@ -107,8 +107,8 @@ density_calculator_dict = Dict("no_correction" => SummationDensity(),
 reinit_dict = Dict("no_correction" => false,
                    "shepard_kernel_correction" => false,
                    "akinci_free_surf_correction" => false,
-                   "kernel_gradient_sum_correction" => false,
-                   "kernel_gradient_cont_correction" => false,
+                   "kernel_gradient_summation_correction" => false,
+                   "kernel_gradient_continuity_correction" => false,
                    "density_reinit" => true)
 
 for correction_name in keys(correction_dict)
