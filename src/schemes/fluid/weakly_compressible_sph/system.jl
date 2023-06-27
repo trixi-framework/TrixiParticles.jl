@@ -66,11 +66,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        if correction isa ShepardKernelCorrection &&
-           density_calculator isa ContinuityDensity
-            throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
-        end
-
         cache = create_cache(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
