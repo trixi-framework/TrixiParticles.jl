@@ -124,13 +124,14 @@ function kernel_correction_coefficient(system, particle)
 end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
-    density_calculator, correction)
+                                    density_calculator, correction)
     return system
 end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
-    ::SummationDensity, ::ShepardKernelCorrection)
-    return kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi, system.cache.kernel_correction_coefficient)
+                                    ::SummationDensity, ::ShepardKernelCorrection)
+    return kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
+                                system.cache.kernel_correction_coefficient)
 end
 
 function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
