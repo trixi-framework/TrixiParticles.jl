@@ -67,8 +67,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         end
 
         if correction isa ShepardKernelCorrection &&
-            density_calculator isa ContinuityDensity
-             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
+           density_calculator isa ContinuityDensity
+            throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
         cache = create_cache(n_particles, ELTYPE, density_calculator)
