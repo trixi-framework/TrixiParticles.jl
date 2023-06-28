@@ -20,8 +20,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]
-    dv_pressure        :: Array{ELTYPE, 2} # [dimension, particle]
-    dv_viscosity       :: Array{ELTYPE, 2} # [dimension, particle]
     density_calculator :: DC
     state_equation     :: SE
     smoothing_kernel   :: K
@@ -44,8 +42,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
         mass = copy(initial_condition.mass)
         pressure = Vector{ELTYPE}(undef, n_particles)
-        dv_pressure = Array{ELTYPE, 2}(undef, NDIMS, n_particles)
-        dv_viscosity = Array{ELTYPE, 2}(undef, NDIMS, n_particles)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -70,7 +66,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
-                   }(initial_condition, mass, pressure, dv_pressure, dv_viscosity,
+                   }(initial_condition, mass, pressure,
                      density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
                      correction, cache)

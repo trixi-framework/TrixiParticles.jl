@@ -4,58 +4,71 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
     @unpack density_calculator, state_equation, smoothing_length,
-    correction, dv_pressure, dv_viscosity = particle_system
+    correction = particle_system
     @unpack sound_speed = state_equation
 
     viscosity = system_viscosity(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
-    neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    set_zero!(dv_pressure)
-    set_zero!(dv_viscosity)
+    @threaded for particle in each_moving_particle(particle_system)
+        particle_coords = extract_svector(system_coords, particle_system, particle)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0.
-        distance < sqrt(eps()) && return
+        #Note: don't move outside of @threaded block causes a bug (@2/2023)
+        NDIMS = ndims(particle_system)
 
-        rho_a = particle_density(v_particle_system, particle_system, particle)
-        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = (rho_a + rho_b) / 2
+        dv_viscosity = zero(SVector{NDIMS, eltype(particle_system)})
+        dv_pressure = zero(SVector{NDIMS, eltype(particle_system)})
+        #dv_surface_tension = zero(SVector{NDIMS, eltype(particle_system)})
 
-        # Determine correction values
-        viscosity_correction, pressure_correction = free_surface_correction(correction,
-                                                                            particle_system,
-                                                                            rho_mean)
+        for neighbor in eachneighbor(particle_coords, neighborhood_search)
+            neighbor_coords = extract_svector(neighbor_system_coords, neighbor_system,
+                                              neighbor)
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+            pos_diff = particle_coords - neighbor_coords
+            distance2 = dot(pos_diff, pos_diff)
 
-        m_a = hydrodynamic_mass(particle_system, particle)
-        m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        @views dv_pressure[:, particle] += calc_pressure_eq(pressure_correction, m_b, particle,
-                                                    particle_system, v_particle_system,
-                                                    neighbor, neighbor_system,
-                                                    v_neighbor_system, rho_a, rho_b,
-                                                    pos_diff, distance, grad_kernel)
+            if eps() < distance2 <= compact_support(particle_system, neighbor_system)^2
+                distance = sqrt(distance2)
 
-        @views dv_viscosity[:, particle] += viscosity_correction *
-                                    viscosity(particle_system, neighbor_system,
-                                              v_particle_system, v_neighbor_system,
-                                              particle, neighbor, pos_diff, distance,
-                                              sound_speed, m_a, m_b, rho_mean)
+                rho_a = particle_density(v_particle_system, particle_system, particle)
+                rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+                rho_mean = (rho_a + rho_b) / 2
 
-        continuity_equation!(dv, density_calculator,
-                             v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system, grad_kernel)
-    end
 
-    for particle in each_moving_particle(particle_system)
-        for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i, particle] + dv_viscosity[i, particle]
+                # Determine correction values
+                viscosity_correction, pressure_correction = free_surface_correction(correction,
+                                                                                    particle_system,
+                                                                                    rho_mean)
+
+                grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+
+                m_a = hydrodynamic_mass(particle_system, particle)
+                m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+                dv_pressure += calc_pressure_eq(pressure_correction, m_b, particle,
+                                                            particle_system, v_particle_system,
+                                                            neighbor, neighbor_system,
+                                                            v_neighbor_system, rho_a, rho_b,
+                                                            pos_diff, distance, grad_kernel)
+
+
+                dv_viscosity += viscosity_correction *
+                                            viscosity(particle_system, neighbor_system,
+                                                    v_particle_system, v_neighbor_system,
+                                                    particle, neighbor, pos_diff, distance,
+                                                    sound_speed, m_a, m_b, rho_mean)
+
+                continuity_equation!(dv, density_calculator,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    particle_system, neighbor_system, grad_kernel)
+            end
+        end
+
+        for i in 1:NDIMS
+            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
         end
     end
 
