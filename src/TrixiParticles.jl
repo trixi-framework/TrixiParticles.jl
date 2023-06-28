@@ -46,7 +46,7 @@ export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
-export FillSphere, HollowSphere, reset_wall!
+export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
 

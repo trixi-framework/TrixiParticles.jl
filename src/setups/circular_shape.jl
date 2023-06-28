@@ -1,29 +1,79 @@
 """
     SphereShape(particle_spacing, radius, center_position, density;
-                  shape_type=FillSphere(), init_velocity=(0.0, 0.0))
+                shape_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
+                init_velocity=zeros(length(center_position)))
 
-Either a circle filled with particles or a circumference drawn by particles.
+Generate a sphere that is either completely filled (by default)
+or hollow (by passing `n_layers`).
+
+With the shape type [`VoxelSphere`](@ref), a sphere of voxels (where particles are placed
+in the voxel center) with a regular inner structure but small corners on the surface
+is created.
+With the shape type [`RoundSphere`](@ref), a perfectly round sphere with an imperfect inner
+structure is created.
+
+A cuboid can be cut out of the sphere by specifying the two corners in negative and positive
+coordinate directions as `cutoff_min` and `cutoff_max`.
 
 # Arguments
-- `particle_spacing`:           Spacing between the particles.
-- `R`:                          Radius of the circle.
-- `center_position::Tuple`:     The position of the circle center as `(x,y)`.
-- `density`:                    Initial density of particles.
+- `particle_spacing`:   Spacing between the particles.
+- `radius`:             Radius of the sphere.
+- `center_position`:    The coordinates of the center of the sphere.
+- `density`:            Density of the sphere.
 
 # Keywords
-- `shape_type`:    `Type` to specify the circular shape (see [`FillSphere`](@ref) and [`HollowSphere`](@ref)).
-- `init_velocity`: The initial velocity of the fluid particles as `(vel_x, vel_y)`.
+- `shape_type`:         Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
+                        explanation above).
+- `n_layers`:           Set to an integer greater than zero to generate a hollow sphere,
+                        where the shell consists of `n_layers` layers.
+- `layer_inwards`:      When set to `true` (by default), `radius` is the outer radius
+                        of the sphere. When set to `false`, `radius` is the inner radius
+                        of the sphere. This is only used when `n_layers > 0`.
+- `cutout_min`:         Corner in negative coordinate directions of a cuboid that is to be
+                        cut out of the sphere.
+- `cutout_max`:         Corner in positive coordinate directions of a cuboid that is to be
+                        cut out of the sphere.
+- `init_velocity`:      Initial velocity vector to be assigned to each particle.
 
-# Fields
-- `coordinates::Matrix`:    Coordinates of the particles.
-- `masses::Vector`:         Masses of the particles.
-- `densities::Vector`:      Densities of the particles.
+# Examples
+```julia
+# Filled circle with radius 0.5, center in (0.2, 0.4) and a particle spacing of 0.1
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0)
 
-For adding a recess in the particle filled circle or for only drawing the circumference
-see [`FillSphere`](@ref) and [`HollowSphere`](@ref) respectively.
+# Same as before, but perfectly round
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, shape_type=RoundSphere())
+
+# Hollow circle with ~3 layers, outer radius 0.5, center in (0.2, 0.4) and a particle
+# spacing of 0.1.
+```julia
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
+```
+
+# Same as before, but perfectly round
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, shape_type=RoundSphere())
+
+# Hollow circle with 3 layers, inner radius 0.5, center in (0.2, 0.4) and a particle spacing
+# of 0.1.
+```julia
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_inwards=false)
+
+# Filled circle with radius 0.1, center in (0.0, 0.0), particle spacing 0.1, but the
+# rectangle [0, 1] x [-0.2, 0.2] is cut out.
+SphereShape(0.1, 1.0, (0.0, 0.0), 1000.0, cutout_min=(0.0, -0.2, cutout_max=(1.0, 0.2)))
+
+# Filled 3D sphere with radius 0.5, center in (0.2, 0.4, 0.3) and a particle spacing of 0.1
+SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
+
+# Same as before, but perfectly round
+SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, shape_type=RoundSphere())
+```
+````
 """
 function SphereShape(particle_spacing, radius, center_position, density;
-                     shape_type=FillSphere(), init_velocity=zeros(length(center_position)))
+                     shape_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
+                     init_velocity=zeros(length(center_position)))
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -35,8 +85,23 @@ function SphereShape(particle_spacing, radius, center_position, density;
     NDIMS = length(center_position)
     ELTYPE = eltype(particle_spacing)
 
-    coordinates = circular_shape_coords(shape_type, particle_spacing, radius,
-                                        SVector{NDIMS}(center_position))
+    coordinates = sphere_shape_coords(shape_type, particle_spacing, radius,
+                                      SVector{NDIMS}(center_position),
+                                      n_layers, layer_inwards)
+
+    # Convert tuples to vectors
+    cutout_min_ = collect(cutout_min)
+    cutout_max_ = collect(cutout_max)
+
+    # Remove particles in cutout
+    has_cutout = norm(cutout_max_ - cutout_min_) > eps()
+    function in_cutout(particle)
+        return has_cutout &&
+               all(cutout_min_ .<= view(coordinates, :, particle) .<= cutout_max_)
+    end
+
+    particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
+    coordinates = coordinates[:, particles_not_in_cutout]
 
     n_particles = size(coordinates, 2)
     densities = density * ones(ELTYPE, n_particles)
@@ -47,84 +112,38 @@ function SphereShape(particle_spacing, radius, center_position, density;
 end
 
 """
-    FillSphere(; x_recess = (typemax(Int), typemax(Int)),
-                 y_recess = (typemax(Int), typemax(Int)))
+    VoxelSphere()
 
-Particle filled circle (required by [`SphereShape`](@ref)).
-
-The particles are arranged in an equidistiant grid
-where the distance between the points is determined by the `particle_spacing`.
-For adding a recess see example below.
-
-# Keywords
-- `x_recess`: Tuple for recess start and end coordinates in x direction
-- `y_recess`: Tuple for recess start and end coordinates in y direction
-
-# Example
-
-Particle filled circle with recess:
-```julia
-FillSphere(x_recess=(0.5, recess_length), y_recess=(0.0, recess_height))
-```
+Construct a sphere of voxels (where particles are placed
+    in the voxel center) with a regular inner structure but small corners on the surface
+    is created.
+Construct a sphere by generating particles on a Cartesian grid and removing those with
+a distance from the sphere's center greater than the sphere's radius.
+The resulting sphere will have a perfect inner structure, but is not perfectly round,
+as it will have small corners (like a sphere in Minecraft).
+"""
+struct VoxelSphere end
 
 """
-struct FillSphere{ELTYPE <: Real}
-    has_cutout::Bool
-    cutout_min::Vector{ELTYPE}
-    cutout_max::Vector{ELTYPE}
+    RoundSphere()
 
-    function FillSphere(; cutout_min=[0.0, 0.0], cutout_max=[0.0, 0.0])
-        # Convert tuples to vectors
-        cutout_min_ = collect(cutout_min)
-        cutout_max_ = collect(cutout_max)
+Construct a sphere by nesting perfectly round concentric spheres with a thickness
+of one particle.
+The resulting ball will be perfectly round, but will not have a regular inner structure.
+"""
+struct RoundSphere end
 
-        has_cutout = norm(cutout_max - cutout_min) > eps()
-        return new{eltype(cutout_min)}(has_cutout, cutout_min_, cutout_max_)
+function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
+                             n_layers, layer_inwards)
+    if n_layers > 0
+        inner_radius = if layer_inwards
+            radius - n_layers * particle_spacing
+        else
+            radius + n_layers * particle_spacing
+        end
+    else
+        inner_radius = 0.0
     end
-end
-
-"""
-    HollowSphere(; n_layers=1, layer_inwards=false)
-
-Circumference drawn by particles (required by [`SphereShape`](@ref)).
-
-Unlike in [`FillSphere`](@ref), the particles are parametrized in a way
-that the distance between neighboring particles is the `particle_spacing`.
-
-Multiple layers are generated by calling the function additionally with the number of layers (see example).
-
-# Keywords
-- `n_layers`: Number of layers
-- `layer_inwards`: Boolean to extend layers inwards.
-
-# Example
-
-Circumference with one layer:
-```julia
-HollowSphere()
-```
-
-Circumference with multiple layers extending outwards:
-```julia
-HollowSphere(n_layers=3)
-```
-
-Circumference with multiple layers extending inwards:
-```julia
-HollowSphere(n_layers=3, layer_inwards=true)
-```
-"""
-struct HollowSphere
-    n_layers      :: Int
-    layer_inwards :: Bool
-
-    function HollowSphere(; n_layers=1, layer_inwards=false)
-        return new{}(n_layers, layer_inwards)
-    end
-end
-
-function circular_shape_coords(shape::FillSphere, particle_spacing, radius, center_position)
-    @unpack has_cutout, cutout_min, cutout_max = shape
 
     NDIMS = length(center_position)
     ELTYPE = typeof(particle_spacing)
@@ -132,14 +151,11 @@ function circular_shape_coords(shape::FillSphere, particle_spacing, radius, cent
 
     n_particles = round(Int, radius / particle_spacing)
 
-    in_cutout(x) = has_cutout && all(cutout_min .<= x .<= cutout_max)
-
     # Loop over all indices in [-n_particles, n_particle]^NDIMS
     for i in CartesianIndices(ntuple(_ -> (-n_particles):n_particles, NDIMS))
         x = center_position + particle_spacing * SVector(Tuple(i))
 
-        # If `x` lies within the radius and not in the cutout
-        if norm(x - center_position) < radius && !in_cutout(x)
+        if inner_radius <= norm(x - center_position) < radius
             push!(coords, x)
         end
     end
@@ -147,19 +163,25 @@ function circular_shape_coords(shape::FillSphere, particle_spacing, radius, cent
     return reinterpret(reshape, ELTYPE, coords)
 end
 
-function circular_shape_coords(shape::HollowSphere, particle_spacing, radius, center)
-    @unpack n_layers, layer_inwards = shape
+function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
+                             n_layers, layer_inwards)
+    if n_layers > 0
+        layer_increment = if layer_inwards
+            -particle_spacing
+        else
+            particle_spacing
+        end
+    else
+        # Choose `n_layers` and `layer_increment` exactly such that the last layer is
+        # one particle in the center.
+        n_layers = round(Int, radius / particle_spacing + 1)
+        layer_increment = -radius / (n_layers - 1)
+    end
 
     coords = zeros(3, 0)
 
-    layers = if layer_inwards
-        (-n_layers + 1):0
-    else
-        0:(n_layers - 1)
-    end
-
-    for layer in layers
-        sphere_coords = hollow_sphere(particle_spacing, radius + particle_spacing * layer,
+    for layer in 0:(n_layers - 1)
+        sphere_coords = hollow_sphere(particle_spacing, radius + layer_increment * layer,
                                       center)
         coords = hcat(coords, sphere_coords)
     end
@@ -190,6 +212,12 @@ end
 function hollow_sphere(particle_spacing, radius, center::SVector{3})
     # Number of circles from North Pole to South Pole (including the poles)
     n_circles = round(Int, pi * radius / particle_spacing + 1)
+
+    if n_circles == 1
+        # When the radius is approximately zero, just return one particle at the center
+        return collect(reshape(center, (3, 1)))
+    end
+
     polar_angle_increment = pi / (n_circles - 1)
 
     particle_coords = zeros(3, 0)
