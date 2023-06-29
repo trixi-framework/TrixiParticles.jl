@@ -11,6 +11,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
+    # Example
+    # debug_array = zeros(eltype(particle_system), ndims(particle_system), nparticles(particle_system))
+
     @threaded for particle in each_moving_particle(particle_system)
         particle_coords = extract_svector(system_coords, particle_system, particle)
 
@@ -69,8 +72,12 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:NDIMS
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            # example
+            # debug_array[i, particle] = dv_pressure[i]
         end
     end
+    # example
+    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, custom_value=Dict("debug"=>debug_array), prefix="debug")
 
     return dv
 end
