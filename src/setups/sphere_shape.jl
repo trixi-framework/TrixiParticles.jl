@@ -142,7 +142,7 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
             radius + n_layers * particle_spacing
         end
     else
-        inner_radius = 0.0
+        inner_radius = -1.0
     end
 
     NDIMS = length(center_position)
@@ -155,7 +155,11 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
     for i in CartesianIndices(ntuple(_ -> (-n_particles):n_particles, NDIMS))
         x = center_position + particle_spacing * SVector(Tuple(i))
 
-        if inner_radius <= norm(x - center_position) < radius
+        # Add a small tolerance of to make sure that spheres where the radius is
+        # a multiple of the particle spacing are symmetric.
+        # Otherwise, we have `norm(x - center) == radius`, which yields non-deterministic
+        # results due to machine rounding errors.
+        if inner_radius < norm(x - center_position) <= radius + 10eps()
             push!(coords, x)
         end
     end
