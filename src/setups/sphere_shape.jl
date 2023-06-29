@@ -194,15 +194,15 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
     coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
-        sphere_coords = hollow_sphere(particle_spacing, radius + layer_increment * layer,
-                                      center)
+        sphere_coords = round_sphere(particle_spacing, radius + layer_increment * layer,
+                                     center)
         coords = hcat(coords, sphere_coords)
     end
 
     return coords
 end
 
-function hollow_sphere(particle_spacing, radius, center::SVector{2})
+function round_sphere(particle_spacing, radius, center::SVector{2})
     n_particles = round(Int, 2pi * radius / particle_spacing)
 
     if n_particles <= 2
@@ -223,7 +223,7 @@ function hollow_sphere(particle_spacing, radius, center::SVector{2})
     return particle_coords
 end
 
-function hollow_sphere(particle_spacing, radius, center::SVector{3})
+function round_sphere(particle_spacing, radius, center::SVector{3})
     # Number of circles from North Pole to South Pole (including the poles)
     n_circles = round(Int, pi * radius / particle_spacing + 1)
 
@@ -243,8 +243,8 @@ function hollow_sphere(particle_spacing, radius, center::SVector{3})
         z = radius * cos(polar_angle)
         circle_radius = sqrt(radius^2 - z^2)
 
-        circle_coords_2d = hollow_sphere(particle_spacing, circle_radius,
-                                         SVector(center[1], center[2]))
+        circle_coords_2d = round_sphere(particle_spacing, circle_radius,
+                                        SVector(center[1], center[2]))
         circle_coords_3d = vcat(circle_coords_2d,
                                 center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
 
