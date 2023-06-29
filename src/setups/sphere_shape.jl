@@ -136,30 +136,35 @@ struct RoundSphere end
 function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
                              n_layers, layer_inwards)
     if n_layers > 0
-        inner_radius = if layer_inwards
-            radius - n_layers * particle_spacing
+        if layer_inwards
+            inner_radius = radius - n_layers * particle_spacing
+            outer_radius = radius
         else
-            radius + n_layers * particle_spacing
+            inner_radius = radius
+            outer_radius = radius + n_layers * particle_spacing
         end
     else
         inner_radius = -1.0
+        outer_radius = radius
     end
 
     NDIMS = length(center_position)
     ELTYPE = typeof(particle_spacing)
     coords = SVector{NDIMS, ELTYPE}[]
 
-    n_particles = round(Int, radius / particle_spacing)
+    n_particles_cube = round(Int, outer_radius / particle_spacing)
 
-    # Loop over all indices in [-n_particles, n_particle]^NDIMS
-    for i in CartesianIndices(ntuple(_ -> (-n_particles):n_particles, NDIMS))
+    # Loop over all indices in [-n_particles_cube, n_particles_cube]^NDIMS
+    for i in CartesianIndices(ntuple(_ -> (-n_particles_cube):n_particles_cube, NDIMS))
         x = center_position + particle_spacing * SVector(Tuple(i))
 
         # Add a small tolerance of to make sure that spheres where the radius is
         # a multiple of the particle spacing are symmetric.
         # Otherwise, we have `norm(x - center) == radius`, which yields non-deterministic
         # results due to machine rounding errors.
-        if inner_radius < norm(x - center_position) <= radius + 10eps()
+        # Add the tolerance to the inner radius as well to avoid duplicate particles when
+        # multiple concentric spheres are generated.
+        if inner_radius + 10eps() < norm(x - center_position) <= outer_radius + 10eps()
             push!(coords, x)
         end
     end
@@ -179,7 +184,11 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
         # Choose `n_layers` and `layer_increment` exactly such that the last layer is
         # one particle in the center.
         n_layers = round(Int, radius / particle_spacing + 1)
-        layer_increment = -radius / (n_layers - 1)
+        layer_increment = if n_layers > 1
+            -radius / (n_layers - 1)
+        else
+            0.0
+        end
     end
 
     coords = zeros(length(center), 0)
@@ -196,8 +205,9 @@ end
 function hollow_sphere(particle_spacing, radius, center::SVector{2})
     n_particles = round(Int, 2pi * radius / particle_spacing)
 
-    if n_particles == 0
-        # When the radius is approximately zero, just return one particle at the center
+    if n_particles <= 2
+        # 2 or less particles produce weird, asymmetric results.
+        # Just return one particle at the center.
         return collect(reshape(center, (2, 1)))
     end
 
@@ -217,8 +227,9 @@ function hollow_sphere(particle_spacing, radius, center::SVector{3})
     # Number of circles from North Pole to South Pole (including the poles)
     n_circles = round(Int, pi * radius / particle_spacing + 1)
 
-    if n_circles == 1
-        # When the radius is approximately zero, just return one particle at the center
+    if n_circles <= 2
+        # 2 or less circles produce weird, asymmetric results.
+        # Just return one particle at the center.
         return collect(reshape(center, (3, 1)))
     end
 
