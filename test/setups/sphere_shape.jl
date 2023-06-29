@@ -19,9 +19,9 @@
 
         shapes = [
             SphereShape(1.0, 0.9, (0.0, 0.0), 1000.0),
-            SphereShape(1.0, 0.3, (0.0, 0.0), 1000.0, shape_type=RoundSphere()),
+            SphereShape(1.0, 0.3, (0.0, 0.0), 1000.0, sphere_type=RoundSphere()),
             SphereShape(1.0, 1.0, (0.0, 0.0), 1000.0),
-            SphereShape(0.5pi, 1.0, (0.0, 0.0), 1000.0, shape_type=RoundSphere()),
+            SphereShape(0.5pi, 1.0, (0.0, 0.0), 1000.0, sphere_type=RoundSphere()),
             SphereShape(particle_spacing, radius, (0.0, 0.0), 1000.0),
             SphereShape(particle_spacing, radius, (3.0, 4.0), 1000.0,
                         cutout_min=(3.0, 4.0), cutout_max=(5.0, 4.0 + 0.5particle_spacing)),
@@ -29,12 +29,12 @@
             SphereShape(particle_spacing, 4.0, (0.3, 0.4), 1000.0, n_layers=3,
                         layer_inwards=false),
             SphereShape(particle_spacing, radius, (-3.0, -4.0), 1000.0,
-                        shape_type=RoundSphere(), n_layers=1),
+                        sphere_type=RoundSphere(), n_layers=1),
             SphereShape(particle_spacing, radius, (3.0, -4), 1000.0,
-                        shape_type=RoundSphere(),
+                        sphere_type=RoundSphere(),
                         n_layers=3),
             SphereShape(particle_spacing, radius, (-3.0, 4.0), 1000.0,
-                        shape_type=RoundSphere(),
+                        sphere_type=RoundSphere(),
                         n_layers=2, layer_inwards=false),
         ]
 
@@ -79,17 +79,17 @@
 
         shapes = [
             SphereShape(1.0, 0.9, (0.2, -1.0, 0.3), 1000.0),
-            SphereShape(1.0, 0.3, (0.2, -1.0, 0.3), 1000.0, shape_type=RoundSphere()),
+            SphereShape(1.0, 0.3, (0.2, -1.0, 0.3), 1000.0, sphere_type=RoundSphere()),
             SphereShape(1.0, 1.0, (0.0, 0.0, 0.0), 1000.0),
-            SphereShape(0.5pi, 1.0, (0.0, 0.0, 0.0), 1000.0, shape_type=RoundSphere()),
+            SphereShape(0.5pi, 1.0, (0.0, 0.0, 0.0), 1000.0, sphere_type=RoundSphere()),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, cutout_min=(0.18, 0.4, 0.5),
                         cutout_max=(0.42, 10.0, 1.0)),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, layer_inwards=false),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
-                        shape_type=RoundSphere()),
+                        sphere_type=RoundSphere()),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, layer_inwards=false,
-                        shape_type=RoundSphere()),
+                        sphere_type=RoundSphere()),
         ]
 
         expected_coords = [

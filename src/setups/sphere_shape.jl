@@ -1,16 +1,16 @@
 """
     SphereShape(particle_spacing, radius, center_position, density;
-                shape_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                sphere_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
                 init_velocity=zeros(length(center_position)))
 
 Generate a sphere that is either completely filled (by default)
 or hollow (by passing `n_layers`).
 
-With the shape type [`VoxelSphere`](@ref), a sphere of voxels (where particles are placed
+With the sphere type [`VoxelSphere`](@ref), a sphere of voxels (where particles are placed
 in the voxel center) with a regular inner structure but small corners on the surface
 is created.
-With the shape type [`RoundSphere`](@ref), a perfectly round sphere with an imperfect inner
+With the sphere type [`RoundSphere`](@ref), a perfectly round sphere with an imperfect inner
 structure is created.
 
 A cuboid can be cut out of the sphere by specifying the two corners in negative and positive
@@ -23,7 +23,7 @@ coordinate directions as `cutoff_min` and `cutoff_max`.
 - `density`:            Density of the sphere.
 
 # Keywords
-- `shape_type`:         Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
+- `sphere_type`:        Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
                         explanation above).
 - `n_layers`:           Set to an integer greater than zero to generate a hollow sphere,
                         where the shell consists of `n_layers` layers.
@@ -42,7 +42,7 @@ coordinate directions as `cutoff_min` and `cutoff_max`.
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0)
 
 # Same as before, but perfectly round
-SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, shape_type=RoundSphere())
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, sphere_type=RoundSphere())
 
 # Hollow circle with ~3 layers, outer radius 0.5, center in (0.2, 0.4) and a particle
 # spacing of 0.1.
@@ -51,7 +51,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
 ```
 
 # Same as before, but perfectly round
-SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, shape_type=RoundSphere())
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, sphere_type=RoundSphere())
 
 # Hollow circle with 3 layers, inner radius 0.5, center in (0.2, 0.4) and a particle spacing
 # of 0.1.
@@ -66,12 +66,12 @@ SphereShape(0.1, 1.0, (0.0, 0.0), 1000.0, cutout_min=(0.0, -0.2, cutout_max=(1.0
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
 
 # Same as before, but perfectly round
-SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, shape_type=RoundSphere())
+SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 ```
 ````
 """
 function SphereShape(particle_spacing, radius, center_position, density;
-                     shape_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                     sphere_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
                      init_velocity=zeros(length(center_position)))
     if particle_spacing < eps()
@@ -85,7 +85,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     NDIMS = length(center_position)
     ELTYPE = eltype(particle_spacing)
 
-    coordinates = sphere_shape_coords(shape_type, particle_spacing, radius,
+    coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
                                       n_layers, layer_inwards)
 
