@@ -1,6 +1,6 @@
 """
     SphereShape(particle_spacing, radius, center_position, density;
-                sphere_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
                 init_velocity=zeros(length(center_position)))
 
@@ -27,8 +27,8 @@ coordinate directions as `cutoff_min` and `cutoff_max`.
                         explanation above).
 - `n_layers`:           Set to an integer greater than zero to generate a hollow sphere,
                         where the shell consists of `n_layers` layers.
-- `layer_inwards`:      When set to `true` (by default), `radius` is the outer radius
-                        of the sphere. When set to `false`, `radius` is the inner radius
+- `layer_outwards`:     When set to `false` (by default), `radius` is the outer radius
+                        of the sphere. When set to `true`, `radius` is the inner radius
                         of the sphere. This is only used when `n_layers > 0`.
 - `cutout_min`:         Corner in negative coordinate directions of a cuboid that is to be
                         cut out of the sphere.
@@ -56,7 +56,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, sphere_type=RoundSphere())
 # Hollow circle with 3 layers, inner radius 0.5, center in (0.2, 0.4) and a particle spacing
 # of 0.1.
 ```julia
-SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_inwards=false)
+SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_outwards=true)
 
 # Filled circle with radius 0.1, center in (0.0, 0.0), particle spacing 0.1, but the
 # rectangle [0, 1] x [-0.2, 0.2] is cut out.
@@ -71,7 +71,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 ````
 """
 function SphereShape(particle_spacing, radius, center_position, density;
-                     sphere_type=VoxelSphere(), n_layers=-1, layer_inwards=true,
+                     sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
                      init_velocity=zeros(length(center_position)))
     if particle_spacing < eps()
@@ -87,7 +87,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
-                                      n_layers, layer_inwards)
+                                      n_layers, layer_outwards)
 
     # Convert tuples to vectors
     cutout_min_ = collect(cutout_min)
@@ -134,14 +134,14 @@ The resulting ball will be perfectly round, but will not have a regular inner st
 struct RoundSphere end
 
 function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
-                             n_layers, layer_inwards)
+                             n_layers, layer_outwards)
     if n_layers > 0
-        if layer_inwards
-            inner_radius = radius - n_layers * particle_spacing
-            outer_radius = radius
-        else
+        if layer_outwards
             inner_radius = radius
             outer_radius = radius + n_layers * particle_spacing
+        else
+            inner_radius = radius - n_layers * particle_spacing
+            outer_radius = radius
         end
     else
         inner_radius = -1.0
@@ -173,12 +173,12 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
 end
 
 function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
-                             n_layers, layer_inwards)
+                             n_layers, layer_outwards)
     if n_layers > 0
-        layer_increment = if layer_inwards
-            -particle_spacing
-        else
+        layer_increment = if layer_outwards
             particle_spacing
+        else
+            -particle_spacing
         end
     else
         # Choose `n_layers` and `layer_increment` exactly such that the last layer is
