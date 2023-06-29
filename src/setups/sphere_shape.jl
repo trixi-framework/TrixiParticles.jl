@@ -178,7 +178,7 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
         layer_increment = -radius / (n_layers - 1)
     end
 
-    coords = zeros(3, 0)
+    coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
         sphere_coords = hollow_sphere(particle_spacing, radius + layer_increment * layer,
