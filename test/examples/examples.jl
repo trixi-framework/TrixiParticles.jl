@@ -16,10 +16,10 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/dam_break_2d_kernel_correction.jl" begin
+        @trixi_testset "fluid/dam_break_2d_corrections.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
-                                                "dam_break_2d_kernel_correction.jl"),
+                                                "dam_break_2d_corrections.jl"),
                                        tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end
