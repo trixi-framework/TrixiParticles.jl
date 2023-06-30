@@ -11,15 +11,16 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, DC}
+struct Semidiscretization{S, RU, RV, NS, DC, CL}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
     damping_coefficient   :: DC
+    cluster               :: CL
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
-                                damping_coefficient=nothing)
+                                damping_coefficient=nothing, clustering=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -36,9 +37,13 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                for neighbor in systems)
                          for system in systems)
 
+        if clustering !== nothing
+            clustering(systems)
+        end
+
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, damping_coefficient)
+            typeof(searches), typeof(damping_coefficient), typeof(clustering)}(systems, ranges_u, ranges_v,
+                                                           searches, damping_coefficient, clustering)
     end
 end
 
@@ -85,32 +90,6 @@ function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch
     initialize!(search, nhs_init_function(system, neighbor))
 
     return search
-end
-
-@inline function compact_support(system, neighbor)
-    @unpack smoothing_kernel, smoothing_length = system
-    return compact_support(smoothing_kernel, smoothing_length)
-end
-
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                                 neighbor)
-    return compact_support(system, system.boundary_model, neighbor)
-end
-
-@inline function compact_support(system::TotalLagrangianSPHSystem,
-                                 neighbor::TotalLagrangianSPHSystem)
-    @unpack smoothing_kernel, smoothing_length = system
-    return compact_support(smoothing_kernel, smoothing_length)
-end
-
-@inline function compact_support(system, model, neighbor)
-    # This NHS is never used.
-    return 0.0
-end
-
-@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    @unpack smoothing_kernel, smoothing_length = model
-    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 function nhs_init_function(system, neighbor)
@@ -302,6 +281,9 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
+    # Update clustering
+    update_clustering!(u_ode, semi)
+
     # Second update step.
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
@@ -343,6 +325,22 @@ function update_nhs(u_ode, semi)
         end
     end
 end
+
+function update_clustering!(u_ode, semi)
+    @unpack cluster = semi
+    update_clustering!(u_ods, semi, cluster)
+    return u_ode
+end
+
+function update_clustering!(u_ode, semi, cluster)
+    return u_ode
+end
+
+function update_clustering!(u_ode, semi, cluster::SeparateClusters)
+    println("update the clusters")
+    return u_ode
+end
+
 
 function gravity_and_damping!(dv_ode, v_ode, semi)
     @unpack systems, damping_coefficient = semi

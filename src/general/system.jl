@@ -96,3 +96,13 @@ end
 function update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
     return system
 end
+
+@inline function compact_support(system, neighbor)
+    @unpack smoothing_kernel, smoothing_length = system
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
+@inline function compact_support(system, model, neighbor)
+    # This NHS is never used.
+    return 0.0
+end

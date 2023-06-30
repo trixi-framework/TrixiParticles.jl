@@ -217,3 +217,8 @@ function restart_with!(system, model, ::ContinuityDensity, v, u)
 
     return system
 end
+
+@inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
+    @unpack smoothing_kernel, smoothing_length = model
+    return compact_support(smoothing_kernel, smoothing_length)
+end

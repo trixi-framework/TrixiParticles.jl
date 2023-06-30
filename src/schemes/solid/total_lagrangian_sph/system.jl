@@ -463,3 +463,14 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     # This is dispatched in the boundary system.jl file
     restart_with!(system, system.boundary_model, v, u)
 end
+
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+    neighbor)
+    return compact_support(system, system.boundary_model, neighbor)
+end
+
+@inline function compact_support(system::TotalLagrangianSPHSystem,
+    neighbor::TotalLagrangianSPHSystem)
+@unpack smoothing_kernel, smoothing_length = system
+    return compact_support(smoothing_kernel, smoothing_length)
+end
