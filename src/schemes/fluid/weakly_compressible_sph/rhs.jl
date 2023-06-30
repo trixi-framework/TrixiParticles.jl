@@ -3,8 +3,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, state_equation, viscosity,
-    smoothing_length = particle_system
+    @unpack density_calculator, state_equation, viscosity, smoothing_length,
+    correction = particle_system
     @unpack sound_speed = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -19,18 +19,24 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = (rho_a + rho_b) / 2
+
+        # Determine correction values
+        viscosity_correction, pressure_correction = free_surface_correction(correction,
+                                                                            particle_system,
+                                                                            rho_mean)
 
         # Pressure forces
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
         m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
-        dv_pressure = -m_b *
-                      (particle_system.pressure[particle] / rho_a^2 +
-                       neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel
+        dv_pressure = pressure_correction * (-m_b *
+                       (particle_system.pressure[particle] / rho_a^2 +
+                        neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel)
 
-        dv_viscosity = viscosity(particle_system, neighbor_system,
+        dv_viscosity = viscosity_correction * viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
@@ -42,7 +48,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv
@@ -52,14 +58,11 @@ end
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
-                                      neighbor_system)
-    mass = hydrodynamic_mass(neighbor_system, neighbor)
+                                      neighbor_system, grad_kernel)
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    NDIMS = ndims(particle_system)
-    dv[NDIMS + 1, particle] += sum(mass * vdiff .*
-                                   smoothing_kernel_grad(particle_system, pos_diff,
-                                                         distance))
+    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
     return dv
 end
@@ -67,7 +70,7 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system)
+                                      particle_system, neighbor_system, grad_kernel)
     return dv
 end
 
@@ -96,6 +99,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
         dv_viscosity = viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system, particle,
                                  neighbor, pos_diff, distance, sound_speed, m_a, m_b)
@@ -113,7 +117,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system)
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv

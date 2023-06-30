@@ -39,7 +39,7 @@ export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
-export ArtificialViscosityMonaghan
+export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export MovementFunction
 export SpatialHashingSearch
@@ -47,7 +47,7 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
-export ShepardKernelCorrection
+export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
 
 end # module
