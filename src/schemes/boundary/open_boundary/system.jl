@@ -138,7 +138,8 @@ function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
     return true
 end
 
-function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_ode, u_ode, semi)
+function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_ode, u_ode,
+                               semi)
     u = wrap_u(u_ode, system_index, system, semi)
     v = wrap_v(v_ode, system_index, system, semi)
 
@@ -157,9 +158,9 @@ end
     previous_characteristics, unit_normal, boundary_zone = system
     @unpack neighborhood_searches = semi
 
-    system_nhs = neighborhood_searches[system_index][system_index]
     interior_index = semi.system_indices[interior_system]
-    interior_nhs = neighborhood_searches[system_index][interior_index]
+    system_nhs = neighborhood_searches[system_index][interior_index]
+    interior_nhs = neighborhood_searches[interior_index][system_index]
 
     u_interior = wrap_u(u_ode, interior_index, interior_system, semi)
     v_interior = wrap_v(v_ode, interior_index, interior_system, semi)
@@ -173,7 +174,7 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, interior_system, system_coords, interior_coords,
-                          interior_nhs) do particle, neighbor, pos_diff, distance
+                          system_nhs) do particle, neighbor, pos_diff, distance
         rho = particle_density(v_interior, interior_system, neighbor)
         rho_ref = interior_system.initial_condition.density[neighbor]
 
@@ -206,9 +207,7 @@ end
             avg_J3 = 0.0
             counter = 0
 
-            for neighbor in eachneighbor(particle_coords, system_nhs)
-                # TODO: Check if it has an influence when only the particles considered which
-                # are inside of the influence of the fluid particles (see Negi et al 2020, p.7)
+            for neighbor in eachneighbor(particle_coords, interior_nhs)
                 avg_J1 += previous_characteristics[1, neighbor]
                 avg_J2 += previous_characteristics[2, neighbor]
                 avg_J3 += previous_characteristics[3, neighbor]

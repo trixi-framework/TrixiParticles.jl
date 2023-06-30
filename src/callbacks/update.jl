@@ -1,6 +1,6 @@
 # TODO: naming
 function UpdateAfterTimeStep()
-    return DiscreteCallback(update_condition, update_after_dt!)
+    return DiscreteCallback(update_condition, update_after_dt!, initialize=initial_update!)
 end
 # condition
 update_condition(u, t, integrator) = true
@@ -17,4 +17,13 @@ function update_after_dt!(integrator)
     return integrator
 end
 
+# initialize
+function initial_update!(cb, u, t, integrator)
+    semi = integrator.p
+    v_ode, u_ode = integrator.u.x
+
+    update_systems_and_nhs(v_ode, u_ode, semi, 0.0)
+
+    update_after_dt!(integrator)
+end
 update_open_boundary!(system, system_index, v_ode, u_ode, semi) = system
