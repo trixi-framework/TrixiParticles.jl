@@ -1,3 +1,6 @@
+# This setup is identical to `rectangular_tank_2d.jl`, except that now there is no gravity, and
+# the tank is accelerated upwards instead.
+# Note that the two setups are physically identical, but produce different numerical errors.
 using TrixiParticles
 using OrdinaryDiffEq
 
