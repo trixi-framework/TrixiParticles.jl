@@ -1,2 +1,4 @@
 [default.extend-words]
 ba = "ba"
+Shepard = "Shepard"
+shepard = "shepard"
