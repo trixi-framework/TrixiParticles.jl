@@ -1,8 +1,8 @@
 """
-    BoundarySPHSystem(coordinates, model; movement=nothing)
+    BoundarySPHSystem(inititial_condition, model; movement=nothing)
 
 System for boundaries modeled by boundary particles.
-The system is initialized with the coordinates of the particles and their masses.
+The system is initialized with the coordinates of the particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
 The `movement` field is to define in which way the boundary particles move over time.
@@ -174,6 +174,7 @@ end
 end
 
 @inline function current_acceleration(system, particle)
+    # TODO: Return `dv` of solid particles
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
