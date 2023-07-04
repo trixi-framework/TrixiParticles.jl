@@ -77,7 +77,15 @@ Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equation
 #### File viscosity.jl
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "viscosity.jl")]
+Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
+```
+
+### Entropically damped artificial compressibility for SPH
+
+#### File system.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "entropically_damped_sph", "system.jl")]
 ```
 
 ### Total Lagrangian SPH

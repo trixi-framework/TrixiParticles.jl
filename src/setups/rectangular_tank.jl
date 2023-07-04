@@ -121,8 +121,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64,
                                                   prod(n_particles_per_dimension))
-        !isempty(pressure) &&
-            (pressure = pressure * ones(Float64, prod(n_particles_per_dimension)))
+
+        if !isempty(pressure)
+            pressure = pressure * ones(Float64, prod(n_particles_per_dimension))
+        end
 
         mass = fluid_density * particle_spacing^2
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
@@ -207,8 +209,11 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         initialize_particles!(particle_coordinates, particle_velocities, particle_spacing,
                               init_velocity, n_particles_per_dimension)
         particle_densities = fluid_density * ones(Float64, prod(n_particles_per_dimension))
-        !isempty(pressure) &&
-            (pressure = pressure * ones(Float64, prod(n_particles_per_dimension)))
+
+        if !isempty(pressure)
+            pressure = pressure * ones(Float64, prod(n_particles_per_dimension))
+        end
+
         mass = fluid_density * particle_spacing^3
         particle_masses = mass * ones(ELTYPE, prod(n_particles_per_dimension))
 
