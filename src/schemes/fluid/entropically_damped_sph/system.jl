@@ -1,17 +1,12 @@
 
-# TODO: Put this in docs somehow
-
 # Ramachandran p. 580: "Clausen shows that the artiﬁcial compressibility equation results
 # when isentropic ﬂow is assumed and this implies that the ﬂuid is inviscid and therefore
 # the viscous dissipation is ignored."
 #
 # refs:
 # - Clausen 10.1103/physreve.87.013309
-# - Ramachandran 2019
 #
-# !important! (Ramachandran 2019)
-#
-# To summarize the schemes:
+# To summarize the schemes (Ramachandran p. 582):
 #
 # -   for external ﬂow problems, Eqs. (4), (6), and (10) are used.
 #     The particles move with the ﬂuid velocity u and are advected according to (11).
@@ -22,7 +17,40 @@
 #
 # For each of the schemes, the value of ν used in the Eq. (10) is found using Eq. (18).
 # The value of ν used in the momentum equation is the ﬂuid viscosity.
+#
+@doc raw"""
+    EntropicallyDampedSPH(initial_condition, smoothing_kernel, smoothing_length,
+                          sound_speed; alpha=0.5, viscosity=NoViscosity(),
+                          acceleration=ntuple(_ -> 0.0, NDIMS))
 
+Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
+As opposed to the weakly compressible SPH scheme which uses a equation of state
+(see [`WeaklyCompressibleSPHSystem`](@ref)) this scheme uses a pressure evolution equation
+(PEE) to calculate the pressure. This equation is similar to the continuity equation (see
+[`ContinuityDensity`](@ref)) but also contains a pressure damping term which reduces
+oscillations and is discretized as
+```math
+\frac{\mathrm{d} p_a}{\mathrm{d}t} = \sum_{b} m_b \frac{\rho_a}{\rho_b} c_s^2 v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h) +
+\frac{V_a^2 + V_b^2}{m_a} \tilde{\eta}_{ab} \frac{p_{ab}}{\Vert r_{ab}^2 \Vert + \eta h_{ab}^2} \nabla_{r_a}
+W(\Vert r_a - r_b \Vert, h) \cdot r_{ab},
+```
+where ``\rho_a``, ``\rho_b``,  ``r_a``, ``r_b``, ``V_a`` and
+``V_b`` denote the density, coordinates and volume of particles ``a`` and ``b`` respectively, ``c_s``
+is the speed of sound and ``v_{ab} = v_a - v_b`` and ``p_{ab}= p_a -p_b`` is the difference
+of the velocities and pressure of particles ``a`` and ``b`` respectively.
+
+The viscosity parameter ``\eta_a`` for a particle ``a`` is given as
+```math
+\eta_a = \rho_a \frac{\alpha h c_s}{8}
+```
+where it is found in the numerical experiments of (Ramachandran 2019) that ``\alpha = 0.5``
+is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
+
+## References:
+- Prabhu Ramachandran "Entropically damped artiﬁcial compressibility for SPH".
+  In: Computers and Fluids 179 (2019), pages 579-594.
+  [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
+"""
 struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V} <: FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -32,22 +60,14 @@ struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V} <: FluidSystem{NDI
     smoothing_length   :: ELTYPE
     sound_speed        :: ELTYPE
     viscosity          :: V
-    # (Ramachandran 2019) "viscosity is used to diffuse the pressure
-    # The original formulation assumes that the value of ν is the same as
-    # the fluid viscosity. [...] if the viscosity is too small, the pressure builds up too
-    # fast and eventually blows up. If the viscosity is too large it diffuses too fast
-    # resulting in a non-physical simulation.
-    #
-    # "[...] it is found that α=0.5 is a good choice for a wide range of Reynolds numbers."
-    nu           :: ELTYPE
-    acceleration :: SVector{NDIMS, ELTYPE}
+    nu                 :: ELTYPE
+    acceleration       :: SVector{NDIMS, ELTYPE}
 
     function EntropicallyDampedSPH(initial_condition, smoothing_kernel, smoothing_length,
                                    sound_speed; alpha=0.5, viscosity=NoViscosity(),
                                    acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)))
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
-        n_particles = nparticles(initial_condition)
 
         mass = copy(initial_condition.mass)
         density = copy(initial_condition.density)
