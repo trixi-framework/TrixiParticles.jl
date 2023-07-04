@@ -67,18 +67,7 @@ vtkname(system::FluidSystem) = "fluid"
 vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
-function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, cache = system
-
-    vtk["velocity"] = view(v, 1:ndims(system), :)
-    vtk["density"] = [particle_density(v, system, particle)
-                      for particle in eachparticle(system)]
-    vtk["pressure"] = system.pressure
-
-    return vtk
-end
-
-function write2vtk!(vtk, v, u, t, system::EntropicallyDampedSPH)
+function write2vtk!(vtk, v, u, t, system::FluidSystem)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
