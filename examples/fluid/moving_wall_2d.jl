@@ -50,9 +50,9 @@ wall = RectangularShape(boundary_particle_spacing,
 f_y(t) = 0.0
 f_x(t) = 0.5t^2
 
-keep_moving(t) = t < 1.5
+is_moving(t) = t < 1.5
 
-move_coordinates = MovementFunction((f_x, f_y), wall.coordinates, keep_moving)
+movement = BoundaryMovement((f_x, f_y), wall.coordinates, is_moving)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -76,7 +76,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state
 boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates, boundary_model_tank)
 
 boundary_system_wall = BoundarySPHSystem(wall.coordinates, boundary_model_wall,
-                                         move_coordinates=move_coordinates)
+                                         movement=movement)
 
 # ==========================================================================================
 # ==== Simulation

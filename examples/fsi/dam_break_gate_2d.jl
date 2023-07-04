@@ -54,9 +54,9 @@ gate = RectangularShape(fluid_particle_spacing / beta_gate,
 
 f_x(t) = 0.0
 f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
-keep_moving(t) = false # No moving boundaries for the relaxing step
+is_moving(t) = false # No moving boundaries for the relaxing step
 
-move_coordinates = MovementFunction((f_x, f_y), gate.coordinates, keep_moving)
+movement = BoundaryMovement((f_x, f_y), gate.coordinates, is_moving)
 
 # ==========================================================================================
 # ==== Solid
@@ -134,7 +134,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
 boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates, boundary_model_tank)
 
 boundary_system_gate = BoundarySPHSystem(gate.coordinates, boundary_model_gate,
-                                         move_coordinates=move_coordinates)
+                                         movement=movement)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
@@ -172,7 +172,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # Run full simulation
 tspan = (0.0, 1.0)
 
-keep_moving(t) = t < 0.1
+is_moving(t) = t < 0.1
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)

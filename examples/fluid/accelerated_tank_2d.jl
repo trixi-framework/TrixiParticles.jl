@@ -46,9 +46,9 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 f_y(t) = 0.5 * 9.81 * t^2
 f_x(t) = 0.0
 
-keep_moving(t) = true
+is_moving(t) = true
 
-move_coordinates = MovementFunction((f_x, f_y), tank.boundary.coordinates, keep_moving)
+movement = BoundaryMovement((f_x, f_y), tank.boundary.coordinates, is_moving)
 
 # ==========================================================================================
 # ==== Systems
@@ -59,7 +59,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state
                                            acceleration=(0.0, gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model,
-                                    move_coordinates=move_coordinates)
+                                    movement=movement)
 
 # ==========================================================================================
 # ==== Simulation

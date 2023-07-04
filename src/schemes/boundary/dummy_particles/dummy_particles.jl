@@ -305,7 +305,7 @@ end
 
         pressure[particle] += (neighbor_system.pressure[neighbor] +
                                dot(resulting_acc, density_neighbor * pos_diff)) *
-                              smoothing_kernel(boundary_model, distance)
+                              kernel_weight
 
         cache.volume[particle] += kernel_weight
 
