@@ -241,6 +241,7 @@ end
                                                         density_term, pressure_term,
                                                         velocity_term, kernel_,
                                                         boundary_zone::InFlow)
+    characteristics[1, particle] += (density_term + pressure_term) * kernel_
     characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_
 
     return characteristics
@@ -251,17 +252,15 @@ end
     interior_system, sound_speed = system
 
     for particle in each_moving_particle(system)
-        density[particle] = initial_condition.density[particle] +
-                            ((-characteristics[1, particle] +
-                              0.5 *
-                              (characteristics[2, particle] + characteristics[3, particle])) /
-                             sound_speed^2)
-        pressure[particle] = initial_condition.pressure[particle] +
-                             0.5 *
-                             (characteristics[2, particle] + characteristics[3, particle])
+        J1 = characteristics[1, particle]
+        J2 = characteristics[2, particle]
+        J3 = characteristics[3, particle]
 
-        particle_velocity = initial_velocity(system, particle) +
-                            ((characteristics[2, particle] - characteristics[3, particle]) /
+        density[particle] = initial_condition.density[particle] +
+                            ((-J1 +  0.5 *  (J2 + J3)) / sound_speed^2)
+        pressure[particle] = initial_condition.pressure[particle] + 0.5 *  (J2 + J3)
+
+        particle_velocity = initial_velocity(system, particle) +  ((J2 - J3) /
                              (2 * sound_speed * density[particle])) * unit_normal
         for dim in 1:ndims(system)
             v[dim, particle] = particle_velocity[dim]

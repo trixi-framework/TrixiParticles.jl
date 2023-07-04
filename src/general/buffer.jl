@@ -25,6 +25,8 @@ end
     buffer.eachparticle .= new_eachparticle
 end
 
+@inline update!(buffer::Nothing) = buffer
+
 function allocate_buffer(coords, velocities, masses, densities, pressure, buffer)
     return coords, velocities, masses, densities, pressure
 end
@@ -39,9 +41,9 @@ function allocate_buffer(coordinates, velocity, mass, density, pressure,
     velocity = hcat(velocity, rand(100.0:0.05:200.0, size(velocity, 1), buffer_size))
     mass = mass[1] * ones(eltype(mass), length(mass) + buffer_size)
     density = density[1] * ones(eltype(density), length(density) + buffer_size)
-    !isempty(pressure) &&
-        (pressure = pressure[1] * ones(eltype(pressure), length(pressure) + buffer_size))
-
+    if !isempty(pressure)
+        pressure = pressure[1] * ones(eltype(pressure), length(pressure) + buffer_size)
+    end
     return coordinates, velocity, mass, density, pressure
 end
 
