@@ -52,7 +52,7 @@ f_x(t) = 0.5t^2
 
 is_moving(t) = t < 1.5
 
-movement = BoundaryMovement((f_x, f_y), wall.coordinates, is_moving)
+movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -73,9 +73,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity, acceleration=(0.0, gravity))
 
-boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates, boundary_model_tank)
+boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
 
-boundary_system_wall = BoundarySPHSystem(wall.coordinates, boundary_model_wall,
+boundary_system_wall = BoundarySPHSystem(wall, boundary_model_wall,
                                          movement=movement)
 
 # ==========================================================================================

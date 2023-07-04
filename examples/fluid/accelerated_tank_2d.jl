@@ -48,7 +48,7 @@ f_x(t) = 0.0
 
 is_moving(t) = true
 
-movement = BoundaryMovement((f_x, f_y), tank.boundary.coordinates, is_moving)
+movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Systems
@@ -58,7 +58,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model,
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     movement=movement)
 
 # ==========================================================================================

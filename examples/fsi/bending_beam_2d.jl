@@ -130,7 +130,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                            acceleration=(0.0, gravity))
 
 # Replace the elastic solid by a boundary for testing purposes.
-# rigid_solid_system = BoundarySPHSystem(solid.coordinates, boundary_model_solid)
+# rigid_solid_system = BoundarySPHSystem(solid, boundary_model_solid)
 
 # ==========================================================================================
 # ==== Simulation

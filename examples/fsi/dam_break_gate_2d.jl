@@ -131,9 +131,9 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity, acceleration=(0.0, gravity))
 
-boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates, boundary_model_tank)
+boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
 
-boundary_system_gate = BoundarySPHSystem(gate.coordinates, boundary_model_gate,
+boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate,
                                          movement=movement)
 
 solid_system = TotalLagrangianSPHSystem(solid,

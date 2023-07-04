@@ -53,7 +53,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
