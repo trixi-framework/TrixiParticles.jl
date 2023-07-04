@@ -246,7 +246,7 @@ end
 @inline function particles_in_cell(cell_index, neighborhood_search)
     @unpack hashtable, empty_vector = neighborhood_search
 
-    # Return an empty vector when `cell_index` is not a key of `hastable` and
+    # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
     return get(hashtable, cell_index, empty_vector)
 end
