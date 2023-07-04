@@ -32,7 +32,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, 1.0,
                                    background_pressure=1.0)
 
-viscosity = ViscosityAdami(0.05) #ArtificialViscosityMonaghan(0.2, 0.0)
+alpha = 0.02
+viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8) #ArtificialViscosityMonaghan(0.2, 0.0)
 
 n_particles_interior_x = Int(floor(interior_length / particle_spacing))
 n_particles_out_y = Int(floor(outlet_width / particle_spacing))
