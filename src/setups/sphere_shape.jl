@@ -181,28 +181,29 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
             -particle_spacing
         end
     else
-        # Choose `n_layers` and `layer_increment` exactly such that the last layer is
-        # one particle in the center.
-        n_layers = round(Int, radius / particle_spacing + 1)
-        layer_increment = if n_layers > 1
-            -radius / (n_layers - 1)
-        else
-            0.0
+        # Each layer has thickness `particle_spacing`
+        n_layers = round(Int, radius / particle_spacing)
+
+        if n_layers < 1
+            # Just return one particle at the center.
+            return collect(reshape(center, (length(center), 1)))
         end
+
+        layer_increment = -radius / n_layers
     end
 
     coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
         sphere_coords = round_sphere(particle_spacing, radius + layer_increment * layer,
-                                     center)
+                                     center, layer=layer)
         coords = hcat(coords, sphere_coords)
     end
 
     return coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{2})
+function round_sphere(particle_spacing, radius, center::SVector{2}; layer=0)
     n_particles = round(Int, 2pi * radius / particle_spacing)
 
     if n_particles <= 2
@@ -223,33 +224,126 @@ function round_sphere(particle_spacing, radius, center::SVector{2})
     return particle_coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{3})
-    # Number of circles from North Pole to South Pole (including the poles)
-    n_circles = round(Int, pi * radius / particle_spacing + 1)
+# This is an implementation of the Offset Fibonacci Sphere from
+# https://web.archive.org/web/20230610125433/https://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
+function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
+    # The number of particles can either be calculated in 2D or in 3D.
+    # Let δ be the particle spacing and r the sphere radius.
+    #
+    # In 2D, the volume (surface area) of a particle is δ^2 and the surface area of
+    # the sphere with radius r is 4pi r^2. Therefore, we need to have
+    # n = 4pi r^2 / δ^2 particles on the sphere surface.
+    #
+    # In 3D, the volume of a particle is δ^3 and the volume of the sphere shell with
+    # inner radius r - δ/2 and outer radius r + δ/2 is 4pi/3 * ((r + δ/2)^3 - (r - δ/2)^3).
+    # The number of particles is then
+    # n = 4pi / (3 δ^3) * ((r + δ/2)^3 - (r - δ/2)^3) = 4pi r^2 / δ^2 + pi/3,
+    # which is the same as in the 2D calculations, plus the additional term pi/3.
+    #
+    # Note that for large numbers of particles, this term becomes insignificant.
+    # For small numbers of particles, my experiments showed much better results with
+    # the 2D version without the additional term.
+    n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
 
-    if n_circles <= 2
-        # 2 or less circles produce weird, asymmetric results.
+    if n_particles <= 2
         # Just return one particle at the center.
         return collect(reshape(center, (3, 1)))
     end
 
-    polar_angle_increment = pi / (n_circles - 1)
+    coords = Array{Float64}(undef, 3, n_particles)
 
-    particle_coords = zeros(3, 0)
+    golden_ratio = (1 + sqrt(5)) / 2
 
-    for circle in 1:n_circles
-        polar_angle = (circle - 1) * polar_angle_increment
+    # Epsilon for best average point distance
+    epsilon = 0.36
 
-        z = radius * cos(polar_angle)
-        circle_radius = sqrt(radius^2 - z^2)
+    # Rotate sphere around x-axis and then z-axis to avoid all layers from having
+    # singularities (North and South Pole) at the same point.
+    # With the singularities separated like this, we get slightly better results.
+    rotate_x = layer * 3pi / 7
+    rotate_z = layer * 2pi / 3
 
-        circle_coords_2d = round_sphere(particle_spacing, circle_radius,
-                                        SVector(center[1], center[2]))
-        circle_coords_3d = vcat(circle_coords_2d,
-                                center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
+    for i in 1:n_particles
+        theta = 2pi * (i - 1) / golden_ratio
+        phi = acos(1 - 2 * (i - 1 + epsilon) / (n_particles - 1 + 2epsilon))
 
-        particle_coords = hcat(particle_coords, circle_coords_3d)
+        x = radius * cos(theta) * sin(phi)
+        y = radius * sin(theta) * sin(phi)
+        z = radius * cos(phi)
+
+        # Rotate around x-axis
+        x2 = x
+        y2 = cos(rotate_x) * y - sin(rotate_x) * z
+        z2 = sin(rotate_x) * y + cos(rotate_x) * z
+
+        # Rotate around z-axis
+        coords[1, i] = cos(rotate_z) * x2 - sin(rotate_z) * y2 + center[1]
+        coords[2, i] = sin(rotate_z) * x2 + cos(rotate_z) * y2 + center[2]
+        coords[3, i] = z2 + center[3]
     end
 
-    return particle_coords
+    return coords
 end
+
+# function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
+#     n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
+
+#     polar_radius = acos(1 - 2 / n_particles)
+
+#     collar_angle = sqrt(4pi / n_particles)
+#     n_collars = max(1, round(Int, (pi - 2polar_radius) / collar_angle))
+
+#     fitting_collar_angle = (pi - 2polar_radius) / n_collars
+
+#     collar_area = [2pi * (cos(2polar_radius + (j - 2) * fitting_collar_angle) -
+#                     cos(2polar_radius + (j - 1) * fitting_collar_angle))
+#                    for j in 2:(n_collars + 1)]
+
+#     # This is wrong in the paper
+#     ideal_number_cells = collar_area / 4pi * n_particles
+#     pushfirst!(ideal_number_cells, 1)
+#     push!(ideal_number_cells, 1)
+
+#     actual_number_cells = ones(Int, length(ideal_number_cells))
+#     a = zeros(length(ideal_number_cells))
+#     for j in 2:(n_collars + 1)
+#         actual_number_cells[j] = round(Int, ideal_number_cells[j] + a[j - 1])
+
+#         # There is a sign error in the paper
+#         a[j] = a[j - 1] + ideal_number_cells[j] - actual_number_cells[j]
+#     end
+
+#     collar_start_latitude = [acos(1 - 2 / n_particles * sum(actual_number_cells[1:j]))
+#                              for j in 1:(n_collars + 2)]
+#     pushfirst!(collar_start_latitude, 0.0)
+#     collar_latitude = [0.5 * (collar_start_latitude[i] + collar_start_latitude[i + 1])
+#                        for i in 2:(n_collars + 1)]
+#     pushfirst!(collar_latitude, 0.0)
+#     push!(collar_latitude, pi)
+
+#     if n_collars <= 2
+#         # 2 or less circles produce weird, asymmetric results.
+#         # Just return one particle at the center.
+#         return collect(reshape(center, (3, 1)))
+#     end
+
+#     particle_coords = zeros(3, 0)
+
+#     for circle in 1:(n_collars + 2)
+#         z = radius * cos(collar_latitude[circle])
+#         circle_radius = sqrt(radius^2 - z^2)
+
+#         circle_spacing = 2pi * circle_radius / actual_number_cells[circle]
+#         if circle_spacing < eps()
+#             circle_spacing = 1.0
+#         end
+#         circle_coords_2d = round_sphere(circle_spacing, circle_radius,
+#                                         SVector(center[1], center[2]))
+#         circle_coords_3d = vcat(circle_coords_2d,
+#                                 center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
+
+#         particle_coords = hcat(particle_coords, circle_coords_3d)
+#     end
+
+#     return particle_coords
+# end
