@@ -1,37 +1,37 @@
 # TODO: Description
 using TrixiParticles
 using OrdinaryDiffEq
+using LinearAlgebra
 
 gravity = 0.0
+
+ReynoldsNumber = 200
 
 # ==========================================================================================
 # ==== Fluid
 
-domain_length = 1.0
-domain_width = 0.2
+sphere_diameter = 6.0
+domain_length = 22 * sphere_diameter
+domain_width = 6 * sphere_diameter
 
-particle_spacing = 0.01 * domain_length
+particle_spacing = 0.005 * domain_length
 
 water_density = 1000.0
-pressure = 1.0
+pressure = 100_000.0
 
-prescribed_velocity = (1.0, 0.0)
+prescribed_velocity = (10.0, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
+nu = maximum(prescribed_velocity) * sphere_diameter / ReynoldsNumber
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-state_equation = StateEquationCole(sound_speed, 7, water_density, pressure)
-
-viscosity = ArtificialViscosityMonaghan(0.2, 0.0)
 
 n_particles_x = Int(floor(domain_length / particle_spacing))
 n_particles_y = Int(floor(domain_width / particle_spacing))
 n_buffer_particles = 4 * n_particles_y
 
 fluid = RectangularShape(particle_spacing, (n_particles_x, n_particles_y), (0.0, 0.0),
-                         buffer=n_buffer_particles,
                          water_density, init_velocity=prescribed_velocity,
                          pressure=pressure)
 
@@ -74,16 +74,52 @@ bottom_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, bounda
 top_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, boundary_layers),
                             (-10 * particle_spacing,
                              n_particles_y * particle_spacing), water_density)
-boundary = InitialCondition(bottom_wall, top_wall)
 
-wall_viscosity = ViscosityAdami(1e-4)
+circle_layers = floor(Int, sphere_diameter / 2 / particle_spacing)
+sphere = CircularShape(particle_spacing, sphere_diameter / 2,
+                       (7 * sphere_diameter, domain_width/2), water_density,
+                       shape_type=DrawCircle(n_layers=circle_layers, layer_inwards=true))
 
+boundary = InitialCondition(bottom_wall, top_wall, sphere)
+
+function find_too_close_particles(coords1, coords2, max_distance)
+    result = Int[]
+
+    for particle in axes(coords1, 2)
+        for neighbor in axes(coords2, 2)
+            pos_diff = coords1[:, particle] - coords2[:, neighbor]
+            distance2 = dot(pos_diff, pos_diff)
+            distance = sqrt(distance2)
+            if distance <= max_distance
+                if !(particle in result)
+                    append!(result, particle)
+                end
+            end
+        end
+    end
+
+    return result
+end
+
+too_close_particles = find_too_close_particles(fluid.coordinates, sphere.coordinates,
+                                               1.1 * particle_spacing)
+valid_particles = filter(i -> !(i in too_close_particles), axes(fluid.coordinates, 2))
+
+fluid_coordinates = fluid.coordinates[:, valid_particles]
+fluid_velocity = fluid.velocity[:, valid_particles]
+fluid_mass = fluid.mass[valid_particles]
+fluid_density = fluid.density[valid_particles]
+fluid_pressure = fluid.pressure[valid_particles]
+
+fluid = InitialCondition(fluid_coordinates, fluid_velocity, fluid_mass, fluid_density,
+                         pressure=fluid_pressure, buffer=n_buffer_particles)
 # ==========================================================================================
 # ==== Boundary models
 
+state_equation = StateEquationCole(sound_speed, 7, water_density, pressure)
+
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              state_equation, AdamiPressureExtrapolation(),
-                                             #viscosity=wall_viscosity,
                                              smoothing_kernel, smoothing_length)
 
 # ==========================================================================================
@@ -94,8 +130,8 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
 #                                           viscosity=viscosity,
 #                                           acceleration=(0.0, gravity))
 fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
-                                     sound_speed,
-                                     #viscosity=ViscosityAdami(0.05), #wall_viscosity,
+                                     sound_speed, viscosity=ViscosityAdami(nu),
+                                     #transport_velocity=TransportVelocityAdami(pressure),
                                      acceleration=(0.0, gravity))
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
                                          zone_origin_in, fluid_system)
@@ -114,7 +150,7 @@ semi = Semidiscretization(fluid_system,
                           boundary_system,
                           neighborhood_search=SpatialHashingSearch)
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 20.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
@@ -138,7 +174,7 @@ callbacks = CallbackSet(info_callback, saving_callback, UpdateAfterTimeStep())
 #            save_everystep=false, callback=callbacks);
 
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
