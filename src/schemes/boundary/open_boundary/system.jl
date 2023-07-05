@@ -229,20 +229,20 @@ end
 
 @inline function evaluate_characteristics_per_particle!(characteristics, particle,
                                                         density_term, pressure_term,
-                                                        velocity_term, kernel_,
+                                                        velocity_term, kernel_weight,
                                                         boundary_zone::OutFlow)
-    characteristics[1, particle] += (density_term + pressure_term) * kernel_
-    characteristics[2, particle] += (velocity_term + pressure_term) * kernel_
+    characteristics[1, particle] += (density_term + pressure_term) * kernel_weight
+    characteristics[2, particle] += (velocity_term + pressure_term) * kernel_weight
 
     return characteristics
 end
 
 @inline function evaluate_characteristics_per_particle!(characteristics, particle,
                                                         density_term, pressure_term,
-                                                        velocity_term, kernel_,
+                                                        velocity_term, kernel_weight,
                                                         boundary_zone::InFlow)
-    characteristics[1, particle] += (density_term + pressure_term) * kernel_
-    characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_
+    characteristics[1, particle] += (density_term + pressure_term) * kernel_weight
+    characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_weight
 
     return characteristics
 end
