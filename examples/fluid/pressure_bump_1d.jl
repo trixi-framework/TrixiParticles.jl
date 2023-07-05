@@ -1,5 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using LinearAlgebra
 
 domain_length = 1.0
 particle_spacing = 0.005 * domain_length
@@ -34,9 +35,7 @@ fluid_3 = RectangularShape(particle_spacing, (n_particles_x, 1),
                            pressure=pressure)
 fluid = InitialCondition(fluid_3, fluid_1, fluid_2, buffer=n_buffer_particles)
 
-p(x) = 1.0 .- 0.2 * ℯ .^ -((x .- 0.5) .^ 2 ./ 0.001)
-x = collect(LinRange(0.0, domain_length, n_particles_x))
-fluid.pressure[1:n_particles_x] .= p(x)
+p(x) = 1.0 - 0.2 * ℯ^-((norm(x) - 0.5)^2 / 0.001)
 
 # ==========================================================================================
 # ==== Open Boundary
@@ -74,6 +73,7 @@ viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
 
 fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
                                      #viscosity=viscosity, alpha=alpha,
+                                     pressure_function=p,
                                      sound_speed)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
@@ -117,5 +117,5 @@ sol = solve(ode, #Euler(), dt=1e-4,
             RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-4, # Limit stepsize to prevent crashing
+            dtmax=1e-3 # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
