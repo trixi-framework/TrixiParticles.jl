@@ -77,7 +77,7 @@ end
 
 # 2D
 function initialize_rectangular!(coordinates, particle_spacing,
-                                 min_coordinates::NTuple{2},
+                                 min_coordinates,
                                  n_particles_per_dimension::NTuple{2}, loop_order)
     n_particles_x, n_particles_y = n_particles_per_dimension
     particle = 0
@@ -103,7 +103,7 @@ end
 
 # 3D
 function initialize_rectangular!(coordinates, particle_spacing,
-                                 min_coordinates::NTuple{3},
+                                 min_coordinates,
                                  n_particles_per_dimension::NTuple{3}, loop_order)
     n_particles_x, n_particles_y, n_particles_z = n_particles_per_dimension
     particle = 0
@@ -135,7 +135,7 @@ function initialize_rectangular!(coordinates, particle_spacing,
 end
 
 @inline function fill_coordinates!(coordinates, particle,
-                                   min_coordinates::NTuple{2}, x, y, particle_spacing)
+                                   min_coordinates, x, y, particle_spacing)
     # The first particle starts at a distance `0.5particle_spacing` from `min_coordinates`
     # in each dimension.
     coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
@@ -143,7 +143,7 @@ end
 end
 
 @inline function fill_coordinates!(coordinates, particle,
-                                   min_coordinates::NTuple{3}, x, y, z, particle_spacing)
+                                   min_coordinates, x, y, z, particle_spacing)
     # The first particle starts at a distance `0.5particle_spacing` from `min_coordinates`
     # in each dimension.
     coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
