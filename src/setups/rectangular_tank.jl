@@ -66,8 +66,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              boundary_density=fluid_density,
                              faces=Tuple(trues(2 * length(fluid_size))))
         NDIMS = length(fluid_size)
-        fluid_size_ = Tuple(fluid_size)
-        tank_size_ = Tuple(tank_size)
+        ELTYPE = eltype(particle_spacing)
+        fluid_size_ = Tuple(ELTYPE.(fluid_size))
+        tank_size_ = Tuple(ELTYPE.(tank_size))
 
         if particle_spacing < eps()
             throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())."))
@@ -80,8 +81,6 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         if length(tank_size) != NDIMS
             throw(ArgumentError("`tank_size` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
-
-        ELTYPE = eltype(particle_spacing)
 
         # Fluid particle data
         n_particles_per_dim, fluid_size_ = fluid_particles_per_dimension(fluid_size_,
