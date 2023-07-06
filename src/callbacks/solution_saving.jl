@@ -56,7 +56,7 @@ struct SolutionSavingCallback{I, CQ}
     output_directory      :: String
     prefix                :: String
     custom_quantities     :: CQ
-    latest_saved_iter     :: Vector{String}
+    latest_saved_iter     :: Vector{Int}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -80,7 +80,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
                                                verbose, output_directory, prefix,
-                                               custom_quantities, [""])
+                                               custom_quantities, [-1])
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -167,7 +167,7 @@ end
 get_iter(::Integer, integrator) = integrator.stats.naccept
 function get_iter(dt::AbstractFloat, integrator)
     # Basically `(t - tspan[1]) / dt` as `Int`.
-    Int(div(integrator.t - first(integrator.sol.prob.tspan), dt))
+    Int(div(integrator.t - first(integrator.sol.prob.tspan), dt, RoundNearest))
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SolutionSavingCallback})
