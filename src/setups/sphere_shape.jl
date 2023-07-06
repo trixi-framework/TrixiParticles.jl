@@ -14,7 +14,7 @@ With the sphere type [`RoundSphere`](@ref), a perfectly round sphere with an imp
 structure is created.
 
 A cuboid can be cut out of the sphere by specifying the two corners in negative and positive
-coordinate directions as `cutoff_min` and `cutoff_max`.
+coordinate directions as `cutout_min` and `cutout_max`.
 
 # Arguments
 - `particle_spacing`:   Spacing between the particles.
