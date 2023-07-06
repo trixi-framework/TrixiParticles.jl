@@ -20,11 +20,11 @@ beta = 1
 boundary_layers = 3
 
 water_width = 0.146
-water_height = 0.292
+water_height = 2water_width
 water_density = 1000.0
 
-tank_width = 0.584
-tank_height = 4.0
+tank_width = 4water_width
+tank_height = 4water_width
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
@@ -70,12 +70,15 @@ nu = 0.0
 n_particles_per_dimension = (n_particles_x,
                              round(Int, length_beam / solid_particle_spacing) + 1)
 
-# The bottom layer is sampled separately below.
+# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
+# first particle half a particle spacing away from the boundary, which is correct for fluids,
+# but not for solids. We therefore have to subtract half a particle spacing.
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (0.292, solid_particle_spacing), solid_density)
+                         (2water_width, 0.5solid_particle_spacing), solid_density)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1), (0.292, 0.0),
+                                   (n_particles_per_dimension[1], 1),
+                                   (2water_width, -0.5solid_particle_spacing),
                                    solid_density)
 
 solid = InitialCondition(plate, fixed_particles)
