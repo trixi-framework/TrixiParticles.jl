@@ -226,10 +226,7 @@ function round_sphere(particle_spacing, radius, center::SVector{2}; layer=0)
     return particle_coords
 end
 
-# This is an implementation of the Offset Fibonacci Sphere from
-# https://web.archive.org/web/20230610125433/https://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
-function round_sphere_fibonacci_offset_sphere(particle_spacing, radius, center::SVector{3};
-                                              layer=0)
+function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
     # The number of particles can either be calculated in 2D or in 3D.
     # Let δ be the particle spacing and r the sphere radius.
     #
@@ -246,87 +243,6 @@ function round_sphere_fibonacci_offset_sphere(particle_spacing, radius, center::
     # Note that for large numbers of particles, this term becomes insignificant.
     # For small numbers of particles, my experiments showed much better results with
     # the 2D version without the additional term.
-    n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
-
-    if n_particles <= 2
-        # Just return one particle at the center.
-        return collect(reshape(center, (3, 1)))
-    end
-
-    coords = Array{Float64}(undef, 3, n_particles)
-
-    golden_ratio = (1 + sqrt(5)) / 2
-
-    # Epsilon for best average point distance
-    epsilon = 0.36
-
-    # Rotate sphere around x-axis and then z-axis to avoid all layers from having
-    # singularities (North and South Pole) at the same point.
-    # With the singularities separated like this, we get slightly better results.
-    rotate_x = layer * 3pi / 7
-    rotate_z = layer * 2pi / 3
-
-    for i in 1:n_particles
-        theta = 2pi * (i - 1) / golden_ratio
-        phi = acos(1 - 2 * (i - 1 + epsilon) / (n_particles - 1 + 2epsilon))
-
-        x = radius * cos(theta) * sin(phi)
-        y = radius * sin(theta) * sin(phi)
-        z = radius * cos(phi)
-
-        # Rotate around x-axis
-        x2 = x
-        y2 = cos(rotate_x) * y - sin(rotate_x) * z
-        z2 = sin(rotate_x) * y + cos(rotate_x) * z
-
-        # Rotate around z-axis
-        coords[1, i] = cos(rotate_z) * x2 - sin(rotate_z) * y2 + center[1]
-        coords[2, i] = sin(rotate_z) * x2 + cos(rotate_z) * y2 + center[2]
-        coords[3, i] = z2 + center[3]
-    end
-
-    return coords
-end
-
-function round_sphere_original(particle_spacing, radius, center::SVector{3}; layer=0)
-    # Number of circles from North Pole to South Pole (including the poles)
-    n_circles = round(Int, pi * radius / particle_spacing + 1)
-
-    if n_circles <= 2
-        # 2 or less circles produce weird, asymmetric results.
-        # Just return one particle at the center.
-        return collect(reshape(center, (3, 1)))
-    end
-
-    polar_angle_poles = pi / (n_circles - 1) * 1.12
-    polar_angle_inner = (pi - 2polar_angle_poles) / (n_circles - 3)
-
-    particle_coords = zeros(3, 0)
-
-    for circle in 1:n_circles
-        if circle == 1
-            polar_angle = 0.0
-        elseif circle == n_circles
-            polar_angle = pi
-        else
-            polar_angle = polar_angle_poles + (circle - 2) * polar_angle_inner
-        end
-
-        z = radius * cos(polar_angle)
-        circle_radius = sqrt(radius^2 - z^2)
-
-        circle_coords_2d = round_sphere(particle_spacing, circle_radius,
-                                        SVector(center[1], center[2]))
-        circle_coords_3d = vcat(circle_coords_2d,
-                                center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
-
-        particle_coords = hcat(particle_coords, circle_coords_3d)
-    end
-
-    return particle_coords
-end
-
-function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
     n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
 
     # With less than 5 particles, this doesn't work properly
@@ -352,7 +268,6 @@ function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
     end
 
     ideal_area = 4pi / n_particles
-    # polar_area = 0.27ideal_area # No poles
     polar_area = 1.23ideal_area
     polar_radius = acos(1 - polar_area / 2pi)
 
