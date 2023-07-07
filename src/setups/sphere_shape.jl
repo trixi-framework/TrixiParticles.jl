@@ -333,27 +333,5 @@ function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
         particle_coords = hcat(particle_coords, circle_coords_3d)
     end
 
-    # # Rotate sphere around x-axis and then z-axis to avoid all layers from having
-    # # singularities (North and South Pole) at the same point.
-    # # With the singularities separated like this, we get slightly better results.
-    # rotate_x = layer * 3pi / 7
-    # rotate_z = layer * 2pi / 3
-
-    # for i in axes(particle_coords, 2)
-    #     x = particle_coords[1, i]
-    #     y = particle_coords[2, i]
-    #     z = particle_coords[3, i]
-
-    #     # Rotate around x-axis
-    #     x2 = x
-    #     y2 = cos(rotate_x) * y - sin(rotate_x) * z
-    #     z2 = sin(rotate_x) * y + cos(rotate_x) * z
-
-    #     # Rotate around z-axis
-    #     particle_coords[1, i] = cos(rotate_z) * x2 - sin(rotate_z) * y2 + center[1]
-    #     particle_coords[2, i] = sin(rotate_z) * x2 + cos(rotate_z) * y2 + center[2]
-    #     particle_coords[3, i] = z2 + center[3]
-    # end
-
     return particle_coords
 end
