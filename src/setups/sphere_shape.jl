@@ -94,6 +94,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     cutout_max_ = collect(cutout_max)
 
     # Remove particles in cutout
+    # TODO This should consider the particle radius as well
     has_cutout = norm(cutout_max_ - cutout_min_) > eps()
     function in_cutout(particle)
         return has_cutout &&
@@ -137,15 +138,18 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
                              n_layers, layer_outwards)
     if n_layers > 0
         if layer_outwards
-            inner_radius = radius
-            outer_radius = radius + n_layers * particle_spacing
+            # Put first layer of particles half a particle spacing outside of `radius`
+            inner_radius = radius + 0.5particle_spacing
+            outer_radius = radius + n_layers * particle_spacing + 0.5particle_spacing
         else
-            inner_radius = radius - n_layers * particle_spacing
-            outer_radius = radius
+            # Put first layer of particles half a particle spacing inside of `radius`
+            inner_radius = radius - n_layers * particle_spacing - 0.5particle_spacing
+            outer_radius = radius - 0.5particle_spacing
         end
     else
+        # Put first layer of particles half a particle spacing inside of `radius`
+        outer_radius = radius - 0.5particle_spacing
         inner_radius = -1.0
-        outer_radius = radius
     end
 
     NDIMS = length(center_position)
@@ -175,21 +179,24 @@ end
 function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
                              n_layers, layer_outwards)
     if n_layers > 0
-        layer_increment = if layer_outwards
-            particle_spacing
+        if layer_outwards
+            # Put first layer of particles half a particle spacing outside of `radius`
+            inner_radius = radius + 0.5particle_spacing
         else
-            -particle_spacing
+            # Put first layer of particles half a particle spacing outside of inner radius
+            inner_radius = radius - n_layers * particle_spacing + 0.5particle_spacing
         end
     else
         # Each layer has thickness `particle_spacing`
-        n_layers = round(Int, radius / particle_spacing + 0.5)
+        n_layers = round(Int, radius / particle_spacing)
 
         if n_layers < 1
             # Just return one particle at the center
             return collect(reshape(center, (length(center), 1)))
         end
 
-        layer_increment = -(radius + 0.5particle_spacing) / n_layers
+        # Same as above, which puts the inner radius between 0 and `particle_spacing`
+        inner_radius = max(0.0, radius - n_layers * particle_spacing + 0.5particle_spacing)
     end
 
     coords = zeros(length(center), 0)
@@ -197,7 +204,8 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
     for layer in 0:(n_layers - 1)
         # TODO Optimize the total number of particles by cumulative rounding the particle
         # numbers per layer.
-        sphere_coords = round_sphere(particle_spacing, radius + layer_increment * layer,
+        sphere_coords = round_sphere(particle_spacing,
+                                     inner_radius + layer * particle_spacing,
                                      center, layer=layer)
         coords = hcat(coords, sphere_coords)
     end
