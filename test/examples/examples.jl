@@ -81,14 +81,6 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fsi/bending_beam_2d.jl" begin
-            @test_nowarn trixi_include(@__MODULE__,
-                                       joinpath(examples_dir(), "fsi",
-                                                "bending_beam_2d.jl"),
-                                       n_particles_y=5)
-            @test sol.retcode == ReturnCode.Success
-        end
-
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi",
