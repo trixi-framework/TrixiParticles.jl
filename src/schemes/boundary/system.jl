@@ -2,11 +2,10 @@
     BoundarySPHSystem(inititial_condition, model; movement=nothing)
 
 System for boundaries modeled by boundary particles.
-The system is initialized with the coordinates of the particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-The `movement` field is to define in which way the boundary particles move over time.
-(See [`BoundaryMovement`](@ref))
+For moving boundaries, a [`BoundaryMovement`](@ref)) can be passed with the keyword
+argument `movement`.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
@@ -37,7 +36,7 @@ end
     boolean return value is mandatory to determine if the neighborhood search will be updated.
 
 
-In the example below `movement` describes particles moving in a circle as long as
+In the example below, `movement` describes particles moving in a circle as long as
 the time is lower than `1.5`.
 
 # Examples
@@ -106,17 +105,17 @@ function (movement::BoundaryMovement)(system, t)
 
     system.ismoving[1] = is_moving(t)
 
-    if is_moving(t)
-        for particle in eachparticle(system)
-            for i in 1:ndims(system)
-                coordinates[i, particle] = movement_function[i](t) +
-                                           initial_coordinates[i, particle]
+    is_moving(t) || return system
 
-                velocity[i, particle] = ForwardDiff.derivative(movement_function[i], t)
-                acceleration[i, particle] = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function[i],
-                                                                                                t_),
-                                                                   t)
-            end
+    for particle in eachparticle(system)
+        for i in 1:ndims(system)
+            coordinates[i, particle] = movement_function[i](t) +
+                                       initial_coordinates[i, particle]
+
+            velocity[i, particle] = ForwardDiff.derivative(movement_function[i], t)
+            acceleration[i, particle] = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function[i],
+                                                                                            t_),
+                                                               t)
         end
     end
 
