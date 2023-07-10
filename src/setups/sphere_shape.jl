@@ -202,18 +202,15 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
     coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
-        # TODO Optimize the total number of particles by cumulative rounding the particle
-        # numbers per layer.
         sphere_coords = round_sphere(particle_spacing,
-                                     inner_radius + layer * particle_spacing,
-                                     center, layer=layer)
+                                     inner_radius + layer * particle_spacing, center)
         coords = hcat(coords, sphere_coords)
     end
 
     return coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{2}; layer=0)
+function round_sphere(particle_spacing, radius, center::SVector{2})
     n_particles = round(Int, 2pi * radius / particle_spacing)
 
     if n_particles <= 2
@@ -234,24 +231,22 @@ function round_sphere(particle_spacing, radius, center::SVector{2}; layer=0)
     return particle_coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
+function round_sphere(particle_spacing, radius, center::SVector{3})
     # The number of particles can either be calculated in 2D or in 3D.
     # Let δ be the particle spacing and r the sphere radius.
     #
-    # In 2D, the volume (surface area) of a particle is δ^2 and the surface area of
-    # the sphere with radius r is 4pi r^2. Therefore, we need to have
-    # n = 4pi r^2 / δ^2 particles on the sphere surface.
-    #
-    # In 3D, the volume of a particle is δ^3 and the volume of the sphere shell with
+    # The volume of a particle is δ^3 and the volume of the sphere shell with
     # inner radius r - δ/2 and outer radius r + δ/2 is 4pi/3 * ((r + δ/2)^3 - (r - δ/2)^3).
     # The number of particles is then
-    # n = 4pi / (3 δ^3) * ((r + δ/2)^3 - (r - δ/2)^3) = 4pi r^2 / δ^2 + pi/3,
-    # which is the same as in the 2D calculations, plus the additional term pi/3.
+    # n = 4pi / (3 δ^3) * ((r + δ/2)^3 - (r - δ/2)^3) = 4pi r^2 / δ^2 + pi/3.
     #
-    # Note that for large numbers of particles, this term becomes insignificant.
-    # For small numbers of particles, my experiments showed much better results with
-    # the 2D version without the additional term.
-    n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
+    # For small numbers of particles, we get better results without the term pi/3.
+    # Omitting the term for the inner layers yields results with only ~5 particles less than
+    # the theoretically optimal number of particles for the target density.
+    n_particles = round(Int, 4pi * radius^2 / particle_spacing^2 + pi / 3)
+    if n_particles < 300
+        n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
+    end
 
     # With less than 5 particles, this doesn't work properly
     if n_particles < 5
@@ -262,11 +257,13 @@ function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
                     +1 -1 +1 -1;
                     +1 +1 -1 -1] * 0.6radius .+ center
         elseif n_particles == 3
+            # Return 2D triangle
             y = sin(2pi / 3)
             return [1 -0.5 -0.5;
                     0 y -y;
                     0 0 0] * radius .+ center
         elseif n_particles == 2
+            # Return two particles
             return [-1 1;
                     0 0;
                     0 0] * radius .+ center
@@ -275,14 +272,36 @@ function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
         end
     end
 
-    ideal_area = 4pi / n_particles
-    polar_area = 1.23ideal_area
-    polar_radius = acos(1 - polar_area / 2pi)
+    # The following is a slightly adapted version of the "recursive zonal equal area
+    # partition" of the sphere as explained by Leopardi (2006).
+    #
+    # With the equal area partition, the density at the poles is too high.
+    # Instead, we slightly increase the area of the poles and modify the algorithm
+    # accordingly.
+    #
+    # References:
+    # - Paul Leopardi.
+    #   "A partition of the unit sphere into regions of equal area and small diameter".
+    #   In: Electronic Transactions on Numerical Analysis 25 (2006), pages 309-327.
+    #   [http://eudml.org/doc/129860](http://eudml.org/doc/129860).
 
+    # This is the Θ function, which is only defined by Leopardi as the inverse of V, without
+    # giving a closed formula.
+    theta(v) = acos(1 - v / 2pi)
+
+    # Ideal area of the equal area partition
+    ideal_area = 4pi / n_particles
+
+    # Increase polar area to avoid higher density at the poles
+    polar_area = 1.23ideal_area
+
+    polar_radius = theta(polar_area)
+
+    # Divide the remaining surface area equally
     collar_cell_area = (4pi - 2polar_area) / (n_particles - 2)
 
+    # Strictly following Leopardi here. The collars should have equiangular spacing.
     collar_angle = sqrt(collar_cell_area)
-
     n_collars = max(1, round(Int, (pi - 2polar_radius) / collar_angle))
     fitting_collar_angle = (pi - 2polar_radius) / n_collars
 
@@ -290,41 +309,47 @@ function round_sphere(particle_spacing, radius, center::SVector{3}; layer=0)
                     cos(polar_radius + (j - 1) * fitting_collar_angle))
                    for j in 2:(n_collars + 1)]
 
-    # This is wrong in the paper
+    # Here, we count the poles as well
     ideal_number_cells = collar_area / collar_cell_area
     pushfirst!(ideal_number_cells, 1)
     push!(ideal_number_cells, 1)
 
+    # Cumulative rounding to maintain the total number of cells
     actual_number_cells = ones(Int, length(ideal_number_cells))
     a = zeros(length(ideal_number_cells))
     for j in 2:(n_collars + 1)
         actual_number_cells[j] = round(Int, ideal_number_cells[j] + a[j - 1])
 
-        # There is a sign error in the paper
         a[j] = a[j - 1] + ideal_number_cells[j] - actual_number_cells[j]
     end
 
-    collar_start_latitude = [acos(1 -
-                                  (polar_area +
-                                   sum(actual_number_cells[2:(j - 1)]) * collar_cell_area) /
-                                  2pi)
+    collar_start_latitude = [theta(polar_area +
+                                   sum(actual_number_cells[2:(j - 1)]) * collar_cell_area)
                              for j in 2:(n_collars + 2)]
 
+    # Put particles in the center of each collar
     collar_latitude = [0.5 * (collar_start_latitude[i] + collar_start_latitude[i + 1])
                        for i in 1:n_collars]
+
+    # Put the first and last particle on the pole
     pushfirst!(collar_latitude, 0.0)
     push!(collar_latitude, pi)
 
+    # To compute the particle positions in each collar, we use the 2D `round_sphere`
+    # function to generate a circle.
     particle_coords = zeros(3, 0)
 
     for circle in 1:(n_collars + 2)
         z = radius * cos(collar_latitude[circle])
-        circle_radius = sqrt(radius^2 - z^2)
+        circle_radius = radius * sin(collar_latitude[circle])
 
         circle_spacing = 2pi * circle_radius / actual_number_cells[circle]
+
+        # At the poles, `circle_radius` is zero, so we can pass any positive spacing
         if circle_spacing < eps()
             circle_spacing = 1.0
         end
+
         circle_coords_2d = round_sphere(circle_spacing, circle_radius,
                                         SVector(center[1], center[2]))
         circle_coords_3d = vcat(circle_coords_2d,
