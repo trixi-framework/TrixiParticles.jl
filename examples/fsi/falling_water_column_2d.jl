@@ -63,8 +63,9 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
 # Note that the `RectangularShape` puts the first particle half a particle spacing away
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore have to subtract half a particle spacing.
-beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (-0.5particle_spacing, -0.5particle_spacing), particle_density)
+beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
+                        (-0.5solid_particle_spacing, -0.5solid_particle_spacing),
+                        solid_density)
 
 solid = InitialCondition(beam, fixed_particles)
 
