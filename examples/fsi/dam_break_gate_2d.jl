@@ -56,7 +56,7 @@ f_x(t) = 0.0
 f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
 is_moving(t) = false # No moving boundaries for the relaxing step
 
-movement = BoundaryMovement((f_x, f_y), gate.coordinates, is_moving)
+movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Solid
