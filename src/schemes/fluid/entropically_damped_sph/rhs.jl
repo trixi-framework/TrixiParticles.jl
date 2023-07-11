@@ -30,7 +30,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         volume_term = (volume_a^2 + volume_b^2) / m_a
 
         # inter-particle averaged pressure
-        pressure_tilde = (rho_b * pressure_a + rho_a * pressure_b) / (rho_a + rho_b)
+        p_avg = average_pressure(particle_system, particle)
+        pressure_tilde = (rho_b * pressure_a - p_avg + rho_a * pressure_b - p_avg) /
+                         (rho_a + rho_b)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -41,8 +43,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
 
+        dv_convection = momentum_convection(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system, rho_a,
+                                            rho_b, particle, neighbor, grad_kernel,
+                                            volume_term)
+
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_convection[i]
         end
 
         pressure_evolution!(dv, particle_system, neighbor_system,
@@ -50,6 +57,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                             particle, neighbor,
                             pos_diff, distance, sound_speed, m_a, m_b, pressure_a,
                             pressure_b, rho_a, rho_b)
+
+        transport_velocity!(dv, particle_system, volume_term, grad_kernel, particle)
     end
 
     return dv
@@ -86,6 +95,66 @@ end
     dv[end, particle] += artificial_EOS + damping_term
 
     return dv
+end
+
+@inline function transport_velocity!(dv, system::EntropicallyDampedSPH, volume_term,
+                                     grad_kernel, particle)
+    transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
+                        particle)
+end
+
+@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
+
+@inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
+
+@inline function transport_velocity!(dv, system, ::TransportVelocityAdami, volume_term,
+                                     grad_kernel, particle)
+    @unpack transport_velocity = system
+    @unpack background_pressure = transport_velocity
+    n_dims = ndims(system)
+
+    for dim in 1:n_dims
+        dv[n_dims + dim, particle] = dv[dim, particle]
+        dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
+    end
+
+    return dv
+end
+
+@inline function momentum_convection(system, neighbor_system,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function momentum_convection(system::EntropicallyDampedSPH,
+                                     neighbor_system::EntropicallyDampedSPH,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    momentum_convection(system, neighbor_system, system.transport_velocity,
+                        v_particle_system, v_neighbor_system, rho_a, rho_b,
+                        particle, neighbor, grad_kernel, volume_term)
+end
+
+@inline function momentum_convection(system, neighbor_system, ::Nothing,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
+    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+
+    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    A_a = rho_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
+    A_b = rho_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
+
+    return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
 end
 
 @inline viscosity_function(system) = system.viscosity
