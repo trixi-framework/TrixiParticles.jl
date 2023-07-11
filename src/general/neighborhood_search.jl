@@ -72,7 +72,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
             bound_and_ghost_cells = initialize_boundary_and_ghost_cells(hashtable,
                                                                         min_cell, max_cell)
         else
-            throw(ArgumentError("`min_corner` and `max_corner` either must be " *
+            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
                                 "both `nothing` or both an array"))
         end
 
