@@ -172,11 +172,6 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
-@inline function current_acceleration(system, particle)
-    # TODO: Return `dv` of solid particles
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
-end
-
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     @unpack cache, ismoving = system
 
