@@ -17,6 +17,7 @@ using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
+using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -38,14 +39,15 @@ export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
-export ArtificialViscosityMonaghan
+export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryMovement
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, CircularShape
 export DrawCircle, FillCircle, reset_wall!
-export ShepardKernelCorrection
+export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
 
 end # module
