@@ -296,17 +296,19 @@ end
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        density_neighbor = particle_density(v_neighbor_system, neighbor_system,
-                                            neighbor)
+        density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+        resulting_acc = neighbor_system.acceleration -
+                        current_acceleration(system, particle)
 
         kernel_weight = smoothing_kernel(boundary_model, distance)
 
-        # TODO moving boundaries
         pressure[particle] += (neighbor_system.pressure[neighbor] +
-                               dot(neighbor_system.acceleration,
-                                   density_neighbor * pos_diff)) * kernel_weight
+                               dot(resulting_acc, density_neighbor * pos_diff)) *
+                              kernel_weight
 
         cache.volume[particle] += kernel_weight
+
         compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                    kernel_weight, particle, neighbor)
     end
