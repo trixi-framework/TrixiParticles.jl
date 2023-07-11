@@ -33,7 +33,7 @@ export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPH, TotalLagrangianSPHSystem,
        BoundarySPHSystem
-export InfoCallback, SolutionSavingCallback
+export InfoCallback, SolutionSavingCallback, UpdateAfterTimeStep
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
