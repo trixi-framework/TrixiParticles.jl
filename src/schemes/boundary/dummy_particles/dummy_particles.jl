@@ -281,9 +281,11 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                       v_neighbor_system, neighborhood_search)
     end
 
-    pressure ./= volume
-
     for particle in eachparticle(system)
+        if volume[particle] > sqrt(eps())
+            pressure[particle] /= volume[particle]
+        end
+
         density[particle] = inverse_state_equation(state_equation, pressure[particle])
     end
 end
@@ -317,9 +319,6 @@ end
     end
 
     for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-        pressure[particle] = max(pressure[particle], 0.0)
-
         # To impose no-slip condition
         compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
