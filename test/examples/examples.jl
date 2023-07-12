@@ -38,6 +38,14 @@
                                        tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
         end
+
+        @trixi_testset "fluid/periodic_channel_2d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "periodic_channel_2d.jl"),
+                                       tspan=(0.0, 0.4))
+            @test sol.retcode == ReturnCode.Success
+        end
     end
 
     @testset verbose=true "Solid" begin
