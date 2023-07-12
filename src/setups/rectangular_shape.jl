@@ -1,7 +1,8 @@
 """
-    RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates,
-                     density; loop_order=:x_first,
-                     init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)))
+    RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates, density;
+                     tlsph=false,
+                     init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
+                     loop_order=:x_first,)
 
 Rectangular shape filled with particles.
 
@@ -12,8 +13,12 @@ Rectangular shape filled with particles.
 - `density`:                            Initial density of particles.
 
 # Keywords
-- `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop (possible values: `:x_first`, `:y_first`, `:z_first`).
+- `tlsph`:          With the [TotalLagrangianSPHSystem](@ref), particles need to be placed
+                    on the boundary of the shape and not one particle radius away, as for fluids.
+                    When `tlsph=true`, particles will be placed on the boundary of the shape.
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
+- `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop
+                    (possible values: `:x_first`, `:y_first`, `:z_first`).
 
 # Fields
 - `coordinates::Matrix`:    Coordinates of the particles.
@@ -31,9 +36,10 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 100
 ```
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension,
-                          min_coordinates, density; loop_order=:x_first,
+                          min_coordinates, density; tlsph=false,
                           init_velocity=ntuple(_ -> 0.0,
-                                               length(n_particles_per_dimension)))
+                                               length(n_particles_per_dimension)),
+                          loop_order=:x_first)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -53,7 +59,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     n_particles = prod(n_particles_per_dimension)
 
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                           min_coordinates, loop_order=loop_order)
+                                           min_coordinates, tlsph=tlsph,
+                                           loop_order=loop_order)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
     densities = density * ones(ELTYPE, n_particles)
@@ -63,13 +70,19 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                  min_coordinates; loop_order=:x_first)
+                                  min_coordinates; tlsph=false, loop_order=:x_first)
     ELTYPE = eltype(particle_spacing)
     NDIMS = length(n_particles_per_dimension)
 
     coordinates = Array{ELTYPE, 2}(undef, NDIMS, prod(n_particles_per_dimension))
 
-    initialize_rectangular!(coordinates, particle_spacing, min_coordinates,
+    new_min_coordinates = if tlsph
+        min_coordinates .- 0.5particle_spacing
+    else
+        min_coordinates
+    end
+
+    initialize_rectangular!(coordinates, particle_spacing, new_min_coordinates,
                             n_particles_per_dimension, loop_order)
 
     return coordinates
