@@ -81,17 +81,17 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
 # first particle half a particle spacing away from the boundary, which is correct for fluids,
-# but not for solids. We therefore have to subtract half a particle spacing.
+# but not for solids. We therefore need to pass `tlsph=true`.
 #
 # The right end of the plate is 0.2 from the right end of the tank.
 plate_position = 0.6 - n_particles_x * solid_particle_spacing
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
-                         (plate_position, 0.5solid_particle_spacing), solid_density)
+                         (plate_position, solid_particle_spacing), solid_density,
+                         tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_x, 1),
-                                   (plate_position, -0.5solid_particle_spacing),
-                                   solid_density)
+                                   (n_particles_x, 1), (plate_position, 0.0),
+                                   solid_density, tlsph=true)
 
 solid = InitialCondition(plate, fixed_particles)
 

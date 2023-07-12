@@ -35,10 +35,10 @@ tank = RectangularTank(particle_spacing, (water_width, water_height, water_lengt
                        (tank_width, tank_height, tank_length), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move right boundary
-new_wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing
+# Move +x boundary.
+# Use the new fluid size, since it might bave been rounded in `RectangularTank`.
 reset_faces = (false, true, false, false, false, false)
-positions = (0, new_wall_position, 0, 0, 0, 0)
+positions = (0, tank.fluid_size[1], 0, 0, 0, 0)
 
 reset_wall!(tank, reset_faces, positions)
 
@@ -74,6 +74,8 @@ tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)
+saving_callback_relaxation = SolutionSavingCallback(dt=0.02, prefix="relaxation")
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -87,10 +89,10 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=info_callback);
+            save_everystep=false, callback=callbacks_relaxation);
 
 # Move right boundary
-positions = (0, tank_width, 0, 0)
+positions = (0, tank.tank_size[1], 0, 0)
 reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation

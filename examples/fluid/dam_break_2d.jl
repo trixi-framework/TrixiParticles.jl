@@ -40,11 +40,10 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move right boundary
-# Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing
+# Move right boundary.
+# Use the new fluid size, since it might bave been rounded in `RectangularTank`.
 reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
+positions = (0, tank.fluid_size[1], 0, 0)
 
 reset_wall!(tank, reset_faces, positions)
 
@@ -99,7 +98,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=callbacks_relaxation);
 
 # Move right boundary
-positions = (0, tank_width, 0, 0)
+positions = (0, tank.tank_size[1], 0, 0)
 reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation

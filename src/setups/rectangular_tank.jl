@@ -1,37 +1,34 @@
 @doc raw"""
-    RectangularTank(particle_spacing, fluid_size::NTuple{2}, tank_size::NTuple{2},
-                    fluid_density;
-                    n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0),
-                    boundary_density=fluid_density, faces=Tuple(trues(4)))
-
-    RectangularTank(particle_spacing, fluid_size::NTuple{3}, tank_size::NTuple{3},
-                    fluid_density;
-                    n_layers=1, spacing_ratio=1.0, init_velocity=(0.0, 0.0, 0.0),
-                    boundary_density=fluid_density, faces=Tuple(trues(6)))
+    RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
+                    n_layers=1, spacing_ratio=1.0,
+                    init_velocity=zeros(length(fluid_size)),
+                    boundary_density=fluid_density,
+                    faces=Tuple(trues(2 * length(fluid_size))))
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
 
 # Arguments
-- `particle_spacing`:   Spacing between the fluid particles
+- `particle_spacing`:   Spacing between the fluid particles.
 - `fluid_size`:         The dimensions of the fluid as `(x, y)` (or `(x, y, z)` in 3D).
 - `tank_size`:          The dimensions of the tank as `(x, y)` (or `(x, y, z)` in 3D).
 - `fluid_density`:      The rest density of the fluid.
 
 # Keywords
 - `n_layers`:           Number of boundary layers.
-- `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing. A value of 2 means that the boundary particle spacing will be half the fluid particle spacing.
-- `init_velocity`:      The initial velocity of the fluid particles as `(x, y)` (or `(x, y, z)` in 3D).
-- `boundary_density`:   Density of the boundary particles (by default set to the rest density)
-- `faces`:              By default all faces are generated. Set faces by passing an bit-array of length 4 (2D) or 6 (3D) to generate the faces in the normal direction: -x,+x,-y,+y,-z,+z
+- `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing.
+                        A value of 2 means that the boundary particle spacing will be
+                        half the fluid particle spacing.
+- `init_velocity`:      The initial velocity of each fluid particle as `(x, y)` (or `(x, y, z)` in 3D).
+- `boundary_density`:   Density of each boundary particle (by default set to the rest density)
+- `faces`:              By default all faces are generated. Set faces by passing a
+                        bit-array of length 4 (2D) or 6 (3D) to generate the faces in the
+                        normal direction: -x,+x,-y,+y,-z,+z.
 
 # Fields
-- `coordinates::Matrix`: Coordinates of the fluid particles
-- `velocities::Matrix`: Velocity of the fluid particles
-- `masses::Vector`: Masses of the fluid particles
-- `densities::Vector`: Densities of the fluid particles
-- `boundary_coordinates::Matrix`: Coordinates of the boundary particles
-- `boundary_masses::Vector`: Masses of the boundary particles
-- `boundary_densities::Vector`: Densities of the boundary particles
+- `fluid::InitialCondition`:    [`InitialCondition`](@ref) for the fluid.
+- `boundary::InitialCondition`: [`InitialCondition`](@ref) for the boundary.
+- `fluid_size::Tuple`:          Tuple containing the size of the fluid in each dimension after rounding.
+- `tank_size::Tuple`:           Tuple containing the size of the tank in each dimension after rounding.
 
 # Examples
 2D:
@@ -47,11 +44,13 @@ setup = RectangularTank(particle_spacing, (water_width, water_height, water_dept
                         (container_width, container_height, container_depth), particle_density, n_layers=2)
 ```
 
-See also: [`reset_wall!`](@ref)
+See also: [`reset_wall!`](@ref).
 """
 struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     fluid                     :: InitialCondition{ELTYPE}
     boundary                  :: InitialCondition{ELTYPE}
+    fluid_size                :: NTuple{NDIMS, ELTYPE}
+    tank_size                 :: NTuple{NDIMS, ELTYPE}
     faces_                    :: NTuple{NDIMSt2, Bool} # store if face in dir exists (-x +x -y +y -z +z)
     face_indices              :: NTuple{NDIMSt2, Array{Int, 2}} # see `reset_wall!`
     particle_spacing          :: ELTYPE
@@ -119,7 +118,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities)
 
-        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary,
+        return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
                                              n_particles_per_dim)

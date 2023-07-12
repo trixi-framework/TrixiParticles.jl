@@ -36,15 +36,15 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-setup = RectangularTank(particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
+tank = RectangularTank(particle_spacing, (water_width, water_height),
+                       (tank_width, tank_height), water_density,
+                       n_layers=boundary_layers, spacing_ratio=beta)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary.density,
-                                             setup.boundary.mass, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
+                                             tank.boundary.mass, state_equation,
                                              SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
@@ -60,13 +60,13 @@ density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "kernel_gradient_summation_correction" => SummationDensity(),
                                "kernel_gradient_continuity_correction" => ContinuityDensity())
 
-boundary_system = BoundarySPHSystem(setup.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 sol = nothing
 for correction_name in keys(correction_dict)
-    particle_system = WeaklyCompressibleSPHSystem(setup.fluid,
+    particle_system = WeaklyCompressibleSPHSystem(tank.fluid,
                                                   density_calculator_dict[correction_name],
                                                   state_equation,
                                                   smoothing_kernel, smoothing_length,
@@ -74,13 +74,12 @@ for correction_name in keys(correction_dict)
                                                   acceleration=(0.0, -gravity),
                                                   correction=correction_dict[correction_name])
 
-    # Move right boundary
-    # Recompute the new water column width since the width has been rounded in `RectangularTank`.
-    new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
+    # Move right boundary.
+    # Use the new fluid size, since it might bave been rounded in `RectangularTank`.
     reset_faces = (false, true, false, false)
-    positions = (0, new_wall_position, 0, 0)
+    positions = (0, tank.fluid_size[1], 0, 0)
 
-    reset_wall!(setup, reset_faces, positions)
+    reset_wall!(tank, reset_faces, positions)
 
     semi = Semidiscretization(particle_system, boundary_system,
                               neighborhood_search=SpatialHashingSearch,
@@ -109,8 +108,8 @@ for correction_name in keys(correction_dict)
                        save_everystep=false, callback=callbacks_relaxation)
 
     # Move right boundary
-    positions = (0, tank_width, 0, 0)
-    reset_wall!(setup, reset_faces, positions)
+    positions = (0, tank.tank_size[1], 0, 0)
+    reset_wall!(tank, reset_faces, positions)
 
     # Run full simulation
     tspan = (0.0, 5.7 / sqrt(9.81))
