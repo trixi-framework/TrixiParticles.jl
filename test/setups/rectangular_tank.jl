@@ -82,7 +82,7 @@
 
         @testset "Info and Error" begin
             particle_spacing = 0.2
-            @test_warn "Info: The desired fluid width 0.5" RectangularTank(particle_spacing,
+            @test_warn "Info: The desired fluid length in x-direction 0.5" RectangularTank(particle_spacing,
                                                                            (water_width,
                                                                             water_height),
                                                                            (tank_width,
