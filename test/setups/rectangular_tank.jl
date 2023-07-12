@@ -83,12 +83,12 @@
         @testset "Info and Error" begin
             particle_spacing = 0.2
             @test_warn "Info: The desired fluid length in x-direction 0.5" RectangularTank(particle_spacing,
-                                                                           (water_width,
-                                                                            water_height),
-                                                                           (tank_width,
-                                                                            tank_height),
-                                                                           water_density,
-                                                                           spacing_ratio=3)
+                                                                                           (water_width,
+                                                                                            water_height),
+                                                                                           (tank_width,
+                                                                                            tank_height),
+                                                                                           water_density,
+                                                                                           spacing_ratio=3)
 
             error_str = "`tank_size` must be of length 2 for a 2D problem"
             @test_throws ArgumentError(error_str) RectangularTank(particle_spacing,
