@@ -44,9 +44,9 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                              smoothing_kernel,
                                              smoothing_length)
 
-# K = 100.0
+# K = 1.0
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-                                            #  tank.boundary.mass)
+#                                              tank.boundary.mass)
 
 # ==========================================================================================
 # ==== Systems
