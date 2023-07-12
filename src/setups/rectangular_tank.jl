@@ -139,8 +139,10 @@ function round_n_particles(size, spacing, type)
 end
 
 function fluid_particles_per_dimension(size::NTuple{2}, particle_spacing)
-    n_particles_x, new_width = round_n_particles(size[1], particle_spacing, "fluid width")
-    n_particles_y, new_height = round_n_particles(size[2], particle_spacing, "fluid height")
+    n_particles_x, new_width = round_n_particles(size[1], particle_spacing,
+                                                 "fluid length in x-direction")
+    n_particles_y, new_height = round_n_particles(size[2], particle_spacing,
+                                                  "fluid length in y-direction")
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
@@ -161,10 +163,10 @@ function boundary_particles_per_dimension(tank_size::NTuple{2}, particle_spacing
                                           spacing_ratio)
     n_particles_x, new_width = round_n_particles(tank_size[1],
                                                  particle_spacing / spacing_ratio,
-                                                 "tank width")
+                                                 "tank length in x-direction")
     n_particles_y, new_height = round_n_particles(tank_size[2],
                                                   particle_spacing / spacing_ratio,
-                                                  "tank height")
+                                                  "tank length in y-direction")
 
     return (n_particles_x, n_particles_y), (new_width, new_height)
 end
@@ -194,14 +196,14 @@ function check_tank_overlap(fluid_size::NTuple{2}, tank_size, particle_spacing,
         n_particles_x -= 1
         fluid_size_x = n_particles_x * particle_spacing
 
-        @info "The fluid was overlapping.\n New fluid width is set to $fluid_size_x."
+        @info "The fluid was overlapping.\n New fluid length in x-direction is set to $fluid_size_x."
     end
 
     if tank_size[2] < fluid_size[2] - 1e-5 * particle_spacing
         n_particles_y -= 1
         fluid_size_y = n_particles_y * particle_spacing
 
-        @info "The fluid was overlapping.\n New fluid height is set to $fluid_size_y."
+        @info "The fluid was overlapping.\n New fluid length in y-direction is set to $fluid_size_y."
     end
 
     return (n_particles_x, n_particles_y), (fluid_size_x, fluid_size_y)
