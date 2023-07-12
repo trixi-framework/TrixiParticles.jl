@@ -11,15 +11,22 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, DC}
-    systems               :: S
-    ranges_u              :: RU
-    ranges_v              :: RV
-    neighborhood_searches :: NS
-    damping_coefficient   :: DC
+struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
+    systems                 :: S
+    ranges_u                :: RU
+    ranges_v                :: RV
+    neighborhood_searches   :: NS
+    periodic_box_size       :: BS
+    periodic_box_min_corner :: MC
+    damping_coefficient     :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
+                                periodic_box_min_corner=nothing,
+                                periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
+        NDIMS = ndims(first(systems))
+        ELTYPE = eltype(first(systems))
+
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -32,13 +39,36 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search))
+                                                          Val(neighborhood_search),
+                                                          periodic_box_min_corner,
+                                                          periodic_box_max_corner)
                                for neighbor in systems)
                          for system in systems)
 
+        # Periodicity
+        if (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
+            # No periodicity
+            periodic_box_size = nothing
+            min_corner = zeros(SVector{NDIMS, ELTYPE})
+        elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
+            if NDIMS == 3
+                throw(ArgumentError("periodicity is not yet supported in 3D"))
+            end
+
+            periodic_box_size = SVector(Tuple(periodic_box_max_corner -
+                                              periodic_box_min_corner))
+            min_corner = SVector(Tuple(periodic_box_min_corner))
+        else
+            throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
+                                "must either be both `nothing` or both an array"))
+        end
+
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, damping_coefficient)
+            typeof(searches), typeof(periodic_box_size),
+            typeof(min_corner), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
+                                                             searches, periodic_box_size,
+                                                             min_corner,
+                                                             damping_coefficient)
     end
 end
 
@@ -73,16 +103,16 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(_, neighbor, ::Val{nothing})
+function create_neighborhood_search(_, neighbor, ::Val{nothing}, _, _)
     TrivialNeighborhoodSearch(eachparticle(neighbor))
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch})
+function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
+                                    min_corner, max_corner)
     radius = compact_support(system, neighbor)
     search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor),
-                                                 min_corner=[0.0, -0.24],
-                                                 max_corner=[0.96, 0.72]
-                                                 )
+                                                 min_corner=min_corner,
+                                                 max_corner=max_corner)
 
     # Initialize neighborhood search
     initialize!(search, nhs_init_function(system, neighbor))
@@ -152,15 +182,13 @@ function semidiscretize(semi, tspan)
     ELTYPE = eltype(systems[1])
 
     # Initialize all particle systems
-    @trixi_timeit timer() "initialize particle systems" begin
-        for (system_index, system) in pairs(systems)
-            # Get the neighborhood search for this system
-            neighborhood_search = neighborhood_searches[system_index][system_index]
+    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(systems)
+        # Get the neighborhood search for this system
+        neighborhood_search = neighborhood_searches[system_index][system_index]
 
-            # Initialize this system
-            initialize!(system, neighborhood_search)
-        end
-    end
+        # Initialize this system
+        initialize!(system, neighborhood_search)
+    end end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system)
                for system in systems)
@@ -212,10 +240,8 @@ end
 
     range = ranges_u[i]
 
-    @boundscheck begin
-        @assert length(range) ==
-                u_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck begin @assert length(range) ==
+                               u_nvariables(system) * n_moving_particles(system) end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -229,10 +255,8 @@ end
 
     range = ranges_v[i]
 
-    @boundscheck begin
-        @assert length(range) ==
-                v_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck begin @assert length(range) ==
+                               v_nvariables(system) * n_moving_particles(system) end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
@@ -245,17 +269,16 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-            # Set velocity and add acceleration for each system
-            foreach_enumerate(systems) do (system_index, system)
-                du = wrap_u(du_ode, system_index, system, semi)
-                v = wrap_v(v_ode, system_index, system, semi)
+        # Set velocity and add acceleration for each system
+        foreach_enumerate(systems) do (system_index, system)
+            du = wrap_u(du_ode, system_index, system, semi)
+            v = wrap_v(v_ode, system_index, system, semi)
 
-                @threaded for particle in each_moving_particle(system)
-                    # This can be dispatched per system
-                    add_velocity!(du, v, particle, system)
-                end
+            @threaded for particle in each_moving_particle(system)
+                # This can be dispatched per system
+                add_velocity!(du, v, particle, system)
             end
-        end
+        end end
     end
 
     return du_ode
@@ -402,10 +425,10 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
             timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                          neighborhood_search, system, neighbor)
-            end
+            @trixi_timeit timer() timer_str begin interact!(dv, v_system, u_system,
+                                                            v_neighbor, u_neighbor,
+                                                            neighborhood_search, system,
+                                                            neighbor) end
         end
     end
 

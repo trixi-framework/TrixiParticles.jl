@@ -23,7 +23,7 @@ tank_height = 0.48
 water_width = tank_width
 water_height = tank_height
 
-sound_speed = 5.0
+sound_speed = 10.0
 state_equation = StateEquationCole(sound_speed, 7, water_density, 1_000.0)
                                 #    background_pressure=1000.0)
 
@@ -94,13 +94,15 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(), state_equ
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity)
 
-boundary_system = BoundarySPHSystem(boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=SpatialHashingSearch,
+                          periodic_box_min_corner=[0.0, -0.24],
+                          periodic_box_max_corner=[0.96, 0.72])
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

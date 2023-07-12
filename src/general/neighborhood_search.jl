@@ -38,13 +38,13 @@ a lot faster (although not parallelizable).
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
-struct SpatialHashingSearch{NDIMS, ELTYPE}
+struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
     hashtable             :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     search_radius         :: ELTYPE
     empty_vector          :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
     cell_buffer           :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
     cell_buffer_indices   :: Vector{Int} # Store which entries of `cell_buffer` are initialized
-    periodic_box_size     :: SVector{NDIMS, ELTYPE}
+    periodic_box_size     :: PBS # SVector{NDIMS, ELTYPE} or Nothing without periodicity
     bound_and_ghost_cells :: Vector{NTuple{NDIMS, Int}}
 
     function SpatialHashingSearch{NDIMS}(search_radius, n_particles;
@@ -59,10 +59,20 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
 
         if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
             # No periodicity
-            periodic_box_size = zeros(SVector{NDIMS, ELTYPE})
+            periodic_box_size = nothing
             bound_and_ghost_cells = NTuple{NDIMS, Int}[]
         elseif min_corner !== nothing && max_corner !== nothing
-            periodic_box_size = max_corner - min_corner
+            if NDIMS == 3
+                throw(ArgumentError("periodic neighborhood search is not yet supported in 3D"))
+            end
+
+            periodic_box_size = SVector(Tuple(max_corner - min_corner))
+            if !all(abs.(rem.(periodic_box_size / search_radius, 1, RoundNearest)) .< 1e-5)
+                # TODO allow other domain sizes
+                throw(ArgumentError("size of the periodic box must be an integer multiple " *
+                                    "of `search_radius`"))
+            end
+
             min_cell = cell_coords(min_corner .+
                                    0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
                                    search_radius)
@@ -76,9 +86,10 @@ struct SpatialHashingSearch{NDIMS, ELTYPE}
                                 "both `nothing` or both an array"))
         end
 
-        new{NDIMS, ELTYPE}(hashtable, search_radius, empty_vector,
-                           cell_buffer, cell_buffer_indices,
-                           periodic_box_size, bound_and_ghost_cells)
+        new{NDIMS, ELTYPE,
+            typeof(periodic_box_size)}(hashtable, search_radius, empty_vector,
+                                       cell_buffer, cell_buffer_indices,
+                                       periodic_box_size, bound_and_ghost_cells)
     end
 end
 
@@ -333,11 +344,8 @@ end
         pos_diff = particle_coords - neighbor_coords
         distance2 = dot(pos_diff, pos_diff)
 
-        if distance2 > search_radius^2
-            # Use periodic pos_diff
-            pos_diff -= periodic_box_size .* round.(pos_diff ./ periodic_box_size)
-            distance2 = dot(pos_diff, pos_diff)
-        end
+        pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, search_radius,
+                                                        periodic_box_size)
 
         if distance2 <= search_radius^2
             distance = sqrt(distance2)
@@ -347,6 +355,22 @@ end
             @inline f(particle, neighbor, pos_diff, distance)
         end
     end
+end
+
+@inline function compute_periodic_distance(pos_diff, distance2, search_radius,
+                                           periodic_box_size::Nothing)
+    return pos_diff, distance2
+end
+
+@inline function compute_periodic_distance(pos_diff, distance2, search_radius,
+                                           periodic_box_size)
+    if distance2 > search_radius^2
+        # Use periodic pos_diff
+        pos_diff -= periodic_box_size .* round.(pos_diff ./ periodic_box_size)
+        distance2 = dot(pos_diff, pos_diff)
+    end
+
+    return pos_diff, distance2
 end
 
 @inline function particles_in_cell(cell_index, neighborhood_search)

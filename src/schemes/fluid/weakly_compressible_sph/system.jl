@@ -153,6 +153,12 @@ initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
 function update_positions!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                            v_ode, u_ode, semi, t)
+    @unpack periodic_box_size = semi
+
+    update_positions!(system, u, periodic_box_size, semi)
+end
+
+function update_positions!(system::WeaklyCompressibleSPHSystem, u, ::Nothing, semi)
     @unpack current_coordinates = system
 
     for particle in each_moving_particle(system)
@@ -161,11 +167,20 @@ function update_positions!(system::WeaklyCompressibleSPHSystem, system_index, v,
         end
     end
 
-    periodic_box_size = 0.96
+    return system
+end
+
+function update_positions!(system::WeaklyCompressibleSPHSystem, u, periodic_box_size, semi)
+    @unpack current_coordinates = system
+    @unpack periodic_box_min_corner = semi
 
     for particle in axes(u, 2)
-        current_coordinates[1, particle] -= periodic_box_size * round((current_coordinates[1, particle] - periodic_box_size / 2) / periodic_box_size)
+        coords = extract_svector(u, system, particle)
+        box_offset = round.((coords .- periodic_box_min_corner) ./ periodic_box_size .- 0.5)
+        current_coordinates[:, particle] = coords - box_offset .* periodic_box_size
     end
+
+    return system
 end
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
