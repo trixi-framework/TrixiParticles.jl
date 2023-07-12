@@ -27,7 +27,7 @@
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity)
 
-        boundary_system = BoundarySPHSystem(boundary.coordinates, boundary_model)
+        boundary_system = BoundarySPHSystem(boundary, boundary_model)
 
         fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                                    state_equation,

@@ -32,7 +32,7 @@ The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their
 The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
 
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
-To do so, Monaghan (Monaghan 2005) defined an equivalent effecive physical kinematic viscosity ``\nu`` by
+To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
 \nu = \frac{\alpha h c }{\rho_{ab}}.
 ```
