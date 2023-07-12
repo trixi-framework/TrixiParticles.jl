@@ -277,9 +277,18 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                       v_neighbor_system, neighborhood_search)
     end
 
-    pressure ./= volume
-
     for particle in eachparticle(system)
+
+        # The summation is only over fluid particles, thus the volume stays zero when a boundary
+        # particle isn't surrounded by fluid particles.
+        # Check the volume to avoid NaNs in velocity.
+        if volume[particle] > eps()
+            pressure[particle] /= volume[particle]
+
+            # To impose no-slip condition
+            compute_wall_velocity!(viscosity, system, system_coords, particle)
+        end
+
         density[particle] = inverse_state_equation(state_equation, pressure[particle])
     end
 end
@@ -316,9 +325,6 @@ end
     for particle in eachparticle(system)
         # Limit pressure to be non-negative to avoid negative pressures at free surfaces
         pressure[particle] = max(pressure[particle], 0.0)
-
-        # To impose no-slip condition
-        compute_wall_velocity!(viscosity, system, system_coords, particle)
     end
 end
 
@@ -354,22 +360,14 @@ end
     @unpack boundary_model = system
     @unpack cache = boundary_model
     @unpack volume, wall_velocity = cache
+    # Prescribed velocity of the boundary particle.
+    # This velocity is zero when not using moving boundaries.
+    v_boundary = current_velocity(system_coords, system, particle)
 
-    # The summation is only over fluid particles, thus the volume stays zero when a boundary
-    # particle isn't surrounded by fluid particles.
-    # Check the volume to avoid NaNs in velocity.
-    if volume[particle] > eps()
-
-        # Prescribed velocity of the boundary particle.
-        # This velocity is zero when not using moving boundaries.
-        v_boundary = current_velocity(system_coords, system, particle)
-
-        for dim in 1:ndims(system)
-            # The second term is the precalculated smoothed velocity field of the fluid.
-            wall_velocity[dim, particle] = 2 * v_boundary[dim] -
-                                           wall_velocity[dim, particle] / volume[particle]
-        end
+    for dim in 1:ndims(system)
+        # The second term is the precalculated smoothed velocity field of the fluid.
+        wall_velocity[dim, particle] = 2 * v_boundary[dim] -
+                                       wall_velocity[dim, particle] / volume[particle]
     end
-
     return viscosity
 end
