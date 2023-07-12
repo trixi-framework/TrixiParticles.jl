@@ -182,13 +182,15 @@ function semidiscretize(semi, tspan)
     ELTYPE = eltype(systems[1])
 
     # Initialize all particle systems
-    @trixi_timeit timer() "initialize particle systems" begin for (system_index, system) in pairs(systems)
-        # Get the neighborhood search for this system
-        neighborhood_search = neighborhood_searches[system_index][system_index]
+    @trixi_timeit timer() "initialize particle systems" begin
+        for (system_index, system) in pairs(systems)
+            # Get the neighborhood search for this system
+            neighborhood_search = neighborhood_searches[system_index][system_index]
 
-        # Initialize this system
-        initialize!(system, neighborhood_search)
-    end end
+            # Initialize this system
+            initialize!(system, neighborhood_search)
+        end
+    end
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system)
                for system in systems)
@@ -240,8 +242,10 @@ end
 
     range = ranges_u[i]
 
-    @boundscheck begin @assert length(range) ==
-                               u_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                u_nvariables(system) * n_moving_particles(system)
+    end
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -255,8 +259,10 @@ end
 
     range = ranges_v[i]
 
-    @boundscheck begin @assert length(range) ==
-                               v_nvariables(system) * n_moving_particles(system) end
+    @boundscheck begin
+        @assert length(range) ==
+                v_nvariables(system) * n_moving_particles(system)
+    end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
@@ -269,16 +275,17 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
 
         @trixi_timeit timer() "velocity" begin
-        # Set velocity and add acceleration for each system
-        foreach_enumerate(systems) do (system_index, system)
-            du = wrap_u(du_ode, system_index, system, semi)
-            v = wrap_v(v_ode, system_index, system, semi)
+            # Set velocity and add acceleration for each system
+            foreach_enumerate(systems) do (system_index, system)
+                du = wrap_u(du_ode, system_index, system, semi)
+                v = wrap_v(v_ode, system_index, system, semi)
 
-            @threaded for particle in each_moving_particle(system)
-                # This can be dispatched per system
-                add_velocity!(du, v, particle, system)
+                @threaded for particle in each_moving_particle(system)
+                    # This can be dispatched per system
+                    add_velocity!(du, v, particle, system)
+                end
             end
-        end end
+        end
     end
 
     return du_ode
@@ -425,10 +432,12 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
             timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            @trixi_timeit timer() timer_str begin interact!(dv, v_system, u_system,
-                                                            v_neighbor, u_neighbor,
-                                                            neighborhood_search, system,
-                                                            neighbor) end
+            @trixi_timeit timer() timer_str begin
+                interact!(dv, v_system, u_system,
+                          v_neighbor, u_neighbor,
+                          neighborhood_search, system,
+                          neighbor)
+            end
         end
     end
 

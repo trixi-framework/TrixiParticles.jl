@@ -17,18 +17,18 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
        System{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    current_coordinates:: Array{ELTYPE, 2} # [dim, particle]
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    viscosity          :: V
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    correction         :: COR
-    cache              :: C
+    initial_condition   :: InitialCondition{ELTYPE}
+    current_coordinates :: Array{ELTYPE, 2} # [dim, particle]
+    mass                :: Array{ELTYPE, 1} # [particle]
+    pressure            :: Array{ELTYPE, 1} # [particle]
+    density_calculator  :: DC
+    state_equation      :: SE
+    smoothing_kernel    :: K
+    smoothing_length    :: ELTYPE
+    viscosity           :: V
+    acceleration        :: SVector{NDIMS, ELTYPE}
+    correction          :: COR
+    cache               :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
@@ -68,7 +68,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
-                   }(initial_condition, current_coordinates, mass, pressure, density_calculator, state_equation,
+                   }(initial_condition, current_coordinates, mass, pressure,
+                     density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
                      correction, cache)
     end
@@ -146,7 +147,9 @@ end
     return system.mass[particle]
 end
 
-@inline current_coordinates(u, system::WeaklyCompressibleSPHSystem) = system.current_coordinates
+@inline function current_coordinates(u, system::WeaklyCompressibleSPHSystem)
+    system.current_coordinates
+end
 
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
