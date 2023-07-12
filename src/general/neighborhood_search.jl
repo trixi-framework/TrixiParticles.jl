@@ -303,23 +303,7 @@ end
 @inline function for_particle_neighbor(f, system, neighbor_system,
                                        system_coords, neighbor_coords, neighborhood_search;
                                        particles=each_moving_particle(system))
-    for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
-                          particles=particles)
-end
-
-@inline function for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
-                                       particles=axes(system_coords, 2))
     @threaded for particle in particles
-        for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
-                                    particle)
-    end
-
-    return nothing
-end
-
-@inline function for_particle_neighbor_serial(f, system_coords, neighbor_coords, neighborhood_search;
-                                       particles=axes(system_coords, 2))
-    for particle in particles
         for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
                                     particle)
     end
