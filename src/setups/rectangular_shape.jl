@@ -4,7 +4,7 @@
                      init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
                      loop_order=:x_first,)
 
-Rectangular shape filled with particles.
+Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 
 # Arguments
 - `particle_spacing`:                   Spacing between the particles.
@@ -19,11 +19,6 @@ Rectangular shape filled with particles.
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
 - `loop_order`:     To enforce a specific particle indexing by reordering the indexing loop
                     (possible values: `:x_first`, `:y_first`, `:z_first`).
-
-# Fields
-- `coordinates::Matrix`:    Coordinates of the particles.
-- `masses::Vector`:         Masses of the particles.
-- `densities::Vector`:      Densities of the particles.
 
 # Examples
 2D:
