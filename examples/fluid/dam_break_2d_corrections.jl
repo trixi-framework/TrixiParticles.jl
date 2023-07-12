@@ -60,7 +60,7 @@ density_calculator_dict = Dict("no_correction" => SummationDensity(),
                                "kernel_gradient_summation_correction" => SummationDensity(),
                                "kernel_gradient_continuity_correction" => ContinuityDensity())
 
-boundary_system = BoundarySPHSystem(setup.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(setup.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
