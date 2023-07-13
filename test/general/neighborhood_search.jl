@@ -1,7 +1,7 @@
 @testset verbose=true "Neighborhood Search" begin
     @testset verbose=true "TrivialNeighborhoodSearch" begin
         # Setup with 5 particles
-        nhs = TrixiParticles.TrivialNeighborhoodSearch(Base.OneTo(5))
+        nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0, Base.OneTo(5))
 
         # Get each neighbor for arbitrary coordinates
         neighbors = collect(TrixiParticles.eachneighbor([1.0, 2.0], nhs))

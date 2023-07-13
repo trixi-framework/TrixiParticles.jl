@@ -1,9 +1,18 @@
-struct TrivialNeighborhoodSearch{E}
-    eachparticle::E
+struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP}
+    search_radius::ELTYPE
+    eachparticle::EP
+    periodic_box_size::Nothing
 
-    function TrivialNeighborhoodSearch(eachparticle)
-        new{typeof(eachparticle)}(eachparticle)
+    function TrivialNeighborhoodSearch{NDIMS}(search_radius, eachparticle) where {NDIMS}
+        new{NDIMS, typeof(search_radius), typeof(eachparticle)}(search_radius, eachparticle,
+                                                                nothing)
     end
+end
+
+@inline function Base.ndims(neighborhood_search::TrivialNeighborhoodSearch{NDIMS}) where {
+                                                                                          NDIMS
+                                                                                          }
+    return NDIMS
 end
 
 @inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
@@ -332,6 +341,8 @@ end
 
         pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, search_radius,
                                                         periodic_box_size)
+
+        @autoinfiltrate
 
         if distance2 <= search_radius^2
             distance = sqrt(distance2)

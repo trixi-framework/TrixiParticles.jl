@@ -103,8 +103,9 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(_, neighbor, ::Val{nothing}, _, _)
-    TrivialNeighborhoodSearch(eachparticle(neighbor))
+function create_neighborhood_search(system, neighbor, ::Val{nothing}, _, _)
+    radius = compact_support(system, neighbor)
+    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor))
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
