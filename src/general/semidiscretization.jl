@@ -36,15 +36,6 @@ struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
-        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
-        # We will need one neighborhood search for each pair of systems.
-        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search),
-                                                          periodic_box_min_corner,
-                                                          periodic_box_max_corner)
-                               for neighbor in systems)
-                         for system in systems)
-
         # Periodicity
         if (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
             # No periodicity
@@ -62,6 +53,15 @@ struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
             throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
                                 "must either be both `nothing` or both an array"))
         end
+
+        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
+        # We will need one neighborhood search for each pair of systems.
+        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
+                                                          Val(neighborhood_search),
+                                                          periodic_box_min_corner,
+                                                          periodic_box_max_corner)
+                               for neighbor in systems)
+                         for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
             typeof(searches), typeof(periodic_box_size),
@@ -433,10 +433,8 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
             timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
             @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system,
-                          v_neighbor, u_neighbor,
-                          neighborhood_search, system,
-                          neighbor)
+                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                          neighborhood_search, system, neighbor)
             end
         end
     end

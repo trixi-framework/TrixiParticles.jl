@@ -44,7 +44,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
     empty_vector          :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
     cell_buffer           :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
     cell_buffer_indices   :: Vector{Int} # Store which entries of `cell_buffer` are initialized
-    periodic_box_size     :: PBS # SVector{NDIMS, ELTYPE} or Nothing without periodicity
+    periodic_box_size     :: PBS # `SVector{NDIMS, ELTYPE}` or `Nothing` without periodicity
     bound_and_ghost_cells :: Vector{NTuple{NDIMS, Int}}
 
     function SpatialHashingSearch{NDIMS}(search_radius, n_particles;
@@ -67,6 +67,8 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
             end
 
             periodic_box_size = SVector(Tuple(max_corner - min_corner))
+
+            # If box size is not an integer multiple of search radius
             if !all(abs.(rem.(periodic_box_size / search_radius, 1, RoundNearest)) .< 1e-5)
                 # TODO allow other domain sizes
                 throw(ArgumentError("size of the periodic box must be an integer multiple " *
@@ -83,7 +85,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
                                                                         min_cell, max_cell)
         else
             throw(ArgumentError("`min_corner` and `max_corner` must either be " *
-                                "both `nothing` or both an array"))
+                                "both `nothing` or both an array or tuple"))
         end
 
         new{NDIMS, ELTYPE,
@@ -349,7 +351,7 @@ end
 @inline function compute_periodic_distance(pos_diff, distance2, search_radius,
                                            periodic_box_size)
     if distance2 > search_radius^2
-        # Use periodic pos_diff
+        # Use periodic `pos_diff`
         pos_diff -= periodic_box_size .* round.(pos_diff ./ periodic_box_size)
         distance2 = dot(pos_diff, pos_diff)
     end

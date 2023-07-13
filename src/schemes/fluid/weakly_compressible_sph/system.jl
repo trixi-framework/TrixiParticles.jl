@@ -179,6 +179,8 @@ function update_positions!(system::WeaklyCompressibleSPHSystem, u, periodic_box_
 
     for particle in axes(u, 2)
         coords = extract_svector(u, system, particle)
+
+        # Move coordinates into the periodic box
         box_offset = round.((coords .- periodic_box_min_corner) ./ periodic_box_size .- 0.5)
         current_coordinates[:, particle] = coords - box_offset .* periodic_box_size
     end
