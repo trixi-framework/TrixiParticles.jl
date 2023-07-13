@@ -50,9 +50,10 @@ reset_wall!(tank, reset_faces, positions)
 # ==========================================================================================
 # ==== Boundary models
 
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                              tank.boundary.mass, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             boundary_density_calculator, smoothing_kernel,
                                              smoothing_length)
 
 # K = 9.81 * water_height
@@ -62,10 +63,13 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
+fluid_density_calculator = ContinuityDensity()
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           acceleration=(0.0, gravity),
+                                           correction=nothing)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
