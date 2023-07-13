@@ -11,14 +11,14 @@ for small density variations. For the choice of the appropriate `density_calcula
 see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
 # Arguments
-- `initial_condition`: Initial condition representing the system's particles.
+- `initial_condition`:  Initial condition representing the system's particles.
 - `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`: Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
 
 # Keyword Arguments
-- `viscosity`: Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref).
+- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref).
 - `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
-- `correction`: Correction method used for this SPH system. (default: no correction)
+- `correction`:   Correction method used for this SPH system. (default: no correction)
 
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
