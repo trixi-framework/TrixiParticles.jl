@@ -342,8 +342,6 @@ end
         pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, search_radius,
                                                         periodic_box_size)
 
-        @autoinfiltrate
-
         if distance2 <= search_radius^2
             distance = sqrt(distance2)
 
