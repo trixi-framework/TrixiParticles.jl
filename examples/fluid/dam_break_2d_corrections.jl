@@ -68,6 +68,7 @@ function move_wall(tank, new_wall_position)
     reset_wall!(tank, reset_faces, positions)
 end
 
+
 """
 Run simulation.
 """
@@ -110,6 +111,7 @@ reinit_dict = Dict("no_correction" => false,
                    "kernel_gradient_summation_correction" => false,
                    "kernel_gradient_continuity_correction" => false,
                    "density_reinit" => true)
+
 
 for correction_name in keys(correction_dict)
     density_calculator = density_calculator_dict[correction_name]
