@@ -24,7 +24,7 @@ function DensityReinitializationCallback(particle_system; interval::Integer=0, d
     end
 
     if particle_system.density_calculator isa SummationDensity
-        error("Density reinitialization doesn't provide any advantage for summation density")
+        throw(ArgumentError("density reinitialization doesn't provide any advantage for summation density"))
     end
 
     last_t = 0.0
