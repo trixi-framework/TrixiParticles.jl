@@ -57,13 +57,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# Use the continuity equation to update the density.
-# # Arguments
-# - `dv`: Array of velocity differentials to be updated with the density saved at NDIMS+1.
-# - `particle`: Index of the current particle.
-# - `neighbor`: Index of the neighbor particle.
-# - `pos_diff`: Difference in positions between the target particle and the neighbor particle.
-# - `distance`: Distance between the current particle and the neighbor particle.
+# Compute the density derivative for particles in `particle_system` due to particles in `neighbor_system`
+# according to the continuity equation.
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
