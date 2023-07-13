@@ -1,13 +1,7 @@
-# Update the velocity differentials `dv` for interacting particles in a WeaklyCompressibleSPHSystem.
-
-# This function computes the interactions between particles and their neighbors within the kernel cutoff
-# and updates the `dv` array accordingly. It takes into account pressure forces, viscosity, and
-# for 'ContinuityDensity' updates the density using the continuity equation.
-
-# # Arguments
-# - `dv`: Array of velocity differentials to be updated.
-# - `particle_system`: A WeaklyCompressibleSPHSystem object.
-# - `neighbor_system`: A WeaklyCompressibleSPHSystem object including the same system.
+# This function computes the forces that particles in `particle_system` experience from particles
+# in `neighbor_system` and updates `dv` accordingly.
+# It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
+# using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
