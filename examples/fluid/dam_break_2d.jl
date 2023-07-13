@@ -8,8 +8,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-const gravity = 9.81
-const athmospheric_pressure = 100000.0
+gravity = 9.81
+athmospheric_pressure = 100000.0
 
 # ==========================================================================================
 # ==== Fluid
@@ -24,7 +24,6 @@ water_width = 2.0
 water_height = 1.0
 water_density = 1000.0
 
-# Tank properties
 tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
 tank_height = 4
 
