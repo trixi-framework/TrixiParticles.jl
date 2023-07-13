@@ -216,7 +216,8 @@
                 system = TotalLagrangianSPHSystem(initial_condition,
                                                   smoothing_kernel, smoothing_length,
                                                   1.0, 1.0, nothing)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0, TrixiParticles.eachparticle(system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
+                                                                  TrixiParticles.eachparticle(system))
                 TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
