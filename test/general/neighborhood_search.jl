@@ -160,8 +160,6 @@
 
             neighbors_loop = [Int[] for _ in axes(coords, 2)]
 
-            TrixiParticles.compact_support(::Val{2}, ::Val{2}) = 0.1
-
             TrixiParticles.for_particle_neighbor(Val(2), Val(2),
                                                  coords, coords, nhs,
                                                  particles=axes(coords, 2)) do particle,
