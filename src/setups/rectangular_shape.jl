@@ -72,7 +72,7 @@ function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
     coordinates = Array{ELTYPE, 2}(undef, NDIMS, prod(n_particles_per_dimension))
 
     if tlsph
-        min_coordinates .-= 0.5particle_spacing
+        min_coordinates = min_coordinates .- 0.5particle_spacing
     end
 
     initialize_rectangular!(coordinates, particle_spacing, min_coordinates,
