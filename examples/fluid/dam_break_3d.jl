@@ -36,7 +36,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height, water_lengt
                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # Move +x boundary.
-# Use the new fluid size, since it might bave been rounded in `RectangularTank`.
+# Use the new fluid size, since it might have been rounded in `RectangularTank`.
 reset_faces = (false, true, false, false, false, false)
 positions = (0, tank.fluid_size[1], 0, 0, 0, 0)
 
