@@ -75,7 +75,7 @@ function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
         min_coordinates .-= 0.5particle_spacing
     end
 
-    initialize_rectangular!(coordinates, particle_spacing, new_min_coordinates,
+    initialize_rectangular!(coordinates, particle_spacing, min_coordinates,
                             n_particles_per_dimension, loop_order)
 
     return coordinates
