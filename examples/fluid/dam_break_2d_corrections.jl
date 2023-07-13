@@ -57,7 +57,7 @@ function setup_simulation(density_calculator, correction_method)
                                                acceleration=(0.0, -GRAVITY),
                                                correction=correction_method)
 
-    bnd_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
+    bnd_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
     return fluid_system, bnd_system, tank
 end
