@@ -27,7 +27,7 @@ for correction_name in keys(correction_dict)
                   particle_spacing=particle_spacing, smoothing_length=smoothing_length,
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
-                  correction=correction, density_reinit_cb = nothing,
+                  correction=correction, density_reinit_cb=nothing,
                   relaxation_step_file_prefix="relaxation_$(correction_name)",
                   simulation_step_file_prefix="$(correction_name)")
 end

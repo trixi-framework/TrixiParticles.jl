@@ -81,7 +81,8 @@ semi = Semidiscretization(fluid_system, boundary_system,
 ode = semidiscretize(semi, relaxation_tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback_relaxation = SolutionSavingCallback(dt=output_dt, prefix=relaxation_step_file_prefix)
+saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
+                                                    prefix=relaxation_step_file_prefix)
 callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
