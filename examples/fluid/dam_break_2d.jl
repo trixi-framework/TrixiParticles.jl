@@ -109,7 +109,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 ode = semidiscretize(semi, simulation_tspan)
 
 saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
-density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.05)
+density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
 callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 
 # See above for an explanation of the parameter choice
