@@ -203,18 +203,53 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function reinit_density!(v, u, system::WeaklyCompressibleSPHSystem, system_index, u_ode,
-                         v_ode,
-                         semi, t)
+# function reinit_density!(v, u, system::WeaklyCompressibleSPHSystem, system_index, u_ode,
+#                          v_ode,
+#                          semi, t)
+#     summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+#     kernel_correction_coefficient = zeros(size(v[end, :]))
+#     kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
+#                          kernel_correction_coefficient)
+#     v[end, :] ./= kernel_correction_coefficient
+#     compute_pressure!(system, v)
+# end
+
+# function reinit_density!(v, u, system, system_index, u_ode, v_ode, semi, t)
+# end
+
+function reinit_density!(vu_ode, semi)
+    @unpack systems = semi
+    v_ode, u_ode = vu_ode.x
+
+    foreach_enumerate(systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
+
+        reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+    end
+
+    return vu_ode
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+                         v_ode, u_ode, semi)
+    # Compute density with `SummationDensity` and store the result in `v`,
+    # overwriting the previous integrated density.
     summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+
+    # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
     kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
                          kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
+
     compute_pressure!(system, v)
+
+    return system
 end
 
-function reinit_density!(v, u, system, system_index, u_ode, v_ode, semi, t)
+function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+    return system
 end
 
 function compute_pressure!(system, v)

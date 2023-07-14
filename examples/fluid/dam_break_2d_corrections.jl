@@ -91,10 +91,10 @@ function run(semi, tspan::Tuple{Real, Real}, prefix; density_reinit=false)
 end
 
 correction_dict = Dict("no_correction" => Nothing(),
-                       "shepard_kernel_correction" => ShepardKernelCorrection(),
-                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
-                       "kernel_gradient_summation_correction" => KernelGradientCorrection(),
-                       "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
+                    #    "shepard_kernel_correction" => ShepardKernelCorrection(),
+                    #    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(WATER_DENSITY),
+                    #    "kernel_gradient_summation_correction" => KernelGradientCorrection(),
+                    #    "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
                        "density_reinit" => Nothing())
 
 density_calculator_dict = Dict("no_correction" => SummationDensity(),
