@@ -86,7 +86,7 @@ function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
     semi = integrator.p
 
-    reinit_density!(vu_ode, semi)
+    @trixi_timeit timer() "reinit density" reinit_density!(vu_ode, semi)
 
     reinit_callback.last_t = integrator.t
 end
