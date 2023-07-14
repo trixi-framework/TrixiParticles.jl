@@ -21,10 +21,10 @@ using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
+include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
-include("callbacks/callbacks.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately.
