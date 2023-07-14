@@ -15,12 +15,13 @@ Callback to reinitialize the density field when using [ContinuityDensity](@ref).
 """
 
 mutable struct DensityReinitializationCallback{I}
-    interval :: I
-    last_t   :: I
-    reinit_initial_solution :: Bool
+    interval::I
+    last_t::I
+    reinit_initial_solution::Bool
 end
 
-function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0, reinit_initial_solution=false)
+function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
+                                         reinit_initial_solution=false)
     if dt > 0 && interval > 0
         error("Setting both interval and dt is not supported!")
     end
@@ -37,14 +38,13 @@ function DensityReinitializationCallback(particle_system; interval::Integer=0, d
 
     reinit_cb = DensityReinitializationCallback(interval, last_t, reinit_initial_solution)
 
-    return DiscreteCallback(reinit_cb, reinit_cb,  save_positions=(false, false),
-    initialize=initialize_reinit_cb!)
+    return DiscreteCallback(reinit_cb, reinit_cb, save_positions=(false, false),
+                            initialize=initialize_reinit_cb!)
 end
 
 function initialize_reinit_cb!(cb, u, t, integrator)
     initialize_reinit_cb!(cb.affect!, u, t, integrator)
 end
-
 
 function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integrator)
     # Save initial solution
@@ -101,7 +101,7 @@ function (reinit_callback::DensityReinitializationCallback{Int})(u, t, integrato
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
     return interval > 0 && ((integrator.stats.naccept % interval == 0) &&
-             !(integrator.stats.naccept == 0 && integrator.iter > 0))
+            !(integrator.stats.naccept == 0 && integrator.iter > 0))
 end
 # condition with dt
 function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
