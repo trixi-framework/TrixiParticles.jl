@@ -8,65 +8,66 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+# Constants
 gravity = 9.81
 athmospheric_pressure = 100000.0
+fluid_density = 1000.0
+
+# Simulation settings
+particle_spacing = 0.02
+smoothing_length = 1.2 * particle_spacing
+boundary_layers = 3
+output_dt = 0.02
+relaxation_step_file_prefix = "relaxation"
+simulation_step_file_prefix = ""
+relaxation_tspan = (0.0, 3.0)
+simulation_tspan = (0.0, 5.7 / sqrt(gravity))
+
+# Model settings
+fluid_density_calculator = ContinuityDensity()
+boundary_density_calculator = AdamiPressureExtrapolation()
+
+# Boundary geometry and intial fluid particle positions
+initial_fluid_height = 2.0
+initial_fluid_size = (initial_fluid_height, 1.0)
+tank_size = (floor(5.366 / particle_spacing) * particle_spacing, 4.0)
+tank = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers)
+
+# move the right wall of the tank to a new position
+function move_wall(tank, new_wall_position)
+    reset_faces = (false, true, false, false)
+    positions = (0, new_wall_position, 0, 0)
+    reset_wall!(tank, reset_faces, positions)
+end
+
+move_wall(tank, tank.fluid_size[1])
 
 # ==========================================================================================
 # ==== Fluid
+sound_speed = 20 * sqrt(gravity * initial_fluid_height)
 
-particle_spacing = 0.02
-
-# Spacing ratio between fluid and boundary particles
-beta = 1
-boundary_layers = 3
-
-water_width = 2.0
-water_height = 1.0
-water_density = 1000.0
-
-tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-tank_height = 4
-
-sound_speed = 20 * sqrt(gravity * water_height)
-
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-state_equation = StateEquationCole(sound_speed, 7, water_density, athmospheric_pressure,
+state_equation = StateEquationCole(sound_speed, 7, fluid_density, athmospheric_pressure,
                                    background_pressure=athmospheric_pressure)
+
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
-tank = RectangularTank(particle_spacing, (water_width, water_height),
-                       (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
-
-# Move right boundary.
-# Use the new fluid size, since it might have been rounded in `RectangularTank`.
-reset_faces = (false, true, false, false)
-positions = (0, tank.fluid_size[1], 0, 0)
-
-reset_wall!(tank, reset_faces, positions)
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                           acceleration=(0.0, -gravity), correction=nothing)
 
 # ==========================================================================================
 # ==== Boundary models
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation, boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length)
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
-
-# K = 9.81 * water_height
+# K = 9.81 * initial_fluid_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
 #                                              tank.boundary.mass)
-
-# ==========================================================================================
-# ==== Systems
-
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -77,11 +78,10 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch,
                           damping_coefficient=1e-5)
 
-tspan = (0.0, 3.0)
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, relaxation_tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback_relaxation = SolutionSavingCallback(dt=0.02, prefix="relaxation")
+saving_callback_relaxation = SolutionSavingCallback(dt=output_dt, prefix=relaxation_step_file_prefix)
 callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
@@ -98,21 +98,16 @@ sol = solve(ode, RDPK3SpFSAL49(),
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks_relaxation);
 
-# Move right boundary
-positions = (0, tank.tank_size[1], 0, 0)
-reset_wall!(tank, reset_faces, positions)
-
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(gravity))
+move_wall(tank, tank.tank_size[1])
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch)
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, simulation_tspan)
 
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
 density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.05)
 callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 
