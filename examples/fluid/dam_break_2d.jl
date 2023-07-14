@@ -27,7 +27,7 @@ simulation_tspan = (0.0, 5.7 / sqrt(gravity))
 fluid_density_calculator = ContinuityDensity()
 boundary_density_calculator = AdamiPressureExtrapolation()
 
-# Boundary geometry and intial fluid particle positions
+# Boundary geometry and initial fluid particle positions
 initial_fluid_height = 2.0
 initial_fluid_size = (initial_fluid_height, 1.0)
 tank_size = (floor(5.366 / particle_spacing) * particle_spacing, 4.0)
