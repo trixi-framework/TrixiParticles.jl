@@ -16,7 +16,7 @@ Callback to reinitialize the density field when using [ContinuityDensity](@ref).
 
 mutable struct DensityReinitializationCallback{I}
     interval::I
-    last_t::I
+    last_t::Float64
     reinit_initial_solution::Bool
 end
 
@@ -75,12 +75,14 @@ function (reinit_callback::DensityReinitializationCallback{Int})(u, t, integrato
     return interval > 0 && ((integrator.stats.naccept % interval == 0) &&
             !(integrator.stats.naccept == 0 && integrator.iter > 0))
 end
+
 # condition with dt
 function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
     @unpack interval, last_t = reinit_callback
 
     return (t - last_t) > interval
 end
+
 # affect!
 function (reinit_callback::DensityReinitializationCallback)(integrator)
     vu_ode = integrator.u
