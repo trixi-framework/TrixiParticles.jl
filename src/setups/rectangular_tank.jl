@@ -57,7 +57,6 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     spacing_ratio             :: ELTYPE
     n_layers                  :: Int
     n_particles_per_dimension :: NTuple{NDIMS, Int}
-    tank_size                 :: NTuple{NDIMS, ELTYPE}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size,
                              fluid_density;
@@ -122,7 +121,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
                                              particle_spacing, spacing_ratio, n_layers,
-                                             n_particles_per_dimension, tank_size)
+                                             n_particles_per_dim)
     end
 end
 
