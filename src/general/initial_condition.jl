@@ -16,6 +16,10 @@ struct InitialCondition{ELTYPE}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
+        if !isempty(pressure)
+            pressure = pressure * ones(Float64, prod(length(masses)))
+        end
+
         return new{eltype(coordinates)}(coordinates, velocities, masses, densities,
                                         pressure)
     end

@@ -11,12 +11,13 @@ using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
-using StaticArrays: @SMatrix, SMatrix
+using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
+using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -41,6 +42,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryMovement
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
