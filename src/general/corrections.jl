@@ -130,12 +130,12 @@ end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
-    return kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
-                                system.cache.kernel_correction_coefficient)
+    return compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+                                  system.cache.kernel_correction_coefficient)
 end
 
-function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
-                              kernel_correction_coefficient)
+function compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+                                kernel_correction_coefficient)
     @unpack systems, neighborhood_searches = semi
 
     set_zero!(kernel_correction_coefficient)
@@ -165,6 +165,8 @@ function kernel_correct_value(system, system_index, v, u, v_ode, u_ode, semi,
                                                        smoothing_kernel(system, distance)
         end
     end
+
+    return kernel_correction_coefficient
 end
 
 function dw_gamma(system, particle)
