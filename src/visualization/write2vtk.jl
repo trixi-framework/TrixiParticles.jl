@@ -41,6 +41,9 @@ function trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=noth
         # Store particle index
         vtk["index"] = eachparticle(system)
 
+        # Write some meta data
+        vtk["time"] = t
+
         # Extract custom quantities for this system
         for (key, func) in custom_quantities
             value = func(v, u, t, system)
@@ -75,6 +78,16 @@ function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
                       for particle in eachparticle(system)]
     vtk["pressure"] = system.pressure
 
+    # write meta data
+    vtk["solver"] = "WCSPH"
+    vtk["correction_method"] = string(nameof(typeof(system.correction)))
+    vtk["acceleration"] = system.acceleration
+    vtk["viscosity"] = string(nameof(typeof(system.viscosity)))
+    vtk["smoothing_kernel"] = string(nameof(typeof(system.smoothing_kernel)))
+    vtk["smoothing_length"] = system.smoothing_length
+    vtk["density_calculator"] = string(nameof(typeof(system.density_calculator)))
+    vtk["state_equation"] = string(nameof(typeof(system.state_equation)))
+
     return vtk
 end
 
@@ -97,6 +110,13 @@ function write2vtk!(vtk, v, u, t, model, system)
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
+    @unpack boundary_model = system
+
+    vtk["smoothing_kernel"] = string(nameof(typeof(boundary_model.smoothing_kernel)))
+    vtk["smoothing_length"] = boundary_model.smoothing_length
+    vtk["density_calculator"] = string(nameof(typeof(boundary_model.density_calculator)))
+    vtk["state_equation"] = string(nameof(typeof(boundary_model.state_equation)))
+
     write2vtk!(vtk, v, u, t, model, model.viscosity, system)
 end
 
