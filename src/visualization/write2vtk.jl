@@ -80,13 +80,13 @@ function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
 
     # write meta data
     vtk["solver"] = "WCSPH"
-    vtk["correction_method"] = string(nameof(typeof(system.correction)))
+    vtk["correction_method"] = type2string(system.correction)
     vtk["acceleration"] = system.acceleration
-    vtk["viscosity"] = string(nameof(typeof(system.viscosity)))
-    vtk["smoothing_kernel"] = string(nameof(typeof(system.smoothing_kernel)))
+    vtk["viscosity"] = type2string(system.viscosity)
+    vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
     vtk["smoothing_length"] = system.smoothing_length
-    vtk["density_calculator"] = string(nameof(typeof(system.density_calculator)))
-    vtk["state_equation"] = string(nameof(typeof(system.state_equation)))
+    vtk["density_calculator"] = type2string(system.density_calculator)
+    vtk["state_equation"] = type2string(system.state_equation)
 
     return vtk
 end
@@ -112,10 +112,12 @@ end
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
     @unpack boundary_model = system
 
-    vtk["smoothing_kernel"] = string(nameof(typeof(boundary_model.smoothing_kernel)))
+    # write meta data
+    vtk["boundary_model"] = "BoundaryModelDummyParticles"
+    vtk["smoothing_kernel"] = type2string(boundary_model.smoothing_kernel)
     vtk["smoothing_length"] = boundary_model.smoothing_length
-    vtk["density_calculator"] = string(nameof(typeof(boundary_model.density_calculator)))
-    vtk["state_equation"] = string(nameof(typeof(boundary_model.state_equation)))
+    vtk["density_calculator"] = type2string(boundary_model.density_calculator)
+    vtk["state_equation"] = type2string(boundary_model.state_equation)
 
     write2vtk!(vtk, v, u, t, model, model.viscosity, system)
 end
@@ -125,6 +127,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity,
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
 
+    # write meta data
+    vtk["viscosity_model"] = type2string(viscosity)
     return vtk
 end
 
@@ -134,6 +138,9 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
     vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
+
+    # write meta data
+    vtk["viscosity_model"] = "ViscosityAdami"
 
     return vtk
 end
