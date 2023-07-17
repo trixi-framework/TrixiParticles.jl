@@ -32,6 +32,11 @@ function (post_callback::PostprocessCallback)(integrator)
     open("values.json", "w") do file
         # write intended with 4 spaces
         JSON.print(file, data, 4)
+        for key in keys(post_callback.values)
+            data = Dict("series"=> Dict("name"=> key, "datatype" => typeof(post_callback.values[key]),
+            "novalues" => length(post_callback.values[key]), "values"=>post_callback.values[key]))
+            JSON.print(file, result, 4)
+        end
     end
 
     return nothing
