@@ -282,7 +282,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 
         # The summation is only over fluid particles, thus the volume stays zero when a boundary
         # particle isn't surrounded by fluid particles.
-        # Check the volume to avoid NaNs in velocity.
+        # Check the volume to avoid NaNs in pressure and velocity.
         if volume[particle] > eps()
             pressure[particle] /= volume[particle]
 
@@ -361,6 +361,7 @@ end
     @unpack boundary_model = system
     @unpack cache = boundary_model
     @unpack volume, wall_velocity = cache
+
     # Prescribed velocity of the boundary particle.
     # This velocity is zero when not using moving boundaries.
     v_boundary = current_velocity(system_coords, system, particle)
