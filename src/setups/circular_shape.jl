@@ -23,7 +23,7 @@ For adding a recess in the particle filled circle or for only drawing the circum
 see [`FillCircle`](@ref) and [`DrawCircle`](@ref) respectively.
 """
 function CircularShape(particle_spacing, R, center_position, density;
-                       shape_type=FillCircle(), init_velocity=(0.0, 0.0), pressure=[])
+                       shape_type=FillCircle(), init_velocity=(0.0, 0.0), pressure=0.0)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end

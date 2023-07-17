@@ -59,7 +59,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size,
-                             fluid_density; pressure=[],
+                             fluid_density; pressure=0.0,
                              n_layers=1, spacing_ratio=1.0,
                              init_velocity=zeros(length(fluid_size)),
                              boundary_density=fluid_density,
