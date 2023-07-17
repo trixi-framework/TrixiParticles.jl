@@ -23,7 +23,9 @@ tank_height = 0.48
 water_width = tank_width
 water_height = tank_height
 
-sound_speed = 10.0
+init_velocity = (1.0, 0.0)
+sound_speed = 10init_velocity[1]
+
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
 
@@ -33,7 +35,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta,
                        faces=(false, false, true, true),
-                       init_velocity=(1.0, 0.0))
+                       init_velocity=init_velocity)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -68,7 +70,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
 callbacks = CallbackSet(info_callback, saving_callback)

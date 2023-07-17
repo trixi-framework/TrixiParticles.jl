@@ -84,12 +84,16 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
                                     "of `search_radius`"))
             end
 
+            # Get cell index of min and max corner cells
             min_cell = cell_coords(min_corner .+
                                    0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
                                    search_radius)
             max_cell = cell_coords(max_corner .-
                                    0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
                                    search_radius)
+
+            # Initialize boundary cells with empty lists and set ghost cells to pointers
+            # to these lists.
             bound_and_ghost_cells = initialize_boundary_and_ghost_cells(hashtable,
                                                                         min_cell, max_cell)
         else
@@ -104,6 +108,7 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PBS}
     end
 end
 
+# Initialize boundary cells with empty lists and set ghost cells to pointers to these lists
 function initialize_boundary_and_ghost_cells(hashtable, min_cell, max_cell)
     # To make sure that the hashtable starts empty.
     # Then, we can just return the keyset after we initialized all boundary and ghost cells.
