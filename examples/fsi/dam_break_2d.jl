@@ -20,11 +20,11 @@ beta = 1
 boundary_layers = 3
 
 water_width = 0.146
-water_height = 0.292
+water_height = 2water_width
 water_density = 1000.0
 
-tank_width = 0.584
-tank_height = 4.0
+tank_width = 4water_width
+tank_height = 4water_width
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
@@ -40,11 +40,10 @@ tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move right boundary
-# Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
+# Move right boundary.
+# Use the new fluid size, since it might have been rounded in `RectangularTank`.
 reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
+positions = (0, tank.fluid_size[1], 0, 0)
 
 reset_wall!(tank, reset_faces, positions)
 
@@ -70,13 +69,16 @@ nu = 0.0
 n_particles_per_dimension = (n_particles_x,
                              round(Int, length_beam / solid_particle_spacing) + 1)
 
-# The bottom layer is sampled separately below.
+# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
+# first particle half a particle spacing away from the boundary, which is correct for fluids,
+# but not for solids. We therefore need to pass `tlsph=true`.
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (0.292, solid_particle_spacing), solid_density)
+                         (2water_width, solid_particle_spacing), solid_density, tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1), (0.292, 0.0),
-                                   solid_density)
+                                   (n_particles_per_dimension[1], 1),
+                                   (2water_width, 0.0),
+                                   solid_density, tlsph=true)
 
 solid = InitialCondition(plate, fixed_particles)
 
@@ -154,7 +156,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=info_callback);
 
 # Move right boundary
-positions = (0, tank_width, 0, 0)
+positions = (0, tank.tank_size[1], 0, 0)
 reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation
