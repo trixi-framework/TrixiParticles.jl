@@ -18,8 +18,20 @@ end
 
 # condition
 function (post_callback::PostprocessCallback)(u, t, integrator)
+    vu_ode = integrator.u
+    semi = integrator.p
+
     # save dt
     push!(post_callback.dt, integrator.dt)
+
+    #save dp
+    data_available, dp = pressure_change_over_reinit(vu_ode, semi)
+    #println(dp)
+    if data_available
+        dp_array = get(post_callback.values, "dp", Float64[])
+        push!(dp_array, dp)
+        post_callback.values["dp"] = dp_array
+    end
 
     return isfinished(integrator)
 end

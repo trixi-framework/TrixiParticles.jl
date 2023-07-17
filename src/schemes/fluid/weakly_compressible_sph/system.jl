@@ -38,6 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     acceleration       :: SVector{NDIMS, ELTYPE}
     correction         :: COR
     cache              :: C
+    pp_values          :: Dict{String, Any}
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
@@ -78,7 +79,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, cache)
+                     correction, cache, Dict())
     end
 end
 
@@ -203,6 +204,36 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
+function pressure_change_over_reinit(vu_ode, semi)
+    @unpack systems = semi
+    v_ode, u_ode = vu_ode.x
+
+    foreach_enumerate(systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
+
+        data_available, dp = pressure_change_over_reinit(system)
+        if data_available
+            println("dp", dp)
+            return true, dp
+        end
+    end
+
+    return false, 0.0
+end
+
+function pressure_change_over_reinit(system)
+    return false, 0.0
+end
+
+function pressure_change_over_reinit(system::WeaklyCompressibleSPHSystem)
+    if haskey(system.pp_values, "dp")
+        return true, system.pp_values["dp"]
+    else
+        return false, 0.0
+    end
+end
+
 function reinit_density!(vu_ode, semi)
     @unpack systems = semi
     v_ode, u_ode = vu_ode.x
@@ -229,7 +260,13 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
+
+    p_old = copy(system.pressure)
     compute_pressure!(system, v)
+    dp = p_old-system.pressure
+    #dp_array = get(post_callback.values, "dp", Float64[])
+    system.pp_values["dp"] = sqrt(dot(dp, dp))
+    println(system.pp_values["dp"])
 
     return system
 end

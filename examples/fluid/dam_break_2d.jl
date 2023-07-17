@@ -83,7 +83,9 @@ ode = semidiscretize(semi, relaxation_tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
                                                     prefix=relaxation_step_file_prefix)
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, PostprocessCallback())
+density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
+
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, PostprocessCallback(), density_reinit_cb)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
