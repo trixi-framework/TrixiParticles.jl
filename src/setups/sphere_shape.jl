@@ -251,11 +251,10 @@ function round_sphere(particle_spacing, radius, center::SVector{3})
     # With less than 5 particles, this doesn't work properly
     if n_particles < 5
         if n_particles == 4
-            # Return tetrahedron. The size is chosen such that a sphere with a tetrahedron
-            # in the center has a good density distribution.
+            # Return tetrahedron
             return [+1 -1 -1 +1;
                     +1 -1 +1 -1;
-                    +1 +1 -1 -1] * 0.6radius .+ center
+                    +1 +1 -1 -1] * radius / sqrt(3) .+ center
         elseif n_particles == 3
             # Return 2D triangle
             y = sin(2pi / 3)
