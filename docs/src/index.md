@@ -80,7 +80,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ```
 
-### Entropically damped artificial compressibility for SPH
+### Entropically Damped Artificial Compressibility for SPH
 
 #### File system.jl
 ```@autodocs
