@@ -18,6 +18,7 @@ using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 using ForwardDiff
+using JSON
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -34,7 +35,7 @@ include("visualization/write2vtk.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
-export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
+export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback, PostprocessCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,

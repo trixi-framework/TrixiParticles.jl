@@ -20,7 +20,7 @@ boundary_layers = 3
 output_dt = 0.02
 relaxation_step_file_prefix = "relaxation"
 simulation_step_file_prefix = ""
-relaxation_tspan = (0.0, 3.0)
+relaxation_tspan = (0.0, 0.5)
 simulation_tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Model settings
@@ -83,7 +83,7 @@ ode = semidiscretize(semi, relaxation_tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
                                                     prefix=relaxation_step_file_prefix)
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, PostprocessCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -99,22 +99,22 @@ sol = solve(ode, RDPK3SpFSAL49(),
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks_relaxation);
 
-move_wall(tank, tank.tank_size[1])
+# move_wall(tank, tank.tank_size[1])
 
-# Use solution of the relaxing step as initial coordinates
-restart_with!(semi, sol)
+# # Use solution of the relaxing step as initial coordinates
+# restart_with!(semi, sol)
 
-semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
-ode = semidiscretize(semi, simulation_tspan)
+# semi = Semidiscretization(fluid_system, boundary_system,
+#                           neighborhood_search=SpatialHashingSearch)
+# ode = semidiscretize(semi, simulation_tspan)
 
-saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
-density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
-callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
+# saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
+# density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
+# callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 
-# See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+# # See above for an explanation of the parameter choice
+# sol = solve(ode, RDPK3SpFSAL49(),
+#             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+#             reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+#             dtmax=1e-2, # Limit stepsize to prevent crashing
+#             save_everystep=false, callback=callbacks);
