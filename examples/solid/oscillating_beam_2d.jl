@@ -25,9 +25,9 @@ nu = 0.4
 
 # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius.
 fixed_particles = SphereShape(particle_spacing, clamp_radius + particle_spacing / 2,
-                              (0.0, thickness / 2),
+                              (0.0, thickness / 2), particle_density,
                               cutout_min=(0.0, 0.0), cutout_max=(clamp_radius, thickness),
-                              particle_density)
+                              tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / particle_spacing)
 

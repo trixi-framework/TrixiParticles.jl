@@ -49,9 +49,9 @@ nu = 0.4
 
 fixed_particles = SphereShape(solid_particle_spacing,
                               clamp_radius + solid_particle_spacing / 2,
-                              (0.0, thickness / 2),
+                              (0.0, thickness / 2), solid_density,
                               cutout_min=(0.0, 0.0), cutout_max=(clamp_radius, thickness),
-                              solid_density)
+                              tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
