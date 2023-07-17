@@ -1,7 +1,7 @@
 """
     SphereShape(particle_spacing, radius, center_position, density;
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
-                cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
+                cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
                 init_velocity=zeros(length(center_position)))
 
 Generate a sphere that is either completely filled (by default)
@@ -34,6 +34,9 @@ coordinate directions as `cutout_min` and `cutout_max`.
                         cut out of the sphere.
 - `cutout_max`:         Corner in positive coordinate directions of a cuboid that is to be
                         cut out of the sphere.
+- `tlsph`:              With the [TotalLagrangianSPHSystem](@ref), particles need to be placed
+                        on the boundary of the shape and not one particle radius away, as for fluids.
+                        When `tlsph=true`, particles will be placed on the boundary of the shape.
 - `init_velocity`:      Initial velocity vector to be assigned to each particle.
 
 # Examples
@@ -72,7 +75,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 """
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
-                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0),
+                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
                      init_velocity=zeros(length(center_position)))
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
@@ -87,7 +90,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
-                                      n_layers, layer_outwards)
+                                      n_layers, layer_outwards, tlsph)
 
     # Convert tuples to vectors
     cutout_min_ = collect(cutout_min)
@@ -135,21 +138,35 @@ The resulting ball will be perfectly round, but will not have a regular inner st
 struct RoundSphere end
 
 function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
-                             n_layers, layer_outwards)
+                             n_layers, layer_outwards, tlsph)
     if n_layers > 0
         if layer_outwards
-            # Put first layer of particles half a particle spacing outside of `radius`
-            inner_radius = radius + 0.5particle_spacing
-            outer_radius = radius + n_layers * particle_spacing + 0.5particle_spacing
+            inner_radius = radius
+            outer_radius = radius + n_layers * particle_spacing
+
+            if !tlsph
+                # Put first layer of particles half a particle spacing outside of `radius`
+                inner_radius += 0.5particle_spacing
+                outer_radius += 0.5particle_spacing
+            end
         else
-            # Put first layer of particles half a particle spacing inside of `radius`
-            inner_radius = radius - n_layers * particle_spacing - 0.5particle_spacing
-            outer_radius = radius - 0.5particle_spacing
+            inner_radius = radius - n_layers * particle_spacing
+            outer_radius = radius
+
+            if !tlsph
+                # Put first layer of particles half a particle spacing inside of `radius`
+                inner_radius -= 0.5particle_spacing
+                outer_radius -= 0.5particle_spacing
+            end
         end
     else
-        # Put first layer of particles half a particle spacing inside of `radius`
-        outer_radius = radius - 0.5particle_spacing
+        outer_radius = radius
         inner_radius = -1.0
+
+        if !tlsph
+            # Put first layer of particles half a particle spacing inside of `radius`
+            outer_radius -= 0.5particle_spacing
+        end
     end
 
     NDIMS = length(center_position)
@@ -177,16 +194,24 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
 end
 
 function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
-                             n_layers, layer_outwards)
+                             n_layers, layer_outwards, tlsph)
     if n_layers > 0
         if layer_outwards
-            # Put first layer of particles half a particle spacing outside of `radius`
-            inner_radius = radius + 0.5particle_spacing
+            inner_radius = radius
         else
+            inner_radius = radius - n_layers * particle_spacing
+        end
+
+        if !tlsph
             # Put first layer of particles half a particle spacing outside of inner radius
-            inner_radius = radius - n_layers * particle_spacing + 0.5particle_spacing
+            inner_radius += 0.5particle_spacing
         end
     else
+        if tlsph
+            # Just create a sphere that is 0.5 particle spacing larger
+            radius += 0.5particle_spacing
+        end
+
         # Each layer has thickness `particle_spacing`
         n_layers = round(Int, radius / particle_spacing)
 

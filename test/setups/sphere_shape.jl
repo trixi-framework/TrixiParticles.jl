@@ -83,11 +83,11 @@
             "4-particle RoundSphere",
             "5-particle RoundSphere",
             "6-particle RoundSphere",
-            "VoxelSphere with Cutout",
-            "VoxelSphere with Two Layers",
-            "VoxelSphere with Two Layers Outwards",
+            "VoxelSphere with Cutout and tlsph",
+            "VoxelSphere with Two Layers and tlsph",
+            "VoxelSphere with Two Layers Outwards and tlsph",
             "RoundSphere with Two Layers",
-            "RoundSphere with Two Layers Outwards",
+            "RoundSphere with Two Layers Outwards and tlsph",
         ]
 
         shapes = [
@@ -99,15 +99,15 @@
             SphereShape(1.0, 1.05, (0.2, -1.0, 0.3), 1000.0, sphere_type=RoundSphere()),
             SphereShape(1.0, 1.1, (0.2, -1.0, 0.3), 1000.0, sphere_type=RoundSphere()),
             SphereShape(1.0, 1.2, (-0.3, 0.1, 0.8), 1000.0, sphere_type=RoundSphere()),
-            SphereShape(0.1, 0.55, (0.3, 0.4, 0.5), 1000.0, cutout_min=(0.18, 0.4, 0.5),
-                        cutout_max=(0.42, 10.0, 1.0)),
-            SphereShape(0.1, 0.55, (0.3, 0.4, 0.5), 1000.0, n_layers=2),
-            SphereShape(0.1, 0.45, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
-                        layer_outwards=true),
+            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, cutout_min=(0.18, 0.4, 0.5),
+                        cutout_max=(0.42, 10.0, 1.0), tlsph=true),
+            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, tlsph=true),
+            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
+                        layer_outwards=true, tlsph=true),
             SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2,
                         sphere_type=RoundSphere()),
-            SphereShape(0.1, 0.5, (0.3, 0.4, 0.5), 1000.0, n_layers=2, layer_outwards=true,
-                        sphere_type=RoundSphere()),
+            SphereShape(0.1, 0.55, (0.3, 0.4, 0.5), 1000.0, n_layers=2, layer_outwards=true,
+                        sphere_type=RoundSphere(), tlsph=true),
         ]
 
         expected_coords = [
