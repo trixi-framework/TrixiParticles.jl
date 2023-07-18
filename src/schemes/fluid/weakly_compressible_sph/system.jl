@@ -206,15 +206,11 @@ end
 
 function pressure_change_over_reinit(vu_ode, semi)
     @unpack systems = semi
-    v_ode, u_ode = vu_ode.x
 
     foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
-
         data_available, dp = pressure_change_over_reinit(system)
         if data_available
-            println("dp", dp)
+            #println("dp", dp)
             return true, dp
         end
     end
@@ -227,6 +223,8 @@ function pressure_change_over_reinit(system)
 end
 
 function pressure_change_over_reinit(system::WeaklyCompressibleSPHSystem)
+    println("aswda $(system.pp_values["dp"])")
+
     if haskey(system.pp_values, "dp")
         return true, system.pp_values["dp"]
     else

@@ -26,9 +26,10 @@ function (post_callback::PostprocessCallback)(u, t, integrator)
 
     #save dp
     data_available, dp = pressure_change_over_reinit(vu_ode, semi)
-    #println(dp)
+    println("postprocess1 $dp")
     if data_available
         dp_array = get(post_callback.values, "dp", Float64[])
+        println("postprocess $dp")
         push!(dp_array, dp)
         post_callback.values["dp"] = dp_array
     end
