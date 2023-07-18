@@ -11,14 +11,13 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
-    systems                 :: S
-    ranges_u                :: RU
-    ranges_v                :: RV
-    neighborhood_searches   :: NS
-    periodic_box_size       :: BS
-    periodic_box_min_corner :: MC
-    damping_coefficient     :: DC
+struct Semidiscretization{S, RU, RV, NS, PB, DC}
+    systems               :: S
+    ranges_u              :: RU
+    ranges_v              :: RV
+    neighborhood_searches :: NS
+    periodic_box          :: PB
+    damping_coefficient   :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
                                 periodic_box_min_corner=nothing,
@@ -39,16 +38,14 @@ struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
         # Periodicity
         if (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
             # No periodicity
-            periodic_box_size = nothing
+            periodic_box = nothing
             min_corner = zeros(SVector{NDIMS, ELTYPE})
         elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
             if NDIMS == 3
                 throw(ArgumentError("periodicity is not yet supported in 3D"))
             end
 
-            periodic_box_size = SVector(Tuple(periodic_box_max_corner -
-                                              periodic_box_min_corner))
-            min_corner = SVector(Tuple(periodic_box_min_corner))
+            periodic_box = PeriodicBox(periodic_box_min_corner, periodic_box_max_corner)
         else
             throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
                                 "must either be both `nothing` or both an array"))
@@ -64,11 +61,9 @@ struct Semidiscretization{S, RU, RV, NS, BS, MC, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(periodic_box_size),
-            typeof(min_corner), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                             searches, periodic_box_size,
-                                                             min_corner,
-                                                             damping_coefficient)
+            typeof(searches), typeof(periodic_box),
+            typeof(damping_coefficient)}(systems, ranges_u, ranges_v, searches,
+                                         periodic_box, damping_coefficient)
     end
 end
 

@@ -17,18 +17,17 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
        System{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    current_coordinates :: Array{ELTYPE, 2} # [dim, particle]
-    mass                :: Array{ELTYPE, 1} # [particle]
-    pressure            :: Array{ELTYPE, 1} # [particle]
-    density_calculator  :: DC
-    state_equation      :: SE
-    smoothing_kernel    :: K
-    smoothing_length    :: ELTYPE
-    viscosity           :: V
-    acceleration        :: SVector{NDIMS, ELTYPE}
-    correction          :: COR
-    cache               :: C
+    initial_condition  :: InitialCondition{ELTYPE}
+    mass               :: Array{ELTYPE, 1} # [particle]
+    pressure           :: Array{ELTYPE, 1} # [particle]
+    density_calculator :: DC
+    state_equation     :: SE
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    viscosity          :: V
+    acceleration       :: SVector{NDIMS, ELTYPE}
+    correction         :: COR
+    cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
@@ -41,7 +40,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
 
-        current_coordinates = similar(initial_condition.coordinates)
         mass = copy(initial_condition.mass)
         pressure = Vector{ELTYPE}(undef, n_particles)
 
@@ -68,8 +66,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
                    typeof(correction), typeof(cache)
-                   }(initial_condition, current_coordinates, mass, pressure,
-                     density_calculator, state_equation,
+                   }(initial_condition, mass, pressure, density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
                      correction, cache)
     end
@@ -147,46 +144,8 @@ end
     return system.mass[particle]
 end
 
-@inline function current_coordinates(u, system::WeaklyCompressibleSPHSystem)
-    system.current_coordinates
-end
-
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
-
-function update_positions!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
-                           v_ode, u_ode, semi, t)
-    @unpack periodic_box_size = semi
-
-    update_positions!(system, u, periodic_box_size, semi)
-end
-
-function update_positions!(system::WeaklyCompressibleSPHSystem, u, ::Nothing, semi)
-    @unpack current_coordinates = system
-
-    for particle in each_moving_particle(system)
-        for i in 1:ndims(system)
-            current_coordinates[i, particle] = u[i, particle]
-        end
-    end
-
-    return system
-end
-
-function update_positions!(system::WeaklyCompressibleSPHSystem, u, periodic_box_size, semi)
-    @unpack current_coordinates = system
-    @unpack periodic_box_min_corner = semi
-
-    for particle in axes(u, 2)
-        coords = extract_svector(u, system, particle)
-
-        # Move coordinates into the periodic box
-        box_offset = round.((coords .- periodic_box_min_corner) ./ periodic_box_size .- 0.5)
-        current_coordinates[:, particle] = coords - box_offset .* periodic_box_size
-    end
-
-    return system
-end
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
