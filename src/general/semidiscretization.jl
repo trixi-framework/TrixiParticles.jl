@@ -11,7 +11,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, PB, DC}
+struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
