@@ -16,7 +16,6 @@ struct Semidiscretization{S, RU, RV, NS, PB, DC}
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
-    periodic_box          :: PB
     damping_coefficient   :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
@@ -61,9 +60,8 @@ struct Semidiscretization{S, RU, RV, NS, PB, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(periodic_box),
-            typeof(damping_coefficient)}(systems, ranges_u, ranges_v, searches,
-                                         periodic_box, damping_coefficient)
+            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
+                                                           searches, damping_coefficient)
     end
 end
 
