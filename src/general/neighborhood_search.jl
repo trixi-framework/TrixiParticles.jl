@@ -1,11 +1,35 @@
-struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP}
-    search_radius::ELTYPE
-    eachparticle::EP
-    periodic_box_size::Nothing
+struct PeriodicBox{NDIMS, ELTYPE}
+    min_corner :: SVector{NDIMS, ELTYPE}
+    max_corner :: SVector{NDIMS, ELTYPE}
+    size       :: SVector{NDIMS, ELTYPE}
 
-    function TrivialNeighborhoodSearch{NDIMS}(search_radius, eachparticle) where {NDIMS}
-        new{NDIMS, typeof(search_radius), typeof(eachparticle)}(search_radius, eachparticle,
-                                                                nothing)
+    function PeriodicBox(min_corner, max_corner)
+        new{length(min_corner), eltype(min_corner)}(min_corner, max_corner,
+                                                    max_corner - min_corner)
+    end
+end
+
+struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}
+    search_radius :: ELTYPE
+    eachparticle  :: EP
+    periodic_box  :: PB
+
+    function TrivialNeighborhoodSearch{NDIMS}(search_radius, eachparticle;
+                                              min_corner=nothing,
+                                              max_corner=nothing) where {NDIMS}
+        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
+            # No periodicity
+            periodic_box = nothing
+        elseif min_corner !== nothing && max_corner !== nothing
+            periodic_box = PeriodicBox(min_corner, max_corner)
+        else
+            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
+                                "both `nothing` or both an array or tuple"))
+        end
+
+        new{NDIMS, typeof(search_radius),
+            typeof(eachparticle), typeof(periodic_box)}(search_radius, eachparticle,
+                                                        periodic_box)
     end
 end
 
@@ -18,17 +42,6 @@ end
 @inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
 @inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
-
-struct PeriodicBox{NDIMS, ELTYPE}
-    min_corner :: SVector{NDIMS, ELTYPE}
-    max_corner :: SVector{NDIMS, ELTYPE}
-    size       :: SVector{NDIMS, ELTYPE}
-
-    function PeriodicBox(min_corner, max_corner)
-        new{length(min_corner), eltype(min_corner)}(min_corner, max_corner,
-                                                    max_corner - min_corner)
-    end
-end
 
 @doc raw"""
     SpatialHashingSearch{NDIMS}(search_radius, n_particles)

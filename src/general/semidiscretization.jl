@@ -22,9 +22,6 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
-        NDIMS = ndims(first(systems))
-        ELTYPE = eltype(first(systems))
-
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -33,22 +30,6 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                    for system in systems]
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
-
-        # Periodicity
-        if (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
-            # No periodicity
-            periodic_box = nothing
-            min_corner = zeros(SVector{NDIMS, ELTYPE})
-        elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
-            if NDIMS == 3
-                throw(ArgumentError("periodicity is not yet supported in 3D"))
-            end
-
-            periodic_box = PeriodicBox(periodic_box_min_corner, periodic_box_max_corner)
-        else
-            throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
-                                "must either be both `nothing` or both an array"))
-        end
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
@@ -96,9 +77,11 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{nothing}, _, _)
+function create_neighborhood_search(system, neighbor, ::Val{nothing},
+                                    min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor))
+    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
+                                             min_corner=min_corner, max_corner=max_corner)
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
