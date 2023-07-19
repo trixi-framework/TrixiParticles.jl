@@ -25,12 +25,10 @@ function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
 
     #save dp
-    data_available, dp = pressure_change_over_reinit(vu_ode, semi)
-    println("postprocess1 $dp")
-    if data_available
+    data_available = pressure_change_over_reinit(vu_ode, semi)
+    if data_available[1]
         dp_array = get(post_callback.values, "dp", Float64[])
-        println("postprocess $dp")
-        push!(dp_array, dp)
+        push!(dp_array, data_available[2])
         post_callback.values["dp"] = dp_array
     end
 
@@ -48,7 +46,7 @@ function (post_callback::PostprocessCallback)(integrator)
         for key in keys(post_callback.values)
             data = Dict("series"=> Dict("name"=> key, "datatype" => typeof(post_callback.values[key]),
             "novalues" => length(post_callback.values[key]), "values"=>post_callback.values[key]))
-            JSON.print(file, result, 4)
+            JSON.print(file, data, 4)
         end
     end
 

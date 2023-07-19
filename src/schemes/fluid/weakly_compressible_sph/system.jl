@@ -207,15 +207,18 @@ end
 function pressure_change_over_reinit(vu_ode, semi)
     @unpack systems = semi
 
-    foreach_enumerate(systems) do (system_index, system)
-        data_available, dp = pressure_change_over_reinit(system)
-        if data_available
-            #println("dp", dp)
-            return true, dp
-        end
-    end
+    # Search for the first system with a valid dp value
+    system_with_dp = findfirst(system -> pressure_change_over_reinit(system)[1], systems)
 
-    return false, 0.0
+    if system_with_dp !== nothing
+        # If a system with a valid dp value is found, return true and its dp value
+        dp_value = pressure_change_over_reinit(systems[system_with_dp])[2]
+        delete!(systems[system_with_dp].pp_values, "dp")
+        return true, dp_value
+    else
+        # If no system with a valid dp value is found, return false
+        return false, 0.0
+    end
 end
 
 function pressure_change_over_reinit(system)
@@ -223,7 +226,6 @@ function pressure_change_over_reinit(system)
 end
 
 function pressure_change_over_reinit(system::WeaklyCompressibleSPHSystem)
-    println("aswda $(system.pp_values["dp"])")
 
     if haskey(system.pp_values, "dp")
         return true, system.pp_values["dp"]
@@ -264,7 +266,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
     dp = p_old-system.pressure
     #dp_array = get(post_callback.values, "dp", Float64[])
     system.pp_values["dp"] = sqrt(dot(dp, dp))
-    println(system.pp_values["dp"])
+    #println(system.pp_values["dp"])
 
     return system
 end
