@@ -33,7 +33,8 @@
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length)
 
-        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(fluid_system))
+        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
+                                                                          TrixiParticles.eachparticle(fluid_system))
 
         velocities = [[0; -1], [1; 1], [-1; 0], [0.7; 0.2], [0.3; 0.8]]
 
