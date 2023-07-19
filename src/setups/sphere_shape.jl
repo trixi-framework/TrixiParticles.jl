@@ -8,8 +8,8 @@ Generate a sphere that is either completely filled (by default)
 or hollow (by passing `n_layers`).
 
 With the sphere type [`VoxelSphere`](@ref), a sphere of voxels (where particles are placed
-in the voxel center) with a regular inner structure but small corners on the surface
-is created.
+in the voxel center) with a regular inner structure but corners on the surface is created.
+Essentially, a grid of particles is generated and all particles outside the sphere are removed.
 With the sphere type [`RoundSphere`](@ref), a perfectly round sphere with an imperfect inner
 structure is created.
 
@@ -63,7 +63,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_outwards=true)
 
 # Filled circle with radius 0.1, center in (0.0, 0.0), particle spacing 0.1, but the
 # rectangle [0, 1] x [-0.2, 0.2] is cut out.
-SphereShape(0.1, 1.0, (0.0, 0.0), 1000.0, cutout_min=(0.0, -0.2, cutout_max=(1.0, 0.2)))
+SphereShape(0.1, 1.0, (0.0, 0.0), 1000.0, cutout_min=(0.0, -0.2), cutout_max=(1.0, 0.2))
 
 # Filled 3D sphere with radius 0.5, center in (0.2, 0.4, 0.3) and a particle spacing of 0.1
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
@@ -118,21 +118,18 @@ end
 """
     VoxelSphere()
 
-Construct a sphere of voxels (where particles are placed
-    in the voxel center) with a regular inner structure but small corners on the surface
-    is created.
-Construct a sphere by generating particles on a Cartesian grid and removing those with
-a distance from the sphere's center greater than the sphere's radius.
+Construct a sphere of voxels (where particles are placed in the voxel center)
+with a regular inner structure but corners on the surface.
+Essentially, a grid of particles is generated and all particles outside the sphere are removed.
 The resulting sphere will have a perfect inner structure, but is not perfectly round,
-as it will have small corners (like a sphere in Minecraft).
+as it will have corners (like a sphere in Minecraft).
 """
 struct VoxelSphere end
 
 """
     RoundSphere()
 
-Construct a sphere by nesting perfectly round concentric spheres with a thickness
-of one particle.
+Construct a sphere by nesting perfectly round concentric spheres.
 The resulting ball will be perfectly round, but will not have a regular inner structure.
 """
 struct RoundSphere end
