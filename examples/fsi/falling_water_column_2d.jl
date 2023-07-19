@@ -47,12 +47,11 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 E = 1.4e6
 nu = 0.4
 
-fixed_particles = CircularShape(solid_particle_spacing,
-                                clamp_radius + solid_particle_spacing / 2,
-                                (0.0, thickness / 2),
-                                shape_type=FillCircle(x_recess=(0.0, clamp_radius),
-                                                      y_recess=(0.0, thickness)),
-                                solid_density)
+fixed_particles = SphereShape(solid_particle_spacing,
+                              clamp_radius + solid_particle_spacing / 2,
+                              (0.0, thickness / 2), solid_density,
+                              cutout_min=(0.0, 0.0), cutout_max=(clamp_radius, thickness),
+                              tlsph=true)
 
 n_particles_clamp_x = round(Int, clamp_radius / solid_particle_spacing)
 
