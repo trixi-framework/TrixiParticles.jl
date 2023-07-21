@@ -7,6 +7,9 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
+using GLMakie
+using JSON
+GLMakie.activate!()
 
 # Constants
 gravity = 9.81
@@ -21,7 +24,7 @@ output_dt = 0.02
 relaxation_step_file_prefix = "relaxation"
 simulation_step_file_prefix = ""
 relaxation_tspan = (0.0, 0.5)
-simulation_tspan = (0.0, 5.7 / sqrt(gravity))
+simulation_tspan = (0.0, 20.0)
 
 # Model settings
 fluid_density_calculator = ContinuityDensity()
@@ -101,22 +104,59 @@ sol = solve(ode, RDPK3SpFSAL49(),
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks_relaxation);
 
-# move_wall(tank, tank.tank_size[1])
+move_wall(tank, tank.tank_size[1])
 
-# # Use solution of the relaxing step as initial coordinates
-# restart_with!(semi, sol)
+# Use solution of the relaxing step as initial coordinates
+restart_with!(semi, sol)
 
-# semi = Semidiscretization(fluid_system, boundary_system,
-#                           neighborhood_search=SpatialHashingSearch)
-# ode = semidiscretize(semi, simulation_tspan)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=SpatialHashingSearch)
+ode = semidiscretize(semi, simulation_tspan)
 
-# saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
-# density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
-# callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
+saving_callback = SolutionSavingCallback(dt=output_dt, prefix=simulation_step_file_prefix)
+density_reinit_cb = nothing#DensityReinitializationCallback(semi.systems[1], dt=0.01)
+callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb, PostprocessCallback())
 
-# # See above for an explanation of the parameter choice
-# sol = solve(ode, RDPK3SpFSAL49(),
-#             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-#             reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-#             dtmax=1e-2, # Limit stepsize to prevent crashing
-#             save_everystep=false, callback=callbacks);
+# See above for an explanation of the parameter choice
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
+            save_everystep=false, callback=callbacks);
+
+function plot_json_data(file_path::AbstractString)
+    # Read the JSON file
+    json_string = read(file_path, String)
+
+    # Parse the JSON string
+    json_data = JSON.parse(json_string)
+
+    # Extract dt and dp series data
+    dt_series = json_data["dt"]
+    # dp_series = json_data["dp"]
+
+    dt_values = Vector{Float64}(dt_series["values"])
+    # dp_values = Vector{Float64}(dp_series["values"])
+    # dp_times = Vector{Float64}(dp_series["time"])
+
+    # Accumulate dt values to use as the x-axis
+    accumulated_dt = cumsum(dt_values)
+
+    fig = Figure()
+
+    ax_dt = Axis(fig[1, 1], xlabel = "T", ylabel="dt", title="dt", yscale=log10)
+    #ax_dp = Axis(fig[1, 2])
+
+    scatter!(ax_dt, accumulated_dt, dt_values, markersize = 4, color = :blue, label = "dt")
+
+    # scatter!(ax_dt, dp_times, dp_values, color = :red, label = "dp")
+    # vlines!(ax_dt, dp_times)
+
+    Legend(fig[1, 2], ax_dt)
+
+    fig
+end
+
+# Replace "path/to/your/json_file.json" with the actual file path.
+json_file_path = "values.json"
+plot_json_data(json_file_path)

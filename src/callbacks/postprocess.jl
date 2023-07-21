@@ -3,6 +3,11 @@ mutable struct PostprocessCallback
     dt::Vector{Float64}
 end
 
+struct data_entry
+    value::Float64
+    time::Float64
+end
+
 """
 PostprocessCallback()
 
@@ -27,9 +32,12 @@ function (post_callback::PostprocessCallback)(u, t, integrator)
     #save dp
     data_available = pressure_change_over_reinit(vu_ode, semi)
     if data_available[1]
-        dp_array = get(post_callback.values, "dp", Float64[])
-        push!(dp_array, data_available[2])
+        dp_array = get(post_callback.values, "dp", data_entry[])
+        push!(dp_array, data_entry(data_available[2], t))
         post_callback.values["dp"] = dp_array
+        # dp_t_array = get(post_callback.values, "dp_t", Float64[])
+        # push!(dp_t_array, t)
+        # post_callback.values["dp_t"] = dp_t_array
     end
 
     return isfinished(integrator)
@@ -37,17 +45,36 @@ end
 
 # affect!
 function (post_callback::PostprocessCallback)(integrator)
-    # write json file with stored values
-    data = Dict("series"=> Dict("name"=> "dt", "datatype" => typeof(post_callback.dt),
-                "novalues" => length(post_callback.dt), "values"=>post_callback.dt))
+    # Create a dictionary to store all series data
+    series_data = Dict()
+
+    # Store the "dt" series data
+    series_data["dt"] = Dict(
+        "type" => "series",
+        "datatype" => typeof(post_callback.dt),
+        "novalues" => length(post_callback.dt),
+        "values" => post_callback.dt
+    )
+
+    # Store other series data
+    #for key in keys(post_callback.values)
+    for (key, data_array) in post_callback.values
+        # data_array = post_callback.values[key]
+        values = [data.value for data in data_array]
+        times = [data.time for data in data_array]
+        series_data[key] = Dict(
+            "type" => "series",
+            "datatype" => typeof(post_callback.values[key]),
+            "novalues" => length(post_callback.values[key]),
+            "values" => values,
+            "time" => times
+        )
+    end
+
+    # Write the entire dictionary to the JSON file
     open("values.json", "w") do file
         # write intended with 4 spaces
-        JSON.print(file, data, 4)
-        for key in keys(post_callback.values)
-            data = Dict("series"=> Dict("name"=> key, "datatype" => typeof(post_callback.values[key]),
-            "novalues" => length(post_callback.values[key]), "values"=>post_callback.values[key]))
-            JSON.print(file, data, 4)
-        end
+        JSON.print(file, series_data, 4)
     end
 
     return nothing
