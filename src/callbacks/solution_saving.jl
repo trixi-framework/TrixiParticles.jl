@@ -56,6 +56,7 @@ struct SolutionSavingCallback{I, CQ}
     output_directory      :: String
     prefix                :: String
     custom_quantities     :: CQ
+    latest_saved_iter     :: Vector{Int}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -79,7 +80,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
                                                verbose, output_directory, prefix,
-                                               custom_quantities)
+                                               custom_quantities, [-1])
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -132,11 +133,22 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack interval, output_directory, custom_quantities, verbose, prefix = solution_callback
+    @unpack interval, output_directory, custom_quantities, verbose, prefix, latest_saved_iter = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
     iter = get_iter(interval, integrator)
+
+    if iter == latest_saved_iter[1]
+        # This should only happen at the end of the simulation when using `dt` and the
+        # final time is not a multiple of the saving interval.
+        @assert isfinished(integrator)
+
+        # Avoid overwriting the previous file
+        iter += 1
+    end
+
+    latest_saved_iter[1] = iter
 
     if verbose
         println("Writing solution to $output_directory at t = $(integrator.t)")

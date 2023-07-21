@@ -1,10 +1,3 @@
-# 2D dam break simulation based on
-#
-# S. Marrone, M. Antuono, A. Colagrossi, G. Colicchio, D. le Touzé, G. Graziani.
-# "δ-SPH model for simulating violent impact flows".
-# In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
-# https://doi.org/10.1016/J.CMA.2010.12.016
-
 using TrixiParticles
 using OrdinaryDiffEq
 
@@ -15,21 +8,23 @@ gravity = -9.81
 
 particle_spacing = 0.02
 
-# Spacing ratio between fluid and boundary particles
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
 boundary_layers = 3
 
-water_width = 2.0
-water_height = 1.0
 water_density = 1000.0
-
-tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-tank_height = 4
-
-sound_speed = 20 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+tank_width = 0.96
+tank_height = 0.48
+
+water_width = tank_width
+water_height = tank_height
+
+init_velocity = (1.0, 0.0)
+sound_speed = 10init_velocity[1]
 
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0)
@@ -38,24 +33,20 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
-
-# Move right boundary.
-# Use the new fluid size, since it might have been rounded in `RectangularTank`.
-reset_faces = (false, true, false, false)
-positions = (0, tank.fluid_size[1], 0, 0)
-
-reset_wall!(tank, reset_faces, positions)
+                       n_layers=boundary_layers, spacing_ratio=beta,
+                       faces=(false, false, true, true),
+                       init_velocity=init_velocity)
 
 # ==========================================================================================
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
                                              tank.boundary.mass, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
+                                             AdamiPressureExtrapolation(),
+                                             smoothing_kernel,
                                              smoothing_length)
 
-# K = 9.81 * water_height
+# K = 1.0
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
 #                                              tank.boundary.mass)
 
@@ -64,8 +55,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           viscosity=viscosity)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -74,14 +64,16 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=1e-5)
+                          periodic_box_min_corner=[0.0, -0.24],
+                          periodic_box_max_corner=[0.96, 0.72])
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback_relaxation = SolutionSavingCallback(dt=0.02, prefix="relaxation")
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
+saving_callback = SolutionSavingCallback(dt=0.02)
+
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -92,31 +84,7 @@ callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks_relaxation);
-
-# Move right boundary
-positions = (0, tank.tank_size[1], 0, 0)
-reset_wall!(tank, reset_faces, positions)
-
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
-
-# Use solution of the relaxing step as initial coordinates
-restart_with!(semi, sol)
-
-semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
-ode = semidiscretize(semi, tspan)
-
-saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback)
-
-# See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

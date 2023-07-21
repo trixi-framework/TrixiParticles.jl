@@ -27,17 +27,21 @@
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity)
 
-        boundary_system = BoundarySPHSystem(boundary.coordinates, boundary_model)
+        boundary_system = BoundarySPHSystem(boundary, boundary_model)
 
         fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                                    state_equation,
                                                    smoothing_kernel, smoothing_length)
 
-        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(fluid_system))
+        neighborhood_search = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
+                                                                          TrixiParticles.eachparticle(fluid_system))
 
         velocities = [[0; -1], [1; 1], [-1; 0], [0.7; 0.2], [0.3; 0.8]]
 
         @testset "Wall Velocity $v_fluid" for v_fluid in velocities
+            viscosity = boundary_system.boundary_model.viscosity
+            volume = boundary_system.boundary_model.cache.volume
+
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         boundary_system.boundary_model.viscosity)
             TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
@@ -47,6 +51,13 @@
                                                          ones(size(fluid.coordinates)),
                                                          neighborhood_search)
 
+            for particle in TrixiParticles.eachparticle(boundary_system)
+                if volume[particle] > eps()
+                    TrixiParticles.compute_wall_velocity!(viscosity, boundary_system,
+                                                          boundary.coordinates, particle)
+                end
+            end
+
             v_wall = zeros(size(boundary.coordinates))
             v_wall[:, 1:particles_in_compact_support] .= -v_fluid
 
@@ -55,6 +66,8 @@
 
         scale_v = [1, 0.5, 0.7, 1.8, 67.5]
         @testset "Wall Velocity Staggerd: Factor $scale" for scale in scale_v
+            viscosity = boundary_system.boundary_model.viscosity
+            volume = boundary_system.boundary_model.cache.volume
 
             # For a constant velocity profile (each fluid particle has the same velocity)
             # the wall velocity is `v_wall = -v_fluid` (see eq. 22 in Adami_2012).
@@ -73,6 +86,13 @@
                                                          fluid_system, boundary.coordinates,
                                                          fluid.coordinates, v_fluid,
                                                          neighborhood_search)
+
+            for particle in TrixiParticles.eachparticle(boundary_system)
+                if volume[particle] > eps()
+                    TrixiParticles.compute_wall_velocity!(viscosity, boundary_system,
+                                                          boundary.coordinates, particle)
+                end
+            end
 
             v_wall = zeros(size(boundary.coordinates))
 
