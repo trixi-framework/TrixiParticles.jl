@@ -85,7 +85,18 @@
             end
             TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
             TrixiParticles.eachneighbor(_, ::Val{:nhs}) = eachneighbor
-            TrixiParticles.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
+
+            function Base.getproperty(::Val{:nhs}, f::Symbol)
+                if f === :search_radius
+                    return 100.0
+                elseif f === :periodic_box_size
+                    return nothing
+                end
+
+                # For all other properties, return mock objects
+                return Val(Symbol("mock_" * string(f)))
+            end
+            TrixiParticles.ndims(::Val{:nhs}) = 2
 
             function TrixiParticles.pk1_corrected(::Val{:mock_system_dv}, particle_)
                 if particle_ == particle[i]

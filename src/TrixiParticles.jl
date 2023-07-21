@@ -45,8 +45,8 @@ export BoundaryMovement
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, CircularShape
-export DrawCircle, FillCircle, reset_wall!
+export RectangularTank, RectangularShape, SphereShape
+export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
 

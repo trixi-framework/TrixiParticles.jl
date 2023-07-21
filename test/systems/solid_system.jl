@@ -126,8 +126,7 @@
                 system = Val(:mock_system_tensor)
                 TrixiParticles.ndims(::Val{:mock_system_tensor}) = 2
                 Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
-                function TrixiParticles.current_coords(system::Val{:mock_system_tensor
-                                                                   },
+                function TrixiParticles.current_coords(system::Val{:mock_system_tensor},
                                                        particle)
                     return TrixiParticles.extract_svector(current_coordinates[i], system,
                                                           particle)
@@ -136,8 +135,6 @@
                 function TrixiParticles.initial_coordinates(::Val{:mock_system_tensor})
                     return initial_coordinates[i]
                 end
-
-                TrixiParticles.compact_support(::Val{:mock_system_tensor}, _) = Inf
 
                 # All @unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
@@ -153,7 +150,19 @@
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                TrixiParticles.eachneighbor(_, ::Val{:mock_nhs}) = neighbors
+                TrixiParticles.eachneighbor(_, ::Val{:nhs}) = neighbors
+
+                function Base.getproperty(::Val{:nhs}, f::Symbol)
+                    if f === :search_radius
+                        return Inf
+                    elseif f === :periodic_box_size
+                        return nothing
+                    end
+
+                    # For all other properties, return mock objects
+                    return Val(Symbol("mock_" * string(f)))
+                end
+                TrixiParticles.ndims(::Val{:nhs}) = 2
 
                 Base.getindex(::Val{:mock_material_density}, ::Int64) = density
 
@@ -163,8 +172,7 @@
 
                 # Compute deformation gradient
                 deformation_grad = ones(2, 2, 2)
-                TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:mock_nhs),
-                                                      system)
+                TrixiParticles.calc_deformation_grad!(deformation_grad, Val(:nhs), system)
 
                 #### Verification
                 @test deformation_grad[:, :, particle] == expected[i]
@@ -208,7 +216,8 @@
                 system = TotalLagrangianSPHSystem(initial_condition,
                                                   smoothing_kernel, smoothing_length,
                                                   1.0, 1.0, nothing)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch(TrixiParticles.eachparticle(system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
+                                                                  TrixiParticles.eachparticle(system))
                 TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
