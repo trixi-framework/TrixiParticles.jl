@@ -4,7 +4,7 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
-using LinearAlgebra: norm, dot, I, tr
+using LinearAlgebra: norm, dot, I, tr, cross, det, normalize
 using Morton: cartesian2morton
 using Polyester: @batch
 using Printf: @printf
@@ -29,6 +29,7 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
+include("setups/arbitrary_shapes.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
