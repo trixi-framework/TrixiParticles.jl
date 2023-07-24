@@ -29,7 +29,7 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
-include("setups/arbitrary_shapes.jl")
+include("preprocessing/shapes.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition

@@ -1,26 +1,3 @@
-struct Polygon{NDIMS, ELTYPE, E} <: Shapes{NDIMS}
-    vertices   :: Array{ELTYPE, 2}
-    edges      :: E
-    n_vertices :: Int
-
-    function Polygon(vertices)
-        if !(vertices[:, end] ≈ vertices[:, 1])
-           # error("The first and last vertex of the polygon must be the same.")
-        end
-        n_vertices = size(vertices, 2)
-        ELTYPE = eltype(vertices)
-        NDIMS = size(vertices, 1)
-
-        edges = (;)
-        for i in 1:n_vertices - 1
-            v1 = position(vertices, Val(2), i)
-            v2 = position(vertices, Val(2), i+1)
-            edges = (edges..., (v1, v2))
-        end
-
-        return new{NDIMS, ELTYPE, typeof(edges)}(vertices, edges, n_vertices)
-    end
-end
 
 struct WindingNumberHorman{}
     quadrant_numbers::Array{Int, 1}
@@ -32,6 +9,7 @@ struct WindingNumberHorman{}
     end
 end
 
+# Only for 2D yet.
 function (point_in_poly::WindingNumberHorman)(shape, points)
     @unpack quadrant_numbers = point_in_poly
     @unpack vertices = shape
@@ -91,7 +69,7 @@ end
 
 function positive_determinant(v1, v2, v_query)
 
-    # To check  the orientation of the triangle Δ(`v_query`, `v1`, `v2`) by finding the
+    # Check the orientation of the triangle Δ(`v_query`, `v1`, `v2`) by finding the
     # sign of the determinant.
     # `+`: counter clockwise
     # `-`: clockwise

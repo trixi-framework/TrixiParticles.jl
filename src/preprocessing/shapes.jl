@@ -1,11 +1,15 @@
 abstract type Shapes{NDIMS} end
-@inline Base.ndims(::Shapes{NDIMS}) where {NDIMS} = NDIMS
 
 include("polygon_shape.jl")
 include("triangle_mesh.jl")
+include("point_in_poly/algorithm.jl")
+
+@inline Base.ndims(::Shapes{NDIMS}) where {NDIMS} = NDIMS
 
 # Note: `n_vertices`-1, since the last vertex is the same as the first one
 @inline eachvertices(shape) = Base.OneTo(shape.n_vertices - 1)
+@inline eachfaces(shape::TriangleMesh) = Base.OneTo(shape.n_faces)
+@inline eachfaces(shape::Polygon) = eachvertices(shape)
 
 @inline min_corner(vertices, dim, pad) = minimum(vertices[dim, :]) - pad
 @inline max_corner(vertices, dim, pad) = maximum(vertices[dim, :]) + pad
