@@ -49,9 +49,9 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = EntropicallyDampedSPH(tank.fluid, smoothing_kernel, smoothing_length,
-                                     sound_speed, viscosity=viscosity,
-                                     acceleration=(0.0, gravity))
+fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           acceleration=(0.0, gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

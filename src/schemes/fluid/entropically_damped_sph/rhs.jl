@@ -1,7 +1,7 @@
 # Fluid-fluid and fluid-boundary interaction
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::EntropicallyDampedSPH,
+                   particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
     @unpack sound_speed = particle_system
     viscosity = viscosity_function(neighbor_system)
@@ -19,8 +19,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        pressure_a = particle_pressure(v_particle_system, particle_system, particle)
-        pressure_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_a = particle_pressure(v_particle_system, particle_system, particle)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
@@ -31,8 +31,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         # inter-particle averaged pressure
         p_avg = average_pressure(particle_system, particle)
-        pressure_tilde = (rho_b * pressure_a - p_avg + rho_a * pressure_b - p_avg) /
-                         (rho_a + rho_b)
+        pressure_tilde = (rho_b * (p_a - p_avg) + rho_a * (p_b - p_avg)) / (rho_a + rho_b)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -52,11 +51,12 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_convection[i]
         end
 
-        pressure_evolution!(dv, particle_system, neighbor_system,
-                            v_particle_system, v_neighbor_system,
-                            particle, neighbor,
-                            pos_diff, distance, sound_speed, m_a, m_b, pressure_a,
-                            pressure_b, rho_a, rho_b)
+        v_diff = current_velocity(v_particle_system, particle_system, particle) -
+                 current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+        pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
+                            particle, pos_diff, distance, sound_speed, volume_term, m_b,
+                            p_a, p_b, rho_a, rho_b)
 
         transport_velocity!(dv, particle_system, volume_term, grad_kernel, particle)
     end
@@ -64,40 +64,31 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline function pressure_evolution!(dv, particle_system, neighbor_system,
-                                     v_particle_system, v_neighbor_system,
-                                     particle, neighbor, pos_diff, distance, sound_speed,
-                                     m_a, m_b, pressure_a, pressure_b, rho_a, rho_b)
+@inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
+                                     pos_diff, distance, sound_speed, volume_term, m_b,
+                                     p_a, p_b, rho_a, rho_b)
     @unpack smoothing_length = particle_system
 
     # EDAC pressure evolution
-    pressure_diff = pressure_a - pressure_b
+    pressure_diff = p_a - p_b
 
-    v_diff = current_velocity(v_particle_system, particle_system, particle) -
-             current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    artificial_eos = m_b * rho_a / rho_b * sound_speed^2 * dot(v_diff, grad_kernel)
 
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-    artificial_EOS = m_b * rho_a * sound_speed^2 * dot(v_diff, grad_kernel) / rho_b
-
-    eta_EDAC_a = rho_a * particle_system.nu
-    eta_EDAC_b = rho_b * particle_system.nu
-    eta_EDAC_tilde = 2 * eta_EDAC_a * eta_EDAC_b / (eta_EDAC_a + eta_EDAC_b)
+    eta_a = rho_a * particle_system.nu_edac
+    eta_b = rho_b * particle_system.nu_edac
+    eta_tilde = 2 * eta_a * eta_b / (eta_a + eta_b)
 
     # TODO For variable smoothing length use average smoothing length
-    tmp = eta_EDAC_tilde / (distance^2 + 0.01 * smoothing_length^2)
-
-    volume_a = m_a / rho_a
-    volume_b = m_b / rho_b
-    volume_term = (volume_a^2 + volume_b^2) / m_a
+    tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length^2)
 
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
-    dv[end, particle] += artificial_EOS + damping_term
+    dv[end, particle] += artificial_eos + damping_term
 
     return dv
 end
 
-@inline function transport_velocity!(dv, system::EntropicallyDampedSPH, volume_term,
+@inline function transport_velocity!(dv, system::EntropicallyDampedSPHSystem, volume_term,
                                      grad_kernel, particle)
     transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
                         particle)
@@ -127,8 +118,8 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
-@inline function momentum_convection(system::EntropicallyDampedSPH,
-                                     neighbor_system::EntropicallyDampedSPH,
+@inline function momentum_convection(system::EntropicallyDampedSPHSystem,
+                                     neighbor_system::EntropicallyDampedSPHSystem,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      particle, neighbor, grad_kernel, volume_term)
     momentum_convection(system, neighbor_system, system.transport_velocity,

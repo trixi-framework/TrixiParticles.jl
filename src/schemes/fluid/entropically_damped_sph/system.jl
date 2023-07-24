@@ -19,7 +19,7 @@
 # The value of ν used in the momentum equation is the ﬂuid viscosity.
 #
 @doc raw"""
-    EntropicallyDampedSPH(initial_condition, smoothing_kernel, smoothing_length,
+    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
                           sound_speed; alpha=0.5, viscosity=NoViscosity(),
                           acceleration=ntuple(_ -> 0.0, NDIMS))
 
@@ -51,7 +51,8 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V, TV, C} <: FluidSystem{NDIMS}
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, TV, C} <:
+       FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     density            :: Array{ELTYPE, 1} # [particle]
@@ -60,15 +61,19 @@ struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V, TV, C} <: FluidSys
     smoothing_length   :: ELTYPE
     sound_speed        :: ELTYPE
     viscosity          :: V
-    nu                 :: ELTYPE
+    nu_edac            :: ELTYPE
+    pressure_function  :: PF
     acceleration       :: SVector{NDIMS, ELTYPE}
     transport_velocity :: TV
     cache              :: C
 
-    function EntropicallyDampedSPH(initial_condition, smoothing_kernel, smoothing_length,
-                                   sound_speed; alpha=0.5, viscosity=NoViscosity(),
-                                   acceleration=ntuple(_ -> 0.0, ndims(smoothing_kernel)),
-                                   transport_velocity=nothing)
+    function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                         smoothing_length, sound_speed;
+                                         alpha=0.5, viscosity=NoViscosity(),
+                                         pressure_function=nothing,
+                                         transport_velocity=nothing,
+                                         acceleration=ntuple(_ -> 0.0,
+                                                             ndims(smoothing_kernel)))
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -86,39 +91,38 @@ struct EntropicallyDampedSPH{NDIMS, ELTYPE <: Real, DC, K, V, TV, C} <: FluidSys
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        nu = (alpha * smoothing_length * sound_speed) / 8
+        nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
         density_calculator = SummationDensity()
 
         cache = create_cache(n_particles, ELTYPE, NDIMS, transport_velocity)
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(transport_velocity),
+            typeof(viscosity), typeof(pressure_function), typeof(transport_velocity),
             typeof(cache)}(initial_condition, mass, density, density_calculator,
-                           smoothing_kernel, smoothing_length, sound_speed, viscosity,
-                           nu, acceleration_, transport_velocity, cache)
+                           smoothing_kernel, smoothing_length, sound_speed,
+                           viscosity, nu_edac, pressure_function, acceleration_,
+                           transport_velocity, cache)
     end
 end
 
-timer_name(::EntropicallyDampedSPH) = "edac"
-
-function Base.show(io::IO, system::EntropicallyDampedSPH)
+function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "EntropicallyDampedSPH{ ", ndims(system), "}(")
+    print(io, "EntropicallyDampedSPHSystem{ ", ndims(system), "}(")
     print(io, system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ") with ", nparticles(system), " particles")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPH)
+function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSystem)
     @nospecialize system # reduce precompilation time
 
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "EntropicallyDampedSPH{ $(ndims(system)) }")
+        summary_header(io, "EntropicallyDampedSPHSystem{ $(ndims(system)) }")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "viscosity",
                      system.viscosity |> typeof |> nameof)
@@ -138,15 +142,15 @@ function create_cache(n_particles, ELTYPE, NDIMS, ::TransportVelocityAdami)
     return (; pressure_average, neighbor_counter, advection_velocity)
 end
 
-@inline function particle_density(v, system::EntropicallyDampedSPH, particle)
+@inline function particle_density(v, system::EntropicallyDampedSPHSystem, particle)
     return system.density[particle]
 end
 
-@inline function particle_pressure(v, system::EntropicallyDampedSPH, particle)
+@inline function particle_pressure(v, system::EntropicallyDampedSPHSystem, particle)
     return v[end, particle]
 end
 
-@inline function average_pressure(system::EntropicallyDampedSPH, particle)
+@inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.transport_velocity, particle)
 end
 
@@ -156,14 +160,14 @@ end
 
 @inline average_pressure(system, ::Nothing, particle) = 0.0
 
-@inline function v_nvariables(system::EntropicallyDampedSPH)
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     v_nvariables(system, system.transport_velocity)
 end
 
 @inline v_nvariables(system, ::Nothing) = ndims(system) + 1
 @inline v_nvariables(system, ::TransportVelocityAdami) = ndims(system) * 2 + 1
 
-@inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPH)
+@inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPHSystem)
     add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
@@ -186,17 +190,17 @@ end
     return du
 end
 
-@inline function advection_velocity(v, system::EntropicallyDampedSPH, particle)
+@inline function advection_velocity(v, system::EntropicallyDampedSPHSystem, particle)
     @unpack cache = system
     extract_svector(cache.advection_velocity, system, particle)
 end
 
-function update_quantities!(system::EntropicallyDampedSPH, system_index, v, u,
+function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
     summation_density!(system, system_index, semi, u, u_ode, system.density)
 end
 
-function update_average_pressure!(system::EntropicallyDampedSPH, system_index,
+function update_average_pressure!(system::EntropicallyDampedSPHSystem, system_index,
                                   v_ode, u_ode, semi)
     update_average_pressure!(system, system.transport_velocity, system_index,
                              v_ode, u_ode, semi)
@@ -247,11 +251,11 @@ function update_average_pressure!(system, ::TransportVelocityAdami, system_index
     end
 end
 
-function write_v0!(v0, system::EntropicallyDampedSPH)
+function write_v0!(v0, system::EntropicallyDampedSPHSystem)
     write_v0!(v0, system, system.transport_velocity)
 end
 
-function write_v0!(v0, system::EntropicallyDampedSPH, ::Nothing)
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::Nothing)
     @unpack initial_condition = system
 
     for particle in eachparticle(system)
@@ -259,13 +263,13 @@ function write_v0!(v0, system::EntropicallyDampedSPH, ::Nothing)
         for dim in 1:ndims(system)
             v0[dim, particle] = initial_condition.velocity[dim, particle]
         end
-        v0[end, particle] = initial_condition.pressure[particle]
+        v0[end, particle] = initial_pressure(system, particle)
     end
 
     return v0
 end
 
-function write_v0!(v0, system::EntropicallyDampedSPH, ::TransportVelocityAdami)
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami)
     @unpack initial_condition = system
 
     for particle in eachparticle(system)
@@ -274,16 +278,29 @@ function write_v0!(v0, system::EntropicallyDampedSPH, ::TransportVelocityAdami)
             v0[dim, particle] = initial_condition.velocity[dim, particle]
             v0[ndims(system) + dim, particle] = initial_condition.velocity[dim, particle]
         end
-        v0[end, particle] = initial_condition.pressure[particle]
+        v0[end, particle] = initial_pressure(system, particle)
     end
 
     return v0
 end
 
-function restart_with!(system::EntropicallyDampedSPH, v, u)
+function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
     for particle in each_moving_particle(system)
         system.initial_condition.coordinates[:, particle] .= u[:, particle]
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]
     end
+end
+
+@inline function initial_pressure(system, particle)
+    initial_pressure(system, particle, system.pressure_function)
+end
+
+@inline function initial_pressure(system, particle, ::Nothing)
+    return system.initial_condition.pressure[particle]
+end
+
+@inline function initial_pressure(system, particle, pressure_function)
+    particle_position = initial_coords(system, particle)
+    return pressure_function(particle_position)
 end

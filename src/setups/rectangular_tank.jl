@@ -112,8 +112,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               particle_spacing,
                                                               n_particles_per_dim)
 
-        fluid = RectangularShape(particle_spacing, n_particles_per_dim, pressure=pressure,
-                                 zeros(NDIMS), fluid_density, init_velocity=init_velocity)
+        fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
+                                 fluid_density, init_velocity=init_velocity,
+                                 pressure=pressure)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities, pressure=pressure)

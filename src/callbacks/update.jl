@@ -12,7 +12,6 @@ function update_after_dt!(integrator)
     v_ode, u_ode = integrator.u.x
 
     foreach_enumerate(semi.systems) do (system_index, system)
-
         update_average_pressure!(system, system_index, v_ode, u_ode, semi)
         update_transport_velocity!(system, system_index, v_ode, u_ode, semi)
     end
