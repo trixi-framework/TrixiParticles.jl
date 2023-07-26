@@ -118,7 +118,8 @@ hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)
 
