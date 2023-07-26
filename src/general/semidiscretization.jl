@@ -20,6 +20,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
     damping_coefficient   :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
+                                periodic_box_min_corner=nothing,
+                                periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
@@ -33,9 +35,11 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search))
-                               for neighbor in systems) for system in systems)
-
+                                                          Val(neighborhood_search),
+                                                          periodic_box_min_corner,
+                                                          periodic_box_max_corner)
+                               for neighbor in systems)
+                         for system in systems)
         system_indices = Dict(systems[i] => i for i in eachindex(systems))
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
@@ -77,13 +81,19 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(_, neighbor, ::Val{nothing})
-    TrivialNeighborhoodSearch(eachparticle(neighbor))
+function create_neighborhood_search(system, neighbor, ::Val{nothing},
+                                    min_corner, max_corner)
+    radius = compact_support(system, neighbor)
+    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
+                                             min_corner=min_corner, max_corner=max_corner)
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch})
+function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
+                                    min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor))
+    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                 min_corner=min_corner,
+                                                 max_corner=max_corner)
 
     # Initialize neighborhood search
     initialize!(search, nhs_init_function(system, neighbor))

@@ -257,10 +257,11 @@ end
         J3 = characteristics[3, particle]
 
         density[particle] = initial_condition.density[particle] +
-                            ((-J1 +  0.5 *  (J2 + J3)) / sound_speed^2)
-        pressure[particle] = initial_condition.pressure[particle] + 0.5 *  (J2 + J3)
+                            ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
+        pressure[particle] = initial_condition.pressure[particle] + 0.5 * (J2 + J3)
 
-        particle_velocity = initial_velocity(system, particle) +  ((J2 - J3) /
+        particle_velocity = initial_velocity(system, particle) +
+                            ((J2 - J3) /
                              (2 * sound_speed * density[particle])) * unit_normal
         for dim in 1:ndims(system)
             v[dim, particle] = particle_velocity[dim]

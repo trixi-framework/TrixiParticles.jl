@@ -8,44 +8,44 @@ gravity = -9.81
 
 particle_spacing = 0.02
 
-# Spacing ratio between fluid and boundary particles
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
 boundary_layers = 3
 
-water_width = 0.5
-water_height = 1.0
 water_density = 1000.0
-
-tank_width = 4.0
-tank_height = 4.0
-
-sound_speed = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+tank_width = 0.96
+tank_height = 0.48
+
+water_width = tank_width
+water_height = tank_height
+
+init_velocity = (1.0, 0.0)
+sound_speed = 10init_velocity[1]
+
+state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
+                                   background_pressure=100000.0)
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
-
-# Move water column
-for i in axes(tank.fluid.coordinates, 2)
-    tank.fluid.coordinates[:, i] .+= [0.5 * tank_width - 0.5 * water_width, 0.2]
-end
+                       n_layers=boundary_layers, spacing_ratio=beta,
+                       faces=(false, false, true, true),
+                       init_velocity=init_velocity)
 
 # ==========================================================================================
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
+                                             AdamiPressureExtrapolation(),
+                                             smoothing_kernel, smoothing_length)
 
-# K = 9.81 * water_height
+# K = 1.0
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
 #                                              tank.boundary.mass)
 
@@ -54,8 +54,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           viscosity=viscosity)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -63,9 +62,11 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=SpatialHashingSearch,
+                          periodic_box_min_corner=[0.0, -0.24],
+                          periodic_box_max_corner=[0.96, 0.72])
 
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
@@ -82,7 +83,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

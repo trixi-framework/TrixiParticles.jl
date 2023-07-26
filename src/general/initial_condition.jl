@@ -6,7 +6,7 @@ struct InitialCondition{ELTYPE, B}
     pressure    :: Array{ELTYPE, 1}
     buffer      :: B
 
-    function InitialCondition(coordinates, velocities, masses, densities; pressure=[],
+    function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
                               buffer=nothing)
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
@@ -19,6 +19,13 @@ struct InitialCondition{ELTYPE, B}
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 
+        if pressure isa Number
+            pressure = pressure * ones(length(masses))
+        elseif length(pressure) != length(masses)
+            throw(ArgumentError("`pressure` must either be a scalar or a vector of the " *
+                                "same length as `masses`"))
+        end
+
         coordinates, velocities, masses, densities, pressure = allocate_buffer(coordinates,
                                                                                velocities,
                                                                                masses,
@@ -26,7 +33,7 @@ struct InitialCondition{ELTYPE, B}
                                                                                pressure,
                                                                                buffer)
 
-        return new{eltype(coordinates),
+        return new{eltype(masses),
                    typeof(buffer)}(coordinates, velocities, masses, densities, pressure,
                                    buffer)
     end
@@ -46,11 +53,6 @@ struct InitialCondition{ELTYPE, B}
         mass = vcat((ic.mass for ic in initial_conditions)...)
         density = vcat((ic.density for ic in initial_conditions)...)
         pressure = vcat((ic.pressure for ic in initial_conditions)...)
-
-        if any(ic -> !isempty(ic.pressure), initial_conditions) &&
-           size(pressure) != size(density)
-            throw(ArgumentError("all passed initial pressures must have the same length"))
-        end
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(size(coordinates, 2), buffer))
 

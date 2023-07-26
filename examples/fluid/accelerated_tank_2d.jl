@@ -1,23 +1,26 @@
+# This setup is identical to `rectangular_tank_2d.jl`, except that now there is no gravity, and
+# the tank is accelerated upwards instead.
+# Note that the two setups are physically identical, but produce different numerical errors.
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+gravity = 0.0
 
 # ==========================================================================================
 # ==== Fluid
 
 particle_spacing = 0.02
 
-# Spacing ratio between fluid and boundary particles
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
 boundary_layers = 3
 
-water_width = 0.5
-water_height = 1.0
+water_width = 2.0
+water_height = 0.9
 water_density = 1000.0
 
-tank_width = 4.0
-tank_height = 4.0
+tank_width = 2.0
+tank_height = 1.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
@@ -32,32 +35,31 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move water column
-for i in axes(tank.fluid.coordinates, 2)
-    tank.fluid.coordinates[:, i] .+= [0.5 * tank_width - 0.5 * water_width, 0.2]
-end
-
 # ==========================================================================================
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
+                                             AdamiPressureExtrapolation(),
+                                             smoothing_kernel, smoothing_length)
 
-# K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              tank.boundary.mass)
+f_y(t) = 0.5 * 9.81 * t^2
+f_x(t) = 0.0
+
+is_moving(t) = true
+
+movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    movement=movement)
 
 # ==========================================================================================
 # ==== Simulation
@@ -68,7 +70,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=10)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
 callbacks = CallbackSet(info_callback, saving_callback)

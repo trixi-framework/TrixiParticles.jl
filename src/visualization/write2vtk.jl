@@ -1,6 +1,6 @@
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack systems = semi
+    @unpack systems, neighborhood_searches = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -13,14 +13,17 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
-        trixi2vtk(v, u, t, system; output_directory=output_directory,
+        periodic_box = neighborhood_searches[system_index][system_index].periodic_box
+
+        trixi2vtk(v, u, t, system, periodic_box;
+                  output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
                   custom_quantities...)
     end
 end
 
-function trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=nothing,
-                   system_name=vtkname(system),
+function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
+                   iter=nothing, system_name=vtkname(system),
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -32,7 +35,7 @@ function trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=noth
                     add_opt_str_pre(prefix) * "$system_name"
                     * add_opt_str_post(iter))
 
-    points = current_coordinates(u, system)
+    points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(file, points, cells) do vtk

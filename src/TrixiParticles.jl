@@ -11,12 +11,13 @@ using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
-using StaticArrays: @SMatrix, SMatrix
+using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 @reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
+using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -32,7 +33,7 @@ include("callbacks/update.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
-export WeaklyCompressibleSPHSystem, EntropicallyDampedSPH, TotalLagrangianSPHSystem,
+export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
 export InfoCallback, SolutionSavingCallback, UpdateAfterTimeStep
 export ContinuityDensity, SummationDensity
@@ -42,11 +43,12 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryMovement
 export SpatialHashingSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, CircularShape
-export DrawCircle, FillCircle, reset_wall!
+export RectangularTank, RectangularShape, SphereShape
+export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
 

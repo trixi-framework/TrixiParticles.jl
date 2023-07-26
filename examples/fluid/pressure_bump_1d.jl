@@ -71,10 +71,10 @@ zone_points_out = ([end_outflow_zone; 0.0], [end_outflow_zone; height_open_bound
 alpha = 0.5
 viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
 
-fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
-                                     #viscosity=viscosity, alpha=alpha,
-                                     pressure_function=p,
-                                     sound_speed)
+fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                           #viscosity=viscosity, alpha=alpha,
+                                           pressure_function=p,
+                                           sound_speed)
 
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
                                          zone_origin_in, fluid_system)
@@ -118,4 +118,4 @@ sol = solve(ode, #Euler(), dt=1e-4,
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3 # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            save_everystep = false, callback=callbacks);

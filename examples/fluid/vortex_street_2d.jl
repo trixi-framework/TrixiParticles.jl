@@ -77,7 +77,7 @@ top_wall = RectangularShape(particle_spacing, (n_boundary_particles_x, boundary_
 
 circle_layers = floor(Int, sphere_diameter / 2 / particle_spacing)
 sphere = CircularShape(particle_spacing, sphere_diameter / 2,
-                       (7 * sphere_diameter, domain_width/2), water_density,
+                       (7 * sphere_diameter, domain_width / 2), water_density,
                        shape_type=DrawCircle(n_layers=circle_layers, layer_inwards=true))
 
 boundary = InitialCondition(bottom_wall, top_wall, sphere)
@@ -129,10 +129,10 @@ boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
 #                                           smoothing_kernel, smoothing_length,
 #                                           viscosity=viscosity,
 #                                           acceleration=(0.0, gravity))
-fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
-                                     sound_speed, viscosity=ViscosityAdami(nu),
-                                     #transport_velocity=TransportVelocityAdami(pressure),
-                                     acceleration=(0.0, gravity))
+fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=ViscosityAdami(nu),
+                                           #transport_velocity=TransportVelocityAdami(pressure),
+                                           acceleration=(0.0, gravity))
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
                                          zone_origin_in, fluid_system)
 

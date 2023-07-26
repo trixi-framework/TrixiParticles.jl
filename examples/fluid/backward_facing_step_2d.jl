@@ -178,9 +178,9 @@ boundary_slip_model = BoundaryModelDummyParticles(slip_boundary.density,
 #                                           smoothing_kernel, smoothing_length,
 #                                           #viscosity=viscosity,
 #                                           acceleration=(0.0, gravity))
-fluid_system = EntropicallyDampedSPH(fluid, smoothing_kernel, smoothing_length,
-                                     sound_speed, viscosity=viscosity, #wall_viscosity,
-                                     acceleration=(0.0, gravity))
+fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity, #wall_viscosity,
+                                           acceleration=(0.0, gravity))
 
 open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_points_in,
                                          zone_origin_in, fluid_system)
