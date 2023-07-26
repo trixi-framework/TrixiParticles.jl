@@ -98,11 +98,10 @@ solid = InitialCondition(plate, fixed_particles)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
-                                                  smoothing_kernel,
-                                                  smoothing_length)
+                                                  smoothing_kernel, smoothing_length)
 
 # K_tank = 9.81 * water_height
 # boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
