@@ -29,7 +29,6 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
-include("callbacks/update.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -37,7 +36,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
 export InfoCallback, SolutionSavingCallback, UpdateAfterTimeStep
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller
+export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole

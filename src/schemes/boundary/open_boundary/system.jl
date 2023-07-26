@@ -153,6 +153,11 @@ function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_od
     update!(system.interior_system.initial_condition.buffer)
 end
 
+function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index, v_ode,
+                                    u_ode, semi)
+    system
+end
+
 @inline function evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
     @unpack interior_system, volume, initial_condition, sound_speed, characteristics,
     previous_characteristics, unit_normal, boundary_zone = system

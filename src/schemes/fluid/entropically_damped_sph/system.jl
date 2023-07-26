@@ -51,7 +51,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, TV, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -64,15 +64,19 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
     nu_edac            :: ELTYPE
     pressure_function  :: PF
     acceleration       :: SVector{NDIMS, ELTYPE}
+    transport_velocity :: TV
+    cache              :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
                                          pressure_function=nothing,
+                                         transport_velocity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)))
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
+        n_particles = nparticles(initial_condition)
 
         mass = copy(initial_condition.mass)
         density = copy(initial_condition.density)
@@ -91,11 +95,14 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
 
         density_calculator = SummationDensity()
 
+        cache = create_cache(n_particles, ELTYPE, NDIMS, transport_velocity)
+
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity),
-            typeof(pressure_function)}(initial_condition, mass, density, density_calculator,
-                                       smoothing_kernel, smoothing_length, sound_speed,
-                                       viscosity, nu_edac, pressure_function, acceleration_)
+            typeof(viscosity), typeof(pressure_function), typeof(transport_velocity),
+            typeof(cache)}(initial_condition, mass, density, density_calculator,
+                           smoothing_kernel, smoothing_length, sound_speed,
+                           viscosity, nu_edac, pressure_function, acceleration_,
+                           transport_velocity, cache)
     end
 end
 
@@ -125,6 +132,16 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
+create_cache(n_particles, ELTYPE, NDIMS, ::Nothing) = (;)
+
+function create_cache(n_particles, ELTYPE, NDIMS, ::TransportVelocityAdami)
+    pressure_average = zeros(ELTYPE, n_particles)
+    neighbor_counter = Vector{Int}(undef, n_particles)
+    advection_velocity = zeros(ELTYPE, NDIMS, n_particles)
+
+    return (; pressure_average, neighbor_counter, advection_velocity)
+end
+
 @inline function particle_density(v, system::EntropicallyDampedSPHSystem, particle)
     return system.density[particle]
 end
@@ -142,8 +159,49 @@ end
     return v[end, particle] = pressure
 end
 
+@inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
+    average_pressure(system, system.transport_velocity, particle)
+end
+
+@inline function average_pressure(system, ::TransportVelocityAdami, particle)
+    return system.cache.pressure_average[particle]
+end
+
+@inline average_pressure(system, ::Nothing, particle) = 0.0
+
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
-    ndims(system) + 1
+    v_nvariables(system, system.transport_velocity)
+end
+
+@inline v_nvariables(system, ::Nothing) = ndims(system) + 1
+@inline v_nvariables(system, ::TransportVelocityAdami) = ndims(system) * 2 + 1
+
+@inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPHSystem)
+    add_velocity!(du, v, particle, system, system.transport_velocity)
+end
+
+@inline function add_velocity!(du, v, particle, system, ::Nothing)
+    for i in 1:ndims(system)
+        du[i, particle] = v[i, particle]
+    end
+
+    return du
+end
+
+@inline function add_velocity!(du, v, particle, system, ::TransportVelocityAdami)
+    @unpack cache = system
+
+    for i in 1:ndims(system)
+        du[i, particle] = v[ndims(system) + i, particle]
+        cache.advection_velocity[i, particle] = v[ndims(system) + i, particle]
+    end
+
+    return du
+end
+
+@inline function advection_velocity(v, system::EntropicallyDampedSPHSystem, particle)
+    @unpack cache = system
+    extract_svector(cache.advection_velocity, system, particle)
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
@@ -151,13 +209,83 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v
     summation_density!(system, system_index, semi, u, u_ode, system.density)
 end
 
+function update_average_pressure!(system::EntropicallyDampedSPHSystem, system_index,
+                                  v_ode, u_ode, semi)
+    update_average_pressure!(system, system.transport_velocity, system_index,
+                             v_ode, u_ode, semi)
+end
+
+function update_average_pressure!(system, ::Nothing, system_index, v_ode, u_ode, semi)
+end
+
+function update_average_pressure!(system, ::TransportVelocityAdami, system_index,
+                                  v_ode, u_ode, semi)
+    @unpack systems, neighborhood_searches = semi
+    @unpack cache = system
+    @unpack pressure_average, neighbor_counter = cache
+
+    set_zero!(pressure_average)
+    set_zero!(neighbor_counter)
+
+    u = wrap_u(u_ode, system_index, system, semi)
+
+    # Use all other systems for the average pressure
+    @trixi_timeit timer() "compute average pressure" foreach_enumerate(systems) do (neighbor_system_index,
+                                                                                    neighbor_system)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system, semi)
+
+        system_coords = current_coordinates(u, system)
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+
+        # Loop over all pairs of particles and neighbors within the kernel cutoff.
+        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                              neighborhood_search) do particle, neighbor, pos_diff, distance
+            ## Only consider particles with a distance > 0.
+            #distance < sqrt(eps()) && return
+
+            pressure_average[particle] += particle_pressure(v_neighbor_system,
+                                                            neighbor_system,
+                                                            neighbor)
+            neighbor_counter[particle] += 1
+        end
+    end
+
+    for particle in eachparticle(system)
+        if neighbor_counter[particle] > 0
+            pressure_average[particle] /= neighbor_counter[particle]
+        end
+    end
+end
+
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)
+    write_v0!(v0, system, system.transport_velocity)
+end
+
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::Nothing)
     @unpack initial_condition = system
 
     for particle in eachparticle(system)
         # Write particle velocities
         for dim in 1:ndims(system)
             v0[dim, particle] = initial_condition.velocity[dim, particle]
+        end
+        v0[end, particle] = initial_pressure(system, particle)
+    end
+
+    return v0
+end
+
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami)
+    @unpack initial_condition = system
+
+    for particle in eachparticle(system)
+        # Write particle velocities
+        for dim in 1:ndims(system)
+            v0[dim, particle] = initial_condition.velocity[dim, particle]
+            v0[ndims(system) + dim, particle] = initial_condition.velocity[dim, particle]
         end
         v0[end, particle] = initial_pressure(system, particle)
     end

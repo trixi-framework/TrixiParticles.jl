@@ -76,7 +76,7 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     init_velocity=zeros(length(center_position)))
+                     init_velocity=zeros(length(center_position)), pressure=0.0)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -112,7 +112,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    return InitialCondition(coordinates, velocities, masses, densities)
+    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure)
 end
 
 """
