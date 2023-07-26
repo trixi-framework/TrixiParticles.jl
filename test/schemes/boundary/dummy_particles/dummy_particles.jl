@@ -22,7 +22,7 @@
         state_equation = StateEquationCole(10, 7, 257, 0.0)
 
         boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                                     state_equation,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity)
