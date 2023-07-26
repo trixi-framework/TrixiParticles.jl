@@ -38,7 +38,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel,  smoothing_length)
+                                             smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
