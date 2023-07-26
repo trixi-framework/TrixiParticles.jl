@@ -105,7 +105,7 @@ end
     n_dims = ndims(system)
 
     for dim in 1:n_dims
-        dv[n_dims + dim, particle] = dv[dim, particle]
+        dv[n_dims + dim, particle] += dv[dim, particle]
         dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
     end
 
