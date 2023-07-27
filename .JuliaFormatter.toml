@@ -9,3 +9,6 @@ align_struct_field = true
 
 # No whitespaces in kwargs because this is more common in Julia
 whitespace_in_kwargs = false
+
+# Allow Dict definitions to be aligned like arrays. See https://github.com/domluna/JuliaFormatter.jl/pull/676
+variable_call_indent = ["Dict"]
