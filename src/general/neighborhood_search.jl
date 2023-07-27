@@ -342,8 +342,32 @@ end
 # By default, loop over `each_moving_particle(system)`.
 @inline function for_particle_neighbor(f, system, neighbor_system,
                                        system_coords, neighbor_coords, neighborhood_search;
-                                       particles=each_moving_particle(system))
+                                       particles=each_moving_particle(system),
+                                       parallel=true)
+    for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
+                          particles=particles, parallel=parallel)
+end
+
+@inline function for_particle_neighbor(f, system_coords, neighbor_coords,
+                                       neighborhood_search;
+                                       particles=axes(system_coords, 2), parallel=true)
+    for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search, particles,
+                          Val(parallel))
+end
+
+@inline function for_particle_neighbor(f, system_coords, neighbor_coords,
+                                       neighborhood_search, particles, parallel::Val{true})
     @threaded for particle in particles
+        for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
+                                    particle)
+    end
+
+    return nothing
+end
+
+@inline function for_particle_neighbor(f, system_coords, neighbor_coords,
+                                       neighborhood_search, particles, parallel::Val{false})
+    for particle in particles
         for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
                                     particle)
     end
