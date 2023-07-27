@@ -13,7 +13,6 @@ Callback to reinitialize the density field when using [ContinuityDensity](@ref).
     In: Coastal Engineering 2006: (In 5 Volumes). 2007. 1503-1515.
     [doi:10.1142/9789812709554_0128](https://doi.org/10.1142/9789812709554_0128)
 """
-
 mutable struct DensityReinitializationCallback{I}
     interval::I
     last_t::Float64
