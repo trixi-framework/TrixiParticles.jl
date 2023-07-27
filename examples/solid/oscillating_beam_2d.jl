@@ -41,7 +41,7 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), particle_density, tlsph=true)
 
-solid = InitialCondition(beam, fixed_particles)
+solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Systems
