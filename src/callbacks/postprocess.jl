@@ -18,44 +18,69 @@ function PostprocessCallback(; interval=0)
                      initialize=initialize_post_callback)
 end
 
+
 function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
-    for system in integrator.p.systems
-        keys = pp_keys(system)
-        keys !== nothing && update_values(post_callback, keys, system, t)
-    end
+    update_values_for_all_systems(post_callback, integrator.p.systems, t)
     return isfinished(integrator)
 end
 
-function update_values(post_callback, keys, system, t)
+function update_values_for_all_systems(post_callback, systems, t)
+    for system in systems
+        keys = pp_keys(system)
+        if keys !== nothing
+            update_values_for_single_system(post_callback, keys, system, t)
+        end
+    end
+end
+
+function update_values_for_single_system(post_callback, keys, system, t)
     for key in keys
         data_available, value = pp_value(system, key)
-        data_available && push!(get!(post_callback.values, key, DataEntry[]), DataEntry(value, t))
+        if data_available
+            data_entry_array = get!(post_callback.values, key, DataEntry[])
+            push!(data_entry_array, DataEntry(value, t))
+        end
     end
 end
 
 function (post_callback::PostprocessCallback)(integrator)
-    isempty(post_callback.dt) && isempty(post_callback.values) && return nothing
-
-    series_data = Dict("dt" => create_dict(post_callback.dt))
-    for (key, data_array) in post_callback.values
-        series_data[key] = create_dict([data.value for data in data_array], [data.time for data in data_array])
+    if isempty(post_callback.dt) && isempty(post_callback.values)
+        return nothing
     end
 
-    filename = find_unique_filename("values", ".json")
+    series_data = prepare_series_data(post_callback)
+    filename = get_unique_filename("values", ".json")
+
     open(filename, "w") do file
         JSON.print(file, series_data, 4)
     end
 end
 
-function find_unique_filename(basename, extension)
-    filename, counter = basename*extension, 1
+function get_unique_filename(base_name, extension)
+    filename = base_name * extension
+    counter = 1
+
     while isfile(filename)
-        filename = basename*string(counter)*extension
+        filename = base_name * string(counter) * extension
         counter += 1
     end
+
     return filename
 end
+
+function prepare_series_data(post_callback)
+    series_data = Dict("dt" => create_dict(post_callback.dt))
+
+    for (key, data_array) in post_callback.values
+        data_values = [data.value for data in data_array]
+        data_times = [data.time for data in data_array]
+        series_data[key] = create_dict(data_values, data_times)
+    end
+
+    return series_data
+end
+
 
 function create_dict(values, times=nothing)
     Dict("type" => "series", "datatype" => typeof(values),
