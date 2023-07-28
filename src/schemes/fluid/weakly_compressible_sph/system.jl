@@ -228,10 +228,9 @@ function pp_keys(system::WeaklyCompressibleSPHSystem)
 end
 
 function pp_value(system::WeaklyCompressibleSPHSystem, pp_key)
-
     if system.pp_values !== nothing
         if haskey(system.pp_values, pp_key)
-            return true, system.pp_values[pp_key]
+            return system.cache.pp_update[pp_key], system.pp_values[pp_key]
         end
     end
 
@@ -282,13 +281,14 @@ function compute_pressure!(system, v, pp_values)
 end
 
 function compute_pressure!(system, v, pp_values::Dict)
-    @unpack state_equation, pressure = system
+    @unpack state_equation, pressure, cache = system
 
     if haskey(pp_values, "dp")
         p_old = copy(system.pressure)
         compute_pressure!(system, v, pressure, state_equation)
         dp = p_old-system.pressure
         pp_values["dp"] = sqrt(dot(dp, dp))
+        cache.pp_update["dp"] = true
     else
         compute_pressure!(system, v, pressure, state_equation)
     end
