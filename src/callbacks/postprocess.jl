@@ -29,11 +29,24 @@ function (post_callback::PostprocessCallback)(u, t, integrator)
 end
 
 function (post_callback::PostprocessCallback)(integrator)
+    if isempty(post_callback.dt) && isempty(post_callback.values)
+        return nothing
+    end
+
     series_data = Dict("dt" => create_dict(post_callback.dt))
     for (key, data_array) in post_callback.values
         series_data[key] = create_dict([data.value for data in data_array], [data.time for data in data_array])
     end
-    open("values.json", "w") do file
+
+    # Check if file exists and append ascending number if it does
+    filename = "values.json"
+    counter = 1
+    while isfile(filename)
+        filename = "values$(counter).json"
+        counter += 1
+    end
+
+    open(filename, "w") do file
         JSON.print(file, series_data, 4)
     end
     return nothing
@@ -62,6 +75,7 @@ function pressure_change(vu_ode, semi)
     end
 end
 
-function pressure_change(system)
+function pp_value(system, pp_key)
+    # skip systems that don't have support implemented
     return false, 0.0
 end

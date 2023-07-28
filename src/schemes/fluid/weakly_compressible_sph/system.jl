@@ -189,7 +189,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
 
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, system.pp_values)
 
     return system
 end
@@ -230,6 +230,10 @@ function reinit_density!(vu_ode, semi)
     return vu_ode
 end
 
+function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+    return system
+end
+
 function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                          v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
@@ -242,26 +246,31 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
-    compute_pressure!(system, v)
+    compute_pressure!(system, v, system.pp_values)
 
     return system
 end
 
-function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
-    return system
-end
-
-function compute_pressure!(system, v)
+function compute_pressure!(system, v, pp_values)
     @unpack state_equation, pressure = system
 
-    if haskey(system.pp_values, "dp")
+    compute_pressure!(system, v, pressure, state_equation)
+
+    return system
+end
+
+function compute_pressure!(system, v, pp_values::Dict)
+    @unpack state_equation, pressure = system
+
+    if haskey(pp_values, "dp")
         p_old = copy(system.pressure)
         compute_pressure!(system, v, pressure, state_equation)
         dp = p_old-system.pressure
-        system.pp_values["dp"] = sqrt(dot(dp, dp))
+        pp_values["dp"] = sqrt(dot(dp, dp))
     else
         compute_pressure!(system, v, pressure, state_equation)
     end
+    return system
 end
 
 function compute_pressure!(system, v, pressure, state_equation)
@@ -269,6 +278,19 @@ function compute_pressure!(system, v, pressure, state_equation)
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, system, particle))
     end
+end
+
+function update_final!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
+    postprocess!(system, system.pp_values)
+    return system
+end
+
+function postprocess!(system, pp_values)
+    return system
+end
+
+function postprocess!(system, pp_values::Dict)
+    println("blubba")
 end
 
 function write_u0!(u0, system::WeaklyCompressibleSPHSystem)

@@ -58,10 +58,15 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
+# fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+#                                            state_equation, smoothing_kernel,
+#                                            smoothing_length, viscosity=viscosity,
+#                                            acceleration=(0.0, -gravity), correction=nothing, pp_values=Dict("dp"=>0.0, "ekin"=>0.0))
+
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity), correction=nothing, pp_values=Dict("dp"=>0.0, "ekin"=>0.0))
+                                           acceleration=(0.0, -gravity), correction=nothing)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -88,8 +93,9 @@ info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
                                                     prefix=relaxation_step_file_prefix)
 density_reinit_cb = nothing #DensityReinitializationCallback(semi.systems[1], dt=0.01)
+pp_cb = PostprocessCallback()
 
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, PostprocessCallback(), density_reinit_cb)
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, pp_cb, density_reinit_cb)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -126,47 +132,62 @@ sol = solve(ode, RDPK3SpFSAL49(),
 #             save_everystep=false, callback=callbacks);
 
 
-function plot_json_data(file_path::AbstractString)
-    # Read the JSON file
-    json_string = read(file_path, String)
+function plot_json_data(dir_path::AbstractString="")
+    if isempty(dir_path)
+        dir_path = pwd()
+    end
 
-    # Parse the JSON string
+    files = readdir(dir_path)
+    json_files = filter(x -> occursin(r"^values(\d*).json$", x), files)
+
+    if isempty(json_files)
+        println("No matching JSON files found.")
+        return
+    end
+
+    recent_file = sort(json_files, by = x -> stat(joinpath(dir_path, x)).ctime, rev=true)[1]
+    file_path = joinpath(dir_path, recent_file)
+
+    json_string = read(file_path, String)
     json_data = JSON.parse(json_string)
 
-    # Extract dt and dp series data
     dt_series = json_data["dt"]
-    dp_series = json_data["dp"]   # New - extract dp series data
-
     dt_values = Vector{Float64}(dt_series["values"])
-    dp_values = Vector{Float64}(dp_series["values"])   # New - extract dp values
-
-    # Accumulate dt values to use as the x-axis
     accumulated_dt = cumsum(dt_values)
 
-    # Create a new figure
-    figure(figsize=(10,10))  # Increased figure size to accommodate second plot
+    function plot_dt()
+        # Plot dt data
+        xlabel("T")
+        ylabel("dt")
+        title("dt")
+        yscale("log")
+        scatter(accumulated_dt, dt_values, s=4, color="blue", label="dt")
+        legend()
+    end
 
-    # Create first subplot for dt
-    subplot(2,1,1)  # Arguments are: number of rows, number of columns, plot number
-    xlabel("T")
-    ylabel("dt")
-    title("dt")
-    yscale("log")
-    scatter(accumulated_dt, dt_values, s=4, color="blue", label="dt")
-    legend()
+    # If "dp" data exists, create a subplot to plot it
+    if haskey(json_data, "dp")
+        figure(figsize=(10,10))  # Resize figure to accommodate second plot
 
-    # New - create second subplot for dp
-    subplot(2,1,2)  # Arguments are: number of rows, number of columns, plot number
-    xlabel("T")
-    ylabel("dp")
-    title("dp")
-    scatter(accumulated_dt, dp_values, s=4, color="red", label="dp")  # Assuming x-axis is the same for dp
-    legend()
+        subplot(2,1,1)  # dt plot
+        plot_dt()
+
+        dp_series = json_data["dp"]
+        dp_values = Vector{Float64}(dp_series["values"])
+
+        subplot(2,1,2)  # dp plot
+        xlabel("T")
+        ylabel("dp")
+        title("dp")
+        scatter(accumulated_dt, dp_values, s=4, color="red", label="dp")  # Assuming x-axis is the same for dp
+        legend()
+    else
+        figure(figsize=(10,5))  # Only dt data
+        plot_dt()
+    end
 
     # Show the figure
     show()
 end
 
-# Replace "path/to/your/json_file.json" with the actual file path.
-json_file_path = "values.json"
-plot_json_data(json_file_path)
+plot_json_data()
