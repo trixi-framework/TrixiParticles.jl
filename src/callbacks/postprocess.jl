@@ -20,10 +20,17 @@ end
 
 function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
-    data_available = pressure_change(integrator.u, integrator.p)
-    if data_available[1]
-        dp_array = get!(post_callback.values, "dp", DataEntry[])
-        push!(dp_array, DataEntry(data_available[2], t))
+    for system in integrator.p.systems
+        keys = pp_keys(system)
+        if keys !== nothing
+            for key in keys
+                data_available, value = pp_value(system, key)
+                if data_available
+                    value_array = get!(post_callback.values, key, DataEntry[])
+                    push!(value_array, DataEntry(value, t))
+                end
+            end
+        end
     end
     return isfinished(integrator)
 end
@@ -66,16 +73,12 @@ function initialize_post_callback(discrete_callback, u, t, integrator)
     return nothing
 end
 
-function pressure_change(vu_ode, semi)
-    system_with_dp = findfirst(system -> "dp" in pp_keys(system), semi.systems)
-    if system_with_dp !== nothing
-        return true, pp_value(semi.systems[system_with_dp], "dp")[2]
-    else
-        return false, 0.0
-    end
+function pp_keys(system)
+    # skip systems that don't have support implemented
+    return nothing
 end
 
-function pp_value(system, pp_key)
+function pp_value(system, key)
     # skip systems that don't have support implemented
     return false, 0.0
 end
