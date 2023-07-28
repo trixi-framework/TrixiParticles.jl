@@ -1,6 +1,8 @@
 .vscode
 .DS_Store
 *.json
+*.png
+*.svg
 Manifest.toml
 out
 out_*
