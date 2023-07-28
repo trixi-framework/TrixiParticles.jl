@@ -24,6 +24,7 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 [compat]
 DiffEqCallbacks = "2.25"
 ForwardDiff = "0.10"
+JSON = "0.21.4"
 Morton = "0.1"
 Polyester = "0.7"
 Reexport = "1"
