@@ -5,6 +5,12 @@ struct DataEntry
     time::Float64
 end
 
+"""
+    PostprocessCallback
+
+This struct holds the values and time deltas (dt) collected during the simulation. The `values` field is a dictionary
+that maps a string key to an array of `DataEntry` structs. The `dt` field is an array of time deltas.
+"""
 mutable struct PostprocessCallback
     values::Dict{String, Vector{DataEntry}}
     dt::Vector{Float64}
@@ -18,7 +24,8 @@ function PostprocessCallback(; interval=0)
                      initialize=initialize_post_callback)
 end
 
-
+# This function is called at each timestep. It adds the current dt to the array and
+# checks each system for new values to add to the `values` field.
 function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
     update_values_for_all_systems(post_callback, integrator.p.systems, t)
@@ -44,6 +51,7 @@ function update_values_for_single_system(post_callback, keys, system, t)
     end
 end
 
+# After the simulation has finished, this function is called to write the data to a JSON file.
 function (post_callback::PostprocessCallback)(integrator)
     if isempty(post_callback.dt) && isempty(post_callback.values)
         return nothing
@@ -57,6 +65,7 @@ function (post_callback::PostprocessCallback)(integrator)
     end
 end
 
+# This function creates a unique filename by appending a number to the base name if needed.
 function get_unique_filename(base_name, extension)
     filename = base_name * extension
     counter = 1
@@ -69,6 +78,8 @@ function get_unique_filename(base_name, extension)
     return filename
 end
 
+# This function prepares the data for writing to a JSON file by creating a dictionary
+# that maps each key to a dictionary with the associated values and times.
 function prepare_series_data(post_callback)
     series_data = Dict("dt" => create_dict(post_callback.dt))
 

@@ -288,19 +288,6 @@ function compute_pressure!(system, v, pressure, state_equation)
     end
 end
 
-function update_final!(system::WeaklyCompressibleSPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    postprocess!(system, system.pp_values)
-    return system
-end
-
-function postprocess!(system, pp_values)
-    return system
-end
-
-function postprocess!(system, pp_values::Dict)
-    return system
-end
-
 function write_u0!(u0, system::WeaklyCompressibleSPHSystem)
     @unpack initial_condition = system
 
