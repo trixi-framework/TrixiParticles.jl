@@ -89,11 +89,11 @@ function pressure_change(vu_ode, semi)
     @unpack systems = semi
 
     # Search for the first system with a valid dp value
-    system_with_dp = findfirst(system -> pressure_change(system)[1], systems)
+    system_with_dp = findfirst(system -> pp_value(system, "dp")[1], systems)
 
     if system_with_dp !== nothing
         # If a system with a valid dp value is found, return true and its dp value
-        dp_value = pressure_change(systems[system_with_dp])[2]
+        dp_value = pp_value(systems[system_with_dp], "dp")[2]
         #delete!(systems[system_with_dp].pp_values, "dp")
         return true, dp_value
     else

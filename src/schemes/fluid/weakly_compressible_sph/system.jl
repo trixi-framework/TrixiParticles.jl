@@ -189,14 +189,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
 
-    if haskey(system.pp_values, "dp")
-        p_old = copy(system.pressure)
-        compute_pressure!(system, v)
-        dp = p_old-system.pressure
-        system.pp_values["dp"] = sqrt(dot(dp, dp))
-    else
-        compute_pressure!(system, v)
-    end
+    compute_pressure!(system, v)
 
     return system
 end
@@ -212,11 +205,11 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function pressure_change(system::WeaklyCompressibleSPHSystem)
+function pp_value(system::WeaklyCompressibleSPHSystem, pp_key)
 
     if system.pp_values !== nothing
-        if haskey(system.pp_values, "dp")
-            return true, system.pp_values["dp"]
+        if haskey(system.pp_values, pp_key)
+            return true, system.pp_values[pp_key]
         end
     end
 
@@ -249,14 +242,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
-    if haskey(system.pp_values, "dp")
-        p_old = copy(system.pressure)
-        compute_pressure!(system, v)
-        dp = p_old-system.pressure
-        system.pp_values["dp"] = sqrt(dot(dp, dp))
-    else
-        compute_pressure!(system, v)
-    end
+    compute_pressure!(system, v)
 
     return system
 end
@@ -268,6 +254,17 @@ end
 function compute_pressure!(system, v)
     @unpack state_equation, pressure = system
 
+    if haskey(system.pp_values, "dp")
+        p_old = copy(system.pressure)
+        compute_pressure!(system, v, pressure, state_equation)
+        dp = p_old-system.pressure
+        system.pp_values["dp"] = sqrt(dot(dp, dp))
+    else
+        compute_pressure!(system, v, pressure, state_equation)
+    end
+end
+
+function compute_pressure!(system, v, pressure, state_equation)
     # Note that @threaded makes this slower
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, system, particle))
