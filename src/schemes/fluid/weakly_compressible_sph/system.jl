@@ -25,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C, PP} <:
        System{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -38,7 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     acceleration       :: SVector{NDIMS, ELTYPE}
     correction         :: COR
     cache              :: C
-    pp_values          :: Dict{String, Any}
+    pp_values          :: PP
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
@@ -46,7 +46,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing)
+                                         correction=nothing, pp_values=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -76,10 +76,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(correction), typeof(cache)
+                   typeof(correction), typeof(cache), typeof(pp_values)
                    }(initial_condition, mass, pressure, density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, cache, Dict())
+                     correction, cache, pp_values)
     end
 end
 
@@ -204,34 +204,15 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function pressure_change_over_reinit(vu_ode, semi)
-    @unpack systems = semi
-
-    # Search for the first system with a valid dp value
-    system_with_dp = findfirst(system -> pressure_change_over_reinit(system)[1], systems)
-
-    if system_with_dp !== nothing
-        # If a system with a valid dp value is found, return true and its dp value
-        dp_value = pressure_change_over_reinit(systems[system_with_dp])[2]
-        delete!(systems[system_with_dp].pp_values, "dp")
-        return true, dp_value
-    else
-        # If no system with a valid dp value is found, return false
-        return false, 0.0
-    end
-end
-
-function pressure_change_over_reinit(system)
-    return false, 0.0
-end
-
 function pressure_change_over_reinit(system::WeaklyCompressibleSPHSystem)
 
-    if haskey(system.pp_values, "dp")
-        return true, system.pp_values["dp"]
-    else
-        return false, 0.0
+    if system.pp_values !== nothing
+        if haskey(system.pp_values, "dp")
+            return true, system.pp_values["dp"]
+        end
     end
+
+    return false, 0.0
 end
 
 function reinit_density!(vu_ode, semi)
@@ -260,13 +241,12 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
                            kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
-
-    p_old = copy(system.pressure)
-    compute_pressure!(system, v)
-    dp = p_old-system.pressure
-    #dp_array = get(post_callback.values, "dp", Float64[])
-    system.pp_values["dp"] = sqrt(dot(dp, dp))
-    #println(system.pp_values["dp"])
+    if haskey(system.pp_values, "dp")
+        p_old = copy(system.pressure)
+        compute_pressure!(system, v)
+        dp = p_old-system.pressure
+        system.pp_values["dp"] = sqrt(dot(dp, dp))
+    end
 
     return system
 end

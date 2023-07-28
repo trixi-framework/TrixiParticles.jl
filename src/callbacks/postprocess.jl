@@ -84,3 +84,24 @@ function initialize_post_callback(discrete_callback, u, t, integrator)
 
     return nothing
 end
+
+function pressure_change_over_reinit(vu_ode, semi)
+    @unpack systems = semi
+
+    # Search for the first system with a valid dp value
+    system_with_dp = findfirst(system -> pressure_change_over_reinit(system)[1], systems)
+
+    if system_with_dp !== nothing
+        # If a system with a valid dp value is found, return true and its dp value
+        dp_value = pressure_change_over_reinit(systems[system_with_dp])[2]
+        delete!(systems[system_with_dp].pp_values, "dp")
+        return true, dp_value
+    else
+        # If no system with a valid dp value is found, return false
+        return false, 0.0
+    end
+end
+
+function pressure_change_over_reinit(system)
+    return false, 0.0
+end
