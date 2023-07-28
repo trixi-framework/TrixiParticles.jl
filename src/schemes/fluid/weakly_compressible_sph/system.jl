@@ -69,10 +69,15 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C, 
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        cache = create_cache(n_particles, ELTYPE, density_calculator)
+        # cache = create_cache(n_particles, ELTYPE, density_calculator)
+        # cache = (;
+        #          create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
+        #          cache...)
+
         cache = (;
-                 create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
-                 cache...)
+        create_cache(n_particles, ELTYPE, density_calculator)...,
+        create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
+        create_cache(pp_values)...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -101,6 +106,15 @@ function create_cache(n_particles, ELTYPE, ::SummationDensity)
 end
 
 function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
+    return (;)
+end
+
+function create_cache(pp_values::Dict)
+    pp_update = Dict(key => false for key in keys(pp_values))
+    return (; pp_update)
+end
+
+function create_cache(pp_values::Nothing)
     return (;)
 end
 
