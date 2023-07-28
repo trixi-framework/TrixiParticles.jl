@@ -67,7 +67,7 @@ function initialize_post_callback(discrete_callback, u, t, integrator)
 end
 
 function pressure_change(vu_ode, semi)
-    system_with_dp = findfirst(system -> pp_value(system, "dp")[1], semi.systems)
+    system_with_dp = findfirst(system -> "dp" in pp_keys(system), semi.systems)
     if system_with_dp !== nothing
         return true, pp_value(semi.systems[system_with_dp], "dp")[2]
     else

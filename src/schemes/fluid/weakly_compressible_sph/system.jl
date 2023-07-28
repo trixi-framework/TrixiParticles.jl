@@ -205,6 +205,14 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
+function pp_keys(system::WeaklyCompressibleSPHSystem)
+    if system.pp_values !== nothing
+        return keys(system.pp_values)
+    end
+
+    return nothing
+end
+
 function pp_value(system::WeaklyCompressibleSPHSystem, pp_key)
 
     if system.pp_values !== nothing
@@ -290,7 +298,7 @@ function postprocess!(system, pp_values)
 end
 
 function postprocess!(system, pp_values::Dict)
-    println("blubba")
+    return system
 end
 
 function write_u0!(u0, system::WeaklyCompressibleSPHSystem)
