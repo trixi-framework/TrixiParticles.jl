@@ -24,7 +24,7 @@ boundary_layers = 3
 output_dt = 0.02
 relaxation_step_file_prefix = "relaxation"
 simulation_step_file_prefix = ""
-relaxation_tspan = (0.0, 0.5)
+relaxation_tspan = (0.0, 5.0)
 simulation_tspan = (0.0, 1.0)
 
 # Model settings
@@ -78,9 +78,12 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 
+# semi = Semidiscretization(fluid_system, boundary_system,
+#                           neighborhood_search=SpatialHashingSearch,
+#                           damping_coefficient=1e-5)
+
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=1e-5)
+                          neighborhood_search=SpatialHashingSearch)
 
 ode = semidiscretize(semi, relaxation_tspan)
 
@@ -126,6 +129,33 @@ sol = solve(ode, RDPK3SpFSAL49(),
 #             dtmax=1e-2, # Limit stepsize to prevent crashing
 #             save_everystep=false, callback=callbacks);
 
+function running_average(data::Vector{Float64}, window_size::Int)
+    @assert window_size >= 1 "Window size for running average must be >= 1"
+
+    cum_sum = cumsum(data)
+    cum_sum = vcat(zeros(window_size - 1), cum_sum)  # prepend zeros
+
+    averaged_data = (cum_sum[window_size:end] - cum_sum[1:end-window_size + 1]) / window_size
+    return averaged_data
+end
+
+using GLM
+using DataFrames
+
+function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
+    @assert length(data) == length(t) "Data and time vectors must have the same length"
+
+    df = DataFrame(Y=data, T=t)
+    model = lm(@formula(Y ~ T), df)  # Perform linear regression
+
+    # Get the regression line values
+    trend = predict(model, df)
+
+    # Extract the gradient of the trend line
+    gradient = coef(model)[2]
+
+    return trend, gradient
+end
 
 function plot_json_data(dir_path::AbstractString="")
     if isempty(dir_path)
@@ -151,7 +181,6 @@ function plot_json_data(dir_path::AbstractString="")
     accumulated_dt = cumsum(dt_values)
 
     function plot_dt()
-        # Plot dt data
         xlabel("T")
         ylabel("dt")
         title("dt")
@@ -160,28 +189,47 @@ function plot_json_data(dir_path::AbstractString="")
         legend()
     end
 
-    # If "dp" data exists, create a subplot to plot it
-    if haskey(json_data, "dp")
-        figure(figsize=(10,10))  # Resize figure to accommodate second plot
-
-        subplot(2,1,1)  # dt plot
-        plot_dt()
-
-        dp_series = json_data["dp"]
-        dp_values = Vector{Float64}(dp_series["values"])
-
-        subplot(2,1,2)  # dp plot
-        xlabel("T")
-        ylabel("dp")
-        title("dp")
-        scatter(accumulated_dt, dp_values, s=4, color="red", label="dp")  # Assuming x-axis is the same for dp
-        legend()
-    else
-        figure(figsize=(10,5))  # Only dt data
-        plot_dt()
+    subplot_number = 1
+    for key in ["dp", "ekin"]
+        if haskey(json_data, key)
+            subplot_number += 1
+        end
     end
 
-    # Show the figure
+    figure(figsize=(10, 5 * subplot_number))
+
+    subplot(subplot_number, 1, 1)
+    plot_dt()
+
+    subplot_index = 2
+    for key in ["dp", "ekin"]
+        if haskey(json_data, key)
+            series = json_data[key]
+            values = Vector{Float64}(series["values"])
+
+            subplot(subplot_number, 1, subplot_index)
+            xlabel("T")
+            ylabel(key)
+            title(key)
+            scatter(accumulated_dt, values, s=4, label=key)
+
+            if key == "ekin"  # calculate and plot running average for ekin
+                window_size = 50
+                averaged_ekin = running_average(values, window_size)
+                # println("Length of accumulated_dt: ", length(accumulated_dt))
+                # println("Length of averaged_ekin: ", length(averaged_ekin))
+                # println("Window size: ", window_size)
+                scatter(accumulated_dt, averaged_ekin, s=4, color="orange", label="ekin (run. avg. windowsize = $window_size)")
+
+                trend_line, gradient = calculate_regression(values, accumulated_dt)
+                plot(accumulated_dt, trend_line, label="trend (gradient=$gradient)", color="red", linewidth=2)
+            end
+
+            legend()
+            subplot_index += 1
+        end
+    end
+
     show()
 end
 

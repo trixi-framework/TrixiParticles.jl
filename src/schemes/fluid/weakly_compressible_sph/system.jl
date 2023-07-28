@@ -372,3 +372,17 @@ end
                                  system.smoothing_length,
                                  system.correction, system, particle)
 end
+
+
+function calculate_ekin(system::WeaklyCompressibleSPHSystem, system_index, u, semi)
+    @unpack mass = system
+    v_ode, u_ode = u.x
+
+    v = wrap_v(v_ode, system_index, system, semi)
+    ekin = 0.0
+    for particle in each_moving_particle(system)
+        velocity = current_velocity(v, system, particle)
+        ekin += 0.5 * mass[particle] * dot(velocity, velocity)
+    end
+    return ekin
+end

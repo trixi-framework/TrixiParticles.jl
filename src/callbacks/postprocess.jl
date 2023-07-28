@@ -24,31 +24,38 @@ function PostprocessCallback(; interval=0)
                      initialize=initialize_post_callback)
 end
 
+function postprocess_value(system, key, system_index, u, semi)
+    data_available, value = pp_value(system, key)
+    if !data_available
+        if key == "ekin"
+            value = calculate_ekin(system, system_index, u, semi)
+            data_available = true
+        end
+    end
+    return data_available, value
+end
+
 # This function is called at each timestep. It adds the current dt to the array and
 # checks each system for new values to add to the `values` field.
 function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
-    update_values_for_all_systems(post_callback, integrator.p.systems, t)
-    return isfinished(integrator)
-end
 
-function update_values_for_all_systems(post_callback, systems, t)
-    for system in systems
+    systems = integrator.p.systems
+    semi = integrator.p
+
+    foreach_enumerate(systems) do (system_index, system)
         keys = pp_keys(system)
         if keys !== nothing
-            update_values_for_single_system(post_callback, keys, system, t)
+            for key in keys
+                data_available, value = postprocess_value(system, key, system_index, u, semi)
+                if data_available
+                    value_array = get!(post_callback.values, key, DataEntry[])
+                    push!(value_array, DataEntry(value, t))
+                end
+            end
         end
     end
-end
-
-function update_values_for_single_system(post_callback, keys, system, t)
-    for key in keys
-        data_available, value = pp_value(system, key)
-        if data_available
-            data_entry_array = get!(post_callback.values, key, DataEntry[])
-            push!(data_entry_array, DataEntry(value, t))
-        end
-    end
+    return isfinished(integrator)
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file.
@@ -92,7 +99,6 @@ function prepare_series_data(post_callback)
     return series_data
 end
 
-
 function create_dict(values, times=nothing)
     Dict("type" => "series", "datatype" => typeof(values),
          "novalues" => length(values), "values" => values, "time" => times)
@@ -110,4 +116,8 @@ end
 function pp_value(system, key)
     # skip systems that don't have support implemented
     return false, 0.0
+end
+
+function calculate_ekin(system, system_index, u, semi)
+    return system
 end
