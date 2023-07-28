@@ -61,7 +61,7 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity), correction=nothing)
+                                           acceleration=(0.0, -gravity), correction=nothing, pp_values=Dict("dp"=>0.0))
 
 # ==========================================================================================
 # ==== Boundary models
@@ -133,26 +133,34 @@ function plot_json_data(file_path::AbstractString)
     # Parse the JSON string
     json_data = JSON.parse(json_string)
 
-    # Extract dt series data
+    # Extract dt and dp series data
     dt_series = json_data["dt"]
+    dp_series = json_data["dp"]   # New - extract dp series data
+
     dt_values = Vector{Float64}(dt_series["values"])
+    dp_values = Vector{Float64}(dp_series["values"])   # New - extract dp values
 
     # Accumulate dt values to use as the x-axis
     accumulated_dt = cumsum(dt_values)
 
     # Create a new figure
-    figure(figsize=(10,5))
+    figure(figsize=(10,10))  # Increased figure size to accommodate second plot
 
-    # Set labels and title
+    # Create first subplot for dt
+    subplot(2,1,1)  # Arguments are: number of rows, number of columns, plot number
     xlabel("T")
     ylabel("dt")
     title("dt")
     yscale("log")
-
-    # Create scatter plot
     scatter(accumulated_dt, dt_values, s=4, color="blue", label="dt")
+    legend()
 
-    # Add legend
+    # New - create second subplot for dp
+    subplot(2,1,2)  # Arguments are: number of rows, number of columns, plot number
+    xlabel("T")
+    ylabel("dp")
+    title("dp")
+    scatter(accumulated_dt, dp_values, s=4, color="red", label="dp")  # Assuming x-axis is the same for dp
     legend()
 
     # Show the figure

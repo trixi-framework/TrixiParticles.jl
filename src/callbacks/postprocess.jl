@@ -30,7 +30,7 @@ function (post_callback::PostprocessCallback)(u, t, integrator)
     push!(post_callback.dt, integrator.dt)
 
     #save dp
-    data_available = pressure_change_over_reinit(vu_ode, semi)
+    data_available = pressure_change(vu_ode, semi)
     if data_available[1]
         dp_array = get(post_callback.values, "dp", data_entry[])
         push!(dp_array, data_entry(data_available[2], t))
@@ -85,16 +85,16 @@ function initialize_post_callback(discrete_callback, u, t, integrator)
     return nothing
 end
 
-function pressure_change_over_reinit(vu_ode, semi)
+function pressure_change(vu_ode, semi)
     @unpack systems = semi
 
     # Search for the first system with a valid dp value
-    system_with_dp = findfirst(system -> pressure_change_over_reinit(system)[1], systems)
+    system_with_dp = findfirst(system -> pressure_change(system)[1], systems)
 
     if system_with_dp !== nothing
         # If a system with a valid dp value is found, return true and its dp value
-        dp_value = pressure_change_over_reinit(systems[system_with_dp])[2]
-        delete!(systems[system_with_dp].pp_values, "dp")
+        dp_value = pressure_change(systems[system_with_dp])[2]
+        #delete!(systems[system_with_dp].pp_values, "dp")
         return true, dp_value
     else
         # If no system with a valid dp value is found, return false
@@ -102,6 +102,6 @@ function pressure_change_over_reinit(vu_ode, semi)
     end
 end
 
-function pressure_change_over_reinit(system)
+function pressure_change(system)
     return false, 0.0
 end

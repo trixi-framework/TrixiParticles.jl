@@ -188,7 +188,15 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
-    compute_pressure!(system, v)
+
+    if haskey(system.pp_values, "dp")
+        p_old = copy(system.pressure)
+        compute_pressure!(system, v)
+        dp = p_old-system.pressure
+        system.pp_values["dp"] = sqrt(dot(dp, dp))
+    else
+        compute_pressure!(system, v)
+    end
 
     return system
 end
@@ -204,7 +212,7 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function pressure_change_over_reinit(system::WeaklyCompressibleSPHSystem)
+function pressure_change(system::WeaklyCompressibleSPHSystem)
 
     if system.pp_values !== nothing
         if haskey(system.pp_values, "dp")
@@ -246,6 +254,8 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
         compute_pressure!(system, v)
         dp = p_old-system.pressure
         system.pp_values["dp"] = sqrt(dot(dp, dp))
+    else
+        compute_pressure!(system, v)
     end
 
     return system
