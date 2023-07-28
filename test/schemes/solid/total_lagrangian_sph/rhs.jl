@@ -85,7 +85,18 @@
             end
             TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
             TrixiParticles.eachneighbor(_, ::Val{:nhs}) = eachneighbor
-            TrixiParticles.compact_support(::Val{:mock_smoothing_kernel}, _) = 100.0
+
+            function Base.getproperty(::Val{:nhs}, f::Symbol)
+                if f === :search_radius
+                    return 100.0
+                elseif f === :periodic_box_size
+                    return nothing
+                end
+
+                # For all other properties, return mock objects
+                return Val(Symbol("mock_" * string(f)))
+            end
+            TrixiParticles.ndims(::Val{:nhs}) = 2
 
             function TrixiParticles.pk1_corrected(::Val{:mock_system_dv}, particle_)
                 if particle_ == particle[i]
@@ -111,23 +122,22 @@
     end
 
     @testset verbose=true "interact! with System and Deformation Function" begin
-        deformations = Dict("rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
-                            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
-                            "rotate and stretch" => x -> [cos(0.3) -sin(0.3);
-                                                          sin(0.3) cos(0.3)] *
-                                                         [2.0 0.0; 0.0 3.0] * x,
-                            "nonlinear stretching" => x -> [x[1]^2, x[2]])
+        deformations = Dict(
+            "rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
+            "stretch both" => x -> [2.0 0.0; 0.0 3.0] * x,
+            "rotate and stretch" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] *
+                                         [2.0 0.0; 0.0 3.0] * x,
+            "nonlinear stretching" => x -> [x[1]^2, x[2]])
 
         # The acceleration in the first three should be zero (linear stretching)
         # The fourth one is calculated by hand
-        dv_expected_41 = Dict("rotation" => [0.0, 0.0],
-                              "stretch both" => [0.0, 0.0],
-                              "rotate and stretch" => [0.0, 0.0],
-                              "nonlinear stretching" => [
-                                  10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 *
-                                  1.224,
-                                  0.0,
-                              ])
+        dv_expected_41 = Dict(
+            "rotation" => [0.0, 0.0],
+            "stretch both" => [0.0, 0.0],
+            "rotate and stretch" => [0.0, 0.0],
+            "nonlinear stretching" => [
+                10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0,
+            ])
 
         @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             J = deformations[deformation]
