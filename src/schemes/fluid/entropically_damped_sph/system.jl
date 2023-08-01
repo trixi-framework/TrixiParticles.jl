@@ -102,7 +102,7 @@ end
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "EntropicallyDampedSPHSystem{ ", ndims(system), "}(")
+    print(io, "EntropicallyDampedSPHSystem{", ndims(system),"}(")
     print(io, system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
@@ -115,7 +115,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     if get(io, :compact, false)
         show(io, system)
     else
-        summary_header(io, "EntropicallyDampedSPHSystem{ $(ndims(system)) }")
+        summary_header(io, "EntropicallyDampedSPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "viscosity",
                      system.viscosity |> typeof |> nameof)
