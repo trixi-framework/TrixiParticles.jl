@@ -102,7 +102,7 @@ end
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
     @nospecialize system # reduce precompilation time
 
-    print(io, "EntropicallyDampedSPHSystem{", ndims(system),"}(")
+    print(io, "EntropicallyDampedSPHSystem{", ndims(system), "}(")
     print(io, system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
