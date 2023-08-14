@@ -32,12 +32,17 @@ Create and return a callback that prints a human-readable summary of the simulat
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
 """
-function InfoCallback(; interval=0)
+function InfoCallback(; interval=0, reset_threads=true)
     info_callback = InfoCallback(0.0, interval)
+
+    function initialize(cb, u, t, integrator)
+        initialize_info_callback(cb, u, t, integrator;
+                                 reset_threads)
+    end
 
     DiscreteCallback(info_callback, info_callback,
                      save_positions=(false, false),
-                     initialize=initialize_info_callback)
+                     initialize=initialize)
 end
 
 # condition
@@ -86,8 +91,16 @@ end
 
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
-function initialize_info_callback(discrete_callback, u, t, integrator)
+function initialize_info_callback(discrete_callback, u, t, integrator;
+                                  reset_threads=true)
     info_callback = discrete_callback.affect!
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     print_startup_message()
 

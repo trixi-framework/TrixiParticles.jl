@@ -6,7 +6,7 @@ using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
-using Polyester: @batch
+using Polyester: Polyester, @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache

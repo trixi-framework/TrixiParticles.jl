@@ -151,12 +151,19 @@ end
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
-function semidiscretize(semi, tspan)
+function semidiscretize(semi, tspan; reset_threads=true)
     @unpack systems, neighborhood_searches = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
     ELTYPE = eltype(systems[1])
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
@@ -199,8 +206,15 @@ in the solution `sol`.
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
-function restart_with!(semi, sol)
+function restart_with!(semi, sol; reset_threads=true)
     @unpack systems = semi
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(sol[end].x[1], system_index, system, semi)
