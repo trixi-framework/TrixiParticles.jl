@@ -40,7 +40,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 boundary_particle_spacing = particle_spacing / beta_wall
 
 # Move right boundary
-wall_position = tank.n_particles_per_dimension[1] * particle_spacing
+wall_position = tank.fluid_size[1]
 n_wall_particles_y = size(tank.face_indices[2], 2) * beta_wall
 
 wall = RectangularShape(boundary_particle_spacing,

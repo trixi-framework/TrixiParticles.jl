@@ -111,10 +111,10 @@ boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
 boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass, state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
-#K_gate = 9.81 * water_height
-#boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
-#                                                  fluid_particle_spacing / beta_gate,
-#                                                  gate.mass)
+# K_gate = 9.81 * water_height
+# boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
+#                                                   fluid_particle_spacing / beta_gate,
+#                                                   gate.mass)
 
 hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
