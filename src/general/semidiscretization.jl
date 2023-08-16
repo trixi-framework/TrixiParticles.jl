@@ -92,7 +92,7 @@ function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch
                                                  max_corner=max_corner)
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(system, neighbor))
+    initialize!(search, initial_coordinates(neighbor))
 
     return search
 end
@@ -103,7 +103,7 @@ end
 end
 
 @inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                                 neighbor)
+                                 neighbor::WeaklyCompressibleSPHSystem)
     return compact_support(system, system.boundary_model, neighbor)
 end
 
@@ -111,12 +111,6 @@ end
                                  neighbor::BoundarySPHSystem)
     # This NHS is never used
     return 0.0
-end
-
-@inline function compact_support(system::TotalLagrangianSPHSystem,
-                                 neighbor::TotalLagrangianSPHSystem)
-    @unpack smoothing_kernel, smoothing_length = system
-    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 @inline function compact_support(system, model, neighbor)
@@ -130,10 +124,6 @@ end
     # for density summations.
     @unpack smoothing_kernel, smoothing_length = model
     return compact_support(smoothing_kernel, smoothing_length)
-end
-
-function nhs_init_function(system, neighbor)
-    return i -> initial_coords(neighbor, i)
 end
 
 """
