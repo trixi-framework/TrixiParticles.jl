@@ -119,18 +119,23 @@ boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass, state
 hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+k_solid = 9.81 * water_height
+beta_solid = fluid_particle_spacing / solid_particle_spacing
+boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
+                                                   solid_particle_spacing,
+                                                   hydrodynamic_masses)
 
-# Use bigger K to prevent penetration into the solid
-# K_solid = 9.81 * water_height
-# beta_solid = fluid_particle_spacing / solid_particle_spacing
-# boundary_model_solid = BoundaryModelMonaghanKajtar(K_solid, beta_solid,
-#                                                    solid_particle_spacing,
-#                                                    hydrodynamic_masses)
+# `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
+# tend to introduce a non-physical gap between fluid and boundary.
+# However, `BoundaryModelDummyParticles` can only be used when the plate thickness is
+# at least two fluid particle spacings, so that the compact support is fully sampled,
+# or fluid particles can penetrate the solid.
+# For higher fluid resolutions, uncomment the code below for better results.
+#
+# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+#                                                    hydrodynamic_masses, state_equation,
+#                                                    AdamiPressureExtrapolation(),
+#                                                    smoothing_kernel, smoothing_length)
 
 # ==========================================================================================
 # ==== Systems

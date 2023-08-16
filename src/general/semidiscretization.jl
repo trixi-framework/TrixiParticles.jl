@@ -92,7 +92,7 @@ function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch
                                                  max_corner=max_corner)
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(system, neighbor))
+    initialize!(search, initial_coordinates(neighbor))
 
     return search
 end
@@ -102,48 +102,34 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                                 neighbor)
-    return compact_support(system, system.boundary_model, neighbor)
-end
-
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
     @unpack smoothing_kernel, smoothing_length = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system, model, neighbor)
-    # This NHS is never used.
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+                                 neighbor)
+    return compact_support(system, system.boundary_model, neighbor)
+end
+
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+                                 neighbor::BoundarySPHSystem)
+    # This NHS is never used
     return 0.0
 end
 
+@inline function compact_support(system, model, neighbor)
+    # Use the compact support of the fluid for solid-fluid interaction
+    return compact_support(neighbor, system)
+end
+
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
+    # interaction. Dummy particle BC use the model's compact support, which is also used
+    # for density summations.
     @unpack smoothing_kernel, smoothing_length = model
     return compact_support(smoothing_kernel, smoothing_length)
-end
-
-function nhs_init_function(system, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::TotalLagrangianSPHSystem,
-                           neighbor::TotalLagrangianSPHSystem)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                           neighbor)
-    return nhs_init_function(system, system.boundary_model, neighbor)
-end
-
-function nhs_init_function(system, model::BoundaryModelDummyParticles, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system, model, neighbor)
-    # This NHS is never used. Don't initialize NHS.
-    return nothing
 end
 
 """
