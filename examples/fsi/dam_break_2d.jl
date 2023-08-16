@@ -80,7 +80,7 @@ fixed_particles = RectangularShape(solid_particle_spacing,
                                    (2water_width, 0.0),
                                    solid_density, tlsph=true)
 
-solid = InitialCondition(plate, fixed_particles)
+solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
