@@ -97,13 +97,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                                             particle_spacing,
                                                                             spacing_ratio)
 
-        boundary_coordinates, face_indices = initialize_boundaries(particle_spacing /
-                                                                   spacing_ratio,
+        boundary_spacing = particle_spacing / spacing_ratio
+        boundary_coordinates, face_indices = initialize_boundaries(boundary_spacing,
                                                                    tank_size_,
                                                                    n_boundaries_per_dim,
                                                                    n_layers, faces)
 
-        boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^NDIMS *
+        boundary_masses = boundary_density * boundary_spacing^NDIMS *
                           ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
@@ -116,7 +116,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                  zeros(NDIMS), fluid_density, init_velocity=init_velocity)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
-                                    boundary_masses, boundary_densities)
+                                    boundary_masses, boundary_densities,
+                                    particle_spacing=boundary_spacing)
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,

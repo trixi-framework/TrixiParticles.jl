@@ -61,7 +61,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     densities = density * ones(ELTYPE, n_particles)
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
 
-    return InitialCondition(coordinates, velocities, masses, densities)
+    return InitialCondition(coordinates, velocities, masses, densities,
+                            particle_spacing=particle_spacing)
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
