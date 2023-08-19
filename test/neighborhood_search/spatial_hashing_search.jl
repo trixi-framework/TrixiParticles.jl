@@ -6,10 +6,10 @@
         coords3 = [typemax(Int) + 1.0, -typemax(Int) - 1.0]
 
         @test TrixiParticles.cell_coords(coords1, 1.0, nothing) ==
-                (typemax(Int), typemin(Int))
+              (typemax(Int), typemin(Int))
         @test TrixiParticles.cell_coords(coords2, 1.0, nothing) == (typemax(Int), 0)
         @test TrixiParticles.cell_coords(coords3, 1.0, nothing) ==
-                (typemax(Int), typemin(Int))
+              (typemax(Int), typemin(Int))
     end
 
     @testset "Rectangular Point Cloud 2D" begin
@@ -118,28 +118,28 @@
 
         #### Verification
         @test neighbors1 ==
-                [115, 116, 117, 122, 123, 124, 129, 130, 131, 164, 165, 166, 171, 172,
+              [115, 116, 117, 122, 123, 124, 129, 130, 131, 164, 165, 166, 171, 172,
             173, 178, 179, 180, 213, 214, 215, 220, 221, 222, 227, 228, 229]
 
         @test neighbors2 == Int[]
 
         @test neighbors3 ==
-                [115, 116, 117, 122, 123, 124, 129, 130, 131, 164, 165, 166, 171, 172,
+              [115, 116, 117, 122, 123, 124, 129, 130, 131, 164, 165, 166, 171, 172,
             173, 178, 179, 180, 213, 214, 215, 220, 221, 222, 227, 228, 229]
     end
 
     @testset "Periodicity 2D" begin
         coords = [-0.08 0.0 0.18 0.1 -0.08
-                    -0.12 -0.05 -0.09 0.15 0.39]
+                  -0.12 -0.05 -0.09 0.15 0.39]
 
         # 3 x 6 cells
         nhs = SpatialHashingSearch{2}(0.1, size(coords, 2),
-                                        min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
+                                      min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
 
         TrixiParticles.initialize!(nhs, coords)
 
         neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
-                        for i in 1:5]
+                     for i in 1:5]
 
         # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
         @test neighbors[1] == [1, 2, 3, 5]
@@ -151,11 +151,11 @@
         neighbors_loop = [Int[] for _ in axes(coords, 2)]
 
         TrixiParticles.for_particle_neighbor(Val(2), Val(2),
-                                                coords, coords, nhs,
-                                                particles=axes(coords, 2)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
+                                             coords, coords, nhs,
+                                             particles=axes(coords, 2)) do particle,
+                                                                           neighbor,
+                                                                           pos_diff,
+                                                                           distance
             append!(neighbors_loop[particle], neighbor)
         end
 
