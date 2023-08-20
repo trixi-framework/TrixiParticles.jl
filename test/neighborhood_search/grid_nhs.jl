@@ -181,7 +181,7 @@
 
             # 5 x 1 cells
             nhs = GridNeighborhoodSearch{2}(1.0, size(coords, 2),
-                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 1.0])
+                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 3.0])
 
             TrixiParticles.initialize!(nhs, coords)
 
