@@ -174,6 +174,8 @@
             # see the right particle, even though it is within the search distance.
             # The domain size is an integer multiple of the cell size, but the NHS did not
             # offset the grid based on the domain position.
+            # See https://github.com/trixi-framework/TrixiParticles.jl/pull/211 for a more
+            # detailed explanation.
             coords = [-1.4 1.9
                       0.0 0.0]
 
