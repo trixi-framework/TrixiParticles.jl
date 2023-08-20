@@ -5,10 +5,10 @@
         coords2 = [NaN, 0]
         coords3 = [typemax(Int) + 1.0, -typemax(Int) - 1.0]
 
-        @test TrixiParticles.cell_coords(coords1, 1.0, nothing) ==
+        @test TrixiParticles.cell_coords(coords1, nothing, (1.0, 1.0)) ==
               (typemax(Int), typemin(Int))
-        @test TrixiParticles.cell_coords(coords2, 1.0, nothing) == (typemax(Int), 0)
-        @test TrixiParticles.cell_coords(coords3, 1.0, nothing) ==
+        @test TrixiParticles.cell_coords(coords2, nothing, (1.0, 1.0)) == (typemax(Int), 0)
+        @test TrixiParticles.cell_coords(coords3, nothing, (1.0, 1.0)) ==
               (typemax(Int), typemin(Int))
     end
 

@@ -39,6 +39,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
+    cell_size           :: NTuple{NDIMS, ELTYPE}
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            min_corner=nothing,
@@ -54,17 +55,14 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
             # No periodicity
             periodic_box = nothing
             n_cells = ntuple(_ -> -1, Val(NDIMS))
+            cell_size = ntuple(_ -> search_radius, Val(NDIMS))
         elseif min_corner !== nothing && max_corner !== nothing
             periodic_box = PeriodicBox(min_corner, max_corner)
 
-            # If box size is not an integer multiple of search radius
-            if !all(abs.(rem.(periodic_box.size / search_radius, 1, RoundNearest)) .< 1e-5)
-                # TODO allow other domain sizes
-                throw(ArgumentError("size of the periodic box must be an integer multiple " *
-                                    "of `search_radius`"))
-            end
-
-            n_cells = Tuple(round.(Int, periodic_box.size / search_radius))
+            # Allow small tolerance to avoid inefficient larger cells due to machine
+            # rounding errors.
+            n_cells = Tuple(ceil.(Int, (periodic_box.size .- 10eps()) / search_radius))
+            cell_size = Tuple(periodic_box.size ./ n_cells)
 
             if any(i -> i < 3, n_cells)
                 throw(ArgumentError("the `GridNeighborhoodSearch` needs at least 3 cells " *
@@ -78,7 +76,8 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
 
         new{NDIMS, ELTYPE,
             typeof(periodic_box)}(hashtable, search_radius, empty_vector,
-                                  cell_buffer, cell_buffer_indices, periodic_box, n_cells)
+                                  cell_buffer, cell_buffer_indices,
+                                  periodic_box, n_cells, cell_size)
     end
 end
 
@@ -250,23 +249,23 @@ end
 end
 
 @inline function cell_coords(coords, neighborhood_search)
-    @unpack search_radius, periodic_box = neighborhood_search
+    @unpack periodic_box, cell_size = neighborhood_search
 
-    return cell_coords(coords, search_radius, periodic_box)
+    return cell_coords(coords, periodic_box, cell_size)
 end
 
-@inline function cell_coords(coords, search_radius, periodic_box::Nothing)
-    return Tuple(floor_to_int.(coords / search_radius))
+@inline function cell_coords(coords, periodic_box::Nothing, cell_size)
+    return Tuple(floor_to_int.(coords ./ cell_size))
 end
 
-@inline function cell_coords(coords, search_radius, periodic_box)
+@inline function cell_coords(coords, periodic_box, cell_size)
     # Subtract `min_corner` to offset coordinates so that the min corner of the periodic
     # box corresponds to the (0, 0) cell of the NHS.
     # This way, there are no partial cells in the domain if the domain size is an integer
     # multiple of the cell size (which is required, see the constructor).
     offset_coords = periodic_coords(coords, periodic_box) .- periodic_box.min_corner
 
-    return Tuple(floor_to_int.(offset_coords / search_radius))
+    return Tuple(floor_to_int.(offset_coords ./ cell_size))
 end
 
 # When particles end up with coordinates so big that the cell coordinates
