@@ -53,7 +53,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
             # No periodicity
             periodic_box = nothing
-            n_cells = ntuple(_ -> -1, NDIMS)
+            n_cells = ntuple(_ -> -1, Val(NDIMS))
         elseif min_corner !== nothing && max_corner !== nothing
             periodic_box = PeriodicBox(min_corner, max_corner)
 
