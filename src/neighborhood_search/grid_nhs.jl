@@ -64,7 +64,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
             # cells mean that more potential neighbors are considered than necessary.
             # Allow small tolerance to avoid inefficient larger cells due to machine
             # rounding errors.
-            n_cells = Tuple(ceil.(Int, (periodic_box.size .- 10eps()) / search_radius))
+            n_cells = Tuple(floor.(Int, (periodic_box.size .+ 10eps()) / search_radius))
             cell_size = Tuple(periodic_box.size ./ n_cells)
 
             if any(i -> i < 3, n_cells)
