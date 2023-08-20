@@ -128,41 +128,66 @@
             173, 178, 179, 180, 213, 214, 215, 220, 221, 222, 227, 228, 229]
     end
 
-    @testset "Periodicity 2D" begin
-        coords = [-0.08 0.0 0.18 0.1 -0.08
-                  -0.12 -0.05 -0.09 0.15 0.39]
+    @testset verbose=true "Periodicity 2D" begin
+        @testset "Clean Example" begin
+            coords = [-0.08 0.0 0.18 0.1 -0.08
+                    -0.12 -0.05 -0.09 0.15 0.39]
 
-        # 3 x 6 cells
-        nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
-                                        min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
+            # 3 x 6 cells
+            nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
+                                            min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
 
-        TrixiParticles.initialize!(nhs, coords)
+            TrixiParticles.initialize!(nhs, coords)
 
-        neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
-                     for i in 1:5]
+            neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
+                        for i in 1:5]
 
-        # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
-        @test neighbors[1] == [1, 2, 3, 5]
-        @test neighbors[2] == [1, 2, 3]
-        @test neighbors[3] == [1, 2, 3]
-        @test neighbors[4] == [4]
-        @test neighbors[5] == [1, 5]
+            # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
+            @test neighbors[1] == [1, 2, 3, 5]
+            @test neighbors[2] == [1, 2, 3]
+            @test neighbors[3] == [1, 2, 3]
+            @test neighbors[4] == [4]
+            @test neighbors[5] == [1, 5]
 
-        neighbors_loop = [Int[] for _ in axes(coords, 2)]
+            neighbors_loop = [Int[] for _ in axes(coords, 2)]
 
-        TrixiParticles.for_particle_neighbor(Val(2), Val(2),
-                                             coords, coords, nhs,
-                                             particles=axes(coords, 2)) do particle,
-                                                                           neighbor,
-                                                                           pos_diff,
-                                                                           distance
-            append!(neighbors_loop[particle], neighbor)
+            TrixiParticles.for_particle_neighbor(Val(2), Val(2),
+                                                coords, coords, nhs,
+                                                particles=axes(coords, 2)) do particle,
+                                                                            neighbor,
+                                                                            pos_diff,
+                                                                            distance
+                append!(neighbors_loop[particle], neighbor)
+            end
+
+            @test sort(neighbors_loop[1]) == [1, 3, 5]
+            @test sort(neighbors_loop[2]) == [2]
+            @test sort(neighbors_loop[3]) == [1, 3]
+            @test sort(neighbors_loop[4]) == [4]
+            @test sort(neighbors_loop[5]) == [1, 5]
         end
 
-        @test sort(neighbors_loop[1]) == [1, 3, 5]
-        @test sort(neighbors_loop[2]) == [2]
-        @test sort(neighbors_loop[3]) == [1, 3]
-        @test sort(neighbors_loop[4]) == [4]
-        @test sort(neighbors_loop[5]) == [1, 5]
+        @testset "Offset Domain Triggering Split Cells" begin
+            # This used to trigger a "split cell bug", where the left and right boundary
+            # cells were only partially contained in the domain.
+            # The left particle was placed inside a ghost cells, which causes it to not
+            # see the right particle, even though it is within the search distance.
+            # The domain size is an integer multiple of the cell size, but the NHS did not
+            # offset the grid based on the domain position.
+            coords = [-1.4 1.9
+                      0.0 0.0]
+
+            # 5 x 1 cells
+            nhs = GridNeighborhoodSearch{2}(1.0, size(coords, 2),
+                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 1.0])
+
+            TrixiParticles.initialize!(nhs, coords)
+
+            neighbors = [sort(unique(collect(TrixiParticles.eachneighbor(coords[:, i], nhs))))
+                         for i in 1:2]
+
+            @test neighbors[1] == [1, 2]
+            @test neighbors[2] == [1, 2]
+        end
     end
 end
