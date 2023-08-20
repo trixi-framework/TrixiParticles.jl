@@ -59,6 +59,9 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         elseif min_corner !== nothing && max_corner !== nothing
             periodic_box = PeriodicBox(min_corner, max_corner)
 
+            # Round up search radius so that the grid fits exactly into the domain without
+            # splitting any cells. This might impact performance slightly, since larger
+            # cells mean that more potential neighbors are considered than necessary.
             # Allow small tolerance to avoid inefficient larger cells due to machine
             # rounding errors.
             n_cells = Tuple(ceil.(Int, (periodic_box.size .- 10eps()) / search_radius))
