@@ -161,7 +161,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # Relaxing of the fluid without solid
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
@@ -192,7 +192,7 @@ restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 ode = semidiscretize(semi, tspan)
 

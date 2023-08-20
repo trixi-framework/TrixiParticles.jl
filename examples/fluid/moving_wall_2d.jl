@@ -84,7 +84,7 @@ boundary_system_wall = BoundarySPHSystem(wall, boundary_model_wall,
 tspan = (0.0, 2.0)
 
 semi = Semidiscretization(fluid_system, boundary_system_tank, boundary_system_wall,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 ode = semidiscretize(semi, tspan)
 

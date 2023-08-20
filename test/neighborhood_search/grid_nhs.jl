@@ -1,4 +1,4 @@
-@testset verbose=true "SpatialHashingSearch" begin
+@testset verbose=true "GridNeighborhoodSearch" begin
     @testset "Coordinate Limits" begin
         # Test the threshold for very large and very small coordinates.
         coords1 = [Inf, -Inf]
@@ -25,7 +25,7 @@
         radius = particle_spacing
 
         # Create neighborhood search
-        nhs1 = SpatialHashingSearch{2}(radius, nparticles)
+        nhs1 = GridNeighborhoodSearch{2}(radius, nparticles)
 
         coords_fun(i) = coordinates1[:, i]
         TrixiParticles.initialize!(nhs1, coords_fun)
@@ -50,7 +50,7 @@
         neighbors3 = sort(collect(TrixiParticles.eachneighbor(particle_position2, nhs1)))
 
         # Double search radius
-        nhs2 = SpatialHashingSearch{2}(2 * radius, size(coordinates1, 2))
+        nhs2 = GridNeighborhoodSearch{2}(2 * radius, size(coordinates1, 2))
         TrixiParticles.initialize!(nhs2, coords_fun)
 
         # Get each neighbor in double search radius
@@ -92,7 +92,7 @@
         radius = particle_spacing
 
         # Create neighborhood search
-        nhs1 = SpatialHashingSearch{3}(radius, nparticles)
+        nhs1 = GridNeighborhoodSearch{3}(radius, nparticles)
 
         coords_fun(i) = coordinates1[:, i]
         TrixiParticles.initialize!(nhs1, coords_fun)
@@ -133,8 +133,8 @@
                   -0.12 -0.05 -0.09 0.15 0.39]
 
         # 3 x 6 cells
-        nhs = SpatialHashingSearch{2}(0.1, size(coords, 2),
-                                      min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
+        nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
+                                        min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
 
         TrixiParticles.initialize!(nhs, coords)
 
