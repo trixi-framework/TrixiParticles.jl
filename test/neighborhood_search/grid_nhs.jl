@@ -131,7 +131,7 @@
     @testset verbose=true "Periodicity 2D" begin
         @testset "Clean Example" begin
             coords = [-0.08 0.0 0.18 0.1 -0.08
-                    -0.12 -0.05 -0.09 0.15 0.39]
+                      -0.12 -0.05 -0.09 0.15 0.39]
 
             # 3 x 6 cells
             nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
@@ -140,7 +140,7 @@
             TrixiParticles.initialize!(nhs, coords)
 
             neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
-                        for i in 1:5]
+                         for i in 1:5]
 
             # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
             @test neighbors[1] == [1, 2, 3, 5]
@@ -152,11 +152,11 @@
             neighbors_loop = [Int[] for _ in axes(coords, 2)]
 
             TrixiParticles.for_particle_neighbor(Val(2), Val(2),
-                                                coords, coords, nhs,
-                                                particles=axes(coords, 2)) do particle,
-                                                                            neighbor,
-                                                                            pos_diff,
-                                                                            distance
+                                                 coords, coords, nhs,
+                                                 particles=axes(coords, 2)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
                 append!(neighbors_loop[particle], neighbor)
             end
 
