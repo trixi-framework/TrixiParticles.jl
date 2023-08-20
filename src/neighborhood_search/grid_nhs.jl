@@ -65,6 +65,12 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
             end
 
             n_cells = Tuple(round.(Int, periodic_box.size / search_radius))
+
+            if any(i -> i < 3, n_cells)
+                throw(ArgumentError("the `GridNeighborhoodSearch` needs at least 3 cells " *
+                                    "in each dimension when used with periodicity. " *
+                                    "Please use no NHS for very small problems."))
+            end
         else
             throw(ArgumentError("`min_corner` and `max_corner` must either be " *
                                 "both `nothing` or both an array or tuple"))
