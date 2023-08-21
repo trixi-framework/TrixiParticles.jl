@@ -23,6 +23,7 @@ using ForwardDiff
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
+include("neighborhood_search/neighborhood_search.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
