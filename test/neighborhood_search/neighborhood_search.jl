@@ -1,2 +1,2 @@
 include("trivial_nhs.jl")
-include("spatial_hashing_search.jl")
+include("grid_nhs.jl")

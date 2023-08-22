@@ -86,7 +86,7 @@ for correction_name in keys(correction_dict)
     reset_wall!(tank, reset_faces, positions)
 
     semi = Semidiscretization(particle_system, boundary_system,
-                              neighborhood_search=SpatialHashingSearch,
+                              neighborhood_search=GridNeighborhoodSearch,
                               damping_coefficient=1e-5)
 
     tspan = (0.0, 3.0)
@@ -122,7 +122,7 @@ for correction_name in keys(correction_dict)
     restart_with!(semi, sol)
 
     semi = Semidiscretization(particle_system, boundary_system,
-                              neighborhood_search=SpatialHashingSearch)
+                              neighborhood_search=GridNeighborhoodSearch)
     ode = semidiscretize(semi, tspan)
 
     saving_callback = SolutionSavingCallback(dt=0.02,

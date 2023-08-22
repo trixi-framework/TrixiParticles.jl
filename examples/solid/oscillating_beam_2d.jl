@@ -56,7 +56,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(solid_system, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
 tspan = (0.0, 5.0)
 
 ode = semidiscretize(semi, tspan)

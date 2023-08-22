@@ -1,13 +1,11 @@
 @doc raw"""
-    SpatialHashingSearch{NDIMS}(search_radius, n_particles)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles)
 
-Simple grid-based neighborhood search with uniform search radius ``d``,
-inspired by (Ihmsen et al. 2011, Section 4.4).
-
-The domain is divided into cells of uniform size ``d`` in each dimension.
-Only particles in neighboring cells are then considered as neighbors of a particle.
-Instead of representing a finite domain by an array of cells (basic uniform grid),
-a potentially infinite domain is represented by saving cells in a hash table,
+Simple grid-based neighborhood search with uniform search radius ``d``.
+The domain is divided into a regular grid.
+For each (non-empty) grid cell, a list of particles in this cell is stored.
+Instead of representing a finite domain by an array of cells, a potentially infinite domain
+is represented by storing cell lists in a hash table (using Julia's `Dict` data structure),
 indexed by the cell index tuple
 ```math
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor \right) \quad \text{or} \quad
@@ -15,18 +13,25 @@ indexed by the cell index tuple
 ```
 where ``x, y, z`` are the space coordinates.
 
-As opposed to (Ihmsen et al. 2011), we do not handle the hashing explicitly and use
-Julia's `Dict` data structure instead.
-We also do not sort the particles in any way, since that makes our implementation
-a lot faster (although not parallelizable).
+To find particles within a radius around a point, only particles in the neighboring cells
+are considered.
+
+See also (Chalela et al., 2021), (Ihmsen et al. 2011, Section 4.4).
+
+As opposed to (Ihmsen et al. 2011), we do not sort the particles in any way,
+since that makes our implementation a lot faster (although less parallelizable).
 
 ## References:
+- M. Chalela, E. Sillero, L. Pereyra, M.A. Garcia, J.B. Cabral, M. Lares, M. Merchán.
+  "GriSPy: A Python package for fixed-radius nearest neighbors search".
+  In: Astronomy and Computing 34 (2021).
+  [doi: 10.1016/j.ascom.2020.100443](https://doi.org/10.1016/j.ascom.2020.100443)
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
   "A Parallel SPH Implementation on Multi-Core CPUs".
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
-struct SpatialHashingSearch{NDIMS, ELTYPE, PB}
+struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     hashtable             :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     search_radius         :: ELTYPE
     empty_vector          :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
@@ -35,9 +40,9 @@ struct SpatialHashingSearch{NDIMS, ELTYPE, PB}
     periodic_box          :: PB
     bound_and_ghost_cells :: Vector{NTuple{NDIMS, Int}}
 
-    function SpatialHashingSearch{NDIMS}(search_radius, n_particles;
-                                         min_corner=nothing,
-                                         max_corner=nothing) where {NDIMS}
+    function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
+                                           min_corner=nothing,
+                                           max_corner=nothing) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -134,23 +139,23 @@ function initialize_boundary_and_ghost_cells(hashtable, min_cell, max_cell)
     return collect(keys(hashtable))
 end
 
-@inline Base.ndims(neighborhood_search::SpatialHashingSearch{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.ndims(neighborhood_search::GridNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
 
-@inline function nparticles(neighborhood_search::SpatialHashingSearch)
+@inline function nparticles(neighborhood_search::GridNeighborhoodSearch)
     return size(neighborhood_search.cell_buffer, 1)
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function initialize!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
     # No particle coordinates function -> don't initialize.
     return neighborhood_search
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
+function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
                      x::AbstractArray) where {NDIMS}
     initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
+function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
     @unpack hashtable, bound_and_ghost_cells = neighborhood_search
 
     # Delete all cells that are not boundary or ghost cells
@@ -184,18 +189,18 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
     return neighborhood_search
 end
 
-function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function update!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
     # No particle coordinates function -> don't update.
     return neighborhood_search
 end
 
-function update!(neighborhood_search::SpatialHashingSearch{NDIMS},
+function update!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
                  x::AbstractArray) where {NDIMS}
     update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
 # Modify the existing hash table by moving particles into their new cells
-function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
+function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
     @unpack hashtable, cell_buffer, cell_buffer_indices,
     bound_and_ghost_cells = neighborhood_search
 
@@ -270,7 +275,7 @@ end
     end
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
     cell = cell_coords(coords, neighborhood_search)
     x, y = cell
     # Generator of all neighboring cells to consider
@@ -281,7 +286,7 @@ end
                       for cell in neighboring_cells)
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{3})
     cell = cell_coords(coords, neighborhood_search)
     x, y, z = cell
     # Generator of all neighboring cells to consider

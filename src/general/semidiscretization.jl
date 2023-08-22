@@ -8,7 +8,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=GridNeighborhoodSearch, damping_coefficient=nothing)
 ```
 """
 struct Semidiscretization{S, RU, RV, NS, DC}
@@ -84,12 +84,12 @@ function create_neighborhood_search(system, neighbor, ::Val{nothing},
                                              min_corner=min_corner, max_corner=max_corner)
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
+function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
                                     min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor),
-                                                 min_corner=min_corner,
-                                                 max_corner=max_corner)
+    search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                   min_corner=min_corner,
+                                                   max_corner=max_corner)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
