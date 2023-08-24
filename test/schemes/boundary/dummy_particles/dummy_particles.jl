@@ -10,7 +10,7 @@
         # Boundary particles out of fluid compact support
         boundary_3 = RectangularShape(particle_spacing, (10, 1), (0, 0), 257.0)
 
-        boundary = InitialCondition(boundary_1, boundary_2, boundary_3)
+        boundary = union(boundary_1, boundary_2, boundary_3)
 
         particles_in_compact_support = length(boundary_1.mass) + length(boundary_2.mass)
 

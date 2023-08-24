@@ -8,7 +8,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=GridNeighborhoodSearch, damping_coefficient=nothing)
 ```
 """
 struct Semidiscretization{S, RU, RV, NS, DC}
@@ -84,15 +84,15 @@ function create_neighborhood_search(system, neighbor, ::Val{nothing},
                                              min_corner=min_corner, max_corner=max_corner)
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch},
+function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
                                     min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor),
-                                                 min_corner=min_corner,
-                                                 max_corner=max_corner)
+    search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                   min_corner=min_corner,
+                                                   max_corner=max_corner)
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(system, neighbor))
+    initialize!(search, initial_coordinates(neighbor))
 
     return search
 end
@@ -102,48 +102,34 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                                 neighbor)
-    return compact_support(system, system.boundary_model, neighbor)
-end
-
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
     @unpack smoothing_kernel, smoothing_length = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system, model, neighbor)
-    # This NHS is never used.
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+                                 neighbor)
+    return compact_support(system, system.boundary_model, neighbor)
+end
+
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+                                 neighbor::BoundarySPHSystem)
+    # This NHS is never used
     return 0.0
 end
 
+@inline function compact_support(system, model, neighbor)
+    # Use the compact support of the fluid for solid-fluid interaction
+    return compact_support(neighbor, system)
+end
+
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
+    # interaction. Dummy particle BC use the model's compact support, which is also used
+    # for density summations.
     @unpack smoothing_kernel, smoothing_length = model
     return compact_support(smoothing_kernel, smoothing_length)
-end
-
-function nhs_init_function(system, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::TotalLagrangianSPHSystem,
-                           neighbor::TotalLagrangianSPHSystem)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                           neighbor)
-    return nhs_init_function(system, system.boundary_model, neighbor)
-end
-
-function nhs_init_function(system, model::BoundaryModelDummyParticles, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system, model, neighbor)
-    # This NHS is never used. Don't initialize NHS.
-    return nothing
 end
 
 """
@@ -151,12 +137,19 @@ end
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
-function semidiscretize(semi, tspan)
+function semidiscretize(semi, tspan; reset_threads=true)
     @unpack systems, neighborhood_searches = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
     ELTYPE = eltype(systems[1])
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
@@ -199,8 +192,15 @@ in the solution `sol`.
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
-function restart_with!(semi, sol)
+function restart_with!(semi, sol; reset_threads=true)
     @unpack systems = semi
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(sol[end].x[1], system_index, system, semi)

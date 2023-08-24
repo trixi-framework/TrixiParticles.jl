@@ -120,7 +120,7 @@ solid_system_2 = TotalLagrangianSPHSystem(sphere_2,
 
 semi = Semidiscretization(fluid_system, boundary_system, solid_system_1,
                           solid_system_2,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

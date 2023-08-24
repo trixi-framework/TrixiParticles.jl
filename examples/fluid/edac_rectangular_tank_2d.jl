@@ -23,7 +23,7 @@ tank_height = 1.0
 sound_speed = 10 * sqrt(9.81 * water_height)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergQuinticSplineKernel{2}()#SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 alpha = 0.02
 viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
@@ -35,8 +35,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              viscosity=viscosity,
                                              smoothing_kernel, smoothing_length)
@@ -58,7 +57,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

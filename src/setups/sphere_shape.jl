@@ -112,7 +112,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure)
+    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
+                            particle_spacing=particle_spacing)
 end
 
 """
