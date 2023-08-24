@@ -311,8 +311,18 @@ end
     return cell_coords(coords, search_radius, periodic_box)
 end
 
+@inline function cell_coords(coords, search_radius, periodic_box::Nothing)
+    return Tuple(floor_to_int.(coords / search_radius))
+end
+
 @inline function cell_coords(coords, search_radius, periodic_box)
-    return Tuple(floor_to_int.(periodic_coords(coords, periodic_box) / search_radius))
+    # Subtract `min_corner` to offset coordinates so that the min corner of the periodic
+    # box corresponds to the (0, 0) cell of the NHS.
+    # This way, there are no partial cells in the domain if the domain size is an integer
+    # multiple of the cell size (which is required, see the constructor).
+    offset_coords = periodic_coords(coords, periodic_box) .- periodic_box.min_corner
+
+    return Tuple(floor_to_int.(offset_coords / search_radius))
 end
 
 # When particles end up with coordinates so big that the cell coordinates
