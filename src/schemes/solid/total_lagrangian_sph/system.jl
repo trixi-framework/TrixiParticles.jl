@@ -248,14 +248,14 @@ end
 end
 
 function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
-    @unpack correction_matrix = system
+    (; correction_matrix) = system
 
     # Calculate kernel correction matrix
     calc_correction_matrix!(correction_matrix, neighborhood_search, system)
 end
 
 function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
-    @unpack mass, material_density = system
+    (; mass, material_density) = system
 
     set_zero!(corr_matrix)
 
@@ -297,7 +297,7 @@ end
 
 function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
                            v_ode, u_ode, semi, t)
-    @unpack current_coordinates = system
+    (; current_coordinates) = system
 
     for particle in each_moving_particle(system)
         for i in 1:ndims(system)
@@ -308,7 +308,7 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
-    @unpack neighborhood_searches = semi
+    (; neighborhood_searches) = semi
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[system_index][system_index]
@@ -320,14 +320,14 @@ end
 
 function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
                        semi, t)
-    @unpack boundary_model = system
+    (; boundary_model) = system
 
     # Only update boundary model
     update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, system)
-    @unpack deformation_grad = system
+    (; deformation_grad) = system
 
     calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
@@ -343,7 +343,7 @@ end
 end
 
 @inline function calc_deformation_grad!(deformation_grad, neighborhood_search, system)
-    @unpack mass, material_density = system
+    (; mass, material_density) = system
 
     # Reset deformation gradient
     set_zero!(deformation_grad)
@@ -387,7 +387,7 @@ end
 
 # Second Piola-Kirchhoff stress tensor
 @inline function pk2_stress_tensor(J, system)
-    @unpack lame_lambda, lame_mu = system
+    (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
     E = 0.5 * (transpose(J) * J - I)
@@ -401,7 +401,7 @@ end
 end
 
 function write_u0!(u0, system::TotalLagrangianSPHSystem)
-    @unpack initial_condition = system
+    (; initial_condition) = system
 
     for particle in each_moving_particle(system)
         # Write particle coordinates
@@ -414,7 +414,7 @@ function write_u0!(u0, system::TotalLagrangianSPHSystem)
 end
 
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
-    @unpack initial_condition, boundary_model = system
+    (; initial_condition, boundary_model) = system
 
     for particle in each_moving_particle(system)
         # Write particle velocities
@@ -433,7 +433,7 @@ function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPH
 end
 
 function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
-    @unpack density_calculator = system.boundary_model
+    (; density_calculator) = system.boundary_model
 
     write_v0!(v0, density_calculator, system)
 end
@@ -443,8 +443,8 @@ function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
 end
 
 function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
+    (; cache) = system.boundary_model
+    (; initial_density) = cache
 
     for particle in each_moving_particle(system)
         # Set particle densities

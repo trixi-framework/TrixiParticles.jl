@@ -15,7 +15,6 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-@reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 using ForwardDiff
 

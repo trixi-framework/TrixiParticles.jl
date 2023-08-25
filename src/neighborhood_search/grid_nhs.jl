@@ -101,7 +101,7 @@ function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
 end
 
 function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    @unpack hashtable = neighborhood_search
+    (; hashtable) = neighborhood_search
 
     empty!(hashtable)
 
@@ -136,7 +136,7 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
@@ -193,7 +193,7 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
-    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
 
     for particle in hashtable[cell]
         if cell_coords(coords_fun(particle), neighborhood_search) != cell
@@ -231,7 +231,7 @@ end
 end
 
 @inline function particles_in_cell(cell_index, neighborhood_search)
-    @unpack hashtable, empty_vector = neighborhood_search
+    (; hashtable, empty_vector) = neighborhood_search
 
     # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
@@ -240,7 +240,7 @@ end
 end
 
 @inline function periodic_cell_index(cell_index, neighborhood_search)
-    @unpack n_cells, periodic_box = neighborhood_search
+    (; n_cells, periodic_box) = neighborhood_search
 
     periodic_cell_index(cell_index, periodic_box, n_cells)
 end
@@ -252,7 +252,7 @@ end
 end
 
 @inline function cell_coords(coords, neighborhood_search)
-    @unpack periodic_box, cell_size = neighborhood_search
+    (; periodic_box, cell_size) = neighborhood_search
 
     return cell_coords(coords, periodic_box, cell_size)
 end
@@ -294,7 +294,7 @@ end
 # end up very unordered.
 # WARNING: This is currently unmaintained.
 function z_index_sort!(coordinates, system)
-    @unpack mass, pressure, neighborhood_search = system
+    (; mass, pressure, neighborhood_search) = system
 
     perm = sortperm(eachparticle(system),
                     by=(i -> cell_z_index(extract_svector(coordinates, system, i),

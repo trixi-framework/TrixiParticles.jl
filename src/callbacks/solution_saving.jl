@@ -120,7 +120,7 @@ end
 
 # condition
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
-    @unpack interval, save_final_solution = solution_callback
+    (; interval, save_final_solution) = solution_callback
 
     # With error-based step size control, some steps can be rejected. Thus,
     #   `integrator.iter >= integrator.stats.naccept`
@@ -134,7 +134,7 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    @unpack interval, output_directory, custom_quantities, verbose, prefix, latest_saved_iter = solution_callback
+    (; interval, output_directory, custom_quantities, verbose, prefix, latest_saved_iter) = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p

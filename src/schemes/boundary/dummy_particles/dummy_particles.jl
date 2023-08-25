@@ -169,7 +169,7 @@ function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
 end
 
 function reset_cache!(cache, viscosity)
-    @unpack density, volume = cache
+    (; density, volume) = cache
 
     set_zero!(density)
     set_zero!(volume)
@@ -178,7 +178,7 @@ function reset_cache!(cache, viscosity)
 end
 
 function reset_cache!(cache, viscosity::ViscosityAdami)
-    @unpack density, volume, wall_velocity = cache
+    (; density, volume, wall_velocity) = cache
 
     set_zero!(density)
     set_zero!(volume)
@@ -193,15 +193,15 @@ end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
 @inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
-    @unpack cache = boundary_model
+    (; cache) = boundary_model
 
     return cache.density[particle]
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack pressure, density_calculator = boundary_model
-    @unpack systems, neighborhood_searches = semi
+    (; pressure, density_calculator) = boundary_model
+    (; systems, neighborhood_searches) = semi
 
     compute_density!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                      u_ode, semi)
@@ -219,7 +219,7 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack density_calculator = boundary_model
+    (; density_calculator) = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                       u_ode, semi)
@@ -229,8 +229,8 @@ end
 
 function compute_density!(boundary_model, ::SummationDensity,
                           system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack cache = boundary_model
-    @unpack density = cache # Density is in the cache for SummationDensity
+    (; cache) = boundary_model
+    (; density) = cache # Density is in the cache for SummationDensity
 
     summation_density!(system, system_index, semi, u, u_ode, density,
                        particles=eachparticle(system))
@@ -238,7 +238,7 @@ end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
                            system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack state_equation, pressure = boundary_model
+    (; state_equation, pressure) = boundary_model
 
     for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
@@ -249,9 +249,9 @@ end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                            system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack pressure, state_equation, cache, viscosity = boundary_model
-    @unpack volume, density = cache
+    (; systems, neighborhood_searches) = semi
+    (; pressure, state_equation, cache, viscosity) = boundary_model
+    (; volume, density) = cache
 
     set_zero!(pressure)
 
@@ -298,7 +298,7 @@ end
                                                neighbor_system::WeaklyCompressibleSPHSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
-    @unpack pressure, cache, viscosity = boundary_model
+    (; pressure, cache, viscosity) = boundary_model
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system,
@@ -358,9 +358,9 @@ end
 
 @inline function compute_wall_velocity!(viscosity::ViscosityAdami, system,
                                         system_coords, particle)
-    @unpack boundary_model = system
-    @unpack cache = boundary_model
-    @unpack volume, wall_velocity = cache
+    (; boundary_model) = system
+    (; cache) = boundary_model
+    (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
     # This velocity is zero when not using moving boundaries.
