@@ -71,8 +71,6 @@ vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
 function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
-    (; density_calculator, cache) = system
-
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]

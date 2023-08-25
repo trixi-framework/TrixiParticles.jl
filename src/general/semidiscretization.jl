@@ -215,7 +215,7 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, i, system, semi)
-    (; systems, ranges_u) = semi
+    (; ranges_u) = semi
 
     range = ranges_u[i]
 
@@ -232,7 +232,7 @@ end
 end
 
 @inline function wrap_v(v_ode, i, system, semi)
-    (; systems, ranges_v) = semi
+    (; ranges_v) = semi
 
     range = ranges_v[i]
 
@@ -279,8 +279,6 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    (; systems, neighborhood_searches) = semi
-
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 

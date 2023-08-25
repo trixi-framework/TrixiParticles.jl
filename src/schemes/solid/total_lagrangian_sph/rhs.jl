@@ -61,7 +61,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
     (; boundary_model) = particle_system
-    (; state_equation, viscosity, smoothing_length) = neighbor_system
+    (; state_equation, viscosity) = neighbor_system
     (; sound_speed) = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)

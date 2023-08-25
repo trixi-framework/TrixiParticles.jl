@@ -54,7 +54,7 @@ end
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, system,
                                      penalty_force::PenaltyForceGanzenmueller)
-    (; mass, material_density, current_coordinates, young_modulus) = system
+    (; mass, material_density, young_modulus) = system
 
     current_pos_diff = current_coords(system, particle) -
                        current_coords(system, neighbor)

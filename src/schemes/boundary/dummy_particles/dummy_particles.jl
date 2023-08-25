@@ -200,8 +200,7 @@ end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, system_index, v, u, v_ode, u_ode, semi)
-    (; pressure, density_calculator) = boundary_model
-    (; systems, neighborhood_searches) = semi
+    (; density_calculator) = boundary_model
 
     compute_density!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                      u_ode, semi)
