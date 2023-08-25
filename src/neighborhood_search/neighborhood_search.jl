@@ -95,7 +95,7 @@ end
 
 @inline function periodic_coords(coords, periodic_box)
     (; min_corner, size) = periodic_box
-    
+
     # Move coordinates into the periodic box
     box_offset = floor.((coords .- min_corner) ./ size)
 
