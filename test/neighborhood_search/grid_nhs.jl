@@ -5,10 +5,10 @@
         coords2 = [NaN, 0]
         coords3 = [typemax(Int) + 1.0, -typemax(Int) - 1.0]
 
-        @test TrixiParticles.cell_coords(coords1, 1.0, nothing) ==
+        @test TrixiParticles.cell_coords(coords1, nothing, (1.0, 1.0)) ==
               (typemax(Int), typemin(Int))
-        @test TrixiParticles.cell_coords(coords2, 1.0, nothing) == (typemax(Int), 0)
-        @test TrixiParticles.cell_coords(coords3, 1.0, nothing) ==
+        @test TrixiParticles.cell_coords(coords2, nothing, (1.0, 1.0)) == (typemax(Int), 0)
+        @test TrixiParticles.cell_coords(coords3, nothing, (1.0, 1.0)) ==
               (typemax(Int), typemin(Int))
     end
 
@@ -129,7 +129,7 @@
     end
 
     @testset verbose=true "Periodicity 2D" begin
-        @testset "Clean Example" begin
+        @testset "Simple Example" begin
             coords = [-0.08 0.0 0.18 0.1 -0.08
                       -0.12 -0.05 -0.09 0.15 0.39]
 
@@ -151,7 +151,46 @@
 
             neighbors_loop = [Int[] for _ in axes(coords, 2)]
 
-            TrixiParticles.for_particle_neighbor(Val(2), Val(2),
+            TrixiParticles.for_particle_neighbor(nothing, nothing,
+                                                 coords, coords, nhs,
+                                                 particles=axes(coords, 2)) do particle,
+                                                                               neighbor,
+                                                                               pos_diff,
+                                                                               distance
+                append!(neighbors_loop[particle], neighbor)
+            end
+
+            @test sort(neighbors_loop[1]) == [1, 3, 5]
+            @test sort(neighbors_loop[2]) == [2]
+            @test sort(neighbors_loop[3]) == [1, 3]
+            @test sort(neighbors_loop[4]) == [4]
+            @test sort(neighbors_loop[5]) == [1, 5]
+        end
+
+        @testset "Rounding Up Cell Sizes" begin
+            coords = [-0.08 0.0 0.18 0.1 -0.08
+                      -0.12 -0.05 -0.09 0.15 0.42]
+
+            # 3 x 6 cells
+            nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
+                                            min_corner=[-0.1, -0.2],
+                                            max_corner=[0.205, 0.43])
+
+            TrixiParticles.initialize!(nhs, coords)
+
+            neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
+                         for i in 1:5]
+
+            # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
+            @test neighbors[1] == [1, 2, 3, 5]
+            @test neighbors[2] == [1, 2, 3]
+            @test neighbors[3] == [1, 2, 3]
+            @test neighbors[4] == [4]
+            @test neighbors[5] == [1, 5]
+
+            neighbors_loop = [Int[] for _ in axes(coords, 2)]
+
+            TrixiParticles.for_particle_neighbor(nothing, nothing,
                                                  coords, coords, nhs,
                                                  particles=axes(coords, 2)) do particle,
                                                                                neighbor,
@@ -181,7 +220,7 @@
 
             # 5 x 1 cells
             nhs = GridNeighborhoodSearch{2}(1.0, size(coords, 2),
-                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 1.0])
+                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 3.0])
 
             TrixiParticles.initialize!(nhs, coords)
 
@@ -191,5 +230,41 @@
             @test neighbors[1] == [1, 2]
             @test neighbors[2] == [1, 2]
         end
+    end
+
+    @testset verbose=true "Periodicity 3D" begin
+        coords = [-0.08 0.0 0.18 0.1 -0.08
+                  -0.12 -0.05 -0.09 0.15 0.39
+                  0.14 0.34 0.12 0.06 0.13]
+
+        # 3 x 6 x 3 cells
+        nhs = GridNeighborhoodSearch{3}(0.1, size(coords, 2),
+                                        min_corner=[-0.1, -0.2, 0.05],
+                                        max_corner=[0.2, 0.4, 0.35])
+
+        TrixiParticles.initialize!(nhs, coords)
+
+        neighbors = [sort(collect(TrixiParticles.eachneighbor(coords[:, i], nhs)))
+                     for i in 1:5]
+
+        # Note that (1, 2) and (2, 3) are not neighbors, but they are in neighboring cells
+        @test neighbors[1] == [1, 2, 3, 5]
+        @test neighbors[2] == [1, 2, 3]
+        @test neighbors[3] == [1, 2, 3]
+        @test neighbors[4] == [4]
+        @test neighbors[5] == [1, 5]
+
+        neighbors_loop = [Int[] for _ in axes(coords, 2)]
+
+        TrixiParticles.for_particle_neighbor(coords, coords,
+                                             nhs) do particle, neighbor, pos_diff, distance
+            append!(neighbors_loop[particle], neighbor)
+        end
+
+        @test sort(neighbors_loop[1]) == [1, 3, 5]
+        @test sort(neighbors_loop[2]) == [2]
+        @test sort(neighbors_loop[3]) == [1, 3]
+        @test sort(neighbors_loop[4]) == [4]
+        @test sort(neighbors_loop[5]) == [1, 5]
     end
 end

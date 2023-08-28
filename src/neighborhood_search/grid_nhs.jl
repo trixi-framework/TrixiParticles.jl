@@ -32,13 +32,14 @@ since that makes our implementation a lot faster (although less parallelizable).
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
 struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
-    hashtable             :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    search_radius         :: ELTYPE
-    empty_vector          :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
-    cell_buffer           :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
-    cell_buffer_indices   :: Vector{Int} # Store which entries of `cell_buffer` are initialized
-    periodic_box          :: PB
-    bound_and_ghost_cells :: Vector{NTuple{NDIMS, Int}}
+    hashtable           :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    search_radius       :: ELTYPE
+    empty_vector        :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
+    cell_buffer         :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
+    cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
+    periodic_box        :: PB
+    n_cells             :: NTuple{NDIMS, Int}
+    cell_size           :: NTuple{NDIMS, ELTYPE}
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            min_corner=nothing,
@@ -53,33 +54,24 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
             # No periodicity
             periodic_box = nothing
-            bound_and_ghost_cells = NTuple{NDIMS, Int}[]
+            n_cells = ntuple(_ -> -1, Val(NDIMS))
+            cell_size = ntuple(_ -> search_radius, Val(NDIMS))
         elseif min_corner !== nothing && max_corner !== nothing
-            if NDIMS == 3
-                throw(ArgumentError("periodic neighborhood search is not yet supported in 3D"))
-            end
-
             periodic_box = PeriodicBox(min_corner, max_corner)
 
-            # If box size is not an integer multiple of search radius
-            if !all(abs.(rem.(periodic_box.size / search_radius, 1, RoundNearest)) .< 1e-5)
-                # TODO allow other domain sizes
-                throw(ArgumentError("size of the periodic box must be an integer multiple " *
-                                    "of `search_radius`"))
+            # Round up search radius so that the grid fits exactly into the domain without
+            # splitting any cells. This might impact performance slightly, since larger
+            # cells mean that more potential neighbors are considered than necessary.
+            # Allow small tolerance to avoid inefficient larger cells due to machine
+            # rounding errors.
+            n_cells = Tuple(floor.(Int, (periodic_box.size .+ 10eps()) / search_radius))
+            cell_size = Tuple(periodic_box.size ./ n_cells)
+
+            if any(i -> i < 3, n_cells)
+                throw(ArgumentError("the `GridNeighborhoodSearch` needs at least 3 cells " *
+                                    "in each dimension when used with periodicity. " *
+                                    "Please use no NHS for very small problems."))
             end
-
-            # Get cell index of min and max corner cells
-            min_cell = cell_coords(min_corner .+
-                                   0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
-                                   search_radius, periodic_box)
-            max_cell = cell_coords(max_corner .-
-                                   0.5 * search_radius * ones(SVector{NDIMS, ELTYPE}),
-                                   search_radius, periodic_box)
-
-            # Initialize boundary cells with empty lists and set ghost cells to pointers
-            # to these lists.
-            bound_and_ghost_cells = initialize_boundary_and_ghost_cells(hashtable,
-                                                                        min_cell, max_cell)
         else
             throw(ArgumentError("`min_corner` and `max_corner` must either be " *
                                 "both `nothing` or both an array or tuple"))
@@ -88,55 +80,8 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         new{NDIMS, ELTYPE,
             typeof(periodic_box)}(hashtable, search_radius, empty_vector,
                                   cell_buffer, cell_buffer_indices,
-                                  periodic_box, bound_and_ghost_cells)
+                                  periodic_box, n_cells, cell_size)
     end
-end
-
-# Initialize boundary cells with empty lists and set ghost cells to pointers to these lists
-function initialize_boundary_and_ghost_cells(hashtable, min_cell, max_cell)
-    # To make sure that the hashtable starts empty.
-    # Then, we can just return the keyset after we initialized all boundary and ghost cells.
-    empty!(hashtable)
-
-    # Initialize boundary and ghost cells
-    for y in min_cell[2]:max_cell[2]
-        # -x boundary cells
-        hashtable[(min_cell[1], y)] = Int[]
-
-        # +x boundary cells
-        hashtable[(max_cell[1], y)] = Int[]
-
-        # -x ghost cells
-        hashtable[(min_cell[1] - 1, y)] = hashtable[(max_cell[1], y)]
-
-        # +x ghost cells
-        hashtable[(max_cell[1] + 1, y)] = hashtable[(min_cell[1], y)]
-    end
-
-    for x in min_cell[1]:max_cell[1]
-        # Avoid setting corner boundary cells again
-        if min_cell[1] < x < max_cell[1]
-            # -y boundary cells
-            hashtable[(x, min_cell[2])] = Int[]
-
-            # +y boundary cells
-            hashtable[(x, max_cell[2])] = Int[]
-        end
-
-        # -y ghost cells
-        hashtable[(x, min_cell[2] - 1)] = hashtable[(x, max_cell[2])]
-
-        # +y ghost cells
-        hashtable[(x, max_cell[2] + 1)] = hashtable[(x, min_cell[2])]
-    end
-
-    # Corner ghost cells
-    hashtable[(min_cell[1] - 1, min_cell[2] - 1)] = hashtable[(max_cell[1], max_cell[2])]
-    hashtable[(max_cell[1] + 1, min_cell[2] - 1)] = hashtable[(min_cell[1], max_cell[2])]
-    hashtable[(min_cell[1] - 1, max_cell[2] + 1)] = hashtable[(max_cell[1], min_cell[2])]
-    hashtable[(max_cell[1] + 1, max_cell[2] + 1)] = hashtable[(min_cell[1], min_cell[2])]
-
-    return collect(keys(hashtable))
 end
 
 @inline Base.ndims(neighborhood_search::GridNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
@@ -156,19 +101,9 @@ function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
 end
 
 function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    @unpack hashtable, bound_and_ghost_cells = neighborhood_search
+    @unpack hashtable = neighborhood_search
 
-    # Delete all cells that are not boundary or ghost cells
-    for cell in keys(hashtable)
-        if !(cell in bound_and_ghost_cells)
-            delete!(hashtable, cell)
-        end
-    end
-
-    # Empty boundary cells
-    for cell in bound_and_ghost_cells
-        empty!(hashtable[cell])
-    end
+    empty!(hashtable)
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
@@ -201,8 +136,7 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    @unpack hashtable, cell_buffer, cell_buffer_indices,
-    bound_and_ghost_cells = neighborhood_search
+    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
@@ -243,8 +177,7 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
             end
 
             # Remove moved particles from this cell or delete the cell if it is now empty
-            if !(cell in bound_and_ghost_cells) &&
-               count(_ -> true, moved_particle_indices) == length(particles)
+            if count(_ -> true, moved_particle_indices) == length(particles)
                 delete!(hashtable, cell)
             else
                 deleteat!(particles, moved_particle_indices)
@@ -302,27 +235,40 @@ end
 
     # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
-    return get(hashtable, cell_index, empty_vector)
+    return get(hashtable, periodic_cell_index(cell_index, neighborhood_search),
+               empty_vector)
+end
+
+@inline function periodic_cell_index(cell_index, neighborhood_search)
+    @unpack n_cells, periodic_box = neighborhood_search
+
+    periodic_cell_index(cell_index, periodic_box, n_cells)
+end
+
+@inline periodic_cell_index(cell_index, ::Nothing, n_cells) = cell_index
+
+@inline function periodic_cell_index(cell_index, periodic_box, n_cells)
+    return rem.(cell_index, n_cells, RoundDown)
 end
 
 @inline function cell_coords(coords, neighborhood_search)
-    @unpack search_radius, periodic_box = neighborhood_search
+    @unpack periodic_box, cell_size = neighborhood_search
 
-    return cell_coords(coords, search_radius, periodic_box)
+    return cell_coords(coords, periodic_box, cell_size)
 end
 
-@inline function cell_coords(coords, search_radius, periodic_box::Nothing)
-    return Tuple(floor_to_int.(coords / search_radius))
+@inline function cell_coords(coords, periodic_box::Nothing, cell_size)
+    return Tuple(floor_to_int.(coords ./ cell_size))
 end
 
-@inline function cell_coords(coords, search_radius, periodic_box)
+@inline function cell_coords(coords, periodic_box, cell_size)
     # Subtract `min_corner` to offset coordinates so that the min corner of the periodic
     # box corresponds to the (0, 0) cell of the NHS.
     # This way, there are no partial cells in the domain if the domain size is an integer
     # multiple of the cell size (which is required, see the constructor).
     offset_coords = periodic_coords(coords, periodic_box) .- periodic_box.min_corner
 
-    return Tuple(floor_to_int.(offset_coords / search_radius))
+    return Tuple(floor_to_int.(offset_coords ./ cell_size))
 end
 
 # When particles end up with coordinates so big that the cell coordinates

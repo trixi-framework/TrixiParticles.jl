@@ -17,8 +17,8 @@ water_density = 1000.0
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-tank_width = 0.96
-tank_height = 0.48
+tank_width = 1.0
+tank_height = 0.5
 
 water_width = tank_width
 water_height = tank_height
@@ -63,8 +63,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch,
-                          periodic_box_min_corner=[0.0, -0.24],
-                          periodic_box_max_corner=[0.96, 0.72])
+                          periodic_box_min_corner=[0.0, -0.25],
+                          periodic_box_max_corner=[1.0, 0.75])
 
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
