@@ -53,7 +53,7 @@ end
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function for_particle_neighbor_inner(f, system_coords, neighbor_system_coords,
                                              neighborhood_search, particle)
-    @unpack search_radius, periodic_box = neighborhood_search
+    (; search_radius, periodic_box) = neighborhood_search
 
     particle_coords = extract_svector(system_coords, Val(ndims(neighborhood_search)),
                                       particle)
@@ -94,7 +94,8 @@ end
 end
 
 @inline function periodic_coords(coords, periodic_box)
-    @unpack min_corner, size = periodic_box
+    (; min_corner, size) = periodic_box
+
     # Move coordinates into the periodic box
     box_offset = floor.((coords .- min_corner) ./ size)
 

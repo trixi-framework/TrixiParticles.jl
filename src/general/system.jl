@@ -67,12 +67,12 @@ end
 end
 
 @inline function smoothing_kernel(system, distance)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
 @inline function smoothing_kernel_deriv(system, distance)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 

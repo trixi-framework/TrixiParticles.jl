@@ -47,7 +47,7 @@ end
 
 # condition
 function (info_callback::InfoCallback)(u, t, integrator)
-    @unpack interval = info_callback
+    (; interval) = info_callback
 
     return interval != 0 &&
            integrator.stats.naccept % interval == 0 ||
