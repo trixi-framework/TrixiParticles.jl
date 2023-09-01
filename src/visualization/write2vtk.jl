@@ -1,6 +1,6 @@
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding

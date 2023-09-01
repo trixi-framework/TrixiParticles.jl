@@ -98,13 +98,13 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
 end
 
 @inline function compact_support(system, neighbor)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
@@ -128,7 +128,7 @@ end
     # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
     # interaction. Dummy particle BC use the model's compact support, which is also used
     # for density summations.
-    @unpack smoothing_kernel, smoothing_length = model
+    (; smoothing_kernel, smoothing_length) = model
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
@@ -138,7 +138,7 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
 function semidiscretize(semi, tspan; reset_threads=true)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
@@ -193,7 +193,7 @@ in the solution `sol`.
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
 function restart_with!(semi, sol; reset_threads=true)
-    @unpack systems = semi
+    (; systems) = semi
 
     # Optionally reset Polyester.jl threads. See
     # https://github.com/trixi-framework/Trixi.jl/issues/1583
@@ -215,7 +215,7 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, i, system, semi)
-    @unpack systems, ranges_u = semi
+    (; ranges_u) = semi
 
     range = ranges_u[i]
 
@@ -232,7 +232,7 @@ end
 end
 
 @inline function wrap_v(v_ode, i, system, semi)
-    @unpack systems, ranges_v = semi
+    (; ranges_v) = semi
 
     range = ranges_v[i]
 
@@ -246,7 +246,7 @@ end
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
-    @unpack systems = semi
+    (; systems) = semi
 
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
@@ -279,8 +279,6 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack systems, neighborhood_searches = semi
-
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
@@ -298,7 +296,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
-    @unpack systems = semi
+    (; systems) = semi
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
@@ -341,7 +339,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 end
 
 function update_nhs(u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     # Update NHS for each pair of systems
     foreach_enumerate(systems) do (system_index, system)
@@ -355,7 +353,7 @@ function update_nhs(u_ode, semi)
 end
 
 function gravity_and_damping!(dv_ode, v_ode, semi)
-    @unpack systems, damping_coefficient = semi
+    (; systems, damping_coefficient) = semi
 
     # Set velocity and add acceleration for each system
     foreach_enumerate(systems) do (system_index, system)
@@ -373,7 +371,7 @@ function gravity_and_damping!(dv_ode, v_ode, semi)
 end
 
 @inline function add_acceleration!(dv, particle, system)
-    @unpack acceleration = system
+    (; acceleration) = system
 
     for i in 1:ndims(system)
         dv[i, particle] += acceleration[i]
@@ -395,7 +393,7 @@ end
 @inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     # Call `interact!` for each pair of systems
     foreach_enumerate(systems) do (system_index, system)

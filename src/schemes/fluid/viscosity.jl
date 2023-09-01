@@ -65,7 +65,7 @@ end
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
                                                           distance, sound_speed, m_a, m_b)
-    @unpack smoothing_length = particle_system
+    (; smoothing_length) = particle_system
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -86,7 +86,7 @@ end
 
 @inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
                                                           rho_mean, h)
-    @unpack alpha, beta, epsilon = viscosity
+    (; alpha, beta, epsilon) = viscosity
 
     # v_ab ⋅ r_ab
     vr = dot(v_diff, pos_diff)
@@ -157,8 +157,8 @@ end
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b)
-    @unpack epsilon, nu = viscosity
-    @unpack smoothing_length = particle_system
+    (; epsilon, nu) = viscosity
+    (; smoothing_length) = particle_system
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)

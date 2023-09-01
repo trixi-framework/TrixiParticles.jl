@@ -143,7 +143,7 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)
-    @unpack initial_condition = system
+    (; initial_condition) = system
 
     for particle in eachparticle(system)
         # Write particle velocities

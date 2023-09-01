@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
-    @unpack sound_speed = particle_system
+    (; sound_speed) = particle_system
     viscosity = viscosity_function(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -59,7 +59,7 @@ end
 @inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
                                      pos_diff, distance, sound_speed, volume_term, m_b,
                                      p_a, p_b, rho_a, rho_b)
-    @unpack smoothing_length = particle_system
+    (; smoothing_length) = particle_system
 
     # EDAC pressure evolution
     pressure_diff = p_a - p_b
