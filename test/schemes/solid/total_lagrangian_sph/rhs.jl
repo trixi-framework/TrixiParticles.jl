@@ -61,8 +61,8 @@
                 return initial_coordinates
             end
 
-            # @unpack calls should return predefined values or
-            # another mock object of the type Val{:mock_property_name}
+            # Unpack calls should return predefined values or
+            # another mock object of the type Val{:mock_property_name}.
             function Base.getproperty(::Val{:mock_system_interact}, f::Symbol)
                 if f === :current_coordinates
                     return current_coordinates

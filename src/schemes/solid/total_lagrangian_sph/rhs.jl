@@ -9,7 +9,7 @@ end
 # Function barrier without dispatch for unit testing
 @inline function interact_solid_solid!(dv, neighborhood_search, particle_system,
                                        neighbor_system)
-    @unpack penalty_force = particle_system
+    (; penalty_force) = particle_system
 
     # Different solids do not interact with each other (yet)
     if particle_system !== neighbor_system
@@ -60,9 +60,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack boundary_model = particle_system
-    @unpack state_equation, viscosity, smoothing_length = neighbor_system
-    @unpack sound_speed = state_equation
+    (; boundary_model) = particle_system
+    (; state_equation, viscosity) = neighbor_system
+    (; sound_speed) = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -127,7 +127,7 @@ end
                                                                                 <:BoundaryModelDummyParticles
                                                                                 },
                                       neighbor_system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator = particle_system.boundary_model
+    (; density_calculator) = particle_system.boundary_model
 
     continuity_equation!(dv, density_calculator,
                          v_particle_system, v_neighbor_system,

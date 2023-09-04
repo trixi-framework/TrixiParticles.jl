@@ -6,7 +6,7 @@ using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr, cross, det, normalize
 using Morton: cartesian2morton
-using Polyester: @batch
+using Polyester: Polyester, @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
@@ -15,7 +15,6 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-@reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 using ForwardDiff
 
@@ -23,6 +22,7 @@ using ForwardDiff
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
+include("neighborhood_search/neighborhood_search.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
@@ -43,7 +43,7 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export BoundaryMovement
-export SpatialHashingSearch
+export GridNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
