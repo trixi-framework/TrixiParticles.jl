@@ -11,8 +11,8 @@ end
 
 # Only for 2D yet.
 function (point_in_poly::WindingNumberHorman)(shape, points)
-    @unpack quadrant_numbers = point_in_poly
-    @unpack vertices = shape
+    (; quadrant_numbers) = point_in_poly
+    (; vertices) = shape
 
     inpoly = falses(size(points, 2))
 

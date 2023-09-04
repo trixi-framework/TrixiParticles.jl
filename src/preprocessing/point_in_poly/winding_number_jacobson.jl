@@ -1,4 +1,3 @@
-
 struct WindingNumberJacobson end
 
 function (point_in_poly::WindingNumberJacobson)(mesh, points)
