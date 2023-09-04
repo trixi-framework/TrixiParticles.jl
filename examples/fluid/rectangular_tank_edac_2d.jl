@@ -52,7 +52,7 @@ fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothi
                                            acceleration=(0.0, gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
-
+#=
 # ==========================================================================================
 # ==== Simulation
 
@@ -80,3 +80,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+=#

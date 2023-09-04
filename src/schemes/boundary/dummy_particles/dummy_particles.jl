@@ -251,8 +251,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 
     set_zero!(pressure)
 
-    # Set `volume` and `density` to zero.
-    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
@@ -286,7 +285,8 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
             compute_wall_velocity!(viscosity, system, system_coords, particle)
         end
 
-        boundary_density!(density, state_equation, pressure, particle)
+        # Apply inverse state equation to compute density (not used with EDAC)
+        inverse_state_equation!(density, state_equation, pressure, particle)
     end
 end
 
@@ -371,11 +371,12 @@ end
     return viscosity
 end
 
-@inline function boundary_density!(density, state_equation, pressure, particle)
+@inline function inverse_state_equation!(density, state_equation, pressure, particle)
     density[particle] = inverse_state_equation(state_equation, pressure[particle])
     return density
 end
 
-@inline function boundary_density!(density, state_equation::Nothing, pressure, particle)
+@inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
+                                         particle)
     return density
 end

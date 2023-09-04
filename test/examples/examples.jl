@@ -9,10 +9,10 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/edac_rectangular_tank_2d.jl" begin
+        @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
-                                                "edac_rectangular_tank_2d.jl"),
+                                                "rectangular_tank_edac_2d.jl"),
                                        tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end

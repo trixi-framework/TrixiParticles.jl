@@ -41,7 +41,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
         n_particles = nparticles(initial_condition)
 
         mass = copy(initial_condition.mass)
-        pressure = copy(initial_condition.pressure)
+        pressure = similar(initial_condition.pressure)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))

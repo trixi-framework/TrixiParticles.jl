@@ -63,10 +63,7 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     velocity = hcat(initial_condition.velocity, ic.velocity[:, valid_particles])
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
-
-    if !isa(initial_condition.pressure, Number)
-        pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
-    end
+    pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
 
     result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
