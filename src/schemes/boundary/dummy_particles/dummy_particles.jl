@@ -239,8 +239,11 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
                            system, system_index, v, u, v_ode, u_ode, semi)
     (; state_equation, pressure) = boundary_model
 
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
     for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
+        pressure[particle] = max(state_equation(particle_density(v, boundary_model,
+                                                                 particle)), 0.0)
     end
 
     return boundary_model
@@ -323,7 +326,8 @@ end
     end
 
     for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid negative pressures at free surfaces
+        # Limit pressure to be non-negative to avoid attractive forces between fluid and
+        # boundary particles at free surfaces (sticking artifacts).
         pressure[particle] = max(pressure[particle], 0.0)
     end
 end
