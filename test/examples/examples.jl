@@ -9,6 +9,14 @@
             @test sol.retcode == ReturnCode.Success
         end
 
+        @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_edac_2d.jl"),
+                                       tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+        end
+
         @trixi_testset "fluid/dam_break_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),

@@ -98,8 +98,8 @@ solid = union(plate, fixed_particles)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 
@@ -108,7 +108,8 @@ boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
 #                                                   fluid_particle_spacing / beta_tank,
 #                                                   tank.boundary.mass)
 
-boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass, state_equation,
+boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 # K_gate = 9.81 * water_height
