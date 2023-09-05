@@ -413,17 +413,17 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 end
 
 # NHS updates
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+function nhs_coords(system::FluidSystem,
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -434,7 +434,7 @@ function nhs_coords(system::WeaklyCompressibleSPHSystem,
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
@@ -455,13 +455,13 @@ function nhs_coords(system::TotalLagrangianSPHSystem,
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     # Don't update
     return nothing
 end
 
 function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 

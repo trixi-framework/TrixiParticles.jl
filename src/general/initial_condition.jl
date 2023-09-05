@@ -4,8 +4,9 @@ struct InitialCondition{ELTYPE}
     velocity         :: Array{ELTYPE, 2}
     mass             :: Array{ELTYPE, 1}
     density          :: Array{ELTYPE, 1}
+    pressure         :: Array{ELTYPE, 1}
 
-    function InitialCondition(coordinates, velocities, masses, densities;
+    function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
                               particle_spacing=-1.0)
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
@@ -16,8 +17,15 @@ struct InitialCondition{ELTYPE}
                                 "`size(coordinates, 2) == length(masses) == length(densities)`"))
         end
 
+        if pressure isa Number
+            pressure = pressure * ones(length(masses))
+        elseif length(pressure) != length(masses)
+            throw(ArgumentError("`pressure` must either be a scalar or a vector of the " *
+                                "same length as `masses`"))
+        end
+
         return new{eltype(coordinates)}(particle_spacing, coordinates, velocities, masses,
-                                        densities)
+                                        densities, pressure)
     end
 end
 
@@ -55,8 +63,9 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     velocity = hcat(initial_condition.velocity, ic.velocity[:, valid_particles])
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
+    pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return union(result, Base.tail(initial_conditions)...)
@@ -84,8 +93,9 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     velocity = initial_condition.velocity[:, valid_particles]
     mass = initial_condition.mass[valid_particles]
     density = initial_condition.density[valid_particles]
+    pressure = initial_condition.pressure[valid_particles]
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return setdiff(result, Base.tail(initial_conditions)...)
@@ -112,8 +122,9 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     velocity = initial_condition.velocity[:, too_close]
     mass = initial_condition.mass[too_close]
     density = initial_condition.density[too_close]
+    pressure = initial_condition.pressure[too_close]
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return intersect(result, Base.tail(initial_conditions)...)
