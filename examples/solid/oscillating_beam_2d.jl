@@ -41,7 +41,7 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), particle_density, tlsph=true)
 
-solid = InitialCondition(beam, fixed_particles)
+solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Systems
@@ -56,7 +56,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(solid_system, neighborhood_search=SpatialHashingSearch)
+semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
 tspan = (0.0, 5.0)
 
 ode = semidiscretize(semi, tspan)

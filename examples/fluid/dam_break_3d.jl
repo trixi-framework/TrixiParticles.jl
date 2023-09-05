@@ -67,7 +67,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch,
+                          neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
@@ -102,7 +102,7 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 ode = semidiscretize(semi, tspan)
 
 saving_callback = SolutionSavingCallback(dt=0.02)

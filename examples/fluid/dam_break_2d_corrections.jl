@@ -10,7 +10,7 @@ boundary_density_calculator = SummationDensity()
 correction_dict = Dict(
     "no_correction" => Nothing(),
     "shepard_kernel_correction" => ShepardKernelCorrection(),
-    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density),
+    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
     "kernel_gradient_summation_correction" => KernelGradientCorrection(),
     "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
 )

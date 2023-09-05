@@ -136,7 +136,7 @@
                     return initial_coordinates[i]
                 end
 
-                # All @unpack calls should return another mock object
+                # All unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
                 function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
@@ -267,7 +267,7 @@
             # and deformation gradient than to actually construct a system.
             system = Val(:mock_system)
 
-            # All @unpack calls should return another mock object
+            # All unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have the actual
             # Lamé constants as properties.
             function Base.getproperty(::Val{:mock_system}, f::Symbol)

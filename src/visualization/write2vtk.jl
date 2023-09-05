@@ -1,6 +1,6 @@
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -71,8 +71,6 @@ vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
 function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, cache = system
-
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]

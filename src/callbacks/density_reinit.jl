@@ -64,7 +64,7 @@ end
 
 # condition with interval
 function (reinit_callback::DensityReinitializationCallback{Int})(u, t, integrator)
-    @unpack interval = reinit_callback
+    (; interval) = reinit_callback
 
     # With error-based step size control, some steps can be rejected. Thus,
     #   `integrator.iter >= integrator.stats.naccept`
@@ -77,7 +77,7 @@ end
 
 # condition with dt
 function (reinit_callback::DensityReinitializationCallback)(u, t, integrator)
-    @unpack interval, last_t = reinit_callback
+    (; interval, last_t) = reinit_callback
 
     return (t - last_t) > interval
 end

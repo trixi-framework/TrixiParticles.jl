@@ -65,7 +65,7 @@ n_particles_per_dimension = (round(Int, length_beam / solid_particle_spacing) +
 beam = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
                         (0.0, 0.0), solid_density, tlsph=true)
 
-solid = InitialCondition(beam, fixed_particles)
+solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -100,7 +100,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, solid_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)
