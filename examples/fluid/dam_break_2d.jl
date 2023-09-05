@@ -62,7 +62,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary models
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation, boundary_density_calculator,
+                                             state_equation=state_equation, boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
 # K = 9.81 * initial_fluid_height
