@@ -54,14 +54,26 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     end
 end
 
-function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
+function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
+                   custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
-    vtk_grid(vtk -> nothing, file, points, cells)
+
+    vtk_grid(file, points, cells) do vtk
+        # Store particle index.
+        vtk["index"] = [i for i in axes(coordinates, 2)]
+
+        # Extract custom quantities for this system.
+        for (key, quantity) in custom_quantities
+            if quantity !== nothing
+                vtk[string(key)] = quantity
+            end
+        end
+    end
 
     return file
 end
