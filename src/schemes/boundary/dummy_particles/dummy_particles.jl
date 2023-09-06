@@ -75,9 +75,10 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
     viscosity          :: V
     cache              :: C
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
+    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=NoViscosity())
+                                         smoothing_length; viscosity=NoViscosity(),
+                                         state_equation=nothing)
         pressure = similar(initial_density)
 
         n_particles = length(initial_density)
@@ -140,7 +141,7 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 struct AdamiPressureExtrapolation end
 
 function create_cache(initial_density, ::SummationDensity)
-    density = similar(initial_density)
+    density = copy(initial_density)
 
     return (; density)
 end
@@ -150,7 +151,7 @@ function create_cache(initial_density, ::ContinuityDensity)
 end
 
 function create_cache(initial_density, ::AdamiPressureExtrapolation)
-    density = similar(initial_density)
+    density = copy(initial_density)
     volume = similar(initial_density)
 
     return (; density, volume)
@@ -168,19 +169,11 @@ function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
     return (; wall_velocity)
 end
 
-function reset_cache!(cache, viscosity)
-    (; density, volume) = cache
-
-    set_zero!(density)
-    set_zero!(volume)
-
-    return cache
-end
+@inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
 
 function reset_cache!(cache, viscosity::ViscosityAdami)
-    (; density, volume, wall_velocity) = cache
+    (; volume, wall_velocity) = cache
 
-    set_zero!(density)
     set_zero!(volume)
     set_zero!(wall_velocity)
 
@@ -196,6 +189,10 @@ end
     (; cache) = boundary_model
 
     return cache.density[particle]
+end
+
+@inline function particle_pressure(v, model::BoundaryModelDummyParticles, system, particle)
+    return model.pressure[particle]
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
@@ -254,8 +251,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 
     set_zero!(pressure)
 
-    # Set `volume` and `density` to zero.
-    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
@@ -289,12 +285,13 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
             compute_wall_velocity!(viscosity, system, system_coords, particle)
         end
 
-        density[particle] = inverse_state_equation(state_equation, pressure[particle])
+        # Apply inverse state equation to compute density (not used with EDAC)
+        inverse_state_equation!(density, state_equation, pressure, particle)
     end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system,
-                                               neighbor_system::WeaklyCompressibleSPHSystem,
+                                               neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     (; pressure, cache, viscosity) = boundary_model
@@ -312,7 +309,8 @@ end
 
         kernel_weight = smoothing_kernel(boundary_model, distance)
 
-        pressure[particle] += (neighbor_system.pressure[neighbor] +
+        pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+                                                 neighbor) +
                                dot(resulting_acc, density_neighbor * pos_diff)) *
                               kernel_weight
 
@@ -371,4 +369,14 @@ end
                                        wall_velocity[dim, particle] / volume[particle]
     end
     return viscosity
+end
+
+@inline function inverse_state_equation!(density, state_equation, pressure, particle)
+    density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    return density
+end
+
+@inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
+                                         particle)
+    return density
 end

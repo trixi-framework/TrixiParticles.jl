@@ -32,7 +32,8 @@ include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
-export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
+export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
+       BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller

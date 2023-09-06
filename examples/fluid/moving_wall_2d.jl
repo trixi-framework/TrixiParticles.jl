@@ -57,12 +57,13 @@ movement = BoundaryMovement((f_x, f_y), is_moving)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 
-boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass, state_equation,
+boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 
