@@ -137,8 +137,6 @@ end
 function compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
     (; systems, neighborhood_searches) = semi
-    (; cache) = system
-    (; kernel_correction_coefficient) = cache
 
     set_zero!(kernel_correction_coefficient)
 
