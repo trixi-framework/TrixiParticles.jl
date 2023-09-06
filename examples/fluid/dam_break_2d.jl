@@ -62,7 +62,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary models
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation, boundary_density_calculator,
+                                             state_equation=state_equation,
+                                             boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
 # K = 9.81 * initial_fluid_height
@@ -84,7 +85,8 @@ info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
                                                     prefix=relaxation_step_file_prefix)
 density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
-callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation, density_reinit_cb)
+callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation,
+                                   density_reinit_cb)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
