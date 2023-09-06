@@ -64,14 +64,9 @@ end
                                                           v_particle_system,
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
-<<<<<<< HEAD:src/schemes/fluid/weakly_compressible_sph/viscosity.jl
                                                           distance, sound_speed, m_a, m_b,
                                                           rho_mean)
-    @unpack smoothing_length = particle_system
-=======
-                                                          distance, sound_speed, m_a, m_b)
     (; smoothing_length) = particle_system
->>>>>>> main:src/schemes/fluid/viscosity.jl
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
