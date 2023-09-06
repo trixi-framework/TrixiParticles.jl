@@ -40,19 +40,18 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
-# Move right boundary
-# Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing
+# Move right boundary.
+# Use the new fluid size, since it might have been rounded in `RectangularTank`.
 reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
+positions = (0, tank.fluid_size[1], 0, 0)
 
 reset_wall!(tank, reset_faces, positions)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
@@ -68,13 +67,13 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch,
+                          neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=1e-5)
 
 tspan = (0.0, 3.0)
@@ -99,7 +98,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             save_everystep=false, callback=callbacks_relaxation);
 
 # Move right boundary
-positions = (0, tank_width, 0, 0)
+positions = (0, tank.tank_size[1], 0, 0)
 reset_wall!(tank, reset_faces, positions)
 
 # Run full simulation
@@ -109,7 +108,7 @@ tspan = (0.0, 5.7 / sqrt(9.81))
 restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 ode = semidiscretize(semi, tspan)
 
 saving_callback = SolutionSavingCallback(dt=0.02)

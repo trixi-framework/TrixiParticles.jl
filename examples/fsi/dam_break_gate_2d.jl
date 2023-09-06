@@ -19,17 +19,19 @@ fluid_particle_spacing = 0.02
 
 # Spacing ratio between fluid and boundary particles
 beta_tank = 1
-beta_gate = 3
+beta_gate = 1
 tank_layers = 3
-gate_layers = 1
+gate_layers = 3
 
 water_width = 0.2
 water_height = 0.4
 water_density = 997.0
 
 tank_width = 0.8
-tank_height = 4.0
-gate_height = water_height + 4 * fluid_particle_spacing # Make sure that it overlaps the fluid.
+tank_height = 0.8
+
+# Make the gate slightly higher than the fluid
+gate_height = water_height + 4 * fluid_particle_spacing
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
@@ -45,16 +47,16 @@ tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=tank_layers, spacing_ratio=beta_tank)
 
-gate_position = (tank.n_particles_per_dimension[1] + 1) * fluid_particle_spacing
-
 gate = RectangularShape(fluid_particle_spacing / beta_gate,
                         (gate_layers,
                          round(Int, gate_height / fluid_particle_spacing * beta_gate)),
-                        (gate_position, fluid_particle_spacing / beta_gate),
-                        water_density)
+                        (water_width, 0.0), water_density)
 
-# No moving boundaries for the relaxing step
-movement_function(coordinates, t) = false
+f_x(t) = 0.0
+f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
+is_moving(t) = false # No moving boundaries for the relaxing step
+
+movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Solid
@@ -75,67 +77,78 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 E = 3.5e6
 nu = 0.45
 
-n_particles_per_dimension = (n_particles_x,
-                             round(Int, length_beam / solid_particle_spacing) + 1)
+n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 
+# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
+# first particle half a particle spacing away from the boundary, which is correct for fluids,
+# but not for solids. We therefore need to pass `tlsph=true`.
+#
+# The right end of the plate is 0.2 from the right end of the tank.
+plate_position = 0.6 - n_particles_x * solid_particle_spacing
 plate = RectangularShape(solid_particle_spacing,
-                         (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (0.6, solid_particle_spacing), solid_density)
+                         (n_particles_x, n_particles_y - 1),
+                         (plate_position, solid_particle_spacing), solid_density,
+                         tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1), (0.6, 0.0),
-                                   solid_density)
+                                   (n_particles_x, 1), (plate_position, 0.0),
+                                   solid_density, tlsph=true)
 
-solid = InitialCondition(plate, fixed_particles)
+solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
-                                                  smoothing_kernel,
-                                                  smoothing_length)
+                                                  smoothing_kernel, smoothing_length)
 
 # K_tank = 9.81 * water_height
 # boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
 #                                                   fluid_particle_spacing / beta_tank,
 #                                                   tank.boundary.mass)
 
-K_gate = 9.81 * water_height
-boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
-                                                  fluid_particle_spacing / beta_gate,
-                                                  gate.mass)
+boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
+                                                  state_equation=state_equation,
+                                                  AdamiPressureExtrapolation(),
+                                                  smoothing_kernel, smoothing_length)
+# K_gate = 9.81 * water_height
+# boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
+#                                                   fluid_particle_spacing / beta_gate,
+#                                                   gate.mass)
 
 hydrodynamic_densites = water_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses, state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+k_solid = 9.81 * water_height
+beta_solid = fluid_particle_spacing / solid_particle_spacing
+boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
+                                                   solid_particle_spacing,
+                                                   hydrodynamic_masses)
 
-# Use bigger K to prevent penetration into the solid
-# K_solid = 9.81 * water_height
-# beta_solid = fluid_particle_spacing / solid_particle_spacing
-# boundary_model_solid = BoundaryModelMonaghanKajtar(K_solid, beta_solid,
-#                                                    solid_particle_spacing,
-#                                                    hydrodynamic_masses)
+# `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
+# tend to introduce a non-physical gap between fluid and boundary.
+# However, `BoundaryModelDummyParticles` can only be used when the plate thickness is
+# at least two fluid particle spacings, so that the compact support is fully sampled,
+# or fluid particles can penetrate the solid.
+# For higher fluid resolutions, uncomment the code below for better results.
+#
+# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+#                                                    hydrodynamic_masses, state_equation,
+#                                                    AdamiPressureExtrapolation(),
+#                                                    smoothing_kernel, smoothing_length)
 
 # ==========================================================================================
 # ==== Systems
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           viscosity=viscosity, acceleration=(0.0, gravity))
 
-boundary_system_tank = BoundarySPHSystem(tank.boundary.coordinates,
-                                         boundary_model_tank)
+boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
 
-boundary_system_gate = BoundarySPHSystem(gate.coordinates,
-                                         boundary_model_gate,
-                                         movement_function=movement_function)
+boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate,
+                                         movement=movement)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
@@ -149,7 +162,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # Relaxing of the fluid without solid
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
@@ -173,27 +186,14 @@ sol = solve(ode, RDPK3SpFSAL49(),
 # Run full simulation
 tspan = (0.0, 1.0)
 
-function movement_function(coordinates, t)
-    if t < 0.1
-        particle_spacing = coordinates[2, 2] - coordinates[2, 1]
-        f(t) = -285.115t^3 + 72.305t^2 + 0.1463t + particle_spacing
-        pos_1 = coordinates[2, 1]
-        pos_2 = f(t)
-        diff_pos = pos_2 - pos_1
-        coordinates[2, :] .+= diff_pos
-
-        return true
-    end
-
-    return false
-end
+is_moving(t) = t < 0.1
 
 # Use solution of the relaxing step as initial coordinates
 restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 ode = semidiscretize(semi, tspan)
 
@@ -204,5 +204,5 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

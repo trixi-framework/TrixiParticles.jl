@@ -61,13 +61,18 @@ end
 
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
+@inline function current_acceleration(system, particle)
+    # TODO: Return `dv` of solid particles
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
 @inline function smoothing_kernel(system, distance)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
 @inline function smoothing_kernel_deriv(system, distance)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 

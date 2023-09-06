@@ -130,9 +130,9 @@ end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
-    @unpack systems, neighborhood_searches = semi
-    @unpack cache = system
-    @unpack kernel_correction_coefficient = cache
+    (; systems, neighborhood_searches) = semi
+    (; cache) = system
+    (; kernel_correction_coefficient) = cache
 
     set_zero!(kernel_correction_coefficient)
 
@@ -170,9 +170,9 @@ end
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::KernelGradientCorrection)
-    @unpack systems, neighborhood_searches = semi
-    @unpack cache = system
-    @unpack kernel_correction_coefficient, dw_gamma = cache
+    (; systems, neighborhood_searches) = semi
+    (; cache) = system
+    (; kernel_correction_coefficient, dw_gamma) = cache
 
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)

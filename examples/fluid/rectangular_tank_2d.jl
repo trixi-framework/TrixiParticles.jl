@@ -35,11 +35,10 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel,
-                                             smoothing_length)
+                                             smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
@@ -53,13 +52,13 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch,
+                          neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=1e-5)
 
 tspan = (0.0, 2.0)

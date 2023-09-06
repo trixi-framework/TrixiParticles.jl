@@ -8,7 +8,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=SpatialHashingSearch, damping_coefficient=nothing)
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=GridNeighborhoodSearch, damping_coefficient=nothing)
 ```
 """
 struct Semidiscretization{S, RU, RV, NS, DC}
@@ -19,6 +19,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
     damping_coefficient   :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
+                                periodic_box_min_corner=nothing,
+                                periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
@@ -32,7 +34,9 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search))
+                                                          Val(neighborhood_search),
+                                                          periodic_box_min_corner,
+                                                          periodic_box_max_corner)
                                for neighbor in systems)
                          for system in systems)
 
@@ -73,22 +77,34 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(_, neighbor, ::Val{nothing})
-    TrivialNeighborhoodSearch(eachparticle(neighbor))
+function create_neighborhood_search(system, neighbor, ::Val{nothing},
+                                    min_corner, max_corner)
+    radius = compact_support(system, neighbor)
+    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
+                                             min_corner=min_corner, max_corner=max_corner)
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{SpatialHashingSearch})
+function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
+                                    min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    search = SpatialHashingSearch{ndims(system)}(radius, nparticles(neighbor))
+    search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                   min_corner=min_corner,
+                                                   max_corner=max_corner)
 
     # Initialize neighborhood search
-    initialize!(search, nhs_init_function(system, neighbor))
+    initialize!(search, initial_coordinates(neighbor))
 
     return search
 end
 
 @inline function compact_support(system, neighbor)
-    @unpack smoothing_kernel, smoothing_length = system
+    (; smoothing_kernel, smoothing_length) = system
+    return compact_support(smoothing_kernel, smoothing_length)
+end
+
+@inline function compact_support(system::TotalLagrangianSPHSystem,
+                                 neighbor::TotalLagrangianSPHSystem)
+    (; smoothing_kernel, smoothing_length) = system
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
@@ -97,43 +113,17 @@ end
     return compact_support(system, system.boundary_model, neighbor)
 end
 
-@inline function compact_support(system::TotalLagrangianSPHSystem,
-                                 neighbor::TotalLagrangianSPHSystem)
-    @unpack smoothing_kernel, smoothing_length = system
-    return compact_support(smoothing_kernel, smoothing_length)
-end
-
 @inline function compact_support(system, model, neighbor)
-    # This NHS is never used.
-    return 0.0
+    # Use the compact support of the fluid for solid-fluid interaction
+    return compact_support(neighbor, system)
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
-    @unpack smoothing_kernel, smoothing_length = model
+    # TODO: Monaghan-Kajtar BC are using the fluid's compact support for solid-fluid
+    # interaction. Dummy particle BC use the model's compact support, which is also used
+    # for density summations.
+    (; smoothing_kernel, smoothing_length) = model
     return compact_support(smoothing_kernel, smoothing_length)
-end
-
-function nhs_init_function(system, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::TotalLagrangianSPHSystem,
-                           neighbor::TotalLagrangianSPHSystem)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                           neighbor)
-    return nhs_init_function(system, system.boundary_model, neighbor)
-end
-
-function nhs_init_function(system, model::BoundaryModelDummyParticles, neighbor)
-    return i -> initial_coords(neighbor, i)
-end
-
-function nhs_init_function(system, model, neighbor)
-    # This NHS is never used. Don't initialize NHS.
-    return nothing
 end
 
 """
@@ -141,12 +131,19 @@ end
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
-function semidiscretize(semi, tspan)
-    @unpack systems, neighborhood_searches = semi
+function semidiscretize(semi, tspan; reset_threads=true)
+    (; systems, neighborhood_searches) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
     ELTYPE = eltype(systems[1])
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
@@ -189,8 +186,15 @@ in the solution `sol`.
 - `semi`:   The semidiscretization
 - `sol`:    The `ODESolution` returned by `solve` of `OrdinaryDiffEq`
 """
-function restart_with!(semi, sol)
-    @unpack systems = semi
+function restart_with!(semi, sol; reset_threads=true)
+    (; systems) = semi
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(sol[end].x[1], system_index, system, semi)
@@ -205,7 +209,7 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, i, system, semi)
-    @unpack systems, ranges_u = semi
+    (; ranges_u) = semi
 
     range = ranges_u[i]
 
@@ -222,7 +226,7 @@ end
 end
 
 @inline function wrap_v(v_ode, i, system, semi)
-    @unpack systems, ranges_v = semi
+    (; ranges_v) = semi
 
     range = ranges_v[i]
 
@@ -236,7 +240,7 @@ end
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
-    @unpack systems = semi
+    (; systems) = semi
 
     @trixi_timeit timer() "drift!" begin
         @trixi_timeit timer() "reset ∂u/∂t" set_zero!(du_ode)
@@ -269,8 +273,6 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
-    @unpack systems, neighborhood_searches = semi
-
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
@@ -288,7 +290,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
-    @unpack systems = semi
+    (; systems) = semi
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
@@ -331,7 +333,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 end
 
 function update_nhs(u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     # Update NHS for each pair of systems
     foreach_enumerate(systems) do (system_index, system)
@@ -345,7 +347,7 @@ function update_nhs(u_ode, semi)
 end
 
 function gravity_and_damping!(dv_ode, v_ode, semi)
-    @unpack systems, damping_coefficient = semi
+    (; systems, damping_coefficient) = semi
 
     # Set velocity and add acceleration for each system
     foreach_enumerate(systems) do (system_index, system)
@@ -363,7 +365,7 @@ function gravity_and_damping!(dv_ode, v_ode, semi)
 end
 
 @inline function add_acceleration!(dv, particle, system)
-    @unpack acceleration = system
+    (; acceleration) = system
 
     for i in 1:ndims(system)
         dv[i, particle] += acceleration[i]
@@ -385,7 +387,7 @@ end
 @inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     # Call `interact!` for each pair of systems
     foreach_enumerate(systems) do (system_index, system)
@@ -410,17 +412,17 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 end
 
 # NHS updates
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+function nhs_coords(system::FluidSystem,
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -431,7 +433,7 @@ function nhs_coords(system::WeaklyCompressibleSPHSystem,
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
@@ -452,13 +454,13 @@ function nhs_coords(system::TotalLagrangianSPHSystem,
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     # Don't update
     return nothing
 end
 
 function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 

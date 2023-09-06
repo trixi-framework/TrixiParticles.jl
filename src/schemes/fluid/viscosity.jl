@@ -32,7 +32,7 @@ The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their
 The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
 
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
-To do so, Monaghan (Monaghan 2005) defined an equivalent effecive physical kinematic viscosity ``\nu`` by
+To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
 \nu = \frac{\alpha h c }{\rho_{ab}}.
 ```
@@ -64,9 +64,14 @@ end
                                                           v_particle_system,
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
+<<<<<<< HEAD:src/schemes/fluid/weakly_compressible_sph/viscosity.jl
                                                           distance, sound_speed, m_a, m_b,
                                                           rho_mean)
     @unpack smoothing_length = particle_system
+=======
+                                                          distance, sound_speed, m_a, m_b)
+    (; smoothing_length) = particle_system
+>>>>>>> main:src/schemes/fluid/viscosity.jl
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -83,7 +88,7 @@ end
 
 @inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
                                                           rho_mean, h)
-    @unpack alpha, beta, epsilon = viscosity
+    (; alpha, beta, epsilon) = viscosity
 
     # v_ab ⋅ r_ab
     vr = dot(v_diff, pos_diff)
@@ -154,8 +159,8 @@ end
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b)
-    @unpack epsilon, nu = viscosity
-    @unpack smoothing_length = particle_system
+    (; epsilon, nu) = viscosity
+    (; smoothing_length) = particle_system
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)

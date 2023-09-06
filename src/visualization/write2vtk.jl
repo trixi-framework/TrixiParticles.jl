@@ -22,7 +22,7 @@ trixi2vtk(vu, semi, 0.0, iter=1, output_directory="output", prefix="solution", v
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack systems = semi
+    (; systems, neighborhood_searches) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -35,7 +35,10 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     foreach_enumerate(systems) do (system_index, system)
         v = wrap_v(v_ode, system_index, system, semi)
         u = wrap_u(u_ode, system_index, system, semi)
-        trixi2vtk(v, u, t, system; output_directory=output_directory,
+        periodic_box = neighborhood_searches[system_index][system_index].periodic_box
+
+        trixi2vtk(v, u, t, system, periodic_box;
+                  output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
                   custom_quantities...)
     end
@@ -66,8 +69,8 @@ writes the solution variables and unknowns to the file, and includes additional 
 trixi2vtk(v, u, 0.0, fluid_system, output_directory="output", prefix="solution", velocity=compute_velocity)
 
 """
-function trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=nothing,
-                   system_name=vtkname(system), custom_value=nothing,
+function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
+                   iter=nothing, system_name=vtkname(system), custom_value=nothing,
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -79,7 +82,7 @@ function trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=noth
                     add_opt_str_pre(prefix) * "$system_name"
                     * add_opt_str_post(iter))
 
-    points = current_coordinates(u, system)
+    points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(file, points, cells) do vtk
@@ -144,17 +147,16 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     return file
 end
 
-vtkname(system::WeaklyCompressibleSPHSystem) = "fluid"
+vtkname(system::FluidSystem) = "fluid"
 vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
-function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, cache = system
-
+function write2vtk!(vtk, v, u, t, system::FluidSystem)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
-    vtk["pressure"] = system.pressure
+    vtk["pressure"] = [particle_pressure(v, system, particle)
+                       for particle in eachparticle(system)]
 
     return vtk
 end
