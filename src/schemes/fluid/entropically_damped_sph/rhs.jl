@@ -42,8 +42,13 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b)
 
+        dv_convection = momentum_convection(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            rho_a, rho_b, particle, neighbor, grad_kernel,
+                                            volume_term)
+
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_convection[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
@@ -52,6 +57,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
                             particle, pos_diff, distance, sound_speed, volume_term, m_b,
                             p_a, p_b, rho_a, rho_b)
+
+        transport_velocity!(dv, particle_system, volume_term, grad_kernel, particle)
     end
 
     return dv
@@ -77,6 +84,65 @@ end
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
+
+    return dv
+end
+
+@inline function momentum_convection(system, neighbor_system,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function momentum_convection(system::EntropicallyDampedSPHSystem,
+                                     neighbor_system::EntropicallyDampedSPHSystem,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    momentum_convection(system, neighbor_system, system.transport_velocity,
+                        v_particle_system, v_neighbor_system, rho_a, rho_b,
+                        particle, neighbor, grad_kernel, volume_term)
+end
+
+@inline function momentum_convection(system, neighbor_system, ::Nothing,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     particle, neighbor, grad_kernel, volume_term)
+    momentum_velocity_a = current_velocity(v_particle_system, system, particle)
+    advection_velocity_a = advection_velocity(v_particle_system, system, particle)
+
+    momentum_velocity_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    advection_velocity_b = advection_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    A_a = rho_a * momentum_velocity_a * (advection_velocity_a - momentum_velocity_a)'
+    A_b = rho_b * momentum_velocity_b * (advection_velocity_b - momentum_velocity_b)'
+
+    return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
+end
+
+@inline function transport_velocity!(dv, system::EntropicallyDampedSPHSystem, volume_term,
+                                     grad_kernel, particle)
+    transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
+                        particle)
+end
+
+@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
+
+@inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
+
+@inline function transport_velocity!(dv, system, ::TransportVelocityAdami, volume_term,
+                                     grad_kernel, particle)
+    (; transport_velocity) = system
+    (; background_pressure) = transport_velocity
+    n_dims = ndims(system)
+
+    for dim in 1:n_dims
+        dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
+    end
 
     return dv
 end
