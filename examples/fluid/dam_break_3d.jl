@@ -106,8 +106,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 ode = semidiscretize(semi, tspan)
 
 saving_callback = SolutionSavingCallback(dt=0.02)
-density_reinit_cb = DensityReinitializationCallback(semi.systems[1], dt=0.01)
-callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
+callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice
 sol = solve(ode, RDPK3SpFSAL49(),
