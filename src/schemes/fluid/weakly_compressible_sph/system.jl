@@ -16,7 +16,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
 
 # Keyword Arguments
-- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref).
+- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
 - `correction`:   Correction method used for this SPH system. (default: no correction)
 
