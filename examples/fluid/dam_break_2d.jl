@@ -30,8 +30,6 @@ simulation_tspan = (0.0, 5.7 / sqrt(gravity))
 fluid_density_calculator = ContinuityDensity()
 boundary_density_calculator = AdamiPressureExtrapolation()
 use_reinit = false
-density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
-                    nothing
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
@@ -90,6 +88,8 @@ ode = semidiscretize(semi, relaxation_tspan)
 info_callback = InfoCallback(interval=100)
 saving_callback_relaxation = SolutionSavingCallback(dt=output_dt,
                                                     prefix=relaxation_step_file_prefix)
+density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
+                    nothing
 callbacks_relaxation = CallbackSet(info_callback, saving_callback_relaxation,
                                    density_reinit_cb)
 

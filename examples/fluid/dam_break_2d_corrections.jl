@@ -27,7 +27,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               particle_spacing=particle_spacing, smoothing_length=smoothing_length,
               boundary_density_calculator=ContinuityDensity(),
               fluid_density_calculator=ContinuityDensity(),
-              correction=correction, use_reinit=true,
+              correction=Nothing(), use_reinit=true,
               relaxation_step_file_prefix="relaxation_continuity_reinit",
               simulation_step_file_prefix="continuity_reinit")
 
