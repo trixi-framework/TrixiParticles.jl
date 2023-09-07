@@ -5,15 +5,14 @@ struct TransportVelocityAdami{ELTYPE}
     end
 end
 
-function update_transport_velocity!(u, integrator, p, t)
-    semi = integrator.p
-    v_ode, u_ode = integrator.u.x
+function update_transport_velocity!(u, ode, semi, t)
+    v_ode, u_ode = ode.u.x
 
     foreach_enumerate(semi.systems) do (system_index, system)
         update_transport_velocity!(system, system_index, v_ode, u_ode, semi)
     end
 
-    return integrator
+    return ode
 end
 
 @inline function update_transport_velocity!(system::FluidSystem, system_index,
