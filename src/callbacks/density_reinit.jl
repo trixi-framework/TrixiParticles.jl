@@ -46,7 +46,7 @@ function initialize_reinit_cb!(cb, u, t, integrator)
 end
 
 function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integrator)
-    # Save initial solution
+    # Reinitialize initial solution
     if cb.reinit_initial_solution
         # Update systems to compute quantities like density and pressure.
         semi = integrator.p

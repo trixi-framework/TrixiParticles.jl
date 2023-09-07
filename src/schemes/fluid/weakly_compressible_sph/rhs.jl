@@ -1,4 +1,4 @@
-# This function computes the forces that particles in `particle_system` experience from particles
+# Computes the forces that particles in `particle_system` experience from particles
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
 # using the continuity equation.
@@ -78,7 +78,7 @@ end
     return dv
 end
 
-# This function computes the forces that particles in `particle_system` experience from particles
+# Computes the forces that particles in `particle_system` experience from particles
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
 # using the continuity equation.
