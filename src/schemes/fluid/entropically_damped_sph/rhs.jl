@@ -30,7 +30,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         volume_term = (volume_a^2 + volume_b^2) / m_a
 
         # Inter-particle averaged pressure
-        pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+        p_avg = average_pressure(particle_system, particle) # Only used with TVF
+        pressure_tilde = (rho_b * (p_a - p_avg) + rho_a * (p_b - p_avg)) / (rho_a + rho_b)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
@@ -79,6 +80,8 @@ end
 
     return dv
 end
+
+@inline average_pressure(system, particle) = 0.0
 
 @inline viscosity_function(system) = system.viscosity
 @inline viscosity_function(system::BoundarySPHSystem) = system.boundary_model.viscosity
