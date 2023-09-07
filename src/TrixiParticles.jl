@@ -36,7 +36,7 @@ export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangian
        BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
-export PenaltyForceGanzenmueller
+export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole

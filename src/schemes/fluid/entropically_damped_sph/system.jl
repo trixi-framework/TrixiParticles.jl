@@ -31,7 +31,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, TV, C} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, C} <:
        FluidSystem{NDIMS}
     initial_condition         :: InitialCondition{ELTYPE}
     mass                      :: Array{ELTYPE, 1} # [particle]
@@ -43,6 +43,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, TV, C} <
     viscosity                 :: V
     nu_edac                   :: ELTYPE
     initial_pressure_function :: PF
+    initial_velocity_function :: VF
     acceleration              :: SVector{NDIMS, ELTYPE}
     transport_velocity        :: TV
     cache                     :: C
@@ -51,6 +52,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, TV, C} <
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
                                          initial_pressure_function=nothing,
+                                         initial_velocity_function=nothing,
                                          transport_velocity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)))
@@ -140,7 +142,39 @@ end
 
 @inline average_pressure(system, ::Nothing, particle) = 0.0
 
-@inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem)
+    v_nvariables(system, system.transport_velocity)
+end
+
+@inline v_nvariables(system, ::Nothing) = ndims(system) + 1
+@inline v_nvariables(system, ::TransportVelocityAdami) = ndims(system) * 2 + 1
+
+@inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPHSystem)
+    add_velocity!(du, v, particle, system, system.transport_velocity)
+end
+
+# Add momentum velocity.
+@inline function add_velocity!(du, v, particle, system, ::Nothing)
+    for i in 1:ndims(system)
+        du[i, particle] = v[i, particle]
+    end
+
+    return du
+end
+
+# Add advection velocity.
+@inline function add_velocity!(du, v, particle, system, ::TransportVelocityAdami)
+    for i in 1:ndims(system)
+        du[i, particle] = v[ndims(system) + i, particle]
+    end
+
+    return du
+end
+
+@inline function advection_velocity(v, system::EntropicallyDampedSPHSystem, particle)
+    (; cache) = system
+    extract_svector(cache.advection_velocity, system, particle)
+end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
@@ -196,12 +230,29 @@ function update_average_pressure!(system, ::TransportVelocityAdami, system_index
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)
-    (; initial_condition) = system
+    write_v0!(v0, system, system.transport_velocity)
+end
 
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::Nothing)
     for particle in eachparticle(system)
         # Write particle velocities
+        v_init = initial_velocity(system, particle)
         for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
+            v0[dim, particle] = v_init[dim]
+        end
+        v0[end, particle] = initial_pressure(system, particle)
+    end
+
+    return v0
+end
+
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami)
+    for particle in eachparticle(system)
+        # Write particle velocities
+        v_init = initial_velocity(system, particle)
+        for dim in 1:ndims(system)
+            v0[dim, particle] = v_init[dim]
+            v0[ndims(system) + dim, particle] = v_init[dim]
         end
         v0[end, particle] = initial_pressure(system, particle)
     end
@@ -228,4 +279,19 @@ end
 @inline function initial_pressure(system, particle, initial_pressure_function)
     particle_position = initial_coords(system, particle)
     return initial_pressure_function(particle_position)
+end
+
+@inline function initial_velocity(system, particle)
+    initial_velocity(system, particle, system.initial_velocity_function)
+end
+
+@inline function initial_velocity(system, particle, ::Nothing)
+    return extract_svector(system.initial_condition.velocity, system, particle)
+end
+
+@inline function initial_velocity(system, particle, init_velocity_function)
+    position = initial_coords(system, particle)
+    v_init = SVector(ntuple(i -> init_velocity_function[i](position), Val(ndims(system))))
+
+    return v_init
 end
