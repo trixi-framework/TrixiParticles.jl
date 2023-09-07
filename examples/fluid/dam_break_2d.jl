@@ -30,7 +30,8 @@ simulation_tspan = (0.0, 5.7 / sqrt(gravity))
 fluid_density_calculator = ContinuityDensity()
 boundary_density_calculator = AdamiPressureExtrapolation()
 use_reinit = false
-density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) : nothing
+density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
+                    nothing
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
