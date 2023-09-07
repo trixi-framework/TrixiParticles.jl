@@ -15,10 +15,19 @@ function update_transport_velocity!(u, ode, semi, t)
     return ode
 end
 
+@inline function update_transport_velocity!(system, system_index, v_ode, u_ode, semi)
+    return system
+end
+
 @inline function update_transport_velocity!(system::FluidSystem, system_index,
                                             v_ode, u_ode, semi)
     update_transport_velocity!(system, system_index, v_ode, u_ode, semi,
                                system.transport_velocity)
+end
+
+@inline function update_transport_velocity!(system, system_index, v_ode, u_ode, semi,
+                                            ::Nothing)
+    return system
 end
 
 @inline function update_transport_velocity!(system, system_index, v_ode, u_ode, semi,
@@ -32,9 +41,4 @@ end
             v[ndims(system) + i, particle] = v[i, particle]
         end
     end
-end
-
-@inline function update_transport_velocity!(system, system_index, v_ode, u_ode, semi,
-                                            ::Nothing)
-    return system
 end
