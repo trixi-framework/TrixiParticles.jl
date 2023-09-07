@@ -7,6 +7,7 @@ smoothing_length = 1.15 * particle_spacing
 
 boundary_density_calculator = SummationDensity()
 
+
 correction_dict = Dict(
     "no_correction" => Nothing(),
     "shepard_kernel_correction" => ShepardKernelCorrection(),
@@ -23,6 +24,14 @@ density_calculator_dict = Dict(
     "kernel_gradient_continuity_correction" => ContinuityDensity(),
 )
 
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+particle_spacing=particle_spacing, smoothing_length=smoothing_length,
+boundary_density_calculator=ContinuityDensity(),
+fluid_density_calculator=ContinuityDensity(),
+correction=correction, use_reinit=true,
+relaxation_step_file_prefix="relaxation_continuity_reinit",
+simulation_step_file_prefix="continuity_reinit")
+
 for correction_name in keys(correction_dict)
     fluid_density_calculator = density_calculator_dict[correction_name]
     correction = correction_dict[correction_name]
@@ -31,7 +40,7 @@ for correction_name in keys(correction_dict)
                   particle_spacing=particle_spacing, smoothing_length=smoothing_length,
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
-                  correction=correction, density_reinit_cb=nothing,
+                  correction=correction, use_reinit=false,
                   relaxation_step_file_prefix="relaxation_$(correction_name)",
                   simulation_step_file_prefix="$(correction_name)")
 end
