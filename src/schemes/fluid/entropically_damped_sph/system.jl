@@ -166,6 +166,7 @@ end
 @inline function add_velocity!(du, v, particle, system, ::TransportVelocityAdami)
     for i in 1:ndims(system)
         du[i, particle] = v[ndims(system) + i, particle]
+        system.cache.advection_velocity[i, particle] = v[ndims(system) + i, particle]
     end
 
     return du
