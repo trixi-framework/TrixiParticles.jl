@@ -1,3 +1,10 @@
+# Lid-driven cavity
+#
+# S. Adami et al
+# "A transport-velocity formulation for smoothed particle hydrodynamics".
+# In: Journal of Computational Physics, Volume 241 (2013), pages 292-307.
+# https://doi.org/10.1016/j.jcp.2013.01.043
+
 using TrixiParticles
 using OrdinaryDiffEq
 
