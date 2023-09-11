@@ -4,13 +4,15 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
-using LinearAlgebra: norm, dot, I, tr
+using LinearAlgebra: dot, I, tr
+@reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
 using Polyester: Polyester, @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
+@reexport using Random: seed!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities

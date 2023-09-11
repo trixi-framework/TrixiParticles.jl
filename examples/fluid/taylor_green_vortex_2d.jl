@@ -7,8 +7,6 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
-using Random, LinearAlgebra, StaticArrays
-Random.seed!(42);
 
 # ==========================================================================================
 # ==== Fluid
@@ -48,6 +46,7 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
                          init_velocity=(0.0, 0.0))
 
 # Add small random displacement to the particles to avoid stagnant streamlines.
+seed!(42);
 fluid.coordinates .+= rand((-particle_spacing / 5):1e-5:(particle_spacing / 5),
                            size(fluid.coordinates))
 
