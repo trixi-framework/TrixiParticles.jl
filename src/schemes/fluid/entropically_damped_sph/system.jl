@@ -1,6 +1,10 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                                sound_speed; alpha=0.5, viscosity=NoViscosity(),
+    EntropicallyDampedSPHSystem(initial_condition,
+                                smoothing_kernel, smoothing_length, sound_speed;
+                                alpha=0.5, viscosity=NoViscosity(),
+                                initial_pressure_function=nothing,
+                                initial_velocity_function=nothing,
+                                transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS))
 
 Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
@@ -109,6 +113,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
+        summary_line(io, "initial pressure function", system.initial_pressure_function)
+        summary_line(io, "initial velocity function", system.initial_velocity_function)
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end

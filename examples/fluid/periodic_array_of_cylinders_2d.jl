@@ -30,7 +30,7 @@ sound_speed = 0.02
 
 pressure = sound_speed^2 * fluid_density
 
-particle_spacing = box_length/n_particles_x
+particle_spacing = box_length / n_particles_x
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuarticSplineKernel{2}()
 

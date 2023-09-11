@@ -33,6 +33,9 @@
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
             @test system.viscosity isa TrixiParticles.NoViscosity
+            @test system.initial_pressure_function isa Nothing
+            @test system.initial_velocity_function isa Nothing
+            @test system.transport_velocity isa Nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
 
@@ -86,6 +89,9 @@
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
             @test system.viscosity isa TrixiParticles.NoViscosity
+            @test system.initial_pressure_function isa Nothing
+            @test system.initial_velocity_function isa Nothing
+            @test system.transport_velocity isa Nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
             @test length(system.mass) == size(setup.coordinates, 2)
@@ -135,6 +141,8 @@
         │ viscosity: …………………………………………………… NoViscosity                                                      │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
+        │ initial pressure function: ………… nothing                                                          │
+        │ initial velocity function: ………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box

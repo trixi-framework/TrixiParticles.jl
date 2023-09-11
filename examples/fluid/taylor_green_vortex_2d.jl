@@ -76,11 +76,11 @@ function compute_L1v_error(v, u, t, system)
         position = TrixiParticles.current_coords(u, system, particle)
 
         v_mag = norm(TrixiParticles.current_velocity(v, system, particle))
-        v_analyitcal = norm(SVector(ntuple(i -> initial_velocity_function[i](position, t),
+        v_analytical = norm(SVector(ntuple(i -> initial_velocity_function[i](position, t),
                                            Val(ndims(system)))))
 
-        v_analytical_avg += abs(v_analyitcal)
-        L1v += abs(v_mag - v_analyitcal)
+        v_analytical_avg += abs(v_analytical)
+        L1v += abs(v_mag - v_analytical)
     end
     v_analytical_avg /= TrixiParticles.nparticles(system)
 
