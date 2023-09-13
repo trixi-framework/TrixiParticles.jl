@@ -223,12 +223,12 @@ end
     return boundary_model
 end
 
-function compute_density!(boundary_model, ::SummationDensity,
+function compute_density!(boundary_model, density_calculator::SummationDensity,
                           system, system_index, v, u, v_ode, u_ode, semi)
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, system_index, semi, u, u_ode, density,
+    summation_density!(density, density_calculator, system, system_index, semi, u, u_ode,
                        particles=eachparticle(system))
 end
 

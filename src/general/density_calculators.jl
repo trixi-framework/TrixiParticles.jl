@@ -8,7 +8,13 @@ Density calculator to use the summation formula
 for the density estimation,
 where ``r_b`` denotes the coordinates and ``m_b`` the mass of particle ``b``.
 """
-struct SummationDensity end
+struct SummationDensity{ELTYPE}
+    function SummationDensity(; min_density=0.0)
+        new{typeof(min_density)}(min_density)
+    end
+
+    min_density::ELTYPE
+end
 
 @doc raw"""
     ContinuityDensity()
@@ -42,17 +48,19 @@ end
     set_particle_density(particle, v, system.density_calculator, system, density)
 end
 
-@inline function set_particle_density(particle, v, ::SummationDensity, system, density)
-    system.cache.density[particle] = density
+@inline function set_particle_density(particle, v, calculator::SummationDensity, system,
+                                      density)
+    system.cache.density[particle] = max(density, calculator.min_density)
 end
 
 @inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
     v[end, particle] = density
 end
 
-function summation_density!(system, system_index, semi, u, u_ode, density;
-                            particles=each_moving_particle(system))
+function summation_density!(density, density_calculator, system, system_index, semi, u,
+                            u_ode; particles=each_moving_particle(system))
     (; systems, neighborhood_searches) = semi
+    (; min_density) = density_calculator
 
     set_zero!(density)
 
@@ -75,5 +83,9 @@ function summation_density!(system, system_index, semi, u, u_ode, density;
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             density[particle] += mass * smoothing_kernel(system, distance)
         end
+    end
+
+    @threaded for particle in particles
+        density[particle] = max(density[particle], min_density)
     end
 end

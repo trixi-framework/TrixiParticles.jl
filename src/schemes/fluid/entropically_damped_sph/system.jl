@@ -117,7 +117,8 @@ end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
-    summation_density!(system, system_index, semi, u, u_ode, system.density)
+    summation_density!(system.density, system.density_calculator, system, system_index,
+                       semi, u, u_ode)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)

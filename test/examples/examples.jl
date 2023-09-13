@@ -9,6 +9,14 @@
             @test sol.retcode == ReturnCode.Success
         end
 
+        @trixi_testset "fluid/rectangular_tank_2d.jl with SummationDensity" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_2d.jl"), tspan=(0.0, 0.1),
+                                       density_calculator=SummationDensity(min_density=water_density))
+            @test sol.retcode == ReturnCode.Success
+        end
+
         @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",

@@ -159,11 +159,12 @@ function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDens
     return system
 end
 
-function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
+function compute_density!(system, system_index, u, u_ode, semi,
+                          density_calculator::SummationDensity)
     (; cache) = system
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, system_index, semi, u, u_ode, density)
+    summation_density!(density, density_calculator, system, system_index, semi, u, u_ode)
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
