@@ -19,6 +19,26 @@ mutable struct DensityReinitializationCallback{I}
     reinit_initial_solution::Bool
 end
 
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
+    @nospecialize cb # reduce precompilation time
+    callback = cb.affect!
+    print(io, "DensityReinitializationCallback(interval=", callback.interval, ", reinit_initial_solution=", callback.reinit_initial_solution, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
+    @nospecialize cb # reduce precompilation time
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!
+        setup = [
+            "interval" => callback.interval,
+            "reinit_initial_solution" => callback.reinit_initial_solution,
+        ]
+        summary_box(io, "DensityReinitializationCallback", setup)
+    end
+end
+
 function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
                                          reinit_initial_solution=false)
     if dt > 0 && interval > 0
