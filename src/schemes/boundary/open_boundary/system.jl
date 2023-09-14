@@ -1,24 +1,26 @@
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B} <: FluidSystem{NDIMS}
-    initial_condition        :: InitialCondition{ELTYPE}
-    mass                     :: Array{ELTYPE, 1} # [particle]
-    volume                   :: Array{ELTYPE, 1} # [particle]
-    density                  :: Array{ELTYPE, 1} # [particle]
-    pressure                 :: Array{ELTYPE, 1} # [particle]
-    characteristics          :: Array{ELTYPE, 2} # [characteristics, particle]
-    previous_characteristics :: Array{ELTYPE, 2} # [characteristics, particle]
-    sound_speed              :: ELTYPE
-    boundary_zone            :: BZ
-    in_domain                :: BitVector
-    interior_system          :: System
-    zone_origin              :: SVector{NDIMS, ELTYPE}
-    zone                     :: Array{ELTYPE, 2}
-    unit_normal              :: SVector{NDIMS, ELTYPE}
-    viscosity                :: V
-    buffer                   :: B
-    acceleration             :: SVector{NDIMS, ELTYPE}
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem{NDIMS}
+    initial_condition         :: InitialCondition{ELTYPE}
+    mass                      :: Array{ELTYPE, 1} # [particle]
+    volume                    :: Array{ELTYPE, 1} # [particle]
+    density                   :: Array{ELTYPE, 1} # [particle]
+    pressure                  :: Array{ELTYPE, 1} # [particle]
+    characteristics           :: Array{ELTYPE, 2} # [characteristics, particle]
+    previous_characteristics  :: Array{ELTYPE, 2} # [characteristics, particle]
+    sound_speed               :: ELTYPE
+    boundary_zone             :: BZ
+    in_domain                 :: BitVector
+    interior_system           :: System
+    zone_origin               :: SVector{NDIMS, ELTYPE}
+    zone                      :: Array{ELTYPE, 2}
+    unit_normal               :: SVector{NDIMS, ELTYPE}
+    viscosity                 :: V
+    buffer                    :: B
+    initial_velocity_function :: VF
+    acceleration              :: SVector{NDIMS, ELTYPE}
 
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, sound_speed,
                                    zone_points, zone_origin, interior_system;
+                                   initial_velocity_function=nothing,
                                    buffer=nothing, viscosity=NoViscosity())
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)
@@ -49,12 +51,15 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B} <: FluidSystem{NDI
 
         unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
 
-        return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(viscosity),
-                   typeof(buffer)}(initial_condition, mass, volume, density, pressure,
-                                   characteristics, previous_characteristics, sound_speed,
-                                   boundary_zone, in_domain, interior_system, zone_origin_,
-                                   zone, unit_normal_, viscosity, buffer,
-                                   interior_system.acceleration)
+        return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(viscosity), typeof(buffer),
+                   typeof(initial_velocity_function)}(initial_condition, mass, volume,
+                                                      density, pressure, characteristics,
+                                                      previous_characteristics, sound_speed,
+                                                      boundary_zone, in_domain,
+                                                      interior_system, zone_origin_, zone,
+                                                      unit_normal_, viscosity, buffer,
+                                                      initial_velocity_function,
+                                                      interior_system.acceleration)
     end
 end
 
@@ -88,6 +93,10 @@ end
     return system.density[particle]
 end
 
+@inline function particle_pressure(v, system::OpenBoundarySPHSystem, particle)
+    return system.pressure[particle]
+end
+
 @inline function set_particle_density(particle, v, system::OpenBoundarySPHSystem, density)
     return system.density[particle] = density
 end
@@ -100,6 +109,7 @@ end
     (; smoothing_kernel, smoothing_length) = system.interior_system
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
+
 struct InFlow end
 
 struct OutFlow end
@@ -141,6 +151,8 @@ function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
     # Particle is in boundary zone.
     return true
 end
+
+update_open_boundary!(system, system_index, v_ode, u_ode, semi) = system
 
 function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_ode, u_ode,
                                semi)
