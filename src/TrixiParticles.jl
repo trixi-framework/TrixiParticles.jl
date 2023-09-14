@@ -41,7 +41,8 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
-export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
+       PressureMirroring, PressureZeroing
 export BoundaryMovement
 export GridNeighborhoodSearch
 export examples_dir, trixi_include

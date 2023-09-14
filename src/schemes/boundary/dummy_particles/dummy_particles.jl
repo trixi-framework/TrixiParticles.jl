@@ -79,7 +79,9 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=NoViscosity(),
                                          state_equation=nothing)
-        pressure = similar(initial_density)
+        # Initializing the pressure with zeros is needed for `PressureZeroing` and for
+        # visualization with `PressureMirroring`.
+        pressure = zero(initial_density)
 
         n_particles = length(initial_density)
 
@@ -103,22 +105,6 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
-    return -m_b *
-           (particle_system.pressure[particle] / rho_a^2 +
-            boundary_model.pressure[boundary_particle] / rho_b^2) *
-           grad_kernel
-end
-
 @doc raw"""
     AdamiPressureExtrapolation()
 
@@ -140,7 +126,58 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
-function create_cache(initial_density, ::SummationDensity)
+struct PressureMirroring end
+
+struct PressureZeroing end
+
+@inline function boundary_particle_impact(particle, boundary_particle,
+                                          boundary_model::BoundaryModelDummyParticles,
+                                          v_particle_system, v_boundary_system,
+                                          particle_system, boundary_system,
+                                          pos_diff, distance, m_b)
+    (; density_calculator) = boundary_model
+
+    boundary_particle_impact(particle, boundary_particle, boundary_model,
+                             density_calculator, v_particle_system, v_boundary_system,
+                             particle_system, boundary_system, pos_diff, distance, m_b)
+end
+
+@inline function boundary_particle_impact(particle, boundary_particle,
+                                          boundary_model::BoundaryModelDummyParticles,
+                                          density_calculator,
+                                          v_particle_system, v_boundary_system,
+                                          particle_system, boundary_system,
+                                          pos_diff, distance, m_b)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
+    return -m_b *
+           (particle_system.pressure[particle] / rho_a^2 +
+            boundary_model.pressure[boundary_particle] / rho_b^2) *
+           grad_kernel
+end
+
+@inline function boundary_particle_impact(particle, boundary_particle,
+                                          boundary_model::BoundaryModelDummyParticles,
+                                          ::PressureMirroring,
+                                          v_particle_system, v_boundary_system,
+                                          particle_system, boundary_system,
+                                          pos_diff, distance, m_b)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
+    return -m_b *
+           (particle_system.pressure[particle] / rho_a^2 +
+            particle_system.pressure[particle] / rho_b^2) *
+           grad_kernel
+end
+
+function create_cache(initial_density, ::Union{SummationDensity, PressureMirroring,
+                                               PressureZeroing})
     density = copy(initial_density)
 
     return (; density)
@@ -185,7 +222,9 @@ end
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
+@inline function particle_density(v, ::Union{AdamiPressureExtrapolation, PressureMirroring,
+                                             PressureZeroing},
+                                  boundary_model, particle)
     (; cache) = boundary_model
 
     return cache.density[particle]
@@ -206,9 +245,10 @@ end
 end
 
 function compute_density!(boundary_model,
-                          ::Union{ContinuityDensity, AdamiPressureExtrapolation},
+                          ::Union{ContinuityDensity, AdamiPressureExtrapolation,
+                                  PressureMirroring, PressureZeroing},
                           system, system_index, v, u, v_ode, u_ode, semi)
-    # No density update for `ContinuityDensity`.
+    # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
     # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
     return boundary_model
 end
@@ -291,6 +331,12 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         # Apply inverse state equation to compute density (not used with EDAC)
         inverse_state_equation!(density, state_equation, pressure, particle)
     end
+end
+
+function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},
+                           system, system_index, v, u, v_ode, u_ode, semi)
+    # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
+    return boundary_model
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system,
