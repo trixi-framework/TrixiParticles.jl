@@ -4,12 +4,8 @@ timer_name(::FluidSystem) = "fluid"
 
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
-@inline function particle_pressure(v, system, particle)
-    return system.pressure[particle]
-end
-
 function write_u0!(u0, system::FluidSystem)
-    @unpack initial_condition = system
+    (; initial_condition) = system
 
     for particle in eachparticle(system)
         # Write particle coordinates

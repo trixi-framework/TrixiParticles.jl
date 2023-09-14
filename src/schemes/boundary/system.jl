@@ -99,9 +99,9 @@ timer_name(::BoundarySPHSystem) = "boundary"
 @inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
 
 function (movement::BoundaryMovement)(system, t)
-    @unpack coordinates, cache = system
-    @unpack movement_function, is_moving = movement
-    @unpack acceleration, velocity, initial_coordinates = cache
+    (; coordinates, cache) = system
+    (; movement_function, is_moving) = movement
+    (; acceleration, velocity, initial_coordinates) = cache
 
     system.ismoving[1] = is_moving(t)
 
@@ -167,7 +167,7 @@ end
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
-    @unpack cache, ismoving = system
+    (; cache, ismoving) = system
 
     if ismoving[1]
         return extract_svector(cache.velocity, system, particle)
@@ -177,7 +177,7 @@ end
 end
 
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
-    @unpack cache, ismoving = system
+    (; cache, ismoving) = system
 
     if ismoving[1]
         return extract_svector(cache.acceleration, system, particle)
@@ -211,20 +211,20 @@ end
 end
 
 @inline function smoothing_kernel(system::BoundarySPHSystem, distance)
-    @unpack smoothing_kernel, smoothing_length = system.boundary_model
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
 function update_positions!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                            semi, t)
-    @unpack movement = system
+    (; movement) = system
 
     movement(system, t)
 end
 
 function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
                             semi, t)
-    @unpack boundary_model = system
+    (; boundary_model) = system
 
     update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
@@ -234,7 +234,7 @@ end
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
 function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
-    @unpack boundary_model = system
+    (; boundary_model) = system
 
     update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
 
@@ -250,7 +250,7 @@ function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar})
 end
 
 function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
-    @unpack density_calculator = system.boundary_model
+    (; density_calculator) = system.boundary_model
 
     write_v0!(v0, density_calculator, system)
 end
@@ -260,8 +260,8 @@ function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
 end
 
 function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
+    (; cache) = system.boundary_model
+    (; initial_density) = cache
 
     for particle in eachparticle(system)
         # Set particle densities
@@ -288,7 +288,7 @@ function restart_with!(system, model, density_calculator, v, u)
 end
 
 function restart_with!(system, model, ::ContinuityDensity, v, u)
-    @unpack initial_density = model.cache
+    (; initial_density) = model.cache
 
     for particle in eachparticle(system)
         initial_density[particle] = v[1, particle]

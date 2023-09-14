@@ -93,7 +93,7 @@ end
 end
 
 @inline function smoothing_kernel(system::OpenBoundarySPHSystem, distance)
-    @unpack smoothing_kernel, smoothing_length = system.interior_system
+    (; smoothing_kernel, smoothing_length) = system.interior_system
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 struct InFlow end
@@ -159,9 +159,9 @@ function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index,
 end
 
 @inline function evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
-    @unpack interior_system, volume, initial_condition, sound_speed, characteristics,
-    previous_characteristics, unit_normal, boundary_zone = system
-    @unpack neighborhood_searches = semi
+    (; interior_system, volume, initial_condition, sound_speed, characteristics,
+    previous_characteristics, unit_normal, boundary_zone) = system
+    (; neighborhood_searches) = semi
 
     interior_index = semi.system_indices[interior_system]
     system_nhs = neighborhood_searches[system_index][interior_index]
@@ -253,8 +253,8 @@ end
 end
 
 @inline function compute_quantities!(system, v)
-    @unpack initial_condition, density, pressure, characteristics, unit_normal,
-    interior_system, sound_speed = system
+    (; initial_condition, density, pressure, characteristics, unit_normal,
+    interior_system, sound_speed) = system
 
     for particle in each_moving_particle(system)
         J1 = characteristics[1, particle]
@@ -275,8 +275,8 @@ end
 end
 
 function check_domain!(system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack boundary_zone, zone, zone_origin, interior_system = system
-    @unpack neighborhood_searches = semi
+    (; boundary_zone, zone, zone_origin, interior_system) = system
+    (; neighborhood_searches) = semi
 
     interior_index = semi.system_indices[interior_system]
     neighborhood_search = neighborhood_searches[system_index][interior_index]
@@ -311,7 +311,7 @@ end
 @inline function transform_particle!(system::OpenBoundarySPHSystem,
                                      interior_system, particle,
                                      v, u, v_interior, u_interior)
-    @unpack in_domain, zone = system
+    (; in_domain, zone) = system
 
     if in_domain[particle]
 
@@ -378,8 +378,8 @@ end
 end
 
 @inline function available_particle(system)
-    @unpack buffer = system.initial_condition
-    @unpack active_particle = buffer
+    (; buffer) = system.initial_condition
+    (; active_particle) = buffer
 
     for particle in eachindex(active_particle)
         if !active_particle[particle]
@@ -393,7 +393,7 @@ end
 end
 
 @inline function deactivate_particle!(system, particle, u)
-    @unpack buffer = system.initial_condition
+    (; buffer) = system.initial_condition
 
     buffer.active_particle[particle] = false
     for dim in 1:ndims(system)
@@ -406,7 +406,7 @@ end
 end
 
 function write_v0!(v0, system::OpenBoundarySPHSystem)
-    @unpack initial_condition = system
+    (; initial_condition) = system
 
     for particle in eachparticle(system)
         # Write particle velocities

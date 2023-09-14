@@ -4,18 +4,19 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
-using LinearAlgebra: norm, normalize, dot, I, tr
+using LinearAlgebra: dot, I, tr, normalize
+@reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
-using Polyester: @batch
+using Polyester: Polyester, @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
+@reexport using Random: seed!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-@reexport using SimpleUnPack: @unpack
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
 using ForwardDiff
 
@@ -23,6 +24,7 @@ using ForwardDiff
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
+include("neighborhood_search/neighborhood_search.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
 # Note that `semidiscretization.jl` depends on the system types and has to be
@@ -34,7 +36,7 @@ export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
-export InfoCallback, SolutionSavingCallback, UpdateAfterTimeStep
+export InfoCallback, SolutionSavingCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
@@ -43,7 +45,7 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export BoundaryMovement
-export SpatialHashingSearch
+export GridNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape

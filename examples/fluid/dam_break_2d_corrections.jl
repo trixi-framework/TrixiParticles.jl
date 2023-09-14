@@ -48,17 +48,21 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              SummationDensity(), smoothing_kernel,
                                              smoothing_length)
 
-correction_dict = Dict("no_correction" => Nothing(),
-                       "shepard_kernel_correction" => ShepardKernelCorrection(),
-                       "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density),
-                       "kernel_gradient_summation_correction" => KernelGradientCorrection(),
-                       "kernel_gradient_continuity_correction" => KernelGradientCorrection())
+correction_dict = Dict(
+    "no_correction" => Nothing(),
+    "shepard_kernel_correction" => ShepardKernelCorrection(),
+    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(water_density),
+    "kernel_gradient_summation_correction" => KernelGradientCorrection(),
+    "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
+)
 
-density_calculator_dict = Dict("no_correction" => SummationDensity(),
-                               "shepard_kernel_correction" => SummationDensity(),
-                               "akinci_free_surf_correction" => SummationDensity(),
-                               "kernel_gradient_summation_correction" => SummationDensity(),
-                               "kernel_gradient_continuity_correction" => ContinuityDensity())
+density_calculator_dict = Dict(
+    "no_correction" => SummationDensity(),
+    "shepard_kernel_correction" => SummationDensity(),
+    "akinci_free_surf_correction" => SummationDensity(),
+    "kernel_gradient_summation_correction" => SummationDensity(),
+    "kernel_gradient_continuity_correction" => ContinuityDensity(),
+)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -82,7 +86,7 @@ for correction_name in keys(correction_dict)
     reset_wall!(tank, reset_faces, positions)
 
     semi = Semidiscretization(particle_system, boundary_system,
-                              neighborhood_search=SpatialHashingSearch,
+                              neighborhood_search=GridNeighborhoodSearch,
                               damping_coefficient=1e-5)
 
     tspan = (0.0, 3.0)
@@ -118,7 +122,7 @@ for correction_name in keys(correction_dict)
     restart_with!(semi, sol)
 
     semi = Semidiscretization(particle_system, boundary_system,
-                              neighborhood_search=SpatialHashingSearch)
+                              neighborhood_search=GridNeighborhoodSearch)
     ode = semidiscretize(semi, tspan)
 
     saving_callback = SolutionSavingCallback(dt=0.02,

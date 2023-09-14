@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
-    @unpack sound_speed = particle_system
+    (; sound_speed) = particle_system
     viscosity = viscosity_function(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -29,8 +29,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         volume_b = m_b / rho_b
         volume_term = (volume_a^2 + volume_b^2) / m_a
 
-        # inter-particle averaged pressure
-        p_avg = average_pressure(particle_system, particle)
+        # Inter-particle averaged pressure
+        p_avg = average_pressure(particle_system, particle) # Only used with TVF
         pressure_tilde = (rho_b * (p_a - p_avg) + rho_a * (p_b - p_avg)) / (rho_a + rho_b)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
@@ -43,8 +43,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  sound_speed, m_a, m_b)
 
         dv_convection = momentum_convection(particle_system, neighbor_system,
-                                            v_particle_system, v_neighbor_system, rho_a,
-                                            rho_b, particle, neighbor, grad_kernel,
+                                            v_particle_system, v_neighbor_system,
+                                            rho_a, rho_b, particle, neighbor, grad_kernel,
                                             volume_term)
 
         for i in 1:ndims(particle_system)
@@ -67,7 +67,7 @@ end
 @inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
                                      pos_diff, distance, sound_speed, volume_term, m_b,
                                      p_a, p_b, rho_a, rho_b)
-    @unpack smoothing_length = particle_system
+    (; smoothing_length) = particle_system
 
     # EDAC pressure evolution
     pressure_diff = p_a - p_b
@@ -84,30 +84,6 @@ end
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
-
-    return dv
-end
-
-@inline function transport_velocity!(dv, system::EntropicallyDampedSPHSystem, volume_term,
-                                     grad_kernel, particle)
-    transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
-                        particle)
-end
-
-@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
-
-@inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
-
-@inline function transport_velocity!(dv, system, ::TransportVelocityAdami, volume_term,
-                                     grad_kernel, particle)
-    @unpack transport_velocity = system
-    @unpack background_pressure = transport_velocity
-    n_dims = ndims(system)
-
-    for dim in 1:n_dims
-        dv[n_dims + dim, particle] += dv[dim, particle]
-        dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
-    end
 
     return dv
 end
@@ -147,6 +123,31 @@ end
 
     return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
 end
+
+@inline function transport_velocity!(dv, system::EntropicallyDampedSPHSystem, volume_term,
+                                     grad_kernel, particle)
+    transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
+                        particle)
+end
+
+@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
+
+@inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
+
+@inline function transport_velocity!(dv, system, ::TransportVelocityAdami, volume_term,
+                                     grad_kernel, particle)
+    (; transport_velocity) = system
+    (; background_pressure) = transport_velocity
+    n_dims = ndims(system)
+
+    for dim in 1:n_dims
+        dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
+    end
+
+    return dv
+end
+
+@inline average_pressure(system, particle) = 0.0
 
 @inline viscosity_function(system) = system.viscosity
 @inline viscosity_function(system::BoundarySPHSystem) = system.boundary_model.viscosity

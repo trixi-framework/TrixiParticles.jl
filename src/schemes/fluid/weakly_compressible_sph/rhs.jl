@@ -4,10 +4,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::Union{WeaklyCompressibleSPHSystem,
                                           OpenBoundarySPHSystem})
-    @unpack density_calculator, state_equation, smoothing_length,
-    correction = particle_system
-    @unpack viscosity = neighbor_system
-    @unpack sound_speed = state_equation
+    (; density_calculator, state_equation, correction) = particle_system
+    (; viscosity) = neighbor_system
+    (; sound_speed) = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -81,10 +80,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system::Union{BoundarySPHSystem, TotalLagrangianSPHSystem})
-    @unpack density_calculator, state_equation, smoothing_length = particle_system
-    @unpack sound_speed = state_equation
-    @unpack boundary_model = neighbor_system
-    @unpack viscosity = boundary_model
+    (; density_calculator, state_equation, smoothing_length) = particle_system
+    (; sound_speed) = state_equation
+    (; boundary_model) = neighbor_system
+    (; viscosity) = boundary_model
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)

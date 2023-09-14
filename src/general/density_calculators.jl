@@ -52,7 +52,7 @@ end
 
 function summation_density!(system, system_index, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
 
     set_zero!(density)
 

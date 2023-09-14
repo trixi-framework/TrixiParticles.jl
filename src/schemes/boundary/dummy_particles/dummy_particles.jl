@@ -172,7 +172,7 @@ end
 @inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
 
 function reset_cache!(cache, viscosity::ViscosityAdami)
-    @unpack volume, wall_velocity = cache
+    (; volume, wall_velocity) = cache
 
     set_zero!(volume)
     set_zero!(wall_velocity)
@@ -186,7 +186,7 @@ end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
 @inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
-    @unpack cache = boundary_model
+    (; cache) = boundary_model
 
     return cache.density[particle]
 end
@@ -197,8 +197,7 @@ end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
                                  system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack pressure, density_calculator = boundary_model
-    @unpack systems, neighborhood_searches = semi
+    (; density_calculator) = boundary_model
 
     compute_density!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                      u_ode, semi)
@@ -216,7 +215,7 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack density_calculator = boundary_model
+    (; density_calculator) = boundary_model
 
     compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
                       u_ode, semi)
@@ -226,8 +225,8 @@ end
 
 function compute_density!(boundary_model, ::SummationDensity,
                           system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack cache = boundary_model
-    @unpack density = cache # Density is in the cache for SummationDensity
+    (; cache) = boundary_model
+    (; density) = cache # Density is in the cache for SummationDensity
 
     summation_density!(system, system_index, semi, u, u_ode, density,
                        particles=eachparticle(system))
@@ -235,10 +234,13 @@ end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
                            system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack state_equation, pressure = boundary_model
+    (; state_equation, pressure) = boundary_model
 
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
     for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
+        pressure[particle] = max(state_equation(particle_density(v, boundary_model,
+                                                                 particle)), 0.0)
     end
 
     return boundary_model
@@ -246,14 +248,13 @@ end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                            system, system_index, v, u, v_ode, u_ode, semi)
-    @unpack systems, neighborhood_searches = semi
-    @unpack pressure, state_equation, cache, viscosity = boundary_model
-    @unpack volume, density = cache
+    (; systems, neighborhood_searches) = semi
+    (; pressure, state_equation, cache, viscosity) = boundary_model
+    (; volume, density) = cache
 
     set_zero!(pressure)
 
-    # Set `volume` and `density` to zero.
-    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
@@ -287,7 +288,8 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
             compute_wall_velocity!(viscosity, system, system_coords, particle)
         end
 
-        boundary_density!(density, state_equation, pressure, particle)
+        # Apply inverse state equation to compute density (not used with EDAC)
+        inverse_state_equation!(density, state_equation, pressure, particle)
     end
 end
 
@@ -295,7 +297,7 @@ end
                                                neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
-    @unpack pressure, cache, viscosity = boundary_model
+    (; pressure, cache, viscosity) = boundary_model
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system,
@@ -322,7 +324,8 @@ end
     end
 
     for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid negative pressures at free surfaces
+        # Limit pressure to be non-negative to avoid attractive forces between fluid and
+        # boundary particles at free surfaces (sticking artifacts).
         pressure[particle] = max(pressure[particle], 0.0)
     end
 end
@@ -356,9 +359,9 @@ end
 
 @inline function compute_wall_velocity!(viscosity::ViscosityAdami, system,
                                         system_coords, particle)
-    @unpack boundary_model = system
-    @unpack cache = boundary_model
-    @unpack volume, wall_velocity = cache
+    (; boundary_model) = system
+    (; cache) = boundary_model
+    (; volume, wall_velocity) = cache
 
     # Prescribed velocity of the boundary particle.
     # This velocity is zero when not using moving boundaries.
@@ -372,11 +375,12 @@ end
     return viscosity
 end
 
-@inline function boundary_density!(density, state_equation, pressure, particle)
+@inline function inverse_state_equation!(density, state_equation, pressure, particle)
     density[particle] = inverse_state_equation(state_equation, pressure[particle])
     return density
 end
 
-@inline function boundary_density!(density, state_equation::Nothing, pressure, particle)
+@inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
+                                         particle)
     return density
 end

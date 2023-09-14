@@ -17,7 +17,7 @@ end
 
 # See comments in `each_moving_particle()` why update is needed
 @inline function update!(buffer::SystemBuffer)
-    @unpack active_particle = buffer
+    (; active_particle) = buffer
 
     new_eachparticle = [i for i in eachindex(active_particle) if active_particle[i]]
     resize!(buffer.eachparticle, length(new_eachparticle))
@@ -33,7 +33,7 @@ end
 
 function allocate_buffer(coordinates, velocity, mass, density, pressure,
                          buffer::SystemBuffer)
-    @unpack buffer_size = buffer
+    (; buffer_size) = buffer
 
     # TODO_open_boundary
     coordinates = hcat(coordinates,
