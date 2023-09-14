@@ -70,7 +70,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
-# K = 9.81 * initial_fluid_size[2]
+# K = gravity * initial_fluid_size[2]
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta,
 #                                              tank.boundary.mass)
 
