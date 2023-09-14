@@ -49,7 +49,7 @@ move_wall(tank, tank.fluid_size[1])
 
 # ==========================================================================================
 # ==== Fluid
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[1])
+sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, athmospheric_pressure,
                                    background_pressure=athmospheric_pressure)
@@ -70,7 +70,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 
-# K = 9.81 * initial_fluid_height
+# K = 9.81 * initial_fluid_size[2]
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, fluid_particle_spacing / beta,
 #                                              tank.boundary.mass)
 
