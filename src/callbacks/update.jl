@@ -15,11 +15,6 @@ function update_after_dt!(integrator)
         update_open_boundary!(system, system_index, v_ode, u_ode, semi)
     end
 
-    foreach_enumerate(semi.systems) do (system_index, system)
-        update_average_pressure!(system, system_index, v_ode, u_ode, semi)
-        update_transport_velocity!(system, system_index, v_ode, u_ode, semi)
-    end
-
     return integrator
 end
 
@@ -34,6 +29,3 @@ function initial_update!(cb, u, t, integrator)
 end
 
 update_open_boundary!(system, system_index, v_ode, u_ode, semi) = system
-
-update_average_pressure!(system, system_index, v_ode, u_ode, semi) = system
-update_transport_velocity!(system, system_index, v_ode, u_ode, semi) = system

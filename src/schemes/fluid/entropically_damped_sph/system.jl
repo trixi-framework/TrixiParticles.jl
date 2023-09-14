@@ -35,7 +35,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, C} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, B, C} <:
        FluidSystem{NDIMS}
     initial_condition         :: InitialCondition{ELTYPE}
     mass                      :: Array{ELTYPE, 1} # [particle]
@@ -50,6 +50,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, 
     initial_velocity_function :: VF
     acceleration              :: SVector{NDIMS, ELTYPE}
     transport_velocity        :: TV
+    buffer                    :: B
     cache                     :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
@@ -58,8 +59,12 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, 
                                          initial_pressure_function=nothing,
                                          initial_velocity_function=nothing,
                                          transport_velocity=nothing,
+                                         buffer=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)))
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -84,11 +89,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, 
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(initial_pressure_function),
-            typeof(initial_velocity_function), typeof(transport_velocity),
+            typeof(initial_velocity_function), typeof(transport_velocity), typeof(buffer),
             typeof(cache)}(initial_condition, mass, density, density_calculator,
                            smoothing_kernel, smoothing_length, sound_speed, viscosity,
                            nu_edac, initial_pressure_function, initial_velocity_function,
-                           acceleration_, transport_velocity, cache)
+                           acceleration_, transport_velocity, buffer, cache)
     end
 end
 

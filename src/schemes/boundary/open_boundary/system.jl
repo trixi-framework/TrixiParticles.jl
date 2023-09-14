@@ -1,4 +1,4 @@
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B} <: FluidSystem{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
     volume                   :: Array{ELTYPE, 1} # [particle]
@@ -14,11 +14,15 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
     zone                     :: Array{ELTYPE, 2}
     unit_normal              :: SVector{NDIMS, ELTYPE}
     viscosity                :: V
+    buffer                   :: B
     acceleration             :: SVector{NDIMS, ELTYPE}
 
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, sound_speed,
-                                   zone_points, zone_origin, interior_system,
-                                   viscosity=NoViscosity())
+                                   zone_points, zone_origin, interior_system;
+                                   buffer=nothing, viscosity=NoViscosity())
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -45,12 +49,12 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V} <: FluidSystem{NDIMS}
 
         unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
 
-        return new{typeof(boundary_zone), NDIMS, ELTYPE,
-                   typeof(viscosity)}(initial_condition, mass, volume, density, pressure,
-                                      characteristics, previous_characteristics,
-                                      sound_speed, boundary_zone, in_domain,
-                                      interior_system, zone_origin_, zone, unit_normal_,
-                                      viscosity, interior_system.acceleration)
+        return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(viscosity),
+                   typeof(buffer)}(initial_condition, mass, volume, density, pressure,
+                                   characteristics, previous_characteristics, sound_speed,
+                                   boundary_zone, in_domain, interior_system, zone_origin_,
+                                   zone, unit_normal_, viscosity, buffer,
+                                   interior_system.acceleration)
     end
 end
 
@@ -149,8 +153,8 @@ function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_od
 
     check_domain!(system, system_index, v, u, v_ode, u_ode, semi)
 
-    update!(system.initial_condition.buffer)
-    update!(system.interior_system.initial_condition.buffer)
+    update!(system.buffer)
+    update!(system.interior_system.buffer)
 end
 
 function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index, v_ode,
@@ -378,8 +382,7 @@ end
 end
 
 @inline function available_particle(system)
-    (; buffer) = system.initial_condition
-    (; active_particle) = buffer
+    (; active_particle) = system.buffer
 
     for particle in eachindex(active_particle)
         if !active_particle[particle]
@@ -393,9 +396,9 @@ end
 end
 
 @inline function deactivate_particle!(system, particle, u)
-    (; buffer) = system.initial_condition
+    (; active_particle) = system.buffer
 
-    buffer.active_particle[particle] = false
+    active_particle[particle] = false
     for dim in 1:ndims(system)
         # TODO
         # typemax(Int) causes problems with visualisation. For testing use big number

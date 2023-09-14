@@ -27,24 +27,20 @@ end
 
 @inline update!(buffer::Nothing) = buffer
 
-function allocate_buffer(coords, velocities, masses, densities, pressure, buffer)
-    return coords, velocities, masses, densities, pressure
-end
+allocate_buffer(initial_condition, buffer) = initial_condition
 
-function allocate_buffer(coordinates, velocity, mass, density, pressure,
-                         buffer::SystemBuffer)
+function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
+    coordinates = rand(100.0:0.05:200.0, ndims(initial_condition), buffer_size)
+    velocities = rand(100.0:0.05:200.0, ndims(initial_condition), buffer_size)
+    masses = initial_condition.mass[1] * ones(buffer_size)
+    densities = initial_condition.density[1] * ones(buffer_size)
+    pressure = initial_condition.pressure[1] * ones(buffer_size)
+    particle_spacing = initial_condition.particle_spacing
 
-    # TODO_open_boundary
-    coordinates = hcat(coordinates,
-                       rand(100.0:0.05:200.0, size(coordinates, 1), buffer_size))
-    velocity = hcat(velocity, rand(100.0:0.05:200.0, size(velocity, 1), buffer_size))
-    mass = mass[1] * ones(eltype(mass), length(mass) + buffer_size)
-    density = density[1] * ones(eltype(density), length(density) + buffer_size)
-    if !isempty(pressure)
-        pressure = pressure[1] * ones(eltype(pressure), length(pressure) + buffer_size)
-    end
-    return coordinates, velocity, mass, density, pressure
+    buffer_ic = InitialCondition(coordinates, velocities, masses, densities,
+                                 pressure=pressure, particle_spacing=particle_spacing)
+    return union(initial_condition, buffer_ic)
 end
 
 @inline function each_moving_particle(system, buffer::SystemBuffer)

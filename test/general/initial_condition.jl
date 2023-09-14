@@ -235,35 +235,3 @@
         end
     end
 end
-
-@testset "System Buffer" begin
-    buffer_particles = 5
-
-    shape_1 = RectangularShape(0.1, (3, 6), (0.0, 0.0), 1.0)
-    shape_2 = RectangularShape(0.1, (3, 6), (0.0, 0.0), 1.0, buffer=buffer_particles)
-    shape_3 = RectangularShape(0.1, (4, 5), (0.0, 0.0), 1.0)
-
-    initial_condition = InitialCondition(shape_1, shape_3, buffer=buffer_particles)
-
-    @test size(shape_1.coordinates) == (2, 18)
-    @test size(shape_2.coordinates) == (2, 18 + buffer_particles)
-    @test size(shape_2.velocity) == (2, 18 + buffer_particles)
-    @test size(shape_2.mass) == (18 + buffer_particles,)
-    @test size(shape_2.density) == (18 + buffer_particles,)
-
-    @test size(initial_condition.coordinates) == (2, 38 + buffer_particles)
-    @test size(initial_condition.velocity) == (2, 38 + buffer_particles)
-    @test size(initial_condition.mass) == (38 + buffer_particles,)
-    @test size(initial_condition.density) == (38 + buffer_particles,)
-
-    @test shape_1.buffer == nothing
-    @test shape_2.buffer isa TrixiParticles.SystemBuffer
-    @test initial_condition.buffer isa TrixiParticles.SystemBuffer
-
-    error_str = "You have passed `buffer` before. Please pass `buffer` only here."
-    @test_throws ArgumentError(error_str) InitialCondition(shape_1, shape_2)
-
-    error_str = "invalid buffer: 1.0 of type Float64"
-    @test_throws ArgumentError(error_str) RectangularShape(0.1, (2, 2), (0, 0), 1.0,
-                                                           buffer=1.0)
-end

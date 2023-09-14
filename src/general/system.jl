@@ -20,9 +20,7 @@ initialize!(system, neighborhood_search) = system
 
 @inline eachparticle(system) = Base.OneTo(nparticles(system))
 
-@inline function each_moving_particle(system)
-    each_moving_particle(system, system.initial_condition.buffer)
-end
+@inline each_moving_particle(system) = each_moving_particle(system, system.buffer)
 
 @inline each_moving_particle(system, buffer) = Base.OneTo(n_moving_particles(system))
 
@@ -63,10 +61,6 @@ end
 
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
-
-@inline function initial_velocity(system, particle)
-    extract_svector(system.initial_condition.velocity, system, particle)
-end
 
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
