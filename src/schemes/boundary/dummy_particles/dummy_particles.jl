@@ -176,8 +176,8 @@ end
            grad_kernel
 end
 
-function create_cache(initial_density, ::Union{SummationDensity, PressureMirroring,
-                                               PressureZeroing})
+function create_cache(initial_density,
+                      ::Union{SummationDensity, PressureMirroring, PressureZeroing})
     density = copy(initial_density)
 
     return (; density)
@@ -222,8 +222,9 @@ end
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v, ::Union{AdamiPressureExtrapolation, PressureMirroring,
-                                             PressureZeroing},
+@inline function particle_density(v,
+                                  ::Union{AdamiPressureExtrapolation, PressureMirroring,
+                                          PressureZeroing},
                                   boundary_model, particle)
     (; cache) = boundary_model
 
