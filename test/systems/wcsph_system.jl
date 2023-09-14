@@ -191,7 +191,7 @@
                                              state_equation, smoothing_kernel,
                                              smoothing_length)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(min_density=0.0), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐

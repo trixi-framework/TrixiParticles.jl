@@ -16,6 +16,12 @@ struct SummationDensity{ELTYPE}
     min_density::ELTYPE
 end
 
+function Base.show(io::IO, s::SummationDensity)
+    @nospecialize cb # reduce precompilation time
+
+    print(io, "SummationDensity(min_density=", s.min_density, ")")
+end
+
 @doc raw"""
     ContinuityDensity()
 
