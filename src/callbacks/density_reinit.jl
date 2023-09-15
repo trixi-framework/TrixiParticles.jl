@@ -42,7 +42,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 function DensityReinitializationCallback(particle_system; interval::Integer=0, dt=0.0,
-                                         reinit_initial_solution=false)
+                                         reinit_initial_solution=true)
     if dt > 0 && interval > 0
         error("Setting both interval and dt is not supported!")
     end
