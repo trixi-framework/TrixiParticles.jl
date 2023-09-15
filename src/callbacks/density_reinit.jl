@@ -26,7 +26,8 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:DensityReinitialization
           callback.reinit_initial_solution, ")")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
+function Base.show(io::IO, ::MIME"text/plain", 
+    cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
     @nospecialize cb # reduce precompilation time
     if get(io, :compact, false)
         show(io, cb)
