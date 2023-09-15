@@ -22,8 +22,8 @@ end
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:DensityReinitializationCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
-    print(io, "DensityReinitializationCallback(interval=", callback.interval, ", reinit_initial_solution=",
-          callback.reinit_initial_solution, ")")
+    print(io, "DensityReinitializationCallback(interval=", callback.interval,
+          ", reinit_initial_solution=", callback.reinit_initial_solution, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", 
