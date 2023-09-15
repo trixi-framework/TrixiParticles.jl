@@ -303,14 +303,6 @@ end
     return initial_pressure_function(particle_position)
 end
 
-@inline function initial_velocity(system, particle)
-    initial_velocity(system, particle, system.initial_velocity_function)
-end
-
-@inline function initial_velocity(system, particle, ::Nothing)
-    return extract_svector(system.initial_condition.velocity, system, particle)
-end
-
 @inline function initial_velocity(system, particle, init_velocity_function)
     position = initial_coords(system, particle)
     v_init = SVector(ntuple(i -> init_velocity_function[i](position), Val(ndims(system))))

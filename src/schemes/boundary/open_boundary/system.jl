@@ -21,7 +21,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, sound_speed,
                                    zone_points, zone_origin, interior_system;
                                    initial_velocity_function=nothing,
-                                   buffer=nothing, viscosity=NoViscosity())
+                                   buffer=nothing)
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -32,6 +32,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         pressure = copy(initial_condition.pressure)
         density = copy(initial_condition.density)
         volume = similar(initial_condition.density)
+
+        viscosity = interior_system.viscosity
 
         characteristics = zeros(ELTYPE, 3, length(mass))
         previous_characteristics = similar(characteristics)
@@ -103,6 +105,11 @@ end
 
 @inline function set_particle_pressure(particle, v, system::FluidSystem, pressure)
     return system.pressure[particle] = pressure
+end
+
+function set_transport_velocity!(system::OpenBoundarySPHSystem,
+                                 particle, particle_old, v, v_old)
+    return system
 end
 
 @inline function smoothing_kernel(system::OpenBoundarySPHSystem, distance)
@@ -369,13 +376,13 @@ end
                                     v_new, u_new, v_old, u_old)
     particle_new = available_particle(system_new)
 
-    # exchange densities
+    # Exchange densities
     density = particle_density(v_old, system_old, particle_old)
     set_particle_density(particle_new, v_new, system_new, density)
     density_ref = system_old.initial_condition.density[particle_old]
     system_new.initial_condition.density[particle_new] = density_ref
 
-    # exchange pressure
+    # Exchange pressure
     pressure = particle_pressure(v_old, system_old, particle_old)
     set_particle_pressure(particle_new, v_new, system_new, pressure)
     pressure_ref = system_old.initial_condition.pressure[particle_old]
@@ -383,12 +390,15 @@ end
 
     v_ref_new = initial_velocity(system_old, particle_old)
 
-    # exchange position and velocity
+    # Exchange position and velocity
     for dim in 1:ndims(system_new)
         u_new[dim, particle_new] = u_old[dim, particle_old]
         v_new[dim, particle_new] = v_old[dim, particle_old]
         system_new.initial_condition.velocity[dim, particle_new] = v_ref_new[dim]
     end
+
+    # Only when using TVF
+    set_transport_velocity!(system_new, particle_new, particle_old, v_new, v_old)
 
     return system_new
 end

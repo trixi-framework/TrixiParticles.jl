@@ -32,3 +32,21 @@ end
         end
     end
 end
+
+function set_transport_velocity!(system::FluidSystem,
+                                 particle, particle_old, v, v_old)
+    set_transport_velocity!(system, particle, particle_old, v, v_old,
+                            system.transport_velocity)
+end
+
+set_transport_velocity!(system, particle, particle_old, v, v_old) = system
+
+set_transport_velocity!(system, particle, particle_old, v, v_old, ::Nothing) = system
+
+function set_transport_velocity!(system, particle, particle_old, v, v_old,
+                                 ::TransportVelocityAdami)
+    for i in 1:ndims(system)
+        system.cache.advection_velocity[i, particle] = v_old[i, particle_old]
+        v[ndims(system) + i, particle] = v_old[i, particle_old]
+    end
+end

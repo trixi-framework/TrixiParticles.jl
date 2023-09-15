@@ -62,6 +62,14 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
+@inline function initial_velocity(system, particle)
+    initial_velocity(system, particle, system.initial_velocity_function)
+end
+
+@inline function initial_velocity(system, particle, ::Nothing)
+    return extract_svector(system.initial_condition.velocity, system, particle)
+end
+
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
 @inline function current_acceleration(system, particle)

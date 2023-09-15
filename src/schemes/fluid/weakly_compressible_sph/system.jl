@@ -150,6 +150,10 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
+@inline function initial_velocity(system::WeaklyCompressibleSPHSystem, particle)
+    initial_velocity(system, particle, nothing)
+end
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator) = system
