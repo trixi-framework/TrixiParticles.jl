@@ -19,7 +19,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
     acceleration              :: SVector{NDIMS, ELTYPE}
 
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, sound_speed,
-                                   zone_points, zone_origin, interior_system;
+                                   zone_plane, zone_origin, interior_system;
                                    initial_velocity_function=nothing,
                                    buffer=nothing)
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
@@ -40,6 +40,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         in_domain = trues(length(mass))
 
         zone_origin_ = SVector{NDIMS}(zone_origin)
+
+        # spans vectors in each direction
         zone = zeros(NDIMS, NDIMS)
 
         # TODO either check if the vectors are perpendicular to the faces, or obtain perpendicular
@@ -48,7 +50,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         # zone[2, :] = cross(zone[1, :], zone[3, :])
         # zone[3, :] = cross(zone[1, :], zone[2, :])
         for dim in 1:NDIMS
-            zone[:, dim] .= zone_points[dim] - zone_origin_
+            zone[:, dim] .= zone_plane[dim] - zone_origin_
         end
 
         unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
@@ -142,6 +144,7 @@ end
 function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
                                   system::OpenBoundarySPHSystem)
     position = particle_coords - zone_origin
+
     for dim in 1:ndims(system)
         direction = extract_svector(zone, system, dim)
 
