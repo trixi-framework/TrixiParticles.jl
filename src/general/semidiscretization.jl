@@ -289,6 +289,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
+# Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     (; systems) = semi
 
