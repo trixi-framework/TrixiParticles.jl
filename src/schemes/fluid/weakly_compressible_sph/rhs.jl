@@ -1,4 +1,7 @@
-# Fluid-fluid interaction
+# Computes the forces that particles in `particle_system` experience from particles
+# in `neighbor_system` and updates `dv` accordingly.
+# It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
+# using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
@@ -55,6 +58,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+# Compute the density derivative for particles in `particle_system` due to particles in `neighbor_system`
+# according to the continuity equation.
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
@@ -75,7 +80,10 @@ end
     return dv
 end
 
-# Fluid-boundary and fluid-solid interaction
+# Computes the forces that particles in `particle_system` experience from particles
+# in `neighbor_system` and updates `dv` accordingly.
+# It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
+# using the continuity equation.
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
