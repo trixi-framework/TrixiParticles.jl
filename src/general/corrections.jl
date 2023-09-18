@@ -130,9 +130,13 @@ end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
+    return compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+                                  system.cache.kernel_correction_coefficient)
+end
+
+function compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+                                kernel_correction_coefficient)
     (; systems, neighborhood_searches) = semi
-    (; cache) = system
-    (; kernel_correction_coefficient) = cache
 
     set_zero!(kernel_correction_coefficient)
 
@@ -161,6 +165,8 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
                                                        smoothing_kernel(system, distance)
         end
     end
+
+    return kernel_correction_coefficient
 end
 
 function dw_gamma(system, particle)
