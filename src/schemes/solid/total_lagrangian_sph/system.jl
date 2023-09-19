@@ -206,6 +206,8 @@ end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
 
+@inline active_coordinates(u, system::TotalLagrangianSPHSystem) = system.current_coordinates
+
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates
 end

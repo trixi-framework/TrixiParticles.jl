@@ -31,8 +31,9 @@ allocate_buffer(initial_condition, buffer) = initial_condition
 
 function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
-    coordinates = rand(100.0:0.05:200.0, ndims(initial_condition), buffer_size)
-    velocities = rand(100.0:0.05:200.0, ndims(initial_condition), buffer_size)
+
+    coordinates = inv(eps()) * ones(ndims(initial_condition), buffer_size)
+    velocities = zeros(eltype(initial_condition), ndims(initial_condition), buffer_size)
     masses = initial_condition.mass[1] * ones(buffer_size)
     densities = initial_condition.density[1] * ones(buffer_size)
     pressure = initial_condition.pressure[1] * ones(buffer_size)
@@ -53,3 +54,11 @@ end
     # This is also a allocation version but only in every `update!()` call
     return buffer.eachparticle
 end
+
+@inline active_coordinates(u, system) = active_coordinates(u, system, system.buffer)
+@inline active_coordinates(u, system, ::Nothing) = u
+@inline active_coordinates(u, system, buffer::SystemBuffer) = u[:, buffer.active_particle]
+
+@inline active_particles(system) = active_particles(system, system.buffer)
+@inline active_particles(system, ::Nothing) = eachparticle(system)
+@inline active_particles(system, buffer::SystemBuffer) = buffer.active_particle

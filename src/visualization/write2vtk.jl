@@ -35,7 +35,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
                     add_opt_str_pre(prefix) * "$system_name"
                     * add_opt_str_post(iter))
 
-    points = periodic_coords(current_coordinates(u, system), periodic_box)
+    points = periodic_coords(active_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     vtk_grid(file, points, cells) do vtk
@@ -84,11 +84,11 @@ vtkname(system::BoundarySPHSystem) = "boundary"
 vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem)
-    vtk["velocity"] = view(v, 1:ndims(system), :)
+    vtk["velocity"] = view(v, 1:ndims(system), active_particles(system))
     vtk["density"] = [particle_density(v, system, particle)
-                      for particle in eachparticle(system)]
+                      for particle in each_moving_particle(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in eachparticle(system)]
+                       for particle in each_moving_particle(system)]
 
     return vtk
 end

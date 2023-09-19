@@ -425,9 +425,8 @@ end
 
     active_particle[particle] = false
     for dim in 1:ndims(system)
-        # TODO
-        # typemax(Int) causes problems with visualisation. For testing use big number
-        u[dim, particle] = -(100.0 + rand(1:0.5:2, 1)[1])
+        # Inf or NaN causes instability outcome.
+        u[dim, particle] = inv(eps())
     end
 
     return system

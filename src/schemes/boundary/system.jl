@@ -162,6 +162,8 @@ end
 # For all other models and density calculators, it's irrelevant.
 @inline v_nvariables(system::BoundarySPHSystem) = 1
 
+@inline active_coordinates(u, system::BoundarySPHSystem) = current_coordinates(u, system)
+
 @inline function current_coordinates(u, system::BoundarySPHSystem)
     return system.coordinates
 end
