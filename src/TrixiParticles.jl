@@ -25,6 +25,7 @@ include("general/general.jl")
 include("neighborhood_search/neighborhood_search.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately.
 include("general/semidiscretization.jl")
@@ -34,7 +35,7 @@ export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem
-export InfoCallback, SolutionSavingCallback
+export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
