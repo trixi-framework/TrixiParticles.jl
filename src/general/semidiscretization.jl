@@ -377,7 +377,8 @@ end
 
 @inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
-@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle, system::FluidSystem)
+@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle,
+                                    system::FluidSystem)
     for i in 1:ndims(system)
         dv[i, particle] -= damping_coefficient * v[i, particle]
     end
