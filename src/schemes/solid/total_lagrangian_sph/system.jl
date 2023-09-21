@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, B} <: System{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,14 +94,18 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    buffer              :: B
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
-                                      n_fixed_particles=0,
+                                      n_fixed_particles=0, buffer=nothing,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
                                       penalty_force=nothing)
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -130,17 +134,14 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        return new{typeof(boundary_model),
-                   NDIMS, ELTYPE,
-                   typeof(smoothing_kernel),
-                   typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force)
+        return new{typeof(boundary_model), NDIMS, ELTYPE, typeof(smoothing_kernel),
+                   typeof(penalty_force),
+                   typeof(buffer)}(initial_condition, initial_coordinates,
+                                   current_coordinates, mass, correction_matrix,
+                                   pk1_corrected, deformation_grad, material_density,
+                                   n_moving_particles, young_modulus, poisson_ratio,
+                                   lame_lambda, lame_mu, smoothing_kernel, smoothing_length,
+                                   acceleration_, boundary_model, penalty_force, buffer)
     end
 end
 
@@ -201,14 +202,10 @@ end
 end
 
 @inline function n_moving_particles(system::TotalLagrangianSPHSystem)
-    system.n_moving_particles
+    return system.n_moving_particles
 end
 
 @inline initial_coordinates(system::TotalLagrangianSPHSystem) = system.initial_coordinates
-
-@inline active_coordinates(u, system::TotalLagrangianSPHSystem) = system.current_coordinates
-
-@inline active_particles(system::TotalLagrangianSPHSystem) = eachparticle(system)
 
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates

@@ -65,8 +65,8 @@ fluid = InitialCondition(fluid_slip, fluid_inlet, fluid_interior,
 # ==========================================================================================
 # ==== Open Boundary
 
-open_bounary_cols = 10
-length_open_boundary = particle_spacing * open_bounary_cols
+open_boundary_cols = 10
+length_open_boundary = particle_spacing * open_boundary_cols
 height_open_boundary_in = particle_spacing * n_particles_in_y
 height_open_boundary_out = particle_spacing * n_particles_out_y
 
@@ -82,11 +82,11 @@ zone_origin_in = (end_inflow_zone - length_open_boundary - particle_spacing / 2,
                   step_height - particle_spacing / 2)
 zone_origin_out = ((start_outflow_zone - particle_spacing / 2), 0.0)
 
-inflow = RectangularShape(particle_spacing, (open_bounary_cols, n_particles_in_y),
+inflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_in_y),
                           (start_inflow_zone, step_height), fluid_density,
                           init_velocity=prescribed_velocity,
                           buffer=n_buffer_particles_fluid, pressure=pressure)
-outflow = RectangularShape(particle_spacing, (open_bounary_cols, n_particles_out_y),
+outflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_out_y),
                            (start_outflow_zone, 0.0), fluid_density,
                            init_velocity=initial_velocity, buffer=n_buffer_particles_fluid,
                            pressure=pressure)
@@ -103,25 +103,25 @@ zone_points_out = ([end_outflow_zone - particle_spacing / 2; 0.0],
 # ==========================================================================================
 # ==== Boundary
 
-n_boundary_particles_x = n_particles_slip_x + 2 * open_bounary_cols
+n_boundary_particles_x = n_particles_slip_x + 2 * open_boundary_cols
 boundary_layers = 3
 
 bottom_slip_wall = RectangularShape(particle_spacing,
                                     (n_boundary_particles_x, boundary_layers),
                                     (start_inflow_zone -
-                                     open_bounary_cols * particle_spacing,
+                                     open_boundary_cols * particle_spacing,
                                      step_height - boundary_layers * particle_spacing),
                                     fluid_density)
 
 top_slip_wall = RectangularShape(particle_spacing,
                                  (n_boundary_particles_x, boundary_layers),
                                  (start_inflow_zone -
-                                  open_bounary_cols * particle_spacing,
+                                  open_boundary_cols * particle_spacing,
                                   step_height + inlet_width),
                                  fluid_density)
 
 n_interior_wall_x = Int(floor(interior_length / particle_spacing)) + boundary_layers +
-                    2 * open_bounary_cols
+                    2 * open_boundary_cols
 
 bottom_interior_wall = RectangularShape(particle_spacing,
                                         (n_interior_wall_x, boundary_layers),
