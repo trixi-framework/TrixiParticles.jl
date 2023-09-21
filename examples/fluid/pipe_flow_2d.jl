@@ -55,7 +55,7 @@ outflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_y)
 
 zone_plane_in = ([0.0; 0.0], [0.0; height_open_boundary])
 zone_plane_out = ([domain_length + length_open_boundary; 0.0],
-                   [domain_length + length_open_boundary; height_open_boundary])
+                  [domain_length + length_open_boundary; height_open_boundary])
 
 # ==========================================================================================
 # ==== Boundary

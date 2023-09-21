@@ -22,7 +22,7 @@ water_density = 1000.0
 prescribed_velocity = (1.0, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
-background_pressure = water_density*sound_speed^2
+background_pressure = water_density * sound_speed^2
 pressure = background_pressure#0.0
 
 nu = maximum(prescribed_velocity) * sphere_diameter / ReynoldsNumber
@@ -30,7 +30,6 @@ viscosity = ViscosityAdami(nu) #alpha * smoothing_length * sound_speed / 8)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
-
 
 pipe = RectangularTank(particle_spacing, (domain_length, domain_width),
                        (domain_length + particle_spacing * open_boundary_cols,
