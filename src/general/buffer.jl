@@ -56,9 +56,11 @@ end
 end
 
 @inline active_coordinates(u, system) = active_coordinates(u, system, system.buffer)
-@inline active_coordinates(u, system, ::Nothing) = u
-@inline active_coordinates(u, system, buffer::SystemBuffer) = u[:, buffer.active_particle]
+@inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
+@inline function active_coordinates(u, system, buffer::SystemBuffer)
+    return view(u, :, buffer.active_particle)
+end
 
 @inline active_particles(system) = active_particles(system, system.buffer)
 @inline active_particles(system, ::Nothing) = eachparticle(system)
-@inline active_particles(system, buffer::SystemBuffer) = buffer.active_particle
+@inline active_particles(system, buffer::SystemBuffer) = buffer.eachparticle

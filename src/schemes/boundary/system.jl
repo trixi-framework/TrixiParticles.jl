@@ -98,6 +98,8 @@ timer_name(::BoundarySPHSystem) = "boundary"
 # neighborhood search, anyway.
 @inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
 
+@inline active_particles(system::BoundarySPHSystem) = eachparticle(system)
+
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
     (; movement_function, is_moving) = movement

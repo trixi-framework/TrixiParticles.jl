@@ -208,6 +208,8 @@ end
 
 @inline active_coordinates(u, system::TotalLagrangianSPHSystem) = system.current_coordinates
 
+@inline active_particles(system::TotalLagrangianSPHSystem) = eachparticle(system)
+
 @inline function current_coordinates(u, system::TotalLagrangianSPHSystem)
     return system.current_coordinates
 end

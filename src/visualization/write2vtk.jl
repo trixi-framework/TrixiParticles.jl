@@ -84,11 +84,12 @@ vtkname(system::BoundarySPHSystem) = "boundary"
 vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem)
-    vtk["velocity"] = view(v, 1:ndims(system), active_particles(system))
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
-                      for particle in each_moving_particle(system)]
+                      for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in each_moving_particle(system)]
+                       for particle in active_particles(system)]
 
     return vtk
 end

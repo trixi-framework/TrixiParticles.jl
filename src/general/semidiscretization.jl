@@ -84,7 +84,7 @@ end
 function create_neighborhood_search(system, neighbor, ::Val{nothing},
                                     min_corner, max_corner)
     radius = compact_support(system, neighbor)
-    TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
+    TrivialNeighborhoodSearch{ndims(system)}(radius, active_particles(neighbor),
                                              min_corner=min_corner, max_corner=max_corner)
 end
 
