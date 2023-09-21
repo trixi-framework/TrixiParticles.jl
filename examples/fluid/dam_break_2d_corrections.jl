@@ -7,6 +7,7 @@ smoothing_length = 1.15 * particle_spacing
 
 boundary_density_calculator = SummationDensity()
 
+gravity = 9.81
 relaxation_tspan = (0.0, 3.0)
 simulation_tspan = (0.0, 5.7 / sqrt(gravity))
 
