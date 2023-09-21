@@ -28,7 +28,8 @@
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "dam_break_2d_corrections.jl"),
-                                                relaxation_tspan=(0.0, 0.1), simulation_tspan=(0.0, 0.1))
+                                       relaxation_tspan=(0.0, 0.1),
+                                       simulation_tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end
 
