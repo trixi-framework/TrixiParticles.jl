@@ -36,7 +36,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         viscosity = interior_system.viscosity
 
         characteristics = zeros(ELTYPE, 3, length(mass))
-        previous_characteristics = similar(characteristics)
+        previous_characteristics = zeros(ELTYPE, 4, length(mass))
         in_domain = trues(length(mass))
 
         zone_origin_ = SVector{NDIMS}(zone_origin)
@@ -185,7 +185,7 @@ function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index,
 end
 
 @inline function evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
-    (; interior_system, volume, initial_condition, sound_speed, characteristics,
+    (; interior_system, volume, sound_speed, characteristics,
     previous_characteristics, unit_normal, boundary_zone) = system
     (; neighborhood_searches) = semi
 
@@ -199,7 +199,13 @@ end
     system_coords = current_coordinates(u, system)
     interior_coords = current_coordinates(u_interior, interior_system)
 
-    previous_characteristics .= characteristics
+    for particle in each_moving_particle(system)
+        previous_characteristics[1, particle] = characteristics[1, particle]
+        previous_characteristics[2, particle] = characteristics[2, particle]
+        previous_characteristics[3, particle] = characteristics[3, particle]
+        previous_characteristics[4, particle] = 0.0
+    end
+
     set_zero!(characteristics)
     set_zero!(volume)
 
@@ -225,8 +231,13 @@ end
                                                pressure_term, velocity_term, kernel_,
                                                boundary_zone)
         volume[particle] += kernel_
+
+        # Indicate that particle is inside the influence of fluid particles.
+        previous_characteristics[end, particle] = 1.0
     end
 
+    nhs = neighborhood_searches[system_index][system_index]
+    (; search_radius) = nhs
     for particle in each_moving_particle(system)
         if volume[particle] < sqrt(eps())
 
@@ -238,16 +249,25 @@ end
             avg_J3 = 0.0
             counter = 0
 
-            for neighbor in eachneighbor(particle_coords, interior_nhs)
-                avg_J1 += previous_characteristics[1, neighbor]
-                avg_J2 += previous_characteristics[2, neighbor]
-                avg_J3 += previous_characteristics[3, neighbor]
-                counter += 1
-            end
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            for neighbor in eachneighbor(particle_coords, nhs)
+                neighbor_coords = current_coords(u, system, neighbor)
+                pos_diff = particle_coords - neighbor_coords
+                distance2 = dot(pos_diff, pos_diff)
 
+                if distance2 <= search_radius^2 &&
+                   isapprox(previous_characteristics[end, neighbor], 1.0)
+                    avg_J1 += previous_characteristics[1, neighbor]
+                    avg_J2 += previous_characteristics[2, neighbor]
+                    avg_J3 += previous_characteristics[3, neighbor]
+                    counter += 1
+                end
+            end
+
+            if counter > 0
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -280,7 +300,7 @@ end
 
 @inline function compute_quantities!(system, v)
     (; initial_condition, density, pressure, characteristics, unit_normal,
-    interior_system, sound_speed) = system
+    sound_speed) = system
 
     for particle in each_moving_particle(system)
         J1 = characteristics[1, particle]
