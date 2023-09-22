@@ -169,7 +169,7 @@ function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_od
     u = wrap_u(u_ode, system_index, system, semi)
     v = wrap_v(v_ode, system_index, system, semi)
 
-    evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
+    evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
 
     compute_quantities!(system, v)
 
@@ -184,14 +184,14 @@ function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index,
     system
 end
 
-@inline function evaluate_characteristics!(system, system_index, u, u_ode, v_ode, semi)
+@inline function evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
     (; interior_system, volume, sound_speed, characteristics,
     previous_characteristics, unit_normal, boundary_zone) = system
     (; neighborhood_searches) = semi
 
     interior_index = semi.system_indices[interior_system]
-    system_nhs = neighborhood_searches[system_index][interior_index]
-    interior_nhs = neighborhood_searches[interior_index][system_index]
+    system_interior_nhs = neighborhood_searches[system_index][interior_index]
+    system_nhs = neighborhood_searches[system_index][system_index]
 
     u_interior = wrap_u(u_ode, interior_index, interior_system, semi)
     v_interior = wrap_v(v_ode, interior_index, interior_system, semi)
@@ -209,9 +209,9 @@ end
     set_zero!(characteristics)
     set_zero!(volume)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all interior neighbors within the kernel cutoff.
     for_particle_neighbor(system, interior_system, system_coords, interior_coords,
-                          system_nhs) do particle, neighbor, pos_diff, distance
+                          system_interior_nhs) do particle, neighbor, pos_diff, distance
         rho = particle_density(v_interior, interior_system, neighbor)
         rho_ref = interior_system.initial_condition.density[neighbor]
 
@@ -232,24 +232,25 @@ end
                                                boundary_zone)
         volume[particle] += kernel_
 
-        # Indicate that particle is inside the influence of fluid particles.
+        # Indicate that particle is inside the influence of interior particles.
         previous_characteristics[end, particle] = 1.0
     end
 
-    nhs = neighborhood_searches[system_index][system_index]
-    (; search_radius) = nhs
+    (; search_radius) = system_nhs
     for particle in each_moving_particle(system)
-        if volume[particle] < sqrt(eps())
+
+        # Particle is outside of the influence of interior particles
+        if isapprox(previous_characteristics[end, particle], 0.0)
 
             # Using the average of the values at the previous time step for particles which
-            # are outside of the influence of the fluid particles.
+            # are outside of the influence of interior particles.
             particle_coords = current_coords(u, system, particle)
             avg_J1 = 0.0
             avg_J2 = 0.0
             avg_J3 = 0.0
             counter = 0
 
-            for neighbor in eachneighbor(particle_coords, nhs)
+            for neighbor in eachneighbor(particle_coords, system_nhs)
                 neighbor_coords = current_coords(u, system, neighbor)
                 pos_diff = particle_coords - neighbor_coords
                 distance2 = dot(pos_diff, pos_diff)
