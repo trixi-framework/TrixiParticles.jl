@@ -135,14 +135,26 @@ Each coordinate is treated as a vertex cell in the VTK file.
 coordinates = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0]
 vtk_file = trixi2vtk(coordinates, output_directory="output", prefix="data", filename="coords")
 """
-function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
+function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
+                   custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
-    vtk_grid(vtk -> nothing, file, points, cells)
+
+    vtk_grid(file, points, cells) do vtk
+        # Store particle index.
+        vtk["index"] = [i for i in axes(coordinates, 2)]
+
+        # Extract custom quantities for this system.
+        for (key, quantity) in custom_quantities
+            if quantity !== nothing
+                vtk[string(key)] = quantity
+            end
+        end
+    end
 
     return file
 end

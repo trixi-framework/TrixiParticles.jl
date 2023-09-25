@@ -10,6 +10,16 @@ equation of state (see  [`StateEquationCole`](@ref)) that generates large pressu
 for small density variations. For the choice of the appropriate `density_calculator`
 see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
+# Arguments
+- `initial_condition`:  Initial condition representing the system's particles.
+- `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+
+# Keyword Arguments
+- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
+- `correction`:   Correction method used for this SPH system. (default: no correction)
+
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
   In: Journal of Computational Physics 110 (1994), pages 399-406.
@@ -190,6 +200,41 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
                                  ::Union{ShepardKernelCorrection, KernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function reinit_density!(vu_ode, semi)
+    (; systems) = semi
+    v_ode, u_ode = vu_ode.x
+
+    foreach_enumerate(systems) do (system_index, system)
+        v = wrap_v(v_ode, system_index, system, semi)
+        u = wrap_u(u_ode, system_index, system, semi)
+
+        reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+    end
+
+    return vu_ode
+end
+
+function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+                         v_ode, u_ode, semi)
+    # Compute density with `SummationDensity` and store the result in `v`,
+    # overwriting the previous integrated density.
+    summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+
+    # Apply `ShepardKernelCorrection`
+    kernel_correction_coefficient = zeros(size(v[end, :]))
+    compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
+    v[end, :] ./= kernel_correction_coefficient
+
+    compute_pressure!(system, v)
+
+    return system
+end
+
+function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+    return system
 end
 
 function compute_pressure!(system, v)
