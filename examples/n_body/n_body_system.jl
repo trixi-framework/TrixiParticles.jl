@@ -51,7 +51,7 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   neighborhood_search,
                                   particle_system::NBodySystem,
                                   neighbor_system::NBodySystem)
-    @unpack mass, G = neighbor_system
+    (; mass, G) = neighbor_system
 
     system_coords = TrixiParticles.current_coordinates(u_particle_system,
                                                        particle_system)
@@ -83,7 +83,7 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
 end
 
 function energy(v_ode, u_ode, system, semi)
-    @unpack mass = system
+    (; mass) = system
 
     e = zero(eltype(system))
 
@@ -111,7 +111,7 @@ end
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
 function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
-    @unpack mass = system
+    (; mass) = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass

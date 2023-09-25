@@ -40,12 +40,12 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 boundary_particle_spacing = particle_spacing / beta_wall
 
 # Move right boundary
-wall_position = (tank.n_particles_per_dimension[1] + 1) * particle_spacing
+wall_position = tank.fluid_size[1]
 n_wall_particles_y = size(tank.face_indices[2], 2) * beta_wall
 
 wall = RectangularShape(boundary_particle_spacing,
                         (boundary_layers_wall, n_wall_particles_y),
-                        (wall_position, boundary_particle_spacing), water_density)
+                        (wall_position, 0.0), water_density)
 
 f_y(t) = 0.0
 f_x(t) = 0.5t^2
@@ -57,12 +57,13 @@ movement = BoundaryMovement((f_x, f_y), is_moving)
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass, state_equation,
+boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 
-boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass, state_equation,
+boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
+                                                  state_equation=state_equation,
                                                   AdamiPressureExtrapolation(),
                                                   smoothing_kernel, smoothing_length)
 
@@ -84,7 +85,7 @@ boundary_system_wall = BoundarySPHSystem(wall, boundary_model_wall,
 tspan = (0.0, 2.0)
 
 semi = Semidiscretization(fluid_system, boundary_system_tank, boundary_system_wall,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 ode = semidiscretize(semi, tspan)
 

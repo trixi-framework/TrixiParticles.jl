@@ -63,7 +63,8 @@ sphere_2 = SphereShape(solid_particle_spacing, solid_radius_2, (1.5, 1.6),
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
+                                             tank.boundary.mass,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              fluid_smoothing_kernel,
                                              fluid_smoothing_length)
@@ -73,7 +74,8 @@ hydrodynamic_densites_1 = water_density * ones(size(sphere_1.density))
 hydrodynamic_masses_1 = hydrodynamic_densites_1 * solid_particle_spacing^2
 
 solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
-                                                     hydrodynamic_masses_1, state_equation,
+                                                     hydrodynamic_masses_1,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
@@ -82,7 +84,8 @@ hydrodynamic_densites_2 = water_density * ones(size(sphere_2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^2
 
 solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
-                                                     hydrodynamic_masses_2, state_equation,
+                                                     hydrodynamic_masses_2,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
@@ -117,7 +120,7 @@ solid_system_2 = TotalLagrangianSPHSystem(sphere_2,
 
 semi = Semidiscretization(fluid_system, boundary_system, solid_system_1,
                           solid_system_2,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

@@ -17,8 +17,8 @@ water_density = 1000.0
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-tank_width = 0.96
-tank_height = 0.48
+tank_width = 1.0
+tank_height = 0.5
 
 water_width = tank_width
 water_height = tank_height
@@ -40,11 +40,10 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel,
-                                             smoothing_length)
+                                             smoothing_kernel, smoothing_length)
 
 # K = 1.0
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
@@ -63,9 +62,9 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch,
-                          periodic_box_min_corner=[0.0, -0.24],
-                          periodic_box_max_corner=[0.96, 0.72])
+                          neighborhood_search=GridNeighborhoodSearch,
+                          periodic_box_min_corner=[0.0, -0.25],
+                          periodic_box_max_corner=[1.0, 0.75])
 
 tspan = (0.0, 1.0)
 ode = semidiscretize(semi, tspan)

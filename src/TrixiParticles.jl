@@ -6,7 +6,7 @@ using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
-using Polyester: @batch
+using Polyester: Polyester, @batch
 using Printf: @printf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
@@ -23,8 +23,10 @@ using ForwardDiff
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
+include("neighborhood_search/neighborhood_search.jl")
 include("setups/setups.jl")
 include("schemes/schemes.jl")
+
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included separately.
 include("general/semidiscretization.jl")
@@ -32,8 +34,9 @@ include("visualization/write2vtk.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
-export WeaklyCompressibleSPHSystem, TotalLagrangianSPHSystem, BoundarySPHSystem
-export InfoCallback, SolutionSavingCallback
+export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
+       BoundarySPHSystem
+export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
@@ -42,7 +45,7 @@ export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
 export BoundaryMovement
-export SpatialHashingSearch
+export GridNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape

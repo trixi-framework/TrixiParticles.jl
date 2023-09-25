@@ -77,8 +77,8 @@ end
                                           v_particle_system, v_boundary_system,
                                           particle_system, boundary_system,
                                           pos_diff, distance, m_b)
-    @unpack smoothing_length = particle_system
-    @unpack K, beta, boundary_particle_spacing = boundary_model
+    (; smoothing_length) = particle_system
+    (; K, beta, boundary_particle_spacing) = boundary_model
 
     NDIMS = ndims(particle_system)
     return K / beta^(NDIMS - 1) * pos_diff /
@@ -99,7 +99,7 @@ end
 end
 
 @inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
-    @unpack hydrodynamic_mass, boundary_particle_spacing = model
+    (; hydrodynamic_mass, boundary_particle_spacing) = model
 
     # This model does not use any particle density. However, a mean density is used for
     # `ArtificialViscosityMonaghan` in the fluid interaction.

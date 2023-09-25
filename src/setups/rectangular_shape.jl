@@ -31,7 +31,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 100
 ```
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension,
-                          min_coordinates, density; tlsph=false,
+                          min_coordinates, density; pressure=0.0, tlsph=false,
                           init_velocity=ntuple(_ -> 0.0,
                                                length(n_particles_per_dimension)),
                           loop_order=:x_first)
@@ -61,7 +61,8 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     densities = density * ones(ELTYPE, n_particles)
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
 
-    return InitialCondition(coordinates, velocities, masses, densities)
+    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
+                            particle_spacing=particle_spacing)
 end
 
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,

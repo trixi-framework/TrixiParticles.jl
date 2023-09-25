@@ -1,6 +1,6 @@
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
-    @unpack systems, neighborhood_searches = semi
+    (; systems, neighborhood_searches) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -67,29 +67,40 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     vtk_save(pvd)
 end
 
-function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
+function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
+                   custom_quantities...)
     mkpath(output_directory)
     file = prefix === "" ? joinpath(output_directory, filename) :
            joinpath(output_directory, "$(prefix)_$filename")
 
     points = coordinates
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
-    vtk_grid(vtk -> nothing, file, points, cells)
+
+    vtk_grid(file, points, cells) do vtk
+        # Store particle index.
+        vtk["index"] = [i for i in axes(coordinates, 2)]
+
+        # Extract custom quantities for this system.
+        for (key, quantity) in custom_quantities
+            if quantity !== nothing
+                vtk[string(key)] = quantity
+            end
+        end
+    end
 
     return file
 end
 
-vtkname(system::WeaklyCompressibleSPHSystem) = "fluid"
+vtkname(system::FluidSystem) = "fluid"
 vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
 
-function write2vtk!(vtk, v, u, t, system::WeaklyCompressibleSPHSystem)
-    @unpack density_calculator, cache = system
-
+function write2vtk!(vtk, v, u, t, system::FluidSystem)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
-    vtk["pressure"] = system.pressure
+    vtk["pressure"] = [particle_pressure(v, system, particle)
+                       for particle in eachparticle(system)]
 
     # write meta data
     vtk["solver"] = "WCSPH"

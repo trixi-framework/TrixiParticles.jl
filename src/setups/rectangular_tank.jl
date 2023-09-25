@@ -59,7 +59,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size,
-                             fluid_density;
+                             fluid_density; pressure=0.0,
                              n_layers=1, spacing_ratio=1.0,
                              init_velocity=zeros(length(fluid_size)),
                              boundary_density=fluid_density,
@@ -97,13 +97,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                                             particle_spacing,
                                                                             spacing_ratio)
 
-        boundary_coordinates, face_indices = initialize_boundaries(particle_spacing /
-                                                                   spacing_ratio,
+        boundary_spacing = particle_spacing / spacing_ratio
+        boundary_coordinates, face_indices = initialize_boundaries(boundary_spacing,
                                                                    tank_size_,
                                                                    n_boundaries_per_dim,
                                                                    n_layers, faces)
 
-        boundary_masses = boundary_density * (particle_spacing / spacing_ratio)^NDIMS *
+        boundary_masses = boundary_density * boundary_spacing^NDIMS *
                           ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_densities = boundary_density * ones(ELTYPE, size(boundary_coordinates, 2))
         boundary_velocities = zeros(ELTYPE, size(boundary_coordinates))
@@ -112,11 +112,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               particle_spacing,
                                                               n_particles_per_dim)
 
-        fluid = RectangularShape(particle_spacing, n_particles_per_dim,
-                                 zeros(NDIMS), fluid_density, init_velocity=init_velocity)
+        fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
+                                 fluid_density, init_velocity=init_velocity,
+                                 pressure=pressure)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
-                                    boundary_masses, boundary_densities)
+                                    boundary_masses, boundary_densities,
+                                    particle_spacing=boundary_spacing)
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
@@ -654,8 +656,7 @@ The selected walls of the tank will be placed at the new positions.
     There are overlapping particles when adjacent walls are moved inwards simultaneously.
 """
 function reset_wall!(rectangular_tank, reset_faces, positions)
-    @unpack boundary, particle_spacing, spacing_ratio,
-    n_layers, face_indices = rectangular_tank
+    (; boundary, particle_spacing, spacing_ratio, n_layers, face_indices) = rectangular_tank
 
     for face in eachindex(reset_faces)
         dim = div(face - 1, 2) + 1

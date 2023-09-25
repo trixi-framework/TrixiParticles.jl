@@ -136,7 +136,7 @@
                     return initial_coordinates[i]
                 end
 
-                # All @unpack calls should return another mock object
+                # All unpack calls should return another mock object
                 # of the type `Val{:mock_property_name}`, but we want to have some real matrices
                 # as properties as opposed to only mock objects.
                 function Base.getproperty(::Val{:mock_system_tensor}, f::Symbol)
@@ -182,17 +182,17 @@
         @testset verbose=true "Deformation Functions" begin
             # We generate a grid of particles, apply a deformation, and verify that the computed
             # deformation gradient matches the deformation matrix.
-            deformations = Dict("Stretch x" => x -> [2.0 0.0; 0.0 1.0] * x,
-                                "Stretch Both" => x -> [2.0 0.0; 0.0 3.0] * x,
-                                "Rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] *
-                                                   x,
-                                "Nonlinear Stretching" => x -> [x[1]^2, x[2]])
+            deformations = Dict(
+                "Stretch x" => x -> [2.0 0.0; 0.0 1.0] * x,
+                "Stretch Both" => x -> [2.0 0.0; 0.0 3.0] * x,
+                "Rotation" => x -> [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)] * x,
+                "Nonlinear Stretching" => x -> [x[1]^2, x[2]])
 
-            deformation_gradients = Dict("Stretch x" => [2.0 0.0; 0.0 1.0],
-                                         "Stretch Both" => [2.0 0.0; 0.0 3.0],
-                                         "Rotation" => [cos(0.3) -sin(0.3);
-                                                        sin(0.3) cos(0.3)],
-                                         "Nonlinear Stretching" => [1.0 0.0; 0.0 1.0])
+            deformation_gradients = Dict(
+                "Stretch x" => [2.0 0.0; 0.0 1.0],
+                "Stretch Both" => [2.0 0.0; 0.0 3.0],
+                "Rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
+                "Nonlinear Stretching" => [1.0 0.0; 0.0 1.0])
 
             @testset "$deformation_name" for deformation_name in keys(deformations)
                 deformation = deformations[deformation_name]
@@ -241,7 +241,8 @@
         deformations = Dict("rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
                             "stretch both" => [2.0 0.0; 0.0 3.0],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
-                                                     sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0])
+                                                     sin(0.3) cos(0.3)] * [2.0 0.0; 0.0 3.0]
+                            )
 
         expected_pk2 = Dict("rotation" => zeros(2, 2), # No stress in rotations only
                             "stretch both" => [8.5 0.0; 0.0 13.5], # Calculated by hand
@@ -252,7 +253,8 @@
                             "stretch both" => [17.0 0.0; 0.0 40.5],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
                                                      sin(0.3) cos(0.3)] *
-                                                    [2.0 0.0; 0.0 3.0] * [8.5 0.0; 0.0 13.5])
+                                                    [2.0 0.0; 0.0 3.0] * [8.5 0.0; 0.0 13.5]
+                            )
 
         @testset "Deformation Function: $deformation" for deformation in keys(deformations)
             #### Setup
@@ -265,7 +267,7 @@
             # and deformation gradient than to actually construct a system.
             system = Val(:mock_system)
 
-            # All @unpack calls should return another mock object
+            # All unpack calls should return another mock object
             # of the type `Val{:mock_property_name}`, but we want to have the actual
             # Lamé constants as properties.
             function Base.getproperty(::Val{:mock_system}, f::Symbol)

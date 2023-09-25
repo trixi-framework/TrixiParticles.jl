@@ -25,11 +25,10 @@ struct StateEquationIdealGas{ELTYPE}
 end
 
 function (state_equation::StateEquationIdealGas)(density)
-    @unpack sound_speed, reference_density, reference_pressure, background_pressure = state_equation
+    (; sound_speed, reference_density, reference_pressure, background_pressure) = state_equation
 
-    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    return max(sound_speed^2 * (density - reference_density) + reference_pressure -
-               background_pressure, 0.0)
+    return sound_speed^2 * (density - reference_density) + reference_pressure -
+           background_pressure
 end
 
 @doc raw"""
@@ -67,16 +66,15 @@ struct StateEquationCole{ELTYPE}
 end
 
 function (state_equation::StateEquationCole)(density)
-    @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
+    (; sound_speed, gamma, reference_density, reference_pressure, background_pressure) = state_equation
 
-    # Limit pressure to be non-negative to avoid negative pressures at free surfaces
-    return max(reference_density * sound_speed^2 / gamma *
-               ((density / reference_density)^gamma - 1) +
-               reference_pressure - background_pressure, 0.0)
+    return reference_density * sound_speed^2 / gamma *
+           ((density / reference_density)^gamma - 1) +
+           reference_pressure - background_pressure
 end
 
 function inverse_state_equation(state_equation::StateEquationCole, pressure)
-    @unpack sound_speed, gamma, reference_density, reference_pressure, background_pressure = state_equation
+    (; sound_speed, gamma, reference_density, reference_pressure, background_pressure) = state_equation
 
     tmp = gamma * (pressure + background_pressure - reference_pressure) /
           (reference_density * sound_speed^2) + 1

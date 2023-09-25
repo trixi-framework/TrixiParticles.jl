@@ -10,7 +10,7 @@
         # Boundary particles out of fluid compact support
         boundary_3 = RectangularShape(particle_spacing, (10, 1), (0, 0), 257.0)
 
-        boundary = InitialCondition(boundary_1, boundary_2, boundary_3)
+        boundary = union(boundary_1, boundary_2, boundary_3)
 
         particles_in_compact_support = length(boundary_1.mass) + length(boundary_2.mass)
 
@@ -22,7 +22,7 @@
         state_equation = StateEquationCole(10, 7, 257, 0.0)
 
         boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                                     state_equation,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity)
