@@ -289,6 +289,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
+# Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     (; systems) = semi
 
@@ -385,9 +386,9 @@ end
     return dv
 end
 
-# No damping for non-fluid systems
+# Currently no damping for non-fluid systems
 @inline add_damping_force!(dv, damping_coefficient, v, particle, system) = dv
-@inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
+@inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     (; systems, neighborhood_searches) = semi
