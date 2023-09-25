@@ -83,7 +83,7 @@ end
                                                          TotalLagrangianSPHSystem},
                                   v_neighbor_system, rho_a, rho_b, pos_diff, distance,
                                   grad_kernel)
-    (;boundary_model) = neighbor_system
+    (; boundary_model) = neighbor_system
 
     return boundary_particle_impact(particle, neighbor, boundary_model,
                                     v_particle_system, v_neighbor_system,
