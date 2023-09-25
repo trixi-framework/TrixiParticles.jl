@@ -36,13 +36,12 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
                     * add_opt_str_post(iter))
 
     collection_file = joinpath(output_directory,
-                    add_opt_str_pre(prefix) * "$system_name")
+                               add_opt_str_pre(prefix) * "$system_name")
 
-    pvd = paraview_collection(collection_file; append = true)
+    pvd = paraview_collection(collection_file; append=true)
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
-
 
     vtk_grid(file, points, cells) do vtk
         write2vtk!(vtk, v, u, t, system)
