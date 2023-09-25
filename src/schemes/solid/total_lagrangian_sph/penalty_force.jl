@@ -54,7 +54,7 @@ end
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
                                      initial_distance, system,
                                      penalty_force::PenaltyForceGanzenmueller)
-    @unpack mass, material_density, current_coordinates, young_modulus = system
+    (; mass, material_density, young_modulus) = system
 
     current_pos_diff = current_coords(system, particle) -
                        current_coords(system, neighbor)
@@ -63,7 +63,7 @@ end
     volume_particle = mass[particle] / material_density[particle]
     volume_neighbor = mass[neighbor] / material_density[neighbor]
 
-    kernel_ = smoothing_kernel(system, initial_distance)
+    kernel_weight = smoothing_kernel(system, initial_distance)
 
     J_a = deformation_gradient(system, particle)
     J_b = deformation_gradient(system, neighbor)
@@ -73,7 +73,7 @@ end
     delta_sum = dot(eps_sum, current_pos_diff) / current_distance
 
     f = 0.5 * penalty_force.alpha * volume_particle * volume_neighbor *
-        kernel_ / initial_distance^2 * young_modulus * delta_sum *
+        kernel_weight / initial_distance^2 * young_modulus * delta_sum *
         current_pos_diff / current_distance
 
     for i in 1:ndims(system)

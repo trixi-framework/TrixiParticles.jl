@@ -1,25 +1,11 @@
-struct TrivialNeighborhoodSearch{E}
-    eachparticle::E
-
-    function TrivialNeighborhoodSearch(eachparticle)
-        new{typeof(eachparticle)}(eachparticle)
-    end
-end
-
-@inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
-@inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
-@inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
-
 @doc raw"""
-    SpatialHashingSearch{NDIMS}(search_radius, n_particles)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles)
 
-Simple grid-based neighborhood search with uniform search radius ``d``,
-inspired by (Ihmsen et al. 2011, Section 4.4).
-
-The domain is divided into cells of uniform size ``d`` in each dimension.
-Only particles in neighboring cells are then considered as neighbors of a particle.
-Instead of representing a finite domain by an array of cells (basic uniform grid),
-a potentially infinite domain is represented by saving cells in a hash table,
+Simple grid-based neighborhood search with uniform search radius ``d``.
+The domain is divided into a regular grid.
+For each (non-empty) grid cell, a list of particles in this cell is stored.
+Instead of representing a finite domain by an array of cells, a potentially infinite domain
+is represented by storing cell lists in a hash table (using Julia's `Dict` data structure),
 indexed by the cell index tuple
 ```math
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor \right) \quad \text{or} \quad
@@ -27,51 +13,95 @@ indexed by the cell index tuple
 ```
 where ``x, y, z`` are the space coordinates.
 
-As opposed to (Ihmsen et al. 2011), we do not handle the hashing explicitly and use
-Julia's `Dict` data structure instead.
-We also do not sort the particles in any way, since that makes our implementation
-a lot faster (although not parallelizable).
+To find particles within a radius around a point, only particles in the neighboring cells
+are considered.
+
+See also (Chalela et al., 2021), (Ihmsen et al. 2011, Section 4.4).
+
+As opposed to (Ihmsen et al. 2011), we do not sort the particles in any way,
+since that makes our implementation a lot faster (although less parallelizable).
 
 ## References:
+- M. Chalela, E. Sillero, L. Pereyra, M.A. Garcia, J.B. Cabral, M. Lares, M. Merchán.
+  "GriSPy: A Python package for fixed-radius nearest neighbors search".
+  In: Astronomy and Computing 34 (2021).
+  [doi: 10.1016/j.ascom.2020.100443](https://doi.org/10.1016/j.ascom.2020.100443)
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
   "A Parallel SPH Implementation on Multi-Core CPUs".
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
-struct SpatialHashingSearch{NDIMS, ELTYPE}
+struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     hashtable           :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     search_radius       :: ELTYPE
     empty_vector        :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
     cell_buffer         :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
     cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
+    periodic_box        :: PB
+    n_cells             :: NTuple{NDIMS, Int}
+    cell_size           :: NTuple{NDIMS, ELTYPE}
 
-    function SpatialHashingSearch{NDIMS}(search_radius, n_particles) where {NDIMS}
+    function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
+                                           min_corner=nothing,
+                                           max_corner=nothing) where {NDIMS}
+        ELTYPE = typeof(search_radius)
+
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
-        empty_vector = Vector{Int}()
+        empty_vector = Int[]
         cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        new{NDIMS, typeof(search_radius)}(hashtable, search_radius, empty_vector,
-                                          cell_buffer, cell_buffer_indices)
+        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
+            # No periodicity
+            periodic_box = nothing
+            n_cells = ntuple(_ -> -1, Val(NDIMS))
+            cell_size = ntuple(_ -> search_radius, Val(NDIMS))
+        elseif min_corner !== nothing && max_corner !== nothing
+            periodic_box = PeriodicBox(min_corner, max_corner)
+
+            # Round up search radius so that the grid fits exactly into the domain without
+            # splitting any cells. This might impact performance slightly, since larger
+            # cells mean that more potential neighbors are considered than necessary.
+            # Allow small tolerance to avoid inefficient larger cells due to machine
+            # rounding errors.
+            n_cells = Tuple(floor.(Int, (periodic_box.size .+ 10eps()) / search_radius))
+            cell_size = Tuple(periodic_box.size ./ n_cells)
+
+            if any(i -> i < 3, n_cells)
+                throw(ArgumentError("the `GridNeighborhoodSearch` needs at least 3 cells " *
+                                    "in each dimension when used with periodicity. " *
+                                    "Please use no NHS for very small problems."))
+            end
+        else
+            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
+                                "both `nothing` or both an array or tuple"))
+        end
+
+        new{NDIMS, ELTYPE,
+            typeof(periodic_box)}(hashtable, search_radius, empty_vector,
+                                  cell_buffer, cell_buffer_indices,
+                                  periodic_box, n_cells, cell_size)
     end
 end
 
-@inline function nparticles(neighborhood_search::SpatialHashingSearch)
+@inline Base.ndims(neighborhood_search::GridNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
+
+@inline function nparticles(neighborhood_search::GridNeighborhoodSearch)
     return size(neighborhood_search.cell_buffer, 1)
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function initialize!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
     # No particle coordinates function -> don't initialize.
     return neighborhood_search
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch{NDIMS},
+function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
                      x::AbstractArray) where {NDIMS}
     initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
-function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
-    @unpack hashtable, search_radius = neighborhood_search
+function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
+    (; hashtable) = neighborhood_search
 
     empty!(hashtable)
 
@@ -94,23 +124,19 @@ function initialize!(neighborhood_search::SpatialHashingSearch, coords_fun)
     return neighborhood_search
 end
 
-function update!(neighborhood_search::SpatialHashingSearch, ::Nothing)
+function update!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
     # No particle coordinates function -> don't update.
     return neighborhood_search
 end
 
-function update!(neighborhood_search::SpatialHashingSearch{NDIMS},
+function update!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
                  x::AbstractArray) where {NDIMS}
     update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
 # Modify the existing hash table by moving particles into their new cells
-function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
-    @unpack hashtable, search_radius, cell_buffer, cell_buffer_indices = neighborhood_search
-
-    @inline function cell_coords_(particle)
-        cell_coords(coords_fun(particle), neighborhood_search)
-    end
+function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
+    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
@@ -134,12 +160,13 @@ function update!(neighborhood_search::SpatialHashingSearch, coords_fun)
 
             # Find all particles whose coordinates do not match this cell
             moved_particle_indices = (i for i in eachindex(particles)
-                                      if cell_coords_(particles[i]) != cell)
+                                      if cell_coords(coords_fun(particles[i]),
+                                                     neighborhood_search) != cell)
 
             # Add moved particles to new cell
             for i in moved_particle_indices
                 particle = particles[i]
-                new_cell_coords = cell_coords_(particle)
+                new_cell_coords = cell_coords(coords_fun(particle), neighborhood_search)
 
                 # Add particle to corresponding cell or create cell if it does not exist
                 if haskey(hashtable, new_cell_coords)
@@ -166,7 +193,7 @@ end
 # Otherwise, @threaded does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
-    @unpack hashtable, cell_buffer, cell_buffer_indices = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
 
     for particle in hashtable[cell]
         if cell_coords(coords_fun(particle), neighborhood_search) != cell
@@ -181,7 +208,7 @@ end
     end
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{2})
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
     cell = cell_coords(coords, neighborhood_search)
     x, y = cell
     # Generator of all neighboring cells to consider
@@ -192,7 +219,7 @@ end
                       for cell in neighboring_cells)
 end
 
-@inline function eachneighbor(coords, neighborhood_search::SpatialHashingSearch{3})
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{3})
     cell = cell_coords(coords, neighborhood_search)
     x, y, z = cell
     # Generator of all neighboring cells to consider
@@ -203,58 +230,45 @@ end
                       for cell in neighboring_cells)
 end
 
-# Loop over all pairs of particles and neighbors within the kernel cutoff.
-# `f(particle, neighbor, pos_diff, distance)` is called for every particle-neighbor pair.
-# By default, loop over `each_moving_particle(system)`.
-@inline function for_particle_neighbor(f, system, neighbor_system,
-                                       system_coords, neighbor_coords, neighborhood_search;
-                                       particles=each_moving_particle(system))
-    @threaded for particle in particles
-        for_particle_neighbor_inner(f, system, neighbor_system,
-                                    system_coords, neighbor_coords, neighborhood_search,
-                                    particle)
-    end
-
-    return nothing
-end
-
-# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
-# with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
-# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-@inline function for_particle_neighbor_inner(f, system, neighbor_system,
-                                             system_coords, neighbor_system_coords,
-                                             neighborhood_search, particle)
-    particle_coords = extract_svector(system_coords, system, particle)
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
-        neighbor_coords = extract_svector(neighbor_system_coords, neighbor_system,
-                                          neighbor)
-
-        pos_diff = particle_coords - neighbor_coords
-        distance2 = dot(pos_diff, pos_diff)
-
-        if distance2 <= compact_support(system, neighbor_system)^2
-            distance = sqrt(distance2)
-
-            # Inline to avoid loss of performance
-            # compared to not using `for_particle_neighbor`.
-            @inline f(particle, neighbor, pos_diff, distance)
-        end
-    end
-end
-
 @inline function particles_in_cell(cell_index, neighborhood_search)
-    @unpack hashtable, empty_vector = neighborhood_search
+    (; hashtable, empty_vector) = neighborhood_search
 
-    # Return an empty vector when `cell_index` is not a key of `hastable` and
+    # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
-    return get(hashtable, cell_index, empty_vector)
+    return get(hashtable, periodic_cell_index(cell_index, neighborhood_search),
+               empty_vector)
+end
+
+@inline function periodic_cell_index(cell_index, neighborhood_search)
+    (; n_cells, periodic_box) = neighborhood_search
+
+    periodic_cell_index(cell_index, periodic_box, n_cells)
+end
+
+@inline periodic_cell_index(cell_index, ::Nothing, n_cells) = cell_index
+
+@inline function periodic_cell_index(cell_index, periodic_box, n_cells)
+    return rem.(cell_index, n_cells, RoundDown)
 end
 
 @inline function cell_coords(coords, neighborhood_search)
-    @unpack search_radius = neighborhood_search
+    (; periodic_box, cell_size) = neighborhood_search
 
-    return Tuple(floor_to_int.(coords / search_radius))
+    return cell_coords(coords, periodic_box, cell_size)
+end
+
+@inline function cell_coords(coords, periodic_box::Nothing, cell_size)
+    return Tuple(floor_to_int.(coords ./ cell_size))
+end
+
+@inline function cell_coords(coords, periodic_box, cell_size)
+    # Subtract `min_corner` to offset coordinates so that the min corner of the periodic
+    # box corresponds to the (0, 0) cell of the NHS.
+    # This way, there are no partial cells in the domain if the domain size is an integer
+    # multiple of the cell size (which is required, see the constructor).
+    offset_coords = periodic_coords(coords, periodic_box) .- periodic_box.min_corner
+
+    return Tuple(floor_to_int.(offset_coords ./ cell_size))
 end
 
 # When particles end up with coordinates so big that the cell coordinates
@@ -277,9 +291,10 @@ end
 end
 
 # Sorting only really makes sense in longer simulations where particles
-# end up very unordered
+# end up very unordered.
+# WARNING: This is currently unmaintained.
 function z_index_sort!(coordinates, system)
-    @unpack mass, pressure, neighborhood_search = system
+    (; mass, pressure, neighborhood_search) = system
 
     perm = sortperm(eachparticle(system),
                     by=(i -> cell_z_index(extract_svector(coordinates, system, i),
@@ -293,7 +308,7 @@ function z_index_sort!(coordinates, system)
 end
 
 @inline function cell_z_index(coords, neighborhood_search)
-    cell = cell_coords(coords, neighborhood_search) .+ 1
+    cell = cell_coords(coords, neighborhood_search.search_radius) .+ 1
 
     return cartesian2morton(SVector(cell))
 end
