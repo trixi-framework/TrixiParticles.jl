@@ -111,7 +111,19 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem)
     vtk["density_calculator"] = type2string(system.density_calculator)
     vtk["state_equation"] = type2string(system.state_equation)
 
+    write2vtk!(vtk, system.viscosity)
     return vtk
+end
+
+function write2vtk!(vtk, viscosity::ViscosityAdami)
+    vtk["nu"] = viscosity.nu
+    vtk["epsilon"] = viscosity.epsilon
+end
+
+function write2vtk!(vtk, viscosity::ArtificialViscosityMonaghan)
+    vtk["alpha"] = viscosity.alpha
+    vtk["beta"] = viscosity.beta
+    vtk["epsilon"] = viscosity.epsilon
 end
 
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem)
@@ -133,14 +145,12 @@ function write2vtk!(vtk, v, u, t, model, system)
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system)
-    @unpack boundary_model = system
-
     # write meta data
     vtk["boundary_model"] = "BoundaryModelDummyParticles"
-    vtk["smoothing_kernel"] = type2string(boundary_model.smoothing_kernel)
-    vtk["smoothing_length"] = boundary_model.smoothing_length
-    vtk["density_calculator"] = type2string(boundary_model.density_calculator)
-    vtk["state_equation"] = type2string(boundary_model.state_equation)
+    vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
+    vtk["smoothing_length"] = system.boundary_model.smoothing_length
+    vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
+    vtk["state_equation"] = type2string(system.boundary_model.state_equation)
 
     write2vtk!(vtk, v, u, t, model, model.viscosity, system)
 end
