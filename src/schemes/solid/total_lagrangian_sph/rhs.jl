@@ -97,9 +97,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  pos_diff, distance, sound_speed, m_b, m_a, rho_mean)
 
         # Boundary forces
-        dv_boundary = pressure_acceleration(1.0, m_b, particle,
-                                            particle_system, v_particle_system, neighbor,
-                                            neighbor_system, v_neighbor_system, rho_a,
+        # Note: neighbor and particle are switched in this call
+        dv_boundary = pressure_acceleration(1.0, m_b, neighbor, neighbor_system,
+                                            v_neighbor_system, particle,
+                                            particle_system, v_particle_system, rho_a,
                                             rho_b, pos_diff, distance,
                                             grad_kernel, boundary_model)
         dv_particle = dv_boundary + dv_viscosity
