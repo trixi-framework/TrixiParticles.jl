@@ -1,24 +1,24 @@
 """
     trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="", custom_quantities...)
 
-Converts Trixi simulation data to VTK format.
+Convert Trixi simulation data to VTK format.
 
 # Arguments
-- `vu_ode::ODESolution`: Solution of the Trixi ODE system.
-- `semi::SemiDiscretization`: Semi-discretization of the TrixiParticles simulation.
-- `t::Float64`: Current time of the simulation.
-- `iter::Union{Nothing, Int}` (optional): Iteration number. Defaults to `nothing`.
-- `output_directory::AbstractString` (optional): Output directory path. Defaults to `"out"`.
-- `prefix::AbstractString` (optional): Prefix for output files. Defaults to an empty string.
-- `custom_quantities...`: Additional custom quantities to include in the VTK output.
+- `vu_ode`: Solution of the TrixiParticles ODE system at one time step. This expects an `ArrayPartition` as returned in the examples as `sol`.
+- `semi`: Semidiscretization of the TrixiParticles simulation.
+- `t`: Current time of the simulation.
 
-# Details
-This function converts TrixiParticles simulation data to VTK format.
-It iterates over each system in the semi-discretization and calls the overloaded `trixi2vtk` function for each system.
+# Keywords
+- `iter`: Iteration number when multiple iterations are to be stored in separate files.
+- `output_directory`: Output directory path. Defaults to `"out"`.
+- `prefix`: Prefix for output files. Defaults to an empty string.
+- `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
+
+
 
 # Example
 ```julia
-trixi2vtk(vu, semi, 0.0, iter=1, output_directory="output", prefix="solution", velocity=compute_velocity)
+trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="solution", velocity=compute_velocity)
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
@@ -44,34 +44,9 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     end
 end
 
-"""
-    trixi2vtk(v, u, t, system; output_directory="out", prefix="", iter=nothing,
-    system_name=vtkname(system), custom_quantities...)
-
-Converts a single Trixi system data to VTK format.
-
-# Arguments
-- `v::AbstractVector`: Vector of solution variables.
-- `u::AbstractVector`: Vector of unknowns.
-- `t::Float64`: Current time of the simulation.
-- `system::TrixiSystem`: Trixi system to convert to VTK.
-- `output_directory::AbstractString` (optional): Output directory path. Defaults to "out".
-- `prefix::AbstractString` (optional): Prefix for output files. Defaults to an empty string.
-- `iter::Union{Nothing, Int}` (optional): Iteration number. Defaults to nothing.
-- `system_name::AbstractString` (optional): Name of the system for the output file. Defaults to the VTK name of the system.
-- `custom_quantities...`: Additional custom quantities to include in the VTK output.
-
-# Details
-This function converts a single Trixi system's data to VTK format. It creates the necessary VTK file,
-writes the solution variables and unknowns to the file, and includes additional custom quantities if provided.
-
-# Example
-trixi2vtk(v, u, 0.0, fluid_system, output_directory="output", prefix="solution", velocity=compute_velocity)
-
-"""
+# Convert a single Trixi system data to VTK format.
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), custom_value=nothing,
-                   custom_quantities...)
+                   iter=nothing, system_name=vtkname(system), custom_quantities...)
     mkpath(output_directory)
 
     # handle "_" on optional pre/postfix strings
@@ -91,50 +66,26 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         # Store particle index
         vtk["index"] = eachparticle(system)
 
-        if custom_value !== nothing
-            for (key, value) in custom_value
-                if axes(value, 1) == ndims(system)
-                    vtk[string(key)] = view(value, 1:ndims(system), :)
-                else
-                    vtk[string(key)] = value
-                end
-            end
-        end
-
         # Extract custom quantities for this system
-        for (key, func) in custom_quantities
-            value = func(v, u, t, system)
+        for (key, quantity) in custom_quantities
+            value = custom_quantity(quantity, v, u, t, system)
             if value !== nothing
-                vtk[string(key)] = func(v, u, t, system)
+                vtk[string(key)] = value
             end
         end
     end
 end
 
-"""
-    trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
+function custom_quantity(quantity::AbstractArray, v, u, t, system)
+    return quantity
+end
 
-Converts coordinate data to VTK format.
+function custom_quantity(quantity, v, u, t, system)
+    # Assume `quantity` is a function of `v`, `u`, `t`, and `system`
+    return quantity(v, u, t, system)
+end
 
-# Arguments
-- `coordinates::AbstractMatrix`: Matrix of coordinate data.
-- `output_directory::AbstractString` (optional): Output directory path. Defaults to `"out"`.
-- `prefix::AbstractString` (optional): Prefix for the output file. Defaults to an empty string.
-- `filename::AbstractString` (optional): Name of the output file. Defaults to `"coordinates"`.
-
-# Details
-This function converts coordinate data to VTK format.
-It creates a VTK file with the specified filename and saves the coordinate data as points in the VTK file.
-Each coordinate is treated as a vertex cell in the VTK file.
-
-# Returns
-- `file::AbstractString`: Path to the generated VTK file.
-
-# Example
-```julia
-coordinates = [1.0 2.0 3.0; 4.0 5.0 6.0; 7.0 8.0 9.0]
-vtk_file = trixi2vtk(coordinates, output_directory="output", prefix="data", filename="coords")
-"""
+# Convert coordinate data to VTK format.
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
                    custom_quantities...)
     mkpath(output_directory)

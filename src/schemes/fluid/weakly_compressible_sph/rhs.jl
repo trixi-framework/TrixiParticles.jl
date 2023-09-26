@@ -14,7 +14,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Example
-    # debug_array = zeros(eltype(particle_system), ndims(particle_system), nparticles(particle_system))
+    debug_array = zeros(eltype(particle_system), ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
@@ -49,19 +49,21 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b, rho_mean)
 
+        for i in 1:ndims(particle_system)
+            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            # example
+            debug_array[i, particle] += dv_pressure[i]
+        end
+
         continuity_equation!(dv, density_calculator,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
                              particle_system, neighbor_system, grad_kernel)
 
-        for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
-            # example
-            # debug_array[i, particle] += dv_pressure[i]
-        end
     end
     # example
-    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, custom_value=Dict("debug"=>debug_array), prefix="debug")
+    periodic_box = neighborhood_search.periodic_box
+    trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug")
 
     return dv
 end
