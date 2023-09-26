@@ -103,7 +103,7 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
+@inline function calc_bnd_pressure(particle, boundary_particle,
                                           boundary_model::BoundaryModelDummyParticles,
                                           v_particle_system, v_boundary_system,
                                           particle_system, boundary_system,

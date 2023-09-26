@@ -88,7 +88,7 @@ end
                                        grad_kernel)
     (; boundary_model) = neighbor_system
 
-    return boundary_particle_impact(particle, neighbor, boundary_model,
+    return calc_bnd_pressure(particle, neighbor, boundary_model,
                                     v_particle_system, v_neighbor_system,
                                     particle_system, neighbor_system,
                                     pos_diff, distance, m_b)

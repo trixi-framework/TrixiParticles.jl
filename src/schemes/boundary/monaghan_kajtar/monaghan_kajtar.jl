@@ -72,7 +72,7 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
+@inline function calc_bnd_pressure(particle, boundary_particle,
                                           boundary_model::BoundaryModelMonaghanKajtar,
                                           v_particle_system, v_boundary_system,
                                           particle_system, boundary_system,
