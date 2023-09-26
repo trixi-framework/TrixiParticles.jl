@@ -40,10 +40,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
-                                       particle_system, v_particle_system,
-                                       neighbor, neighbor_system,
-                                       v_neighbor_system, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel)
+                                            particle_system, v_particle_system,
+                                            neighbor, neighbor_system,
+                                            v_neighbor_system, rho_a, rho_b,
+                                            pos_diff, distance, grad_kernel)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -61,7 +61,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                              v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance,
                              particle_system, neighbor_system, grad_kernel)
-
     end
     # example
     # periodic_box = neighborhood_search.periodic_box
@@ -71,10 +70,10 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                  v_particle_system, neighbor,
-                                  neighbor_system::WeaklyCompressibleSPHSystem,
-                                  v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                  grad_kernel)
+                                       v_particle_system, neighbor,
+                                       neighbor_system::WeaklyCompressibleSPHSystem,
+                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel)
     return (-m_b *
             (particle_system.pressure[particle] / rho_a^2 +
              neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
@@ -82,11 +81,11 @@ end
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                  v_particle_system, neighbor,
-                                  neighbor_system::Union{BoundarySPHSystem,
-                                                         TotalLagrangianSPHSystem},
-                                  v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                  grad_kernel)
+                                       v_particle_system, neighbor,
+                                       neighbor_system::Union{BoundarySPHSystem,
+                                                              TotalLagrangianSPHSystem},
+                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel)
     (; boundary_model) = neighbor_system
 
     return boundary_particle_impact(particle, neighbor, boundary_model,
