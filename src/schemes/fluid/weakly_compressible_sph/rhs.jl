@@ -66,6 +66,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
     # Note: this saves a file every step within the integration scheme!
+    # TODO: this call should use public API this requires some additional changes to simplify the calls
     # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter())
 
     return dv
