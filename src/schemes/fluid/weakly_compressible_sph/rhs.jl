@@ -17,7 +17,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
     # and the two other lines below that are marked as "debug example".
-    debug_array = zeros(ndims(particle_system), nparticles(particle_system))
+    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
