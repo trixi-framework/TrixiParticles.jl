@@ -18,7 +18,9 @@ Convert Trixi simulation data to VTK format.
 
 # Example
 ```julia
-trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="solution", velocity=compute_velocity)
+trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+
+TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    custom_quantities...)
