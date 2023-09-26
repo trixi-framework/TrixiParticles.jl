@@ -1,3 +1,5 @@
+using .IteratorModule
+
 # Computes the forces that particles in `particle_system` experience from particles
 # in `neighbor_system` and updates `dv` accordingly.
 # It takes into account pressure forces, viscosity, and for `ContinuityDensity` updates the density
@@ -15,8 +17,7 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
     # and the two other lines below that are marked as "debug example".
-    #
-    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
+    debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
@@ -62,9 +63,10 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle, neighbor, pos_diff, distance,
                              particle_system, neighbor_system, grad_kernel)
     end
-    # example
+    # Debug example
     # periodic_box = neighborhood_search.periodic_box
-    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug")
+    # Note: this saves a file every step within the integration scheme!
+    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter())
 
     return dv
 end
