@@ -8,7 +8,6 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
     previous_characteristics  :: Array{ELTYPE, 2} # [characteristics, particle]
     sound_speed               :: ELTYPE
     boundary_zone             :: BZ
-    in_domain                 :: BitVector
     interior_system           :: System
     zone_origin               :: SVector{NDIMS, ELTYPE}
     zone                      :: Array{ELTYPE, 2}
@@ -37,7 +36,6 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
 
         characteristics = zeros(ELTYPE, 3, length(mass))
         previous_characteristics = zeros(ELTYPE, 4, length(mass))
-        in_domain = trues(length(mass))
 
         zone_origin_ = SVector{NDIMS}(zone_origin)
 
@@ -59,9 +57,9 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
                    typeof(initial_velocity_function)}(initial_condition, mass, volume,
                                                       density, pressure, characteristics,
                                                       previous_characteristics, sound_speed,
-                                                      boundary_zone, in_domain,
-                                                      interior_system, zone_origin_, zone,
-                                                      unit_normal_, viscosity, buffer,
+                                                      boundary_zone, interior_system,
+                                                      zone_origin_, zone, unit_normal_,
+                                                      viscosity, buffer,
                                                       initial_velocity_function,
                                                       interior_system.acceleration)
     end
@@ -141,35 +139,20 @@ function (boundary_zone::Union{InFlow, OutFlow})(particle_coords, particle, zone
     return true
 end
 
-function (boundary_zone::OutFlow)(particle_coords, particle, zone_origin, zone,
-                                  system::OpenBoundarySPHSystem)
-    position = particle_coords - zone_origin
-
-    for dim in 1:ndims(system)
-        direction = extract_svector(zone, system, dim)
-
-        if !(0 <= dot(position, direction) <= dot(direction, direction))
-
-            # particle is out of domain
-            system.in_domain[particle] = false
-
-            # Particle is not in boundary zone.
-            return false
-        end
-    end
-
-    # Particle is in boundary zone.
-    return true
-end
-
-update_open_boundary!(system, system_index, v_ode, u_ode, semi) = system
-
-function update_open_boundary!(system::OpenBoundarySPHSystem, system_index, v_ode, u_ode,
-                               semi)
+function update_final!(system::OpenBoundarySPHSystem, system_index, v, u, v_ode, u_ode,
+                       semi, t)
     u = wrap_u(u_ode, system_index, system, semi)
     v = wrap_v(v_ode, system_index, system, semi)
 
     evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
+end
+
+update_open_boundary_eachstep!(system, system_index, v_ode, u_ode, semi) = system
+
+function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, system_index,
+                                        v_ode, u_ode, semi)
+    u = wrap_u(u_ode, system_index, system, semi)
+    v = wrap_v(v_ode, system_index, system, semi)
 
     compute_quantities!(system, v)
 
@@ -199,11 +182,12 @@ end
     system_coords = current_coordinates(u, system)
     interior_coords = current_coordinates(u_interior, interior_system)
 
-    for particle in each_moving_particle(system)
+    set_zero!(previous_characteristics)
+
+    for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
         previous_characteristics[2, particle] = characteristics[2, particle]
         previous_characteristics[3, particle] = characteristics[3, particle]
-        previous_characteristics[4, particle] = 0.0
     end
 
     set_zero!(characteristics)
@@ -293,7 +277,6 @@ end
                                                         density_term, pressure_term,
                                                         velocity_term, kernel_weight,
                                                         boundary_zone::InFlow)
-    characteristics[1, particle] += (density_term + pressure_term) * kernel_weight
     characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_weight
 
     return characteristics
@@ -334,63 +317,66 @@ function check_domain!(system, system_index, v, u, v_ode, u_ode, semi)
     for particle in each_moving_particle(system)
         particle_coords = current_coords(u, system, particle)
 
-        # check if particle position is out of boundary zone
+        # Check if the particle position is outside the boundary zone.
         if !boundary_zone(particle_coords, particle, zone_origin, zone, system)
-            transform_particle!(system, interior_system, particle,
+            transform_particle!(system, interior_system, boundary_zone, particle,
                                 v, u, v_interior, u_interior)
         end
 
-        # check neighbors (only from `interior_system`)
+        # Check neighbors (only from `interior_system`)
         for interior_neighbor in eachneighbor(particle_coords, neighborhood_search)
             interior_coords = current_coords(u_interior, interior_system, interior_neighbor)
 
-            # check if particle position is in boundary zone
+            # Check if particle position is in boundary zone
             if boundary_zone(interior_coords, interior_neighbor, zone_origin, zone,
                              interior_system)
-                transform_particle!(interior_system, system, interior_neighbor,
-                                    v, u, v_interior, u_interior)
+                transform_particle!(interior_system, system, boundary_zone,
+                                    interior_neighbor, v, u, v_interior, u_interior)
             end
         end
     end
 end
 
-# particle is out of boundary zone
-@inline function transform_particle!(system::OpenBoundarySPHSystem,
-                                     interior_system, particle,
+# Outflow particle is outside the boundary zone
+@inline function transform_particle!(system::OpenBoundarySPHSystem, interior_system,
+                                     ::OutFlow, particle,
                                      v, u, v_interior, u_interior)
-    (; in_domain, zone) = system
-
-    if in_domain[particle]
-
-        # activate a new particle in simulation domain
-        activate_particle!(interior_system, system, particle, v_interior, u_interior, v, u)
-
-        # reset position and velocity of particle
-        u_particle_ref = current_coords(u, system, particle) -
-                         extract_svector(zone, system, 1)
-        v_particle_ref = initial_velocity(system, particle)
-
-        for dim in 1:ndims(system)
-            u[dim, particle] = u_particle_ref[dim]
-            v[dim, particle] = v_particle_ref[dim]
-        end
-
-        return system
-    end
-
     deactivate_particle!(system, particle, u)
 
     return system
 end
 
-# interior particle is in boundary zone
-@inline function transform_particle!(interior_system, system, particle,
+# Inflow particle is outside the boundary zone
+@inline function transform_particle!(system::OpenBoundarySPHSystem, interior_system,
+                                     ::InFlow, particle,
+                                     v, u, v_interior, u_interior)
+    (; zone) = system
+
+    # Activate a new particle in simulation domain
+    activate_particle!(interior_system, system, particle, v_interior, u_interior, v, u)
+
+    # Reset position and velocity of particle
+    u_particle_ref = current_coords(u, system, particle) -
+                     extract_svector(zone, system, 1)
+    v_particle_ref = initial_velocity(system, particle)
+
+    for dim in 1:ndims(system)
+        u[dim, particle] = u_particle_ref[dim]
+        v[dim, particle] = v_particle_ref[dim]
+    end
+
+    return system
+end
+
+# Interior particle is in boundary zone
+@inline function transform_particle!(interior_system, system::OpenBoundarySPHSystem,
+                                     boundary_zone, particle,
                                      v, u, v_interior, u_interior)
 
-    # activate particle in boundary zone
+    # Activate particle in boundary zone
     activate_particle!(system, interior_system, particle, v, u, v_interior, u_interior)
 
-    # deactivate particle in interior domain
+    # Deactivate particle in interior domain
     deactivate_particle!(interior_system, particle, u_interior)
 
     return interior_system
@@ -454,12 +440,11 @@ end
 end
 
 function write_v0!(v0, system::OpenBoundarySPHSystem)
-    (; initial_condition) = system
-
     for particle in eachparticle(system)
+        v_init = initial_velocity(system, particle)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
+            v0[dim, particle] = v_init[dim]
         end
     end
 
