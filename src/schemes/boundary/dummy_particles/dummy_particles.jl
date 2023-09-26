@@ -112,8 +112,6 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
 
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
             boundary_model.pressure[boundary_particle] / rho_b^2) *

@@ -88,6 +88,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
         dv_viscosity = viscosity(neighbor_system, particle_system,
                                  v_neighbor_system, v_particle_system,
