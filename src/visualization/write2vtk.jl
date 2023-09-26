@@ -85,7 +85,20 @@ function custom_quantity(quantity, v, u, t, system)
     return quantity(v, u, t, system)
 end
 
-# Convert coordinate data to VTK format.
+"""
+    trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates")
+
+Convert coordinate data to VTK format.
+
+# Arguments
+- `coordinates`: Coordinates to be saved.
+- `output_directory` (optional): Output directory path. Defaults to `"out"`.
+- `prefix` (optional): Prefix for the output file. Defaults to an empty string.
+- `filename` (optional): Name of the output file. Defaults to `"coordinates"`.
+
+# Returns
+- `file::AbstractString`: Path to the generated VTK file.
+"""
 function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coordinates",
                    custom_quantities...)
     mkpath(output_directory)
