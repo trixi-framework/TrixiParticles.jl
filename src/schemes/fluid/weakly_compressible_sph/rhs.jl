@@ -89,9 +89,9 @@ end
     (; boundary_model) = neighbor_system
 
     return calc_bnd_pressure(particle, neighbor, boundary_model,
-                                    v_particle_system, v_neighbor_system,
-                                    particle_system, neighbor_system,
-                                    pos_diff, distance, m_b)
+                             v_particle_system, v_neighbor_system,
+                             particle_system, neighbor_system,
+                             pos_diff, distance, m_b)
 end
 
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,

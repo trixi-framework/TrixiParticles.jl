@@ -104,10 +104,10 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
 end
 
 @inline function calc_bnd_pressure(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+                                   boundary_model::BoundaryModelDummyParticles,
+                                   v_particle_system, v_boundary_system,
+                                   particle_system, boundary_system,
+                                   pos_diff, distance, m_b)
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
 

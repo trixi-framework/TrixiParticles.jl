@@ -73,10 +73,10 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function calc_bnd_pressure(particle, boundary_particle,
-                                          boundary_model::BoundaryModelMonaghanKajtar,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+                                   boundary_model::BoundaryModelMonaghanKajtar,
+                                   v_particle_system, v_boundary_system,
+                                   particle_system, boundary_system,
+                                   pos_diff, distance, m_b)
     (; smoothing_length) = particle_system
     (; K, beta, boundary_particle_spacing) = boundary_model
 
