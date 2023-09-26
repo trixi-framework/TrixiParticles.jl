@@ -13,8 +13,10 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Example
-    debug_array = zeros(eltype(particle_system), ndims(particle_system), nparticles(particle_system))
+    # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
+    # and the two other lines below that are marked as "debug example".
+    #
+    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
@@ -37,7 +39,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = calc_pressure_eq(pressure_correction, m_b, particle,
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
                                        particle_system, v_particle_system,
                                        neighbor, neighbor_system,
                                        v_neighbor_system, rho_a, rho_b,
@@ -51,8 +53,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
-            # example
-            debug_array[i, particle] += dv_pressure[i]
+            # Debug example
+            # debug_array[i, particle] += dv_pressure[i]
         end
 
         continuity_equation!(dv, density_calculator,
@@ -62,13 +64,13 @@ function interact!(dv, v_particle_system, u_particle_system,
 
     end
     # example
-    periodic_box = neighborhood_search.periodic_box
-    trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug")
+    # periodic_box = neighborhood_search.periodic_box
+    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug")
 
     return dv
 end
 
-@inline function calc_pressure_eq(pressure_correction, m_b, particle, particle_system,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                   v_particle_system, neighbor,
                                   neighbor_system::WeaklyCompressibleSPHSystem,
                                   v_neighbor_system, rho_a, rho_b, pos_diff, distance,
@@ -79,7 +81,7 @@ end
            pressure_correction
 end
 
-@inline function calc_pressure_eq(pressure_correction, m_b, particle, particle_system,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                   v_particle_system, neighbor,
                                   neighbor_system::Union{BoundarySPHSystem,
                                                          TotalLagrangianSPHSystem},
