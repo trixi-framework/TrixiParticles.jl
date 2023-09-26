@@ -95,7 +95,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  pos_diff, distance, sound_speed, m_b, m_a, rho_mean)
 
         # Boundary forces
-        dv_boundary = pressure_acceleration(pressure_correction, m_b, particle,
+        dv_boundary = pressure_acceleration(1.0, m_b, particle,
                                             particle_system, v_particle_system, neighbor,
                                             neighbor_system, v_neighbor_system, rho_a,
                                             rho_b, pos_diff, distance,
