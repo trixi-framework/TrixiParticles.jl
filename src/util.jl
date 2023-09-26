@@ -300,12 +300,11 @@ macro autoinfiltrate(condition=true)
                 esc(condition))
 end
 
-
 module IteratorModule
-    i = 0
-    export iter
+i = 0
+export iter
 
-    function iter()
-        global i += 1
-    end
+function iter()
+    global i += 1
+end
 end
