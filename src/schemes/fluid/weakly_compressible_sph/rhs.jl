@@ -11,7 +11,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     (; density_calculator, state_equation, correction, smoothing_length) = particle_system
     (; sound_speed) = state_equation
 
-    viscosity = system_viscosity(neighbor_system)
+    viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 

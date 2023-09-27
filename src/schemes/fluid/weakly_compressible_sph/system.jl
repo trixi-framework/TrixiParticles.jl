@@ -297,7 +297,7 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
-function system_viscosity(system::WeaklyCompressibleSPHSystem)
+function viscosity_model(system::WeaklyCompressibleSPHSystem)
     return system.viscosity
 end
 
