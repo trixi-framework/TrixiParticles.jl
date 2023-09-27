@@ -5,15 +5,14 @@ Convert Trixi simulation data to VTK format.
 
 # Arguments
 - `vu_ode`: Solution of the TrixiParticles ODE system at one time step. This expects an `ArrayPartition` as returned in the examples as `sol`.
-- `semi`: Semidiscretization of the TrixiParticles simulation.
-- `t`: Current time of the simulation.
+- `semi`:   Semidiscretization of the TrixiParticles simulation.
+- `t`:      Current time of the simulation.
 
 # Keywords
-- `iter`: Iteration number when multiple iterations are to be stored in separate files.
-- `output_directory`: Output directory path. Defaults to `"out"`.
-- `prefix`: Prefix for output files. Defaults to an empty string.
+- `iter`:                 Iteration number when multiple iterations are to be stored in separate files.
+- `output_directory`:     Output directory path. Defaults to `"out"`.
+- `prefix`:               Prefix for output files. Defaults to an empty string.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
-
 
 
 # Example
@@ -46,7 +45,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     end
 end
 
-# Convert a single Trixi system data to VTK format.
+# Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
                    iter=nothing, system_name=vtkname(system), custom_quantities...)
     mkpath(output_directory)
@@ -93,10 +92,10 @@ end
 Convert coordinate data to VTK format.
 
 # Arguments
-- `coordinates`: Coordinates to be saved.
+- `coordinates`:                 Coordinates to be saved.
 - `output_directory` (optional): Output directory path. Defaults to `"out"`.
-- `prefix` (optional): Prefix for the output file. Defaults to an empty string.
-- `filename` (optional): Name of the output file. Defaults to `"coordinates"`.
+- `prefix` (optional):           Prefix for the output file. Defaults to an empty string.
+- `filename` (optional):         Name of the output file. Defaults to `"coordinates"`.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
