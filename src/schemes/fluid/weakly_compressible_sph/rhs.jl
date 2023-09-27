@@ -93,8 +93,8 @@ end
 
     return pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                  v_particle_system, neighbor, neighbor_system,
-                                 v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                 grad_kernel, boundary_model)
+                                 v_neighbor_system, boundary_model, rho_a, rho_b, pos_diff, distance,
+                                 grad_kernel)
 end
 
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,

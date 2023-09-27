@@ -74,9 +74,9 @@ end
 
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                        v_particle_system, neighbor, neighbor_system,
+                                       boundary_model::BoundaryModelMonaghanKajtar,
                                        v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel,
-                                       boundary_model::BoundaryModelMonaghanKajtar)
+                                       grad_kernel)
     (; smoothing_length) = particle_system
     (; K, beta, boundary_particle_spacing) = boundary_model
 
