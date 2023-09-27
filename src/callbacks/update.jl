@@ -1,6 +1,7 @@
 # TODO: naming
 function UpdateAfterTimeStep()
-    return DiscreteCallback(update_condition, update_after_dt!, initialize=initial_update!)
+    return DiscreteCallback(update_condition, update_after_dt!, initialize=initial_update!,
+                            save_positions=(false, false))
 end
 
 # condition
@@ -23,11 +24,4 @@ function update_after_dt!(integrator)
 end
 
 # initialize
-function initial_update!(cb, u, t, integrator)
-    semi = integrator.p
-    v_ode, u_ode = integrator.u.x
-
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
-
-    update_after_dt!(integrator)
-end
+initial_update!(cb, u, t, integrator) = update_after_dt!(integrator)
