@@ -100,7 +100,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Note: neighbor and particle are switched in this call and `pressure_correction` is set to `1.0` (no correction)
         dv_boundary = pressure_acceleration(1.0, m_b, neighbor, neighbor_system,
                                             v_neighbor_system, particle,
-                                            particle_system, v_particle_system, boundary_model, rho_a,
+                                            particle_system, v_particle_system,
+                                            boundary_model, rho_a,
                                             rho_b, pos_diff, distance,
                                             grad_kernel)
         dv_particle = dv_boundary + dv_viscosity
