@@ -167,6 +167,9 @@ function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index,
     system
 end
 
+# J1: Associated with convection and entropy and propagates at flow velocity.
+# J2: Propagates downstream to the local flow
+# J3: Propagates upstream to the local flow
 @inline function evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
     (; interior_system, volume, sound_speed, characteristics,
     previous_characteristics, unit_normal, boundary_zone) = system
@@ -267,6 +270,8 @@ end
                                                         density_term, pressure_term,
                                                         velocity_term, kernel_weight,
                                                         boundary_zone::OutFlow)
+    # J3 is prescribed (i.e. determined from the exterior of the domain).
+    # J1 and J2 is transimtted from the domain interior.
     characteristics[1, particle] += (density_term + pressure_term) * kernel_weight
     characteristics[2, particle] += (velocity_term + pressure_term) * kernel_weight
 
@@ -277,6 +282,7 @@ end
                                                         density_term, pressure_term,
                                                         velocity_term, kernel_weight,
                                                         boundary_zone::InFlow)
+    # Allow only J3 to propagate upstream to the boundary
     characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_weight
 
     return characteristics
