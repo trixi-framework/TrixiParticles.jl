@@ -79,6 +79,3 @@ end
 
     return dv
 end
-
-@inline viscosity_model(system) = system.viscosity
-@inline viscosity_model(system::BoundarySPHSystem) = system.boundary_model.viscosity
