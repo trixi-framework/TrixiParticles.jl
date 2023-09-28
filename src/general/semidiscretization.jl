@@ -386,7 +386,8 @@ end
 
 @inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
-@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle, system)
+@inline function add_damping_force!(dv, damping_coefficient, v, particle,
+                                    system::FluidSystem)
     for i in 1:ndims(system)
         dv[i, particle] -= damping_coefficient * v[i, particle]
     end
@@ -394,7 +395,9 @@ end
     return dv
 end
 
-@inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
+# Currently no damping for non-fluid systems
+@inline add_damping_force!(dv, damping_coefficient, v, particle, system) = dv
+@inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     (; systems, neighborhood_searches) = semi
