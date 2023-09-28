@@ -31,6 +31,16 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
+        for sys in systems
+            if sys isa BoundarySPHSystem
+                for neighbor in systems
+                    if neighbor isa WeaklyCompressibleSPHSystem && sys.boundary_model isa BoundaryModelDummyParticles && isnothing(sys.boundary_model.state_equation)
+                        throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
+                    end
+                end
+            end
+        end
+
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
