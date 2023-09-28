@@ -153,7 +153,7 @@ end
 @inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
-                                             distance, sound_speed, m_a, m_b)
+                                             distance, sound_speed, m_a, m_b, rho_mean)
     (; epsilon, nu) = viscosity
     (; smoothing_length) = particle_system
 
