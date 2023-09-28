@@ -38,7 +38,7 @@ export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       UpdateAfterTimeStep
+       UpdateEachTimeStep
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
