@@ -33,10 +33,13 @@ f_{ab} = m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nab
 The quantities to be defined here are the density ``\rho_b`` and pressure ``p_b``
 of the boundary particle ``b``.
 
-We provide three options to compute the boundary density and pressure, determined by the `density_calculator`:
-1. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
+We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
+1. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
+   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
+   This option usually yields the best results of the options listed here.
+2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
-2. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
+3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
@@ -44,8 +47,11 @@ We provide three options to compute the boundary density and pressure, determine
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-3. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
-   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
+4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
+   is computed from the density with the state equation. This option is not recommended.
+5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
+   is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
+   momentum equation. This option is not recommended.
 
 ## References:
 - S. Adami, X. Y. Hu, N. A. Adams.
@@ -79,9 +85,8 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=NoViscosity(),
                                          state_equation=nothing)
-        # Initializing the pressure with zeros is needed for `PressureZeroing` and for
-        # visualization with `PressureMirroring`.
-        pressure = zero(initial_density)
+        pressure = initial_boundary_pressure(initial_density, density_calculator,
+                                             state_equation)
 
         n_particles = length(initial_density)
 
@@ -126,9 +131,74 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
+@doc raw"""
+    PressureMirroring()
+
+Instead of calculating density and pressure for each boundary particle, we modify the
+momentum equation,
+```math
+\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab}
+```
+to replace the unkown density $\rho_b$ if $b$ is a boundary particle by the reference density
+and the unkown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+interacting fluid particle.
+The momentum equation therefore becomes
+```math
+\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
+-\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_a}{\rho_0^2} \right) \nabla_a W_{ab},
+```
+where the first sum is over all fluid particles and the second over all boundary particles.
+
+This approach was first mentioned by Akinci et al. (2012) and written down in this form
+by Band et al. (2018).
+
+!! note
+    This boundary model requires high viscosity for stability with WCSPH.
+    It also produces significantly worse results than [`AdamiPressureExtrapolation`](@ref)
+    and is not more efficient because smaller time steps are required due to more noise
+    in the pressure.
+    We added this model only for research purposes and for comparison with
+    [SPlisHSPlasH](https://github.com/InteractiveComputerGraphics/SPlisHSPlasH).
+
+## References:
+- Nadir Akinci, Markus Ihmsen, Gizem Akinci, Barbara Solenthaler, and Matthias Teschner.
+  "Versatile Rigid-Fluid Coupling for Incompressible SPH."
+  In: ACM Transactions on Graphics 31, 4 (2012), pages 1–8.
+  [doi: 10.1145/2185520.2185558](https://doi.org/10.1145/2185520.2185558)
+- Stefan Band, Christoph Gissler, Andreas Peer, and Matthias Teschner.
+  "MLS Pressure Boundaries for Divergence-Free and Viscous SPH Fluids."
+  In: Computers & Graphics 76 (2018), pages 37–46.
+  [doi: 10.1016/j.cag.2018.08.001](https://doi.org/10.1016/j.cag.2018.08.001)
+"""
 struct PressureMirroring end
 
+@doc raw"""
+    PressureZeroing()
+
+This is the simplest way to implement dummy boundary particles.
+The density of each particle is set to the reference density and the pressure to the
+reference pressure (the corresponding pressure to the reference density by the state equation).
+
+!! note
+    This boundary model produces significantly worse results than all other models and
+    is only included for research purposes.
+"""
 struct PressureZeroing end
+
+# For most density calculators, the pressure is updated in every step
+initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
+# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
+initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+
+# For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
+function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
+    return state_equation.(initial_density)
+end
+
+# With EDAC, just use zero pressure
+function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing)
+    return zero(initial_density)
+end
 
 @inline function boundary_particle_impact(particle, boundary_particle,
                                           boundary_model::BoundaryModelDummyParticles,
@@ -429,5 +499,6 @@ end
 
 @inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
                                          particle)
+    # The density is kept constant when using EDAC
     return density
 end
