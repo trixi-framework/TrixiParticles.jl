@@ -109,6 +109,7 @@ end
     return dv
 end
 
+# 'SummationDensity' is used so density is recalculated in wcsph/system.jl:compute_density!()
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
