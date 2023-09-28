@@ -464,6 +464,6 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     restart_with!(system, system.boundary_model, v, u)
 end
 
-function system_viscosity(system::TotalLagrangianSPHSystem)
+function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
 end

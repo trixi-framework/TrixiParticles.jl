@@ -297,10 +297,6 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
-function system_viscosity(system::WeaklyCompressibleSPHSystem)
-    return system.viscosity
-end
-
 @inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff,
                                        distance, particle)
     return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
