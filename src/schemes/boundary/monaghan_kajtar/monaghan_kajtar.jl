@@ -76,7 +76,7 @@ end
                                        v_particle_system, neighbor, neighbor_system,
                                        v_neighbor_system,
                                        boundary_model::BoundaryModelMonaghanKajtar, rho_a,
-                                       rho_b, pos_diff, distance, grad_kernel)
+                                       rho_b, pos_diff, distance, grad_kernel, density_calculator)
     (; smoothing_length) = particle_system
     (; K, beta, boundary_particle_spacing) = boundary_model
 
