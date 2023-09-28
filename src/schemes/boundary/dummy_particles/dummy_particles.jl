@@ -139,8 +139,8 @@ momentum equation,
 ```math
 \frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab}
 ```
-to replace the unkown density $\rho_b$ if $b$ is a boundary particle by the reference density
-and the unkown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
+and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
 interacting fluid particle.
 The momentum equation therefore becomes
 ```math
