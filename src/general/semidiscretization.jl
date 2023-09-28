@@ -34,7 +34,9 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         for sys in systems
             if sys isa BoundarySPHSystem
                 for neighbor in systems
-                    if neighbor isa WeaklyCompressibleSPHSystem && sys.boundary_model isa BoundaryModelDummyParticles && isnothing(sys.boundary_model.state_equation)
+                    if neighbor isa WeaklyCompressibleSPHSystem &&
+                       sys.boundary_model isa BoundaryModelDummyParticles &&
+                       isnothing(sys.boundary_model.state_equation)
                         throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
                     end
                 end
