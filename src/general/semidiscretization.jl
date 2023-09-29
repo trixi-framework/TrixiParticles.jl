@@ -31,17 +31,7 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
-        for sys in systems
-            if sys isa BoundarySPHSystem
-                for neighbor in systems
-                    if neighbor isa WeaklyCompressibleSPHSystem &&
-                       sys.boundary_model isa BoundaryModelDummyParticles &&
-                       isnothing(sys.boundary_model.state_equation)
-                        throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
-                    end
-                end
-            end
-        end
+        check_configuration(systems)
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
@@ -490,4 +480,25 @@ function nhs_coords(system::BoundarySPHSystem,
                     neighbor::BoundarySPHSystem, u)
     # Don't update
     return nothing
+end
+
+function check_configuration(systems)
+    for sys in systems
+        check_configuration(sys, systems)
+    end
+
+end
+
+check_configuration(sys, systems) = systems
+
+
+function check_configuration(bnd_sys::BoundarySPHSystem, systems)
+    boundary_model = bnd_sys.boundary_model
+    for neighbor in systems
+        if neighbor isa WeaklyCompressibleSPHSystem &&
+            boundary_model isa BoundaryModelDummyParticles &&
+            isnothing(boundary_model.state_equation)
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
+        end
+    end
 end
