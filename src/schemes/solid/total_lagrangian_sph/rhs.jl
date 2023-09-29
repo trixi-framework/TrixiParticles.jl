@@ -84,17 +84,26 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
+        rho_a = particle_density(v_particle_system, particle_system, particle)
+        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = (rho_a + rho_b) / 2
+
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
         dv_viscosity = viscosity(neighbor_system, particle_system,
                                  v_neighbor_system, v_particle_system,
                                  neighbor, particle,
-                                 pos_diff, distance, sound_speed, m_b, m_a)
+                                 pos_diff, distance, sound_speed, m_b, m_a, rho_mean)
 
         # Boundary forces
-        dv_boundary = boundary_particle_impact(neighbor, particle, boundary_model,
-                                               v_neighbor_system, v_particle_system,
-                                               neighbor_system, particle_system,
-                                               pos_diff, distance, m_a)
+        # Note: neighbor and particle are switched in this call and `pressure_correction` is set to `1.0` (no correction)
+        dv_boundary = pressure_acceleration(1.0, m_b, neighbor, neighbor_system,
+                                            v_neighbor_system, particle,
+                                            particle_system, v_particle_system,
+                                            boundary_model, rho_a,
+                                            rho_b, pos_diff, distance,
+                                            grad_kernel)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)

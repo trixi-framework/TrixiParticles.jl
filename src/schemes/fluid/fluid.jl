@@ -17,6 +17,8 @@ function write_u0!(u0, system::FluidSystem)
     return u0
 end
 
+@inline viscosity_model(system::FluidSystem) = system.viscosity
+
 include("viscosity.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
