@@ -44,7 +44,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             v_neighbor_system, rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, density_calculator)
 
-
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,

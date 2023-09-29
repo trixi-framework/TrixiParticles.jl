@@ -486,18 +486,16 @@ function check_configuration(systems)
     for sys in systems
         check_configuration(sys, systems)
     end
-
 end
 
 check_configuration(sys, systems) = systems
-
 
 function check_configuration(bnd_sys::BoundarySPHSystem, systems)
     boundary_model = bnd_sys.boundary_model
     for neighbor in systems
         if neighbor isa WeaklyCompressibleSPHSystem &&
-            boundary_model isa BoundaryModelDummyParticles &&
-            isnothing(boundary_model.state_equation)
+           boundary_model isa BoundaryModelDummyParticles &&
+           isnothing(boundary_model.state_equation)
             throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
         end
     end
