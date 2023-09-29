@@ -7,10 +7,18 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
     (; density_calculator, state_equation, correction, smoothing_length) = particle_system
+                   neighbor_system)
+    (; density_calculator, state_equation, correction, smoothing_length) = particle_system
     (; sound_speed) = state_equation
 
     viscosity = viscosity_model(neighbor_system)
+    viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
+    # and the two other lines below that are marked as "debug example".
+    # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
@@ -20,12 +28,14 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
+                          system_coords, neighbor_system_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = 0.5 * (rho_a + rho_b)
         rho_mean = 0.5 * (rho_a + rho_b)
 
         # Determine correction values
@@ -37,6 +47,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        m_a = hydrodynamic_mass(particle_system, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
                                             particle_system, v_particle_system,
@@ -46,12 +58,17 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
+        dv_viscosity = viscosity_correction *
+                       viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
                                  particle, neighbor, pos_diff, distance,
+                                 sound_speed, m_a, m_b, rho_mean)
                                  sound_speed, m_a, m_b, rho_mean)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            # Debug example
+            # debug_array[i, particle] += dv_pressure[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -61,6 +78,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle, neighbor, pos_diff, distance,
                              particle_system, neighbor_system, grad_kernel)
     end
+    # Debug example
+    # periodic_box = neighborhood_search.periodic_box
+    # Note: this saves a file in every stage of the integrator
+    # if !@isdefined iter; iter = 0; end
+    # TODO: This call should use public API. This requires some additional changes to simplify the calls.
+    # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
     # Note: this saves a file in every stage of the integrator
@@ -126,6 +149,7 @@ end
     return dv
 end
 
+# 'SummationDensity' is used so density is recalculated in wcsph/system.jl:compute_density!()
 # 'SummationDensity' is used so density is recalculated in wcsph/system.jl:compute_density!()
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
