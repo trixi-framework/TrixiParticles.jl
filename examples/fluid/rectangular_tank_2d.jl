@@ -21,7 +21,8 @@ tank_height = 1.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
+                                   background_pressure=100000.0,
+                                   clip_negative_pressure=false)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
@@ -47,7 +48,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
+density_calculator = ContinuityDensity()
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, density_calculator, state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
