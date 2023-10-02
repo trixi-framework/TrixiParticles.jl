@@ -483,7 +483,7 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    for sys in systems
+    foreach_enumerate(systems) do (system_index, sys)
         check_configuration(sys, systems)
     end
 end
@@ -492,7 +492,7 @@ check_configuration(sys, systems) = systems
 
 function check_configuration(bnd_sys::BoundarySPHSystem, systems)
     boundary_model = bnd_sys.boundary_model
-    for neighbor in systems
+    foreach_enumerate(systems) do (nghb_index, neighbor)
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
