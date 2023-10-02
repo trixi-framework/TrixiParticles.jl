@@ -31,6 +31,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
+        # Check that the boundary systems are using a state equation if EDAC is not used.
+        # Other checks might be added here later.
         check_configuration(systems)
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
@@ -483,20 +485,21 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    foreach_enumerate(systems) do (system_index, sys)
-        check_configuration(sys, systems)
+    foreach_enumerate(systems) do (system_index, system)
+        check_configuration(system, systems)
     end
 end
 
-check_configuration(sys, systems) = systems
+check_configuration(system, systems) = nothing
 
-function check_configuration(bnd_sys::BoundarySPHSystem, systems)
-    boundary_model = bnd_sys.boundary_model
-    foreach_enumerate(systems) do (nghb_index, neighbor)
+function check_configuration(boundary_system::BoundarySPHSystem, systems)
+    (; boundary_model) = boundary_system
+
+    foreach_enumerate(systems) do (neighbor_index, neighbor)
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a state_equation for boundary."))
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a `state_equation` for all boundary systems"))
         end
     end
 end
