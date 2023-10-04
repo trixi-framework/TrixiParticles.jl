@@ -48,10 +48,13 @@ We provide five options to compute the boundary density and pressure, determined
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
 4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
-   is computed from the density with the state equation. This option is not recommended.
+   is computed from the density with the state equation.
+   This option not recommended. The other options yield significantly better results.
 5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
    is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
-   momentum equation. This option is not recommended.
+   momentum equation.
+   This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
+   for more details.
 
 ## References:
 - S. Adami, X. Y. Hu, N. A. Adams.
@@ -222,7 +225,7 @@ end
                                        boundary_system,
                                        v_boundary_system,
                                        boundary_model::BoundaryModelDummyParticles,
-                                       density_calculator,
+                                       boundary_density_calculator,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
                                        fluid_density_calculator)
     rho_a = particle_density(v_particle_system, particle_system, particle)
@@ -504,6 +507,6 @@ end
 
 @inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
                                          particle)
-    # The density is kept constant when using EDAC
+    # The density is constant when using EDAC
     return density
 end
