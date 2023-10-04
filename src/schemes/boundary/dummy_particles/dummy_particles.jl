@@ -200,28 +200,33 @@ function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing
     return zero(initial_density)
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator)
     (; density_calculator) = boundary_model
 
-    boundary_particle_impact(particle, boundary_particle, boundary_model,
-                             density_calculator, v_particle_system, v_boundary_system,
-                             particle_system, boundary_system, pos_diff, distance, m_b)
+    pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                          v_particle_system, boundary_particle,
+                          boundary_system, v_boundary_system,
+                          boundary_model, density_calculator,
+                          rho_a, rho_b, pos_diff, distance, grad_kernel,
+                          fluid_density_calculator)
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          density_calculator,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       density_calculator,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator)
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
@@ -229,16 +234,16 @@ end
            grad_kernel
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          ::PressureMirroring,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       ::PressureMirroring,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator)
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
