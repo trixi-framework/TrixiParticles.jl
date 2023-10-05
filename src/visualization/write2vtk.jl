@@ -47,7 +47,8 @@ end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), write_meta_data=true, custom_quantities...)
+                   iter=nothing, system_name=vtkname(system), write_meta_data=true,
+                   custom_quantities...)
     mkpath(output_directory)
 
     # handle "_" on optional pre/postfix strings
@@ -197,7 +198,8 @@ function write2vtk!(vtk, v, u, t, model, system; write_meta_data=true)
     return vtk
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
+                    write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
         vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
@@ -206,10 +208,12 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system; wr
         vtk["state_equation"] = type2string(system.boundary_model.state_equation)
     end
 
-    write2vtk!(vtk, v, u, t, model, model.viscosity, system, write_meta_data=write_meta_data)
+    write2vtk!(vtk, v, u, t, model, model.viscosity, system,
+               write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity, system; write_meta_data=true)
+function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity, system;
+                    write_meta_data=true)
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
