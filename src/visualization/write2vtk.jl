@@ -148,14 +148,19 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                        for particle in eachparticle(system)]
 
     if write_meta_data
-        vtk["solver"] = "WCSPH"
-        vtk["correction_method"] = type2string(system.correction)
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
         vtk["smoothing_length"] = system.smoothing_length
         vtk["density_calculator"] = type2string(system.density_calculator)
-        vtk["state_equation"] = type2string(system.state_equation)
+
+        if system isa WeaklyCompressibleSPHSystem
+            vtk["correction_method"] = type2string(system.correction)
+            vtk["state_equation"] = type2string(system.state_equation)
+            vtk["solver"] = "WCSPH"
+        else
+            vtk["solver"] = "EDAC"
+        end
 
         write2vtk!(vtk, system.viscosity)
     end
@@ -181,14 +186,14 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
                            zeros(ndims(system), n_fixed_particles))
     vtk["material_density"] = system.material_density
 
-    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem)
-    write2vtk!(vtk, v, u, t, system.boundary_model, system)
+function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=true)
+    write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
 
-function write2vtk!(vtk, v, u, t, model, system)
+function write2vtk!(vtk, v, u, t, model, system; write_meta_data=true)
     return vtk
 end
 
