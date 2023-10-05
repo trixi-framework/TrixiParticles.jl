@@ -147,4 +147,20 @@
 
         @test startswith(output, expected)
     end
+
+    # TODO add unit tests for all summary box functions
+    @testset verbose=true "Summary Box Squeeze" begin
+        io = IOBuffer()
+        TrixiParticles.summary_box(io, "Test", ["test" => "x"^100])
+        output = String(take!(io))
+
+        expected = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ Test                                                                                             │
+        │ ════                                                                                             │
+        │ test: ………………………………………………………………… xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+
+        @test output == expected
+    end
 end
