@@ -49,7 +49,8 @@ for correction_name in keys(correction_dict)
     println("fluid/dam_break_2d.jl with ", correction_name)
 
     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-                  fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
+                  fluid_particle_spacing=particle_spacing,
+                  smoothing_length=smoothing_length,
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
