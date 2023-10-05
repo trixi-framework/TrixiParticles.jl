@@ -28,7 +28,7 @@ density_calculator_dict = Dict(
 )
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              particle_spacing=particle_spacing, smoothing_length=smoothing_length,
+              fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
               boundary_density_calculator=ContinuityDensity(),
               fluid_density_calculator=ContinuityDensity(),
               correction=Nothing(), use_reinit=true,
@@ -36,15 +36,24 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               simulation_step_file_prefix="continuity_reinit",
               relaxation_tspan=relaxation_tspan, simulation_tspan=simulation_tspan)
 
+# Clip negative pressure to be able to use `SummationDensity`
+state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure,
+                                   clip_negative_pressure=true)
+
 for correction_name in keys(correction_dict)
     local fluid_density_calculator = density_calculator_dict[correction_name]
     local correction = correction_dict[correction_name]
 
+    println("="^100)
+    println("fluid/dam_break_2d.jl with ", correction_name)
+
     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-                  particle_spacing=particle_spacing, smoothing_length=smoothing_length,
+                  fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
+                  state_equation=state_equation,
                   relaxation_step_file_prefix="relaxation_$(correction_name)",
                   simulation_step_file_prefix="$(correction_name)",
                   relaxation_tspan=relaxation_tspan, simulation_tspan=simulation_tspan)
