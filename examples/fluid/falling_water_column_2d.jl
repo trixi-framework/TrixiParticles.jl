@@ -40,8 +40,8 @@ end
 # ==========================================================================================
 # ==== Boundary models
 
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density,
-                                             tank.boundary.mass, state_equation,
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
                                              AdamiPressureExtrapolation(), smoothing_kernel,
                                              smoothing_length)
 
@@ -57,13 +57,13 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), stat
                                            viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
-boundary_system = BoundarySPHSystem(tank.boundary.coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=SpatialHashingSearch)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)

@@ -14,7 +14,7 @@ function TrixiParticles.interact!(du, u_particle_system, u_neighbor_system,
                                   neighborhood_search,
                                   particle_system::NBodySystem,
                                   neighbor_system::NBodySystem)
-    @unpack mass, G = neighbor_system
+    (; mass, G) = neighbor_system
 
     for particle in TrixiParticles.each_moving_particle(particle_system)
         particle_coords = TrixiParticles.current_coords(u_particle_system,

@@ -73,7 +73,8 @@
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
-            CircularShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
         ]
@@ -82,11 +83,12 @@
             "RectangularShape 3D",
             "RectangularTank 2D",
             "RectangularTank 3D",
-            "CircularShape",
+            "SphereShape 2D",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
+            "RectangularShape 2D with KernelGradientCorrection",
         ]
-        NDIMS_ = [2, 3, 2, 3, 2, 2, 2]
+        NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
             SummationDensity(),
             ContinuityDensity(),
@@ -99,6 +101,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
+            KernelGradientCorrection(),
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
@@ -111,6 +114,17 @@
             smoothing_length = 0.362
 
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
+                if density_calculator isa ContinuityDensity &&
+                   corr isa ShepardKernelCorrection
+                    error_str = "`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"
+                    @test_throws ArgumentError(error_str) WeaklyCompressibleSPHSystem(setup,
+                                                                                      density_calculator,
+                                                                                      state_equation,
+                                                                                      smoothing_kernel,
+                                                                                      smoothing_length,
+                                                                                      correction=corr)
+                    continue
+                end
                 system = WeaklyCompressibleSPHSystem(setup, density_calculator,
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length,
@@ -130,7 +144,7 @@
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
-                if corr isa ShepardKernelCorrection
+                if corr isa ShepardKernelCorrection || corr isa KernelGradientCorrection
                     @test length(system.cache.kernel_correction_coefficient) ==
                           size(setup.coordinates, 2)
                 end
