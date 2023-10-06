@@ -25,7 +25,7 @@ macro trixi_testset(name, expr)
         using Test
         using TrixiParticles
 
-        @testset $name $expr
+        @testset verbose=true $name $expr
         end
 
         nothing
