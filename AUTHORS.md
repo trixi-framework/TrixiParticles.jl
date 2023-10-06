@@ -7,9 +7,9 @@ provided substantial additions or modifications. Together, these two groups form
 "The TrixiParticles.jl Authors" as mentioned in the [LICENSE.md](LICENSE.md) file.
 
 ## Principal Developers
-* [Erik Faulhaber](),
+* [Erik Faulhaber](https://www.mi.uni-koeln.de/NumSim/erik-faulhaber/),
   University of Cologne, Germany
-* [Niklas Neher](),
+* [Niklas Neher](https://www.ihr.uni-stuttgart.de/institut/team/Neher-00004/),
   High-Performance Computing Center Stuttgart (HLRS), Germany
 * [Sven Berger](https://www.hereon.de/institutes/surface_science/interface_modeling/team/098972/index.php.de),
   Helmholtz Center Hereon, Germany
