@@ -3,6 +3,11 @@
 [![CI](https://github.com/trixi-framework/TrixiParticles.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/trixi-framework/TrixiParticles.jl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/github/trixi-framework/TrixiParticles.jl/branch/main/graph/badge.svg?token=RDZXYbij0b)](https://codecov.io/github/trixi-framework/TrixiParticles.jl)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
+[![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
+
+[![Youtube](https://img.shields.io/youtube/channel/views/UCpd92vU2HjjTPup-AIN0pkg?style=social)](https://www.youtube.com/@trixi-framework)
+[![Slack](https://img.shields.io/badge/chat-slack-e01e5a)](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g)
+[![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/TrixiParticles)](https://pkgs.genieframework.com?packages=TrixiParticles)
 
 
 TrixiParticles.jl is a code that implements particle based numerical methods for multiphysics applications.
@@ -27,5 +32,23 @@ TrixiParticles.jl is a code that implements particle based numerical methods for
 ## Cite Us
 
 ## Authors
+TrixiParticles.jl was created by Erik Faulhaber (University of Cologne), Niklas Neher (HLRS) and Sven Berger (hereon).
+The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
+
+## License and contributing
+TrixiParticles.jl is licensed under the MIT license (see [LICENSE.md](LICENSE.md)). Since TrixiParticles.jl is
+an open-source project, we are very happy to accept contributions from the
+community. Please refer to [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
+Note that we strive to be a friendly, inclusive open-source community and ask all members
+of our community to adhere to our [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
+To get in touch with the developers,
+[join us on Slack](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g)
+or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues/new).
 
 ## Acknowledgments
+<p align="center">
+  <img align="middle" src="https://github.com/svchb/TrixiParticles.jl/assets/10238714/e6c56282-b905-4499-8b88-e3b2c8f54545.jpg" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img align="middle" src="https://github.com/svchb/TrixiParticles.jl/assets/10238714/06aac9fa-a446-4e7b-91e7-4faeeacb9813.jpg" width=20%/>&nbsp;&nbsp;&nbsp;
+</p>
+
+The project has benefited from funding from [hereon](https://www.hereon.de/) and [HIRSE](https://www.helmholtz-hirse.de/).
