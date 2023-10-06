@@ -173,6 +173,7 @@ function trixi_include(mod::Module, elixir::AbstractString; kwargs...)
     # Check that all kwargs exist as assignments
     code = read(elixir, String)
     expr = Meta.parse("begin \n$code \nend")
+    expr = insert_maxiters(expr)
 
     for (key, val) in kwargs
         # This will throw an error when `key` is not found
