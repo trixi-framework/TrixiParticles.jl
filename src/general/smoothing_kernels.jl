@@ -163,7 +163,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
     q5_2 = 5 / 2 - q
     q3_2 = 3 / 2 - q
@@ -179,7 +179,7 @@ function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     return normalization_factor(kernel, h) * result
 end
 
-function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@inline function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
     q5_2 = 5 / 2 - q
@@ -257,7 +257,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
     q3 = 3 - q
     q2 = 2 - q
@@ -274,7 +274,7 @@ function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     return normalization_factor(kernel, h) * result
 end
 
-function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@inline function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
     q3 = 3 - q
