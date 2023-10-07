@@ -266,28 +266,6 @@ struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
     q3 = 3 - q
-
-    if q >= 3
-        return 0.0
-    end
-
-    result = q3^5
-
-    if q < 2
-        q2 = 2 - q
-        result -= 6 * q2^5
-
-        if q < 1
-            result += 15 * (1 - q)^5
-        end
-    end
-
-    return normalization_factor(kernel, h) * result
-end
-
-function kernel2(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
-    q = r / h
-    q3 = 3 - q
     q2 = 2 - q
 
     result = q3^5
