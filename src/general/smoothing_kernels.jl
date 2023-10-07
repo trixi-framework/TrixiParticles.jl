@@ -284,21 +284,16 @@ function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
     q3 = 3 - q
-
-    if q >= 3
-        return 0.0
-    end
+    q2 = 2 - q
 
     result = -5 * q3^4
 
-    if q < 2
-        q2 = 2 - q
-        result += 30 * q2^4
+    # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
+    result += 30 * (q < 2) * q2^4
+    result -= 75 * (q < 1) * (1 - q)^4
 
-        if q < 1
-            result -= 75 * (1 - q)^4
-        end
-    end
+    # The condition (q >= 3) will zero out the result if q is 3 or greater.
+    result *= (q < 3)
 
     return normalization_factor(kernel, h) * result * inner_deriv
 end
