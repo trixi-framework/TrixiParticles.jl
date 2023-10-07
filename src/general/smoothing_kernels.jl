@@ -196,8 +196,6 @@ end
     return normalization_factor(kernel, h) * result * inner_deriv
 end
 
-
-
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
@@ -291,7 +289,6 @@ end
 
     return normalization_factor(kernel, h) * result * inner_deriv
 end
-
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
