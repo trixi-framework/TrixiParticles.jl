@@ -285,6 +285,23 @@ function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     return normalization_factor(kernel, h) * result
 end
 
+function kernel2(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+    q = r / h
+    q3 = 3 - q
+    q2 = 2 - q
+
+    result = q3^5
+
+    # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
+    result -= 6 * (q < 2) * q2^5
+    result += 15 * (q < 1) * (1 - q)^5
+
+    # The condition (q >= 3) will zero out the result if q is 3 or greater.
+    result *= (q < 3)
+
+    return normalization_factor(kernel, h) * result
+end
+
 function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
