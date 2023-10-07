@@ -165,20 +165,16 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
+    q5_2 = 5 / 2 - q
+    q3_2 = 3 / 2 - q
+    q1_2 = 1 / 2 - q
 
-    if q >= 5 / 2
-        return 0.0
-    end
+    result = q5_2^4
+    result -= 5 * (q < 3 / 2) * q3_2^4
+    result += 10 * (q < 1 / 2) * q1_2^4
 
-    result = (5 / 2 - q)^4
-
-    if q < 3 / 2
-        result -= 5 * (3 / 2 - q)^4
-
-        if q < 1 / 2
-            result += 10 * (1 / 2 - q)^4
-        end
-    end
+    # Zero out result if q >= 5/2
+    result *= (q < 5 / 2)
 
     return normalization_factor(kernel, h) * result
 end
@@ -186,23 +182,21 @@ end
 function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
+    q5_2 = 5 / 2 - q
+    q3_2 = 3 / 2 - q
+    q1_2 = 1 / 2 - q
 
-    if q >= 5 / 2
-        return 0.0
-    end
+    result = -4 * q5_2^3
+    result += 20 * (q < 3 / 2) * q3_2^3
+    result -= 40 * (q < 1 / 2) * q1_2^3
 
-    result = -4 * (5 / 2 - q)^3
-
-    if q < 3 / 2
-        result += 20 * (3 / 2 - q)^3
-
-        if q < 1 / 2
-            result -= 40 * (1 / 2 - q)^3
-        end
-    end
+    # Zero out result if q >= 5/2
+    result *= (q < 5 / 2)
 
     return normalization_factor(kernel, h) * result * inner_deriv
 end
+
+
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
