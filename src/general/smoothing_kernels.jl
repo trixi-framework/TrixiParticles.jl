@@ -17,6 +17,52 @@ end
 end
 
 @doc raw"""
+    GaussianKernel{NDIMS}()
+
+Gaussian kernel given by
+```math
+W(r, h) = \frac{\sigma_d}{h^d} e^{-\frac{r^2}{h^2}}
+```
+
+where d is the number of dimensions and
+
+- \( \sigma_2 = \frac{1}{\pi} \) for 2D
+- \( \sigma_3 = \frac{1}{\pi^{3/2}} \) for 3D
+
+This kernel function has an infinite support, but in practice,
+it's often truncated at a certain multiple of h, such as 3h.
+"""
+struct GaussianKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+
+function kernel(kernel::GaussianKernel, r::Real, h)
+    q = r / h
+
+    # Truncation at 3h
+    if q > 3
+        return 0.0
+    end
+
+    return normalization_factor(kernel, h) * exp(-q^2)
+end
+
+function kernel_deriv(kernel::GaussianKernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+
+    # Truncation at 3h for example
+    if q > 3
+        return 0.0
+    end
+
+    return -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv
+end
+
+@inline compact_support(::GaussianKernel, h) = 4 * h
+
+@inline normalization_factor(::GaussianKernel{2}, h) = 1 / (pi * h^2)
+@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (pi^(3/2) * h^3)
+
+@doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 
 Cubic spline kernel by Schoenberg (Schoenberg, 1946), given by
