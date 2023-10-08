@@ -60,7 +60,7 @@ end
 @inline compact_support(::GaussianKernel, h) = 4 * h
 
 @inline normalization_factor(::GaussianKernel{2}, h) = 1 / (pi * h^2)
-@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (pi^(3/2) * h^3)
+@inline normalization_factor(::GaussianKernel{3}, h) = 1 / (pi^(3 / 2) * h^3)
 
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
@@ -413,7 +413,8 @@ function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     if q >= 1
         return 0.0
     end
-    return normalization_factor(kernel, h) * (-4(1 - q)^3 * (4q + 1) + (1 - q)^4 * 4) * inner_deriv
+    return normalization_factor(kernel, h) * (-4(1 - q)^3 * (4q + 1) + (1 - q)^4 * 4) *
+           inner_deriv
 end
 
 @inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
