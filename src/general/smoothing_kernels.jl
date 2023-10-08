@@ -86,6 +86,9 @@ For an overview of Schoenberg cubic, quartic and quintic spline kernels
 including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
+The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
+which can lead to increased noise compared to other kernel variants.
+
 !!! note "Usage"
     The kernel can be called as `TrixiParticles.kernel(::SchoenbergCubicSplineKernel, r, h)`.
     The length of the compact support can be obtained as
@@ -179,6 +182,9 @@ This kernel function has a compact support of ``[0, 2.5h]``.
 For an overview of Schoenberg cubic, quartic and quintic spline kernels
 including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
+
+The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
+which can lead to increased noise compared to other kernel variants.
 
 !!! note "Usage"
     The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
@@ -280,6 +286,9 @@ For an overview of Schoenberg cubic, quartic and quintic spline kernels
 including normalization factors, see (Price, 2012).
 For an analytic formula for higher order kernels, see (Monaghan, 1985).
 
+The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
+which can lead to increased noise compared to other kernel variants.
+
 !!! note "Usage"
     The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
     The length of the compact support can be obtained as
@@ -354,3 +363,286 @@ end
 
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (478 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)
+
+abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+# Compact support for all Wendland kernels
+@inline compact_support(::WendlandKernel, h) = h
+
+@doc raw"""
+    WendlandC2Kernel{NDIMS}()
+
+Wendland C2 kernel, a piecewise polynomial function designed to have compact support and to
+be twice continuously differentiable everywhere. Given by:
+
+\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+
+with:
+
+\[
+w(q) = \sigma \begin{cases}
+    (1 - q)^4 (4q + 1)    & \text{if } 0 \leq q < 1, \\
+    0                     & \text{if } q \geq 1,
+\end{cases}
+\]
+
+where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent on the dimension.
+The normalization factor \( \sigma \) is \( 40/7\pi \) in two dimensions or \( 21/2\pi \) in three dimensions.
+
+This kernel function has a compact support of \( [0, h] \).
+
+For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
+The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+
+## References:
+- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+"""
+struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+
+function kernel(kernel::WendlandC2Kernel, r::Real, h)
+    q = r / h
+    if q >= 1
+        return 0.0
+    end
+    return normalization_factor(kernel, h) * (1 - q)^4 * (4q + 1)
+end
+
+function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+    if q >= 1
+        return 0.0
+    end
+    return normalization_factor(kernel, h) * (-4(1 - q)^3 * (4q + 1) + (1 - q)^4 * 4) * inner_deriv
+end
+
+@inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
+@inline normalization_factor(::WendlandC2Kernel{3}, h) = 21 / (2pi * h^3)
+
+@doc raw"""
+    WendlandC4Kernel{NDIMS}()
+
+Wendland C4 kernel, a piecewise polynomial function designed to have compact support and to
+be four times continuously differentiable everywhere. Given by:
+
+\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+
+with:
+
+\[
+w(q) = \sigma \begin{cases}
+    (1 - q)^6 (35q^2 + 18q + 3)    & \text{if } 0 \leq q < 1, \\
+    0                             & \text{if } q \geq 1,
+\end{cases}
+\]
+
+where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent
+on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+
+This kernel function has a compact support of \( [0, h] \).
+
+For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
+The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+
+## References:
+- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+"""
+struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+
+function kernel(kernel::WendlandC4Kernel, r::Real, h)
+    q = r / h
+    if q >= 1
+        return 0.0
+    end
+    return normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 + 18q + 3)
+end
+
+function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+    if q >= 1
+        return 0.0
+    end
+    term1 = (1 - q)^5 * (70q + 18)
+    term2 = (1 - q)^6 * (35 * 2)
+    return normalization_factor(kernel, h) * (-term1 + term2) * inner_deriv
+end
+
+@inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
+@inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (32pi * h^3)
+
+@doc raw"""
+    WendlandC6Kernel{NDIMS}()
+
+Wendland C6 kernel, a piecewise polynomial function designed to have compact support and to be six times continuously differentiable everywhere. Given by:
+
+\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+
+with:
+
+\[
+w(q) = \sigma \begin{cases}
+    (1 - q)^8 (32q^3 + 25q^2 + 8q + 1)    & \text{if } 0 \leq q < 1, \\
+    0                                    & \text{if } q \geq 1,
+\end{cases}
+\]
+
+where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent
+on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+
+This kernel function has a compact support of \( [0, h] \).
+
+For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
+The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+
+## References:
+- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+"""
+struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
+
+function kernel(kernel::WendlandC6Kernel, r::Real, h)
+    q = r / h
+    if q >= 1
+        return 0.0
+    end
+    return normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1)
+end
+
+function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+    if q >= 1
+        return 0.0
+    end
+    term1 = (1 - q)^7 * (96q^2 + 50q + 8)
+    term2 = (1 - q)^8 * (32 * 3q^2 + 25 * 2q)
+    return normalization_factor(kernel, h) * (-term1 + term2) * inner_deriv
+end
+
+@inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (7pi * h^2)
+@inline normalization_factor(::WendlandC6Kernel{3}, h) = 1365 / (64pi * h^3)
+
+@doc raw"""
+    Poly6Kernel{NDIMS}()
+
+Poly6 kernel, a commonly used kernel in SPH literature, especially in computer graphics contexts. It is defined as:
+
+\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+
+with:
+
+\[
+w(q) = \sigma \begin{cases}
+    (1 - q^2)^3    & \text{if } 0 \leq q < 1, \\
+    0              & \text{if } q \geq 1,
+\end{cases}
+\]
+
+where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor that depends
+on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+
+This kernel function has a compact support of \( [0, h] \).
+
+Poly6 is well-known for its computational simplicity, though it's worth noting that there are
+other kernels that might offer better accuracy for hydrodynamic simulations. Furthermore,
+its derivatives are smooth, which can lead to stability problems.
+
+## References:
+- Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
+  In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
+"""
+struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
+
+function kernel(kernel::Poly6Kernel, r::Real, h)
+    q = r / h
+
+    # Truncation at h
+    if q > 1
+        return 0.0
+    end
+
+    term = 1 - q^2
+    return normalization_factor(kernel, h) * term^3
+end
+
+function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+
+    # Truncation at h
+    if q > 1
+        return 0.0
+    end
+
+    term = 1 - q^2
+    return -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv
+end
+
+@inline compact_support(::Poly6Kernel, h) = h
+
+@inline normalization_factor(::Poly6Kernel{2}, h) = 4 / (pi * h^2)
+@inline normalization_factor(::Poly6Kernel{3}, h) = 315 / (64pi * h^3)
+
+@doc raw"""
+    SpikyKernel{NDIMS}()
+
+The Spiky kernel is another frequently used kernel in SPH, especially due to its desirable
+properties in preserving features near boundaries in fluid simulations. It is defined as:
+
+\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+
+with:
+
+\[
+w(q) = \sigma \begin{cases}
+    (1 - q)^3    & \text{if } 0 \leq q < 1, \\
+    0            & \text{if } q \geq 1,
+\end{cases}
+\]
+
+where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor, which
+depends on the dimension and ensures the kernel integrates to 1 over its support.
+
+This kernel function has a compact support of \( [0, h] \).
+
+The Spiky kernel is particularly known for its sharp gradients, which can help in preserving
+sharp features in fluid simulations, especially near solid boundaries.
+These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
+
+## References:
+- Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
+  In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
+"""
+struct SpikyKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+
+function kernel(kernel::SpikyKernel, r::Real, h)
+    q = r / h
+
+    # Truncation at h
+    if q > 1
+        return 0.0
+    end
+
+    term = 1 - q
+    return normalization_factor(kernel, h) * term^3
+end
+
+function kernel_deriv(kernel::SpikyKernel, r::Real, h)
+    inner_deriv = 1 / h
+    q = r * inner_deriv
+
+    # Truncation at h
+    if q > 1
+        return 0.0
+    end
+
+    term = 1 - q
+    return -3 * term^2 * normalization_factor(kernel, h) * inner_deriv
+end
+
+@inline compact_support(::SpikyKernel, h) = h
+
+@inline normalization_factor(::SpikyKernel{2}, h) = 10 / (pi * h^2)
+@inline normalization_factor(::SpikyKernel{3}, h) = 15 / (pi * h^3)
