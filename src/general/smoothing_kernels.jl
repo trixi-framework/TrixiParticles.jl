@@ -470,7 +470,6 @@ function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     return normalization_factor(kernel, h) * (term1 + term2) * inner_deriv
 end
 
-
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
 @inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (32pi * h^3)
 
