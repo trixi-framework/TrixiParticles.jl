@@ -15,7 +15,7 @@ fluid_density = 1000.0
 
 # Simulation settings
 fluid_particle_spacing = 0.02
-smoothing_length = 1.5 * fluid_particle_spacing
+smoothing_length = 2.0 * fluid_particle_spacing
 boundary_layers = 3
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 spacing_ratio = 1
@@ -54,7 +54,7 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, athmospheric_pressure,
                                    background_pressure=athmospheric_pressure)
 
-smoothing_kernel = WendlandC4Kernel{2}()
+smoothing_kernel = WendlandC2Kernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 

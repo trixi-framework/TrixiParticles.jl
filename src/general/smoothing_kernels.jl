@@ -466,9 +466,10 @@ function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
         return 0.0
     end
     term1 = (1 - q)^5 * (70q + 18)
-    term2 = (1 - q)^6 * (35 * 2)
-    return normalization_factor(kernel, h) * (-term1 + term2) * inner_deriv
+    term2 = (35q^2 + 18q + 3) * (-6 * (1 - q)^5)
+    return normalization_factor(kernel, h) * (term1 + term2) * inner_deriv
 end
+
 
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
 @inline normalization_factor(::WendlandC4Kernel{3}, h) = 495 / (32pi * h^3)
@@ -518,7 +519,7 @@ function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
         return 0.0
     end
     term1 = (1 - q)^7 * (96q^2 + 50q + 8)
-    term2 = (1 - q)^8 * (32 * 3q^2 + 25 * 2q)
+    term2 = (1 - q)^8 * (32 * 3q^2 + 25 * 2q + 8)
     return normalization_factor(kernel, h) * (-term1 + term2) * inner_deriv
 end
 
