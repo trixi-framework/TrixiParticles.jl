@@ -103,15 +103,15 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles, rho_a,
+                                       rho_b, pos_diff, distance, grad_kernel,
+                                       density_calculator)
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
