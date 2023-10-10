@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # Constants
 gravity = 9.81
-athmospheric_pressure = 100000.0
+atmospheric_pressure = 100000.0
 fluid_density = 1000.0
 
 # Simulation settings
@@ -51,8 +51,8 @@ move_wall(tank, tank.fluid_size[1])
 # ==== Fluid
 sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, athmospheric_pressure,
-                                   background_pressure=athmospheric_pressure)
+state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
 
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
