@@ -31,6 +31,9 @@ where d is the number of dimensions and
 
 This kernel function has an infinite support, but in practice,
 it's often truncated at a certain multiple of h, such as 3h.
+Note:
+This truncation makes this Kernel not conservative,
+which is beneficial in regards to stability but makes it less accurate.
 """
 struct GaussianKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
@@ -456,7 +459,7 @@ function kernel(kernel::WendlandC4Kernel, r::Real, h)
     if q >= 1
         return 0.0
     end
-    return normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 + 18q + 3)
+    return normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1)
 end
 
 function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
