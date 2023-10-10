@@ -464,8 +464,9 @@ function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     if q >= 1
         return 0.0
     end
-    common_term = (1 - q)^5
-    derivative = common_term * (70q + 18 - 6 * (35q^2 + 18q + 3))
+    term1 = (1 - q)^6 * (6 + 70 / 3 * q)
+    term2 = 6 * (1 - q)^5 * (1 + 6q + 35 / 3 * q^2)
+    derivative = term1 - term2
     return normalization_factor(kernel, h) * derivative / h
 end
 

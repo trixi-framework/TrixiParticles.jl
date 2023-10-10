@@ -54,7 +54,7 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
 
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_kernel = WendlandC4Kernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
