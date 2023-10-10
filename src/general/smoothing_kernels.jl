@@ -49,7 +49,7 @@ function kernel_deriv(kernel::GaussianKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    # Truncation at 3h for example
+    # Truncation at 3h
     if q > 3
         return 0.0
     end
@@ -57,7 +57,7 @@ function kernel_deriv(kernel::GaussianKernel, r::Real, h)
     return -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv
 end
 
-@inline compact_support(::GaussianKernel, h) = 4 * h
+@inline compact_support(::GaussianKernel, h) = 3 * h
 
 @inline normalization_factor(::GaussianKernel{2}, h) = 1 / (pi * h^2)
 @inline normalization_factor(::GaussianKernel{3}, h) = 1 / (pi^(3 / 2) * h^3)
@@ -460,14 +460,13 @@ function kernel(kernel::WendlandC4Kernel, r::Real, h)
 end
 
 function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+    q = r / h
     if q >= 1
         return 0.0
     end
-    term1 = (1 - q)^5 * (70q + 18)
-    term2 = (35q^2 + 18q + 3) * (-6 * (1 - q)^5)
-    return normalization_factor(kernel, h) * (term1 + term2) * inner_deriv
+    common_term = (1 - q)^5
+    derivative = common_term * (70q + 18 - 6 * (35q^2 + 18q + 3))
+    return normalization_factor(kernel, h) * derivative / h
 end
 
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
@@ -512,14 +511,14 @@ function kernel(kernel::WendlandC6Kernel, r::Real, h)
 end
 
 function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
-    inner_deriv = 1 / h
-    q = r * inner_deriv
+    q = r / h
     if q >= 1
         return 0.0
     end
-    term1 = (1 - q)^7 * (96q^2 + 50q + 8)
-    term2 = (1 - q)^8 * (32 * 3q^2 + 25 * 2q + 8)
-    return normalization_factor(kernel, h) * (-term1 + term2) * inner_deriv
+    common_term1 = -8 * (1 - q)^7
+    term1 = common_term1 * (32q^3 + 25q^2 + 8q + 1)
+    term2 = (1 - q)^8 * (96q^2 + 50q + 8)
+    return normalization_factor(kernel, h) * (term1 + term2) / h
 end
 
 @inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (7pi * h^2)
@@ -548,7 +547,8 @@ This kernel function has a compact support of \( [0, h] \).
 
 Poly6 is well-known for its computational simplicity, though it's worth noting that there are
 other kernels that might offer better accuracy for hydrodynamic simulations. Furthermore,
-its derivatives are smooth, which can lead to stability problems.
+its derivatives are not that smooth, which can lead to stability problems.
+It is also suspectiable to clumping.
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".

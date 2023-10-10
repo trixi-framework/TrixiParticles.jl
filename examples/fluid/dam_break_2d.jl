@@ -15,8 +15,8 @@ fluid_density = 1000.0
 
 # Simulation settings
 fluid_particle_spacing = 0.02
-smoothing_length = 2.0 * fluid_particle_spacing
-boundary_layers = 3
+smoothing_length = 3.0 * fluid_particle_spacing
+boundary_layers = 4
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 spacing_ratio = 1
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
