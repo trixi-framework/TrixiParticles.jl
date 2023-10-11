@@ -266,7 +266,7 @@ This matrix is usually symmetric and dependent on the spatial dimension of the s
 struct GradientCorrection end
 
 function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
-                                            coordinates)
+                                             coordinates)
     (; mass, material_density) = system
 
     set_zero!(corr_matrix)

@@ -253,7 +253,8 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
     initial_coords = initial_coordinates(system)
 
     # Calculate kernel correction matrix
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system, initial_coords)
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        initial_coords)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
