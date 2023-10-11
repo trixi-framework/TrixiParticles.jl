@@ -24,7 +24,31 @@ TrixiParticles.jl is a code that implements particle based numerical methods for
 ## Examples
  
 ## Installation
+If you have not yet installed Julia, please [follow the instructions for your
+operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
+with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
+### For users
+TrixiParticles.jl is a registered Julia package. Hence, you
+can install TrixiParticles.jl by executing the following commands in the Julia REPL:
+```julia
+julia> using Pkg
+
+julia> Pkg.add(["TrixiParticles"])
+```
+
+### For developers
+If you plan on editing Trixi.jl itself, you can download TrixiParticles.jl locally and use the
+code from the cloned directory:
+```bash
+git clone git@github.com:trixi-framework/TrixiParticles.jl.git
+cd TrixiParticles.jl
+```
+If you installed Trixi.jl this way, you always have to start Julia with the `--project`
+flag set to your `run` directory, e.g.,
+```bash
+julia --project=.
+```
 ## Documentation
 
 ## Publications
