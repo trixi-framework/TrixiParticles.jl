@@ -8,24 +8,28 @@ struct InitialCondition{ELTYPE}
 
     function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
                               particle_spacing=-1.0)
+        ELTYPE = eltype(coordinates)
+
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
 
         if !(size(coordinates, 2) == length(masses) == length(densities))
-            throw(ArgumentError("the following must hold: " *
-                                "`size(coordinates, 2) == length(masses) == length(densities)`"))
+            throw(ArgumentError("Expected: size(coordinates, 2) == length(masses) == length(densities)\n" *
+                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                "length(masses) = $(length(masses)), " *
+                                "length(densities) = $(length(densities))"))
         end
 
         if pressure isa Number
-            pressure = pressure * ones(length(masses))
+            pressure = pressure * ones(ELTYPE, length(masses))
         elseif length(pressure) != length(masses)
             throw(ArgumentError("`pressure` must either be a scalar or a vector of the " *
                                 "same length as `masses`"))
         end
 
-        return new{eltype(coordinates)}(particle_spacing, coordinates, velocities, masses,
-                                        densities, pressure)
+        return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
+                           densities, pressure)
     end
 end
 
