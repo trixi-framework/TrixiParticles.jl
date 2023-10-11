@@ -29,9 +29,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_mean = 0.5 * (rho_a + rho_b)
 
         # Determine correction values
-        viscosity_correction, pressure_correction = free_surface_correction(correction,
-                                                                            particle_system,
-                                                                            rho_mean)
+        viscosity_correction, pressure_correction, surface_tension_correction = free_surface_correction(correction,
+                                                                                                        particle_system,
+                                                                                                        rho_mean)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -50,8 +50,17 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b, rho_mean)
 
+        dv_surface_tension = surface_tension_correction *
+                             calc_surface_tension(particle, neighbor, pos_diff, distance,
+                                                  particle_container, neighbor_container,
+                                                  surface_tension)
+
+        dv_adhesion = calc_adhesion(particle, neighbor, pos_diff, distance,
+                                    particle_container, neighbor_container, surface_tension)
+
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_surface_tension[i] +
+                               dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -132,4 +141,59 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       particle_system, neighbor_system, grad_kernel)
     return dv
+end
+
+@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
+                                      particle_container,
+                                      neighbor_container::FluidParticleContainer,
+                                      surface_tension::CohesionForceAkinci)
+    @unpack smoothing_length = particle_container
+
+    m_b = neighbor_container.mass[neighbor]
+
+    return surface_tension(smoothing_length, m_b, pos_diff, distance)
+end
+
+@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
+                                      particle_container,
+                                      neighbor_container::FluidParticleContainer,
+                                      surface_tension::SurfaceTensionAkinci)
+    @unpack smoothing_length = particle_container
+
+    m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
+
+    return surface_tension(smoothing_length, m_b,
+                           get_normal(particle, particle_container,
+                                      surface_tension),
+                           get_normal(neighbor, neighbor_container,
+                                      surface_tension), pos_diff,
+                           distance)
+end
+
+# skip
+@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
+                                      particle_container::ParticleContainer,
+                                      neighbor_container,
+                                      surface_tension::NoSurfaceTension)
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+end
+
+# adhesion term to compensate for cohesion force
+@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
+                               particle_container,
+                               neighbor_container::BoundaryParticleContainer,
+                               surface_tension::AkinciTypeSurfaceTension)
+    @unpack smoothing_length = particle_container
+
+    m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
+
+    return surface_tension(smoothing_length, m_b, pos_diff, distance)
+end
+
+# skip
+@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
+                               particle_container::ParticleContainer,
+                               neighbor_container,
+                               surface_tension::NoSurfaceTension)
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end

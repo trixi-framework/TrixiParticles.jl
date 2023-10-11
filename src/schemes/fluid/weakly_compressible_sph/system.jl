@@ -19,6 +19,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
 - `correction`:   Correction method used for this SPH system. (default: no correction)
+- `surface_tension`:   Surface tension model used for this SPH system. (default: no surface tension)
 
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
@@ -37,6 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
     correction         :: COR
+    surface_tension    :: SRFT
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
@@ -45,7 +47,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                                          viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing)
+                                         correction=nothing, surface_tension=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -68,9 +70,18 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
+        if surface_tension isa SurfaceTensionAkinci && correction === nothing
+            println("NOTE: Result is *probably* inaccurate when used without corrections.
+                     Incorrect pressure near the boundary leads the particles near walls to
+                     be too far away, which leads to surface tension being applied near walls!")
+        end
+
         cache = create_cache(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
+                 cache...)
+        cache = (;
+                 create_cache(surface_tension, ELTYPE, NDIMS, n_particles)...,
                  cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
@@ -104,6 +115,11 @@ function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
     return (;)
 end
 
+function create_cache(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
+    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+    return (; surface_normal)
+end
+
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
@@ -113,6 +129,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.state_equation)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
+    print(io, ", ", system.surface_tension)
     print(io, ", ", system.acceleration)
     print(io, ") with ", nparticles(system), " particles")
 end
@@ -132,6 +149,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
+        summary_line(io, "surface tension", container.surface_tension)
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
@@ -179,7 +197,7 @@ end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                           v_ode, u_ode, semi, t)
-    (; density_calculator, correction) = system
+    (; density_calculator, correction, surface_tension) = system
 
     compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                density_calculator, correction)
@@ -187,6 +205,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, 
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
+    compute_surface_normal!(surface_tension, v, u, system, system_index, u_ode, v_ode, semi, t)
 
     return system
 end
@@ -302,4 +321,36 @@ end
     return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
                                  system.smoothing_length,
                                  system.correction, system, particle)
+end
+
+function compute_surface_normal!(surface_tension, v, u, container, container_index, u_ode,
+                                v_ode, semi, t)
+end
+
+function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, container,
+                                container_index, u_ode, v_ode, semi, t)
+    @unpack particle_containers, neighborhood_searches = semi
+    @unpack cache = container
+
+    # reset surface normal
+    cache.surface_normal .= zero(eltype(cache.surface_normal))
+
+    @trixi_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
+                                                                                              neighbor_container)
+        u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
+                                      neighbor_container, semi)
+        v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
+                                      neighbor_container, semi)
+
+        calc_normal_akinci(surface_tension, u, v_neighbor_container,
+                           u_neighbor_container,
+                           neighborhood_searches[container_index][neighbor_container_index],
+                           container, particle_containers[neighbor_container_index])
+    end
+end
+
+@inline function get_normal(particle, particle_container::FluidParticleContainer,
+                            ::SurfaceTensionAkinci)
+    @unpack cache = particle_container
+    return get_particle_coords(particle, cache.surface_normal, particle_container)
 end

@@ -61,7 +61,8 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity), correction=nothing)
+                                           acceleration=(0.0, -gravity), correction=nothing,
+                                           surface_tension=nothing)
 
 # ==========================================================================================
 # ==== Boundary models

@@ -43,6 +43,14 @@
             @test sol.retcode == ReturnCode.Success
         end
 
+        @trixi_testset "fluid/dam_break_2d_surface_tension.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid", "dam_break_2d_surface_tension.jl"),
+                                       relaxation_tspan=(0.0, 0.1),
+                                       simulation_tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+        end
+
         @trixi_testset "fluid/dam_break_3d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
@@ -65,6 +73,22 @@
                                        tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
         end
+    end
+
+    @trixi_testset "fluid/deformation_sphere_2d.jl" begin
+        @test_nowarn trixi_include(@__MODULE__,
+                                   joinpath(examples_dir(), "fluid",
+                                            "deformation_sphere_2d.jl"),
+                                   tspan=(0.0, 3.0))
+        @test sol.retcode == ReturnCode.Success
+    end
+
+    @trixi_testset "fluid/deformation_sphere_3d.jl" begin
+        @test_nowarn trixi_include(@__MODULE__,
+                                   joinpath(examples_dir(), "fluid",
+                                            "deformation_sphere_3d.jl"),
+                                   tspan=(0.0, 20.0))
+        @test sol.retcode == ReturnCode.Success
     end
 
     @testset verbose=true "Solid" begin
