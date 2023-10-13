@@ -15,7 +15,7 @@ provided substantial additions or modifications. Together, these two groups form
   Helmholtz Center Hereon, Germany
 
 ## Contributors
-The following people contributed major additions or modifications to Trixi.jl and
+The following people contributed major additions or modifications to TrixiParticles.jl and
 are listed in alphabetical order:
 * Sven Berger
 * Erik Faulhaber
