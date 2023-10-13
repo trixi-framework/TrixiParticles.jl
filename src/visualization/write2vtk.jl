@@ -72,8 +72,6 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
 
         # Store particle index
         vtk["index"] = eachparticle(system)
-
-        # Write some meta data
         vtk["time"] = t
 
         # Extract custom quantities for this system
@@ -84,7 +82,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
             end
         end
 
-        # add to collection
+        # Add to collection
         pvd[t] = vtk
     end
     vtk_save(pvd)
@@ -150,14 +148,14 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
 
     if write_meta_data
         vtk["acceleration"] = system.acceleration
-        vtk["viscosity"] = type2string(system.viscosity)
+        vtk["viscosity"] = repr(system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
         vtk["smoothing_length"] = system.smoothing_length
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
-            vtk["correction_method"] = type2string(system.correction)
-            vtk["state_equation"] = type2string(system.state_equation)
+            vtk["correction_method"] = repr(system.correction)
+            vtk["state_equation"] = repr(system.state_equation)
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
@@ -170,14 +168,14 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
 end
 
 function write2vtk!(vtk, viscosity::ViscosityAdami)
-    vtk["nu"] = viscosity.nu
-    vtk["epsilon"] = viscosity.epsilon
+    vtk["viscosity_nu"] = viscosity.nu
+    vtk["viscosity_epsilon"] = viscosity.epsilon
 end
 
 function write2vtk!(vtk, viscosity::ArtificialViscosityMonaghan)
-    vtk["alpha"] = viscosity.alpha
-    vtk["beta"] = viscosity.beta
-    vtk["epsilon"] = viscosity.epsilon
+    vtk["viscosity_alpha"] = viscosity.alpha
+    vtk["viscosity_beta"] = viscosity.beta
+    vtk["viscosity_epsilon"] = viscosity.epsilon
 end
 
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
@@ -205,7 +203,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
         vtk["smoothing_length"] = system.boundary_model.smoothing_length
         vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
+        vtk["state_equation"] = repr(system.boundary_model.state_equation)
     end
 
     write2vtk!(vtk, v, u, t, model, model.viscosity, system,
