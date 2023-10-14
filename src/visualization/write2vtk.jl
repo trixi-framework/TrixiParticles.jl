@@ -148,23 +148,42 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
 
     if write_meta_data
         vtk["acceleration"] = system.acceleration
-        vtk["viscosity"] = repr(system.viscosity)
+        vtk["viscosity"] = type2string(system.viscosity)
+        write2vtk!(vtk, system.viscosity)
         vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
         vtk["smoothing_length"] = system.smoothing_length
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
-            vtk["correction_method"] = repr(system.correction)
-            vtk["state_equation"] = repr(system.state_equation)
+            vtk["correction_method"] = type2string(system.correction)
+            if system.correction isa AkinciFreeSurfaceCorrection
+                vtk["correction_rho0"] = system.correction.rho0
+            end
+            vtk["state_equation"] = type2string(system.state_equation)
+            write2vtk!(vtk, system.state_equation)
+
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
         end
-
-        write2vtk!(vtk, system.viscosity)
     end
 
     return vtk
+end
+
+function write2vtk!(vtk, state::StateEquationIdealGas)
+    vtk["state_equation_rho0"] = state.reference_density
+    vtk["state_equation_p0"] = state.reference_pressure
+    vtk["state_equation_pa"] = state.background_pressure
+    vtk["state_equation_c"] = state.sound_speed
+end
+
+function write2vtk!(vtk, state::StateEquationCole)
+    vtk["state_equation_rho0"] = state.reference_density
+    vtk["state_equation_p0"] = state.reference_pressure
+    vtk["state_equation_pa"] = state.background_pressure
+    vtk["state_equation_c"] = state.sound_speed
+    vtk["state_equation_gamma"] = state.gamma
 end
 
 function write2vtk!(vtk, viscosity::ViscosityAdami)
@@ -203,7 +222,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
         vtk["smoothing_length"] = system.boundary_model.smoothing_length
         vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = repr(system.boundary_model.state_equation)
+        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
     end
 
     write2vtk!(vtk, v, u, t, model, model.viscosity, system,
