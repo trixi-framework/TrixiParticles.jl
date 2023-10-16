@@ -21,12 +21,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "initial_condition.jl")]
 ```
 
-### File neighborhood_search.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "neighborhood_search.jl")]
-```
-
 ### File semidiscretization.jl
 ```@autodocs
 Modules = [TrixiParticles]
@@ -37,6 +31,13 @@ Pages = [joinpath("general", "semidiscretization.jl")]
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "smoothing_kernels.jl")]
+```
+
+## Neighborhood Search
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("neighborhood_search", file), readdir(joinpath("..", "src", "neighborhood_search")))
 ```
 
 ## Schemes
