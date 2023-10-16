@@ -104,22 +104,9 @@ Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl"
 
 ## Setups
 
-### File rectangular_tank.jl
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("setups", "rectangular_tank.jl")]
-```
-
-### File rectangular_shape.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("setups", "rectangular_shape.jl")]
-```
-
-### File circular_shape.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("setups", "circular_shape.jl")]
+Pages = map(file -> joinpath("setups", file), readdir(joinpath("..", "src", "setups")))
 ```
 
 ## Util

@@ -49,16 +49,13 @@ SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, sphere_type=RoundSphere())
 
 # Hollow circle with ~3 layers, outer radius 0.5, center in (0.2, 0.4) and a particle
 # spacing of 0.1.
-```julia
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
-```
 
 # Same as before, but perfectly round
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, sphere_type=RoundSphere())
 
 # Hollow circle with 3 layers, inner radius 0.5, center in (0.2, 0.4) and a particle spacing
 # of 0.1.
-```julia
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_outwards=true)
 
 # Filled circle with radius 0.1, center in (0.0, 0.0), particle spacing 0.1, but the
@@ -71,7 +68,6 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
 # Same as before, but perfectly round
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 ```
-````
 """
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
@@ -124,6 +120,9 @@ with a regular inner structure but corners on the surface.
 Essentially, a grid of particles is generated and all particles outside the sphere are removed.
 The resulting sphere will have a perfect inner structure, but is not perfectly round,
 as it will have corners (like a sphere in Minecraft).
+
+!!! note "Usage"
+    See [`SphereShape`](@ref) on how to use this.
 """
 struct VoxelSphere end
 
@@ -132,6 +131,9 @@ struct VoxelSphere end
 
 Construct a sphere by nesting perfectly round concentric spheres.
 The resulting ball will be perfectly round, but will not have a regular inner structure.
+
+!!! note "Usage"
+    See [`SphereShape`](@ref) on how to use this.
 """
 struct RoundSphere end
 
