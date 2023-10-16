@@ -25,6 +25,36 @@ to build more complex geometries.
 - `particle_spacing`: The spacing between the particles. This is a number, as the spacing
                       is assumed to be uniform. This is only needed when using
                       set operations on the `InitialCondition`.
+
+# Examples
+```julia
+# Rectangle filled with particles
+initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), 1.0)
+
+# Two spheres in one initial condition
+initial_condition = union(SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
+                          SphereShape(0.15, 0.2, (0.0, 1.0), 1.0))
+
+# Rectangle with a spherical hole
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = setdiff(shape1, shape2)
+
+# Intersect of a rectangle with a sphere. Note that this keeps the particles of the
+# rectangle that are in the intersect, while `intersect(shape2, shape1)` would consist of
+# the particles of the sphere that are in the intersect.
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = intersect(shape1, shape2)
+
+# Build `InitialCondition` manually
+coordinates = [0.0 1.0 1.0
+               0.0 0.0 1.0]
+velocities = zero(coordinates)
+masses = ones(3)
+densities = 1000 * ones(3)
+initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+```
 """
 struct InitialCondition{ELTYPE}
     particle_spacing :: ELTYPE
