@@ -160,30 +160,22 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                 vtk["correction_rho0"] = system.correction.rho0
             end
             vtk["state_equation"] = type2string(system.state_equation)
-            write2vtk!(vtk, system.state_equation)
+            vtk["state_equation_rho0"] = system.state_equation.reference_density
+            vtk["state_equation_p0"] = system.state_equation.reference_pressure
+            vtk["state_equation_pa"] = system.state_equation.background_pressure
+            vtk["state_equation_c"] = system.state_equation.sound_speed
+            if system.state_equation isa StateEquationCole
+                vtk["state_equation_gamma"] = system.state_equation.gamma
+            end
 
             vtk["solver"] = "WCSPH"
         else
             vtk["solver"] = "EDAC"
+            vtk["sound_speed"] = system.sound_speed
         end
     end
 
     return vtk
-end
-
-function write2vtk!(vtk, state::StateEquationIdealGas)
-    vtk["state_equation_rho0"] = state.reference_density
-    vtk["state_equation_p0"] = state.reference_pressure
-    vtk["state_equation_pa"] = state.background_pressure
-    vtk["state_equation_c"] = state.sound_speed
-end
-
-function write2vtk!(vtk, state::StateEquationCole)
-    vtk["state_equation_rho0"] = state.reference_density
-    vtk["state_equation_p0"] = state.reference_pressure
-    vtk["state_equation_pa"] = state.background_pressure
-    vtk["state_equation_c"] = state.sound_speed
-    vtk["state_equation_gamma"] = state.gamma
 end
 
 function write2vtk!(vtk, viscosity::ViscosityAdami)
@@ -203,6 +195,10 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
                            zeros(ndims(system), n_fixed_particles))
     vtk["material_density"] = system.material_density
+    vtk["young_modulus"] = system.young_modulus
+    vtk["poisson_ratio"] = system.poisson_ratio
+    vtk["lame_lambda"] = system.lame_lambda
+    vtk["lame_mu"] = system.lame_mu
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
@@ -213,6 +209,15 @@ end
 
 function write2vtk!(vtk, v, u, t, model, system; write_meta_data=true)
     return vtk
+end
+
+function write2vtk!(vtk, v, u, t, model::BoundaryModelMonaghanKajtar, system;
+                    write_meta_data=true)
+    if write_meta_data
+        vtk["boundary_model"] = "BoundaryModelMonaghanKajtar"
+        vtk["boundary_spacing_ratio"] = model.beta
+        vtk["boundary_K"] = model.K
+    end
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
