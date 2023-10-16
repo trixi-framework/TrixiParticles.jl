@@ -4,7 +4,25 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'AUTHORS.md'
+      - 'CITATION.bib'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.md'
+      - 'NEWS.md'
+      - 'README.md'
+      - '.github/workflows/CompatHelper.yml'
+      - 'docs/**'
   pull_request:
+      paths-ignore:
+      - 'AUTHORS.md'
+      - 'CITATION.bib'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.md'
+      - 'NEWS.md'
+      - 'README.md'
+      - '.github/workflows/CompatHelper.yml'
+      - 'docs/**'
   workflow_dispatch:
 
 # Cancel redundant CI tests automatically
