@@ -19,7 +19,8 @@
             @test_nowarn trixi_include(@__MODULE__, filename, x=7)
             @test x == 7
 
-            @test_throws "assignment y not found in expression" trixi_include(@__MODULE__, filename, y=3)
+            @test_throws "assignment y not found in expression" trixi_include(@__MODULE__,
+                                                                              filename, y=3)
         finally
             rm(filename, force=true)
         end
@@ -39,9 +40,12 @@
 
             # Use `@trixi_testset`, which wraps code in a temporary module, and call
             # `trixi_include` with `@__MODULE__` in order to isolate this test.
-            @test_throws "no method matching solve(; maxiters::Int64)" trixi_include(@__MODULE__, filename)
+            @test_throws "no method matching solve(; maxiters::Int64)" trixi_include(@__MODULE__,
+                                                                                     filename)
 
-            @test_throws "no method matching solve(; maxiters::Int64)" trixi_include(@__MODULE__, filename, maxiters=3)
+            @test_throws "no method matching solve(; maxiters::Int64)" trixi_include(@__MODULE__,
+                                                                                     filename,
+                                                                                     maxiters=3)
         finally
             rm(filename, force=true)
         end
