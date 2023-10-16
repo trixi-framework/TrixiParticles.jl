@@ -173,6 +173,7 @@ function trixi_include(mod::Module, elixir::AbstractString; kwargs...)
     # Check that all kwargs exist as assignments
     code = read(elixir, String)
     expr = Meta.parse("begin \n$code \nend")
+    expr = insert_maxiters(expr)
 
     for (key, val) in kwargs
         # This will throw an error when `key` is not found
@@ -314,4 +315,8 @@ macro autoinfiltrate(condition=true)
                 Expr(:., i, QuoteNode(Symbol("@infiltrate"))),
                 lnn,
                 esc(condition))
+end
+
+function type2string(type)
+    return string(nameof(typeof(type)))
 end

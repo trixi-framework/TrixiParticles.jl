@@ -1,5 +1,6 @@
 @testset verbose=true "Solid RHS" begin
-    @testset "interact! Mocked" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "interact! Mocked" begin
         # Pass specific PK1 and `pos_diff` to `interact!` and verify with
         # values calculated by hand.
         pk1_particle_corrected = [
