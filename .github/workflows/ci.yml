@@ -48,6 +48,10 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
           flags: unit
+      - name: Compile docs
+        run: |
+          julia -e --project=docs 'using Pkg; Pkg.develop("."); Pkg.instantiate()'
+          julia --project=docs --color=yes docs/make.jl
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:
