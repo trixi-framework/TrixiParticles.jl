@@ -82,6 +82,24 @@ function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
     return coordinates
 end
 
+# 1D
+function initialize_rectangular!(coordinates, particle_spacing,
+                                 min_coordinates,
+                                 n_particles_per_dimension::NTuple{1}, loop_order)
+    n_particles_x = n_particles_per_dimension[1]
+    particle = 0
+
+    if loop_order === :x_first
+        for x in 1:n_particles_x
+            particle += 1
+            fill_coordinates!(coordinates, particle, min_coordinates, x, particle_spacing)
+        end
+
+    else
+        throw(ArgumentError("$loop_order is not a valid loop order. Possible values are :x_first"))
+    end
+end
+
 # 2D
 function initialize_rectangular!(coordinates, particle_spacing,
                                  min_coordinates,
@@ -139,6 +157,13 @@ function initialize_rectangular!(coordinates, particle_spacing,
     else
         throw(ArgumentError("$loop_order is not a valid loop order. Possible values are :x_first, :y_first and :z_first"))
     end
+end
+
+@inline function fill_coordinates!(coordinates, particle,
+                                   min_coordinates, x, particle_spacing)
+    # The first particle starts at a distance `0.5particle_spacing` from `min_coordinates`
+    # in each dimension.
+    coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
 end
 
 @inline function fill_coordinates!(coordinates, particle,

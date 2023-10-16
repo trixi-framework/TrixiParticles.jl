@@ -104,6 +104,7 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
+@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / (3 * h)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (7 * pi * h^2)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
@@ -306,5 +307,6 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / (120 * h)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (478 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)

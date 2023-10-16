@@ -208,6 +208,17 @@ end
     end
 end
 
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{1})
+    cell = cell_coords(coords, neighborhood_search)
+    x = cell[1]
+    # Generator of all neighboring cells to consider
+    neighboring_cells = ((x + i) for i in -1:1)
+
+    # Merge all lists of particles in the neighboring cells into one iterator
+    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
+                      for cell in neighboring_cells)
+end
+
 @inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
     cell = cell_coords(coords, neighborhood_search)
     x, y = cell
