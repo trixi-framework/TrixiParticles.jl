@@ -1,3 +1,31 @@
+@doc raw"""
+    InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
+                     particle_spacing=-1.0)
+
+Struct to hold the initial configuration of the particles.
+
+The following setups return `InitialCondition`s for commonly used setups:
+- [`RectangularShape`](@ref)
+- [`SphereShape`](@ref)
+- [`RectangularTank`](@ref)
+
+`InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
+to build more complex geometries.
+
+# Arguments
+- `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
+- `velocities`: An array where the $i$-th column holds the velocity of particle $i$.
+- `masses`: A vector holding the mass of each particle.
+- `densities`: A vector holding the density of each particle.
+
+# Keywords
+- `pressure`: Either a vector of pressure values of each particle or a number for a constant
+              pressure over all particles. This is optional and only needed when using
+              the [`EntropicallyDampedSPHSystem`](@ref).
+- `particle_spacing`: The spacing between the particles. This is a number, as the spacing
+                      is assumed to be uniform. This is only needed when using
+                      set operations on the `InitialCondition`.
+"""
 struct InitialCondition{ELTYPE}
     particle_spacing :: ELTYPE
     coordinates      :: Array{ELTYPE, 2}
