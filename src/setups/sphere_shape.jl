@@ -34,7 +34,7 @@ coordinate directions as `cutout_min` and `cutout_max`.
                         cut out of the sphere.
 - `cutout_max`:         Corner in positive coordinate directions of a cuboid that is to be
                         cut out of the sphere.
-- `tlsph`:              With the [TotalLagrangianSPHSystem](@ref), particles need to be placed
+- `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                         on the boundary of the shape and not one particle radius away, as for fluids.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
 - `init_velocity`:      Initial velocity vector to be assigned to each particle.
