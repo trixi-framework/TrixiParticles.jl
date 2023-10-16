@@ -316,3 +316,7 @@ macro autoinfiltrate(condition=true)
                 lnn,
                 esc(condition))
 end
+
+function type2string(type)
+    return string(nameof(typeof(type)))
+end
