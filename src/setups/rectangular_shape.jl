@@ -32,8 +32,8 @@ rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 100
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension,
                           min_coordinates, density; pressure=0.0, tlsph=false,
-                          init_velocity=ntuple(_ -> 0.0,
-                                               length(n_particles_per_dimension)),
+                          init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
+                          acceleration=nothing, state_equation=nothing,
                           loop_order=:x_first)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
@@ -58,8 +58,53 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                                            loop_order=loop_order)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    densities = density * ones(ELTYPE, n_particles)
-    masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
+    if acceleration === nothing && state_equation === nothing
+        densities = density * ones(ELTYPE, n_particles)
+        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
+    elseif (acceleration isa AbstractVector || acceleration isa Tuple) &&
+           state_equation !== nothing
+        acceleration_ = SVector(acceleration)
+        # Calculate the hydrostatic pressure at each particle.
+        # We are basically using the simple formula
+        # `pressure = rest_density * gravitational_acceleration * distance_from_surface`,
+        # but we allow the acceleration to be any vector.
+        # Note that we assume the density to be almost constant in this equation. Otherwise,
+        # things would be a lot more complicated, and we would have to solve an ODE.
+        #
+        # TODO: This works perfectly for accelerations in any coordinate direction, but
+        # in order to actually use it in diagonal directions, we probably want to pass
+        # a point on the surface as well, since the corner of the rectangle will probably
+        # be cut off using `setdiff` or `intersect`, so that the surface is a diagonal
+        # as well. Then, the distance from the corner is no longer the distance
+        # from the surface.
+        vectors_from_min_corner = coordinates .- min_coordinates
+        max_corner = min_coordinates .+ particle_spacing .* n_particles_per_dimension
+        vectors_from_max_corner = coordinates .- max_corner
+
+        # If the acceleration is pointing in negative coordinate direction ("down"),
+        # take the dot product of acceleration and vector from max corner.
+        # Otherwise, take the dot product of acceleration and vector from min corner.
+        # Or, in other words, take the one that is positive.
+        #
+        # If we did this per particle, it would read
+        # `max(dot(acceleration, vector_from_min_corner),
+        #      dot(acceleration, vector_from_max_corner))`,
+        # which turns into the following when we vectorize it over the particles.
+        acceleration_times_height = max.(acceleration_' * vectors_from_min_corner,
+                                         acceleration_' * vectors_from_max_corner)
+
+        # We have `acceleration * distance_from_surface`, so we only need to multiply by the
+        # density.
+        pressure = density * vec(acceleration_times_height)
+
+        # Get density from inverse state equation
+        densities = inverse_state_equation.(Ref(state_equation), pressure)
+        particle_volume = particle_spacing^NDIMS
+        masses = particle_volume * densities
+    else
+        throw(ArgumentError("`acceleration` and `state_equation` must either be " *
+                            "used both or both must be `nothing`"))
+    end
 
     return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
                             particle_spacing=particle_spacing)

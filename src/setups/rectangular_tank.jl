@@ -58,12 +58,12 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_layers                  :: Int
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
-    function RectangularTank(particle_spacing, fluid_size, tank_size,
-                             fluid_density; pressure=0.0,
-                             n_layers=1, spacing_ratio=1.0,
+    function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
+                             pressure=0.0, n_layers=1, spacing_ratio=1.0,
                              init_velocity=zeros(length(fluid_size)),
                              boundary_density=fluid_density,
-                             faces=Tuple(trues(2 * length(fluid_size))))
+                             faces=Tuple(trues(2 * length(fluid_size))),
+                             acceleration=nothing, state_equation=nothing)
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(ELTYPE.(fluid_size))
@@ -114,7 +114,8 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
                                  fluid_density, init_velocity=init_velocity,
-                                 pressure=pressure)
+                                 pressure=pressure,
+                                 acceleration=acceleration, state_equation=state_equation)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities,
