@@ -7,7 +7,7 @@ using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
 using Polyester: Polyester, @batch
-using Printf: @printf
+using Printf: @printf, @sprintf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
@@ -15,7 +15,7 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit

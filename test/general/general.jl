@@ -2,3 +2,4 @@
 include("util.jl")
 include("initial_condition.jl")
 include("smoothing_kernels.jl")
+include("semidiscretization.jl")
