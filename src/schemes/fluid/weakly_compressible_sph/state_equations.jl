@@ -11,7 +11,7 @@ where ``c`` denotes the speed of sound, ``\rho`` the density, ``p`` the pressure
 at the reference density, and ``p_{\text{background}}`` the atmospheric or
 background pressure (to be used with free surfaces).
 
-When using [`SummationDensity`](@ref) (or [DensityReinitializationCallback](@ref))
+When using [`SummationDensity`](@ref) (or [`DensityReinitializationCallback`](@ref))
 and free surfaces, initializing particles with equal spacing will cause underestimated
 density and therefore strong attractive forces between particles at the free surface.
 Setting `clip_negative_pressure=true` can avoid this.
@@ -64,7 +64,7 @@ background pressure (to be used with free surfaces).
 
 For water, an average value of ``\gamma = 7.15`` is usually used (Cole 1948, p. 39).
 
-When using [`SummationDensity`](@ref) (or [DensityReinitializationCallback](@ref))
+When using [`SummationDensity`](@ref) (or [`DensityReinitializationCallback`](@ref))
 and free surfaces, initializing particles with equal spacing will cause underestimated
 density and therefore strong attractive forces between particles at the free surface.
 Setting `clip_negative_pressure=true` can avoid this.
