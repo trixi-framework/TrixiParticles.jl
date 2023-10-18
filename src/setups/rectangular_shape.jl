@@ -60,51 +60,22 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
 
     if acceleration === nothing && state_equation === nothing
         densities = density * ones(ELTYPE, n_particles)
-        masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
     elseif (acceleration isa AbstractVector || acceleration isa Tuple) &&
            state_equation !== nothing
-        acceleration_ = SVector(acceleration)
-        # Calculate the hydrostatic pressure at each particle.
-        # We are basically using the simple formula
-        # `pressure = rest_density * gravitational_acceleration * distance_from_surface`,
-        # but we allow the acceleration to be any vector.
-        # Note that we assume the density to be almost constant in this equation. Otherwise,
-        # things would be a lot more complicated, and we would have to solve an ODE.
-        #
-        # TODO: This works perfectly for accelerations in any coordinate direction, but
-        # in order to actually use it in diagonal directions, we probably want to pass
-        # a point on the surface as well, since the corner of the rectangle will probably
-        # be cut off using `setdiff` or `intersect`, so that the surface is a diagonal
-        # as well. Then, the distance from the corner is no longer the distance
-        # from the surface.
-        vectors_from_min_corner = coordinates .- min_coordinates
-        max_corner = min_coordinates .+ particle_spacing .* n_particles_per_dimension
-        vectors_from_max_corner = coordinates .- max_corner
-
-        # If the acceleration is pointing in negative coordinate direction ("down"),
-        # take the dot product of acceleration and vector from max corner.
-        # Otherwise, take the dot product of acceleration and vector from min corner.
-        # Or, in other words, take the one that is positive.
-        #
-        # If we did this per particle, it would read
-        # `max(dot(acceleration, vector_from_min_corner),
-        #      dot(acceleration, vector_from_max_corner))`,
-        # which turns into the following when we vectorize it over the particles.
-        acceleration_times_height = max.(acceleration_' * vectors_from_min_corner,
-                                         acceleration_' * vectors_from_max_corner)
-
-        # We have `acceleration * distance_from_surface`, so we only need to multiply by the
-        # density.
-        pressure = density * vec(acceleration_times_height)
+        # Initialize hydrostatic pressure
+        pressure = Vector{ELTYPE}(undef, n_particles)
+        initialize_pressure!(pressure, particle_spacing, SVector(acceleration),
+                             state_equation, n_particles_per_dimension, loop_order)
 
         # Get density from inverse state equation
         densities = inverse_state_equation.(Ref(state_equation), pressure)
-        particle_volume = particle_spacing^NDIMS
-        masses = particle_volume * densities
     else
         throw(ArgumentError("`acceleration` and `state_equation` must either be " *
                             "used both or both must be `nothing`"))
     end
+
+    particle_volume = particle_spacing^NDIMS
+    masses = particle_volume * densities
 
     return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
                             particle_spacing=particle_spacing)
@@ -201,4 +172,82 @@ end
     coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
     coordinates[2, particle] = min_coordinates[2] + (y - 0.5) * particle_spacing
     coordinates[3, particle] = min_coordinates[3] + (z - 0.5) * particle_spacing
+end
+
+# 2D
+function initialize_pressure!(pressure, particle_spacing, acceleration, state_equation,
+                              n_particles_per_dimension::NTuple{2}, loop_order)
+    n_particles_x, n_particles_y = n_particles_per_dimension
+
+    @inline density(pressure_) = inverse_state_equation(state_equation, pressure_)
+
+    if loop_order !== :x_first
+        throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
+                            "order `:x_first`"))
+    end
+
+    # Start with the highest index and loop backwards in order to start at the fluid surface
+    particle = prod(n_particles_per_dimension)
+
+    # The hydrostatic pressure is given by the ODE `dp/dr = rho * g`, where `r` is the
+    # distance to the surface (water depth), `rho` is the density and `g` is the
+    # acceleration.
+    # For high water columns (and especially for higher compressibility), this yields
+    # better results than just assuming `rho` to be constant.
+    #
+    # To solve this ODE, we use the explicit Euler method in each dimension
+    # independently, matching the particle indexing.
+    # This allows diagonal accelerations as well (albeit only on negative coordinate
+    # directions).
+    pressure_x = 0.0
+    pressure_x -= 0.5particle_spacing * acceleration[1] * density(pressure_x)
+    for x in n_particles_x:-1:1
+        # For the integration in y-direction, start at `pressure_x`
+        pressure_y = pressure_x
+        pressure_y -= 0.5particle_spacing * acceleration[2] * density(pressure_y)
+        for y in n_particles_y:-1:1
+            pressure[particle] = pressure_y
+            particle -= 1
+
+            # Explicit Euler step
+            pressure_y -= particle_spacing * acceleration[2] * density(pressure_y)
+        end
+
+        # Explicit Euler step
+        pressure_x -= particle_spacing * acceleration[1] * density(pressure_x)
+    end
+end
+
+# 3D
+function initialize_pressure!(pressure, particle_spacing, acceleration, state_equation,
+                              n_particles_per_dimension::NTuple{3}, loop_order)
+    n_particles_x, n_particles_y, n_particles_z = n_particles_per_dimension
+
+    @inline density(pressure_) = inverse_state_equation(state_equation, pressure_)
+
+    if loop_order !== :x_first
+        throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
+                            "order `:x_first`"))
+    end
+
+    # Start with the highest index and loop backwards in order to start at the fluid surface
+    particle = prod(n_particles_per_dimension)
+
+    pressure_x = 0.0
+    for x in n_particles_x:-1:1
+        pressure_y = pressure_x
+        for y in n_particles_y:-1:1
+            pressure_z = pressure_y
+            for z in n_particles_z:-1:1
+                pressure[particle] = pressure_z
+                particle -= 1
+
+                pressure_z -= particle_spacing * acceleration[3] * density(pressure_z)
+            end
+
+            pressure_y -= particle_spacing * acceleration[2] * density(pressure_y)
+        end
+
+        pressure_x -= particle_spacing * acceleration[1] * density(pressure_x)
+    end
 end
