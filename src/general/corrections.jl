@@ -220,34 +220,31 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
     end
 end
 
-"""
+@doc raw"""
     GradientCorrection()
 
 Compute the corrected gradient of particle interactions based on their relative positions.
-The corrected gradient is stored in the `corr_matrix`.
 
 # Mathematical Details
 
 Given the standard SPH representation of a gradient of a field A at particle i is given by:
 
 ```math
-\\nabla A_i = \\sum_j m_j \\frac{A_j - A_i}{\\rho_j} \\nabla W_{ij}
+\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
 ```
 
 Where:
-- m_j is the mass of particle j
-- rho_j is the density of particle j
-- W_{ij} is the SPH kernel function, describing the influence of particle j on particle i
+- $m_b$ is the mass of particle $b$
+- $rho_b$ is the density of particle $b$
 
 The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix L :
 
 ```math
-\\nabla A_i^{corrected} = L_i \\nabla A_i
+\nabla^\tilde A_i = L_i \nabla A_i
 ```
 
-The correction matrix L_i is computed based on the provided particle configuration,
+The correction matrix  $L_i$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
-This matrix is usually symmetric and dependent on the spatial dimension of the system.
 
 # Notes:
 - Stability issues as especially when particles separate into small clusters.
