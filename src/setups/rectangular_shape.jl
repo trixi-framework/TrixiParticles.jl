@@ -60,18 +60,27 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
 
     if acceleration === nothing && state_equation === nothing
         densities = density * ones(ELTYPE, n_particles)
-    elseif (acceleration isa AbstractVector || acceleration isa Tuple) &&
-           state_equation !== nothing
+    elseif acceleration isa AbstractVector || acceleration isa Tuple
+        if state_equation === nothing
+            density_fun = pressure -> density
+        else
+            density_fun = pressure -> inverse_state_equation(state_equation, pressure)
+        end
+
         # Initialize hydrostatic pressure
         pressure = Vector{ELTYPE}(undef, n_particles)
         initialize_pressure!(pressure, particle_spacing, SVector(acceleration),
-                             state_equation, n_particles_per_dimension, loop_order)
+                             density_fun, n_particles_per_dimension, loop_order)
 
-        # Get density from inverse state equation
-        densities = inverse_state_equation.(Ref(state_equation), pressure)
+        if state_equation === nothing
+            # Incompressible case
+            densities = density * ones(ELTYPE, n_particles)
+        else
+            # Weakly compressible case: get density from inverse state equation
+            densities = inverse_state_equation.(Ref(state_equation), pressure)
+        end
     else
-        throw(ArgumentError("`acceleration` and `state_equation` must either be " *
-                            "used both or both must be `nothing`"))
+        throw(ArgumentError("`acceleration` must either be `nothing` or a vector/tuple"))
     end
 
     particle_volume = particle_spacing^NDIMS
@@ -175,11 +184,9 @@ end
 end
 
 # 2D
-function initialize_pressure!(pressure, particle_spacing, acceleration, state_equation,
+function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
                               n_particles_per_dimension::NTuple{2}, loop_order)
     n_particles_x, n_particles_y = n_particles_per_dimension
-
-    @inline density(pressure_) = inverse_state_equation(state_equation, pressure_)
 
     if loop_order !== :x_first
         throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
@@ -200,30 +207,28 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, state_eq
     # This allows diagonal accelerations as well (albeit only on negative coordinate
     # directions).
     pressure_x = 0.0
-    pressure_x -= 0.5particle_spacing * acceleration[1] * density(pressure_x)
+    pressure_x -= 0.5particle_spacing * acceleration[1] * density_fun(pressure_x)
     for x in n_particles_x:-1:1
         # For the integration in y-direction, start at `pressure_x`
         pressure_y = pressure_x
-        pressure_y -= 0.5particle_spacing * acceleration[2] * density(pressure_y)
+        pressure_y -= 0.5particle_spacing * acceleration[2] * density_fun(pressure_y)
         for y in n_particles_y:-1:1
             pressure[particle] = pressure_y
             particle -= 1
 
             # Explicit Euler step
-            pressure_y -= particle_spacing * acceleration[2] * density(pressure_y)
+            pressure_y -= particle_spacing * acceleration[2] * density_fun(pressure_y)
         end
 
         # Explicit Euler step
-        pressure_x -= particle_spacing * acceleration[1] * density(pressure_x)
+        pressure_x -= particle_spacing * acceleration[1] * density_fun(pressure_x)
     end
 end
 
 # 3D
-function initialize_pressure!(pressure, particle_spacing, acceleration, state_equation,
+function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
                               n_particles_per_dimension::NTuple{3}, loop_order)
     n_particles_x, n_particles_y, n_particles_z = n_particles_per_dimension
-
-    @inline density(pressure_) = inverse_state_equation(state_equation, pressure_)
 
     if loop_order !== :x_first
         throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
@@ -242,12 +247,12 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, state_eq
                 pressure[particle] = pressure_z
                 particle -= 1
 
-                pressure_z -= particle_spacing * acceleration[3] * density(pressure_z)
+                pressure_z -= particle_spacing * acceleration[3] * density_fun(pressure_z)
             end
 
-            pressure_y -= particle_spacing * acceleration[2] * density(pressure_y)
+            pressure_y -= particle_spacing * acceleration[2] * density_fun(pressure_y)
         end
 
-        pressure_x -= particle_spacing * acceleration[1] * density(pressure_x)
+        pressure_x -= particle_spacing * acceleration[1] * density_fun(pressure_x)
     end
 end
