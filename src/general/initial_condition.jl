@@ -1,3 +1,61 @@
+@doc raw"""
+    InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
+                     particle_spacing=-1.0)
+
+Struct to hold the initial configuration of the particles.
+
+The following setups return `InitialCondition`s for commonly used setups:
+- [`RectangularShape`](@ref)
+- [`SphereShape`](@ref)
+- [`RectangularTank`](@ref)
+
+`InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
+to build more complex geometries.
+
+# Arguments
+- `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
+- `velocities`: An array where the $i$-th column holds the velocity of particle $i$.
+- `masses`: A vector holding the mass of each particle.
+- `densities`: A vector holding the density of each particle.
+
+# Keywords
+- `pressure`: Either a vector of pressure values of each particle or a number for a constant
+              pressure over all particles. This is optional and only needed when using
+              the [`EntropicallyDampedSPHSystem`](@ref).
+- `particle_spacing`: The spacing between the particles. This is a number, as the spacing
+                      is assumed to be uniform. This is only needed when using
+                      set operations on the `InitialCondition`.
+
+# Examples
+```julia
+# Rectangle filled with particles
+initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), 1.0)
+
+# Two spheres in one initial condition
+initial_condition = union(SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
+                          SphereShape(0.15, 0.2, (0.0, 1.0), 1.0))
+
+# Rectangle with a spherical hole
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = setdiff(shape1, shape2)
+
+# Intersect of a rectangle with a sphere. Note that this keeps the particles of the
+# rectangle that are in the intersect, while `intersect(shape2, shape1)` would consist of
+# the particles of the sphere that are in the intersect.
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = intersect(shape1, shape2)
+
+# Build `InitialCondition` manually
+coordinates = [0.0 1.0 1.0
+               0.0 0.0 1.0]
+velocities = zero(coordinates)
+masses = ones(3)
+densities = 1000 * ones(3)
+initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+```
+"""
 struct InitialCondition{ELTYPE}
     particle_spacing :: ELTYPE
     coordinates      :: Array{ELTYPE, 2}

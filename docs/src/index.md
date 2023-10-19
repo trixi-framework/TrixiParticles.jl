@@ -21,12 +21,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "initial_condition.jl")]
 ```
 
-### File neighborhood_search.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "neighborhood_search.jl")]
-```
-
 ### File semidiscretization.jl
 ```@autodocs
 Modules = [TrixiParticles]
@@ -37,6 +31,13 @@ Pages = [joinpath("general", "semidiscretization.jl")]
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "smoothing_kernels.jl")]
+```
+
+## Neighborhood Search
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("neighborhood_search", file), readdir(joinpath("..", "src", "neighborhood_search")))
 ```
 
 ## Schemes
@@ -104,22 +105,9 @@ Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl"
 
 ## Setups
 
-### File rectangular_tank.jl
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = [joinpath("setups", "rectangular_tank.jl")]
-```
-
-### File rectangular_shape.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("setups", "rectangular_shape.jl")]
-```
-
-### File circular_shape.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("setups", "circular_shape.jl")]
+Pages = map(file -> joinpath("setups", file), readdir(joinpath("..", "src", "setups")))
 ```
 
 ## Util

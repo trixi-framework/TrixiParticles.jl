@@ -1,5 +1,6 @@
 @testset verbose=true "TotalLagrangianSPHSystem" begin
-    @testset verbose=true "Constructor" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Constructor" begin
         coordinates_ = [
             [1.0 2.0
              1.0 2.0],
@@ -45,7 +46,8 @@
         end
     end
 
-    @testset verbose=true "show" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
         velocities = zero(coordinates)
@@ -85,7 +87,8 @@
     end
 
     @testset verbose=true "Deformation Gradient" begin
-        @testset verbose=true "Manual Calculation" begin
+        # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+        @trixi_testset "Manual Calculation" begin
             # Compare against manually calculated values.
             #
             # This is a proof of concept showing that mocking in Julia unit tests works without
@@ -237,7 +240,8 @@
         end
     end
 
-    @testset verbose=true "Stress tensors" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Stress tensors" begin
         deformations = Dict("rotation" => [cos(0.3) -sin(0.3); sin(0.3) cos(0.3)],
                             "stretch both" => [2.0 0.0; 0.0 3.0],
                             "rotate and stretch" => [cos(0.3) -sin(0.3);
