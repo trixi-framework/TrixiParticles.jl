@@ -22,7 +22,7 @@ trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="soluti
 TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   custom_quantities...)
+                   write_meta_data=true, custom_quantities...)
     (; systems, neighborhood_searches) = semi
     v_ode, u_ode = vu_ode.x
 
@@ -41,7 +41,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
-                  custom_quantities...)
+                  write_meta_data=write_meta_data, custom_quantities...)
     end
 end
 
