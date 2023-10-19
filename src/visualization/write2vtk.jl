@@ -1,5 +1,6 @@
 """
-    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="", custom_quantities...)
+    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
+              write_meta_data=true, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
 
@@ -12,6 +13,7 @@ Convert Trixi simulation data to VTK format.
 - `iter`:                 Iteration number when multiple iterations are to be stored in separate files.
 - `output_directory`:     Output directory path. Defaults to `"out"`.
 - `prefix`:               Prefix for output files. Defaults to an empty string.
+- `write_meta_data`:      Write meta data.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
 
 

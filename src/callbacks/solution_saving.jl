@@ -26,6 +26,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - 'prefix':                     Prefix added to the filename.
 - `custom_quantities...`:       Additional user-defined quantities.
+- `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 
 # Examples
