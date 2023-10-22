@@ -13,7 +13,7 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `density`:                            Initial density of particles.
 
 # Keywords
-- `tlsph`:          With the [TotalLagrangianSPHSystem](@ref), particles need to be placed
+- `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                     on the boundary of the shape and not one particle radius away, as for fluids.
                     When `tlsph=true`, particles will be placed on the boundary of the shape.
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)` (or `(vel_x, vel_y, vel_z)` in 3D).
