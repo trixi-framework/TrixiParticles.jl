@@ -1,3 +1,67 @@
+@doc raw"""
+    SmoothingKernel{NDIMS}()
+
+We provide three kernel functions, generated as the Fourier transform
+```math
+    M_n(x, h) = \frac{1}{2 \pi}\int_{-\infty}^{\infty}
+    \left[ \frac{sin(k h /2)}{k h /2}\right]^n cos(k x) \mathrm{d}k \: .
+```
+| B-Spline  |                                           | compact support   |
+| --------  | :---------------------------------------- | ----------------- |
+| $M_4$     | [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$             |
+| $M_5$     | [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$           |
+| $M_6$     | [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$             |
+
+In general, the Kernels are defined as
+```math
+    W(\Vert r_a - r_b \Vert, h) = \frac{1}{h^d} w(q) \: ,
+```
+where $h$ is the smoothing length, $d$ refers to the number of spatial dimensions and
+$q=\Vert r_a - r_b \Vert/h$.
+
+For an overview of Schoenberg cubic ($M_4$), quartic ($M_5$) and quintic ($M_6$) spline
+kernels including normalization factors, see (Price, 2012).
+For an analytic formula for higher order kernels, see (Monaghan, 1985).
+
+!!! note "Usage"
+    The kernel can be called as
+    ```
+    TrixiParticles.kernel(::SmoothingKernel{NDIMS}, r, h)
+    ```
+    The length of the compact support can be obtained as
+    ```
+    TrixiParticles.compact_support(::SmoothingKernel{NDIMS}, h)
+    ```
+
+    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
+    should be used as
+    ```math
+    W(\Vert r_a - r_b \Vert, h).
+    ```
+
+    The gradient required in SPH,
+    ```math
+    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
+    ```
+    can be called as
+    ```
+    TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)
+
+    ```
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+
+## References:
+- Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
+  In: Journal of Computational Physics 231.3 (2012), pages 759-794.
+  [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
+- Joseph J. Monaghan. "Particle methods for hydrodynamics".
+  In: Computer Physics Reports 3.2 (1985), pages 71–124.
+  [doi: 10.1016/0167-7977(85)90010-3](https://doi.org/10.1016/0167-7977(85)90010-3)
+- Isaac J. Schoenberg. "Contributions to the problem of approximation of equidistant data by analytic functions.
+  Part B. On the problem of osculatory interpolation. A second class of analytic approximation formulae."
+  In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
+  [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
+"""
 abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
@@ -21,51 +85,18 @@ end
 
 Cubic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
-```
-with
-```math
 w(q) = \sigma \begin{cases}
     \frac{1}{4} (2 - q)^3 - (1 - q)^3   & \text{if } 0 \leq q < 1, \\
     \frac{1}{4} (2 - q)^3               & \text{if } 1 \leq q < 2, \\
     0                                   & \text{if } q \geq 2, \\
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 17/(7\pi)``
-in two dimensions or ``\sigma = 1/\pi`` in three dimensions is a normalization factor.
+where ``\sigma`` is a normalisation constant given by
+$\sigma =[\frac{2}{3}, \frac{10}{7 \pi}, \frac{1}{\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergCubicSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergCubicSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
-
-## References:
-- Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
-  In: Journal of Computational Physics 231.3 (2012), pages 759-794.
-  [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
-- Joseph J. Monaghan. "Particle methods for hydrodynamics".
-  In: Computer Physics Reports 3.2 (1985), pages 71–124.
-  [doi: 10.1016/0167-7977(85)90010-3](https://doi.org/10.1016/0167-7977(85)90010-3)
-- Isaac J. Schoenberg. "Contributions to the problem of approximation of equidistant data by analytic functions.
-  Part B. On the problem of osculatory interpolation. A second class of analytic approximation formulae."
-  In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
-  [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
+For general information see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
@@ -113,10 +144,6 @@ end
 
 Quartic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
-```
-with
-```math
 w(q) = \sigma \begin{cases}
     \left(5/2 - q \right)^4 - 5\left(3/2 - q \right)^4
     + 10\left(1/2 - q \right)^4 & \text{if } 0 \leq q < \frac{1}{2}, \\
@@ -126,41 +153,12 @@ w(q) = \sigma \begin{cases}
     0 & \text{if } q \geq \frac{5}{2},
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 96/(1199\pi)``
-in two dimensions or ``\sigma = 1/(20\pi)`` in three dimensions is a normalization factor.
+where ``\sigma`` is a normalisation constant given by
+$\sigma =[\frac{1}{24}, \frac{96}{1199 \pi}, \frac{1}{20\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2.5h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergQuarticSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
-
-## References:
-- Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
-  In: Journal of Computational Physics 231.3 (2012), pages 759-794.
-  [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
-- Joseph J. Monaghan. "Particle methods for hydrodynamics".
-  In: Computer Physics Reports 3.2 (1985), pages 71–124.
-  [doi: 10.1016/0167-7977(85)90010-3](https://doi.org/10.1016/0167-7977(85)90010-3)
-- Isaac J. Schoenberg. "Contributions to the problem of approximation of equidistant data by analytic functions.
-  Part B. On the problem of osculatory interpolation. A second class of analytic approximation formulae."
-  In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
-  [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
+For general information see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
@@ -207,6 +205,7 @@ end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / (24 * h)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (20 * pi * h^3)
 
@@ -215,10 +214,6 @@ end
 
 Quintic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
-```
-with
-```math
 w(q) = \sigma \begin{cases}
     (3 - q)^5 - 6(2 - q)^5 + 15(1 - q)^5    & \text{if } 0 \leq q < 1, \\
     (3 - q)^5 - 6(2 - q)^5                  & \text{if } 1 \leq q < 2, \\
@@ -226,41 +221,12 @@ w(q) = \sigma \begin{cases}
     0                                       & \text{if } q \geq 3,
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 7/(478\pi)``
-in two dimensions or ``\sigma = 1/(120\pi)`` in three dimensions is a normalization factor.
+where ``\sigma`` is a normalisation constant given by
+$\sigma =[\frac{1}{120}, \frac{7}{478 \pi}, \frac{1}{120\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 3h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergQuinticSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
-
-## References:
-- Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
-  In: Journal of Computational Physics 231.3 (2012), pages 759-794.
-  [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
-- Joseph J. Monaghan. "Particle methods for hydrodynamics".
-  In: Computer Physics Reports 3.2 (1985), pages 71–124.
-  [doi: 10.1016/0167-7977(85)90010-3](https://doi.org/10.1016/0167-7977(85)90010-3)
-- Isaac J. Schoenberg. "Contributions to the problem of approximation of equidistant data by analytic functions.
-  Part B. On the problem of osculatory interpolation. A second class of analytic approximation formulae."
-  In: Quarterly of Applied Mathematics 4.2 (1946), pages 112–141.
-  [doi: 10.1090/QAM/16705](https://doi.org/10.1090/QAM/16705)
+For general information see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
