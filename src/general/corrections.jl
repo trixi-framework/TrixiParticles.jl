@@ -18,7 +18,7 @@ The computation time added by this method is about 2-3%.
 - Akinci, N., Akinci, G., & Teschner, M. (2013).
   "Versatile Surface Tension and Adhesion for SPH Fluids".
   ACM Transactions on Graphics (TOG), 32(6), 182.
-  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508405)
+  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508395)
 """
 struct AkinciFreeSurfaceCorrection{ELTYPE}
     rho0::ELTYPE
@@ -55,11 +55,12 @@ The kernel correction coefficient is determined by
 c(x) = \sum_{b=1}^{N} V_b W_b(x)
 ```
 
-This correction is applied with SummationDensity to correct the density and leads to an improvement
+This correction is applied with `SummationDensit` to correct the density and leads to an improvement
 as especially for free surfaces.
 
-# Notes
-- Also referred to as 0th order correction (2D: +5-6% computational time)
+!!! note
+    - It is also referred to as 0th order correction
+    - In 2D, we can expect an increase of about 5...6% in computation time.
 
 
 ## References:
@@ -91,17 +92,17 @@ c(x) = \sum_{b=1}^{N} V_b W_b(x)
 ```
 The gradient of corrected kernel is determined by
 ```math
-\nabla \tilde(W)_{b}(x) = \frac{\naba W_{b}(x) - \gamma(x)}{\sum_{b=1}^{N} V_b W_b(x)}
-\gamma(x) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(x)}{\sum_{b=1}^{N} V_b W_b(x)}
+\nabla \tilde{W}_{b}(\vec{r}) =\frac{\nabla W_{b}(\vec{r}) - \gamma(\vec{r})}{\sum_{b=1}^{N} V_b W_b(\vec{r})} , \quad  \text{where} \:\:
+\gamma(\vec{r}) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(\vec{r})}{\sum_{b=1}^{N} V_b W_b(\vec{r})}
 ```
 
-This correction can be applied with SummationDensity and ContinuityDensity which leads to an improvement
+This correction can be applied with `SummationDensit` and `ContinuityDensity` which leads to an improvement
 especially for free surfaces.
 
-# Notes
-- This only works when the boundary model uses `SummationDensity` (yet).
-- It is also referred to as 0th order correction.
-- In 2D, we can expect an increase of about 10-15% in computation time.
+!!! note
+    - This only works when the boundary model uses `SummationDensity` (yet).
+    - It is also referred to as 0th order correction.
+    - In 2D, we can expect an increase of about 10...15% in computation time.
 
 
 ## References:
@@ -113,9 +114,10 @@ especially for free surfaces.
   "Robustness and accuracy of SPH formulations for viscous flow".
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-- S.F. Li, W.K. Liu, "Moving least square Kernel Galerkin method (II) Fourier analysis",
-  Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
-  [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
+-  Shaofan Li, Wing Kam Liu.
+  "Moving least-square reproducing kernel method Part II: Fourier analysis".
+  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
+  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct KernelGradientCorrection end
 
@@ -227,28 +229,39 @@ Compute the corrected gradient of particle interactions based on their relative 
 
 # Mathematical Details
 
-Given the standard SPH representation, the gradient of a field A at particle i is given by:
+Given the standard SPH representation, the gradient of a field ``A`` at particle ``a`` is
+iven by:
 
 ```math
 \nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
 ```
 
 Where:
-- $m_b$ is the mass of particle $b$.
-- $rho_b$ is the density of particle $b$.
+- ``m_b`` is the mass of particle ``b``.
+- ``\rho_b`` is the density of particle ``b``.
 
 The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix $L$:
 
 ```math
-\nabla^\tilde A_i = L_i \nabla A_i
+\tilde{\nabla} A_i = \bm{L}_i \nabla A_i
 ```
 
-The correction matrix  $L_i$ is computed based on the provided particle configuration,
+The correction matrix  $\bm{L}_i$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
 
-# Notes:
-- Stability issues as especially when particles separate into small clusters.
-- Doubles the computational effort.
+To satisfy
+```math
+\sum_b V_b \vec{r}_{ba} \otimes \tilde{\nabla}W_b(\vec{r}_a) = \left( \sum_b V_b \vec{r}_{ba} \otimes \nabla W_b(\vec{r}_a) \right) \bm{L}_a^T = \bm{I}
+```
+the correction matrix $\bm{L}_a$ is evaluated explicitly as
+```math
+\bm{L}_a  = \left( \sum_b V_b \nabla W_b(\vec{r}_{a}) \otimes \vec{r}_{ba} \right)^{-1} \: .
+
+```
+
+!!! note
+    - Stability issues as especially when particles separate into small clusters.
+    - Doubles the computational effort.
 
 ## References:
 - J. Bonet, T.-S.L. Lok.
