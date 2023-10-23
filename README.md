@@ -38,7 +38,7 @@ julia> Pkg.add("TrixiParticles")
 ```
 
 ### For developers
-If you plan on editing Trixi.jl itself, you can download TrixiParticles.jl locally and use the
+If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl locally and use the
 code from the cloned directory:
 ```bash
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
