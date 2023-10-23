@@ -250,49 +250,11 @@ end
 function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
     (; correction_matrix) = system
 
-    # Calculate kernel correction matrix
-    calc_correction_matrix!(correction_matrix, neighborhood_search, system)
-end
-
-function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
-    (; mass, material_density) = system
-
-    set_zero!(corr_matrix)
-
-    # Calculate kernel correction matrix
     initial_coords = initial_coordinates(system)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, system,
-                          initial_coords, initial_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             initial_pos_diff,
-                                                             initial_distance
-        # Only consider particles with a distance > 0.
-        initial_distance < sqrt(eps()) && return
-
-        volume = mass[neighbor] / material_density[neighbor]
-
-        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance)
-        result = volume * grad_kernel * initial_pos_diff'
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] -= result[i, j]
-        end
-    end
-
-    @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
-        result = inv(L)
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] = result[i, j]
-        end
-    end
-
-    return corr_matrix
+    # Calculate kernel correction matrix
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        initial_coords)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
