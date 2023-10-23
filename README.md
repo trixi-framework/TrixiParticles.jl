@@ -75,4 +75,4 @@ or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues
   <img align="middle" src="https://github.com/svchb/TrixiParticles.jl/assets/10238714/06aac9fa-a446-4e7b-91e7-4faeeacb9813.jpg" width=20%/>&nbsp;&nbsp;&nbsp;
 </p>
 
-The project has benefited from funding from [hereon](https://www.hereon.de/) and [HIRSE](https://www.helmholtz-hirse.de/).
+The project has benefited from funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
