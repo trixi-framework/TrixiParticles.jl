@@ -44,7 +44,7 @@ code from the cloned directory:
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 ```
-If you installed Trixi.jl this way, you always have to start Julia with the `--project`
+If you installed TrixiParticles.jl this way, you always have to start Julia with the `--project`
 flag set to your `run` directory, e.g.,
 ```bash
 julia --project=.
