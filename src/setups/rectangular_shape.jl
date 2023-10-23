@@ -183,76 +183,41 @@ end
     coordinates[3, particle] = min_coordinates[3] + (z - 0.5) * particle_spacing
 end
 
-# 2D
 function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
-                              n_particles_per_dimension::NTuple{2}, loop_order)
-    n_particles_x, n_particles_y = n_particles_per_dimension
-
-    if loop_order !== :x_first
-        throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
-                            "order `:x_first`"))
+                              n_particles_per_dimension, loop_order)
+    if count(a -> abs(a) > eps(), acceleration) != 1
+        throw(ArgumentError("hydrostatic pressure calculation is not supported with " *
+                            "diagonal acceleration"))
     end
 
-    # Start with the highest index and loop backwards in order to start at the fluid surface
-    particle = prod(n_particles_per_dimension)
+    # Dimension in which the acceleration is acting
+    accel_dim = findfirst(a -> abs(a) > eps(), acceleration)
 
-    # The hydrostatic pressure is given by the ODE `dp/dr = rho * g`, where `r` is the
-    # distance to the surface (water depth), `rho` is the density and `g` is the
-    # acceleration.
-    # For high water columns (and especially for higher compressibility), this yields
-    # better results than just assuming `rho` to be constant.
-    #
-    # To solve this ODE, we use the explicit Euler method in each dimension
-    # independently, matching the particle indexing.
-    # This allows diagonal accelerations as well (albeit only on negative coordinate
-    # directions).
-    pressure_x = 0.0
-    pressure_x -= 0.5particle_spacing * acceleration[1] * density_fun(pressure_x)
-    for x in n_particles_x:-1:1
-        # For the integration in y-direction, start at `pressure_x`
-        pressure_y = pressure_x
-        pressure_y -= 0.5particle_spacing * acceleration[2] * density_fun(pressure_y)
-        for y in n_particles_y:-1:1
-            pressure[particle] = pressure_y
-            particle -= 1
+    # Compute 1D pressure gradient with explicit Euler method
+    acceleration_1d = acceleration[accel_dim]
 
-            # Explicit Euler step
-            pressure_y -= particle_spacing * acceleration[2] * density_fun(pressure_y)
-        end
-
+    pressure_1d = zeros(n_particles_per_dimension[accel_dim])
+    pressure_1d[1] = 0.5particle_spacing * abs(acceleration_1d) * density_fun(0.0)
+    for i in 1:(length(pressure_1d) - 1)
         # Explicit Euler step
-        pressure_x -= particle_spacing * acceleration[1] * density_fun(pressure_x)
-    end
-end
-
-# 3D
-function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
-                              n_particles_per_dimension::NTuple{3}, loop_order)
-    n_particles_x, n_particles_y, n_particles_z = n_particles_per_dimension
-
-    if loop_order !== :x_first
-        throw(ArgumentError("hydrostatic pressure calculation is only supported with loop" *
-                            "order `:x_first`"))
+        pressure_1d[i + 1] = particle_spacing * abs(acceleration_1d) *
+                             density_fun(pressure_1d[i])
     end
 
-    # Start with the highest index and loop backwards in order to start at the fluid surface
-    particle = prod(n_particles_per_dimension)
+    # If acceleration is pointing in negative coordinate direction, reverse the pressure
+    # gradient.
+    if sign(acceleration_1d) < 0
+        reverse!(pressure_1d)
+    end
 
-    pressure_x = 0.0
-    for x in n_particles_x:-1:1
-        pressure_y = pressure_x
-        for y in n_particles_y:-1:1
-            pressure_z = pressure_y
-            for z in n_particles_z:-1:1
-                pressure[particle] = pressure_z
-                particle -= 1
+    # Loop over all particles and access 1D pressure gradient
+    cartesian_indices = CartesianIndices(n_particles_per_dimension)
+    for particle in eachindex(pressure)
+        cartesian_index = cartesian_indices[particle]
 
-                pressure_z -= particle_spacing * acceleration[3] * density_fun(pressure_z)
-            end
-
-            pressure_y -= particle_spacing * acceleration[2] * density_fun(pressure_y)
-        end
-
-        pressure_x -= particle_spacing * acceleration[1] * density_fun(pressure_x)
+        # The index in the dimension where the acceleration is acting to index 1D pressure
+        # vector.
+        index_in_accel_dim = cartesian_index[accel_dim]
+        pressure[particle] = pressure_1d[index_in_accel_dim]
     end
 end
