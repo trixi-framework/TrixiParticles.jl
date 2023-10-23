@@ -227,17 +227,17 @@ Compute the corrected gradient of particle interactions based on their relative 
 
 # Mathematical Details
 
-Given the standard SPH representation of a gradient of a field A at particle i is given by:
+Given the standard SPH representation, the gradient of a field A at particle i is given by:
 
 ```math
 \nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
 ```
 
 Where:
-- $m_b$ is the mass of particle $b$
-- $rho_b$ is the density of particle $b$
+- $m_b$ is the mass of particle $b$.
+- $rho_b$ is the density of particle $b$.
 
-The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix L :
+The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix $L$:
 
 ```math
 \nabla^\tilde A_i = L_i \nabla A_i
