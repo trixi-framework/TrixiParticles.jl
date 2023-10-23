@@ -2,3 +2,4 @@
 include("util.jl")
 include("initial_condition.jl")
 include("density_calculator.jl")
+include("semidiscretization.jl")
