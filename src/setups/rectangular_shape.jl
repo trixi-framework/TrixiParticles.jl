@@ -34,7 +34,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                           min_coordinates, density; pressure=0.0, tlsph=false,
                           init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
                           acceleration=nothing, state_equation=nothing,
-                          loop_order=:x_first)
+                          loop_order=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -43,6 +43,10 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
 
     if length(min_coordinates) != NDIMS
         throw(ArgumentError("`min_coordinates` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    if loop_order === nothing
+        loop_order = NDIMS == 2 ? :y_first : :z_first
     end
 
     if density < eps()
@@ -61,6 +65,11 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     if acceleration === nothing && state_equation === nothing
         densities = density * ones(ELTYPE, n_particles)
     elseif acceleration isa AbstractVector || acceleration isa Tuple
+        if any(acceleration .> 0)
+            throw(ArgumentError("hydrostatic pressure gradients are only supported for " *
+                                "accelerations in negative coordinate directions"))
+        end
+
         if state_equation === nothing
             density_fun = pressure -> density
         else
@@ -69,7 +78,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
 
         # Initialize hydrostatic pressure
         pressure = Vector{ELTYPE}(undef, n_particles)
-        initialize_pressure!(pressure, particle_spacing, SVector(acceleration),
+        initialize_pressure!(pressure, particle_spacing, acceleration,
                              density_fun, n_particles_per_dimension, loop_order)
 
         if state_equation === nothing
