@@ -218,9 +218,10 @@ end
                                      state_equation=state_equation)
 
             @test shape.pressure ≈ vec(permutedims(pressure, permutation))
-            @test shape.density ==
-              TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
-              @test shape.mass == particle_spacing^3 * shape.density
+            density = TrixiParticles.inverse_state_equation.(Ref(state_equation),
+                                                             shape.pressure)
+            @test shape.density == density
+            @test shape.mass == particle_spacing^3 * shape.density
         end
     end
 end
