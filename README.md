@@ -34,7 +34,7 @@ can install TrixiParticles.jl by executing the following commands in the Julia R
 ```julia
 julia> using Pkg
 
-julia> Pkg.add(["TrixiParticles"])
+julia> Pkg.add("TrixiParticles")
 ```
 
 ### For developers
