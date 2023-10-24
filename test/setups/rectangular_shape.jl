@@ -232,9 +232,9 @@ end
                 permute!(acceleration_, permutation)
 
                 shape = RectangularShape(particle_spacing,
-                                        Tuple(n_particles_per_dimension_),
-                                        (0.0, 0.0, 0.0), 1000.0, loop_order=loop_order,
-                                        acceleration=acceleration_)
+                                         Tuple(n_particles_per_dimension_),
+                                         (0.0, 0.0, 0.0), 1000.0, loop_order=loop_order,
+                                         acceleration=acceleration_)
 
                 # Permute pressure with acceleration permutation
                 permuted1 = permutedims(pressure, permutation)
@@ -246,7 +246,7 @@ end
                 @test shape.pressure ≈ 9.81 * 1000.0 * vec(permuted2)
                 @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
                 @test shape.mass ==
-                    1000 * particle_spacing^3 * ones(prod(n_particles_per_dimension))
+                      1000 * particle_spacing^3 * ones(prod(n_particles_per_dimension))
             end
         end
     end
