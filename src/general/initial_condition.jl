@@ -5,6 +5,7 @@ struct InitialCondition{ELTYPE}
     mass             :: Array{ELTYPE, 1}
     density          :: Array{ELTYPE, 1}
     pressure         :: Array{ELTYPE, 1}
+    radius           :: Array{ELTYPE, 1}
 
     function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
                               particle_spacing=-1.0)
@@ -24,8 +25,10 @@ struct InitialCondition{ELTYPE}
                                 "same length as `masses`"))
         end
 
+        radius = 0.5 * particle_spacing * ones(length(masses))
+
         return new{eltype(coordinates)}(particle_spacing, coordinates, velocities, masses,
-                                        densities, pressure)
+                                        densities, pressure, radius)
     end
 end
 

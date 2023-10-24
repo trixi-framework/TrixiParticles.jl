@@ -420,6 +420,12 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 end
 
 # NHS updates
+
+# Default to update
+function nhs_coords(system, neighbor, u)
+    return current_coordinates(u, neighbor)
+end
+
 function nhs_coords(system::FluidSystem,
                     neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
