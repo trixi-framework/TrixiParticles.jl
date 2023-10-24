@@ -45,10 +45,6 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
         throw(ArgumentError("`min_coordinates` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if loop_order === nothing
-        loop_order = NDIMS == 2 ? :y_first : :z_first
-    end
-
     if density < eps()
         throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
     end
@@ -99,97 +95,62 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                             particle_spacing=particle_spacing)
 end
 
+# 2D
+function loop_permutation(loop_order, NDIMS::Val{2})
+    if loop_order === :y_first || loop_order === nothing
+        permutation = (1, 2)
+    elseif loop_order === :x_first
+        permutation = (2, 1)
+    else
+        throw(ArgumentError("$loop_order is not a valid loop order. " *
+                            "Possible values are :x_first and :y_first."))
+    end
+
+    return permutation
+end
+
+# 3D
+function loop_permutation(loop_order, NDIMS::Val{3})
+    if loop_order === :z_first || loop_order === nothing
+        permutation = (1, 2, 3)
+    elseif loop_order === :y_first
+        permutation = (2, 1, 3)
+    elseif loop_order === :x_first
+        permutation = (3, 2, 1)
+    else
+        throw(ArgumentError("$loop_order is not a valid loop order. " *
+                            "Possible values are :x_first, :y_first and :z_first"))
+    end
+
+    return permutation
+end
+
 function rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
-                                  min_coordinates; tlsph=false, loop_order=:x_first)
+                                  min_coordinates; tlsph=false, loop_order=nothing)
     ELTYPE = eltype(particle_spacing)
     NDIMS = length(n_particles_per_dimension)
 
     coordinates = Array{ELTYPE, 2}(undef, NDIMS, prod(n_particles_per_dimension))
 
+    # With TLSPH, particles need to be AT the min coordinates and not half a particle
+    # spacing away from it.
     if tlsph
         min_coordinates = min_coordinates .- 0.5particle_spacing
     end
 
-    initialize_rectangular!(coordinates, particle_spacing, min_coordinates,
-                            n_particles_per_dimension, loop_order)
+    permutation = loop_permutation(loop_order, Val(NDIMS))
+    cartesian_indices = CartesianIndices(n_particles_per_dimension)
+    permuted_indices = permutedims(cartesian_indices, permutation)
+
+    for particle in eachindex(permuted_indices)
+        index = Tuple(permuted_indices[particle])
+
+        # The first particle starts at a distance `0.5particle_spacing` from
+        # `min_coordinates` in each dimension.
+        coordinates[:, particle] .= min_coordinates .+ particle_spacing .* (index .- 0.5)
+    end
 
     return coordinates
-end
-
-# 2D
-function initialize_rectangular!(coordinates, particle_spacing,
-                                 min_coordinates,
-                                 n_particles_per_dimension::NTuple{2}, loop_order)
-    n_particles_x, n_particles_y = n_particles_per_dimension
-    particle = 0
-
-    if loop_order === :x_first
-        for x in 1:n_particles_x, y in 1:n_particles_y
-            particle += 1
-            fill_coordinates!(coordinates, particle, min_coordinates, x, y,
-                              particle_spacing)
-        end
-
-    elseif loop_order === :y_first
-        for y in 1:n_particles_y, x in 1:n_particles_x
-            particle += 1
-            fill_coordinates!(coordinates, particle, min_coordinates, x, y,
-                              particle_spacing)
-        end
-
-    else
-        throw(ArgumentError("$loop_order is not a valid loop order. Possible values are :x_first and :y_first."))
-    end
-end
-
-# 3D
-function initialize_rectangular!(coordinates, particle_spacing,
-                                 min_coordinates,
-                                 n_particles_per_dimension::NTuple{3}, loop_order)
-    n_particles_x, n_particles_y, n_particles_z = n_particles_per_dimension
-    particle = 0
-
-    if loop_order === :x_first
-        for x in 1:n_particles_x, y in 1:n_particles_y, z in 1:n_particles_z
-            particle += 1
-            fill_coordinates!(coordinates, particle, min_coordinates, x, y, z,
-                              particle_spacing)
-        end
-
-    elseif loop_order === :y_first
-        for y in 1:n_particles_y, x in 1:n_particles_x, z in 1:n_particles_z
-            particle += 1
-            fill_coordinates!(coordinates, particle, min_coordinates, x, y, z,
-                              particle_spacing)
-        end
-
-    elseif loop_order === :z_first
-        for z in 1:n_particles_z, y in 1:n_particles_y, x in 1:n_particles_x
-            particle += 1
-            fill_coordinates!(coordinates, particle, min_coordinates, x, y, z,
-                              particle_spacing)
-        end
-
-    else
-        throw(ArgumentError("$loop_order is not a valid loop order. Possible values are :x_first, :y_first and :z_first"))
-    end
-end
-
-@inline function fill_coordinates!(coordinates, particle,
-                                   min_coordinates, x, y, particle_spacing)
-    # The first particle starts at a distance `0.5particle_spacing` from `min_coordinates`
-    # in each dimension.
-    coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
-    coordinates[2, particle] = min_coordinates[2] + (y - 0.5) * particle_spacing
-end
-
-@inline function fill_coordinates!(coordinates, particle,
-                                   min_coordinates, x, y, z, particle_spacing)
-    # The first particle starts at a distance `0.5particle_spacing` from `min_coordinates`
-    # in each dimension.
-    coordinates[1, particle] = min_coordinates[1] + (x - 0.5) * particle_spacing
-    coordinates[2, particle] = min_coordinates[2] + (y - 0.5) * particle_spacing
-    coordinates[3, particle] = min_coordinates[3] + (z - 0.5) * particle_spacing
 end
 
 function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
@@ -206,23 +167,31 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
     acceleration_1d = acceleration[accel_dim]
 
     pressure_1d = zeros(n_particles_per_dimension[accel_dim])
+
+    # The first particle is half a particle spacing from the surface, so start with a
+    # half step.
     pressure_1d[1] = 0.5particle_spacing * abs(acceleration_1d) * density_fun(0.0)
+
     for i in 1:(length(pressure_1d) - 1)
         # Explicit Euler step
-        pressure_1d[i + 1] = particle_spacing * abs(acceleration_1d) *
+        pressure_1d[i + 1] = pressure_1d[i] +
+                             particle_spacing * abs(acceleration_1d) *
                              density_fun(pressure_1d[i])
     end
 
     # If acceleration is pointing in negative coordinate direction, reverse the pressure
-    # gradient.
+    # gradient, because the surface is at the top and the gradient should start from there.
     if sign(acceleration_1d) < 0
         reverse!(pressure_1d)
     end
 
-    # Loop over all particles and access 1D pressure gradient
+    # Loop over all particles and access 1D pressure gradient.
+    # Apply permutation depending on loop order to match indexing of the coordinates.
     cartesian_indices = CartesianIndices(n_particles_per_dimension)
+    permutation = loop_permutation(loop_order, Val(length(n_particles_per_dimension)))
+    permuted_indices = permutedims(cartesian_indices, permutation)
     for particle in eachindex(pressure)
-        cartesian_index = cartesian_indices[particle]
+        cartesian_index = permuted_indices[particle]
 
         # The index in the dimension where the acceleration is acting to index 1D pressure
         # vector.

@@ -265,7 +265,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     if faces[1]
         left_boundary = rectangular_shape_coords(particle_spacing,
                                                  (n_layers, n_particles_y),
-                                                 (layer_offset, 0.0))
+                                                 (layer_offset, 0.0),
+                                                 loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
@@ -282,7 +283,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     if faces[2]
         right_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y),
-                                                  (tank_size[1], 0.0))
+                                                  (tank_size[1], 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
@@ -394,7 +396,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     if faces[1]
         x_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
-                                                  (layer_offset, 0.0, 0.0))
+                                                  (layer_offset, 0.0, 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary)
@@ -411,7 +414,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     if faces[2]
         x_pos_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
-                                                  (tank_size[1], 0.0, 0.0))
+                                                  (tank_size[1], 0.0, 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary)
