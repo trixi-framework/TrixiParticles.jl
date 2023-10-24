@@ -65,6 +65,14 @@
         @test shape.density == 1000 * ones(20)
         @test shape.mass == 1000 * 0.1^2 * ones(20)
 
+        # Loop order `:x_first`
+        shape = RectangularShape(particle_spacing,
+                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                 acceleration=(0.0, -9.81), loop_order=:x_first)
+
+        # Transpose `pressure`
+        @test shape.pressure ≈ 9.81 * 1000.0 * vec(pressure')
+
         # Horizontal gravity
         n_particles_per_dimension = (10, 2)
         shape = RectangularShape(particle_spacing,
@@ -75,6 +83,14 @@
         @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
         @test shape.mass ==
               1000 * particle_spacing^2 * ones(prod(n_particles_per_dimension))
+
+        # Loop order `:x_first`
+        shape = RectangularShape(particle_spacing,
+                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                 acceleration=(-3.73, 0.0), loop_order=:x_first)
+
+        # Don't transpose `pressure`
+        @test shape.pressure ≈ 3.73 * 1000.0 * vec(pressure)
     end
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
@@ -99,6 +115,15 @@
         @test shape.density ==
               TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
         @test shape.mass == particle_spacing^2 * shape.density
+
+        # Loop order `:x_first`
+        shape = RectangularShape(particle_spacing,
+                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                 acceleration=(0.0, -1.0), state_equation=state_equation,
+                                 loop_order=:x_first)
+
+        # Transpose `pressure`
+        @test shape.pressure ≈ vec(pressure')
 
         # Horizontal gravity
         n_particles_per_dimension = (5, 2)
@@ -191,27 +216,38 @@ end
         n_particles_per_dimension = (2, 5, 3)
         acceleration = (0.0, -9.81, 0.0)
 
+        loop_orders = [:z_first, :y_first, :x_first]
         permutations = [
             [1, 2, 3], # Gravity in negative y-direction
             [2, 1, 3], # Gravity in negative x-direction
             [1, 3, 2], # Gravity in negative z-direction
         ]
+
         @testset "Permutation $permutation" for permutation in permutations
-            n_particles_per_dimension_ = collect(n_particles_per_dimension)
-            permute!(n_particles_per_dimension_, permutation)
+            @testset "Loop Order $loop_order" for loop_order in loop_orders
+                n_particles_per_dimension_ = collect(n_particles_per_dimension)
+                permute!(n_particles_per_dimension_, permutation)
 
-            acceleration_ = collect(acceleration)
-            permute!(acceleration_, permutation)
+                acceleration_ = collect(acceleration)
+                permute!(acceleration_, permutation)
 
-            shape = RectangularShape(particle_spacing,
-                                     Tuple(n_particles_per_dimension_),
-                                     (0.0, 0.0, 0.0), 1000.0,
-                                     acceleration=acceleration_)
+                shape = RectangularShape(particle_spacing,
+                                        Tuple(n_particles_per_dimension_),
+                                        (0.0, 0.0, 0.0), 1000.0, loop_order=loop_order,
+                                        acceleration=acceleration_)
 
-            @test shape.pressure ≈ 9.81 * 1000.0 * vec(permutedims(pressure, permutation))
-            @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
-            @test shape.mass ==
-                  1000 * particle_spacing^3 * ones(prod(n_particles_per_dimension))
+                # Permute pressure with acceleration permutation
+                permuted1 = permutedims(pressure, permutation)
+
+                # Permute pressure with loop order permutation
+                loop_order_permutation = TrixiParticles.loop_permutation(loop_order, Val(3))
+                permuted2 = permutedims(permuted1, loop_order_permutation)
+
+                @test shape.pressure ≈ 9.81 * 1000.0 * vec(permuted2)
+                @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
+                @test shape.mass ==
+                    1000 * particle_spacing^3 * ones(prod(n_particles_per_dimension))
+            end
         end
     end
 
