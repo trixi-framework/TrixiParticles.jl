@@ -4,10 +4,10 @@
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
 but their positions and velocities are not evolved in time. Since the force towards the fluid
-should not change with the material density when used with a `TotalLagrangianSPHSystem`, the
+should not change with the material density when used with a [`TotalLagrangianSPHSystem`](@ref), the
 dummy particles need to have a mass corresponding to the fluid's rest density, which we call
 "hydrodynamic mass", as opposed to mass corresponding to the material density of a
-`TotalLagrangianSPHSystem`.
+[`TotalLagrangianSPHSystem`](@ref).
 
 Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
 and the hydrodynamic mass respectively for each boundary particle.
