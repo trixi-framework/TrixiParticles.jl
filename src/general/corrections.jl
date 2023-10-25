@@ -55,12 +55,12 @@ The kernel correction coefficient is determined by
 c(x) = \sum_{b=1}^{N} V_b W_b(x)
 ```
 
-This correction is applied with `SummationDensit` to correct the density and leads to an improvement
-as especially for free surfaces.
+This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
+to an improvement especially for free surfaces.
 
 !!! note
-    - It is also referred to as 0th order correction
-    - In 2D, we can expect an increase of about 5...6% in computation time.
+    - It is also referred to as "0th order correction".
+    - In 2D, we can expect an increase of about 5--6% in computation time.
 
 
 ## References:
@@ -96,13 +96,13 @@ The gradient of corrected kernel is determined by
 \gamma(\vec{r}) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(\vec{r})}{\sum_{b=1}^{N} V_b W_b(\vec{r})}
 ```
 
-This correction can be applied with `SummationDensit` and `ContinuityDensity` which leads to an improvement
-especially for free surfaces.
+This correction can be applied with [`SummationDensity`](@ref) and
+[`ContinuityDensity`](@ref) which leads to an improvement, especially for free surfaces.
 
 !!! note
-    - This only works when the boundary model uses `SummationDensity` (yet).
-    - It is also referred to as 0th order correction.
-    - In 2D, we can expect an increase of about 10...15% in computation time.
+    - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
+    - It is also referred to as "0th order correction".
+    - In 2D, we can expect an increase of about 10--15% in computation time.
 
 
 ## References:
@@ -114,7 +114,7 @@ especially for free surfaces.
   "Robustness and accuracy of SPH formulations for viscous flow".
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
--  Shaofan Li, Wing Kam Liu.
+- Shaofan Li, Wing Kam Liu.
   "Moving least-square reproducing kernel method Part II: Fourier analysis".
   In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
   [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
@@ -230,7 +230,7 @@ Compute the corrected gradient of particle interactions based on their relative 
 # Mathematical Details
 
 Given the standard SPH representation, the gradient of a field ``A`` at particle ``a`` is
-iven by:
+given by:
 
 ```math
 \nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
@@ -255,12 +255,12 @@ To satisfy
 ```
 the correction matrix $\bm{L}_a$ is evaluated explicitly as
 ```math
-\bm{L}_a  = \left( \sum_b V_b \nabla W_b(\vec{r}_{a}) \otimes \vec{r}_{ba} \right)^{-1} \: .
+\bm{L}_a = \left( \sum_b V_b \nabla W_b(\vec{r}_{a}) \otimes \vec{r}_{ba} \right)^{-1}.
 
 ```
 
 !!! note
-    - Stability issues as especially when particles separate into small clusters.
+    - Stability issues arise, especially when particles separate into small clusters.
     - Doubles the computational effort.
 
 ## References:
