@@ -68,28 +68,46 @@ We provide three options to compute the boundary density and pressure, determine
 struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
+    radius             :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
+    smoothing_factor   :: ELTYPE
     viscosity          :: V
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
-                                         density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=NoViscosity(),
+                                         density_calculator, smoothing_kernel, particle_spacing,
+                                         smoothing_factor; viscosity=NoViscosity(),
                                          state_equation=nothing)
+        ELTYPE = eltype(initial_density)
         pressure = similar(initial_density)
 
         n_particles = length(initial_density)
 
+        radius = 0.5 * ones(ELTYPE, n_particles) * particle_spacing
+        smoothing_length = smoothing_factor * particle_spacing
+
         cache = (; create_cache(viscosity, n_particles, ndims(smoothing_kernel))...,
                  create_cache(initial_density, density_calculator)...)
 
-        new{eltype(initial_density), typeof(state_equation),
+        new{ELTYPE, typeof(state_equation),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
-                           smoothing_kernel, smoothing_length, viscosity, cache)
+            typeof(cache)}(pressure, hydrodynamic_mass, radius, state_equation, density_calculator,
+                           smoothing_kernel, smoothing_length, smoothing_factor, viscosity, cache)
+    end
+
+    function BoundaryModelDummyParticles(radius)
+        ELTYPE = eltype(radius)
+        pressure = similar(radius)
+        n_particles = length(radius)
+
+        mass = ones(ELTYPE, n_particles)
+
+        smoothing_length = 2 * maximum(radius)
+
+        new{ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass, radius, nothing, nothing, nothing, smoothing_length, 1.0, nothing, nothing)
     end
 end
 

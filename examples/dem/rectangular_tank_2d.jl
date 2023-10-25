@@ -26,10 +26,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 # ==========================================================================================
 # ==== Boundary models
 
-# boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-#                                              state_equation=state_equation,
-#                                              AdamiPressureExtrapolation(),
-#                                              smoothing_kernel, smoothing_length)
+boundary_model = BoundaryModelDummyParticles(tank.boundary.radius)
 
 # ==========================================================================================
 # ==== Systems

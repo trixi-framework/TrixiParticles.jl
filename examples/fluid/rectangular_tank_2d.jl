@@ -24,7 +24,8 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    background_pressure=100000.0,
                                    clip_negative_pressure=false)
 
-smoothing_length = 1.2 * particle_spacing
+smoothing_factor = 1.2
+smoothing_length = smoothing_factor * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
@@ -39,7 +40,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, particle_spacing, smoothing_factor)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
