@@ -49,7 +49,7 @@ We provide five options to compute the boundary density and pressure, determined
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
 4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
    is computed from the density with the state equation.
-   This option not recommended. The other options yield significantly better results.
+   This option is not recommended. The other options yield significantly better results.
 5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
    is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
    momentum equation.
