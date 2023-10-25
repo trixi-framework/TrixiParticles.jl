@@ -102,7 +102,6 @@
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi",
                                                 "dam_break_gate_2d.jl"),
-                                       tspan_relaxing=(0.0, 2.0),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success

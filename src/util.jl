@@ -170,6 +170,17 @@ julia> redirect_stdout(devnull) do
 ```
 """
 function trixi_include(mod::Module, elixir::AbstractString; kwargs...)
+    # Check that all kwargs exist as assignments
+    code = read(elixir, String)
+    expr = Meta.parse("begin \n$code \nend")
+    expr = insert_maxiters(expr)
+
+    for (key, val) in kwargs
+        # This will throw an error when `key` is not found
+        find_assignment(expr, key)
+    end
+
+    # Include `elixir` and replace assignments
     Base.include(ex -> replace_assignments(insert_maxiters(ex); kwargs...), mod, elixir)
 end
 
@@ -237,6 +248,7 @@ end
 function find_assignment(expr, destination)
     # declare result to be able to assign to it in the closure
     local result
+    found = false
 
     # find explicit and keyword assignments
     walkexpr(expr) do x
@@ -244,13 +256,18 @@ function find_assignment(expr, destination)
             if (x.head === Symbol("=") || x.head === :kw) &&
                x.args[1] === Symbol(destination)
                 result = x.args[2]
+                found = true
                 # dump(x)
             end
         end
         return x
     end
 
-    result
+    if !found
+        throw(ArgumentError("assignment $destination not found in expression"))
+    end
+
+    return result
 end
 
 """
@@ -298,4 +315,8 @@ macro autoinfiltrate(condition=true)
                 Expr(:., i, QuoteNode(Symbol("@infiltrate"))),
                 lnn,
                 esc(condition))
+end
+
+function type2string(type)
+    return string(nameof(typeof(type)))
 end
