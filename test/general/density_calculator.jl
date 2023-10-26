@@ -5,7 +5,6 @@ using OrdinaryDiffEq
     @testset verbose=true "SummationDensity" begin
         water_density = 1000.0
 
-        # use reshape to create a matrix
         initial_condition = InitialCondition(zeros(2, 1), zeros(2, 1), [water_density],
                                              [water_density])
 
