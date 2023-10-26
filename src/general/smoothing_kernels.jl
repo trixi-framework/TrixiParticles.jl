@@ -264,7 +264,7 @@ struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
     q1_2 = (1 - q)^2
     q1_3 = (1 - q)^3
 
-    result = q3_2*q3_3
+    result = q3_2 * q3_3
 
     # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
     result -= 6 * (q < 2) * q2_2 * q2_3
