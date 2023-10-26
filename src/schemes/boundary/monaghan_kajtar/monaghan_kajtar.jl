@@ -91,7 +91,7 @@ end
            boundary_kernel(distance, smoothing_length)
 end
 
-@inline function boundary_kernel(r, h)
+@fastpow @inline function boundary_kernel(r, h)
     q = r / h
 
     # TODO The neighborhood search fluid->boundary should use this search distance
@@ -100,7 +100,7 @@ end
     end
 
     # (Monaghan, Kajtar, 2009, Section 4): The kernel should be normalized to 1.77 for q=0
-    return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^2 * (2 - q)^3
+    return 1.77 / 32 * (1 + 5 / 2 * q + 2 * q^2) * (2 - q)^5
 end
 
 @inline function particle_density(v, model::BoundaryModelMonaghanKajtar, system, particle)
