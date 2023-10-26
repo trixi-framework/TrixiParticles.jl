@@ -30,11 +30,11 @@ with Julia v1.9 and newer. We recommend using the latest stable release of Julia
 
 ### For users
 TrixiParticles.jl is a registered Julia package. Hence, you
-can install TrixiParticles.jl by executing the following commands in the Julia REPL:
+can install TrixiParticles.jl and OrdinaryDiffEq.jl (used by the examples) by executing the following commands in the Julia REPL:
 ```julia
 julia> using Pkg
 
-julia> Pkg.add("TrixiParticles")
+julia> Pkg.add(["OrdinaryDiffEq", "TrixiParticles"])
 ```
 
 ### For developers
@@ -43,7 +43,13 @@ code from the cloned directory:
 ```bash
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
+mkdir run
+cd run
+julia --project=. -e 'using Pkg; Pkg.develop(PackageSpec(path=".."))' # Install locally
+julia --project=. -e 'using Pkg; Pkg.add("OrdinaryDiffEq")' # Install additional packages
 ```
+**Note:** OrdinaryDiffEq is only necessary to run examples
+
 If you installed TrixiParticles.jl this way, you always have to start Julia with the `--project`
 flag set to your `run` directory, e.g.,
 ```bash
@@ -56,7 +62,7 @@ julia --project=.
 ## Cite Us
 
 ## Authors
-TrixiParticles.jl was created by Erik Faulhaber (University of Cologne), Niklas Neher (HLRS) and Sven Berger (hereon).
+Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations for TrixiParticles.jl and are principal developers along with Sven Berger (hereon). The project was started by Michael Schlottke-Lakemper (RWTH Aachen University/HLRS, Germany) and Gregor Gassner (University of Cologne, Germany), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
 
 ## License and contributing
