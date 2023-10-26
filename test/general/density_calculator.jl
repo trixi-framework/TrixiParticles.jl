@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 
         # use reshape to create a matrix
         initial_condition = InitialCondition(zeros(2, 1), zeros(2, 1), [water_density],
-                                            [water_density])
+                                             [water_density])
 
         smoothing_length = 1.0
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
