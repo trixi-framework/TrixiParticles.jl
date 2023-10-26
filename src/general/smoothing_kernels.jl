@@ -69,37 +69,27 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-@muladd function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
 
-    if q >= 2
-        return 0.0
-    end
+    result = 1 / 4 * (2 - q)^3 - (q < 1) * (1 - q)^3
 
-    result = 1 / 4 * (2 - q)^3
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(result))
 
-    if q < 1
-        result = result - (1 - q)^3
-    end
-
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
-@muladd function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    if q >= 2
-        return 0.0
-    end
+    result = -3 / 4 * (2 - q)^2 + 3 * (q < 1) * (1 - q)^2
 
-    result = -3 / 4 * (2 - q)^2
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv, zero(result))
 
-    if q < 1
-        result = result + 3 * (1 - q)^2
-    end
-
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
