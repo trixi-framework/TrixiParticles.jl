@@ -53,6 +53,7 @@ gate = RectangularShape(fluid_particle_spacing / beta_gate,
                          round(Int, gate_height / fluid_particle_spacing * beta_gate)),
                         (water_width, 0.0), water_density)
 
+# Movement of the gate according to the paper
 f_x(t) = 0.0
 f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
 is_moving(t) = t < 0.1

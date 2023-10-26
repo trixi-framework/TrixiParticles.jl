@@ -164,24 +164,22 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
     accel_dim = findfirst(a -> abs(a) > eps(), acceleration)
 
     # Compute 1D pressure gradient with explicit Euler method
-    acceleration_1d = acceleration[accel_dim]
+    factor = particle_spacing * acceleration[accel_dim]
 
     pressure_1d = zeros(n_particles_per_dimension[accel_dim])
 
     # The first particle is half a particle spacing from the surface, so start with a
     # half step.
-    pressure_1d[1] = 0.5particle_spacing * abs(acceleration_1d) * density_fun(0.0)
+    pressure_1d[1] = 0.5factor * density_fun(0.0)
 
     for i in 1:(length(pressure_1d) - 1)
         # Explicit Euler step
-        pressure_1d[i + 1] = pressure_1d[i] +
-                             particle_spacing * abs(acceleration_1d) *
-                             density_fun(pressure_1d[i])
+        pressure_1d[i + 1] = pressure_1d[i] + factor * density_fun(pressure_1d[i])
     end
 
     # If acceleration is pointing in negative coordinate direction, reverse the pressure
     # gradient, because the surface is at the top and the gradient should start from there.
-    if sign(acceleration_1d) < 0
+    if sign(acceleration[accel_dim]) < 0
         reverse!(pressure_1d)
     end
 
@@ -191,11 +189,9 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
     permutation = loop_permutation(loop_order, Val(length(n_particles_per_dimension)))
     permuted_indices = permutedims(cartesian_indices, permutation)
     for particle in eachindex(pressure)
-        cartesian_index = permuted_indices[particle]
-
         # The index in the dimension where the acceleration is acting to index 1D pressure
         # vector.
-        index_in_accel_dim = cartesian_index[accel_dim]
+        index_in_accel_dim = permuted_indices[particle][accel_dim]
         pressure[particle] = pressure_1d[index_in_accel_dim]
     end
 end
