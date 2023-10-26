@@ -10,7 +10,7 @@
 [![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/TrixiParticles)](https://pkgs.genieframework.com?packages=TrixiParticles)
 
 
-TrixiParticles.jl is a code that implements particle based numerical methods for multiphysics applications.
+TrixiParticles.jl is a code that implements particle-based numerical methods for multiphysics applications.
 
 ## Features
 - Incompressible Navier-Stokes
