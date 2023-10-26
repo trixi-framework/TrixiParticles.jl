@@ -153,6 +153,11 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
+# Note that currently specializations reducing this to simple multiplications exist only up
+# to a power of three, see
+# https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
+# Here, we accept to lose some precision but gain performance by using plain
+# multiplications instead via `@fastpow`.
 @fastpow @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
     q5_4 = (5 / 2 - q)^4
