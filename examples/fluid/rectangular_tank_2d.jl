@@ -25,7 +25,7 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    clip_negative_pressure=false)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 

@@ -69,7 +69,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
 
     if q >= 2
@@ -79,13 +79,13 @@ function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     result = 1 / 4 * (2 - q)^3
 
     if q < 1
-        result -= (1 - q)^3
+        result = result - (1 - q)^3
     end
 
     return normalization_factor(kernel, h) * result
 end
 
-function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
@@ -96,7 +96,7 @@ function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     result = -3 / 4 * (2 - q)^2
 
     if q < 1
-        result += 3 * (1 - q)^2
+        result = result + 3 * (1 - q)^2
     end
 
     return normalization_factor(kernel, h) * result * inner_deriv
@@ -163,23 +163,23 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-@inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
     q5_2 = (5 / 2 - q)^2
     q3_2 = (3 / 2 - q)^2
     q1_2 = (1 / 2 - q)^2
 
     result = q5_2^2
-    result -= 5 * (q < 3 / 2) * q3_2^2
-    result += 10 * (q < 1 / 2) * q1_2^2
+    result = result - 5 * (q < 3 / 2) * q3_2^2
+    result = result + 10 * (q < 1 / 2) * q1_2^2
 
     # Zero out result if q >= 5/2
-    result *= (q < 5 / 2)
+    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result, zero(result))
 
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
-@inline function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
     q5_2 = 5 / 2 - q
@@ -187,13 +187,14 @@ end
     q1_2 = 1 / 2 - q
 
     result = -4 * q5_2^3
-    result += 20 * (q < 3 / 2) * q3_2^3
-    result -= 40 * (q < 1 / 2) * q1_2^3
+    result = result + 20 * (q < 3 / 2) * q3_2^3
+    result = result - 40 * (q < 1 / 2) * q1_2^3
 
     # Zero out result if q >= 5/2
-    result *= (q < 5 / 2)
+    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
@@ -255,7 +256,7 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-@inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@muladd @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
     q3_2 = (3 - q)^2
     q3_3 = (3 - q)^3
@@ -267,16 +268,16 @@ struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
     result = q3_2 * q3_3
 
     # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
-    result -= 6 * (q < 2) * q2_2 * q2_3
-    result += 15 * (q < 1) * q1_2 * q1_3
+    result = result - 6 * (q < 2) * q2_2 * q2_3
+    result = result + 15 * (q < 1) * q1_2 * q1_3
 
-    # The condition (q >= 3) will zero out the result if q is 3 or greater.
-    result *= (q < 3)
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, normalization_factor(kernel, h) * result, zero(result))
 
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
-@inline function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
     q3_2 = (3 - q)^2
@@ -286,13 +287,13 @@ end
     result = -5 * q3_2^2
 
     # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
-    result += 30 * (q < 2) * q2_2^2
-    result -= 75 * (q < 1) * q1_2^2
+    result = result + 30 * (q < 2) * q2_2^2
+    result = result - 75 * (q < 1) * q1_2^2
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
-    # The condition (q >= 3) will zero out the result if q is 3 or greater.
-    result *= (q < 3)
-
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
