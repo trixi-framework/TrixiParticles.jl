@@ -166,7 +166,7 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
 
-    # Note that `floating_point_number^integer_iteral` is lowered to `Base.literal_pow`.
+    # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
     # Currently, specializations reducing this to simple multiplications exist only up
     # to a power of three, see
     # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
