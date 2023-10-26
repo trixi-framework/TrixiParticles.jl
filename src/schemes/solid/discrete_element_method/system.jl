@@ -5,8 +5,9 @@ struct DEMSystem{NDIMS, ELTYPE <: Real} <: System{NDIMS}
     kn                :: ELTYPE               # Normal stiffness
     acceleration      :: SVector{NDIMS, ELTYPE}
 
-    function DEMSystem(initial_condition, kn; acceleration=ntuple(_ -> 0.0,
-        ndims(initial_condition)))
+    function DEMSystem(initial_condition, kn;
+                       acceleration=ntuple(_ -> 0.0,
+                                           ndims(initial_condition)))
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -18,7 +19,6 @@ struct DEMSystem{NDIMS, ELTYPE <: Real} <: System{NDIMS}
         if length(acceleration_) != NDIMS
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
-
 
         return new{NDIMS, ELTYPE}(initial_condition, mass, radius, kn, acceleration_)
     end
@@ -65,4 +65,10 @@ function compact_support(system::DEMSystem, neighbor::DEMSystem)
     # we for now assume that the compact support is 3 * radius
     # todo: needs to be changed for more complex simulations
     return 3 * max(maximum(system.radius), maximum(neighbor.radius))
+end
+
+function compact_support(system::DEMSystem, neighbor)
+    # we for now assume that the compact support is 3 * radius
+    # todo: needs to be changed for more complex simulations
+    return 3 * maximum(system.radius)
 end

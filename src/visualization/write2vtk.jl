@@ -140,7 +140,7 @@ end
 vtkname(system) = "particle"
 vtkname(system::FluidSystem) = "fluid"
 vtkname(system::Union{TotalLagrangianSPHSystem, DEMSystem}) = "solid"
-vtkname(system::BoundarySPHSystem) = "boundary"
+vtkname(system::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
 
 function write2vtk!(vtk, v, u, t, system; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)

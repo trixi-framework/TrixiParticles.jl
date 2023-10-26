@@ -106,6 +106,15 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
+    return 0
+end
+
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
+    # use the compact support of the DEMSystem
+    return compact_support(neighbor, system)
+end
+
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
     (; smoothing_kernel, smoothing_length) = system
@@ -379,7 +388,10 @@ end
     return dv
 end
 
-@inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
+@inline function add_acceleration!(dv, particle,
+                                   system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+    dv
+end
 
 @inline function add_damping_force!(dv, damping_coefficient, v, particle,
                                     system::FluidSystem)

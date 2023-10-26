@@ -6,21 +6,21 @@ gravity = -9.81
 # ==========================================================================================
 # ==== Fluid
 
-particle_spacing = 0.25
+particle_spacing = 0.1
 
 # Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
-boundary_layers = 1
+boundary_layers = 2
 
-water_width = 2.0
-water_height = 2.0
-water_density = 1000.0
+rock_width = 2.0
+rock_height = 2.0
+rock_density = 3000.0
 
 tank_width = 2.0
 tank_height = 4.0
 
-tank = RectangularTank(particle_spacing, (water_width, water_height),
-                       (tank_width, tank_height), water_density,
+tank = RectangularTank(particle_spacing, (rock_width, rock_height),
+                       (tank_width, tank_height), rock_density,
                        n_layers=boundary_layers, spacing_ratio=beta)
 
 # ==========================================================================================
@@ -31,16 +31,18 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.radius)
 # ==========================================================================================
 # ==== Systems
 
-solid_system = DEMSystem(tank.fluid, 0.1, acceleration=(0.0, gravity))
-
-# boundary_system = BoundaryDEMSystem(tank.boundary, boundary_model)
+# let them fall
+tank.fluid.coordinates[2,:] .+=0.5
+solid_system = DEMSystem(tank.fluid, 2*10^5, acceleration=(0.0, gravity))
+boundary_system = BoundaryDEMSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(solid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch)
 
-tspan = (0.0, 2.0)
+tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
@@ -58,6 +60,6 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
