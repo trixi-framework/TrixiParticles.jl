@@ -101,6 +101,7 @@ function create_cache(n_particles, ELTYPE, ::SummationDensity)
 end
 
 function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
+    # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
     return (;)
 end
 
