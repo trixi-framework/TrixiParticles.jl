@@ -87,7 +87,8 @@ end
     result = -3 / 4 * (2 - q)^2 + 3 * (q < 1) * (1 - q)^2
 
     # Zero out result if q >= 2
-    result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv, zero(result))
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
     return result
 end
