@@ -51,7 +51,9 @@ end
     q = r * inner_deriv
 
     # Zero out result if q >= 3
-    result = ifelse(q < 3, -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv, zero(q))
+    result = ifelse(q < 3,
+                    -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv,
+                    zero(q))
 
     return result
 end
@@ -420,8 +422,9 @@ end
     q1_4 = (1 - q)^4
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (-4 * q1_3 * (4q + 1) + q1_4 * 4) *
-    inner_deriv, zero(q))
+    result = ifelse(q < 1,
+                    normalization_factor(kernel, h) * (-4 * q1_3 * (4q + 1) + q1_4 * 4) *
+                    inner_deriv, zero(q))
 
     return result
 end
@@ -464,7 +467,9 @@ struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
     q = r / h
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1), zero(q))
+    result = ifelse(q < 1,
+                    normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1),
+                    zero(q))
 
     return result
 end
@@ -476,7 +481,8 @@ end
     derivative = term1 - term2
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h, zero(derivative))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h,
+                    zero(derivative))
 
     return result
 end
@@ -518,7 +524,9 @@ struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
     q = r / h
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1), zero(q))
+    result = ifelse(q < 1,
+                    normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1),
+                    zero(q))
 
     return result
 end
@@ -587,7 +595,8 @@ end
     term = 1 - q^2
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv, zero(term))
+    result = ifelse(q < 1, -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv,
+                    zero(term))
 
     return result
 end
@@ -647,7 +656,8 @@ end
     term = 1 - q
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -3 * term^2 * normalization_factor(kernel, h) * inner_deriv, zero(term))
+    result = ifelse(q < 1, -3 * term^2 * normalization_factor(kernel, h) * inner_deriv,
+                    zero(term))
 
     return result
 end
