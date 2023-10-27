@@ -71,9 +71,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-# As shown in "Variational and momentum preservation aspects of Smooth
-# Particle Hydrodynamic formulations" by Bonet and Lok, 1999 for a consistent formulation
-# this form has to be used with ContinuityDensity.
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with ContinuityDensity.
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                        v_particle_system, neighbor,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
@@ -85,9 +85,9 @@ end
            pressure_correction
 end
 
-# As shown in "Variational and momentum preservation aspects of Smooth
-# Particle Hydrodynamic formulations" by Bonet and Lok, 1999 for a consistent formulation
-# this form has to be used with SummationDensity.
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with SummationDensity.
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                        v_particle_system, neighbor,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
