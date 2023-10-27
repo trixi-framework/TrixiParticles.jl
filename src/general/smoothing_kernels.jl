@@ -37,27 +37,23 @@ which is beneficial in regards to stability but makes it less accurate.
 """
 struct GaussianKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::GaussianKernel, r::Real, h)
+@inline @fastmath function kernel(kernel::GaussianKernel, r::Real, h)
     q = r / h
 
-    # Truncation at 3h
-    if q > 3
-        return 0.0
-    end
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, normalization_factor(kernel, h) * exp(-q^2), zero(q))
 
-    return normalization_factor(kernel, h) * exp(-q^2)
+    return result
 end
 
-function kernel_deriv(kernel::GaussianKernel, r::Real, h)
+@inline @fastmath function kernel_deriv(kernel::GaussianKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    # Truncation at 3h
-    if q > 3
-        return 0.0
-    end
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv, zero(q))
 
-    return -2 * q * normalization_factor(kernel, h) * exp(-q^2) * inner_deriv
+    return result
 end
 
 @inline compact_support(::GaussianKernel, h) = 3 * h
@@ -407,22 +403,27 @@ The smoothness of these functions is also the largest disadvantage as they loose
 """
 struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
-function kernel(kernel::WendlandC2Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
-    if q >= 1
-        return 0.0
-    end
-    return normalization_factor(kernel, h) * (1 - q)^4 * (4q + 1)
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^4 * (4q + 1), zero(q))
+
+    return result
 end
 
-function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+@fastpow @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
-    if q >= 1
-        return 0.0
-    end
-    return normalization_factor(kernel, h) * (-4(1 - q)^3 * (4q + 1) + (1 - q)^4 * 4) *
-           inner_deriv
+
+    q1_3 = (1 - q)^3
+    q1_4 = (1 - q)^4
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (-4 * q1_3 * (4q + 1) + q1_4 * 4) *
+    inner_deriv, zero(q))
+
+    return result
 end
 
 @inline normalization_factor(::WendlandC2Kernel{2}, h) = 7 / (pi * h^2)
@@ -459,23 +460,25 @@ The smoothness of these functions is also the largest disadvantage as they loose
 """
 struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
-function kernel(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
-    if q >= 1
-        return 0.0
-    end
-    return normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1)
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1), zero(q))
+
+    return result
 end
 
-function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
+@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
-    if q >= 1
-        return 0.0
-    end
     term1 = (1 - q)^6 * (6 + 70 / 3 * q)
     term2 = 6 * (1 - q)^5 * (1 + 6q + 35 / 3 * q^2)
     derivative = term1 - term2
-    return normalization_factor(kernel, h) * derivative / h
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h, zero(derivative))
+
+    return result
 end
 
 @inline normalization_factor(::WendlandC4Kernel{2}, h) = 9 / (pi * h^2)
@@ -511,23 +514,25 @@ The smoothness of these functions is also the largest disadvantage as they loose
 """
 struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
-function kernel(kernel::WendlandC6Kernel, r::Real, h)
+@fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    if q >= 1
-        return 0.0
-    end
-    return normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1)
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1), zero(q))
+
+    return result
 end
 
-function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
+@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    if q >= 1
-        return 0.0
-    end
-    common_term1 = -8 * (1 - q)^7
-    term1 = common_term1 * (32q^3 + 25q^2 + 8q + 1)
-    term2 = (1 - q)^8 * (96q^2 + 50q + 8)
-    return normalization_factor(kernel, h) * (term1 + term2) / h
+    result = -8 * (1 - q)^7
+    result = result * (32q^3 + 25q^2 + 8q + 1)
+    result = result + (1 - q)^8 * (96q^2 + 50q + 8)
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result / h, zero(result))
+
+    return result
 end
 
 @inline normalization_factor(::WendlandC6Kernel{2}, h) = 78 / (7pi * h^2)
@@ -565,29 +570,26 @@ It is also suspectiable to clumping.
 """
 struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::Poly6Kernel, r::Real, h)
+@muladd @inline function kernel(kernel::Poly6Kernel, r::Real, h)
     q = r / h
-
-    # Truncation at h
-    if q > 1
-        return 0.0
-    end
-
     term = 1 - q^2
-    return normalization_factor(kernel, h) * term^3
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * term^3, zero(term))
+
+    return result
 end
 
-function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    # Truncation at h
-    if q > 1
-        return 0.0
-    end
-
     term = 1 - q^2
-    return -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv, zero(term))
+
+    return result
 end
 
 @inline compact_support(::Poly6Kernel, h) = h
@@ -627,29 +629,27 @@ These sharp gradients at the boundary are also the largest disadvantage as they 
 """
 struct SpikyKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SpikyKernel, r::Real, h)
+@muladd @inline function kernel(kernel::SpikyKernel, r::Real, h)
     q = r / h
 
-    # Truncation at h
-    if q > 1
-        return 0.0
-    end
-
     term = 1 - q
-    return normalization_factor(kernel, h) * term^3
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, normalization_factor(kernel, h) * term^3, zero(term))
+
+    return result
 end
 
-function kernel_deriv(kernel::SpikyKernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::SpikyKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    # Truncation at h
-    if q > 1
-        return 0.0
-    end
-
     term = 1 - q
-    return -3 * term^2 * normalization_factor(kernel, h) * inner_deriv
+
+    # Zero out result if q >= 1
+    result = ifelse(q < 1, -3 * term^2 * normalization_factor(kernel, h) * inner_deriv, zero(term))
+
+    return result
 end
 
 @inline compact_support(::SpikyKernel, h) = h
