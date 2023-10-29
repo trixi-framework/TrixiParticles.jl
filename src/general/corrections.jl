@@ -219,3 +219,83 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
         dw_gamma[i, particle] /= kernel_correction_coefficient[particle]
     end
 end
+
+@doc raw"""
+    GradientCorrection()
+
+Compute the corrected gradient of particle interactions based on their relative positions.
+
+# Mathematical Details
+
+Given the standard SPH representation, the gradient of a field A at particle i is given by:
+
+```math
+\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+```
+
+Where:
+- $m_b$ is the mass of particle $b$.
+- $rho_b$ is the density of particle $b$.
+
+The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix $L$:
+
+```math
+\nabla^\tilde A_i = L_i \nabla A_i
+```
+
+The correction matrix  $L_i$ is computed based on the provided particle configuration,
+aiming to make the corrected gradient more accurate, especially near domain boundaries.
+
+# Notes:
+- Stability issues as especially when particles separate into small clusters.
+- Doubles the computational effort.
+
+## References:
+- J. Bonet, T.-S.L. Lok.
+  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
+  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
+  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
+- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
+  "Robustness and accuracy of SPH formulations for viscous flow".
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
+"""
+struct GradientCorrection end
+
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
+                                             coordinates)
+    (; mass, material_density) = system
+
+    set_zero!(corr_matrix)
+
+    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    for_particle_neighbor(system, system,
+                          coordinates, coordinates,
+                          neighborhood_search;
+                          particles=eachparticle(system)) do particle, neighbor,
+                                                             pos_diff,
+                                                             distance
+        # Only consider particles with a distance > 0.
+        distance < sqrt(eps()) && return
+
+        volume = mass[neighbor] / material_density[neighbor]
+
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        result = volume * grad_kernel * pos_diff'
+
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            corr_matrix[i, j, particle] -= result[i, j]
+        end
+    end
+
+    @threaded for particle in eachparticle(system)
+        L = correction_matrix(system, particle)
+        result = inv(L)
+
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            corr_matrix[i, j, particle] = result[i, j]
+        end
+    end
+
+    return corr_matrix
+end

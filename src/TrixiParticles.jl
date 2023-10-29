@@ -4,11 +4,13 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
+using FastPow: @fastpow
 using LinearAlgebra: dot, I, tr
 @reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
+using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
-using Printf: @printf
+using Printf: @printf, @sprintf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
@@ -17,7 +19,7 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using WriteVTK: vtk_grid, MeshCell, VTKCellTypes
+using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
@@ -44,7 +46,8 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
-export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
+       PressureMirroring, PressureZeroing
 export BoundaryMovement
 export GridNeighborhoodSearch
 export examples_dir, trixi_include
