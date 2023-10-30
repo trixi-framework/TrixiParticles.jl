@@ -1,13 +1,13 @@
 @doc raw"""
     SmoothingKernel{NDIMS}
 
-An abstract supertype all smoothing kernels. The type parameter `NDIMS` encodes the number
+An abstract supertype of all smoothing kernels. The type parameter `NDIMS` encodes the number
 of dimensions.
 
 We provide the following smoothing kernels:
 
 | Smoothing Kernel                          | Compact Support   |
-| :----------------------------------------- | :---------------- |
+| :---------------------------------------- | :---------------- |
 | [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         |
 | [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       |
 | [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         |
@@ -39,6 +39,7 @@ We provide the following smoothing kernels:
     where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 """
 abstract type SmoothingKernel{NDIMS} end
+
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
@@ -71,7 +72,7 @@ w(q) = \sigma \begin{cases}
     0                                   & \text{if } q \geq 2, \\
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma`` is a normalisation constant given by
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
 $\sigma =[\frac{2}{3}, \frac{10}{7 \pi}, \frac{1}{\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2h]``.
@@ -130,7 +131,7 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
-@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / (3 * h)
+@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / 3h
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (7 * pi * h^2)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
@@ -152,7 +153,7 @@ w(q) = \sigma \begin{cases}
     0 & \text{if } q \geq \frac{5}{2},
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma`` is a normalisation constant given by
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
 $\sigma =[\frac{1}{24}, \frac{96}{1199 \pi}, \frac{1}{20\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2.5h]``.
@@ -224,7 +225,7 @@ end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
-@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / (24 * h)
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (20 * pi * h^3)
 
@@ -244,7 +245,7 @@ w(q) = \sigma \begin{cases}
     0                                       & \text{if } q \geq 3,
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma`` is a normalisation constant given by
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
 $\sigma =[\frac{1}{120}, \frac{7}{478 \pi}, \frac{1}{120\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 3h]``.
@@ -311,6 +312,6 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
-@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / (120 * h)
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / 120h
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (478 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)
