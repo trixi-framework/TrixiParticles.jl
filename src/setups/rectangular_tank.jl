@@ -31,15 +31,13 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `tank_size::Tuple`:           Tuple containing the size of the tank in each dimension after rounding.
 
 # Examples
-2D:
 ```julia
+# 2D
 setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (container_width, container_height), particle_density,
                         n_layers=2, spacing_ratio=3)
-```
 
-3D:
-```julia
+# 3D
 setup = RectangularTank(particle_spacing, (water_width, water_height, water_depth),
                         (container_width, container_height, container_depth), particle_density, n_layers=2)
 ```
