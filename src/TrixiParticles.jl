@@ -4,8 +4,10 @@ using Reexport: @reexport
 
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
+using FastPow: @fastpow
 using LinearAlgebra: norm, dot, I, tr
 using Morton: cartesian2morton
+using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
@@ -42,7 +44,8 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
-export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation
+export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
+       PressureMirroring, PressureZeroing
 export BoundaryMovement
 export GridNeighborhoodSearch
 export examples_dir, trixi_include

@@ -163,24 +163,29 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+# Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
+# Currently, specializations reducing this to simple multiplications exist only up
+# to a power of three, see
+# https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
+# Higher powers just call a generic power implementation. Here, we accept to lose
+# some precision but gain performance by using plain multiplications instead via
+# `@fastpow`.
+@muladd @fastpow @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
 
-    if q >= 5 / 2
-        return 0.0
-    end
+    q5_2_pow4 = (5 / 2 - q)^4
+    q3_2_pow4 = (3 / 2 - q)^4
+    q1_2_pow4 = (1 / 2 - q)^4
 
-    result = (5 / 2 - q)^4
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
+    result = q5_2_pow4
+    result = result - 5 * (q < 3 / 2) * q3_2_pow4
+    result = result + 10 * (q < 1 / 2) * q1_2_pow4
 
-    if q < 3 / 2
-        result -= 5 * (3 / 2 - q)^4
+    # Zero out result if q >= 5/2
+    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result, zero(result))
 
-        if q < 1 / 2
-            result += 10 * (1 / 2 - q)^4
-        end
-    end
-
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
 function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
