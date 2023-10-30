@@ -30,7 +30,8 @@ viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta, pressure=pressure)
+                       n_layers=boundary_layers, spacing_ratio=beta, pressure=pressure,
+                       acceleration=(0.0, gravity))
 
 # ==========================================================================================
 # ==== Boundary models
