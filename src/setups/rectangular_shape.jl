@@ -58,14 +58,12 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                                            loop_order=loop_order)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    if acceleration === nothing && state_equation === nothing
+    # Allow zero acceleration with state equation, but interpret `nothing` acceleration
+    # with state equation as a likely mistake.
+    if (acceleration === nothing && state_equation === nothing) ||
+       all(abs.(acceleration) .< eps())
         densities = density * ones(ELTYPE, n_particles)
     elseif acceleration isa AbstractVector || acceleration isa Tuple
-        if any(acceleration .> 0)
-            throw(ArgumentError("hydrostatic pressure gradients are only supported for " *
-                                "accelerations in negative coordinate directions"))
-        end
-
         if state_equation === nothing
             density_fun = pressure -> density
         else
@@ -155,7 +153,7 @@ end
 
 function initialize_pressure!(pressure, particle_spacing, acceleration, density_fun,
                               n_particles_per_dimension, loop_order)
-    if count(a -> abs(a) > eps(), acceleration) != 1
+    if count(a -> abs(a) > eps(), acceleration) > 1
         throw(ArgumentError("hydrostatic pressure calculation is not supported with " *
                             "diagonal acceleration"))
     end
