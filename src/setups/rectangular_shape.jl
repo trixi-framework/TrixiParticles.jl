@@ -162,7 +162,7 @@ function initialize_pressure!(pressure, particle_spacing, acceleration, density_
     accel_dim = findfirst(a -> abs(a) > eps(), acceleration)
 
     # Compute 1D pressure gradient with explicit Euler method
-    factor = particle_spacing * acceleration[accel_dim]
+    factor = particle_spacing * abs(acceleration[accel_dim])
 
     pressure_1d = zeros(n_particles_per_dimension[accel_dim])
 
