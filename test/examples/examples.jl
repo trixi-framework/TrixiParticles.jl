@@ -9,10 +9,28 @@
             @test sol.retcode == ReturnCode.Success
         end
 
+        @trixi_testset "fluid/rectangular_tank_2d.jl with SummationDensity" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_2d.jl"), tspan=(0.0, 0.1),
+                                       density_calculator=SummationDensity(),
+                                       clip_negative_pressure=true)
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_edac_2d.jl"),
+                                       tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+        end
+
         @trixi_testset "fluid/dam_break_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-                                       tspan=(0.0, 0.1))
+                                       relaxation_tspan=(0.0, 0.1),
+                                       simulation_tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end
 
@@ -20,7 +38,8 @@
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "dam_break_2d_corrections.jl"),
-                                       tspan=(0.0, 0.1))
+                                       relaxation_tspan=(0.0, 0.1),
+                                       simulation_tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end
 
@@ -83,7 +102,6 @@
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi",
                                                 "dam_break_gate_2d.jl"),
-                                       tspan_relaxing=(0.0, 2.0),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success

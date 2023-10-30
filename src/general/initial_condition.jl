@@ -1,23 +1,93 @@
+@doc raw"""
+    InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
+                     particle_spacing=-1.0)
+
+Struct to hold the initial configuration of the particles.
+
+The following setups return `InitialCondition`s for commonly used setups:
+- [`RectangularShape`](@ref)
+- [`SphereShape`](@ref)
+- [`RectangularTank`](@ref)
+
+`InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
+to build more complex geometries.
+
+# Arguments
+- `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
+- `velocities`: An array where the $i$-th column holds the velocity of particle $i$.
+- `masses`: A vector holding the mass of each particle.
+- `densities`: A vector holding the density of each particle.
+
+# Keywords
+- `pressure`: Either a vector of pressure values of each particle or a number for a constant
+              pressure over all particles. This is optional and only needed when using
+              the [`EntropicallyDampedSPHSystem`](@ref).
+- `particle_spacing`: The spacing between the particles. This is a number, as the spacing
+                      is assumed to be uniform. This is only needed when using
+                      set operations on the `InitialCondition`.
+
+# Examples
+```julia
+# Rectangle filled with particles
+initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), 1.0)
+
+# Two spheres in one initial condition
+initial_condition = union(SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
+                          SphereShape(0.15, 0.2, (0.0, 1.0), 1.0))
+
+# Rectangle with a spherical hole
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = setdiff(shape1, shape2)
+
+# Intersect of a rectangle with a sphere. Note that this keeps the particles of the
+# rectangle that are in the intersect, while `intersect(shape2, shape1)` would consist of
+# the particles of the sphere that are in the intersect.
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
+initial_condition = intersect(shape1, shape2)
+
+# Build `InitialCondition` manually
+coordinates = [0.0 1.0 1.0
+               0.0 0.0 1.0]
+velocities = zero(coordinates)
+masses = ones(3)
+densities = 1000 * ones(3)
+initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+```
+"""
 struct InitialCondition{ELTYPE}
     particle_spacing :: ELTYPE
     coordinates      :: Array{ELTYPE, 2}
     velocity         :: Array{ELTYPE, 2}
     mass             :: Array{ELTYPE, 1}
     density          :: Array{ELTYPE, 1}
+    pressure         :: Array{ELTYPE, 1}
 
-    function InitialCondition(coordinates, velocities, masses, densities;
+    function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
                               particle_spacing=-1.0)
+        ELTYPE = eltype(coordinates)
+
         if size(coordinates) != size(velocities)
             throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
 
         if !(size(coordinates, 2) == length(masses) == length(densities))
-            throw(ArgumentError("the following must hold: " *
-                                "`size(coordinates, 2) == length(masses) == length(densities)`"))
+            throw(ArgumentError("Expected: size(coordinates, 2) == length(masses) == length(densities)\n" *
+                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                "length(masses) = $(length(masses)), " *
+                                "length(densities) = $(length(densities))"))
         end
 
-        return new{eltype(coordinates)}(particle_spacing, coordinates, velocities, masses,
-                                        densities)
+        if pressure isa Number
+            pressure = pressure * ones(ELTYPE, length(masses))
+        elseif length(pressure) != length(masses)
+            throw(ArgumentError("`pressure` must either be a scalar or a vector of the " *
+                                "same length as `masses`"))
+        end
+
+        return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
+                           densities, pressure)
     end
 end
 
@@ -55,8 +125,9 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     velocity = hcat(initial_condition.velocity, ic.velocity[:, valid_particles])
     mass = vcat(initial_condition.mass, ic.mass[valid_particles])
     density = vcat(initial_condition.density, ic.density[valid_particles])
+    pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return union(result, Base.tail(initial_conditions)...)
@@ -84,8 +155,9 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     velocity = initial_condition.velocity[:, valid_particles]
     mass = initial_condition.mass[valid_particles]
     density = initial_condition.density[valid_particles]
+    pressure = initial_condition.pressure[valid_particles]
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return setdiff(result, Base.tail(initial_conditions)...)
@@ -112,8 +184,9 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     velocity = initial_condition.velocity[:, too_close]
     mass = initial_condition.mass[too_close]
     density = initial_condition.density[too_close]
+    pressure = initial_condition.pressure[too_close]
 
-    result = InitialCondition(coordinates, velocity, mass, density,
+    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
                               particle_spacing=particle_spacing)
 
     return intersect(result, Base.tail(initial_conditions)...)

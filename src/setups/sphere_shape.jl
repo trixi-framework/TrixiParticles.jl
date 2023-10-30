@@ -34,7 +34,7 @@ coordinate directions as `cutout_min` and `cutout_max`.
                         cut out of the sphere.
 - `cutout_max`:         Corner in positive coordinate directions of a cuboid that is to be
                         cut out of the sphere.
-- `tlsph`:              With the [TotalLagrangianSPHSystem](@ref), particles need to be placed
+- `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                         on the boundary of the shape and not one particle radius away, as for fluids.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
 - `init_velocity`:      Initial velocity vector to be assigned to each particle.
@@ -49,16 +49,13 @@ SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, sphere_type=RoundSphere())
 
 # Hollow circle with ~3 layers, outer radius 0.5, center in (0.2, 0.4) and a particle
 # spacing of 0.1.
-```julia
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
-```
 
 # Same as before, but perfectly round
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, sphere_type=RoundSphere())
 
 # Hollow circle with 3 layers, inner radius 0.5, center in (0.2, 0.4) and a particle spacing
 # of 0.1.
-```julia
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3, layer_outwards=true)
 
 # Filled circle with radius 0.1, center in (0.0, 0.0), particle spacing 0.1, but the
@@ -71,12 +68,11 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
 # Same as before, but perfectly round
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 ```
-````
 """
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     init_velocity=zeros(length(center_position)))
+                     init_velocity=zeros(length(center_position)), pressure=0.0)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -112,7 +108,7 @@ function SphereShape(particle_spacing, radius, center_position, density;
     masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
-    return InitialCondition(coordinates, velocities, masses, densities,
+    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
                             particle_spacing=particle_spacing)
 end
 
@@ -124,6 +120,9 @@ with a regular inner structure but corners on the surface.
 Essentially, a grid of particles is generated and all particles outside the sphere are removed.
 The resulting sphere will have a perfect inner structure, but is not perfectly round,
 as it will have corners (like a sphere in Minecraft).
+
+!!! note "Usage"
+    See [`SphereShape`](@ref) on how to use this.
 """
 struct VoxelSphere end
 
@@ -132,6 +131,9 @@ struct VoxelSphere end
 
 Construct a sphere by nesting perfectly round concentric spheres.
 The resulting ball will be perfectly round, but will not have a regular inner structure.
+
+!!! note "Usage"
+    See [`SphereShape`](@ref) on how to use this.
 """
 struct RoundSphere end
 

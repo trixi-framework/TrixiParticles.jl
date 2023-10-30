@@ -4,10 +4,10 @@
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
 but their positions and velocities are not evolved in time. Since the force towards the fluid
-should not change with the material density when used with a `TotalLagrangianSPHSystem`, the
+should not change with the material density when used with a [`TotalLagrangianSPHSystem`](@ref), the
 dummy particles need to have a mass corresponding to the fluid's rest density, which we call
 "hydrodynamic mass", as opposed to mass corresponding to the material density of a
-`TotalLagrangianSPHSystem`.
+[`TotalLagrangianSPHSystem`](@ref).
 
 Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
 and the hydrodynamic mass respectively for each boundary particle.
@@ -33,10 +33,13 @@ f_{ab} = m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nab
 The quantities to be defined here are the density ``\rho_b`` and pressure ``p_b``
 of the boundary particle ``b``.
 
-We provide three options to compute the boundary density and pressure, determined by the `density_calculator`:
-1. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
+We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
+1. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
+   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
+   This option usually yields the best results of the options listed here.
+2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
-2. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
+3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
@@ -44,8 +47,14 @@ We provide three options to compute the boundary density and pressure, determine
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-3. With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
-   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
+4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
+   is computed from the density with the state equation.
+   This option is not recommended. The other options yield significantly better results.
+5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
+   is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
+   momentum equation.
+   This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
+   for more details.
 
 ## References:
 - S. Adami, X. Y. Hu, N. A. Adams.
@@ -75,10 +84,12 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
     viscosity          :: V
     cache              :: C
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass, state_equation,
+    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=NoViscosity())
-        pressure = similar(initial_density)
+                                         smoothing_length; viscosity=NoViscosity(),
+                                         state_equation=nothing)
+        pressure = initial_boundary_pressure(initial_density, density_calculator,
+                                             state_equation)
 
         n_particles = length(initial_density)
 
@@ -102,22 +113,6 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelDummyParticles,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
-    return -m_b *
-           (particle_system.pressure[particle] / rho_a^2 +
-            boundary_model.pressure[boundary_particle] / rho_b^2) *
-           grad_kernel
-end
-
 @doc raw"""
     AdamiPressureExtrapolation()
 
@@ -139,8 +134,173 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 """
 struct AdamiPressureExtrapolation end
 
-function create_cache(initial_density, ::SummationDensity)
-    density = similar(initial_density)
+@doc raw"""
+    PressureMirroring()
+
+Instead of calculating density and pressure for each boundary particle, we modify the
+momentum equation,
+```math
+\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab}
+```
+to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
+and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
+interacting fluid particle.
+The momentum equation therefore becomes
+```math
+\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
+-\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_a}{\rho_0^2} \right) \nabla_a W_{ab},
+```
+where the first sum is over all fluid particles and the second over all boundary particles.
+
+This approach was first mentioned by Akinci et al. (2012) and written down in this form
+by Band et al. (2018).
+
+!! note
+    This boundary model requires high viscosity for stability with WCSPH.
+    It also produces significantly worse results than [`AdamiPressureExtrapolation`](@ref)
+    and is not more efficient because smaller time steps are required due to more noise
+    in the pressure.
+    We added this model only for research purposes and for comparison with
+    [SPlisHSPlasH](https://github.com/InteractiveComputerGraphics/SPlisHSPlasH).
+
+## References:
+- Nadir Akinci, Markus Ihmsen, Gizem Akinci, Barbara Solenthaler, and Matthias Teschner.
+  "Versatile Rigid-Fluid Coupling for Incompressible SPH."
+  In: ACM Transactions on Graphics 31, 4 (2012), pages 1–8.
+  [doi: 10.1145/2185520.2185558](https://doi.org/10.1145/2185520.2185558)
+- Stefan Band, Christoph Gissler, Andreas Peer, and Matthias Teschner.
+  "MLS Pressure Boundaries for Divergence-Free and Viscous SPH Fluids."
+  In: Computers & Graphics 76 (2018), pages 37–46.
+  [doi: 10.1016/j.cag.2018.08.001](https://doi.org/10.1016/j.cag.2018.08.001)
+"""
+struct PressureMirroring end
+
+@doc raw"""
+    PressureZeroing()
+
+This is the simplest way to implement dummy boundary particles.
+The density of each particle is set to the reference density and the pressure to the
+reference pressure (the corresponding pressure to the reference density by the state equation).
+
+!! note
+    This boundary model produces significantly worse results than all other models and
+    is only included for research purposes.
+"""
+struct PressureZeroing end
+
+# For most density calculators, the pressure is updated in every step
+initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
+# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
+initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+
+# For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
+function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
+    return state_equation.(initial_density)
+end
+
+# With EDAC, just use zero pressure
+function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing)
+    return zero(initial_density)
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator)
+    (; density_calculator) = boundary_model
+
+    pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                          v_particle_system, boundary_particle,
+                          boundary_system, v_boundary_system,
+                          boundary_model, density_calculator,
+                          rho_a, rho_b, pos_diff, distance, grad_kernel,
+                          fluid_density_calculator)
+end
+
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with ContinuityDensity.
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       boundary_density_calculator,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator::ContinuityDensity)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    return -m_b *
+           (particle_system.pressure[particle] + boundary_model.pressure[boundary_particle]) /
+           (rho_a * rho_b) * grad_kernel
+end
+
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with SummationDensity.
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       boundary_density_calculator,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator::SummationDensity)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    return -m_b *
+           (particle_system.pressure[particle] / rho_a^2 +
+            boundary_model.pressure[boundary_particle] / rho_b^2) *
+           grad_kernel
+end
+
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with ContinuityDensity.
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       ::PressureMirroring,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator::ContinuityDensity)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    return -m_b *
+           (particle_system.pressure[particle] + particle_system.pressure[particle]) /
+           (rho_a * rho_b) * grad_kernel
+end
+
+# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
+# used with SummationDensity.
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, boundary_particle,
+                                       boundary_system,
+                                       v_boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       ::PressureMirroring,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator::SummationDensity)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+
+    return -m_b *
+           (particle_system.pressure[particle] / rho_a^2 +
+            particle_system.pressure[particle] / rho_b^2) *
+           grad_kernel
+end
+
+function create_cache(initial_density,
+                      ::Union{SummationDensity, PressureMirroring, PressureZeroing})
+    density = copy(initial_density)
 
     return (; density)
 end
@@ -150,7 +310,7 @@ function create_cache(initial_density, ::ContinuityDensity)
 end
 
 function create_cache(initial_density, ::AdamiPressureExtrapolation)
-    density = similar(initial_density)
+    density = copy(initial_density)
     volume = similar(initial_density)
 
     return (; density, volume)
@@ -168,19 +328,11 @@ function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
     return (; wall_velocity)
 end
 
-function reset_cache!(cache, viscosity)
-    (; density, volume) = cache
-
-    set_zero!(density)
-    set_zero!(volume)
-
-    return cache
-end
+@inline reset_cache!(cache, viscosity) = set_zero!(cache.volume)
 
 function reset_cache!(cache, viscosity::ViscosityAdami)
-    (; density, volume, wall_velocity) = cache
+    (; volume, wall_velocity) = cache
 
-    set_zero!(density)
     set_zero!(volume)
     set_zero!(wall_velocity)
 
@@ -192,10 +344,17 @@ end
 end
 
 # Note that the other density calculators are dispatched in `density_calculators.jl`
-@inline function particle_density(v, ::AdamiPressureExtrapolation, boundary_model, particle)
+@inline function particle_density(v,
+                                  ::Union{AdamiPressureExtrapolation, PressureMirroring,
+                                          PressureZeroing},
+                                  boundary_model, particle)
     (; cache) = boundary_model
 
     return cache.density[particle]
+end
+
+@inline function particle_pressure(v, model::BoundaryModelDummyParticles, system, particle)
+    return model.pressure[particle]
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
@@ -209,9 +368,10 @@ end
 end
 
 function compute_density!(boundary_model,
-                          ::Union{ContinuityDensity, AdamiPressureExtrapolation},
+                          ::Union{ContinuityDensity, AdamiPressureExtrapolation,
+                                  PressureMirroring, PressureZeroing},
                           system, system_index, v, u, v_ode, u_ode, semi)
-    # No density update for `ContinuityDensity`.
+    # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
     # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
     return boundary_model
 end
@@ -239,8 +399,11 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
                            system, system_index, v, u, v_ode, u_ode, semi)
     (; state_equation, pressure) = boundary_model
 
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
     for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, boundary_model, particle))
+        pressure[particle] = max(state_equation(particle_density(v, boundary_model,
+                                                                 particle)), 0.0)
     end
 
     return boundary_model
@@ -254,8 +417,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 
     set_zero!(pressure)
 
-    # Set `volume` and `density` to zero.
-    # For `ViscosityAdami` the `wall_velocity` is also set to zero.
+    # Set `volume` to zero. For `ViscosityAdami` the `wall_velocity` is also set to zero.
     reset_cache!(cache, viscosity)
 
     system_coords = current_coordinates(u, system)
@@ -289,12 +451,19 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
             compute_wall_velocity!(viscosity, system, system_coords, particle)
         end
 
-        density[particle] = inverse_state_equation(state_equation, pressure[particle])
+        # Apply inverse state equation to compute density (not used with EDAC)
+        inverse_state_equation!(density, state_equation, pressure, particle)
     end
 end
 
+function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},
+                           system, system_index, v, u, v_ode, u_ode, semi)
+    # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
+    return boundary_model
+end
+
 @inline function adami_pressure_extrapolation!(boundary_model, system,
-                                               neighbor_system::WeaklyCompressibleSPHSystem,
+                                               neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     (; pressure, cache, viscosity) = boundary_model
@@ -312,7 +481,8 @@ end
 
         kernel_weight = smoothing_kernel(boundary_model, distance)
 
-        pressure[particle] += (neighbor_system.pressure[neighbor] +
+        pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+                                                 neighbor) +
                                dot(resulting_acc, density_neighbor * pos_diff)) *
                               kernel_weight
 
@@ -323,7 +493,8 @@ end
     end
 
     for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid negative pressures at free surfaces
+        # Limit pressure to be non-negative to avoid attractive forces between fluid and
+        # boundary particles at free surfaces (sticking artifacts).
         pressure[particle] = max(pressure[particle], 0.0)
     end
 end
@@ -371,4 +542,15 @@ end
                                        wall_velocity[dim, particle] / volume[particle]
     end
     return viscosity
+end
+
+@inline function inverse_state_equation!(density, state_equation, pressure, particle)
+    density[particle] = inverse_state_equation(state_equation, pressure[particle])
+    return density
+end
+
+@inline function inverse_state_equation!(density, state_equation::Nothing, pressure,
+                                         particle)
+    # The density is constant when using EDAC
+    return density
 end

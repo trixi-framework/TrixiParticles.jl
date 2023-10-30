@@ -1,5 +1,14 @@
 
 @testset verbose=true "Dummy Particles" begin
+    @testset "show" begin
+        boundary_model = BoundaryModelDummyParticles([1000.0], [1.0],
+                                                     SummationDensity(),
+                                                     SchoenbergCubicSplineKernel{2}(), 0.1)
+
+        show_compact = "BoundaryModelDummyParticles(SummationDensity, NoViscosity)"
+        @test repr(boundary_model) == show_compact
+    end
+
     @testset "Viscosity Adami: Wall Velocity" begin
         particle_spacing = 0.1
 
@@ -22,7 +31,7 @@
         state_equation = StateEquationCole(10, 7, 257, 0.0)
 
         boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
-                                                     state_equation,
+                                                     state_equation=state_equation,
                                                      AdamiPressureExtrapolation(),
                                                      smoothing_kernel, smoothing_length,
                                                      viscosity=viscosity)

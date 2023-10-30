@@ -31,6 +31,10 @@ struct Semidiscretization{S, RU, RV, NS, DC}
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
 
+        # Check that the boundary systems are using a state equation if EDAC is not used.
+        # Other checks might be added here later.
+        check_configuration(systems)
+
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
         searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
@@ -111,12 +115,6 @@ end
 @inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
-end
-
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
-                                 neighbor::BoundarySPHSystem)
-    # This NHS is never used
-    return 0.0
 end
 
 @inline function compact_support(system, model, neighbor)
@@ -295,6 +293,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
     return dv_ode
 end
 
+# Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
 function update_systems_and_nhs(v_ode, u_ode, semi, t)
     (; systems) = semi
 
@@ -382,7 +381,8 @@ end
 
 @inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
-@inline function add_damping_force!(dv, damping_coefficient::Float64, v, particle, system)
+@inline function add_damping_force!(dv, damping_coefficient, v, particle,
+                                    system::FluidSystem)
     for i in 1:ndims(system)
         dv[i, particle] -= damping_coefficient * v[i, particle]
     end
@@ -390,7 +390,9 @@ end
     return dv
 end
 
-@inline add_damping_force!(dv, ::Nothing, v, particle, system) = dv
+# Currently no damping for non-fluid systems
+@inline add_damping_force!(dv, damping_coefficient, v, particle, system) = dv
+@inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     (; systems, neighborhood_searches) = semi
@@ -418,17 +420,17 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 end
 
 # NHS updates
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+function nhs_coords(system::FluidSystem,
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::WeaklyCompressibleSPHSystem,
+function nhs_coords(system::FluidSystem,
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -439,7 +441,7 @@ function nhs_coords(system::WeaklyCompressibleSPHSystem,
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
@@ -460,13 +462,13 @@ function nhs_coords(system::TotalLagrangianSPHSystem,
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     # Don't update
     return nothing
 end
 
 function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                    neighbor::WeaklyCompressibleSPHSystem, u)
+                    neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
 end
 
@@ -480,4 +482,24 @@ function nhs_coords(system::BoundarySPHSystem,
                     neighbor::BoundarySPHSystem, u)
     # Don't update
     return nothing
+end
+
+function check_configuration(systems)
+    foreach_enumerate(systems) do (system_index, system)
+        check_configuration(system, systems)
+    end
+end
+
+check_configuration(system, systems) = nothing
+
+function check_configuration(boundary_system::BoundarySPHSystem, systems)
+    (; boundary_model) = boundary_system
+
+    foreach_enumerate(systems) do (neighbor_index, neighbor)
+        if neighbor isa WeaklyCompressibleSPHSystem &&
+           boundary_model isa BoundaryModelDummyParticles &&
+           isnothing(boundary_model.state_equation)
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a `state_equation` for all boundary systems"))
+        end
+    end
 end

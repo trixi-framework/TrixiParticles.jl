@@ -183,11 +183,23 @@ end
 end
 
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
+    return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
+end
+
+@inline function viscous_velocity(v, ::ViscosityAdami, system, particle)
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+end
+
+@inline function viscous_velocity(v, viscosity, system, particle)
+    return current_velocity(v, system, particle)
 end
 
 @inline function particle_density(v, system::BoundarySPHSystem, particle)
     return particle_density(v, system.boundary_model, system, particle)
+end
+
+@inline function particle_pressure(v, system::BoundarySPHSystem, particle)
+    return particle_pressure(v, system.boundary_model, system, particle)
 end
 
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
@@ -279,4 +291,8 @@ function restart_with!(system, model, ::ContinuityDensity, v, u)
     end
 
     return system
+end
+
+function viscosity_model(system::BoundarySPHSystem)
+    return system.boundary_model.viscosity
 end

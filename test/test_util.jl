@@ -16,13 +16,16 @@ macro trixi_testset(name, expr)
 
     # TODO: `@eval` is evil
     quote
+        println("═"^100)
+        println($name)
+
         local time_start = time_ns()
 
         @eval module $mod
         using Test
         using TrixiParticles
 
-        @testset $name $expr
+        @testset verbose=true $name $expr
         end
 
         nothing

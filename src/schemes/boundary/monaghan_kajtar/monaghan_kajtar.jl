@@ -68,15 +68,20 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     @nospecialize model # reduce precompilation time
 
     print(io, "BoundaryModelMonaghanKajtar(")
+    print(io, model.K)
+    print(io, ", ")
+    print(io, model.beta)
+    print(io, ", ")
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
 
-@inline function boundary_particle_impact(particle, boundary_particle,
-                                          boundary_model::BoundaryModelMonaghanKajtar,
-                                          v_particle_system, v_boundary_system,
-                                          particle_system, boundary_system,
-                                          pos_diff, distance, m_b)
+@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+                                       v_particle_system, neighbor, neighbor_system,
+                                       v_neighbor_system,
+                                       boundary_model::BoundaryModelMonaghanKajtar, rho_a,
+                                       rho_b, pos_diff, distance, grad_kernel,
+                                       density_calculator)
     (; smoothing_length) = particle_system
     (; K, beta, boundary_particle_spacing) = boundary_model
 

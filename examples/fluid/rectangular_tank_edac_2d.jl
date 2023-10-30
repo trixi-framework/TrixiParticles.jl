@@ -8,42 +8,37 @@ gravity = -9.81
 
 particle_spacing = 0.02
 
-# Spacing ratio between fluid and boundary particles
+# Ratio of fluid particle spacing to boundary particle spacing
 beta = 1
 boundary_layers = 3
 
-water_width = 0.5
-water_height = 1.0
+water_width = 2.0
+water_height = 0.9
 water_density = 1000.0
+pressure = 0.0
 
-tank_width = 4.0
-tank_height = 4.0
+tank_width = 2.0
+tank_height = 1.0
 
 sound_speed = 10 * sqrt(9.81 * water_height)
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+alpha = 0.02
+viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
-
-# Move water column
-for i in axes(tank.fluid.coordinates, 2)
-    tank.fluid.coordinates[:, i] .+= [0.5 * tank_width - 0.5 * water_width, 0.2]
-end
+                       n_layers=boundary_layers, spacing_ratio=beta, pressure=pressure)
 
 # ==========================================================================================
 # ==== Boundary models
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
+                                             AdamiPressureExtrapolation(),
+                                             viscosity=viscosity,
+                                             smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
 # boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
@@ -52,9 +47,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity,
+fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
                                            acceleration=(0.0, gravity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
@@ -68,7 +62,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=10)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
 callbacks = CallbackSet(info_callback, saving_callback)
