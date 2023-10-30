@@ -49,7 +49,7 @@
         end
     end
 
-    # Only show all these nested testsets in case of errors
+    # Only show all of these nested testsets in case of errors
     @testset verbose=false "Incompressible Hydrostatic Pressure" begin
         particle_spacing = 0.1
 
@@ -88,24 +88,38 @@
             end
         end
 
-        # Horizontal gravity
-        n_particles_per_dimension = (10, 2)
-        shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
-                                 acceleration=(-3.73, 0.0))
+        @testset "Horizontal Gravity" begin
+            n_particles_per_dimension = (10, 2)
 
-        @test shape.pressure ≈ 3.73 * 1000.0 * vec(pressure')
-        @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
-        @test shape.mass ==
-              1000 * particle_spacing^2 * ones(prod(n_particles_per_dimension))
+            @testset "Loop Order :y_first" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(-3.73, 0.0))
 
-        # Loop order `:x_first`
-        shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
-                                 acceleration=(-3.73, 0.0), loop_order=:x_first)
+                @test shape.pressure ≈ 3.73 * 1000.0 * vec(pressure')
+                @test shape.density == 1000 * ones(prod(n_particles_per_dimension))
+                @test shape.mass ==
+                    1000 * particle_spacing^2 * ones(prod(n_particles_per_dimension))
+            end
 
-        # Don't transpose `pressure`
-        @test shape.pressure ≈ 3.73 * 1000.0 * vec(pressure)
+            @testset "Loop Order :x_first" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(-3.73, 0.0), loop_order=:x_first)
+
+                # Don't transpose `pressure`
+                @test shape.pressure ≈ 3.73 * 1000.0 * vec(pressure)
+            end
+
+            @testset "Positive Acceleration" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(4.71, 0.0))
+
+                # Same as before, but revsere pressure
+                @test shape.pressure ≈ 4.71 * 1000.0 * vec(reverse(pressure'))
+            end
+        end
     end
 
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
@@ -120,36 +134,54 @@
         pressure = [2300.0 1100.0 500.0 200.0 50.0;
                     2300.0 1100.0 500.0 200.0 50.0]
 
-        # Vertical gravity
-        n_particles_per_dimension = (2, 5)
-        shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
-                                 acceleration=(0.0, -1.0), state_equation=state_equation)
+        # Only show all of these nested testsets in case of errors
+        @testset verbose=false "Vertical Gravity" begin
+            n_particles_per_dimension = (2, 5)
 
-        @test shape.pressure ≈ vec(pressure)
-        @test shape.density ==
-              TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
-        @test shape.mass == particle_spacing^2 * shape.density
+            @testset "Loop Order :y_first" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(0.0, -1.0), state_equation=state_equation)
 
-        # Loop order `:x_first`
-        shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
-                                 acceleration=(0.0, -1.0), state_equation=state_equation,
-                                 loop_order=:x_first)
+                @test shape.pressure ≈ vec(pressure)
+                @test shape.density ==
+                    TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
+                @test shape.mass == particle_spacing^2 * shape.density
+            end
 
-        # Transpose `pressure`
-        @test shape.pressure ≈ vec(pressure')
+            @testset "Loop Order :x_first" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(0.0, -1.0), state_equation=state_equation,
+                                        loop_order=:x_first)
 
-        # Horizontal gravity
-        n_particles_per_dimension = (5, 2)
-        shape = RectangularShape(particle_spacing,
-                                 n_particles_per_dimension, (0.0, 0.0), 1000.0,
-                                 acceleration=(-1.0, 0.0), state_equation=state_equation)
+                # Transpose `pressure`
+                @test shape.pressure ≈ vec(pressure')
+            end
 
-        @test shape.pressure ≈ 1.0 * vec(pressure')
-        @test shape.density ==
-              TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
-        @test shape.mass == particle_spacing^2 * shape.density
+            @testset "Positive Acceleration" begin
+                shape = RectangularShape(particle_spacing,
+                                        n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                        acceleration=(0.0, 1.0), state_equation=state_equation)
+
+                @test shape.pressure ≈ vec(reverse(pressure))
+                @test shape.density ==
+                    TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
+                @test shape.mass == particle_spacing^2 * shape.density
+            end
+        end
+
+        @testset "Horizontal Gravity" begin
+            n_particles_per_dimension = (5, 2)
+            shape = RectangularShape(particle_spacing,
+                                    n_particles_per_dimension, (0.0, 0.0), 1000.0,
+                                    acceleration=(-1.0, 0.0), state_equation=state_equation)
+
+            @test shape.pressure ≈ 1.0 * vec(pressure')
+            @test shape.density ==
+                TrixiParticles.inverse_state_equation.(Ref(state_equation), shape.pressure)
+            @test shape.mass == particle_spacing^2 * shape.density
+        end
     end
 end
 
