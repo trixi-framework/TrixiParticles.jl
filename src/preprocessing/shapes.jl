@@ -22,9 +22,8 @@ end
     return TrixiParticles.extract_svector(A, Val(2), i)
 end
 
-function particle_grid(vertices, particle_spacing)
+function particle_grid(vertices, particle_spacing; pad=2*particle_spacing)
     NDIMS = size(vertices, 1)
-    pad = 2 * particle_spacing
 
     function ranges(dim)
         min_corner(vertices, dim, pad):particle_spacing:max_corner(vertices, dim, pad)
