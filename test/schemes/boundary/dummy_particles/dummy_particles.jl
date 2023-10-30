@@ -23,7 +23,8 @@
 
         particles_in_compact_support = length(boundary_1.mass) + length(boundary_2.mass)
 
-        fluid = RectangularShape(particle_spacing, (16, 5), (-0.3, 0.3), 257.0)
+        fluid = RectangularShape(particle_spacing, (16, 5), (-0.3, 0.3), 257.0,
+                                 loop_order=:x_first)
 
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2 * particle_spacing
