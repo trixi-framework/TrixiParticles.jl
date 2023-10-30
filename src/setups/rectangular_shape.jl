@@ -18,13 +18,16 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)`
                     (or `(vel_x, vel_y, vel_z)` in 3D).
 - `pressure`:       Scalar to set the pressure of all particles to this value.
-                    This is only used by the [`EntropicallyDampedSPHSystem`](@ref).
+                    This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
+                    will be overwritten when using an initial pressure function in the system.
 - `acceleration`:   In order to initialize particles with a hydrostatic pressure gradient,
                     an acceleration vector can be passed. Note that only accelerations
                     in one coordinate direction and no diagonal accelerations are supported.
                     This will only change the pressure of the particles. When using the
                     [`WeaklyCompressibleSPHSystem`](@ref), pass a `state_equation` as well
                     to initialize the particles with the corresponding density and mass.
+                    When using the [`EntropicallyDampedSPHSystem`](@ref), the pressure
+                    will be overwritten when using an initial pressure function in the system.
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
                     the `state_equation` will be used to set the corresponding density and mass.
 - `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
