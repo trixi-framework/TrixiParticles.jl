@@ -31,7 +31,8 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
+                       n_layers=boundary_layers, spacing_ratio=beta,
+                       acceleration=(0.0, gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Boundary models
@@ -60,8 +61,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch,
-                          damping_coefficient=1e-5)
+                          neighborhood_search=GridNeighborhoodSearch)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
