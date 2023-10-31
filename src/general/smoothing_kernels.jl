@@ -1,4 +1,45 @@
+@doc raw"""
+    SmoothingKernel{NDIMS}
+
+An abstract supertype of all smoothing kernels. The type parameter `NDIMS` encodes the number
+of dimensions.
+
+We provide the following smoothing kernels:
+
+| Smoothing Kernel                          | Compact Support   |
+| :---------------------------------------- | :---------------- |
+| [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         |
+| [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       |
+| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         |
+
+!!! note "Usage"
+    The kernel can be called as
+    ```
+    TrixiParticles.kernel(::SmoothingKernel{NDIMS}, r, h)
+    ```
+    The length of the compact support can be obtained as
+    ```
+    TrixiParticles.compact_support(::SmoothingKernel{NDIMS}, h)
+    ```
+
+    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
+    should be used as
+    ```math
+    W(\Vert r_a - r_b \Vert, h).
+    ```
+
+    The gradient required in SPH,
+    ```math
+        \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+    ```
+    can be called as
+    ```
+    TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)
+    ```
+    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+"""
 abstract type SmoothingKernel{NDIMS} end
+
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
@@ -21,7 +62,7 @@ end
 
 Cubic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
+    W(r, h) = \frac{1}{h^d} w(r/h)
 ```
 with
 ```math
@@ -31,29 +72,15 @@ w(q) = \sigma \begin{cases}
     0                                   & \text{if } q \geq 2, \\
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 17/(7\pi)``
-in two dimensions or ``\sigma = 1/\pi`` in three dimensions is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
+$\sigma =[\frac{2}{3}, \frac{10}{7 \pi}, \frac{1}{\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergCubicSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergCubicSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+For an overview of Schoenberg cubic, quartic and quintic spline kernels including
+normalization factors, see (Price, 2012).
+For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985).
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -104,6 +131,7 @@ end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
 
+@inline normalization_factor(::SchoenbergCubicSplineKernel{1}, h) = 2 / 3h
 @inline normalization_factor(::SchoenbergCubicSplineKernel{2}, h) = 10 / (7 * pi * h^2)
 @inline normalization_factor(::SchoenbergCubicSplineKernel{3}, h) = 1 / (pi * h^3)
 
@@ -112,7 +140,7 @@ end
 
 Quartic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
+    W(r, h) = \frac{1}{h^d} w(r/h)
 ```
 with
 ```math
@@ -125,29 +153,15 @@ w(q) = \sigma \begin{cases}
     0 & \text{if } q \geq \frac{5}{2},
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 96/(1199\pi)``
-in two dimensions or ``\sigma = 1/(20\pi)`` in three dimensions is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
+$\sigma =[\frac{1}{24}, \frac{96}{1199 \pi}, \frac{1}{20\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 2.5h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuarticSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergQuarticSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+For an overview of Schoenberg cubic, quartic and quintic spline kernels including
+normalization factors, see (Price, 2012).
+For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985).
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -211,6 +225,7 @@ end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
 
+@inline normalization_factor(::SchoenbergQuarticSplineKernel{1}, h) = 1 / 24h
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{2}, h) = 96 / (1199 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuarticSplineKernel{3}, h) = 1 / (20 * pi * h^3)
 
@@ -219,7 +234,7 @@ end
 
 Quintic spline kernel by Schoenberg (Schoenberg, 1946), given by
 ```math
-W(r, h) = \frac{1}{h^d} w(r/h)
+    W(r, h) = \frac{1}{h^d} w(r/h)
 ```
 with
 ```math
@@ -230,29 +245,15 @@ w(q) = \sigma \begin{cases}
     0                                       & \text{if } q \geq 3,
 \end{cases}
 ```
-where ``d`` is the number of dimensions and ``\sigma = 7/(478\pi)``
-in two dimensions or ``\sigma = 1/(120\pi)`` in three dimensions is a normalization factor.
+where ``d`` is the number of dimensions and ``\sigma`` is a normalization constant given by
+$\sigma =[\frac{1}{120}, \frac{7}{478 \pi}, \frac{1}{120\pi}]$ in $[1, 2, 3]$ dimensions.
 
 This kernel function has a compact support of ``[0, 3h]``.
 
-For an overview of Schoenberg cubic, quartic and quintic spline kernels
-including normalization factors, see (Price, 2012).
-For an analytic formula for higher order kernels, see (Monaghan, 1985).
-
-!!! note "Usage"
-    The kernel can be called as `TrixiParticles.kernel(::SchoenbergQuinticSplineKernel, r, h)`.
-    The length of the compact support can be obtained as
-    `TrixiParticles.compact_support(::SchoenbergQuinticSplineKernel, h)`.
-
-    Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
-    should be used as ``W(\Vert r_a - r_b \Vert, h)``.
-    The gradient required in SPH,
-    ```math
-    \frac{\partial}{\partial r_a} W(\Vert r_a - r_b \Vert, h)
-    ```
-    can be called as
-    `TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)`,
-    where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
+For an overview of Schoenberg cubic, quartic and quintic spline kernels including
+normalization factors, see (Price, 2012).
+For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985).
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
@@ -311,5 +312,6 @@ end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h
 
+@inline normalization_factor(::SchoenbergQuinticSplineKernel{1}, h) = 1 / 120h
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{2}, h) = 7 / (478 * pi * h^2)
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)
