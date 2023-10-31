@@ -72,7 +72,9 @@ struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
 
-    result = 1 / 4 * (2 - q)^3 - (q < 1) * (1 - q)^3
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = 1 / 4 * (2 - q)^3
+    result = result - (q < 1) * (1 - q)^3
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(result))
@@ -84,7 +86,9 @@ end
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    result = -3 / 4 * (2 - q)^2 + 3 * (q < 1) * (1 - q)^2
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = -3 / 4 * (2 - q)^2
+    result = result + 3 * (q < 1) * (1 - q)^2
 
     # Zero out result if q >= 2
     result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv,
@@ -154,20 +158,27 @@ For an analytic formula for higher order kernels, see (Monaghan, 1985).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-# Note that currently specializations reducing this to simple multiplications exist only up
-# to a power of three, see
+# In Julia, the operation `floating_point_number^integer_literal` is internally translated to
+# the `Base.literal_pow` function for optimization purposes.
+# Specialized methods have been introduced to handle the exponentiation by using straightforward
+# multiplications, which offers a significant performance boost. However, this approach is
+# currently optimized for exponents up to a power of three. For higher powers, the direct
+# multiplication approach might not be the most efficient.
+# Refer to the following link for the specific implementation details:
 # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
-# Here, we accept to lose some precision but gain performance by using plain
-# multiplications instead via `@fastpow`.
+# By using the `@fastpow` macro, we are consciously trading off some precision in the result
+# for enhanced computational speed. This is especially useful in scenarios where performance
+# is a higher priority than exact precision.
 @fastpow @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
-    q5_4 = (5 / 2 - q)^4
-    q3_4 = (3 / 2 - q)^4
-    q1_4 = (1 / 2 - q)^4
+    q5_2 = (5 / 2 - q)
+    q3_2 = (3 / 2 - q)
+    q1_2 = (1 / 2 - q)
 
-    result = q5_4
-    result = result - 5 * (q < 3 / 2) * q3_4
-    result = result + 10 * (q < 1 / 2) * q1_4
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = q5_2^4
+    result = result - 5 * (q < 3 / 2) * q3_2^4
+    result = result + 10 * (q < 1 / 2) * q1_2^4
 
     # Zero out result if q >= 5/2
     result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result, zero(result))
@@ -183,6 +194,7 @@ end
     q3_2 = 3 / 2 - q
     q1_2 = 1 / 2 - q
 
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = -4 * q5_2^3
     result = result + 20 * (q < 3 / 2) * q3_2^3
     result = result - 40 * (q < 1 / 2) * q1_2^3
@@ -255,15 +267,14 @@ struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
 @fastpow @muladd @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
-    q3_5 = (3 - q)^5
-    q2_5 = (2 - q)^5
-    q1_5 = (1 - q)^5
+    q3 = (3 - q)
+    q2 = (2 - q)
+    q1 = (1 - q)
 
-    result = q3_5
-
-    # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
-    result = result - 6 * (q < 2) * q2_5
-    result = result + 15 * (q < 1) * q1_5
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = q3^5
+    result = result - 6 * (q < 2) * q2^5
+    result = result + 15 * (q < 1) * q1^5
 
     # Zero out result if q >= 3
     result = ifelse(q < 3, normalization_factor(kernel, h) * result, zero(result))
@@ -275,15 +286,15 @@ end
                                                r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
-    q3_4 = (3 - q)^4
-    q2_4 = (2 - q)^4
-    q1_4 = (1 - q)^4
+    q3 = (3 - q)
+    q2 = (2 - q)
+    q1 = (1 - q)
 
-    result = -5 * q3_4
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = -5 * q3^4
+    result = result + 30 * (q < 2) * q2^4
+    result = result - 75 * (q < 1) * q1^4
 
-    # (q < 2) evaluates to 1 if q is less than 2 and 0 otherwise.
-    result = result + 30 * (q < 2) * q2_4
-    result = result - 75 * (q < 1) * q1_4
     # Zero out result if q >= 3
     result = ifelse(q < 3, normalization_factor(kernel, h) * result * inner_deriv,
                     zero(result))
