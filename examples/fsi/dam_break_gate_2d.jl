@@ -45,16 +45,18 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
 tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=tank_layers, spacing_ratio=beta_tank)
+                       n_layers=tank_layers, spacing_ratio=beta_tank,
+                       acceleration=(0.0, gravity), state_equation=state_equation)
 
 gate = RectangularShape(fluid_particle_spacing / beta_gate,
                         (gate_layers,
                          round(Int, gate_height / fluid_particle_spacing * beta_gate)),
                         (water_width, 0.0), water_density)
 
+# Movement of the gate according to the paper
 f_x(t) = 0.0
 f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
-is_moving(t) = false # No moving boundaries for the relaxing step
+is_moving(t) = t < 0.1
 
 movement = BoundaryMovement((f_x, f_y), is_moving)
 
@@ -159,37 +161,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 
-# Relaxing of the fluid without solid
-semi = Semidiscretization(fluid_system, boundary_system_tank,
-                          boundary_system_gate,
-                          neighborhood_search=GridNeighborhoodSearch)
-
-tspan = (0.0, 3.0)
-ode = semidiscretize(semi, tspan)
-
-info_callback = InfoCallback(interval=100)
-
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=info_callback);
-
-# Run full simulation
 tspan = (0.0, 1.0)
-
-is_moving(t) = t < 0.1
-
-# Use solution of the relaxing step as initial coordinates
-restart_with!(semi, sol)
 
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
@@ -197,7 +169,9 @@ semi = Semidiscretization(fluid_system, boundary_system_tank,
 
 ode = semidiscretize(semi, tspan)
 
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02)
+
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # See above for an explanation of the parameter choice

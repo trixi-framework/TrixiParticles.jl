@@ -32,7 +32,8 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
-                       n_layers=boundary_layers, spacing_ratio=beta_tank)
+                       n_layers=boundary_layers, spacing_ratio=beta_tank,
+                       acceleration=(0.0, gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Boundary
@@ -70,7 +71,7 @@ boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
 # ==========================================================================================
 # ==== Systems
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, SummationDensity(), state_equation,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity, acceleration=(0.0, gravity))
 

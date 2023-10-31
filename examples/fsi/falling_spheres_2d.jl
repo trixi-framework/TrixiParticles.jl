@@ -35,7 +35,8 @@ viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,
                        n_layers=boundary_layers, spacing_ratio=beta,
-                       faces=(true, true, true, false))
+                       faces=(true, true, true, false),
+                       acceleration=(0.0, gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Solid
