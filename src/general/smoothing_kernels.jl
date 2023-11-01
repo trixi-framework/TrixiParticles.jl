@@ -57,6 +57,13 @@ end
            kernel_correction_coefficient(system, particle)
 end
 
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+    ::GradientCorrection, system, particle)
+    grad = kernel_grad(kernel, pos_diff, distance, h)
+    factor = 0.1
+    return (1-factor) * grad + factor * correction_matrix(system, particle) * grad
+end
+
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 

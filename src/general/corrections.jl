@@ -1,5 +1,6 @@
-# Sorted in order of computational cost
+using LinearAlgebra
 
+# Sorted in order of computational cost
 @doc raw"""
     AkinciFreeSurfaceCorrection(rho0)
 
@@ -10,6 +11,16 @@ The free surface correction adjusts the viscosity, pressure, and surface tension
 near free surfaces to counter this effect.
 It's important to note that this correlation is unphysical and serves as an approximation.
 The computation time added by this method is about 2-3%.
+
+Mathematically the idea is quite simple if we have a SPH particle in the middle of a volume
+at rest its density will be identical to the rest density `rho0`. If we now consider a SPH
+particle at a free surface at rest it will have neighbor missing in the direction normal to
+the surface, which will result in a lower density, if we calculate the correction factor `k`
+```math
+k = rho_0/rho_{mean}
+```
+this value will be about ~1.5 for particles at the free surface and can than be used to increase
+the pressure and viscosity accordingly.
 
 # Arguments
 - `rho0`: Reference density.
@@ -262,9 +273,9 @@ aiming to make the corrected gradient more accurate, especially near domain boun
 """
 struct GradientCorrection end
 
-function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
-                                             coordinates)
-    (; mass, material_density) = system
+function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, neighborhood_search, system,
+                                             coordinates, density_fun)
+    (; mass) = system
 
     set_zero!(corr_matrix)
 
@@ -278,22 +289,48 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        volume = mass[neighbor] / material_density[neighbor]
+        #volume = mass[neighbor] / material_density[neighbor]
+        volume = mass[neighbor] / density_fun(neighbor)
+
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
-        result = volume * grad_kernel * pos_diff'
+        L = volume * grad_kernel * pos_diff'
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] -= result[i, j]
+            corr_matrix[i, j, particle] -= L[i, j]
         end
     end
 
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        result = inv(L)
+
+        if cond(L) > 1e10
+            #regularization
+            println("reg")
+            lambda = 1e-6
+            L = L + lambda * I
+        end
+
+
+        L_inv = inv(L)
+
+        # L_factored = lu(L)
+        # L_inv = similar(L)
+
+        # n = ndims(system)
+        # I_n = Matrix{Float64}(I, n, n) # Identity matrix of size n x n
+
+        # for j = 1:n
+        #     e_j = I_n[:, j]  # j-th column of the identity matrix
+        #     y = L_factored.L \ e_j
+        #     x_j = L_factored.U \ y
+
+        #     # Store x_j as the j-th column of L_inv
+        #     L_inv[:, j] .= x_j
+        # end
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] = result[i, j]
+            corr_matrix[i, j, particle] = L_inv[i, j]
         end
     end
 

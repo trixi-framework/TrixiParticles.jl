@@ -39,7 +39,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
-                                             AdamiPressureExtrapolation(),
+                                             SummationDensity(),
                                              smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
@@ -49,11 +49,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 # ==========================================================================================
 # ==== Systems
 
-density_calculator = ContinuityDensity()
+density_calculator = SummationDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, density_calculator, state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
-                                           acceleration=(0.0, gravity))
+                                           acceleration=(0.0, gravity), correction=GradientCorrection())
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
@@ -80,7 +80,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-4, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
