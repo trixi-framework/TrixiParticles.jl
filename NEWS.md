@@ -32,7 +32,8 @@ Features:
 - Correction schemes (Shepard (0. Order) ... MixedKernelGradient (1. Order))
 - Density reinitialization
 - Kernel summation and Continuity equation density formulations
-
+- Flexible boundary conditions e.g. dummy particles with Adami pressure extrapolation, pressure zeroing, pressure mirroring...
+- Moving boundaries
 
 #### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
