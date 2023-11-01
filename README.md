@@ -28,6 +28,7 @@ operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl 
 with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
 ### For users
+<!--
 TrixiParticles.jl is a registered Julia package. Hence, you
 can install TrixiParticles.jl and OrdinaryDiffEq.jl (used by the examples) by executing the following commands in the Julia REPL:
 ```julia
@@ -35,6 +36,7 @@ julia> using Pkg
 
 julia> Pkg.add(["OrdinaryDiffEq", "TrixiParticles"])
 ```
+-->
 
 ### For developers
 If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl locally and use the
