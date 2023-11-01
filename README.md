@@ -7,28 +7,20 @@
 
 [![Youtube](https://img.shields.io/youtube/channel/views/UCpd92vU2HjjTPup-AIN0pkg?style=social)](https://www.youtube.com/@trixi-framework)
 [![Slack](https://img.shields.io/badge/chat-slack-e01e5a)](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g)
-[![Downloads](https://shields.io/endpoint?url=https://pkgs.genieframework.com/api/v1/badge/TrixiParticles)](https://pkgs.genieframework.com?packages=TrixiParticles)
 
 
 TrixiParticles.jl is a code that implements particle-based numerical methods for multiphysics applications.
 
 ## Features
 - Incompressible Navier-Stokes
-  - Methods: WCSPH, EDAC
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
 - Solid-body mechanics
-  - Methods: TLSPH
+  - Methods:  Total Lagrangian SPH (TLSPH)
 - Fluid-Structure Interaction
 - Output formats:
   - VTK
  
 ## Examples
-<p align="center">
-  <img align="middle" src="https://drive.google.com/uc?export=view&id=1KlOOOYQ-oh949Xgj3fpxhXznhY8S6mZ-" width=45%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://drive.google.com/uc?export=view&id=1wrqdKMviKIDKGCrl4j46Hv4GRbe0zMjD" width=45%/>&nbsp;&nbsp;&nbsp;
-</p>
-<p align="center">
-  <img align="middle" src="https://drive.google.com/uc?export=view&id=1NroKIvRNWjoaeAJpJFfc3rgTG1ZUx7wR" width=30% />&nbsp;&nbsp;&nbsp;
-</p>
 
 ## Installation
 If you have not yet installed Julia, please [follow the instructions for your
