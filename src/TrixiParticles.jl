@@ -52,7 +52,7 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
-export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
+export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection, GradientCorrection
 export nparticles
 
 end # module

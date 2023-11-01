@@ -16,6 +16,7 @@ correction_dict = Dict(
     "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
     "kernel_gradient_summation_correction" => KernelGradientCorrection(),
     "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
+    "gradient_correction" => GradientCorrection(),
 )
 
 density_calculator_dict = Dict(
