@@ -93,7 +93,8 @@ solid_system = TotalLagrangianSPHSystem(solid,
                                         smoothing_kernel, smoothing_length,
                                         E, nu,
                                         n_fixed_particles=nparticles(fixed_particles),
-                                        acceleration=(0.0, gravity), boundary_model,
+                                        acceleration=(0.0, gravity),
+                                        boundary_model=boundary_model,
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.1))
 
 # ==========================================================================================

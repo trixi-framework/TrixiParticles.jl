@@ -106,14 +106,14 @@ solid_system_1 = TotalLagrangianSPHSystem(sphere_1,
                                           solid_smoothing_kernel, solid_smoothing_length,
                                           E1, nu,
                                           acceleration=(0.0, gravity),
-                                          solid_boundary_model_1,
+                                          boundary_model=solid_boundary_model_1,
                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 solid_system_2 = TotalLagrangianSPHSystem(sphere_2,
                                           solid_smoothing_kernel, solid_smoothing_length,
                                           E2, nu,
                                           acceleration=(0.0, gravity),
-                                          solid_boundary_model_2,
+                                          boundary_model=solid_boundary_model_2,
                                           penalty_force=PenaltyForceGanzenmueller(alpha=0.3))
 
 # ==========================================================================================

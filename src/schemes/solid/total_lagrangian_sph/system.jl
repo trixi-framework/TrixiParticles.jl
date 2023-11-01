@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, C} <: System{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,11 +94,12 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    cache               :: C
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
-                                      young_modulus, poisson_ratio, boundary_model;
-                                      n_fixed_particles=0,
+                                      young_modulus, poisson_ratio;
+                                      boundary_model=nothing, n_fixed_particles=0,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
                                       penalty_force=nothing)
@@ -130,18 +131,31 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        return new{typeof(boundary_model),
-                   NDIMS, ELTYPE,
-                   typeof(smoothing_kernel),
-                   typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force)
+        cache = create_solid_cache(boundary_model, initial_condition)
+
+        return new{typeof(boundary_model), NDIMS, ELTYPE,
+                   typeof(smoothing_kernel), typeof(penalty_force),
+                   typeof(cache)}(initial_condition, initial_coordinates,
+                                  current_coordinates, mass, correction_matrix,
+                                  pk1_corrected, deformation_grad, material_density,
+                                  n_moving_particles, young_modulus, poisson_ratio,
+                                  lame_lambda, lame_mu, smoothing_kernel, smoothing_length,
+                                  acceleration_, boundary_model, penalty_force, cache)
     end
+end
+
+create_solid_cache(::Nothing, initial_condition) = (;)
+
+function create_solid_cache(boundary_model, initial_condition)
+    create_solid_cache(boundary_model, boundary_model.density_calculator, initial_condition)
+end
+
+create_solid_cache(boundary_model, density_calculator, initial_condition) = (;)
+
+function create_solid_cache(boundary_model, ::AdamiPressureExtrapolation, initial_condition)
+    acceleration = similar(initial_condition.velocity)
+
+    return (; acceleration)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -223,6 +237,11 @@ end
     end
 
     return extract_svector(v, system, particle)
+end
+
+# Acceleration for `AdamiPressureExtrapolation`
+@inline function current_acceleration(system::TotalLagrangianSPHSystem, particle)
+    return extract_svector(system.cache.acceleration, system, particle)
 end
 
 @inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
@@ -428,4 +447,24 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
+end
+
+function copy_dv!(system::TotalLagrangianSPHSystem, dv)
+    copy_dv!(system, system.boundary_model, dv)
+end
+
+copy_dv!(system, ::Nothing, dv) = system
+
+copy_dv!(system, model, dv) = copy_dv!(system, model, model.density_calculator, dv)
+
+copy_dv!(system, boundary_model, density_calculator, dv) = system
+
+function copy_dv!(system, boundary_model, ::AdamiPressureExtrapolation, dv)
+    for particle in each_moving_particle(system)
+        for dim in 1:ndims(system)
+            system.cache.acceleration[dim, particle] = dv[dim, particle]
+        end
+    end
+
+    return system
 end

@@ -412,6 +412,9 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             @trixi_timeit timer() timer_str begin
                 interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
                           neighborhood_search, system, neighbor)
+                # Only for `TotalLagrangianSPHSystem` with boundary model
+                # `AdamiPressureExtrapolation`.
+                copy_dv!(system, dv)
             end
         end
     end
@@ -491,6 +494,14 @@ function check_configuration(systems)
 end
 
 check_configuration(system, systems) = nothing
+
+function check_configuration(system::TotalLagrangianSPHSystem, systems)
+    foreach_enumerate(systems) do (neighbor_index, neighbor)
+        if !isa(neighbor, TotalLagrangianSPHSystem) && isnothing(system.boundary_model)
+            throw(ArgumentError("Please specify a boundary model for `TotalLagrangianSPHSystem` when simulating a fluid-structure interaction."))
+        end
+    end
+end
 
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system

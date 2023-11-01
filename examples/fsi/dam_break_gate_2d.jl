@@ -154,7 +154,7 @@ boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model_solid,
+                                        E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
                                         acceleration=(0.0, gravity))
 
