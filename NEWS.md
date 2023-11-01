@@ -31,7 +31,8 @@ An implementation of WCSPH (Weakly Compressible Smoothed Particle Hydrodynamics)
 Features:
 - Correction schemes (Shepard (0. Order) ... MixedKernelGradient (1. Order))
 - Density reinitialization
-- Summation and Continuity equation density formulation 
+- Kernel summation and Continuity equation density formulations
+
 
 #### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
