@@ -47,7 +47,7 @@ cd run
 julia --project=. -e 'using Pkg; Pkg.develop(PackageSpec(path=".."))' # Install locally
 julia --project=. -e 'using Pkg; Pkg.add("OrdinaryDiffEq")' # Install additional packages
 ```
-**Note:** OrdinaryDiffEq is only necessary to run examples
+**Note:** OrdinaryDiffEq is only necessary to run examples.
 
 If you installed TrixiParticles.jl this way, you always have to start Julia with the `--project`
 flag set to your `run` directory, e.g.,
