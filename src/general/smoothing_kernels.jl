@@ -58,10 +58,23 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-    ::GradientCorrection, system, particle)
+                                       corr::BlendedGradientCorrection, system, particle)
     grad = kernel_grad(kernel, pos_diff, distance, h)
-    factor = 0.1
-    return (1-factor) * grad + factor * correction_matrix(system, particle) * grad
+    factor = corr.blending_factor
+    return (1 - factor) * grad + factor * correction_matrix(system, particle) * grad
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::GradientCorrection, system, particle)
+    grad = kernel_grad(kernel, pos_diff, distance, h)
+    return correction_matrix(system, particle) * grad
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::MixedKernelGradientCorrection, system, particle)
+    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelGradientCorrection(),
+                                 system, particle)
+    return correction_matrix(system, particle) * grad
 end
 
 @doc raw"""

@@ -94,9 +94,16 @@ function create_cache(::KernelGradientCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
-function create_cache(::GradientCorrection, density, NDIMS, n_particles)
+function create_cache(::Union{GradientCorrection, BlendedGradientCorrection}, density,
+                      NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
+end
+
+function create_cache(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
 function create_cache(n_particles, ELTYPE, ::SummationDensity)
@@ -191,15 +198,20 @@ function compute_gradient_correction_matrix!(correction, neighborhood_search, sy
     return system
 end
 
-function compute_gradient_correction_matrix!(::GradientCorrection, neighborhood_search, system, u, v)
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection},
+                                             neighborhood_search,
+                                             system, u, v)
     (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system, system_coords, particle -> particle_density(v, system, particle))
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        system_coords,
+                                        particle -> particle_density(v, system, particle),
+                                        use_factorization=corr.use_factorization)
 end
-
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                           v_ode, u_ode, semi, t)
@@ -221,7 +233,8 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
 end
 
 function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
-                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection},
+                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection,
+                                         MixedKernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end

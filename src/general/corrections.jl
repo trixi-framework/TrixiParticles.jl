@@ -130,6 +130,27 @@ especially for free surfaces.
 """
 struct KernelGradientCorrection end
 
+@doc raw"""
+    MixedKernelGradientCorrection()
+
+Combines 'GradientCorrection' and 'KernelGradientCorrection' which results in a 1st order accurate SPH method.
+
+# Notes:
+- Stability issues as especially when particles separate into small clusters.
+- Doubles the computational effort.
+
+## References:
+- J. Bonet, T.-S.L. Lok.
+  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
+  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
+  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
+- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
+  "Robustness and accuracy of SPH formulations for viscous flow".
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
+"""
+struct MixedKernelGradientCorrection end
+
 function kernel_correction_coefficient(system, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
@@ -186,7 +207,8 @@ end
 
 function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
-                                    ::KernelGradientCorrection)
+                                    ::Union{KernelGradientCorrection,
+                                            MixedKernelGradientCorrection})
     (; systems, neighborhood_searches) = semi
     (; cache) = system
     (; kernel_correction_coefficient, dw_gamma) = cache
@@ -260,6 +282,8 @@ aiming to make the corrected gradient more accurate, especially near domain boun
 # Notes:
 - Stability issues as especially when particles separate into small clusters.
 - Doubles the computational effort.
+- Better stability with smoothing Kernels with larger support and Continuity e.g. 'SchoenbergQuinticSplineKernel' or 'WendlandC6Kernel'.
+- Set dt_max =< 1e-3
 
 ## References:
 - J. Bonet, T.-S.L. Lok.
@@ -271,10 +295,40 @@ aiming to make the corrected gradient more accurate, especially near domain boun
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
-struct GradientCorrection end
+struct GradientCorrection
+    use_factorization::Bool
 
-function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, neighborhood_search, system,
-                                             coordinates, density_fun)
+    function GradientCorrection(; use_factorization=false)
+        return new{}(use_factorization)
+    end
+end
+
+@doc raw"""
+    BlendedGradientCorrection()
+
+To increase stability this calculates a blended gradient, which reduces the stability issues of the 'GradientCorrection' method.
+
+This calculates the following
+```math
+\nabla^\tilde A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
+
+```
+with $\lambda$ being the blending factor.
+
+"""
+struct BlendedGradientCorrection{ELTYPE <: Real}
+    blending_factor   :: ELTYPE
+    use_factorization :: Bool
+
+    function BlendedGradientCorrection(blending_factor; use_factorization=false)
+        return new{eltype(blending_factor)}(blending_factor, use_factorization)
+    end
+end
+
+function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
+                                             neighborhood_search, system,
+                                             coordinates, density_fun;
+                                             use_factorization=false)
     (; mass) = system
 
     set_zero!(corr_matrix)
@@ -292,7 +346,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, neighbo
         #volume = mass[neighbor] / material_density[neighbor]
         volume = mass[neighbor] / density_fun(neighbor)
 
-
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
         L = volume * grad_kernel * pos_diff'
 
@@ -301,59 +354,20 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, neighbo
         end
     end
 
-    @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
-
-        if cond(L) > 1e10
-            #regularization
-            println("reg")
-            lambda = 1e-6
-            L = L + lambda * I
+    if use_factorization
+        @threaded for particle in eachparticle(system)
+            L = correction_matrix(system, particle)
+            invert_factorization(corr_matrix, L, particle, system)
         end
-
-
-        L_inv = inv(L)
-
-        # L_factored = lu(L)
-        # L_inv = similar(L)
-
-        # n = ndims(system)
-        # I_n = Matrix{Float64}(I, n, n) # Identity matrix of size n x n
-
-        # for j = 1:n
-        #     e_j = I_n[:, j]  # j-th column of the identity matrix
-        #     y = L_factored.L \ e_j
-        #     x_j = L_factored.U \ y
-
-        #     # Store x_j as the j-th column of L_inv
-        #     L_inv[:, j] .= x_j
-        # end
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] = L_inv[i, j]
+    else
+        @threaded for particle in eachparticle(system)
+            L = correction_matrix(system, particle)
+            if cond(L) > 1e10
+                throw(ModelError("Correction Matrix 'L' is not well conditioned."))
+            end
+            invert(corr_matrix, L, particle, system)
         end
     end
 
     return corr_matrix
 end
-
-@doc raw"""
-    MixedKernelGradientCorrection()
-
-Combines 'GradientCorrection' and 'KernelGradientCorrection' which results in 1st order accurate SPH method.
-
-# Notes:
-- Stability issues as especially when particles separate into small clusters.
-- Doubles the computational effort.
-
-## References:
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-"""
-struct MixedKernelGradientCorrection end

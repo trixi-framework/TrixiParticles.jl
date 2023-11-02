@@ -39,7 +39,7 @@ tank = RectangularTank(particle_spacing, (water_width, water_height),
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
-                                             SummationDensity(),
+                                             ContinuityDensity(),
                                              smoothing_kernel, smoothing_length)
 
 # K = 9.81 * water_height
@@ -53,7 +53,8 @@ density_calculator = SummationDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, density_calculator, state_equation,
                                            smoothing_kernel, smoothing_length,
                                            viscosity=viscosity,
-                                           acceleration=(0.0, gravity), correction=GradientCorrection())
+                                           acceleration=(0.0, gravity),
+                                           correction=BlendedGradientCorrection(0.5))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

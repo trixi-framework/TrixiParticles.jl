@@ -13,7 +13,6 @@ tspan = (0.0, 5.7 / sqrt(gravity))
 
 boundary_density_calculator = SummationDensity()
 
-
 # correction_dict = Dict(
 #     "no_correction" => Nothing(),
 #     "shepard_kernel_correction" => ShepardKernelCorrection(),
