@@ -40,7 +40,7 @@ sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
                                    background_pressure=atmospheric_pressure)
 
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
@@ -84,5 +84,5 @@ callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+            dtmax=1e-4, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

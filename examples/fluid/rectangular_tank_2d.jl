@@ -25,7 +25,7 @@ state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
                                    clip_negative_pressure=false)
 
 smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
 
@@ -81,6 +81,6 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # and the time integration method interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-4, # Limit stepsize to prevent crashing
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
