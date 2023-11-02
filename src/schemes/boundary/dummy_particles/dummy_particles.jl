@@ -223,19 +223,20 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for the corrected Kernel the formulation simplifies
 # to the form below:
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, boundary_particle,
-                                       boundary_system,
-                                       v_boundary_system,
-                                       boundary_model::BoundaryModelDummyParticles,
-                                       boundary_density_calculator,
-                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator,
-                                       ::Union{KernelGradientCorrection, MixedKernelGradientCorrection})
-    rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
+# @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+#                                        v_particle_system, boundary_particle,
+#                                        boundary_system,
+#                                        v_boundary_system,
+#                                        boundary_model::BoundaryModelDummyParticles,
+#                                        boundary_density_calculator,
+#                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
+#                                        fluid_density_calculator,
+#                                        ::Union{KernelGradientCorrection,
+#                                                MixedKernelGradientCorrection})
+#     rho_b = particle_density(v_boundary_system, boundary_system, boundary_particle)
 
-    return -m_b/rho_b * boundary_model.pressure[boundary_particle] * grad_kernel
-end
+#     return -m_b / rho_b * boundary_model.pressure[boundary_particle] * grad_kernel
+# end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be

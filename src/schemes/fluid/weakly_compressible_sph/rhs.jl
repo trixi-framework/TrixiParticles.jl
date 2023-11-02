@@ -102,19 +102,19 @@ end
            pressure_correction
 end
 
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a corrected gradient of the smoothing kernel
-# this simplifies to the formulation below.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, density_calculator,
-                                       correction::Union{KernelGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    return -m_b / rho_b * neighbor_system.pressure[neighbor] * grad_kernel *
-           pressure_correction
-end
+# # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# # formulations" by Bonet and Lok (1999), for a corrected gradient of the smoothing kernel
+# # this simplifies to the formulation below.
+# @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+#                                        v_particle_system, neighbor,
+#                                        neighbor_system::WeaklyCompressibleSPHSystem,
+#                                        v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+#                                        grad_kernel, density_calculator,
+#                                        ::Union{KernelGradientCorrection,
+#                                                MixedKernelGradientCorrection})
+#     return -m_b / rho_b * neighbor_system.pressure[neighbor] * grad_kernel *
+#            pressure_correction
+# end
 
 @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                        v_particle_system, neighbor,
@@ -134,19 +134,19 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a corrected gradient of the smoothing kernel
 # this simplifies to the formulation below.
-@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      particle_system::WeaklyCompressibleSPHSystem,
-                                      neighbor_system, grad_kernel,
-                                      correction::Union{KernelGradientCorrection,
-                                                        MixedKernelGradientCorrection})
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    dv[end, particle] += m_b * dot(v_b, grad_kernel)
+# @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
+#                                       v_particle_system, v_neighbor_system,
+#                                       particle, neighbor, pos_diff, distance,
+#                                       particle_system::WeaklyCompressibleSPHSystem,
+#                                       neighbor_system, grad_kernel,
+#                                       correction::Union{KernelGradientCorrection,
+#                                                         MixedKernelGradientCorrection})
+#     m_b = hydrodynamic_mass(neighbor_system, neighbor)
+#     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+#     dv[end, particle] += m_b * dot(v_b, grad_kernel)
 
-    return dv
-end
+#     return dv
+# end
 
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,

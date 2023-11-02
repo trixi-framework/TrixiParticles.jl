@@ -149,7 +149,13 @@ Combines 'GradientCorrection' and 'KernelGradientCorrection' which results in a 
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
-struct MixedKernelGradientCorrection end
+struct MixedKernelGradientCorrection
+    use_factorization::Bool
+
+    function MixedKernelGradientCorrection(; use_factorization=false)
+        return new{}(use_factorization)
+    end
+end
 
 function kernel_correction_coefficient(system, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -329,7 +335,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                              neighborhood_search, system,
                                              coordinates, density_fun;
                                              use_factorization=false)
-    (; mass) = system
+    (; mass, smoothing_length, smoothing_kernel) = system
 
     set_zero!(corr_matrix)
 
@@ -346,7 +352,11 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         #volume = mass[neighbor] / material_density[neighbor]
         volume = mass[neighbor] / density_fun(neighbor)
 
-        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        # grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+        KernelGradientCorrection(), system, particle)
+
+
         L = volume * grad_kernel * pos_diff'
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)

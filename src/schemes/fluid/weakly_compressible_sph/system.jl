@@ -172,13 +172,11 @@ initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
-    (; neighborhood_searches) = semi
+    # (; neighborhood_searches) = semi
 
-    neighborhood_search = neighborhood_searches[system_index][system_index]
+    # neighborhood_search = neighborhood_searches[system_index][system_index]
 
     compute_density!(system, system_index, u, u_ode, semi, density_calculator)
-    compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
-
     return system
 end
 
@@ -194,31 +192,16 @@ function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensi
     summation_density!(system, system_index, semi, u, u_ode, density)
 end
 
-function compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
-    return system
-end
-
-function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
-                                                         BlendedGradientCorrection},
-                                             neighborhood_search,
-                                             system, u, v)
-    (; cache) = system
-    (; correction_matrix) = cache
-
-    system_coords = current_coordinates(u, system)
-
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        system_coords,
-                                        particle -> particle_density(v, system, particle),
-                                        use_factorization=corr.use_factorization)
-end
-
 function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                           v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
+    (; neighborhood_searches) = semi
+    neighborhood_search = neighborhood_searches[system_index][system_index]
 
     compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
                                density_calculator, correction)
+    compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
+
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
@@ -237,6 +220,25 @@ function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
                                          MixedKernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection, MixedKernelGradientCorrection},
+                                             neighborhood_search,
+                                             system, u, v)
+    (; cache) = system
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        system_coords,
+                                        particle -> particle_density(v, system, particle),
+                                        use_factorization=corr.use_factorization)
 end
 
 function reinit_density!(vu_ode, semi)
