@@ -172,13 +172,9 @@ For general information and usage see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-# In Julia, the operation `floating_point_number^integer_literal` is internally translated to
-# the `Base.literal_pow` function for optimization purposes.
-# Specialized methods have been introduced to handle the exponentiation by using straightforward
-# multiplications, which offers a significant performance boost. However, this approach is
-# currently optimized for exponents up to a power of three. For higher powers, the direct
-# multiplication approach might not be the most efficient.
-# Refer to the following link for the specific implementation details:
+# Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
+# Currently, specializations reducing this to simple multiplications exist only up
+# to a power of three, see
 # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
 # By using the `@fastpow` macro, we are consciously trading off some precision in the result
 # for enhanced computational speed. This is especially useful in scenarios where performance
