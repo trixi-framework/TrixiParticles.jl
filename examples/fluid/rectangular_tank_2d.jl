@@ -8,9 +8,10 @@ gravity = -9.81
 
 particle_spacing = 0.02
 
-# Ratio of fluid particle spacing to boundary particle spacing
-beta = 1
-boundary_layers = 3
+# Ratio of fluid particle spacing to boundary particle spacing.
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model.
+beta = 3
+boundary_layers = 1
 
 water_width = 2.0
 water_height = 0.9
@@ -60,8 +61,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, boundary_system)
 
 tspan = (0.0, 2.0)
 ode = semidiscretize(semi, tspan)
