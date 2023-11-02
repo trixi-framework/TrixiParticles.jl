@@ -117,9 +117,14 @@ end
     return compact_support(system, system.boundary_model, neighbor)
 end
 
-@inline function compact_support(system, model, neighbor)
+@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor)
     # Use the compact support of the fluid for solid-fluid interaction
     return compact_support(neighbor, system)
+end
+
+@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor::BoundarySPHSystem)
+    # This NHS is never used
+    return 0.0
 end
 
 @inline function compact_support(system, model::BoundaryModelDummyParticles, neighbor)
