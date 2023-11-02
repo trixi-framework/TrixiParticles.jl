@@ -122,7 +122,8 @@ end
     return compact_support(neighbor, system)
 end
 
-@inline function compact_support(system, model::BoundaryModelMonaghanKajtar, neighbor::BoundarySPHSystem)
+@inline function compact_support(system, model::BoundaryModelMonaghanKajtar,
+                                 neighbor::BoundarySPHSystem)
     # This NHS is never used
     return 0.0
 end
