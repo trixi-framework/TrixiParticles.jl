@@ -116,37 +116,32 @@ For general information and usage see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergCubicSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd @inline function kernel(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     q = r / h
 
-    if q >= 2
-        return 0.0
-    end
-
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = 1 / 4 * (2 - q)^3
+    result = result - (q < 1) * (1 - q)^3
 
-    if q < 1
-        result -= (1 - q)^3
-    end
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result, zero(result))
 
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
-function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
+@muladd @inline function kernel_deriv(kernel::SchoenbergCubicSplineKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    if q >= 2
-        return 0.0
-    end
-
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
     result = -3 / 4 * (2 - q)^2
+    result = result + 3 * (q < 1) * (1 - q)^2
 
-    if q < 1
-        result += 3 * (1 - q)^2
-    end
+    # Zero out result if q >= 2
+    result = ifelse(q < 2, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergCubicSplineKernel, h) = 2 * h
@@ -201,20 +196,19 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
 # https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
-# Higher powers just call a generic power implementation. Here, we accept to lose
-# some precision but gain performance by using plain multiplications instead via
-# `@fastpow`.
-@muladd @fastpow @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+# By using the `@fastpow` macro, we are consciously trading off some precision in the result
+# for enhanced computational speed. This is especially useful in scenarios where performance
+# is a higher priority than exact precision.
+@fastpow @muladd @inline function kernel(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
     q = r / h
+    q5_2 = (5 / 2 - q)
+    q3_2 = (3 / 2 - q)
+    q1_2 = (1 / 2 - q)
 
-    q5_2_pow4 = (5 / 2 - q)^4
-    q3_2_pow4 = (3 / 2 - q)^4
-    q1_2_pow4 = (1 / 2 - q)^4
-
-    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl.
-    result = q5_2_pow4
-    result = result - 5 * (q < 3 / 2) * q3_2_pow4
-    result = result + 10 * (q < 1 / 2) * q1_2_pow4
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = q5_2^4
+    result = result - 5 * (q < 3 / 2) * q3_2^4
+    result = result + 10 * (q < 1 / 2) * q1_2^4
 
     # Zero out result if q >= 5/2
     result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result, zero(result))
@@ -222,25 +216,24 @@ struct SchoenbergQuarticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
     return result
 end
 
-function kernel_deriv(kernel::SchoenbergQuarticSplineKernel, r::Real, h)
+@fastpow @muladd @inline function kernel_deriv(kernel::SchoenbergQuarticSplineKernel,
+                                               r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
+    q5_2 = 5 / 2 - q
+    q3_2 = 3 / 2 - q
+    q1_2 = 1 / 2 - q
 
-    if q >= 5 / 2
-        return 0.0
-    end
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = -4 * q5_2^3
+    result = result + 20 * (q < 3 / 2) * q3_2^3
+    result = result - 40 * (q < 1 / 2) * q1_2^3
 
-    result = -4 * (5 / 2 - q)^3
+    # Zero out result if q >= 5/2
+    result = ifelse(q < 5 / 2, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
-    if q < 3 / 2
-        result += 20 * (3 / 2 - q)^3
-
-        if q < 1 / 2
-            result -= 40 * (1 / 2 - q)^3
-        end
-    end
-
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergQuarticSplineKernel, h) = 2.5 * h
@@ -289,45 +282,41 @@ For general information and usage see [`SmoothingKernel`](@ref).
 """
 struct SchoenbergQuinticSplineKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@fastpow @muladd @inline function kernel(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
     q = r / h
+    q3 = (3 - q)
+    q2 = (2 - q)
+    q1 = (1 - q)
 
-    if q >= 3
-        return 0.0
-    end
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = q3^5
+    result = result - 6 * (q < 2) * q2^5
+    result = result + 15 * (q < 1) * q1^5
 
-    result = (3 - q)^5
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, normalization_factor(kernel, h) * result, zero(result))
 
-    if q < 2
-        result -= 6 * (2 - q)^5
-
-        if q < 1
-            result += 15 * (1 - q)^5
-        end
-    end
-
-    return normalization_factor(kernel, h) * result
+    return result
 end
 
-function kernel_deriv(kernel::SchoenbergQuinticSplineKernel, r::Real, h)
+@fastpow @muladd @inline function kernel_deriv(kernel::SchoenbergQuinticSplineKernel,
+                                               r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
+    q3 = (3 - q)
+    q2 = (2 - q)
+    q1 = (1 - q)
 
-    if q >= 3
-        return 0.0
-    end
+    # We do not use `+=` or `-=` since these are not recognized by MuladdMacro.jl
+    result = -5 * q3^4
+    result = result + 30 * (q < 2) * q2^4
+    result = result - 75 * (q < 1) * q1^4
 
-    result = -5 * (3 - q)^4
+    # Zero out result if q >= 3
+    result = ifelse(q < 3, normalization_factor(kernel, h) * result * inner_deriv,
+                    zero(result))
 
-    if q < 2
-        result += 30 * (2 - q)^4
-
-        if q < 1
-            result -= 75 * (1 - q)^4
-        end
-    end
-
-    return normalization_factor(kernel, h) * result * inner_deriv
+    return result
 end
 
 @inline compact_support(::SchoenbergQuinticSplineKernel, h) = 3 * h

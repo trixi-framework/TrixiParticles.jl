@@ -91,7 +91,7 @@ end
            boundary_kernel(distance, smoothing_length)
 end
 
-@inline function boundary_kernel(r, h)
+@fastpow @inline function boundary_kernel(r, h)
     q = r / h
 
     # TODO The neighborhood search fluid->boundary should use this search distance
