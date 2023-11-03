@@ -335,7 +335,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                              neighborhood_search, system,
                                              coordinates, density_fun;
                                              use_factorization=false)
-    (; mass, smoothing_length, smoothing_kernel) = system
+    (; mass, smoothing_length, smoothing_kernel, correction) = system
 
     set_zero!(corr_matrix)
 
@@ -349,13 +349,15 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        #volume = mass[neighbor] / material_density[neighbor]
         volume = mass[neighbor] / density_fun(neighbor)
 
-        # grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
-        grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
-        KernelGradientCorrection(), system, particle)
-
+        grad_kernel = nothing
+        if correction isa MixedKernelGradientCorrection
+            grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
+            KernelGradientCorrection(), system, particle)
+        else
+            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        end
 
         L = volume * grad_kernel * pos_diff'
 

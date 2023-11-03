@@ -20,11 +20,11 @@ beta = 1
 boundary_layers = 3
 
 water_width = 0.146
-water_height = 2water_width
+water_height = 2 * water_width
 water_density = 1000.0
 
-tank_width = 4water_width
-tank_height = 4water_width
+tank_width = 4 * water_width
+tank_height = 4 * water_width
 
 sound_speed = 20 * sqrt(9.81 * water_height)
 
