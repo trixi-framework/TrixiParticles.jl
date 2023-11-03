@@ -135,14 +135,20 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System
         return new{typeof(boundary_model),
                    NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
-                   typeof(penalty_force), typeof(correction)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force, correction)
+                   typeof(penalty_force), typeof(correction)}(initial_condition,
+                                                              initial_coordinates,
+                                                              current_coordinates, mass,
+                                                              correction_matrix,
+                                                              pk1_corrected,
+                                                              deformation_grad,
+                                                              material_density,
+                                                              n_moving_particles,
+                                                              young_modulus, poisson_ratio,
+                                                              lame_lambda, lame_mu,
+                                                              smoothing_kernel,
+                                                              smoothing_length,
+                                                              acceleration_, boundary_model,
+                                                              penalty_force, correction)
     end
 end
 
@@ -256,7 +262,8 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
 
     # Calculate kernel correction matrix
     compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        initial_coords, particle -> system.material_density[particle])
+                                        initial_coords,
+                                        particle -> system.material_density[particle])
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,

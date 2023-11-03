@@ -353,8 +353,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
 
         grad_kernel = nothing
         if correction isa MixedKernelGradientCorrection
-            grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length,
-            KernelGradientCorrection(), system, particle)
+            grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                smoothing_length,
+                                                KernelGradientCorrection(), system,
+                                                particle)
         else
             grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
         end

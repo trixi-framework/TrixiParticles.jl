@@ -227,7 +227,8 @@ function compute_gradient_correction_matrix!(correction, neighborhood_search, sy
 end
 
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
-                                                         BlendedGradientCorrection, MixedKernelGradientCorrection},
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
                                              neighborhood_search,
                                              system, u, v)
     (; cache) = system

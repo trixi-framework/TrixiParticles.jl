@@ -69,6 +69,6 @@ for correction_name in keys(correction_dict)
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
-                  state_equation=state_equation, smoothing_kernel = smoothing_kernel,
+                  state_equation=state_equation, smoothing_kernel=smoothing_kernel,
                   file_prefix="$(correction_name)", tspan=tspan)
 end
