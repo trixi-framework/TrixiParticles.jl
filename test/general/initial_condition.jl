@@ -56,8 +56,8 @@
 
     @testset verbose=true "Union of Overlapping Shapes" begin
         @testset "Rectangular Shapes" begin
-            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), 1.0)
-            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), 1.0)
+            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), 1.0, loop_order=:x_first)
+            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), 1.0, loop_order=:x_first)
 
             initial_condition = union(shape1, shape2)
 
@@ -67,7 +67,7 @@
         end
 
         @testset "Rectangle with Added RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.3, (0.7, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = union(shape1, shape2)
@@ -81,7 +81,7 @@
             # Same as above, but this will produce a `RoundSphere` inside the rectangle,
             # as the first shape in the union is prioritized.
             shape1 = SphereShape(0.1, 0.3, (0.7, 0.6), 1.0, sphere_type=RoundSphere())
-            shape2 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape2 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
 
             initial_condition = union(shape1, shape2)
 
@@ -125,8 +125,8 @@
 
     @testset verbose=true "Setdiff of Overlapping Shapes" begin
         @testset "Rectangular Shapes" begin
-            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), 1.0)
-            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), 1.0)
+            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), 1.0, loop_order=:x_first)
+            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), 1.0, loop_order=:x_first)
 
             initial_condition = setdiff(shape1, shape2)
 
@@ -136,7 +136,7 @@
         end
 
         @testset "Rectangle without RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = setdiff(shape1, shape2)
@@ -147,7 +147,7 @@
         end
 
         @testset "Rectangle without Low-Res Sphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
             shape2 = SphereShape(0.2, 0.35, (0.0, 0.6), 1.0)
 
             initial_condition = setdiff(shape1, shape2)
@@ -202,7 +202,7 @@
         end
 
         @testset "Rectangle and RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = intersect(shape1, shape2)
@@ -224,7 +224,7 @@
         end
 
         @testset "Rectangle and Low-Res Sphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0, loop_order=:x_first)
             shape2 = SphereShape(0.2, 0.35, (0.0, 0.6), 1.0)
 
             initial_condition = intersect(shape1, shape2)
