@@ -23,8 +23,6 @@ This section summarizes the initial features that TrixiParticles.jl was released
 #### EDAC
 An implementation of EDAC (Entropically Damped Artificial Compressibility) was added,
 which allows for more stable simulations compared to basic WCSPH and reduces spurious pressure oscillations.
-This SPH scheme also features an implementation of TVF (Transport velocity formulation),
-which enables higher quality internal flow solutions.
 
 #### WCSPH
 An implementation of WCSPH (Weakly Compressible Smoothed Particle Hydrodynamics), which is the classical SPH approach.
