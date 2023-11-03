@@ -220,9 +220,9 @@ end
                           fluid_density_calculator, correction)
 end
 
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for the corrected Kernel the formulation simplifies
-# to the form below:
+# # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# # formulations" by Bonet and Lok (1999), for the corrected Kernel the formulation simplifies
+# # to the form below:
 # @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
 #                                        v_particle_system, boundary_particle,
 #                                        boundary_system,
@@ -237,6 +237,7 @@ end
 
 #     return -m_b / rho_b * boundary_model.pressure[boundary_particle] * grad_kernel
 # end
+# requires ::Union{AkinciFreeSurfaceCorrection, GradientCorrection, ShepardKernelCorrection, BlendedGradientCorrection}
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be

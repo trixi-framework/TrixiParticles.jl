@@ -13,17 +13,14 @@ tspan = (0.0, 5.7 / sqrt(gravity))
 
 boundary_density_calculator = SummationDensity()
 
-# correction_dict = Dict(
-#     "no_correction" => Nothing(),
-#     "shepard_kernel_correction" => ShepardKernelCorrection(),
-#     "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
-#     "kernel_gradient_summation_correction" => KernelGradientCorrection(),
-#     "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
-#     "gradient_correction" => GradientCorrection(),
-# )
-
 correction_dict = Dict(
-    "gradient_correction" => GradientCorrection(),
+    "no_correction" => Nothing(),
+    "shepard_kernel_correction" => ShepardKernelCorrection(),
+    "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
+    "kernel_gradient_summation_correction" => KernelGradientCorrection(),
+    "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
+    "blended_gradient_summation_correction" => BlendedGradientCorrection(0.5),
+    "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.5),
 )
 
 density_calculator_dict = Dict(
@@ -32,15 +29,26 @@ density_calculator_dict = Dict(
     "akinci_free_surf_correction" => SummationDensity(),
     "kernel_gradient_summation_correction" => SummationDensity(),
     "kernel_gradient_continuity_correction" => ContinuityDensity(),
-    "gradient_correction" => SummationDensity(),
+    "blended_gradient_summation_correction" => SummationDensity(),
+    "blended_gradient_continuity_correction" => ContinuityDensity(),
 )
 
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-#               fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
-#               boundary_density_calculator=ContinuityDensity(),
-#               fluid_density_calculator=ContinuityDensity(),
-#               correction=Nothing(), use_reinit=true,
-#               file_prefix="continuity_reinit", tspan=tspan)
+smoothing_kernel_dict = Dict(
+    "no_correction" => SchoenbergCubicSplineKernel{2}(),
+    "shepard_kernel_correction" => SchoenbergCubicSplineKernel{2}(),
+    "akinci_free_surf_correction" => SchoenbergCubicSplineKernel{2}(),
+    "kernel_gradient_summation_correction" => SchoenbergCubicSplineKernel{2}(),
+    "kernel_gradient_continuity_correction" => SchoenbergCubicSplineKernel{2}(),
+    "blended_gradient_summation_correction" => SchoenbergQuinticSplineKernel{2}(),
+    "blended_gradient_continuity_correction" => SchoenbergQuinticSplineKernel{2}(),
+)
+
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
+              boundary_density_calculator=ContinuityDensity(),
+              fluid_density_calculator=ContinuityDensity(),
+              correction=Nothing(), use_reinit=true,
+              file_prefix="continuity_reinit", tspan=tspan)
 
 # Clip negative pressure to be able to use `SummationDensity`
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
@@ -50,6 +58,7 @@ state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pr
 for correction_name in keys(correction_dict)
     local fluid_density_calculator = density_calculator_dict[correction_name]
     local correction = correction_dict[correction_name]
+    local smoothing_kernel = smoothing_kernel_dict[correction_name]
 
     println("="^100)
     println("fluid/dam_break_2d.jl with ", correction_name)
@@ -60,6 +69,6 @@ for correction_name in keys(correction_dict)
                   boundary_density_calculator=boundary_density_calculator,
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
-                  state_equation=state_equation,
+                  state_equation=state_equation, smoothing_kernel = smoothing_kernel,
                   file_prefix="$(correction_name)", tspan=tspan)
 end
