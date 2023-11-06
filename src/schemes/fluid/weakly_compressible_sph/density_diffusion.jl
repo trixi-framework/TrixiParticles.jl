@@ -19,7 +19,7 @@ by an additional term
 \frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
     + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla_{r_a} W(\Vert r_{ab} \Vert, h),
 ```
-where ``V_b = m_b / rho_b`` is the volume of particle ``b`` and ``psi_{ab}`` depends on
+where ``V_b = m_b / \rho_b`` is the volume of particle ``b`` and ``\psi_{ab}`` depends on
 the density diffusion formulation.
 Also, ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
 difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
@@ -145,7 +145,7 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``.
 The symbol ``\nabla\rho^L_a`` denotes the renormalized density gradient defined as
 ```math
-\nabla\rho^L_a = -\sum_b (\rho_a - \rho_a) V_b L_a \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
+\nabla\rho^L_a = -\sum_b (\rho_a - \rho_b) V_b L_a \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
 ```
 with
 ```math
