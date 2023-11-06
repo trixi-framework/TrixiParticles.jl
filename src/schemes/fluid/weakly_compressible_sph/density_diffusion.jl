@@ -188,6 +188,8 @@ struct DensityDiffusionAntuono{NDIMS, ELTYPE} <: DensityDiffusion
     end
 end
 
+@inline Base.ndims(::DensityDiffusionAntuono{NDIMS}) where {NDIMS} = NDIMS
+
 function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
     @nospecialize density_diffusion # reduce precompilation time
 
