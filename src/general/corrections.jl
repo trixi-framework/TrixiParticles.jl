@@ -263,8 +263,8 @@ aiming to make the corrected gradient more accurate, especially near domain boun
 struct GradientCorrection end
 
 function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
-                                             coordinates)
-    (; mass, material_density) = system
+                                             coordinates, density_fun)
+    (; mass) = system
 
     set_zero!(corr_matrix)
 
@@ -273,12 +273,11 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
                           coordinates, coordinates,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
-                                                             pos_diff,
-                                                             distance
+                                                             pos_diff, distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
-        volume = mass[neighbor] / material_density[neighbor]
+        volume = mass[neighbor] / density_fun(neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
         result = volume * grad_kernel * pos_diff'
@@ -289,8 +288,13 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
     end
 
     @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
+        L = extract_smatrix(corr_matrix, system, particle)
         result = inv(L)
+
+        if any(isinf.(result)) || any(isnan.(result))
+            # TODO How do we handle singularities correctly?
+            result = one(L)
+        end
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             corr_matrix[i, j, particle] = result[i, j]

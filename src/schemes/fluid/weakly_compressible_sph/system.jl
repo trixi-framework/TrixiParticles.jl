@@ -25,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -34,15 +34,16 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     state_equation     :: SE
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
+    viscosity          :: V
+    density_diffusion  :: DD
     correction         :: COR
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
-                                         viscosity=NoViscosity(),
+                                         viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing)
@@ -74,12 +75,12 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
                  cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure,
                      density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, cache)
+                     smoothing_kernel, smoothing_length, acceleration_, viscosity,
+                     density_diffusion, correction, cache)
     end
 end
 
@@ -159,9 +160,13 @@ initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
-    (; density_calculator) = system
+    (; density_calculator, density_diffusion) = system
 
     compute_density!(system, system_index, u, u_ode, semi, density_calculator)
+
+    nhs = semi.neighborhood_searches[system_index][system_index]
+    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
+                                                             system, semi)
 
     return system
 end
