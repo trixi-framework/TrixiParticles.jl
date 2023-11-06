@@ -229,6 +229,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
