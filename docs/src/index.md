@@ -81,6 +81,12 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ```
 
+#### File density_diffusion.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffusion.jl")]
+```
+
 ### Entropically Damped Artificial Compressibility for SPH
 
 #### File system.jl

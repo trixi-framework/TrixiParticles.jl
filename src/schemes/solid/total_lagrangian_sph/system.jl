@@ -26,7 +26,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
 ```
 with
 ```math
-\bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
+\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
 ```
 The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
