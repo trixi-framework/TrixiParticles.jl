@@ -293,6 +293,7 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
 
         if any(isinf.(result)) || any(isnan.(result))
             # TODO How do we handle singularities correctly?
+            # See https://github.com/trixi-framework/TrixiParticles.jl/issues/273
             result = one(L)
         end
 
