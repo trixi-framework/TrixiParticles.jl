@@ -9,11 +9,7 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
-# ==== Example Setup
-
-gravity = 9.81
-tspan = (0.0, 5.7 / sqrt(gravity))
-
+# ==== Resolution
 fluid_particle_spacing = 0.02
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -22,10 +18,14 @@ spacing_ratio = 1
 
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
+# ==========================================================================================
+# ==== Experiment Setup
+gravity = 9.81
+tspan = (0.0, 5.7 / sqrt(gravity))
+
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 1.0)
 tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
-
 
 fluid_density = 1000.0
 atmospheric_pressure = 100000.0
