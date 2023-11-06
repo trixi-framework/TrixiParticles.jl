@@ -149,7 +149,7 @@ The symbol ``\nabla\rho^L_a`` denotes the renormalized density gradient defined 
 ```
 with
 ```math
-L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla_{r_a} W(r_{ab}) \right)^{-1} \in \R^{d \times d},
+L_a := \left( -\sum_{b} V_b r_{ab} \otimes \nabla_{r_a} W(\Vert r_{ab} \Vert, h) \right)^{-1} \in \R^{d \times d},
 ```
 where ``d`` is the number of dimensions.
 
