@@ -5,7 +5,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "initial_condition.jl")]
 ```
 
-# Setups
+## Setups
 
 ```@autodocs
 Modules = [TrixiParticles]
