@@ -9,10 +9,10 @@ resulting in reduced surface tension and viscosity forces.
 The free surface correction adjusts the viscosity, pressure, and surface tension forces
 near free surfaces to counter this effect.
 It's important to note that this correlation is unphysical and serves as an approximation.
-The computation time added by this method is about 2-3%.
+The computation time added by this method is about 2--3%.
 
 # Arguments
-- `rho0`: Reference density.
+- `rho0`: Rest density.
 
 ## References
 - Akinci, N., Akinci, G., & Teschner, M. (2013).
@@ -52,11 +52,12 @@ was first proposed by Li et al.
 
 The kernel correction coefficient is determined by
 ```math
-c(x) = \sum_{b=1}^{N} V_b W_b(x)
+c(x) = \sum_{b=1} V_b W_b(x),
 ```
+where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
 This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
-to an improvement especially for free surfaces.
+to an improvement, especially at free surfaces.
 
 !!! note
     - It is also referred to as "0th order correction".
@@ -88,16 +89,16 @@ as shown by Basa et al.
 
 The kernel correction coefficient is determined by
 ```math
-c(x) = \sum_{b=1}^{N} V_b W_b(x)
+c(x) = \sum_{b=1} V_b W_b(x)
 ```
 The gradient of corrected kernel is determined by
 ```math
-\nabla \tilde{W}_{b}(\vec{r}) =\frac{\nabla W_{b}(\vec{r}) - \gamma(\vec{r})}{\sum_{b=1}^{N} V_b W_b(\vec{r})} , \quad  \text{where} \:\:
-\gamma(\vec{r}) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(\vec{r})}{\sum_{b=1}^{N} V_b W_b(\vec{r})}
+\nabla \tilde{W}_{b}(r) =\frac{\nabla W_{b}(r) - \gamma(r)}{\sum_{b=1} V_b W_b(r)} , \quad  \text{where} \quad
+\gamma(r) = \frac{\sum_{b=1} V_b \nabla W_b(r)}{\sum_{b=1} V_b W_b(r)}.
 ```
 
 This correction can be applied with [`SummationDensity`](@ref) and
-[`ContinuityDensity`](@ref) which leads to an improvement, especially for free surfaces.
+[`ContinuityDensity`](@ref), which leads to an improvement, especially at free surfaces.
 
 !!! note
     - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
@@ -230,33 +231,29 @@ Compute the corrected gradient of particle interactions based on their relative 
 # Mathematical Details
 
 Given the standard SPH representation, the gradient of a field ``A`` at particle ``a`` is
-given by:
+given by
 
 ```math
-\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
 ```
-
-Where:
-- ``m_b`` is the mass of particle ``b``.
-- ``\rho_b`` is the density of particle ``b``.
+where ``m_b`` is the mass of particle ``b`` and ``\rho_b`` is the density of particle ``b``.
 
 The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix $L$:
 
 ```math
-\tilde{\nabla} A_i = \bm{L}_i \nabla A_i
+\tilde{\nabla} A_a = \bm{L}_a \nabla A_a
 ```
 
-The correction matrix  $\bm{L}_i$ is computed based on the provided particle configuration,
+The correction matrix  $\bm{L}_a$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
 
 To satisfy
 ```math
-\sum_b V_b \vec{r}_{ba} \otimes \tilde{\nabla}W_b(\vec{r}_a) = \left( \sum_b V_b \vec{r}_{ba} \otimes \nabla W_b(\vec{r}_a) \right) \bm{L}_a^T = \bm{I}
+\sum_b V_b r_{ba} \otimes \tilde{\nabla}W_b(r_a) = \left( \sum_b V_b r_{ba} \otimes \nabla W_b(r_a) \right) \bm{L}_a^T = \bm{I}
 ```
 the correction matrix $\bm{L}_a$ is evaluated explicitly as
 ```math
-\bm{L}_a = \left( \sum_b V_b \nabla W_b(\vec{r}_{a}) \otimes \vec{r}_{ba} \right)^{-1}.
-
+\bm{L}_a = \left( \sum_b V_b \nabla W_b(r_{a}) \otimes r_{ba} \right)^{-1}.
 ```
 
 !!! note
