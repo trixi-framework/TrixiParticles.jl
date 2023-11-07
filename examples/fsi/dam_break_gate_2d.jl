@@ -10,11 +10,11 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-
-# Note that the effect of the gate is less pronounced with lower resolutions,
-# since "larger" particles don't fit through the slightly opened gate.
-# Lower resolutions thereforce cause a later and more violent fluid impact against the gate.
+# Note that the effect of the gate is less pronounced with lower fluid resolutions,
+# since "larger" particles don't fit through the slightly opened gate. Lower fluid
+# resolutions thereforce cause a later and more violent fluid impact against the gate.
 fluid_particle_spacing = 0.02
+n_particles_x = 5
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -65,6 +65,12 @@ solid_density = 1161.54
 E = 3.5e6
 nu = 0.45
 
+# The structure starts at the position of the first particle and ends
+# at the position of the last particle.
+solid_particle_spacing = thickness / (n_particles_x - 1)
+
+n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
+
 # The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
 # first particle half a particle spacing away from the boundary, which is correct for fluids,
 # but not for solids. We therefore need to pass `tlsph=true`.
@@ -112,21 +118,14 @@ boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gat
 
 # ==========================================================================================
 # ==== Solid
-n_particles_x = 5
-
-# The structure starts at the position of the first particle and ends
-# at the position of the last particle.
-solid_particle_spacing = thickness / (n_particles_x - 1)
-
 solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
-
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-k_solid = 9.81 * initial_fluid_size[2]
+k_solid = gravity * initial_fluid_size[2]
 beta_solid = fluid_particle_spacing / solid_particle_spacing
 boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
                                                    solid_particle_spacing,

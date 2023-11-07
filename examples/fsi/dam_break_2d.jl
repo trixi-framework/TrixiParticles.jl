@@ -11,6 +11,7 @@ using OrdinaryDiffEq
 # ==========================================================================================
 # ==== Resolution
 fluid_particle_spacing = 0.01
+n_particles_x = 5
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -44,6 +45,25 @@ solid_density = 2500
 E = 1e6
 nu = 0.0
 
+# The structure starts at the position of the first particle and ends
+# at the position of the last particle.
+solid_particle_spacing = thickness / (n_particles_x - 1)
+
+n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
+
+# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
+# first particle half a particle spacing away from the boundary, which is correct for fluids,
+# but not for solids. We therefore need to pass `tlsph=true`.
+plate = RectangularShape(solid_particle_spacing,
+                         (n_particles_x, n_particles_y - 1),
+                         (2initial_fluid_size[1], solid_particle_spacing), solid_density,
+                         tlsph=true)
+fixed_particles = RectangularShape(solid_particle_spacing,
+                                   (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
+                                   solid_density, tlsph=true)
+
+solid = union(plate, fixed_particles)
+
 # ==========================================================================================
 # ==== Fluid
 smoothing_length = 1.2 * fluid_particle_spacing
@@ -69,31 +89,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-n_particles_x = 5
-
-# The structure starts at the position of the first particle and ends
-# at the position of the last particle.
-solid_particle_spacing = thickness / (n_particles_x - 1)
-
 solid_smoothing_length = sqrt(2) * solid_particle_spacing
 solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-n_particles_per_dimension = (n_particles_x,
-                             round(Int, length_beam / solid_particle_spacing) + 1)
-
-# The bottom layer is sampled separately below. Note that the `RectangularShape` puts the
-# first particle half a particle spacing away from the boundary, which is correct for fluids,
-# but not for solids. We therefore need to pass `tlsph=true`.
-plate = RectangularShape(solid_particle_spacing,
-                         (n_particles_per_dimension[1], n_particles_per_dimension[2] - 1),
-                         (2initial_fluid_size[1], solid_particle_spacing), solid_density,
-                         tlsph=true)
-fixed_particles = RectangularShape(solid_particle_spacing,
-                                   (n_particles_per_dimension[1], 1),
-                                   (2initial_fluid_size[1], 0.0),
-                                   solid_density, tlsph=true)
-
-solid = union(plate, fixed_particles)
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -119,10 +116,9 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu,
+                                        E, nu, boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
                                         acceleration=(0.0, -gravity),
-                                        boundary_model_solid,
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 # ==========================================================================================

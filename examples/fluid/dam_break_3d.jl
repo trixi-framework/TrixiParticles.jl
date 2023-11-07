@@ -32,7 +32,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * particle_spacing
+smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
