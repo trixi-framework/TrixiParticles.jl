@@ -33,6 +33,12 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "smoothing_kernels.jl")]
 ```
 
+### File corrections.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "corrections.jl")]
+```
+
 ## Neighborhood Search
 
 ```@autodocs

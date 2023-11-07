@@ -26,7 +26,7 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 alpha = 0.02
-viscosity = ViscosityAdami(alpha * smoothing_length * sound_speed / 8)
+viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
 
 tank = RectangularTank(particle_spacing, (water_width, water_height),
                        (tank_width, tank_height), water_density,

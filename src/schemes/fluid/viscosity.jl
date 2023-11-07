@@ -7,7 +7,7 @@ struct NoViscosity end
 end
 
 @doc raw"""
-    ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
+    ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
 
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
@@ -55,7 +55,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta; epsilon=0.01)
+    function ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -101,7 +101,7 @@ end
 end
 
 @doc raw"""
-    ViscosityAdami(nu)
+    ViscosityAdami(; nu)
 
 Viscosity by Adami (Adami et al. 2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
@@ -127,10 +127,8 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
-# Arguments
-- `nu`: Kinematic viscosity
-
 # Keywords
+- `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
 ## References:
@@ -145,7 +143,7 @@ struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityAdami(nu; epsilon=0.01)
+    function ViscosityAdami(; nu, epsilon=0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
