@@ -63,7 +63,7 @@
 > [Michael Schlottke-Lakemper](mailto:m.schlottke-lakemper@acom.rwth-aachen.de),
 > [Sven Berger](mailto:sven.berger@hereon.de),
 > or any other of the principal developers responsible for enforcement listed in
-> [AUTHORS.md](AUTHORS.md).
+> [Authors](@ref).
 > All complaints will be reviewed and investigated promptly and fairly.
 >
 > All community leaders are obligated to respect the privacy and security of the
@@ -120,7 +120,7 @@
 > This Code of Conduct is adapted from the [Contributor Covenant][homepage],
 > version 2.0, available at
 > https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
-> 
+>
 > Community Impact Guidelines were inspired by [Mozilla's code of conduct
 > enforcement ladder](https://github.com/mozilla/diversity).
 >
