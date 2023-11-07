@@ -42,7 +42,7 @@ state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pr
 
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,

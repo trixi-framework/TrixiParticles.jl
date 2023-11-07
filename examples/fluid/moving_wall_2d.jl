@@ -25,7 +25,7 @@ sound_speed = 10 * sqrt(9.81 * water_height)
 state_equation = StateEquationCole(sound_speed, 7, water_density, 100_000.0,
                                    background_pressure=100_000.0)
 
-viscosity = ArtificialViscosityMonaghan(0.1, 0.0)
+viscosity = ArtificialViscosityMonaghan(alpha=0.1, beta=0.0)
 
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
