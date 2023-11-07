@@ -115,9 +115,9 @@ end
 
 @inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
 
-function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
+function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    summation_density!(system, system_index, semi, u, u_ode, system.density)
+    summation_density!(system, semi, u, u_ode, system.density)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)

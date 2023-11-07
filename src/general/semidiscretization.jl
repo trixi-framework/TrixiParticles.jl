@@ -13,6 +13,7 @@ semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=Gri
 """
 struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
+    system_indices        :: Dict{System, Int}
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
@@ -22,6 +23,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
+        system_indices = Dict(systems[i] => i for i in eachindex(systems))
+
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -45,7 +48,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
+            typeof(searches), typeof(damping_coefficient)}(systems, system_indices,
+                                                           ranges_u, ranges_v,
                                                            searches, damping_coefficient)
     end
 end
@@ -130,13 +134,19 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function neighborhood_searches(system, neighbor_system, semi)
+    (; system_indices, neighborhood_searches) = semi
+
+    return neighborhood_searches[system_indices[system]][system_indices[neighbor_system]]
+end
+
 """
     semidiscretize(semi, tspan)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 """
 function semidiscretize(semi, tspan; reset_threads=true)
-    (; systems, neighborhood_searches) = semi
+    (; systems) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]),
                 systems)
@@ -151,9 +161,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
-        for (system_index, system) in pairs(systems)
+        foreach(systems) do system
             # Get the neighborhood search for this system
-            neighborhood_search = neighborhood_searches[system_index][system_index]
+            neighborhood_search = neighborhood_searches(system, system, semi)
 
             # Initialize this system
             initialize!(system, neighborhood_search)
@@ -167,9 +177,9 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
-    for (system_index, system) in pairs(systems)
-        u0_system = wrap_u(u0_ode, system_index, system, semi)
-        v0_system = wrap_v(v0_ode, system_index, system, semi)
+    foreach(systems) do system
+        u0_system = wrap_u(u0_ode, system, semi)
+        v0_system = wrap_v(v0_ode, system, semi)
 
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
@@ -200,9 +210,9 @@ function restart_with!(semi, sol; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(sol[end].x[1], system_index, system, semi)
-        u = wrap_u(sol[end].x[2], system_index, system, semi)
+    foreach(systems) do system
+        v = wrap_v(sol[end].x[1], system, semi)
+        u = wrap_u(sol[end].x[2], system, semi)
 
         restart_with!(system, v, u)
     end
@@ -212,15 +222,12 @@ end
 
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_u(u_ode, i, system, semi)
-    (; ranges_u) = semi
+@inline function wrap_u(u_ode, system, semi)
+    (; system_indices, ranges_u) = semi
 
-    range = ranges_u[i]
+    range = ranges_u[system_indices[system]]
 
-    @boundscheck begin
-        @assert length(range) ==
-                u_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
@@ -229,10 +236,10 @@ end
                     (StaticInt(u_nvariables(system)), n_moving_particles(system)))
 end
 
-@inline function wrap_v(v_ode, i, system, semi)
-    (; ranges_v) = semi
+@inline function wrap_v(v_ode, system, semi)
+    (; system_indices, ranges_v) = semi
 
-    range = ranges_v[i]
+    range = ranges_v[system_indices[system]]
 
     @boundscheck begin
         @assert length(range) ==
@@ -251,9 +258,9 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-            foreach_enumerate(systems) do (system_index, system)
-                du = wrap_u(du_ode, system_index, system, semi)
-                v = wrap_v(v_ode, system_index, system, semi)
+            foreach(systems) do system
+                du = wrap_u(du_ode, system, semi)
+                v = wrap_v(v_ode, system, semi)
 
                 @threaded for particle in each_moving_particle(system)
                     # This can be dispatched per system
@@ -299,11 +306,11 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach(systems) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_positions!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Update NHS
@@ -313,38 +320,38 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach(systems) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach(systems) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        update_pressure!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach(systems) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
+        update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 end
 
 function update_nhs(u_ode, semi)
-    (; systems, neighborhood_searches) = semi
+    (; systems) = semi
 
     # Update NHS for each pair of systems
-    foreach_enumerate(systems) do (system_index, system)
-        foreach_enumerate(systems) do (neighbor_index, neighbor)
-            u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
-            neighborhood_search = neighborhood_searches[system_index][neighbor_index]
+    foreach(systems) do system
+        foreach(systems) do neighbor
+            u_neighbor = wrap_u(u_ode, neighbor, semi)
+            neighborhood_search = neighborhood_searches(system, neighbor, semi)
 
             update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
         end
@@ -355,9 +362,9 @@ function gravity_and_damping!(dv_ode, v_ode, semi)
     (; systems, damping_coefficient) = semi
 
     # Set velocity and add acceleration for each system
-    foreach_enumerate(systems) do (system_index, system)
-        dv = wrap_v(dv_ode, system_index, system, semi)
-        v = wrap_v(v_ode, system_index, system, semi)
+    foreach(systems) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
 
         @threaded for particle in each_moving_particle(system)
             # This can be dispatched per system
@@ -395,28 +402,38 @@ end
 @inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    (; systems, neighborhood_searches) = semi
+    (; systems, system_indices) = semi
 
     # Call `interact!` for each pair of systems
-    foreach_enumerate(systems) do (system_index, system)
-        dv = wrap_v(dv_ode, system_index, system, semi)
-        v_system = wrap_v(v_ode, system_index, system, semi)
-        u_system = wrap_u(u_ode, system_index, system, semi)
+    foreach(systems) do system
 
-        foreach_enumerate(systems) do (neighbor_index, neighbor)
-            v_neighbor = wrap_v(v_ode, neighbor_index, neighbor, semi)
-            u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
-            neighborhood_search = neighborhood_searches[system_index][neighbor_index]
+        foreach(systems) do neighbor
 
-            timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            @trixi_timeit timer() timer_str begin
-                interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                          neighborhood_search, system, neighbor)
-            end
         end
     end
 
     return dv_ode
+end
+
+# Function barrier to make benchmarking interactions easier
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+    (; system_indices) = semi
+
+    dv = wrap_v(dv_ode, system, semi)
+    v_system = wrap_v(v_ode, system, semi)
+    u_system = wrap_u(u_ode, system, semi)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi)
+    u_neighbor = wrap_u(u_ode, neighbor, semi)
+    nhs = neighborhood_searches(system, neighbor, semi)
+
+    system_index = system_indices[system]
+    neighbor_index = system_indices[neighbor]
+    timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+
+    @trixi_timeit timer() timer_str begin
+        interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+    end
 end
 
 # NHS updates
@@ -485,7 +502,7 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    foreach_enumerate(systems) do (system_index, system)
+    foreach(systems) do system
         check_configuration(system, systems)
     end
 end
@@ -495,7 +512,7 @@ check_configuration(system, systems) = nothing
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
 
-    foreach_enumerate(systems) do (neighbor_index, neighbor)
+    foreach(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)

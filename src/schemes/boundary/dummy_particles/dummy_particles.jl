@@ -358,11 +358,10 @@ end
 end
 
 @inline function update_density!(boundary_model::BoundaryModelDummyParticles,
-                                 system, system_index, v, u, v_ode, u_ode, semi)
+                                 system, v, u, v_ode, u_ode, semi)
     (; density_calculator) = boundary_model
 
-    compute_density!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
-                     u_ode, semi)
+    compute_density!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end
@@ -370,33 +369,31 @@ end
 function compute_density!(boundary_model,
                           ::Union{ContinuityDensity, AdamiPressureExtrapolation,
                                   PressureMirroring, PressureZeroing},
-                          system, system_index, v, u, v_ode, u_ode, semi)
+                          system, v, u, v_ode, u_ode, semi)
     # No density update for `ContinuityDensity`, `PressureMirroring` and `PressureZeroing`.
     # For `AdamiPressureExtrapolation`, the density is updated in `compute_pressure!`.
     return boundary_model
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
-                                  system, system_index, v, u, v_ode, u_ode, semi)
+                                  system, v, u, v_ode, u_ode, semi)
     (; density_calculator) = boundary_model
 
-    compute_pressure!(boundary_model, density_calculator, system, system_index, v, u, v_ode,
-                      u_ode, semi)
+    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
 end
 
 function compute_density!(boundary_model, ::SummationDensity,
-                          system, system_index, v, u, v_ode, u_ode, semi)
+                          system, v, u, v_ode, u_ode, semi)
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, system_index, semi, u, u_ode, density,
-                       particles=eachparticle(system))
+    summation_density!(system, semi, u, u_ode, density, particles=eachparticle(system))
 end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
-                           system, system_index, v, u, v_ode, u_ode, semi)
+                           system, v, u, v_ode, u_ode, semi)
     (; state_equation, pressure) = boundary_model
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
@@ -410,8 +407,8 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
 end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
-                           system, system_index, v, u, v_ode, u_ode, semi)
-    (; systems, neighborhood_searches) = semi
+                           system, v, u, v_ode, u_ode, semi)
+    (; systems) = semi
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
@@ -423,20 +420,17 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     system_coords = current_coordinates(u, system)
 
     # Use all other systems for the pressure extrapolation
-    @trixi_timeit timer() "compute boundary pressure" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                     neighbor_system)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index,
-                                   neighbor_system, semi)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index,
-                                   neighbor_system, semi)
+    @trixi_timeit timer() "compute boundary pressure" foreach(systems) do neighbor_system
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        nhs = neighborhood_searches(system, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
                                       system_coords, neighbor_coords,
-                                      v_neighbor_system, neighborhood_search)
+                                      v_neighbor_system, nhs)
     end
 
     for particle in eachparticle(system)
@@ -457,7 +451,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
 end
 
 function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},
-                           system, system_index, v, u, v_ode, u_ode, semi)
+                           system, v, u, v_ode, u_ode, semi)
     # No pressure update needed with `PressureMirroring` and `PressureZeroing`.
     return boundary_model
 end

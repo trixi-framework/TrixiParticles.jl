@@ -257,8 +257,7 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
                                         initial_coords)
 end
 
-function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                           v_ode, u_ode, semi, t)
+function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
     for particle in each_moving_particle(system)
@@ -268,24 +267,19 @@ function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
     end
 end
 
-function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                            v_ode, u_ode, semi, t)
-    (; neighborhood_searches) = semi
-
+function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    neighborhood_search = neighborhood_searches[system_index][system_index]
-    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 system)
+    nhs = neighborhood_searches(system, system, semi)
+    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(nhs, system)
 
     return system
 end
 
-function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                       semi, t)
+function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
     # Only update boundary model
-    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, system)
