@@ -5,7 +5,12 @@ trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy list of authors to not need to synchronize it manually
 authors_text = read(joinpath(trixiparticles_root_dir, "AUTHORS.md"), String)
-authors_text = replace(authors_text,
+header = """
+```@meta
+EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/AUTHORS.md"
+```
+"""
+authors_text = header * replace(authors_text,
                        "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
 write(joinpath(@__DIR__, "src", "authors.md"), authors_text)
 
@@ -24,9 +29,12 @@ makedocs(sitename="TrixiParticles.jl",
                      "Util" => joinpath("general", "util.md"),
                  ],
                  "Systems" => [
-                     "Weakly Compressible SPH (Fluid)" => joinpath("systems", "weakly_compressible_sph.md"),
-                     "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems", "entropically_damped_sph.md"),
-                     "Total Lagrangian SPH (Elastic Solid)" => joinpath("systems", "total_lagrangian_sph.md"),
+                     "Weakly Compressible SPH (Fluid)" => joinpath("systems",
+                                                                   "weakly_compressible_sph.md"),
+                     "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
+                                                                                                  "entropically_damped_sph.md"),
+                     "Total Lagrangian SPH (Elastic Solid)" => joinpath("systems",
+                                                                        "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md"),
                  ],
                  "Time integration" => "time_integration.md",
@@ -34,6 +42,6 @@ makedocs(sitename="TrixiParticles.jl",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
-             #  "Code of Conduct" => "code_of_conduct.md",
+             "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
          ])
