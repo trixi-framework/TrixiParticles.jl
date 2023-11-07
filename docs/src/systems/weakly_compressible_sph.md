@@ -24,3 +24,10 @@ TODO: Explain viscosity.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
 ```
+
+## Corrections
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "corrections.jl")]
+```
