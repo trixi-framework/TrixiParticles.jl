@@ -31,7 +31,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               boundary_density_calculator=ContinuityDensity(),
               fluid_density_calculator=ContinuityDensity(),
               correction=Nothing(), use_reinit=true,
-              file_prefix="continuity_reinit", tspan=tspan)
+              prefix="continuity_reinit", tspan=tspan)
 
 # Clip negative pressure to be able to use `SummationDensity`
 state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
@@ -52,5 +52,5 @@ for correction_name in keys(correction_dict)
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
                   state_equation=state_equation,
-                  file_prefix="$(correction_name)", tspan=tspan)
+                  prefix="$(correction_name)", tspan=tspan)
 end

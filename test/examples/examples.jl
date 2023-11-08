@@ -13,7 +13,7 @@
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
                                                 "rectangular_tank_2d.jl"), tspan=(0.0, 0.1),
-                                       density_calculator=SummationDensity(),
+                                       fluid_density_calculator=SummationDensity(),
                                        clip_negative_pressure=true)
             @test sol.retcode == ReturnCode.Success
         end
@@ -44,7 +44,7 @@
         @trixi_testset "fluid/dam_break_3d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
-                                       tspan=(0.0, 0.1))
+                                       tspan=(0.0, 0.1), fluid_particle_spacing=0.1)
             @test sol.retcode == ReturnCode.Success
         end
 
@@ -87,9 +87,7 @@
             # Use rounded dimensions to avoid warnings
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fsi", "dam_break_2d.jl"),
-                                       water_width=0.15,
-                                       water_height=0.29,
-                                       tank_width=0.58,
+                                       initial_fluid_size=(0.15, 0.29),
                                        tspan=(0.0, 0.4),
                                        dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success
