@@ -567,7 +567,8 @@ end
     derivative = term1 + term2
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h, zero(derivative))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h,
+                    zero(derivative))
 
     return result
 end
@@ -612,7 +613,7 @@ struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
     q = r / h
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) *(1 - q^2)^3, zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q^2)^3, zero(q))
 
     return result
 end
@@ -622,8 +623,9 @@ end
     q = r * inner_deriv
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -6 * q * (1 - q^2)^2 * normalization_factor(kernel, h) * inner_deriv,
-    zero(q))
+    result = ifelse(q < 1,
+                    -6 * q * (1 - q^2)^2 * normalization_factor(kernel, h) * inner_deriv,
+                    zero(q))
     return result
 end
 
