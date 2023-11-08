@@ -25,7 +25,7 @@ TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    write_meta_data=true, custom_quantities...)
-    (; systems, system_indices) = semi
+    (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -36,7 +36,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
                  for i in eachindex(cnames)]
 
     foreach(systems) do system
-        system_index = system_indices[system]
+        system_index = system_indices(system, semi)
 
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)

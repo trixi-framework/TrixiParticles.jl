@@ -13,7 +13,6 @@ semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=Gri
 """
 struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
-    system_indices        :: Dict{System, Int}
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
@@ -23,8 +22,6 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
-        system_indices = Dict(systems[i] => i for i in eachindex(systems))
-
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -48,8 +45,7 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, system_indices,
-                                                           ranges_u, ranges_v,
+            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
                                                            searches, damping_coefficient)
     end
 end
@@ -135,9 +131,22 @@ end
 end
 
 @inline function neighborhood_searches(system, neighbor_system, semi)
-    (; system_indices, neighborhood_searches) = semi
+    (; neighborhood_searches) = semi
 
-    return neighborhood_searches[system_indices[system]][system_indices[neighbor_system]]
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor_system, semi)
+
+    return neighborhood_searches[system_index][neighbor_index]
+end
+
+@inline function system_indices(system, semi)
+    index = findfirst(==(system), semi.systems)
+
+    if isnothing(index)
+        throw(ArgumentError("system is not in the semidiscretization"))
+    end
+
+    return index
 end
 
 """
@@ -223,9 +232,9 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, system, semi)
-    (; system_indices, ranges_u) = semi
+    (; ranges_u) = semi
 
-    range = ranges_u[system_indices[system]]
+    range = ranges_u[system_indices(system, semi)]
 
     @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
 
@@ -237,9 +246,9 @@ end
 end
 
 @inline function wrap_v(v_ode, system, semi)
-    (; system_indices, ranges_v) = semi
+    (; ranges_v) = semi
 
-    range = ranges_v[system_indices[system]]
+    range = ranges_v[system_indices(system, semi)]
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
@@ -399,7 +408,7 @@ end
 @inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
-    (; systems, system_indices) = semi
+    (; systems) = semi
 
     # Call `interact!` for each pair of systems
     foreach(systems) do system
@@ -413,8 +422,6 @@ end
 
 # Function barrier to make benchmarking interactions easier
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
-    (; system_indices) = semi
-
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
@@ -423,8 +430,8 @@ end
     u_neighbor = wrap_u(u_ode, neighbor, semi)
     nhs = neighborhood_searches(system, neighbor, semi)
 
-    system_index = system_indices[system]
-    neighbor_index = system_indices[neighbor]
+    system_index = system_indices(system, semi)
+    neighbor_index = system_indices(neighbor, semi)
     timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
 
     @trixi_timeit timer() timer_str begin
