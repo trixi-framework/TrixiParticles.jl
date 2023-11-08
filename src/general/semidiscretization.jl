@@ -241,10 +241,7 @@ end
 
     range = ranges_v[system_indices[system]]
 
-    @boundscheck begin
-        @assert length(range) ==
-                v_nvariables(system) * n_moving_particles(system)
-    end
+    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
