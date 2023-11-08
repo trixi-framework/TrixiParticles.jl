@@ -406,9 +406,8 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
 
     # Call `interact!` for each pair of systems
     foreach(systems) do system
-
         foreach(systems) do neighbor
-
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
         end
     end
 
