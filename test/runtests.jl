@@ -7,7 +7,7 @@ const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
         include("unittest.jl")
     end
 
-    # if TRIXIPARTICLES_TEST in ("all", "examples")
-    #     include("examples/examples.jl")
-    # end
+    if TRIXIPARTICLES_TEST in ("all", "examples")
+        include("examples/examples.jl")
+    end
 end;

@@ -62,16 +62,20 @@ end
 
 Gaussian kernel given by
 ```math
-W(r, h) = \frac{\sigma_d}{h^d} e^{-\frac{r^2}{h^2}}
+W(r, h) = \frac{\sigma_d}{h^d} e^{-r^2/h^2}
 ```
 
-where d is the number of dimensions and
+where ``d`` is the number of dimensions and
 
-- \( \sigma_2 = \frac{1}{\pi} \) for 2D
-- \( \sigma_3 = \frac{1}{\pi^{3/2}} \) for 3D
+- `` \sigma_2 = \frac{1}{\pi} `` for 2D
+- `` \sigma_3 = \frac{1}{\pi^{3/2}} `` for 3D
 
 This kernel function has an infinite support, but in practice,
-it's often truncated at a certain multiple of h, such as 3h.
+it's often truncated at a certain multiple of ``h``, such as ``3h``.
+
+In this implementation, the kernel is truncated at `3h`,
+so this kernel function has a compact support of ``[0, 3h]``.
+
 Note:
 This truncation makes this Kernel not conservative,
 which is beneficial in regards to stability but makes it less accurate.
@@ -127,9 +131,9 @@ This kernel function has a compact support of ``[0, 2h]``.
 For an overview of Schoenberg cubic, quartic and quintic spline kernels including
 normalization factors, see (Price, 2012).
 For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985).
-
-The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
+The largest disadvantage of Schoenberg Spline Kernel is the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
+
 For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
@@ -373,18 +377,19 @@ end
 @inline normalization_factor(::SchoenbergQuinticSplineKernel{3}, h) = 1 / (120 * pi * h^3)
 
 abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
+
 # Compact support for all Wendland kernels
 @inline compact_support(::WendlandKernel, h) = h
 
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
 
-Wendland C2 kernel, a piecewise polynomial function designed to have compact support and to
-be twice continuously differentiable everywhere. Given by:
+Wendland C2 kernel (Wendland, 1995), a piecewise polynomial function designed to have compact support and to
+be twice continuously differentiable everywhere. Given by
 
 \[ W(r, h) = \frac{1}{h^d} w(r/h) \]
 
-with:
+with
 
 \[
 w(q) = \sigma \begin{cases}
@@ -393,17 +398,25 @@ w(q) = \sigma \begin{cases}
 \end{cases}
 \]
 
-where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent on the dimension.
-The normalization factor \( \sigma \) is \( 40/7\pi \) in two dimensions or \( 21/2\pi \) in three dimensions.
+where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent on the dimension.
+The normalization factor `` \sigma `` is `` 40/7\pi `` in two dimensions or `` 21/2\pi `` in three dimensions.
 
-This kernel function has a compact support of \( [0, h] \).
+This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
-The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
 ## References:
-- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+- Walter Dehnen & Hassan Aly.
+"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+
+- Holger Wendland.
+ "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+ In: Advances in computational Mathematics 4 (1995): 389-396.
+ [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
+
 """
 struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -438,30 +451,37 @@ end
     WendlandC4Kernel{NDIMS}()
 
 Wendland C4 kernel, a piecewise polynomial function designed to have compact support and to
-be four times continuously differentiable everywhere. Given by:
+be four times continuously differentiable everywhere. Given by
 
 \[ W(r, h) = \frac{1}{h^d} w(r/h) \]
 
-with:
+with
 
 \[
 w(q) = \sigma \begin{cases}
-    (1 - q)^6 (35q^2 + 18q + 3)    & \text{if } 0 \leq q < 1, \\
-    0                             & \text{if } q \geq 1,
+    (1 - q)^6 * (35q^2 / 3 + 6q + 1)   & \text{if } 0 \leq q < 1, \\
+    0                                  & \text{if } q \geq 1,
 \end{cases}
 \]
 
-where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent
-on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
+on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
 
-This kernel function has a compact support of \( [0, h] \).
+This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
 ## References:
-- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+- Walter Dehnen & Hassan Aly.
+"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+
+- Holger Wendland.
+ "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+ In: Advances in computational Mathematics 4 (1995): 389-396.
+ [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
 """
 struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -504,21 +524,28 @@ with:
 \[
 w(q) = \sigma \begin{cases}
     (1 - q)^8 (32q^3 + 25q^2 + 8q + 1)    & \text{if } 0 \leq q < 1, \\
-    0                                    & \text{if } q \geq 1,
+    0                                     & \text{if } q \geq 1,
 \end{cases}
 \]
 
-where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor dependent
-on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
+on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
 
-This kernel function has a compact support of \( [0, h] \).
+This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
 ## References:
-- Walter Dehnen & Hassan Aly. "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082. [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+- Walter Dehnen & Hassan Aly.
+"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+
+- Holger Wendland.
+ "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+ In: Advances in computational Mathematics 4 (1995): 389-396.
+ [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
 """
 struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -535,12 +562,12 @@ end
 
 @fastpow @muladd @inline function kernel_deriv(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
-    result = -8 * (1 - q)^7
-    result = result * (32q^3 + 25q^2 + 8q + 1)
-    result = result + (1 - q)^8 * (96q^2 + 50q + 8)
+    term1 = -8 * (1 - q)^7 * (32q^3 + 25q^2 + 8q + 1)
+    term2 = (1 - q)^8 * (96q^2 + 50q + 8)
+    derivative = term1 + term2
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * result / h, zero(result))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * derivative / h, zero(derivative))
 
     return result
 end
@@ -551,11 +578,11 @@ end
 @doc raw"""
     Poly6Kernel{NDIMS}()
 
-Poly6 kernel, a commonly used kernel in SPH literature, especially in computer graphics contexts. It is defined as:
+Poly6 kernel, a commonly used kernel in SPH literature, especially in computer graphics contexts. It is defined as
 
 \[ W(r, h) = \frac{1}{h^d} w(r/h) \]
 
-with:
+with
 
 \[
 w(q) = \sigma \begin{cases}
@@ -564,42 +591,39 @@ w(q) = \sigma \begin{cases}
 \end{cases}
 \]
 
-where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor that depends
-on the dimension. The exact value of \( \sigma \) needs to be determined based on the dimension to ensure proper normalization.
+where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor that depends
+on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
 
-This kernel function has a compact support of \( [0, h] \).
+This kernel function has a compact support of `` [0, h] ``.
 
 Poly6 is well-known for its computational simplicity, though it's worth noting that there are
 other kernels that might offer better accuracy for hydrodynamic simulations. Furthermore,
 its derivatives are not that smooth, which can lead to stability problems.
-It is also suspectiable to clumping.
+It is also susceptible to clumping.
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
   In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
+  [doi: 10.5555/846276.846298](https://doi.org/10.5555/846276.846298)
 """
 struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-@muladd @inline function kernel(kernel::Poly6Kernel, r::Real, h)
+@inline function kernel(kernel::Poly6Kernel, r::Real, h)
     q = r / h
-    term = 1 - q^2
 
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * term^3, zero(term))
+    result = ifelse(q < 1, normalization_factor(kernel, h) *(1 - q^2)^3, zero(q))
 
     return result
 end
 
-@muladd @inline function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
+@inline function kernel_deriv(kernel::Poly6Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    term = 1 - q^2
-
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -6 * q * term^2 * normalization_factor(kernel, h) * inner_deriv,
-                    zero(term))
-
+    result = ifelse(q < 1, -6 * q * (1 - q^2)^2 * normalization_factor(kernel, h) * inner_deriv,
+    zero(q))
     return result
 end
 
@@ -625,41 +649,38 @@ w(q) = \sigma \begin{cases}
 \end{cases}
 \]
 
-where \( d \) is the number of dimensions and \( \sigma \) is a normalization factor, which
+where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor, which
 depends on the dimension and ensures the kernel integrates to 1 over its support.
 
-This kernel function has a compact support of \( [0, h] \).
+This kernel function has a compact support of `` [0, h] ``.
 
-The Spiky kernel is particularly known for its sharp gradients, which can help in preserving
+The Spiky kernel is particularly known for its sharp gradients, which can help to preserve
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
   In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
+  [doi: 10.5555/846276.846298](https://doi.org/10.5555/846276.846298)
 """
 struct SpikyKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 
-@muladd @inline function kernel(kernel::SpikyKernel, r::Real, h)
+@inline function kernel(kernel::SpikyKernel, r::Real, h)
     q = r / h
 
-    term = 1 - q
-
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * term^3, zero(term))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^3, zero(q))
 
     return result
 end
 
-@muladd @inline function kernel_deriv(kernel::SpikyKernel, r::Real, h)
+@inline function kernel_deriv(kernel::SpikyKernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
-    term = 1 - q
-
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -3 * term^2 * normalization_factor(kernel, h) * inner_deriv,
-                    zero(term))
+    result = ifelse(q < 1, -3 * (1 - q)^2 * normalization_factor(kernel, h) * inner_deriv,
+                    zero(q))
 
     return result
 end
