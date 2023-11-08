@@ -11,10 +11,8 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=GridNeighborhoodSearch, damping_coefficient=nothing)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, DC}
+struct Semidiscretization{S, NS, DC}
     systems               :: S
-    ranges_u              :: RU
-    ranges_v              :: RV
     neighborhood_searches :: NS
     damping_coefficient   :: DC
 
@@ -22,15 +20,6 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing,
                                 damping_coefficient=nothing)
-        sizes_u = [u_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                         for i in eachindex(sizes_u))
-        sizes_v = [v_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                         for i in eachindex(sizes_v))
-
         # Check that the boundary systems are using a state equation if EDAC is not used.
         # Other checks might be added here later.
         check_configuration(systems)
@@ -44,9 +33,8 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                for neighbor in systems)
                          for system in systems)
 
-        new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, damping_coefficient)
+        new{typeof(systems), typeof(searches),
+            typeof(damping_coefficient)}(systems, searches, damping_coefficient)
     end
 end
 
@@ -183,8 +171,12 @@ function semidiscretize(semi, tspan; reset_threads=true)
                for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system)
                for system in systems)
-    u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-    v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+
+    u_systems = (Vector{ELTYPE}(undef, i) for i in sizes_u)
+    v_systems = (Vector{ELTYPE}(undef, i) for i in sizes_v)
+
+    u0_ode = ArrayPartition(u_systems...)
+    v0_ode = ArrayPartition(v_systems...)
 
     foreach(systems) do system
         u0_system = wrap_u(u0_ode, system, semi)
@@ -232,27 +224,23 @@ end
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
 @inline function wrap_u(u_ode, system, semi)
-    (; ranges_u) = semi
+    u_vec = u_ode.x[system_indices(system, semi)]
 
-    range = ranges_u[system_indices(system, semi)]
-
-    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+    @boundscheck @assert length(u_vec) == u_nvariables(system) * n_moving_particles(system)
 
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
     #                    (u_nvariables(system), n_moving_particles(system)))
-    return PtrArray(pointer(view(u_ode, range)),
+    return PtrArray(pointer(u_vec),
                     (StaticInt(u_nvariables(system)), n_moving_particles(system)))
 end
 
 @inline function wrap_v(v_ode, system, semi)
-    (; ranges_v) = semi
+    v_vec = v_ode.x[system_indices(system, semi)]
 
-    range = ranges_v[system_indices(system, semi)]
+    @boundscheck @assert length(v_vec) == v_nvariables(system) * n_moving_particles(system)
 
-    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
-
-    return PtrArray(pointer(view(v_ode, range)),
+    return PtrArray(pointer(v_vec),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
 end
 

@@ -10,6 +10,7 @@ using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using RecursiveArrayTools: ArrayPartition
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache
 @reexport using StaticArrays: SVector
