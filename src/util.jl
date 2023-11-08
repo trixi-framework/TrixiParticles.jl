@@ -14,6 +14,19 @@
     foreach_enumerate(func, remaining_collection, index + 1)
 end
 
+
+@inline function foreach_fast(func, collection)
+    element = first(collection)
+    remaining_collection = Base.tail(collection)
+
+    func(element)
+
+    # Process remaining collection
+    foreach_fast(func, remaining_collection)
+end
+
+@inline foreach_fast(func, collection::Tuple{}) = nothing
+
 # Print informative message at startup
 function print_startup_message()
     s = """

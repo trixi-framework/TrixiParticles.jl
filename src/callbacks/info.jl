@@ -115,7 +115,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
     systems = semi.systems
-    foreach(systems) do system
+    foreach_fast(systems) do system
         show(io_context, MIME"text/plain"(), system)
         println(io, "\n")
     end

@@ -158,7 +158,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
-        foreach(systems) do system
+        foreach_fast(systems) do system
             # Get the neighborhood search for this system
             neighborhood_search = neighborhood_searches(system, system, semi)
 
@@ -178,7 +178,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode = ArrayPartition(u_systems...)
     v0_ode = ArrayPartition(v_systems...)
 
-    foreach(systems) do system
+    foreach_fast(systems) do system
         u0_system = wrap_u(u0_ode, system, semi)
         v0_system = wrap_v(v0_ode, system, semi)
 
@@ -211,7 +211,7 @@ function restart_with!(semi, sol; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    foreach(systems) do system
+    foreach_fast(systems) do system
         v = wrap_v(sol[end].x[1], system, semi)
         u = wrap_u(sol[end].x[2], system, semi)
 
@@ -252,7 +252,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
 
         @trixi_timeit timer() "velocity" begin
             # Set velocity and add acceleration for each system
-            foreach(systems) do system
+            foreach_fast(systems) do system
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
@@ -300,7 +300,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
-    foreach(systems) do system
+    foreach_fast(systems) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
@@ -314,7 +314,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     # This is used to calculate density and pressure of the fluid systems
     # before updating the boundary systems,
     # since the fluid pressure is needed by the Adami interpolation.
-    foreach(systems) do system
+    foreach_fast(systems) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
@@ -322,7 +322,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     # Perform correction and pressure calculation
-    foreach(systems) do system
+    foreach_fast(systems) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
@@ -330,7 +330,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
     end
 
     # Final update step for all remaining systems
-    foreach(systems) do system
+    foreach_fast(systems) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
@@ -342,8 +342,8 @@ function update_nhs(u_ode, semi)
     (; systems) = semi
 
     # Update NHS for each pair of systems
-    foreach(systems) do system
-        foreach(systems) do neighbor
+    foreach_fast(systems) do system
+        foreach_fast(systems) do neighbor
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = neighborhood_searches(system, neighbor, semi)
 
@@ -356,7 +356,7 @@ function gravity_and_damping!(dv_ode, v_ode, semi)
     (; systems, damping_coefficient) = semi
 
     # Set velocity and add acceleration for each system
-    foreach(systems) do system
+    foreach_fast(systems) do system
         dv = wrap_v(dv_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
 
@@ -399,8 +399,8 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     (; systems) = semi
 
     # Call `interact!` for each pair of systems
-    foreach(systems) do system
-        foreach(systems) do neighbor
+    foreach_fast(systems) do system
+        foreach_fast(systems) do neighbor
             interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
         end
     end
@@ -493,7 +493,7 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    foreach(systems) do system
+    foreach_fast(systems) do system
         check_configuration(system, systems)
     end
 end
@@ -503,7 +503,7 @@ check_configuration(system, systems) = nothing
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
 
-    foreach(systems) do neighbor
+    foreach_fast(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
