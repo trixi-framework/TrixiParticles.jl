@@ -25,6 +25,7 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
+
 # Cancel redundant CI tests automatically
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
