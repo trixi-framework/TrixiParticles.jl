@@ -22,25 +22,44 @@ end
 function initialize!(search::NeighborListNeighborhoodSearch, coords, neighbor_coords)
     initialize!(search.grid_nhs, neighbor_coords)
 
-    build_neighbor_lists!(search, coords)
+    build_neighbor_lists!(search, coords, neighbor_coords)
 end
 
 function update!(search::NeighborListNeighborhoodSearch, coords, neighbor_coords)
     update!(search.grid_nhs, neighbor_coords)
 
-    build_neighbor_lists!(search, coords)
+    build_neighbor_lists!(search, coords, neighbor_coords)
 end
 
-@inline function eachneighbor(particle, particle_coords, search::NeighborListNeighborhoodSearch)
+@inline function eachneighbor(particle, search::NeighborListNeighborhoodSearch)
     return search.neighbor_lists[particle]
 end
 
-function build_neighbor_lists!(search::NeighborListNeighborhoodSearch, coords)
-    (; grid_nhs, neighbor_lists) = search
+function build_neighbor_lists!(search::NeighborListNeighborhoodSearch, coords,
+                               neighbor_coords)
+    (; grid_nhs, neighbor_lists, search_radius, periodic_box) = search
 
     for particle in eachindex(neighbor_lists)
         particle_coords = extract_svector(coords, Val(ndims(search)), particle)
-        neighbor_lists[particle] = collect(eachneighbor(particle_coords, grid_nhs))
+
+        neighbors = []
+
+        for neighbor in eachneighbor(particle_coords, grid_nhs)
+            neighbor_particle_coords = extract_svector(neighbor_coords,
+                                                       Val(ndims(search)), neighbor)
+
+            pos_diff = particle_coords - neighbor_particle_coords
+            distance2 = dot(pos_diff, pos_diff)
+
+            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
+                                                            search_radius, periodic_box)
+
+            if distance2 <= search_radius^2
+                append!(neighbors, neighbor)
+            end
+        end
+
+        neighbor_lists[particle] = neighbors
     end
 
     return search
@@ -51,10 +70,9 @@ end
                                              particle)
     (; search_radius, periodic_box) = neighborhood_search
 
-    particle_coords = extract_svector(system_coords, Val(ndims(neighborhood_search)),
-                                      particle)
-
-    for neighbor in eachneighbor(particle, particle_coords, neighborhood_search)
+    for neighbor in eachneighbor(particle, neighborhood_search)
+        particle_coords = extract_svector(system_coords, Val(ndims(neighborhood_search)),
+                                          particle)
         neighbor_coords = extract_svector(neighbor_system_coords,
                                           Val(ndims(neighborhood_search)), neighbor)
 
