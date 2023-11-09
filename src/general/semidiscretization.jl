@@ -101,6 +101,21 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
     return search
 end
 
+function create_neighborhood_search(system, neighbor, ::Val{NeighborListNeighborhoodSearch},
+                                    min_corner, max_corner)
+    radius = compact_support(system, neighbor)
+    grid_nhs = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                     min_corner=min_corner,
+                                                     max_corner=max_corner)
+
+    search = NeighborListNeighborhoodSearch(grid_nhs, nparticles(system))
+
+    # Initialize neighborhood search
+    initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))
+
+    return search
+end
+
 @inline function compact_support(system, neighbor)
     (; smoothing_kernel, smoothing_length) = system
     return compact_support(smoothing_kernel, smoothing_length)
@@ -343,10 +358,11 @@ function update_nhs(u_ode, semi)
     # Update NHS for each pair of systems
     foreach_enumerate(systems) do (system_index, system)
         foreach_enumerate(systems) do (neighbor_index, neighbor)
+            u = wrap_u(u_ode, system_index, system, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
+            update!(neighborhood_search, current_coordinates(u, system), nhs_coords(system, neighbor, u_neighbor))
         end
     end
 end

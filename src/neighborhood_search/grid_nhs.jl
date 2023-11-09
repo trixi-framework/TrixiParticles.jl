@@ -134,6 +134,10 @@ function update!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
     update!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
 end
 
+function update!(neighborhood_search::GridNeighborhoodSearch, x, y)
+    update!(neighborhood_search, y)
+end
+
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
     (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
