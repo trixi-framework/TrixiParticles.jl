@@ -24,7 +24,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
     \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{PF}}{m_{0a}} + \bm{g},
 ```
-with
+with the correction matrix (see also [`GradientCorrection`](@ref))
 ```math
 \bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
 ```
@@ -274,8 +274,8 @@ function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[system_index][system_index]
-    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 system)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(neighborhood_search,
+                                                                system)
 
     return system
 end
