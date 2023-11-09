@@ -433,9 +433,14 @@ end
     u_neighbor = wrap_u(u_ode, neighbor, semi)
     nhs = neighborhood_searches(system, neighbor, semi)
 
-    system_index = system_indices(system, semi)
-    neighbor_index = system_indices(neighbor, semi)
-    timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+    # Avoid allocations from string construction when no timers are used
+    if timeit_debug_enabled()
+        system_index = system_indices(system, semi)
+        neighbor_index = system_indices(neighbor, semi)
+        timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+    else
+        timer_str = ""
+    end
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
