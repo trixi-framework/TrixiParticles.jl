@@ -439,8 +439,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                       v_neighbor_system, neighborhood_search)
     end
 
-    for particle in eachparticle(system)
-
+    @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
         # The summation is only over fluid particles, thus the volume stays zero when a boundary
         # particle isn't surrounded by fluid particles.
         # Check the volume to avoid NaNs in pressure and velocity.
