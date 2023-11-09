@@ -1,15 +1,15 @@
 # Same as `foreach`, but it optimizes away for small input tuples
-@inline function foreach_fast(func, collection)
+@inline function foreach_noalloc(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
 
     func(element)
 
     # Process remaining collection
-    foreach_fast(func, remaining_collection)
+    foreach_noalloc(func, remaining_collection)
 end
 
-@inline foreach_fast(func, collection::Tuple{}) = nothing
+@inline foreach_noalloc(func, collection::Tuple{}) = nothing
 
 # Print informative message at startup
 function print_startup_message()

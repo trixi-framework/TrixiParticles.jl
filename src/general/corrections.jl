@@ -139,12 +139,10 @@ end
 
 function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
-    (; systems) = semi
-
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_fast(systems) do neighbor_system
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
@@ -176,7 +174,6 @@ end
 function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::KernelGradientCorrection)
-    (; systems) = semi
     (; cache) = system
     (; kernel_correction_coefficient, dw_gamma) = cache
 
@@ -184,7 +181,7 @@ function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_fast(systems) do neighbor_system
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 

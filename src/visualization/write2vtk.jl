@@ -35,7 +35,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
                  for i in eachindex(cnames)]
 
-    foreach_fast(systems) do system
+    foreach_system(semi) do system
         system_index = system_indices(system, semi)
 
         v = wrap_v(v_ode, system, semi)

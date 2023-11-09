@@ -52,12 +52,10 @@ end
 
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
-    (; systems) = semi
-
     set_zero!(density)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute density" foreach_fast(systems) do neighbor_system
+    @trixi_timeit timer() "compute density" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)

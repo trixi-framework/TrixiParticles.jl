@@ -206,7 +206,7 @@ function reinit_density!(vu_ode, semi)
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
-    foreach_fast(systems) do system
+    foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 

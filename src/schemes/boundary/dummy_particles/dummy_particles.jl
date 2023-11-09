@@ -420,7 +420,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     system_coords = current_coordinates(u, system)
 
     # Use all other systems for the pressure extrapolation
-    @trixi_timeit timer() "compute boundary pressure" foreach_fast(systems) do neighbor_system
+    @trixi_timeit timer() "compute boundary pressure" foreach_system(semi) do neighbor_system
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
