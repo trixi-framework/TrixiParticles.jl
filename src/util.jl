@@ -1,20 +1,4 @@
-# Same as `foreach(enumerate(something))`, but without allocations.
-#
-# Note that compile times may increase if this is used with big tuples.
-@inline foreach_enumerate(func, collection) = foreach_enumerate(func, collection, 1)
-@inline foreach_enumerate(func, collection::Tuple{}, index) = nothing
-
-@inline function foreach_enumerate(func, collection, index)
-    element = first(collection)
-    remaining_collection = Base.tail(collection)
-
-    func((index, element))
-
-    # Process remaining collection
-    foreach_enumerate(func, remaining_collection, index + 1)
-end
-
-
+# Same as `foreach`, but it optimizes away for small input tuples
 @inline function foreach_fast(func, collection)
     element = first(collection)
     remaining_collection = Base.tail(collection)
