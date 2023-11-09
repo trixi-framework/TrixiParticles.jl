@@ -19,7 +19,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        cache = create_cache(movement, inititial_condition)
+        cache = create_cache_boundary(movement, inititial_condition)
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(coordinates, model, movement,
@@ -58,9 +58,9 @@ struct BoundaryMovement{MF, IM}
     end
 end
 
-create_cache(::Nothing, inititial_condition) = (;)
+create_cache_boundary(::Nothing, inititial_condition) = (;)
 
-function create_cache(::BoundaryMovement, inititial_condition)
+function create_cache_boundary(::BoundaryMovement, inititial_condition)
     initial_coordinates = copy(inititial_condition.coordinates)
     velocity = similar(inititial_condition.velocity)
     acceleration = similar(inititial_condition.velocity)

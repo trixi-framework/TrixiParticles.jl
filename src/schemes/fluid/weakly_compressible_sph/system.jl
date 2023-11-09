@@ -68,10 +68,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        cache = create_cache(n_particles, ELTYPE, density_calculator)
+        cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
-                 create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
-                 cache...)
+                 create_cache_wcsph(correction, initial_condition.density, NDIMS,
+                                    n_particles)..., cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
@@ -83,24 +83,24 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     end
 end
 
-create_cache(correction, density, NDIMS, nparticles) = (;)
+create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache(::ShepardKernelCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::ShepardKernelCorrection, density, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache(::KernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::KernelGradientCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
-function create_cache(n_particles, ELTYPE, ::SummationDensity)
+function create_cache_wcsph(n_particles, ELTYPE, ::SummationDensity)
     density = Vector{ELTYPE}(undef, n_particles)
 
     return (; density)
 end
 
-function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
+function create_cache_wcsph(n_particles, ELTYPE, ::ContinuityDensity)
     # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
     return (;)
 end
