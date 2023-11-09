@@ -422,8 +422,8 @@ end
 
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
-# dv_ode, du_ode = copy(sol[end]); v_ode, u_ode = copy(sol[end]);
-# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi)
+# dv_ode, du_ode = copy(sol[end]).x; v_ode, u_ode = copy(sol[end]).x;
+# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
