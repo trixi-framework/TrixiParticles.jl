@@ -401,7 +401,7 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    for particle in eachparticle(system)
+    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
         pressure[particle] = max(state_equation(particle_density(v, boundary_model,
                                                                  particle)), 0.0)
     end
