@@ -126,35 +126,30 @@ function kernel_correction_coefficient(system, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     density_calculator, correction)
     return system
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
-    return compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+    return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
-    (; systems, neighborhood_searches) = semi
-
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                   semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                   semi)
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
@@ -176,10 +171,9 @@ function dw_gamma(system, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::KernelGradientCorrection)
-    (; systems, neighborhood_searches) = semi
     (; cache) = system
     (; kernel_correction_coefficient, dw_gamma) = cache
 
@@ -187,17 +181,14 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                   semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                   semi)
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,

@@ -157,76 +157,73 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator) = system
 
-    compute_density!(system, system_index, u, u_ode, semi, density_calculator)
+    compute_density!(system, u, u_ode, semi, density_calculator)
 
     return system
 end
 
-function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
+function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
 end
 
-function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
+function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     (; cache) = system
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, system_index, semi, u, u_ode, density)
+    summation_density!(system, semi, u, u_ode, density)
 end
 
-function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
-                          v_ode, u_ode, semi, t)
+function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                density_calculator, correction)
     # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
                                  correction, density_calculator)
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
                                  ::Union{ShepardKernelCorrection, KernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
 function reinit_density!(vu_ode, semi)
-    (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+        reinit_density!(system, v, u, v_ode, u_ode, semi)
     end
 
     return vu_ode
 end
 
-function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                          v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, v[end, :])
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
+    compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)
@@ -234,7 +231,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
     return system
 end
 
-function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+function reinit_density!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
