@@ -13,8 +13,8 @@ using QuadGK
         return 4 * π * integral_3d_radial
     end
 
-    # All smoothing kernels should integrate to something close to 1
-    # Don't show all kernel tests in the final overview
+    # All smoothing kernels should integrate to something close to 1.
+    # Don't show all kernel tests in the final overview.
     @testset verbose=false "Integral" begin
         # Treat the truncated Gaussian kernel separately
         @testset "GaussianKernel" begin

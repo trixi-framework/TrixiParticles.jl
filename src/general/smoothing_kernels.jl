@@ -6,11 +6,17 @@ of dimensions.
 
 We provide the following smoothing kernels:
 
-| Smoothing Kernel                          | Compact Support   |
-| :---------------------------------------- | :---------------- |
-| [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         |
-| [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       |
-| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         |
+| Smoothing Kernel                          | Compact Support   | Typ. Smoothing Length | Recommended Application | Stability |
+| :---------------------------------------- | :---------------- | :-------------------- | :---------------------- | :-------- |
+| [`SchoenbergCubicSplineKernel`](@ref)     | $[0, 2h]$         | $1.1 to 1.3$          | General + sharp waves   | ++        |
+| [`SchoenbergQuarticSplineKernel`](@ref)   | $[0, 2.5h]$       | $1.1 to 1.5$          | General                 | +++       |
+| [`SchoenbergQuinticSplineKernel`](@ref)   | $[0, 3h]$         | $1.1 to 1.5$          | General                 | ++++      |
+| [`GaussianKernel`](@ref)                  | $[0, 3h]$         | $1.0 to 1.5$          | Literature              | +++++     |
+| [`WendlandC2Kernel`](@ref)                | $[0, 1h]$         | $2.5 to 4.0$          | **Try first**           | ++++      |
+| [`WendlandC4Kernel`](@ref)                | $[0, 1h]$         | $3.0 to 4.5$          | General                 | +++++     |
+| [`WendlandC6Kernel`](@ref)                | $[0, 1h]$         | $3.5 to 5.0$          | General                 | +++++     |
+| [`Poly6Kernel`](@ref)                     | $[0, 1h]$         | $1.5 to 2.5$          | Literature              | +         |
+| [`SpikyKernel`](@ref)                     | $[0, 1h]$         | $1.5 to 3.0$          | Sharp corners + waves   | +         |
 
 !!! note "Usage"
     The kernel can be called as
@@ -67,16 +73,18 @@ W(r, h) = \frac{\sigma_d}{h^d} e^{-r^2/h^2}
 
 where ``d`` is the number of dimensions and
 
-- `` \sigma_2 = \frac{1}{\pi} `` for 2D
-- `` \sigma_3 = \frac{1}{\pi^{3/2}} `` for 3D
+- `` \sigma_2 = \frac{1}{\pi} `` for 2D,
+- `` \sigma_3 = \frac{1}{\pi^{3/2}} `` for 3D.
 
 This kernel function has an infinite support, but in practice,
 it's often truncated at a certain multiple of ``h``, such as ``3h``.
 
-In this implementation, the kernel is truncated at `3h`,
+In this implementation, the kernel is truncated at ``3h``,
 so this kernel function has a compact support of ``[0, 3h]``.
 
-The smoothing length is typically around 1.0 to 1.5 * particle_spacing.
+The smoothing length is typically in range `[1.0 : 1.5] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 Note:
 This truncation makes this Kernel not conservative,
@@ -136,7 +144,7 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel is the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically around 1.1 to 1.3 * particle_spacing.
+The smoothing length is typically in range `[1.1 : 1.3] * particle_spacing`.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -218,7 +226,7 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically around 1.1 to 1.5 * particle_spacing.
+The smoothing length is typically in range `[1.1 : 1.5] * particle_spacing`.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -314,7 +322,7 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically around 1.1 to 1.5 * particle_spacing.
+The smoothing length is typically in range `[1.1 : 1.5] * particle_spacing`.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -386,16 +394,16 @@ abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 Wendland C2 kernel (Wendland, 1995), a piecewise polynomial function designed to have compact support and to
 be twice continuously differentiable everywhere. Given by
 
-\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+`` W(r, h) = \frac{1}{h^d} w(r/h) ``
 
 with
 
-\[
+```math
 w(q) = \sigma \begin{cases}
     (1 - q)^4 (4q + 1)    & \text{if } 0 \leq q < 1, \\
     0                     & \text{if } q \geq 1,
 \end{cases}
-\]
+```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent on the dimension.
 The normalization factor `` \sigma `` is `` 40/7\pi `` in two dimensions or `` 21/2\pi `` in three dimensions.
@@ -405,19 +413,20 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
-The smoothing length is typically around 2.5 to 4.0 * particle_spacing.
+The smoothing length is typically in range `[2.5 : 4.0] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Walter Dehnen & Hassan Aly.
-"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
-[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+  "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+  [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
- In: Advances in computational Mathematics 4 (1995): 389-396.
+ In: Advances in computational Mathematics 4 (1995), pages 389-396.
  [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
-
 """
 struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -454,32 +463,34 @@ end
 Wendland C4 kernel, a piecewise polynomial function designed to have compact support and to
 be four times continuously differentiable everywhere. Given by
 
-\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+`` W(r, h) = \frac{1}{h^d} w(r/h) ``
 
 with
 
-\[
+```math
 w(q) = \sigma \begin{cases}
     (1 - q)^6 * (35q^2 / 3 + 6q + 1)   & \text{if } 0 \leq q < 1, \\
     0                                  & \text{if } q \geq 1,
 \end{cases}
-\]
+```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
-on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
+on the dimension. The normalization factor `` \sigma `` is `` 9 / \pi `` in two dimensions or `` 495 / 32\pi `` in three dimensions.
 
 This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
-The smoothing length is typically around 3.0 to 4.5 * particle_spacing.
+The smoothing length is typically in range `[3.0 : 4.5] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Walter Dehnen & Hassan Aly.
-"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
-[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+  "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+  [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
@@ -520,32 +531,34 @@ end
 
 Wendland C6 kernel, a piecewise polynomial function designed to have compact support and to be six times continuously differentiable everywhere. Given by:
 
-\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+`` W(r, h) = \frac{1}{h^d} w(r/h) ``
 
 with:
 
-\[
+```math
 w(q) = \sigma \begin{cases}
     (1 - q)^8 (32q^3 + 25q^2 + 8q + 1)    & \text{if } 0 \leq q < 1, \\
     0                                     & \text{if } q \geq 1,
 \end{cases}
-\]
+```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor dependent
-on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
+on the dimension. The normalization factor `` \sigma `` is `` 78 / 7 \pi`` in two dimensions or `` 1365 / 64\pi`` in three dimensions.
 
 This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
-The smoothing length is typically around 3.5 to 5.0 * particle_spacing.
+The smoothing length is typically in range `[3.5 : 5.0] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Walter Dehnen & Hassan Aly.
-"Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
-In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
-[doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
+  "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
+  In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
+  [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
@@ -586,19 +599,19 @@ end
 
 Poly6 kernel, a commonly used kernel in SPH literature, especially in computer graphics contexts. It is defined as
 
-\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+`` W(r, h) = \frac{1}{h^d} w(r/h) ``
 
 with
 
-\[
+```math
 w(q) = \sigma \begin{cases}
     (1 - q^2)^3    & \text{if } 0 \leq q < 1, \\
     0              & \text{if } q \geq 1,
 \end{cases}
-\]
+```
 
 where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor that depends
-on the dimension. The exact value of `` \sigma `` needs to be determined based on the dimension to ensure proper normalization.
+on the dimension. The normalization factor `` \sigma `` is `` 4 / \pi`` in two dimensions or `` 315 / 64\pi`` in three dimensions.
 
 This kernel function has a compact support of `` [0, h] ``.
 
@@ -607,7 +620,9 @@ other kernels that might offer better accuracy for hydrodynamic simulations. Fur
 its derivatives are not that smooth, which can lead to stability problems.
 It is also susceptible to clumping.
 
-The smoothing length is typically around 1.5 to 2.5 * particle_spacing.
+The smoothing length is typically in range `[1.5 : 2.5] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
@@ -647,19 +662,19 @@ end
 The Spiky kernel is another frequently used kernel in SPH, especially due to its desirable
 properties in preserving features near boundaries in fluid simulations. It is defined as:
 
-\[ W(r, h) = \frac{1}{h^d} w(r/h) \]
+`` W(r, h) = \frac{1}{h^d} w(r/h) ``
 
 with:
 
-\[
+```math
 w(q) = \sigma \begin{cases}
     (1 - q)^3    & \text{if } 0 \leq q < 1, \\
     0            & \text{if } q \geq 1,
 \end{cases}
-\]
+```
 
-where `` d `` is the number of dimensions and `` \sigma `` is a normalization factor, which
-depends on the dimension and ensures the kernel integrates to 1 over its support.
+where `` d `` is the number of dimensions and the normalization factor `` \sigma `` is `` 10 / \pi``
+in two dimensions or `` 15 / \pi`` in three dimensions.
 
 This kernel function has a compact support of `` [0, h] ``.
 
@@ -667,7 +682,9 @@ The Spiky kernel is particularly known for its sharp gradients, which can help t
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
 
-The smoothing length is typically around 1.5 to 3.0 * particle_spacing.
+The smoothing length is typically in range `[1.5 : 3.0] * particle_spacing`.
+
+For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
