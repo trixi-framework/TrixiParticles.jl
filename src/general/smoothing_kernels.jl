@@ -76,6 +76,8 @@ it's often truncated at a certain multiple of ``h``, such as ``3h``.
 In this implementation, the kernel is truncated at `3h`,
 so this kernel function has a compact support of ``[0, 3h]``.
 
+The smoothing length is typically around 1.0 to 1.5 * particle_spacing.
+
 Note:
 This truncation makes this Kernel not conservative,
 which is beneficial in regards to stability but makes it less accurate.
@@ -133,6 +135,8 @@ normalization factors, see (Price, 2012).
 For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985).
 The largest disadvantage of Schoenberg Spline Kernel is the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
+
+The smoothing length is typically around 1.1 to 1.3 * particle_spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -213,6 +217,9 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
+
+The smoothing length is typically around 1.1 to 1.5 * particle_spacing.
+
 For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
@@ -306,6 +313,9 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
+
+The smoothing length is typically around 1.1 to 1.5 * particle_spacing.
+
 For general information and usage see [`SmoothingKernel`](@ref).
 
 ## References:
@@ -395,6 +405,8 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
+The smoothing length is typically around 2.5 to 4.0 * particle_spacing.
+
 ## References:
 - Walter Dehnen & Hassan Aly.
 "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
@@ -461,6 +473,8 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
+The smoothing length is typically around 3.0 to 4.5 * particle_spacing.
+
 ## References:
 - Walter Dehnen & Hassan Aly.
 "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
@@ -524,6 +538,8 @@ This kernel function has a compact support of `` [0, h] ``.
 
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
+
+The smoothing length is typically around 3.5 to 5.0 * particle_spacing.
 
 ## References:
 - Walter Dehnen & Hassan Aly.
@@ -591,6 +607,8 @@ other kernels that might offer better accuracy for hydrodynamic simulations. Fur
 its derivatives are not that smooth, which can lead to stability problems.
 It is also susceptible to clumping.
 
+The smoothing length is typically around 1.5 to 2.5 * particle_spacing.
+
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
   In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
@@ -648,6 +666,8 @@ This kernel function has a compact support of `` [0, h] ``.
 The Spiky kernel is particularly known for its sharp gradients, which can help to preserve
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
+
+The smoothing length is typically around 1.5 to 3.0 * particle_spacing.
 
 ## References:
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
