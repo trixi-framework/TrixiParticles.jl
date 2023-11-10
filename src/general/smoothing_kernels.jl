@@ -85,7 +85,8 @@ it's often truncated at a certain multiple of ``h``, such as ``3h``.
 In this implementation, the kernel is truncated at ``3h``,
 so this kernel function has a compact support of ``[0, 3h]``.
 
-The smoothing length is typically in range `[1.0 : 1.5] * particle_spacing`.
+The smoothing length is typically in range ``[1.0\delta, 1.5\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -147,7 +148,8 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel is the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically in range `[1.1 : 1.3] * particle_spacing`.
+The smoothing length is typically in range ``[1.1\delta, 1.3\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -229,7 +231,8 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically in range `[1.1 : 1.5] * particle_spacing`.
+The smoothing length is typically in range ``[1.1\delta, 1.5\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -325,7 +328,8 @@ For an analytic formula for higher order Schoenberg kernels, see (Monaghan, 1985
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
-The smoothing length is typically in range `[1.1 : 1.5] * particle_spacing`.
+The smoothing length is typically in range ``[1.1\delta, 1.5\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -397,7 +401,9 @@ abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 Wendland C2 kernel (Wendland, 1995), a piecewise polynomial function designed to have compact support and to
 be twice continuously differentiable everywhere. Given by
 
-`` W(r, h) = \frac{1}{h^d} w(r/h) ``
+```math
+ W(r, h) = \frac{1}{h^d} w(r/h)
+```
 
 with
 
@@ -416,7 +422,8 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they lose details at sharp corners.
 
-The smoothing length is typically in range `[2.5 : 4.0] * particle_spacing`.
+The smoothing length is typically in range ``[2.5\delta, 4.0\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -427,9 +434,9 @@ For general information and usage see [`SmoothingKernel`](@ref).
   [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
- "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
- In: Advances in computational Mathematics 4 (1995), pages 389-396.
- [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
+  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+  In: Advances in computational Mathematics 4 (1995), pages 389-396.
+  [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
 """
 struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -470,7 +477,9 @@ end
 Wendland C4 kernel, a piecewise polynomial function designed to have compact support and to
 be four times continuously differentiable everywhere. Given by
 
-`` W(r, h) = \frac{1}{h^d} w(r/h) ``
+```math
+ W(r, h) = \frac{1}{h^d} w(r/h)
+ ```
 
 with
 
@@ -489,7 +498,8 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
-The smoothing length is typically in range `[3.0 : 4.5] * particle_spacing`.
+The smoothing length is typically in range ``[3.0\delta, 4.5\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -500,9 +510,9 @@ For general information and usage see [`SmoothingKernel`](@ref).
   [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
- "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
- In: Advances in computational Mathematics 4 (1995): 389-396.
- [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
+  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+  In: Advances in computational Mathematics 4 (1995): 389-396.
+  [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
 """
 struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -538,7 +548,9 @@ end
 
 Wendland C6 kernel, a piecewise polynomial function designed to have compact support and to be six times continuously differentiable everywhere. Given by:
 
-`` W(r, h) = \frac{1}{h^d} w(r/h) ``
+```math
+W(r, h) = \frac{1}{h^d} w(r/h)
+```
 
 with:
 
@@ -557,7 +569,8 @@ This kernel function has a compact support of `` [0, h] ``.
 For a detailed discussion on Wendland functions and their applications in SPH, see (Dehnen & Aly, 2012).
 The smoothness of these functions is also the largest disadvantage as they loose details at sharp corners.
 
-The smoothing length is typically in range `[3.5 : 5.0] * particle_spacing`.
+The smoothing length is typically in range ``[3.5\delta, 5.0\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -568,9 +581,9 @@ For general information and usage see [`SmoothingKernel`](@ref).
   [doi: 10.1111/j.1365-2966.2012.21439.x](https://doi.org/10.1111/j.1365-2966.2012.21439.x)
 
 - Holger Wendland.
- "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
- In: Advances in computational Mathematics 4 (1995): 389-396.
- [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
+  "Piecewise polynomial, positive definite and compactly supported radial functions of minimal degree."
+  In: Advances in computational Mathematics 4 (1995): 389-396.
+  [doi: 10.1007/BF02123482](https://doi.org/10.1007/BF02123482)
 """
 struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 
@@ -606,7 +619,10 @@ end
 
 Poly6 kernel, a commonly used kernel in SPH literature, especially in computer graphics contexts. It is defined as
 
-`` W(r, h) = \frac{1}{h^d} w(r/h) ``
+```math
+W(r, h) = \frac{1}{h^d} w(r/h)
+```
+
 
 with
 
@@ -627,7 +643,8 @@ other kernels that might offer better accuracy for hydrodynamic simulations. Fur
 its derivatives are not that smooth, which can lead to stability problems.
 It is also susceptible to clumping.
 
-The smoothing length is typically in range `[1.5 : 2.5] * particle_spacing`.
+The smoothing length is typically in range ``[1.5\delta, 2.5\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
@@ -672,7 +689,9 @@ end
 The Spiky kernel is another frequently used kernel in SPH, especially due to its desirable
 properties in preserving features near boundaries in fluid simulations. It is defined as:
 
-`` W(r, h) = \frac{1}{h^d} w(r/h) ``
+```math
+ W(r, h) = \frac{1}{h^d} w(r/h)
+ ```
 
 with:
 
@@ -692,7 +711,8 @@ The Spiky kernel is particularly known for its sharp gradients, which can help t
 sharp features in fluid simulations, especially near solid boundaries.
 These sharp gradients at the boundary are also the largest disadvantage as they can lead to instability.
 
-The smoothing length is typically in range `[1.5 : 3.0] * particle_spacing`.
+The smoothing length is typically in range ``[1.5\delta, 3.0\delta]``,
+where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [`SmoothingKernel`](@ref).
 
