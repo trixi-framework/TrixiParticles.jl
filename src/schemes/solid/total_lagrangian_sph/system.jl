@@ -274,8 +274,8 @@ function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u
 
     # Precompute PK1 stress tensor
     neighborhood_search = neighborhood_searches[system_index][system_index]
-    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 system)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(neighborhood_search,
+                                                                system)
 
     return system
 end
