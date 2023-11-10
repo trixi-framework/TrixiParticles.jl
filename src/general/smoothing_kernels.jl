@@ -433,23 +433,27 @@ struct WendlandC2Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC2Kernel, r::Real, h)
     q = r / h
 
+    result = (1 - q)^4 * (4q + 1)
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^4 * (4q + 1), zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
 
-@fastpow @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
+@fastpow @muladd @inline function kernel_deriv(kernel::WendlandC2Kernel, r::Real, h)
     inner_deriv = 1 / h
     q = r * inner_deriv
 
     q1_3 = (1 - q)^3
     q1_4 = (1 - q)^4
 
+    result = -4 * q1_3 * (4q + 1)
+    result = result + q1_4 * 4
+
     # Zero out result if q >= 1
     result = ifelse(q < 1,
-                    normalization_factor(kernel, h) * (-4 * q1_3 * (4q + 1) + q1_4 * 4) *
-                    inner_deriv, zero(q))
+                    normalization_factor(kernel, h) * result * inner_deriv, zero(q))
 
     return result
 end
@@ -502,10 +506,10 @@ struct WendlandC4Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC4Kernel, r::Real, h)
     q = r / h
 
+    result = (1 - q)^6 * (35q^2 / 3 + 6q + 1)
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1,
-                    normalization_factor(kernel, h) * (1 - q)^6 * (35q^2 / 3 + 6q + 1),
-                    zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -570,10 +574,10 @@ struct WendlandC6Kernel{NDIMS} <: WendlandKernel{NDIMS} end
 @fastpow @inline function kernel(kernel::WendlandC6Kernel, r::Real, h)
     q = r / h
 
+    result = (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1)
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1,
-                    normalization_factor(kernel, h) * (1 - q)^8 * (32q^3 + 25q^2 + 8q + 1),
-                    zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -634,8 +638,10 @@ struct Poly6Kernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @inline function kernel(kernel::Poly6Kernel, r::Real, h)
     q = r / h
 
+    result = (1 - q^2)^3
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q^2)^3, zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -644,10 +650,11 @@ end
     inner_deriv = 1 / h
     q = r * inner_deriv
 
+    result = -6 * q * (1 - q^2)^2
+
     # Zero out result if q >= 1
     result = ifelse(q < 1,
-                    -6 * q * (1 - q^2)^2 * normalization_factor(kernel, h) * inner_deriv,
-                    zero(q))
+                    result * normalization_factor(kernel, h) * inner_deriv, zero(q))
     return result
 end
 
@@ -696,8 +703,10 @@ struct SpikyKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @inline function kernel(kernel::SpikyKernel, r::Real, h)
     q = r / h
 
+    result = (1 - q)^3
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1, normalization_factor(kernel, h) * (1 - q)^3, zero(q))
+    result = ifelse(q < 1, normalization_factor(kernel, h) * result, zero(q))
 
     return result
 end
@@ -706,9 +715,10 @@ end
     inner_deriv = 1 / h
     q = r * inner_deriv
 
+    result = -3 * (1 - q)^2
+
     # Zero out result if q >= 1
-    result = ifelse(q < 1, -3 * (1 - q)^2 * normalization_factor(kernel, h) * inner_deriv,
-                    zero(q))
+    result = ifelse(q < 1, result * normalization_factor(kernel, h) * inner_deriv, zero(q))
 
     return result
 end
