@@ -203,7 +203,6 @@ function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
 end
 
 function reinit_density!(vu_ode, semi)
-    (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
     foreach_system(semi) do system

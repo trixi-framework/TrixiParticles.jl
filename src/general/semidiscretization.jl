@@ -140,6 +140,8 @@ end
 end
 
 @inline function system_indices(system, semi)
+    # Note that this takes only about 5 ns, while mapping systems to indices with a `Dict`
+    # is ~30x slower because `hash(::System)` is very slow.
     index = findfirst(==(system), semi.systems)
 
     if isnothing(index)

@@ -408,7 +408,6 @@ end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                            system, v, u, v_ode, u_ode, semi)
-    (; systems) = semi
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
