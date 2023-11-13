@@ -408,7 +408,17 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
-            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+            # Construct string for the interactions timer.
+            # Avoid allocations from string construction when no timers are used.
+            if timeit_debug_enabled()
+                system_index = system_indices(system, semi)
+                neighbor_index = system_indices(neighbor, semi)
+                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            else
+                timer_str = ""
+            end
+
+            interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
         end
     end
 
@@ -419,7 +429,7 @@ end
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol[end]).x; v_ode, u_ode = copy(sol[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi)
+@inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
@@ -427,15 +437,6 @@ end
     v_neighbor = wrap_v(v_ode, neighbor, semi)
     u_neighbor = wrap_u(u_ode, neighbor, semi)
     nhs = neighborhood_searches(system, neighbor, semi)
-
-    # Avoid allocations from string construction when no timers are used
-    if timeit_debug_enabled()
-        system_index = system_indices(system, semi)
-        neighbor_index = system_indices(neighbor, semi)
-        timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-    else
-        timer_str = ""
-    end
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
