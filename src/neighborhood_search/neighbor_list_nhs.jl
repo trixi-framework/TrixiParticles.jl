@@ -1,17 +1,20 @@
 struct NeighborListNeighborhoodSearch{ELTYPE, NHS, PB}
-    search_radius  :: ELTYPE
-    periodic_box   :: PB
-    grid_nhs       :: NHS
-    neighbor_lists :: Vector{Vector{Int}}
+    search_radius       :: ELTYPE
+    periodic_box        :: PB
+    grid_nhs            :: NHS
+    neighbor_lists      :: Vector{Int}
+    neighbor_list_start :: Vector{Int}
 
     function NeighborListNeighborhoodSearch(grid_nhs, n_particles)
         (; search_radius, periodic_box) = grid_nhs
 
-        neighbor_lists = Vector{Vector{Int}}(undef, n_particles)
+        neighbor_lists = Int[]
+        neighbor_list_start = zeros(Int, n_particles + 1)
 
         new{typeof(search_radius),
             typeof(grid_nhs), typeof(periodic_box)}(search_radius, periodic_box,
-                                                    grid_nhs, neighbor_lists)
+                                                    grid_nhs, neighbor_lists,
+                                                    neighbor_list_start)
     end
 end
 
@@ -32,35 +35,39 @@ function update!(search::NeighborListNeighborhoodSearch, coords, neighbor_coords
 end
 
 @inline function eachneighbor(particle, search::NeighborListNeighborhoodSearch)
-    return search.neighbor_lists[particle]
+    (; neighbor_lists, neighbor_list_start) = search
+
+    return (neighbor_lists[i] for i in neighbor_list_start[particle]:(neighbor_list_start[particle + 1] - 1))
 end
 
 function build_neighbor_lists!(search::NeighborListNeighborhoodSearch, coords,
                                neighbor_coords)
-    (; grid_nhs, neighbor_lists, search_radius, periodic_box) = search
+    (; grid_nhs, neighbor_lists, neighbor_list_start, search_radius, periodic_box) = search
 
-    for particle in eachindex(neighbor_lists)
+    resize!(neighbor_lists, 0)
+
+    for particle in 1:(length(neighbor_list_start) - 1)
+        neighbor_list_start[particle] = length(neighbor_lists) + 1
+
         particle_coords = extract_svector(coords, Val(ndims(search)), particle)
 
-        neighbors = []
-
         for neighbor in eachneighbor(particle_coords, grid_nhs)
-            neighbor_particle_coords = extract_svector(neighbor_coords,
-                                                       Val(ndims(search)), neighbor)
+            #     neighbor_particle_coords = extract_svector(neighbor_coords,
+            #                                                Val(ndims(search)), neighbor)
 
-            pos_diff = particle_coords - neighbor_particle_coords
-            distance2 = dot(pos_diff, pos_diff)
+            #     pos_diff = particle_coords - neighbor_particle_coords
+            #     distance2 = dot(pos_diff, pos_diff)
 
-            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
-                                                            search_radius, periodic_box)
+            #     pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
+            #                                                     search_radius, periodic_box)
 
-            if distance2 <= search_radius^2
-                append!(neighbors, neighbor)
-            end
+            #     if distance2 <= search_radius^2
+            append!(neighbor_lists, neighbor)
+            # end
         end
-
-        neighbor_lists[particle] = neighbors
     end
+
+    neighbor_list_start[end] = length(neighbor_lists) + 1
 
     return search
 end
