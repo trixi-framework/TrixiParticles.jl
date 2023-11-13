@@ -93,8 +93,8 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
 
         n_particles = length(initial_density)
 
-        cache = (; create_cache(viscosity, n_particles, ndims(smoothing_kernel))...,
-                 create_cache(initial_density, density_calculator)...)
+        cache = (; create_cache_model(viscosity, n_particles, ndims(smoothing_kernel))...,
+                 create_cache_model(initial_density, density_calculator)...)
 
         new{eltype(initial_density), typeof(state_equation),
             typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
@@ -298,29 +298,29 @@ end
            grad_kernel
 end
 
-function create_cache(initial_density,
-                      ::Union{SummationDensity, PressureMirroring, PressureZeroing})
+function create_cache_model(initial_density,
+                            ::Union{SummationDensity, PressureMirroring, PressureZeroing})
     density = copy(initial_density)
 
     return (; density)
 end
 
-function create_cache(initial_density, ::ContinuityDensity)
+function create_cache_model(initial_density, ::ContinuityDensity)
     return (; initial_density)
 end
 
-function create_cache(initial_density, ::AdamiPressureExtrapolation)
+function create_cache_model(initial_density, ::AdamiPressureExtrapolation)
     density = copy(initial_density)
     volume = similar(initial_density)
 
     return (; density, volume)
 end
 
-function create_cache(viscosity::NoViscosity, n_particles, n_dims)
+function create_cache_model(viscosity::NoViscosity, n_particles, n_dims)
     return (;)
 end
 
-function create_cache(viscosity::ViscosityAdami, n_particles, n_dims)
+function create_cache_model(viscosity::ViscosityAdami, n_particles, n_dims)
     ELTYPE = eltype(viscosity.nu)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
