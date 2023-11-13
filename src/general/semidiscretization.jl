@@ -362,7 +362,8 @@ function update_nhs(u_ode, semi)
             u_neighbor = wrap_u(u_ode, neighbor_index, neighbor, semi)
             neighborhood_search = neighborhood_searches[system_index][neighbor_index]
 
-            update!(neighborhood_search, current_coordinates(u, system), nhs_coords(system, neighbor, u_neighbor))
+            update!(neighborhood_search, current_coordinates(u, system),
+                    nhs_coords(system, neighbor, u_neighbor))
         end
     end
 end
