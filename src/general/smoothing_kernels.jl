@@ -52,7 +52,7 @@ abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
-    return kernel_deriv(kernel, distance, h) * pos_diff / distance
+    return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h, correction, system,
