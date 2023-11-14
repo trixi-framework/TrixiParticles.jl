@@ -3,16 +3,34 @@ using Documenter, TrixiParticles
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
 
-# Copy list of authors to not need to synchronize it manually
-authors_text = read(joinpath(trixiparticles_root_dir, "AUTHORS.md"), String)
-header = """
-```@meta
-EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/AUTHORS.md"
-```
-"""
-authors_text = header * replace(authors_text,
-                       "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
-write(joinpath(@__DIR__, "src", "authors.md"), authors_text)
+# Copy files to not need to synchronize them manually
+function copy_file(filename, replaces...)
+    content = read(joinpath(trixiparticles_root_dir, filename), String)
+    content = replace(content, replaces...)
+
+    header = """
+    ```@meta
+    EditURL = "https://github.com/trixi-framework/TrixiParticles.jl/blob/main/$filename"
+    ```
+    """
+    content = header * content
+
+    write(joinpath(@__DIR__, "src", lowercase(filename)), content)
+end
+
+copy_file("AUTHORS.md",
+          "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
+copy_file("CONTRIBUTING.md",
+          "[AUTHORS.md](AUTHORS.md)" => "[Authors](@ref)",
+          "[LICENSE.md](LICENSE.md)" => "[License](@ref)")
+# Add section `# License` and add `>` in each line to add a quote
+copy_file("LICENSE.md",
+          "[AUTHORS.md](AUTHORS.md)" => "[Authors](@ref)",
+          "\n" => "\n> ", r"^" => "# License\n\n> ")
+# Add section `# Code of Conduct` and add `>` in each line to add a quote
+copy_file("CODE_OF_CONDUCT.md",
+          "[AUTHORS.md](AUTHORS.md)" => "[Authors](@ref)",
+          "\n" => "\n> ", r"^" => "# Code of Conduct\n\n> ")
 
 makedocs(sitename="TrixiParticles.jl",
          # Explicitly specify documentation structure
