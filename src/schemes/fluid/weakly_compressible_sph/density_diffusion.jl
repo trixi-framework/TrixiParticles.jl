@@ -21,7 +21,7 @@ function update!(density_diffusion, neighborhood_search, v, u, system, semi)
 end
 
 @doc raw"""
-    DensityDiffusionMolteniColagrossi(delta)
+    DensityDiffusionMolteniColagrossi(; delta)
 
 The commonly used density diffusion term by Molteni & Colagrossi (2009).
 
@@ -44,6 +44,10 @@ diffusion terms.
 """
 struct DensityDiffusionMolteniColagrossi{ELTYPE} <: DensityDiffusion
     delta::ELTYPE
+
+    function DensityDiffusionMolteniColagrossi(; delta)
+        new{typeof(delta)}(delta)
+    end
 end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
@@ -89,7 +93,7 @@ end
 end
 
 @doc raw"""
-    DensityDiffusionAntuono(delta, initial_condition)
+    DensityDiffusionAntuono(initial_condition; delta)
 
 The commonly used density diffusion terms by Antuono et al. (2010), also referred to as
 δ-SPH. The density diffusion term by Molteni & Colagrossi (2009) is extended by a second
@@ -135,7 +139,7 @@ struct DensityDiffusionAntuono{NDIMS, ELTYPE} <: DensityDiffusion
     correction_matrix           :: Array{ELTYPE, 3} # [i, j, particle]
     normalized_density_gradient :: Array{ELTYPE, 2} # [i, particle]
 
-    function DensityDiffusionAntuono(delta, initial_condition)
+    function DensityDiffusionAntuono(initial_condition; delta)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
