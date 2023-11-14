@@ -9,16 +9,16 @@ resulting in reduced surface tension and viscosity forces.
 The free surface correction adjusts the viscosity, pressure, and surface tension forces
 near free surfaces to counter this effect.
 It's important to note that this correlation is unphysical and serves as an approximation.
-The computation time added by this method is about 2-3%.
+The computation time added by this method is about 2--3%.
 
 # Arguments
-- `rho0`: Reference density.
+- `rho0`: Rest density.
 
 ## References
 - Akinci, N., Akinci, G., & Teschner, M. (2013).
   "Versatile Surface Tension and Adhesion for SPH Fluids".
   ACM Transactions on Graphics (TOG), 32(6), 182.
-  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508405)
+  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508395)
 """
 struct AkinciFreeSurfaceCorrection{ELTYPE}
     rho0::ELTYPE
@@ -52,14 +52,16 @@ was first proposed by Li et al.
 
 The kernel correction coefficient is determined by
 ```math
-c(x) = \sum_{b=1}^{N} V_b W_b(x)
+c(x) = \sum_{b=1} V_b W_b(x),
 ```
+where ``V_b = m_b / \rho_b`` is the volume of particle ``b``.
 
-This correction is applied with SummationDensity to correct the density and leads to an improvement
-as especially for free surfaces.
+This correction is applied with [`SummationDensity`](@ref) to correct the density and leads
+to an improvement, especially at free surfaces.
 
-# Notes
-- Also referred to as 0th order correction (2D: +5-6% computational time)
+!!! note
+    - It is also referred to as "0th order correction".
+    - In 2D, we can expect an increase of about 5--6% in computation time.
 
 
 ## References:
@@ -87,21 +89,21 @@ as shown by Basa et al.
 
 The kernel correction coefficient is determined by
 ```math
-c(x) = \sum_{b=1}^{N} V_b W_b(x)
+c(x) = \sum_{b=1} V_b W_b(x)
 ```
 The gradient of corrected kernel is determined by
 ```math
-\nabla \tilde(W)_{b}(x) = \frac{\naba W_{b}(x) - \gamma(x)}{\sum_{b=1}^{N} V_b W_b(x)}
-\gamma(x) = \frac{\sum_{b=1}^{N} V_b \nabla W_b(x)}{\sum_{b=1}^{N} V_b W_b(x)}
+\nabla \tilde{W}_{b}(r) =\frac{\nabla W_{b}(r) - \gamma(r)}{\sum_{b=1} V_b W_b(r)} , \quad  \text{where} \quad
+\gamma(r) = \frac{\sum_{b=1} V_b \nabla W_b(r)}{\sum_{b=1} V_b W_b(r)}.
 ```
 
-This correction can be applied with SummationDensity and ContinuityDensity which leads to an improvement
-especially for free surfaces.
+This correction can be applied with [`SummationDensity`](@ref) and
+[`ContinuityDensity`](@ref), which leads to an improvement, especially at free surfaces.
 
-# Notes
-- This only works when the boundary model uses `SummationDensity` (yet).
-- It is also referred to as 0th order correction.
-- In 2D, we can expect an increase of about 10-15% in computation time.
+!!! note
+    - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
+    - It is also referred to as "0th order correction".
+    - In 2D, we can expect an increase of about 10--15% in computation time.
 
 
 ## References:
@@ -113,9 +115,10 @@ especially for free surfaces.
   "Robustness and accuracy of SPH formulations for viscous flow".
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-- S.F. Li, W.K. Liu, "Moving least square Kernel Galerkin method (II) Fourier analysis",
-  Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
-  [doi:10.1016/S0045-7825(96)01082-1] (https://doi.org/10.1016/S0045-7825(96)01082-1).
+- Shaofan Li, Wing Kam Liu.
+  "Moving least-square reproducing kernel method Part II: Fourier analysis".
+  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
+  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct KernelGradientCorrection end
 
@@ -123,35 +126,30 @@ function kernel_correction_coefficient(system, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     density_calculator, correction)
     return system
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
-    return compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+    return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
-    (; systems, neighborhood_searches) = semi
-
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                   semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                   semi)
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
@@ -173,10 +171,9 @@ function dw_gamma(system, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
-function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::KernelGradientCorrection)
-    (; systems, neighborhood_searches) = semi
     (; cache) = system
     (; kernel_correction_coefficient, dw_gamma) = cache
 
@@ -184,17 +181,14 @@ function compute_correction_values!(system, system_index, v, u, v_ode, u_ode, se
     set_zero!(dw_gamma)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute correction value" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system,
-                                   semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system,
-                                   semi)
+    @trixi_timeit timer() "compute correction value" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
@@ -227,28 +221,35 @@ Compute the corrected gradient of particle interactions based on their relative 
 
 # Mathematical Details
 
-Given the standard SPH representation, the gradient of a field A at particle i is given by:
+Given the standard SPH representation, the gradient of a field ``A`` at particle ``a`` is
+given by
 
 ```math
-\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h)
+\nabla A_a = \sum_b m_b \frac{A_b - A_a}{\rho_b} \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
 ```
-
-Where:
-- $m_b$ is the mass of particle $b$.
-- $rho_b$ is the density of particle $b$.
+where ``m_b`` is the mass of particle ``b`` and ``\rho_b`` is the density of particle ``b``.
 
 The gradient correction, as commonly proposed, involves multiplying this gradient with a correction matrix $L$:
 
 ```math
-\nabla^\tilde A_i = L_i \nabla A_i
+\tilde{\nabla} A_a = \bm{L}_a \nabla A_a
 ```
 
-The correction matrix  $L_i$ is computed based on the provided particle configuration,
+The correction matrix  $\bm{L}_a$ is computed based on the provided particle configuration,
 aiming to make the corrected gradient more accurate, especially near domain boundaries.
 
-# Notes:
-- Stability issues as especially when particles separate into small clusters.
-- Doubles the computational effort.
+To satisfy
+```math
+\sum_b V_b r_{ba} \otimes \tilde{\nabla}W_b(r_a) = \left( \sum_b V_b r_{ba} \otimes \nabla W_b(r_a) \right) \bm{L}_a^T = \bm{I}
+```
+the correction matrix $\bm{L}_a$ is evaluated explicitly as
+```math
+\bm{L}_a = \left( \sum_b V_b \nabla W_b(r_{a}) \otimes r_{ba} \right)^{-1}.
+```
+
+!!! note
+    - Stability issues arise, especially when particles separate into small clusters.
+    - Doubles the computational effort.
 
 ## References:
 - J. Bonet, T.-S.L. Lok.

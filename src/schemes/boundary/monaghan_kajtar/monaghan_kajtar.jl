@@ -91,7 +91,7 @@ end
            boundary_kernel(distance, smoothing_length)
 end
 
-@inline function boundary_kernel(r, h)
+@fastpow @inline function boundary_kernel(r, h)
     q = r / h
 
     # TODO The neighborhood search fluid->boundary should use this search distance
@@ -112,14 +112,12 @@ end
 end
 
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                  system_index,
                                   v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
 
 @inline function update_density!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                 system_index,
                                  v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model

@@ -50,25 +50,21 @@ end
     v[end, particle] = density
 end
 
-function summation_density!(system, system_index, semi, u, u_ode, density;
+function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
-    (; systems, neighborhood_searches) = semi
-
     set_zero!(density)
 
     # Use all other systems for the density summation
-    @trixi_timeit timer() "compute density" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                           neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system, semi)
+    @trixi_timeit timer() "compute density" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        nhs = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                              neighborhood_search,
+        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
                               particles=particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             density[particle] += mass * smoothing_kernel(system, distance)
