@@ -31,11 +31,13 @@ copy_file("LICENSE.md",
 copy_file("CODE_OF_CONDUCT.md",
           "[AUTHORS.md](AUTHORS.md)" => "[Authors](@ref)",
           "\n" => "\n> ", r"^" => "# Code of Conduct\n\n> ")
+copy_file("NEWS.md")
 
 makedocs(sitename="TrixiParticles.jl",
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
+             "News" => "news.md",
              "Components" => [
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
