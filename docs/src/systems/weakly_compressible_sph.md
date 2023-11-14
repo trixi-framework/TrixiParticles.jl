@@ -50,6 +50,9 @@ All density diffusion terms remove numerical noise in the pressure field and pro
 accurate results than weakly commpressible SPH without density diffusion.
 This can be demonstrated with with dam break examples in 2D and 3D. Here, ``δ = 0.1`` has
 been used for all terms.
+Note that, due to added stability, the adaptive time integration method that was used here
+can choose higher time steps in the simulations with density diffusion.
+For the cheap [`DensityDiffusionMolteniColagrossi`](@ref), this results in reduced runtime.
 
 ![density_diffusion_2d](https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600)
 
@@ -64,7 +67,7 @@ until ``t = 40`` (again using ``δ = 0.1``):
 ![density_diffusion_tank](https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600)
 
 [`DensityDiffusionAntuono`](@ref) adds a correction term to solve this problem, but this
-term is very expensive and adds about 30--40% of computational cost.
+term is very expensive and adds about 35--45% of computational cost.
 
 ### References
 - M. Antuono, A. Colagrossi, S. Marrone.
