@@ -67,7 +67,7 @@ until ``t = 40`` (again using ``δ = 0.1``):
 ![density_diffusion_tank](https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600)
 
 [`DensityDiffusionAntuono`](@ref) adds a correction term to solve this problem, but this
-term is very expensive and adds about 35--45% of computational cost.
+term is very expensive and adds about 40--50% of computational cost.
 
 ### References
 - M. Antuono, A. Colagrossi, S. Marrone.
