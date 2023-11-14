@@ -48,6 +48,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
                                            acceleration=(0.0, -gravity), correction=nothing)
 
 # ==========================================================================================
