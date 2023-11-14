@@ -45,7 +45,8 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
-export DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari, DensityDiffusionAntuono
+export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
+       DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing
 export BoundaryMovement

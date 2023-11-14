@@ -11,47 +11,7 @@ Currently, the following formulations are available:
 | [`DensityDiffusionFerrari`](@ref)           | ❌                                    | ✅                     |
 | [`DensityDiffusionAntuono`](@ref)           | ✅                                    | ❌                     |
 
-## SPH Formulation
-
-All formulations extend the continuity equation (see [`ContinuityDensity`](@ref))
-by an additional term
-```math
-\frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla_{r_a} W(\Vert r_{ab} \Vert, h)
-    + \delta h c \sum_{b} V_b \psi_{ab} \cdot \nabla_{r_a} W(\Vert r_{ab} \Vert, h),
-```
-where ``V_b = m_b / \rho_b`` is the volume of particle ``b`` and ``\psi_{ab}`` depends on
-the density diffusion formulation.
-Also, ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
-difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
-``a`` and ``b``.
-
-## Numerical Results
-
-All formulations remove numerical noise in the pressure field and produce more
-accurate results than weakly commpressible SPH without density diffusion.
-This can be demonstrated with with dam break examples in 2D and 3D. Here, ``δ = 0.1`` has
-been used for all formulations.
-
-![density_diffusion_2d](https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600)
-
-![density_diffusion_3d](https://lh3.googleusercontent.com/drive-viewer/AK7aPaDKc0DCJfFH606zWFkjutMYzs70Y4Ot_33avjcIRxV3xNbrX1gqx6EpeSmysai338aRsOoqJ8B1idUs5U30SA_o12OQ=s1600)
-
-The simpler formulations [`DensityDiffusionMolteniColagrossi`](@ref) and
-[`DensityDiffusionFerrari`](@ref) do not solve the hydrostatic problem and lead to incorrect
-solutions in long-running steady-state hydrostatic simulations with free surfaces
-(Antuono et al., 2012). This can be seen when running the simple rectangular tank example
-until ``t = 40`` (again using ``δ = 0.1``):
-
-![density_diffusion_tank](https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600)
-
-[`DensityDiffusionAntuono`](@ref) adds a correction term to solve this problem, but this
-term is very expensive and adds about 30--40% of computational cost.
-
-## References
-- M. Antuono, A. Colagrossi, S. Marrone.
-  "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-  In: Computer Physics Communications 183.12 (2012), pages 2570--2580.
-  [doi: 10.1016/j.cpc.2012.07.006](https://doi.org/10.1016/j.cpc.2012.07.006)
+See [Density Diffusion](@ref) for a comparison and more details.
 """
 abstract type DensityDiffusion end
 
