@@ -8,7 +8,7 @@
             Base.eltype(::Val{:initial_condition}) = Float64
             TrixiParticles.nparticles(::Val{:initial_condition}) = 15
 
-            density_diffusion = DensityDiffusionAntuono(0.1, initial_condition)
+            density_diffusion = DensityDiffusionAntuono(delta=0.1, initial_condition)
 
             @test repr(density_diffusion) == "DensityDiffusionAntuono(0.1)"
         end
