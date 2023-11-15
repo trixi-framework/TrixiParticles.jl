@@ -44,11 +44,12 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
+                                           density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing)
 
 # ==========================================================================================

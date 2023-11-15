@@ -48,15 +48,25 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 
 All density diffusion terms remove numerical noise in the pressure field and produce more
 accurate results than weakly commpressible SPH without density diffusion.
-This can be demonstrated with with dam break examples in 2D and 3D. Here, ``δ = 0.1`` has
+This can be demonstrated with dam break examples in 2D and 3D. Here, ``δ = 0.1`` has
 been used for all terms.
 Note that, due to added stability, the adaptive time integration method that was used here
 can choose higher time steps in the simulations with density diffusion.
 For the cheap [`DensityDiffusionMolteniColagrossi`](@ref), this results in reduced runtime.
 
-![density_diffusion_2d](https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600)
+```@raw html
+<figure>
+  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600" alt="density_diffusion_2d"/>
+  <figcaption>Dam break in 2D with different density diffusion terms</figcaption>
+</figure>
+```
 
-![density_diffusion_3d](https://lh3.googleusercontent.com/drive-viewer/AK7aPaDKc0DCJfFH606zWFkjutMYzs70Y4Ot_33avjcIRxV3xNbrX1gqx6EpeSmysai338aRsOoqJ8B1idUs5U30SA_o12OQ=s1600)
+```@raw html
+<figure>
+  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaDKc0DCJfFH606zWFkjutMYzs70Y4Ot_33avjcIRxV3xNbrX1gqx6EpeSmysai338aRsOoqJ8B1idUs5U30SA_o12OQ=s1600" alt="density_diffusion_3d"/>
+  <figcaption>Dam break in 3D with different density diffusion terms</figcaption>
+</figure>
+```
 
 The simpler terms [`DensityDiffusionMolteniColagrossi`](@ref) and
 [`DensityDiffusionFerrari`](@ref) do not solve the hydrostatic problem and lead to incorrect
@@ -64,7 +74,12 @@ solutions in long-running steady-state hydrostatic simulations with free surface
 (Antuono et al., 2012). This can be seen when running the simple rectangular tank example
 until ``t = 40`` (again using ``δ = 0.1``):
 
-![density_diffusion_tank](https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600)
+```@raw html
+<figure>
+  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600" alt="density_diffusion_tank"/>
+  <figcaption>Tank in rest under gravity in 3D with different density diffusion terms</figcaption>
+</figure>
+```
 
 [`DensityDiffusionAntuono`](@ref) adds a correction term to solve this problem, but this
 term is very expensive and adds about 40--50% of computational cost.
