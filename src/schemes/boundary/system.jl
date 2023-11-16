@@ -4,7 +4,7 @@
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-For moving boundaries, a [`BoundaryMovement`](@ref)) can be passed with the keyword
+For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
 argument `movement`.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
