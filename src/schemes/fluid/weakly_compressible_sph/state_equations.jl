@@ -47,6 +47,13 @@ function (state_equation::StateEquationIdealGas)(density)
     return pressure
 end
 
+function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
+    (; sound_speed, reference_density, reference_pressure, background_pressure) = state_equation
+
+    return (pressure + background_pressure - reference_pressure) / sound_speed^2 +
+           reference_density
+end
+
 @doc raw"""
     StateEquationCole(sound_speed, gamma, reference_density, reference_pressure;
                       background_pressure=0.0, clip_negative_pressure=false)
