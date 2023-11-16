@@ -59,7 +59,7 @@ jobs:
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,test,examples
+          directories: src,test
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v3
         with:
