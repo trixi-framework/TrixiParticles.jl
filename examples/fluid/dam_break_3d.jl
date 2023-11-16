@@ -6,7 +6,7 @@ using OrdinaryDiffEq
 fluid_particle_spacing = 0.08
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 3
+boundary_layers = 4
 spacing_ratio = 1
 
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
@@ -32,15 +32,17 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{3}()
+smoothing_length = 3.0 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity, 0.0))
 
 # ==========================================================================================

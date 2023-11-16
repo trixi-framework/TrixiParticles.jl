@@ -21,7 +21,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0.
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
@@ -113,23 +113,58 @@ end
                                  distance, grad_kernel, density_calculator)
 end
 
+# With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
+@inline function continuity_equation!(dv, density_calculator::SummationDensity,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      particle_system, neighbor_system, grad_kernel)
+    return dv
+end
+
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel)
+    (; density_diffusion) = particle_system
+
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
     dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
-    return dv
+    density_diffusion!(dv, density_diffusion,
+                       v_particle_system, v_neighbor_system,
+                       particle, neighbor, pos_diff, distance,
+                       particle_system, neighbor_system, grad_kernel)
 end
 
-# 'SummationDensity' is used so density is recalculated in wcsph/system.jl:compute_density!()
-@inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system, grad_kernel)
+@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    particle_system::WeaklyCompressibleSPHSystem,
+                                    neighbor_system::WeaklyCompressibleSPHSystem,
+                                    grad_kernel)
+    (; delta) = density_diffusion
+    (; smoothing_length, state_equation) = particle_system
+    (; sound_speed) = state_equation
+
+    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    volume_b = m_b / rho_b
+
+    psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
+                                particle_system, particle, neighbor)
+    density_diffusion_term = dot(psi, grad_kernel) * volume_b
+
+    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+end
+
+# Density diffusion `nothing` or interaction other than fluid-fluid
+@inline function density_diffusion!(dv, density_diffusion,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    particle_system, neighbor_system, grad_kernel)
     return dv
 end
