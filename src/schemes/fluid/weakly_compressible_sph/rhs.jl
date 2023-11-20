@@ -38,10 +38,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
-                                            particle_system, v_particle_system,
-                                            neighbor, neighbor_system,
-                                            v_neighbor_system, rho_a, rho_b, pos_diff,
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                            particle_system, neighbor_system,
+                                            rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, density_calculator)
 
         dv_viscosity = viscosity_correction *
@@ -74,10 +73,10 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with ContinuityDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, ::ContinuityDensity)
     return (-m_b *
             (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
@@ -88,10 +87,10 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with SummationDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, ::SummationDensity)
     return (-m_b *
             (particle_system.pressure[particle] / rho_a^2 +
@@ -99,17 +98,17 @@ end
            pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::Union{BoundarySPHSystem,
                                                               TotalLagrangianSPHSystem},
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, density_calculator)
     (; boundary_model) = neighbor_system
 
-    return pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                 v_particle_system, neighbor, neighbor_system,
-                                 v_neighbor_system, boundary_model, rho_a, rho_b, pos_diff,
+    return pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                 particle_system, neighbor_system,
+                                 boundary_model, rho_a, rho_b, pos_diff,
                                  distance, grad_kernel, density_calculator)
 end
 
