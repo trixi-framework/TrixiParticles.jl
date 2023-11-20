@@ -25,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -34,15 +34,16 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
     state_equation     :: SE
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    viscosity          :: V
     acceleration       :: SVector{NDIMS, ELTYPE}
+    viscosity          :: V
+    density_diffusion  :: DD
     correction         :: COR
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
-                                         viscosity=NoViscosity(),
+                                         viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing)
@@ -68,39 +69,39 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        cache = create_cache(n_particles, ELTYPE, density_calculator)
+        cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
-                 create_cache(correction, initial_condition.density, NDIMS, n_particles)...,
-                 cache...)
+                 create_cache_wcsph(correction, initial_condition.density, NDIMS,
+                                    n_particles)..., cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(cache)
                    }(initial_condition, mass, pressure,
                      density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, cache)
+                     smoothing_kernel, smoothing_length, acceleration_, viscosity,
+                     density_diffusion, correction, cache)
     end
 end
 
-create_cache(correction, density, NDIMS, nparticles) = (;)
+create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
 
-function create_cache(::ShepardKernelCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::ShepardKernelCorrection, density, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache(::KernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::KernelGradientCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
 
-function create_cache(n_particles, ELTYPE, ::SummationDensity)
+function create_cache_wcsph(n_particles, ELTYPE, ::SummationDensity)
     density = Vector{ELTYPE}(undef, n_particles)
 
     return (; density)
 end
 
-function create_cache(n_particles, ELTYPE, ::ContinuityDensity)
+function create_cache_wcsph(n_particles, ELTYPE, ::ContinuityDensity)
     # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
     return (;)
 end
@@ -114,6 +115,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.state_equation)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
+    print(io, ", ", system.density_diffusion)
     print(io, ", ", system.acceleration)
     print(io, ") with ", nparticles(system), " particles")
 end
@@ -133,6 +135,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
+        summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
@@ -157,76 +160,77 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    (; density_calculator) = system
+    (; density_calculator, density_diffusion) = system
 
-    compute_density!(system, system_index, u, u_ode, semi, density_calculator)
+    compute_density!(system, u, u_ode, semi, density_calculator)
+
+    nhs = neighborhood_searches(system, system, semi)
+    @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
+                                                             system, semi)
 
     return system
 end
 
-function compute_density!(system, system_index, u, u_ode, semi, ::ContinuityDensity)
+function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
 end
 
-function compute_density!(system, system_index, u, u_ode, semi, ::SummationDensity)
+function compute_density!(system, u, u_ode, semi, ::SummationDensity)
     (; cache) = system
     (; density) = cache # Density is in the cache for SummationDensity
 
-    summation_density!(system, system_index, semi, u, u_ode, density)
+    summation_density!(system, semi, u, u_ode, density)
 end
 
-function update_pressure!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
-                          v_ode, u_ode, semi, t)
+function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system, system_index, v, u, v_ode, u_ode, semi,
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                density_calculator, correction)
     # `kernel_correct_density!` only performed for `SummationDensity`
-    kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi, correction,
+    kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
 
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
                                  correction, density_calculator)
     return system
 end
 
-function kernel_correct_density!(system, system_index, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
                                  ::Union{ShepardKernelCorrection, KernelGradientCorrection},
                                  ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
 function reinit_density!(vu_ode, semi)
-    (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
-        reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+        reinit_density!(system, v, u, v_ode, u_ode, semi)
     end
 
     return vu_ode
 end
 
-function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
+function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
                          v_ode, u_ode, semi)
     # Compute density with `SummationDensity` and store the result in `v`,
     # overwriting the previous integrated density.
-    summation_density!(system, system_index, semi, u, u_ode, v[end, :])
+    summation_density!(system, semi, u, u_ode, v[end, :])
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, system_index, v, u, v_ode, u_ode, semi,
-                           kernel_correction_coefficient)
+    compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)
@@ -234,15 +238,14 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, system_index, v, u
     return system
 end
 
-function reinit_density!(system, system_index, v, u, v_ode, u_ode, semi)
+function reinit_density!(system, v, u, v_ode, u_ode, semi)
     return system
 end
 
 function compute_pressure!(system, v)
     (; state_equation, pressure) = system
 
-    # Note that @threaded makes this slower
-    for particle in eachparticle(system)
+    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, system, particle))
     end
 end

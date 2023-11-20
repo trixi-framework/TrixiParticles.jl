@@ -1,5 +1,6 @@
 """
-    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="", custom_quantities...)
+    trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
+              write_meta_data=true, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
 
@@ -12,6 +13,7 @@ Convert Trixi simulation data to VTK format.
 - `iter`:                 Iteration number when multiple iterations are to be stored in separate files.
 - `output_directory`:     Output directory path. Defaults to `"out"`.
 - `prefix`:               Prefix for output files. Defaults to an empty string.
+- `write_meta_data`:      Write meta data.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
 
 
@@ -22,8 +24,8 @@ trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="soluti
 TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   custom_quantities...)
-    (; systems, neighborhood_searches) = semi
+                   write_meta_data=true, custom_quantities...)
+    (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
@@ -33,15 +35,17 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
                  for i in eachindex(cnames)]
 
-    foreach_enumerate(systems) do (system_index, system)
-        v = wrap_v(v_ode, system_index, system, semi)
-        u = wrap_u(u_ode, system_index, system, semi)
-        periodic_box = neighborhood_searches[system_index][system_index].periodic_box
+    foreach_system(semi) do system
+        system_index = system_indices(system, semi)
+
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+        periodic_box = neighborhood_searches(system, system, semi).periodic_box
 
         trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
-                  custom_quantities...)
+                  write_meta_data=write_meta_data, custom_quantities...)
     end
 end
 
