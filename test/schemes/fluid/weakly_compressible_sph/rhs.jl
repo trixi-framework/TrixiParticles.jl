@@ -71,6 +71,11 @@
     end
 
     @testset verbose=true "`interact!`" begin
+        # The following tests for linear and angular momentum conservation
+        # are based on Section 3.3.4 of
+        # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
+        # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
+        # https://doi.org/10.1016/j.jcp.2010.12.011
         @testset verbose=true "Momentum Conservation" begin
             # We are testing the momentum conservation of SPH with random initial configurations
             density_calculators = [ContinuityDensity(), SummationDensity()]
