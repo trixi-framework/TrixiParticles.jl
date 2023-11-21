@@ -6,15 +6,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, smoothing_length) = particle_system
+    (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
     viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
-    # and the two other lines below that are marked as "debug example".
+    # In order to visualize quantities like pressure forces or viscosity forces, uncomment
+    # the following code and the two other lines below that are marked as "debug example".
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
