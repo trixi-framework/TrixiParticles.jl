@@ -72,7 +72,7 @@
 
     @testset verbose=true "`interact!`" begin
         @testset verbose=true "Momentum Conservation" begin
-            # We are testing the momentum convervation of SPH with random initial configurations
+            # We are testing the momentum conservation of SPH with random initial configurations
             density_calculators = [ContinuityDensity(), SummationDensity()]
 
             # Random initial configuration
