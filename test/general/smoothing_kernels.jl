@@ -1,5 +1,3 @@
-using QuadGK
-
 @testset verbose=true "Smoothing Kernels" begin
     # Don't show all kernel tests in the final overview
     @testset verbose=false "Integral" begin
