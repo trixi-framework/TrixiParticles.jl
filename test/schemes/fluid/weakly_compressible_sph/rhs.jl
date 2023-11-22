@@ -24,7 +24,7 @@
             pos_diff = 0
             distance = 0
 
-            @testset "$(nameof(typeof(density_calculator)))" for density_calculator in density_calculators
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
                 for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                     (p_a, p_b) in pressures, grad_kernel in grad_kernels
 
@@ -49,15 +49,13 @@
                     system.pressure .= [0.0, p_a, p_b]
 
                     # Compute accelerations a -> b and b -> a
-                    dv1 = TrixiParticles.pressure_acceleration(1.0, m_b, particle,
-                                                               neighbor,
+                    dv1 = TrixiParticles.pressure_acceleration(1.0, m_b, particle, neighbor,
                                                                system, system, rho_a, rho_b,
                                                                pos_diff, distance,
                                                                grad_kernel,
                                                                density_calculator)
 
-                    dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, neighbor,
-                                                               particle,
+                    dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, neighbor, particle,
                                                                system, system, rho_b, rho_a,
                                                                -pos_diff, distance,
                                                                -grad_kernel,
@@ -113,7 +111,7 @@
             search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                            smoothing_length)
 
-            @testset "$(nameof(typeof(density_calculator)))" for density_calculator in density_calculators
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
                 for i in eachindex(mass)
                     initial_condition = InitialCondition(coordinates[i], velocity[i],
                                                          mass[i], density[i])
