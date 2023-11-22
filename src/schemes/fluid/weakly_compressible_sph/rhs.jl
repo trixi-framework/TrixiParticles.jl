@@ -200,6 +200,6 @@ end
                                     v_particle_system, v_neighbor_system,
                                     particle, neighbor, pos_diff, distance,
                                     particle_system, neighbor_system, grad_kernel,
-                                      correction)
+                                    correction)
     return dv
 end

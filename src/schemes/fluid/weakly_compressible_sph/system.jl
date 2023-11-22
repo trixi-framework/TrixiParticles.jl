@@ -96,7 +96,7 @@ function create_cache_wcsph(::KernelGradientCorrection, density, NDIMS, n_partic
 end
 
 function create_cache_wcsph(::Union{GradientCorrection, BlendedGradientCorrection}, density,
-                      NDIMS, n_particles)
+                            NDIMS, n_particles)
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
     return (; correction_matrix)
 end
