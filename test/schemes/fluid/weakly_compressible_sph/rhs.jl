@@ -192,7 +192,7 @@
                     # where `te` is the thermal energy, called `u` in the Price paper.
                     function deriv_energy(particle)
                         dte_a = pressure[i][particle] / density[i][particle]^2 *
-                               drho(density_calculator, particle)
+                                drho(density_calculator, particle)
                         v_a = TrixiParticles.extract_svector(v, system, particle)
                         dv_a = TrixiParticles.extract_svector(dv, system, particle)
 
