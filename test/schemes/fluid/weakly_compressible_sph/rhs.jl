@@ -74,7 +74,7 @@
         # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
         # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
         # https://doi.org/10.1016/j.jcp.2010.12.011
-        @testset verbose=true "Momentum Conservation" begin
+        @testset verbose=true "Momentum and Total Energy Conservation" begin
             # We are testing the momentum conservation of SPH with random initial configurations
             density_calculators = [ContinuityDensity(), SummationDensity()]
 
@@ -202,8 +202,7 @@
                     # ∑ m_a (v_a ⋅ dv_a + dte_a)
                     deriv_total_energy = sum(deriv_energy, 1:8)
 
-                    # TODO: Why is this error so large?
-                    @test isapprox(deriv_total_energy, 0.0, atol=5e-12)
+                    @test isapprox(deriv_total_energy, 0.0, atol=4e-14)
                 end
             end
         end
