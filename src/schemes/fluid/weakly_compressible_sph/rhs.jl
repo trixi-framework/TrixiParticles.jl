@@ -124,7 +124,6 @@ end
                                        grad_kernel, density_calculator, correction)
     (; boundary_model) = neighbor_system
 
-    # call the function for the solid particle system or bnd
     return pressure_acceleration(pressure_correction, m_b, particle, particle_system,
                                  v_particle_system, neighbor, neighbor_system,
                                  v_neighbor_system, boundary_model, rho_a, rho_b, pos_diff,

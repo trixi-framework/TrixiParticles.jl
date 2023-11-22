@@ -172,9 +172,6 @@ initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 function update_quantities!(system::WeaklyCompressibleSPHSystem, system_index, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
-    # (; neighborhood_searches) = semi
-
-    # neighborhood_search = neighborhood_searches[system_index][system_index]
 
     compute_density!(system, system_index, u, u_ode, semi, density_calculator)
     return system
@@ -238,8 +235,7 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
 
     compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
                                         system_coords,
-                                        particle -> particle_density(v, system, particle),
-                                        use_factorization=corr.use_factorization)
+                                        particle -> particle_density(v, system, particle))
 end
 
 function reinit_density!(vu_ode, semi)

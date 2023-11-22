@@ -1,5 +1,3 @@
-using LinearAlgebra
-
 # Sorted in order of computational cost
 @doc raw"""
     AkinciFreeSurfaceCorrection(rho0)
@@ -12,14 +10,14 @@ near free surfaces to counter this effect.
 It's important to note that this correlation is unphysical and serves as an approximation.
 The computation time added by this method is about 2-3%.
 
-Mathematically the idea is quite simple if we have a SPH particle in the middle of a volume
-at rest its density will be identical to the rest density `rho0`. If we now consider a SPH
-particle at a free surface at rest it will have neighbor missing in the direction normal to
-the surface, which will result in a lower density, if we calculate the correction factor `k`
+Mathematically the idea is quite simple. If we have an SPH particle in the middle of a volume
+at rest, its density will be identical to the rest density ``\rho_0``. If we now consider an SPH
+particle at a free surface at rest, it will have neighbors missing in the direction normal to
+the surface, which will result in a lower density. If we calculate the correction factor
 ```math
-k = rho_0/rho_{mean}
+k = \rho_0/rho_\text{mean},
 ```
-this value will be about ~1.5 for particles at the free surface and can than be used to increase
+this value will be about ~1.5 for particles at the free surface and can then be used to increase
 the pressure and viscosity accordingly.
 
 # Arguments
@@ -80,11 +78,11 @@ as especially for free surfaces.
   [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
 - Mihai Basa, Nathan Quinlan, Martin Lastiwka.
   "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 -  Shaofan Li, Wing Kam Liu.
   "Moving least-square reproducing kernel method Part II: Fourier analysis".
-  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
+  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159--193.
   [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct ShepardKernelCorrection end
@@ -122,7 +120,7 @@ especially for free surfaces.
   [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
 - Mihai Basa, Nathan Quinlan, Martin Lastiwka.
   "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 - S.F. Li, W.K. Liu, "Moving least square Kernel Galerkin method (II) Fourier analysis",
   Computer Methods in Applied Mechanics and Engineering., 139 (1996) pages 159ff
@@ -133,20 +131,21 @@ struct KernelGradientCorrection end
 @doc raw"""
     MixedKernelGradientCorrection()
 
-Combines 'GradientCorrection' and 'KernelGradientCorrection' which results in a 1st order accurate SPH method.
+Combines [`GradientCorrection`](@ref) and [`KernelGradientCorrection`](@ref),
+which results in a 1st-order-accurate SPH method.
 
 # Notes:
-- Stability issues as especially when particles separate into small clusters.
+- Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
 
 ## References:
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
+  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
   [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
 - Mihai Basa, Nathan Quinlan, Martin Lastiwka.
   "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
 struct MixedKernelGradientCorrection
@@ -288,53 +287,47 @@ aiming to make the corrected gradient more accurate, especially near domain boun
 # Notes:
 - Stability issues as especially when particles separate into small clusters.
 - Doubles the computational effort.
-- Better stability with smoothing Kernels with larger support and Continuity e.g. 'SchoenbergQuinticSplineKernel' or 'WendlandC6Kernel'.
-- Set dt_max =< 1e-3
+- Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
+- Set `dt_max =< 1e-3` for stability.
 
 ## References:
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
+  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
   [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
 - Mihai Basa, Nathan Quinlan, Martin Lastiwka.
   "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127-1148.
+  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
-struct GradientCorrection
-    use_factorization::Bool
-
-    function GradientCorrection(; use_factorization=false)
-        return new{}(use_factorization)
-    end
-end
+struct GradientCorrection end
 
 @doc raw"""
     BlendedGradientCorrection()
 
-To increase stability this calculates a blended gradient, which reduces the stability issues of the 'GradientCorrection' method.
+Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref).
 
-This calculates the following
+This calculates the following,
 ```math
-\nabla^\tilde A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
-
+\tilde\nabla A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
 ```
-with $\lambda$ being the blending factor.
+with ``\lambda`` being the blending factor.
 
+# Arguments
+- `blending_factor`: Blending factor between gradient corrected and normal sph gradient.
 """
 struct BlendedGradientCorrection{ELTYPE <: Real}
     blending_factor   :: ELTYPE
     use_factorization :: Bool
 
-    function BlendedGradientCorrection(blending_factor; use_factorization=false)
-        return new{eltype(blending_factor)}(blending_factor, use_factorization)
+    function BlendedGradientCorrection(blending_factor)
+        return new{eltype(blending_factor)}(blending_factor)
     end
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                              neighborhood_search, system,
-                                             coordinates, density_fun;
-                                             use_factorization=false)
+                                             coordinates, density_fun)
     (; mass, smoothing_length, smoothing_kernel, correction) = system
 
     set_zero!(corr_matrix)
@@ -368,19 +361,14 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
     end
 
-    if use_factorization
-        @threaded for particle in eachparticle(system)
-            L = correction_matrix(system, particle)
-            invert_factorization(corr_matrix, L, particle, system)
+
+    @threaded for particle in eachparticle(system)
+        L = correction_matrix(system, particle)
+        if cond(L) > 1e10
+            set_one!(corr_matrix)
+            return corr_matrix
         end
-    else
-        @threaded for particle in eachparticle(system)
-            L = correction_matrix(system, particle)
-            if cond(L) > 1e10
-                throw(ModelError("Correction Matrix 'L' is not well conditioned."))
-            end
-            invert(corr_matrix, L, particle, system)
-        end
+        invert(corr_matrix, L, particle, system)
     end
 
     return corr_matrix
