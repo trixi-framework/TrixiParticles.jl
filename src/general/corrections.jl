@@ -361,7 +361,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
     end
 
-
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
         if cond(L) > 1e10
