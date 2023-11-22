@@ -80,16 +80,16 @@
 
             # Random initial configuration
             mass = [
-                [3.11, 7.55, 2.22, 9.48, 0.21, 3.73, 0.21, 3.45],
+                [3.11, 1.55, 2.22, 3.48, 0.21, 3.73, 0.21, 3.45],
                 [0.82, 1.64, 1.91, 0.02, 0.08, 1.58, 4.94, 0.7],
             ]
             density = [
-                [914.34, 198.36, 81.22, 452.54, 143.81, 794.73, 970.5, 639.14],
-                [28.15, 172.25, 667.1, 230.42, 882.3, 277.21, 848.31, 488.62],
+                [914.34, 398.36, 710.22, 252.54, 843.81, 694.73, 670.5, 539.14],
+                [280.15, 172.25, 267.1, 130.42, 382.3, 477.21, 848.31, 188.62],
             ]
             pressure = [
                 [91438.0, 16984.0, 58638.0, 10590.0, 92087.0, 66586.0, 64723.0, 49862.0],
-                [31652.0, -21956.0, 2874.0, -42489.0, 27206.0, 32225.0, 42848.0, 3001.0],
+                [31652.0, -21956.0, 2874.0, -12489.0, 27206.0, 32225.0, 42848.0, 3001.0],
             ]
             coordinates = [
                 [0.16 0.55 0.08 0.58 0.52 0.26 0.32 0.99;
@@ -144,8 +144,7 @@
                     # ∑ m_a dv_a
                     deriv_linear_momentum = sum(mass[i]' .* view(dv, 1:2, :), dims=2)
 
-                    # TODO: Why is this error so large?
-                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=2e-13)
+                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
 
                     # Angular momentum conservation
                     # m_a (r_a × dv_a)
@@ -159,8 +158,7 @@
                     # ∑ m_a (r_a × dv_a)
                     deriv_angular_momentum = sum(deriv_angular_momentum, 1:8)
 
-                    # TODO: Why is this error so large?
-                    @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-13)
+                    @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-14)
                 end
             end
         end
