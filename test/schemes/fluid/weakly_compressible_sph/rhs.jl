@@ -161,17 +161,45 @@
                     @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-14)
 
                     # Total energy conservation
-                    # m_a (v_a ⋅ dv_a + du_a)
+                    drho(::ContinuityDensity, particle) = dv[3, particle]
+
+                    # Derivative of the density summation. This is a slightly different
+                    # formulation of the continuity equation.
+                    function drho_particle(particle, neighbor)
+                        m_b = mass[i][neighbor]
+                        vdiff = TrixiParticles.current_velocity(v, system, particle) -
+                                TrixiParticles.current_velocity(v, system, neighbor)
+
+                        pos_diff = TrixiParticles.current_coords(u, system, particle) -
+                                   TrixiParticles.current_coords(u, system, neighbor)
+                        distance = norm(pos_diff)
+
+                        # Only consider particles with a distance > 0
+                        distance < sqrt(eps()) && return 0.0
+
+                        grad_kernel = TrixiParticles.smoothing_kernel_grad(system,
+                                                                           pos_diff,
+                                                                           distance)
+
+                        return m_b * dot(vdiff, grad_kernel)
+                    end
+
+                    function drho(::SummationDensity, particle)
+                        return sum(neighbor -> drho_particle(particle, neighbor), 1:8)
+                    end
+
+                    # m_a (v_a ⋅ dv_a + dte_a),
+                    # where `te` is the thermal energy, called `u` in the Price paper.
                     function deriv_energy(particle)
-                        du_a = pressure[i][particle] / density[i][particle]^2 *
-                               dv[3, particle]
+                        dte_a = pressure[i][particle] / density[i][particle]^2 *
+                               drho(density_calculator, particle)
                         v_a = TrixiParticles.extract_svector(v, system, particle)
                         dv_a = TrixiParticles.extract_svector(dv, system, particle)
 
-                        return mass[i][particle] * (dot(v_a, dv_a) + du_a)
+                        return mass[i][particle] * (dot(v_a, dv_a) + dte_a)
                     end
 
-                    # ∑ m_a (v_a ⋅ dv_a + du_a)
+                    # ∑ m_a (v_a ⋅ dv_a + dte_a)
                     deriv_total_energy = sum(deriv_energy, 1:8)
 
                     # TODO: Why is this error so large?
