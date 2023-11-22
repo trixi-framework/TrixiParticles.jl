@@ -69,8 +69,8 @@
     end
 
     @testset verbose=true "`interact!`" begin
-        # The following tests for linear and angular momentum conservation
-        # are based on Section 3.3.4 of
+        # The following tests for linear and angular momentum and total energy conservation
+        # are based on Sections 3.3.4 and 3.4.2 of
         # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
         # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
         # https://doi.org/10.1016/j.jcp.2010.12.011
@@ -159,6 +159,23 @@
                     deriv_angular_momentum = sum(deriv_angular_momentum, 1:8)
 
                     @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-14)
+
+                    # Total energy conservation
+                    # m_a (v_a ⋅ dv_a + du_a)
+                    function deriv_energy(particle)
+                        du_a = pressure[i][particle] / density[i][particle]^2 *
+                               dv[3, particle]
+                        v_a = TrixiParticles.extract_svector(v, system, particle)
+                        dv_a = TrixiParticles.extract_svector(dv, system, particle)
+
+                        return mass[i][particle] * (dot(v_a, dv_a) + du_a)
+                    end
+
+                    # ∑ m_a (v_a ⋅ dv_a + du_a)
+                    deriv_total_energy = sum(deriv_energy, 1:8)
+
+                    # TODO: Why is this error so large?
+                    @test isapprox(deriv_total_energy, 0.0, atol=5e-12)
                 end
             end
         end
