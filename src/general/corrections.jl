@@ -212,7 +212,6 @@ function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::Union{KernelGradientCorrection,
                                             MixedKernelGradientCorrection})
-    (; systems, neighborhood_searches) = semi
     (; cache) = system
     (; kernel_correction_coefficient, dw_gamma) = cache
 

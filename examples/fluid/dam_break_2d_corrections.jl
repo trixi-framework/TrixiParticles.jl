@@ -20,7 +20,7 @@ correction_dict = Dict(
     "kernel_gradient_summation_correction" => KernelGradientCorrection(),
     "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
     "blended_gradient_summation_correction" => BlendedGradientCorrection(0.5),
-    "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.5),
+    "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.1),
 )
 
 density_calculator_dict = Dict(
@@ -34,13 +34,13 @@ density_calculator_dict = Dict(
 )
 
 smoothing_kernel_dict = Dict(
-    "no_correction" => SchoenbergCubicSplineKernel{2}(),
-    "shepard_kernel_correction" => SchoenbergCubicSplineKernel{2}(),
-    "akinci_free_surf_correction" => SchoenbergCubicSplineKernel{2}(),
-    "kernel_gradient_summation_correction" => SchoenbergCubicSplineKernel{2}(),
-    "kernel_gradient_continuity_correction" => SchoenbergCubicSplineKernel{2}(),
-    "blended_gradient_summation_correction" => SchoenbergQuinticSplineKernel{2}(),
-    "blended_gradient_continuity_correction" => SchoenbergQuinticSplineKernel{2}(),
+    "no_correction" => WendlandC2Kernel{2}(),
+    "shepard_kernel_correction" => WendlandC2Kernel{2}(),
+    "akinci_free_surf_correction" => WendlandC2Kernel{2}(),
+    "kernel_gradient_summation_correction" => WendlandC2Kernel{2}(),
+    "kernel_gradient_continuity_correction" => WendlandC2Kernel{2}(),
+    "blended_gradient_summation_correction" => WendlandC2Kernel{2}(),
+    "blended_gradient_continuity_correction" => WendlandC2Kernel{2}(),
 )
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),

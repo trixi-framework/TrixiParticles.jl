@@ -199,12 +199,12 @@ end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
-    (; neighborhood_searches) = semi
-    neighborhood_search = neighborhood_searches[system_index][system_index]
 
     compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                density_calculator, correction)
-    compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
+
+    nhs = neighborhood_searches(system, system, semi)
+    compute_gradient_correction_matrix!(correction, nhs, system, u, v)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,

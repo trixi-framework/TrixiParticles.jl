@@ -151,7 +151,8 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system, grad_kernel)
+                                      particle_system, neighbor_system, grad_kernel,
+                                      correction)
     return dv
 end
 
@@ -199,7 +200,6 @@ end
 @inline function density_diffusion!(dv, density_diffusion,
                                     v_particle_system, v_neighbor_system,
                                     particle, neighbor, pos_diff, distance,
-                                    particle_system, neighbor_system, grad_kernel,
-                                    correction)
+                                    particle_system, neighbor_system, grad_kernel)
     return dv
 end
