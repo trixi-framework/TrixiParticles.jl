@@ -55,9 +55,8 @@ function interact!(dv, v_particle_system, u_particle_system,
             # debug_array[i, particle] += dv_pressure[i]
         end
 
-        continuity_equation!(dv, density_calculator,
-                             v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
+        continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
+                             particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
     end
     # Debug example
@@ -72,7 +71,9 @@ end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with ContinuityDensity.
+# used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
+# This can also be seen in the tests for total energy conservation, which fail with the
+# other `pressure_acceleration` form.
 @inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
                                        particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
@@ -86,7 +87,9 @@ end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with SummationDensity.
+# used with `SummationDensity`.
+# This can also be seen in the tests for total energy conservation, which fail with the
+# other `pressure_acceleration` form.
 @inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
                                        particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
@@ -116,6 +119,7 @@ end
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
                                       particle_system, neighbor_system, grad_kernel)
     return dv
 end
@@ -123,24 +127,25 @@ end
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel)
     (; density_diffusion) = particle_system
 
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
-    density_diffusion!(dv, density_diffusion,
-                       v_particle_system, v_neighbor_system,
-                       particle, neighbor, pos_diff, distance,
+    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+
+    density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
+                       particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                        particle_system, neighbor_system, grad_kernel)
 end
 
 @inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
                                     v_particle_system, v_neighbor_system,
                                     particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b,
                                     particle_system::WeaklyCompressibleSPHSystem,
                                     neighbor_system::WeaklyCompressibleSPHSystem,
                                     grad_kernel)
@@ -148,9 +153,6 @@ end
     (; smoothing_length, state_equation) = particle_system
     (; sound_speed) = state_equation
 
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
     volume_b = m_b / rho_b
 
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
@@ -164,6 +166,7 @@ end
 @inline function density_diffusion!(dv, density_diffusion,
                                     v_particle_system, v_neighbor_system,
                                     particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b,
                                     particle_system, neighbor_system, grad_kernel)
     return dv
 end
