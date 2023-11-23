@@ -9,10 +9,12 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
-# ==== Fluid
-
+# ==== Resolution
 particle_spacing = 0.02
 
+# ==========================================================================================
+# ==== Experiment Setup
+tspan = (0.0, 5.0)
 reynolds_number = 100.0
 
 box_length = 1.0
@@ -23,13 +25,6 @@ U = 1.0 # m/s
 
 b = -8pi^2 / reynolds_number
 
-fluid_density = 1.0
-sound_speed = 10U
-
-nu = U * box_length / reynolds_number
-
-background_pressure = sound_speed^2 * fluid_density
-
 p(pos) = -U^2 * exp(2 * b * 0) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
 p(pos, t) = -U^2 * exp(2 * b * t) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
 
@@ -37,6 +32,15 @@ v_x(pos) = -U * exp(b * 0) * cos(2pi * pos[1]) * sin(2pi * pos[2])
 v_y(pos) = U * exp(b * 0) * sin(2pi * pos[1]) * cos(2pi * pos[2])
 v_x(pos, t) = -U * exp(b * t) * cos(2pi * pos[1]) * sin(2pi * pos[2])
 v_y(pos, t) = U * exp(b * t) * sin(2pi * pos[1]) * cos(2pi * pos[2])
+
+# ==========================================================================================
+# ==== Fluid
+fluid_density = 1.0
+sound_speed = 10U
+
+nu = U * box_length / reynolds_number
+
+background_pressure = sound_speed^2 * fluid_density
 
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
@@ -46,21 +50,24 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
                          init_velocity=(0.0, 0.0))
 
 # Add small random displacement to the particles to avoid stagnant streamlines.
-seed!(42);
-fluid.coordinates .+= rand((-particle_spacing / 5):1e-5:(particle_spacing / 5),
-                           size(fluid.coordinates))
+#seed!(42);
+#fluid.coordinates .+= rand((-particle_spacing / 5):1e-5:(particle_spacing / 5),
+#                           size(fluid.coordinates))
 
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, initial_pressure_function=p,
                                            initial_velocity_function=(v_x, v_y),
                                            transport_velocity=TransportVelocityAdami(background_pressure),
-                                           viscosity=ViscosityAdami(nu))
+                                           viscosity=ViscosityAdami(;nu))
+
+# ==========================================================================================
+# ==== Simulation
+
 semi = Semidiscretization(fluid_system,
                           neighborhood_search=GridNeighborhoodSearch,
                           periodic_box_min_corner=[0.0, 0.0],
                           periodic_box_max_corner=[box_length, box_length])
 
-tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
 dt_max = min(smoothing_length / 4 * (sound_speed + U), smoothing_length^2 / (8 * nu))

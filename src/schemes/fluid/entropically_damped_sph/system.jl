@@ -201,17 +201,14 @@ end
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     summation_density!(system, semi, u, u_ode, system.density)
-    update_average_pressure!(system, system.transport_velocity, system_index,
-                             v_ode, u_ode, semi)
+    update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
 end
 
 function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
     return system
 end
 
-function update_average_pressure!(system, ::TransportVelocityAdami, system_index,
-                                  v_ode, u_ode, semi)
-    (; systems, neighborhood_searches) = semi
+function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode, semi)
     (; cache) = system
     (; pressure_average, neighbor_counter) = cache
 
@@ -221,15 +218,14 @@ function update_average_pressure!(system, ::TransportVelocityAdami, system_index
     u = wrap_u(u_ode, system, semi)
 
     # Use all other systems for the average pressure
-    @trixi_timeit timer() "compute average pressure" foreach_enumerate(systems) do (neighbor_system_index,
-                                                                                    neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_neighbor_system, semi)
+    @trixi_timeit timer() "compute average pressure" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches[system_index][neighbor_system_index]
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,

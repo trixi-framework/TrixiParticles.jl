@@ -149,6 +149,3 @@ end
 end
 
 @inline average_pressure(system, particle) = 0.0
-
-@inline viscosity_function(system) = system.viscosity
-@inline viscosity_function(system::BoundarySPHSystem) = system.boundary_model.viscosity
