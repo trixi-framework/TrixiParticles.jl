@@ -189,7 +189,7 @@ function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
     update_average_pressure!(system, system.transport_velocity, v_ode, u_ode, semi)
 end
 
-function update_average_pressure!(system, ::Nothing, system_index, v_ode, u_ode, semi)
+function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
     return system
 end
 
