@@ -198,14 +198,14 @@ end
     extract_svector(cache.advection_velocity, system, particle)
 end
 
-function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
+function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    summation_density!(system, system_index, semi, u, u_ode, system.density)
+    summation_density!(system, semi, u, u_ode, system.density)
     update_average_pressure!(system, system.transport_velocity, system_index,
                              v_ode, u_ode, semi)
 end
 
-function update_average_pressure!(system, ::Nothing, system_index, v_ode, u_ode, semi)
+function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
     return system
 end
 
@@ -218,13 +218,13 @@ function update_average_pressure!(system, ::TransportVelocityAdami, system_index
     set_zero!(pressure_average)
     set_zero!(neighbor_counter)
 
-    u = wrap_u(u_ode, system_index, system, semi)
+    u = wrap_u(u_ode, system, semi)
 
     # Use all other systems for the average pressure
     @trixi_timeit timer() "compute average pressure" foreach_enumerate(systems) do (neighbor_system_index,
                                                                                     neighbor_system)
-        u_neighbor_system = wrap_u(u_ode, neighbor_system_index, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system_index, neighbor_system, semi)
+        u_neighbor_system = wrap_u(u_ode, neighbor_neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_neighbor_system, semi)
 
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)

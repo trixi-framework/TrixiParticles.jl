@@ -26,6 +26,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
 - 'prefix':                     Prefix added to the filename.
 - `custom_quantities...`:       Additional user-defined quantities.
+- `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 
 # Examples
@@ -52,6 +53,7 @@ struct SolutionSavingCallback{I, CQ}
     interval              :: I
     save_initial_solution :: Bool
     save_final_solution   :: Bool
+    write_meta_data       :: Bool
     verbose               :: Bool
     output_directory      :: String
     prefix                :: String
@@ -63,7 +65,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_initial_solution=true,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
-                                prefix="", verbose=false,
+                                prefix="", verbose=false, write_meta_data=true,
                                 custom_quantities...)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -79,8 +81,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
 
     solution_callback = SolutionSavingCallback(interval,
                                                save_initial_solution, save_final_solution,
-                                               verbose, output_directory, prefix,
-                                               custom_quantities, [-1])
+                                               write_meta_data, verbose, output_directory,
+                                               prefix, custom_quantities, [-1])
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -134,7 +136,8 @@ end
 
 # affect!
 function (solution_callback::SolutionSavingCallback)(integrator)
-    (; interval, output_directory, custom_quantities, verbose, prefix, latest_saved_iter) = solution_callback
+    (; interval, output_directory, custom_quantities, write_meta_data,
+    verbose, prefix, latest_saved_iter) = solution_callback
 
     vu_ode = integrator.u
     semi = integrator.p
@@ -157,7 +160,9 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
                                                     output_directory=output_directory,
-                                                    prefix=prefix, custom_quantities...)
+                                                    prefix=prefix,
+                                                    write_meta_data=write_meta_data,
+                                                    custom_quantities...)
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
@@ -199,6 +204,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end
@@ -223,6 +229,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
             "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
     end

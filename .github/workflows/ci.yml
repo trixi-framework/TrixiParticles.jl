@@ -4,8 +4,27 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'AUTHORS.md'
+      - 'CITATION.bib'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.md'
+      - 'NEWS.md'
+      - 'README.md'
+      - '.github/workflows/CompatHelper.yml'
+      - 'docs/**'
   pull_request:
+      paths-ignore:
+      - 'AUTHORS.md'
+      - 'CITATION.bib'
+      - 'CONTRIBUTING.md'
+      - 'LICENSE.md'
+      - 'NEWS.md'
+      - 'README.md'
+      - '.github/workflows/CompatHelper.yml'
+      - 'docs/**'
   workflow_dispatch:
+
 
 # Cancel redundant CI tests automatically
 concurrency:
@@ -18,7 +37,7 @@ jobs:
 
     steps:
       - name: Check out project
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Julia
         uses: julia-actions/setup-julia@v1
         with:
@@ -40,7 +59,7 @@ jobs:
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,test,examples
+          directories: src,test
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v3
         with:
@@ -48,6 +67,10 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
           flags: unit
+      - name: Compile docs
+        run: |
+          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+          julia --project=docs --color=yes docs/make.jl
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:

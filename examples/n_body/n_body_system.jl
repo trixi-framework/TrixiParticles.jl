@@ -88,8 +88,8 @@ function energy(v_ode, u_ode, system, semi)
 
     e = zero(eltype(system))
 
-    v = TrixiParticles.wrap_v(v_ode, 1, system, semi)
-    u = TrixiParticles.wrap_u(u_ode, 1, system, semi)
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
 
     for particle in TrixiParticles.eachparticle(system)
         e += 0.5 * mass[particle] *
@@ -111,7 +111,7 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
     (; mass) = system
 
     vtk["velocity"] = v

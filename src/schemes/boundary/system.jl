@@ -4,7 +4,7 @@
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-For moving boundaries, a [`BoundaryMovement`](@ref)) can be passed with the keyword
+For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
 argument `movement`.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
@@ -19,7 +19,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        cache = create_cache(movement, inititial_condition)
+        cache = create_cache_boundary(movement, inititial_condition)
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(coordinates, model, movement,
@@ -58,9 +58,9 @@ struct BoundaryMovement{MF, IM}
     end
 end
 
-create_cache(::Nothing, inititial_condition) = (;)
+create_cache_boundary(::Nothing, inititial_condition) = (;)
 
-function create_cache(::BoundaryMovement, inititial_condition)
+function create_cache_boundary(::BoundaryMovement, inititial_condition)
     initial_coordinates = copy(inititial_condition.coordinates)
     velocity = similar(inititial_condition.velocity)
     acceleration = similar(inititial_condition.velocity)
@@ -219,28 +219,26 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
-function update_positions!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                           semi, t)
+function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; movement) = system
 
     movement(system, t)
 end
 
-function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                            semi, t)
+function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -299,4 +297,8 @@ function restart_with!(system, model, ::ContinuityDensity, v, u)
     end
 
     return system
+end
+
+function viscosity_model(system::BoundarySPHSystem)
+    return system.boundary_model.viscosity
 end

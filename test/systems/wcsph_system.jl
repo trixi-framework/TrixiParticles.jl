@@ -1,5 +1,6 @@
 @testset verbose=true "WeaklyCompressibleSPHSystem" begin
-    @testset verbose=true "Constructors" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Constructors" begin
         coordinates_ = [
             [1.0 2.0
              1.0 2.0],
@@ -66,7 +67,8 @@
         end
     end
 
-    @testset verbose=true "Constructors with Setups" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Constructors with Setups" begin
         setups = [
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
             RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
@@ -173,7 +175,8 @@
         end
     end
 
-    @testset verbose=true "show" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
         velocities = zero(coordinates)
@@ -184,14 +187,16 @@
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
         smoothing_length = 0.362
         density_calculator = SummationDensity()
+        density_diffusion = Val(:density_diffusion)
 
         initial_condition = InitialCondition(coordinates, velocities, masses, densities)
         system = WeaklyCompressibleSPHSystem(initial_condition,
                                              density_calculator,
                                              state_equation, smoothing_kernel,
-                                             smoothing_length)
+                                             smoothing_length,
+                                             density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), Val{:density_diffusion}(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -203,6 +208,7 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
+        │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box

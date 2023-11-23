@@ -2,12 +2,12 @@ struct NoViscosity end
 
 @inline function (::NoViscosity)(particle_system, neighbor_system, v_particle_system,
                                  v_neighbor_system, particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b)
+                                 sound_speed, m_a, m_b, rho_mean)
     return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
 end
 
 @doc raw"""
-    ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
+    ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
 
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
@@ -55,7 +55,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta; epsilon=0.01)
+    function ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -64,16 +64,13 @@ end
                                                           v_particle_system,
                                                           v_neighbor_system,
                                                           particle, neighbor, pos_diff,
-                                                          distance, sound_speed, m_a, m_b)
+                                                          distance, sound_speed, m_a, m_b,
+                                                          rho_mean)
     (; smoothing_length) = particle_system
 
     v_a = current_velocity(v_particle_system, particle_system, particle)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
-
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-    rho_mean = (rho_a + rho_b) / 2
 
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, smoothing_length)
 
@@ -104,7 +101,7 @@ end
 end
 
 @doc raw"""
-    ViscosityAdami(nu)
+    ViscosityAdami(; nu)
 
 Viscosity by Adami (Adami et al. 2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
@@ -130,10 +127,8 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
-# Arguments
-- `nu`: Kinematic viscosity
-
 # Keywords
+- `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
 ## References:
@@ -148,7 +143,7 @@ struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityAdami(nu; epsilon=0.01)
+    function ViscosityAdami(; nu, epsilon=0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
@@ -156,7 +151,7 @@ end
 @inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
-                                             distance, sound_speed, m_a, m_b)
+                                             distance, sound_speed, m_a, m_b, rho_mean)
     (; epsilon, nu) = viscosity
     (; smoothing_length) = particle_system
 
