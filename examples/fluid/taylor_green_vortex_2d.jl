@@ -58,7 +58,7 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
                                            sound_speed, initial_pressure_function=p,
                                            initial_velocity_function=(v_x, v_y),
                                            transport_velocity=TransportVelocityAdami(background_pressure),
-                                           viscosity=ViscosityAdami(;nu))
+                                           viscosity=ViscosityAdami(; nu))
 
 # ==========================================================================================
 # ==== Simulation

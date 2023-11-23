@@ -17,7 +17,6 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 function UpdateEachTimeStep()
-
     update_each_dt = UpdateEachDt()
     return DiscreteCallback(update_each_dt, update_each_dt, initialize=initial_update!,
                             save_positions=(false, false))

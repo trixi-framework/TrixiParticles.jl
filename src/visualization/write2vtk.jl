@@ -146,7 +146,7 @@ vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
-    for particle in active_particles(system)]
+                       for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
