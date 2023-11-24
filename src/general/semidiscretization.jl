@@ -15,7 +15,6 @@ struct Semidiscretization{S, RU, RV, NS, DC}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
-    system_indices        :: Dict{System, Int}
     neighborhood_searches :: NS
     damping_coefficient   :: DC
 
@@ -44,12 +43,10 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                                                           periodic_box_max_corner)
                                for neighbor in systems)
                          for system in systems)
-        system_indices = Dict(systems[i] => i for i in eachindex(systems))
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
             typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           system_indices, searches,
-                                                           damping_coefficient)
+                                                           searches, damping_coefficient)
     end
 end
 

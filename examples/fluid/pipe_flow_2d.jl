@@ -2,17 +2,26 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = 0.0
+# ==========================================================================================
+# ==== Resolution
+domain_length_factor = 0.01
+
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 3
+spacing_ratio = 1
+
+open_boundary_cols = 5
 
 # ==========================================================================================
-# ==== Fluid
+# ==== Experiment Setup
+tspan = (0.0, 1.0)
 
+# Boundary geometry and initial fluid particle positions
 domain_length = 1.0
 domain_width = 0.4
 reynolds_number = 10000
 
-particle_spacing = 0.01 * domain_length
-open_boundary_cols = 5
+particle_spacing = domain_length_factor * domain_length
 
 water_density = 1000.0
 pressure = 1000.0
@@ -21,25 +30,30 @@ prescribed_velocity = (0.2, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
 
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-nu = maximum(prescribed_velocity) * domain_length / reynolds_number
-viscosity = ViscosityAdami(nu) #alpha * smoothing_length * sound_speed / 8)
-
-n_particles_x = Int(floor(domain_length / particle_spacing))
-n_particles_y = Int(floor(domain_width / particle_spacing))
-n_buffer_particles = 4 * n_particles_y
-
 pipe = RectangularTank(particle_spacing, (domain_length, domain_width),
                        (domain_length + particle_spacing * open_boundary_cols,
                         domain_width), water_density, pressure=pressure,
                        n_layers=3, spacing_ratio=1, faces=(false, false, true, true),
                        init_velocity=prescribed_velocity)
 
+n_particles_y = Int(floor(domain_width / particle_spacing))
+n_buffer_particles = 4 * n_particles_y
+
+# ==========================================================================================
+# ==== Fluid
+smoothing_length = 1.2 * particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+nu = maximum(prescribed_velocity) * domain_length / reynolds_number
+viscosity = ViscosityAdami(;nu) #alpha * smoothing_length * sound_speed / 8)
+
+fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           transport_velocity=TransportVelocityAdami(pressure),
+                                           buffer=n_buffer_particles)
+
 # ==========================================================================================
 # ==== Open Boundary
-
 length_open_boundary = particle_spacing * open_boundary_cols
 height_open_boundary = particle_spacing * n_particles_y
 
@@ -57,9 +71,16 @@ zone_plane_in = ([0.0; 0.0], [0.0; height_open_boundary])
 zone_plane_out = ([domain_length + length_open_boundary; 0.0],
                   [domain_length + length_open_boundary; height_open_boundary])
 
+open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_plane_in,
+                                         buffer=n_buffer_particles,
+                                         zone_origin_in, fluid_system)
+
+open_boundary_out = OpenBoundarySPHSystem(outflow, OutFlow(), sound_speed, zone_plane_out,
+                                          buffer=n_buffer_particles,
+                                          zone_origin_out, fluid_system)
+
 # ==========================================================================================
 # ==== Boundary
-boundary_layers = 3
 wall_position = -open_boundary_cols * particle_spacing
 
 bottom_wall = RectangularShape(particle_spacing, (open_boundary_cols, boundary_layers),
@@ -70,54 +91,25 @@ top_wall = RectangularShape(particle_spacing, (open_boundary_cols, boundary_laye
                             water_density)
 boundary = union(bottom_wall, top_wall, pipe.boundary)
 
-# ==========================================================================================
-# ==== Boundary models
-
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              AdamiPressureExtrapolation(),
                                              #viscosity=ViscosityAdami(1e-4),
                                              smoothing_kernel, smoothing_length)
 
-# ==========================================================================================
-# ==== Systems
-
-#state_equation = StateEquationCole(sound_speed, 7, water_density, 100_000.0,
-#                                   background_pressure=100_000.0)
-#fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, ContinuityDensity(), state_equation,
-#                                           smoothing_kernel, smoothing_length,
-#                                           buffer=n_buffer_particles,
-#                                           viscosity=viscosity, acceleration=(0.0, gravity))
-#
-fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity=viscosity,
-                                           transport_velocity=TransportVelocityAdami(pressure),
-                                           buffer=n_buffer_particles,
-                                           acceleration=(0.0, gravity))
-#
-open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_plane_in,
-                                         buffer=n_buffer_particles,
-                                         zone_origin_in, fluid_system)
-
-open_boundary_out = OpenBoundarySPHSystem(outflow, OutFlow(), sound_speed, zone_plane_out,
-                                          buffer=n_buffer_particles,
-                                          zone_origin_out, fluid_system)
-
 boundary_system = BoundarySPHSystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-
 semi = Semidiscretization(fluid_system,
                           open_boundary_in,
                           open_boundary_out,
                           boundary_system,
                           neighborhood_search=GridNeighborhoodSearch)
 
-tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

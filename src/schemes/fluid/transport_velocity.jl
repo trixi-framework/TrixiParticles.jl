@@ -5,16 +5,6 @@ struct TransportVelocityAdami{ELTYPE}
     end
 end
 
-function update_transport_velocity!(u, ode, semi, t)
-    v_ode, u_ode = ode.u.x
-
-    foreach_system(semi) do system
-        update_transport_velocity!(system, v_ode, semi)
-    end
-
-    return ode
-end
-
 @inline update_transport_velocity!(system, v_ode, semi) = system
 
 @inline function update_transport_velocity!(system::FluidSystem, v_ode, semi)

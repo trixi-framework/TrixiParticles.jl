@@ -156,9 +156,15 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
         write2vtk!(vtk, system.viscosity)
-        vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-        vtk["smoothing_length"] = system.smoothing_length
-        vtk["density_calculator"] = type2string(system.density_calculator)
+        if system isa OpenBoundarySPHSystem
+            vtk["interior_sytem-smoothing_kernel"] = type2string(system.interior_system.smoothing_kernel)
+            vtk["interior_sytem-smoothing_length"] = system.interior_system.smoothing_length
+            vtk["interior_sytem-density_calculator"] = type2string(system.interior_system.density_calculator)
+        else
+            vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
+            vtk["smoothing_length"] = system.smoothing_length
+            vtk["density_calculator"] = type2string(system.density_calculator)
+        end
 
         if system isa WeaklyCompressibleSPHSystem
             vtk["correction_method"] = type2string(system.correction)

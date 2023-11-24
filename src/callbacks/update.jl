@@ -30,12 +30,12 @@ function (update_each_dt::UpdateEachDt)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
-    foreach_enumerate(semi.systems) do (system_index, system)
-        update_open_boundary_eachstep!(system, system_index, v_ode, u_ode, semi)
+    foreach_enumerate(semi) do system
+        update_open_boundary_eachstep!(system, v_ode, u_ode, semi)
     end
 
-    foreach_enumerate(semi.systems) do (system_index, system)
-        update_transport_velocity!(system, system_index, v_ode, u_ode, semi)
+    foreach_enumerate(semi) do system
+        update_transport_velocity!(system, v_ode, semi)
     end
 
     # Tell OrdinaryDiffEq that u has been modified

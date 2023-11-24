@@ -139,48 +139,38 @@ function (boundary_zone::Union{InFlow, OutFlow})(particle_coords, particle, zone
     return true
 end
 
-function update_final!(system::OpenBoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                       semi, t)
-    u = wrap_u(u_ode, system_index, system, semi)
-    v = wrap_v(v_ode, system_index, system, semi)
-
-    evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
+function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
+    evaluate_characteristics!(system, v, u, v_ode, u_ode, semi)
 end
 
-update_open_boundary_eachstep!(system, system_index, v_ode, u_ode, semi) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi) = system
 
-function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, system_index,
-                                        v_ode, u_ode, semi)
-    u = wrap_u(u_ode, system_index, system, semi)
-    v = wrap_v(v_ode, system_index, system, semi)
+function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
 
     compute_quantities!(system, v)
 
-    check_domain!(system, system_index, v, u, v_ode, u_ode, semi)
+    check_domain!(system, v, u, v_ode, u_ode, semi)
 
     update!(system.buffer)
     update!(system.interior_system.buffer)
 end
 
-function update_transport_velocity!(system::OpenBoundarySPHSystem, system_index, v_ode,
-                                    u_ode, semi)
-    system
-end
+update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 
 # J1: Associated with convection and entropy and propagates at flow velocity.
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
-@inline function evaluate_characteristics!(system, system_index, v, u, v_ode, u_ode, semi)
+@inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi)
     (; interior_system, volume, sound_speed, characteristics,
     previous_characteristics, unit_normal, boundary_zone) = system
-    (; neighborhood_searches) = semi
 
-    interior_index = semi.system_indices[interior_system]
-    system_interior_nhs = neighborhood_searches[system_index][interior_index]
-    system_nhs = neighborhood_searches[system_index][system_index]
+    system_interior_nhs = neighborhood_searches(system, interior_system, semi)
+    system_nhs = neighborhood_searches(system, system, semi)
 
-    u_interior = wrap_u(u_ode, interior_index, interior_system, semi)
-    v_interior = wrap_v(v_ode, interior_index, interior_system, semi)
+    u_interior = wrap_u(u_ode, interior_system, semi)
+    v_interior = wrap_v(v_ode, interior_system, semi)
 
     system_coords = current_coordinates(u, system)
     interior_coords = current_coordinates(u_interior, interior_system)
@@ -310,15 +300,13 @@ end
     end
 end
 
-function check_domain!(system, system_index, v, u, v_ode, u_ode, semi)
+function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone, zone, zone_origin, interior_system) = system
-    (; neighborhood_searches) = semi
 
-    interior_index = semi.system_indices[interior_system]
-    neighborhood_search = neighborhood_searches[system_index][interior_index]
+    neighborhood_search = neighborhood_searches(system, interior_system, semi)
 
-    u_interior = wrap_u(u_ode, interior_index, interior_system, semi)
-    v_interior = wrap_v(v_ode, interior_index, interior_system, semi)
+    u_interior = wrap_u(u_ode, interior_system, semi)
+    v_interior = wrap_v(v_ode, interior_system, semi)
 
     for particle in each_moving_particle(system)
         particle_coords = current_coords(u, system, particle)
