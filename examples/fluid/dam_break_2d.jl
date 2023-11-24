@@ -68,7 +68,7 @@ semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=250)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 use_reinit = false
