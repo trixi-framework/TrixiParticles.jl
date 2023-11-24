@@ -30,11 +30,11 @@ function (update_each_dt::UpdateEachDt)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
-    foreach_enumerate(semi) do system
+    foreach_system(semi) do system
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi)
     end
 
-    foreach_enumerate(semi) do system
+    foreach_system(semi) do system
         update_transport_velocity!(system, v_ode, semi)
     end
 
