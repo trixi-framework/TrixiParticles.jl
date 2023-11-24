@@ -4,7 +4,7 @@
 An abstract supertype of all smoothing kernels. The type parameter `NDIMS` encodes the number
 of dimensions.
 
-We provide the following smoothing kernels:
+Currently the following smoothing kernels are available:
 
 | Smoothing Kernel                          | Compact Support   | Typ. Smoothing Length | Recommended Application | Stability |
 | :---------------------------------------- | :---------------- | :-------------------- | :---------------------- | :-------- |

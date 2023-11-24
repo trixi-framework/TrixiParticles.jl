@@ -187,14 +187,16 @@
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
         smoothing_length = 0.362
         density_calculator = SummationDensity()
+        density_diffusion = Val(:density_diffusion)
 
         initial_condition = InitialCondition(coordinates, velocities, masses, densities)
         system = WeaklyCompressibleSPHSystem(initial_condition,
                                              density_calculator,
                                              state_equation, smoothing_kernel,
-                                             smoothing_length)
+                                             smoothing_length,
+                                             density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), Val{:density_diffusion}(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -206,6 +208,7 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
+        │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box

@@ -26,7 +26,7 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
 ```
 with the correction matrix (see also [`GradientCorrection`](@ref))
 ```math
-\bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
+\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
 ```
 The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
@@ -252,9 +252,11 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
 
     initial_coords = initial_coordinates(system)
 
-    # Calculate kernel correction matrix
+    density_fun(particle) = system.material_density[particle]
+
+    # Calculate correction matrix
     compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        initial_coords)
+                                        initial_coords, density_fun)
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
