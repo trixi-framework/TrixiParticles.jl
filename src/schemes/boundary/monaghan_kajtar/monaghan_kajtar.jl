@@ -76,9 +76,8 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor, neighbor_system,
-                                       v_neighbor_system,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system, neighbor_system,
                                        boundary_model::BoundaryModelMonaghanKajtar, rho_a,
                                        rho_b, pos_diff, distance, grad_kernel,
                                        density_calculator, correction)

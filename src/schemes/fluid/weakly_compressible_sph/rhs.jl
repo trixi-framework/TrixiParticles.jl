@@ -13,8 +13,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
-    # and the two other lines below that are marked as "debug example".
+    # In order to visualize quantities like pressure forces or viscosity forces, uncomment
+    # the following code and the two other lines below that are marked as "debug example".
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
@@ -39,10 +39,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         # if variable smoothing_length is used this uses the particle smoothing length
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
-                                            particle_system, v_particle_system,
-                                            neighbor, neighbor_system,
-                                            v_neighbor_system, rho_a, rho_b, pos_diff,
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                            particle_system, neighbor_system,
+                                            rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, density_calculator,
                                             correction)
 
@@ -77,10 +76,10 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with ContinuityDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, ::ContinuityDensity, correction)
     return (-m_b *
             (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
@@ -91,10 +90,10 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with SummationDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, ::SummationDensity, correction)
     return (-m_b *
             (particle_system.pressure[particle] / rho_a^2 +
@@ -116,17 +115,31 @@ end
 #            pressure_correction
 # end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
+# # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
+# # formulations" by Bonet and Lok (1999), for a corrected gradient of the smoothing kernel
+# # this simplifies to the formulation below.
+# @inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
+#                                        v_particle_system, neighbor,
+#                                        neighbor_system::WeaklyCompressibleSPHSystem,
+#                                        v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+#                                        grad_kernel, density_calculator,
+#                                        ::Union{KernelGradientCorrection,
+#                                                MixedKernelGradientCorrection})
+#     return -m_b / rho_b * neighbor_system.pressure[neighbor] * grad_kernel *
+#            pressure_correction
+# end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::Union{BoundarySPHSystem,
                                                               TotalLagrangianSPHSystem},
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+                                       rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, density_calculator, correction)
     (; boundary_model) = neighbor_system
 
-    return pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                 v_particle_system, neighbor, neighbor_system,
-                                 v_neighbor_system, boundary_model, rho_a, rho_b, pos_diff,
+    return pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                 particle_system, neighbor_system,
+                                 boundary_model, rho_a, rho_b, pos_diff,
                                  distance, grad_kernel, density_calculator, correction)
 end
 

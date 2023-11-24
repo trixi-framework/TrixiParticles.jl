@@ -207,7 +207,6 @@ function trixi_include_safe(file_path; kwargs...)
     return isolated_mod
 end
 
-
 # Helper methods used in the functions defined above, also copied from Trixi.jl
 
 # Apply the function `f` to `expr` and all sub-expressions recursively.

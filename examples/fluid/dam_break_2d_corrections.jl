@@ -54,11 +54,12 @@ smoothing_kernel_dict = Dict(
 
 begin
     mod = trixi_include_safe(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-        fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
-        boundary_density_calculator=ContinuityDensity(),
-        fluid_density_calculator=ContinuityDensity(),
-        correction=Nothing(), use_reinit=true,
-        prefix="continuity_reinit", tspan=tspan)
+                             fluid_particle_spacing=particle_spacing,
+                             smoothing_length=smoothing_length,
+                             boundary_density_calculator=ContinuityDensity(),
+                             fluid_density_calculator=ContinuityDensity(),
+                             correction=Nothing(), use_reinit=true,
+                             prefix="continuity_reinit", tspan=tspan)
 end
 
 # Clip negative pressure to be able to use `SummationDensity`
@@ -75,11 +76,11 @@ for correction_name in keys(correction_dict)
     println("fluid/dam_break_2d.jl with ", correction_name)
 
     trixi_include_safe(joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-                  fluid_particle_spacing=particle_spacing,
-                  smoothing_length=smoothing_length,
-                  boundary_density_calculator=boundary_density_calculator,
-                  fluid_density_calculator=fluid_density_calculator,
-                  correction=correction, use_reinit=false,
-                  state_equation=state_equation, smoothing_kernel=smoothing_kernel,
-                  prefix="$(correction_name)", tspan=tspan)
+                       fluid_particle_spacing=particle_spacing,
+                       smoothing_length=smoothing_length,
+                       boundary_density_calculator=boundary_density_calculator,
+                       fluid_density_calculator=fluid_density_calculator,
+                       correction=correction, use_reinit=false,
+                       state_equation=state_equation, smoothing_kernel=smoothing_kernel,
+                       prefix="$(correction_name)", tspan=tspan)
 end
