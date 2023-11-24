@@ -13,9 +13,21 @@
                                  ntuple(_ -> 0.0, n_dims), density_ref)
         coords = setup.coordinates
 
-        smoothing_kernels = [SchoenbergCubicSplineKernel{n_dims}()
-                             SchoenbergQuarticSplineKernel{n_dims}()
-                             SchoenbergQuinticSplineKernel{n_dims}()]
+        if n_dims == 1
+            smoothing_kernels = [SchoenbergCubicSplineKernel{n_dims}()
+                                 SchoenbergQuarticSplineKernel{n_dims}()
+                                 SchoenbergQuinticSplineKernel{n_dims}()]
+
+        else
+            smoothing_kernels = [SchoenbergCubicSplineKernel{n_dims}()
+                                 SchoenbergQuarticSplineKernel{n_dims}()
+                                 SchoenbergQuinticSplineKernel{n_dims}()
+                                 WendlandC2Kernel{n_dims}()
+                                 WendlandC4Kernel{n_dims}()
+                                 WendlandC6Kernel{n_dims}()
+                                 SpikyKernel{n_dims}()
+                                 Poly6Kernel{n_dims}()]
+        end
 
         normalized_w = zeros(size(coords, 2), 1)
         density = zeros(size(coords, 2), 1)
