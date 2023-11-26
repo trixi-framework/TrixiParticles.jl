@@ -19,9 +19,9 @@ reynolds_number = 100.0
 
 box_length = 1.0
 
-n_particles_xy = round(Int, box_length / particle_spacing)
-
 U = 1.0 # m/s
+fluid_density = 1.0
+sound_speed = 10U
 
 b = -8pi^2 / reynolds_number
 
@@ -33,11 +33,10 @@ v_y(pos) = U * exp(b * 0) * sin(2pi * pos[1]) * cos(2pi * pos[2])
 v_x(pos, t) = -U * exp(b * t) * cos(2pi * pos[1]) * sin(2pi * pos[2])
 v_y(pos, t) = U * exp(b * t) * sin(2pi * pos[1]) * cos(2pi * pos[2])
 
+n_particles_xy = round(Int, box_length / particle_spacing)
+
 # ==========================================================================================
 # ==== Fluid
-fluid_density = 1.0
-sound_speed = 10U
-
 nu = U * box_length / reynolds_number
 
 background_pressure = sound_speed^2 * fluid_density
@@ -133,7 +132,7 @@ saving_callback = SolutionSavingCallback(dt=0.02,
                                          p_avg=average_pressure,
                                          t=time_vector)
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateEachTimeStep())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -143,8 +142,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode,
-            RDPK3SpFSAL49((step_limiter!)=TrixiParticles.update_transport_velocity!),
+sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=dt_max,#1e-2, # Limit stepsize to prevent crashing
