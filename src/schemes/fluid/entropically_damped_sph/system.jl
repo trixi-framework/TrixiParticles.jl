@@ -80,7 +80,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, 
 
         density_calculator = SummationDensity()
 
-        cache = create_cache(initial_condition, transport_velocity)
+        cache = create_cache_edac(initial_condition, transport_velocity)
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(initial_pressure_function),
@@ -120,9 +120,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-create_cache(initial_condition, ::Nothing) = (;)
+create_cache_edac(initial_condition, ::Nothing) = (;)
 
-function create_cache(initial_condition, ::TransportVelocityAdami)
+function create_cache_edac(initial_condition, ::TransportVelocityAdami)
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
     advection_velocity = copy(initial_condition.velocity)
