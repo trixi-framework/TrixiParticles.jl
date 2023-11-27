@@ -233,6 +233,10 @@ end
     return particle_density(v, system.boundary_model, system, particle)
 end
 
+@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
+    return particle_pressure(v, system.boundary_model, system, particle)
+end
+
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end

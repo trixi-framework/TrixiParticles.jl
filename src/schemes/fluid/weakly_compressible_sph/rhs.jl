@@ -38,10 +38,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                            particle_system, neighbor_system,
-                                            rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, density_calculator)
+        p_a = particle_pressure(v_particle_system, particle_system, particle)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                            particle_system, neighbor_system, rho_a, rho_b,
+                                            pos_diff, grad_kernel, density_calculator)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -73,43 +75,24 @@ end
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with ContinuityDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       rho_a, rho_b, pos_diff, distance,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       particle_system, neighbor_system,
+                                       rho_a, rho_b, distance, grad_kernel, density_calculator)
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+                                 grad_kernel, density_calculator)
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::ContinuityDensity)
-    return (-m_b *
-            (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
-            (rho_a * rho_b) * grad_kernel) *
-           pressure_correction
+    return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with SummationDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       rho_a, rho_b, pos_diff, distance,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::SummationDensity)
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2 +
-             neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
-           pressure_correction
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::Union{BoundarySPHSystem,
-                                                              TotalLagrangianSPHSystem},
-                                       rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, density_calculator)
-    (; boundary_model) = neighbor_system
-
-    return pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                 particle_system, neighbor_system,
-                                 boundary_model, rho_a, rho_b, pos_diff,
-                                 distance, grad_kernel, density_calculator)
+    return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!

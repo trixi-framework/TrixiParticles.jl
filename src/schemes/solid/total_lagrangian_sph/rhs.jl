@@ -96,12 +96,16 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  neighbor, particle,
                                  pos_diff, distance, sound_speed, m_b, m_a, rho_mean)
 
+        # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+        # corresponding to the choosen boundary model.
+        p_a = particle_pressure(v_particle_system, particle_system, particle)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
         # Boundary forces
         # Note: neighbor and particle are switched in this call and `pressure_correction` is set to `1.0` (no correction)
-        dv_boundary = pressure_acceleration(1.0, m_b, neighbor, particle,
-                                            neighbor_system, particle_system,
-                                            boundary_model, rho_a,
-                                            rho_b, pos_diff, distance,
+        dv_boundary = pressure_acceleration(1.0, m_b, p_b, p_a, boundary_model,
+                                            rho_a, rho_b, pos_diff,
+                                            neighbor_system.smoothing_length,
                                             grad_kernel, density_calculator)
         dv_particle = dv_boundary + dv_viscosity
 
