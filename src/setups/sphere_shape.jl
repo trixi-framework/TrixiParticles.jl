@@ -150,7 +150,7 @@ struct RoundSphere{AR}
     angle_range::AR
     function RoundSphere(; start_angle=0.0, end_angle=2π)
         if start_angle > end_angle
-            throw(ArgumentError("`end_angle` should be greate than `start_angle`."))
+            throw(ArgumentError("`end_angle` should be greater than `start_angle`."))
         end
         angle_range = (start_angle, end_angle)
         new{typeof(angle_range)}(angle_range)
