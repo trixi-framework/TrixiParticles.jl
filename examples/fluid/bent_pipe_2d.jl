@@ -35,21 +35,18 @@ pipe_in = RectangularTank(particle_spacing, pipe_size, pipe_size, fluid_density;
                           faces=(true, true, false, false), pressure=pressure)
 pipe_out = RectangularTank(particle_spacing, pipe_size, pipe_size, fluid_density;
                            n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                           min_coordinates=(pipe_radius + pipe_radius_inner, 0.0),
                            faces=(true, true, false, false), pressure=pressure)
-pipe_out.fluid.coordinates[1, :] .+= pipe_radius + pipe_radius_inner
-pipe_out.boundary.coordinates[1, :] .+= pipe_radius + pipe_radius_inner
 
 fluid_curvature = SphereShape(particle_spacing, pipe_radius, pressure=pressure,
                               (pipe_radius, pipe_size[2] + 0.5particle_spacing),
-                              fluid_density, sphere_type=RoundSphere(),
-                              n_layers=pipe_in.n_particles_per_dimension[1],
-                              cutout_max=(2pipe_radius, pipe_size[2]))
+                              fluid_density, sphere_type=RoundSphere(theta=pi),
+                              n_layers=pipe_in.n_particles_per_dimension[1])
 
 pipe_curvature = SphereShape(particle_spacing,
                              pipe_radius + particle_spacing * boundary_layers,
                              (pipe_radius, pipe_size[2] + 0.5particle_spacing),
-                             fluid_density, sphere_type=RoundSphere(),
-                             cutout_min=pipe_coords_min, cutout_max=pipe_coords_max)
+                             fluid_density, sphere_type=RoundSphere(theta=pi))
 
 pipe = union(pipe_out.boundary, pipe_in.boundary, setdiff(pipe_curvature, fluid_curvature))
 fluid = union(pipe_out.fluid, pipe_in.fluid, fluid_curvature)
@@ -80,14 +77,12 @@ zone_origin_out = (pipe_radius + pipe_radius_inner, 0.0)
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density; n_layers=boundary_layers,
                          init_velocity=prescribed_velocity, pressure=pressure,
+                         min_coordinates=zone_origin_in,
                          spacing_ratio=spacing_ratio, faces=(true, true, false, false))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
+                          min_coordinates=(zone_origin_out[1], -open_boundary_length),
                           fluid_density; n_layers=boundary_layers, pressure=pressure,
                           spacing_ratio=spacing_ratio, faces=(true, true, false, false))
-inflow.fluid.coordinates .+= zone_origin_in
-inflow.boundary.coordinates .+= zone_origin_in
-outflow.fluid.coordinates .+= (zone_origin_out[1], -open_boundary_length)
-outflow.boundary.coordinates .+= (zone_origin_out[1], -open_boundary_length)
 
 zone_plane_in = ([0.0; 0.0], [pipe_size[1]; 0.0])
 zone_plane_out = ([pipe_radius + pipe_radius_inner; -open_boundary_length],
