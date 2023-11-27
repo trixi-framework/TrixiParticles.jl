@@ -76,8 +76,8 @@ end
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with ContinuityDensity.
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       particle_system, neighbor_system,
-                                       rho_a, rho_b, distance, grad_kernel, density_calculator)
+                                       particle_system, neighbor_system, rho_a, rho_b,
+                                       pos_diff, grad_kernel, density_calculator)
     return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, density_calculator)
 end
