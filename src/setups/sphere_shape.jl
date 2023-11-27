@@ -143,8 +143,8 @@ The resulting ball will be perfectly round, but will not have a regular inner st
     See [`SphereShape`](@ref) on how to use this.
 
 !!! warning "Warning"
-    The sphere segment is intended for 2D geometry. If used in a 3D context, results may not
-    be accurate.
+    The sphere segment is intended for 2D geometries and hollow spheres. If used in a
+    3D context or for a full circle, results may not be accurate.
 """
 struct RoundSphere{AR}
     angle_range::AR
