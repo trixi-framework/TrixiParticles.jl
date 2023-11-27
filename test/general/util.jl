@@ -51,7 +51,7 @@
         end
     end
 
-    @trixi_testset "With `solve` With `maxiters`" begin
+    @trixi_testset "With `solve` with `maxiters`" begin
         # We need another example file that we include with `Base.include` first, in order to
         # define the `solve` method without `trixi_include` trying to insert `maxiters` kwargs.
         example1 = """
