@@ -127,7 +127,7 @@ as it will have corners (like a sphere in Minecraft).
 struct VoxelSphere end
 
 """
-    RoundSphere()
+    RoundSphere(; theta=2pi)
 
 Construct a sphere by nesting perfectly round concentric spheres.
 The resulting ball will be perfectly round, but will not have a regular inner structure.
@@ -135,7 +135,12 @@ The resulting ball will be perfectly round, but will not have a regular inner st
 !!! note "Usage"
     See [`SphereShape`](@ref) on how to use this.
 """
-struct RoundSphere end
+struct RoundSphere
+    theta::Real
+    function RoundSphere(; theta=2pi)
+        new(theta)
+    end
+end
 
 function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_position,
                              n_layers, layer_outwards, tlsph)
@@ -193,8 +198,9 @@ function sphere_shape_coords(::VoxelSphere, particle_spacing, radius, center_pos
     return reinterpret(reshape, ELTYPE, coords)
 end
 
-function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
+function sphere_shape_coords(sphere::RoundSphere, particle_spacing, radius, center,
                              n_layers, layer_outwards, tlsph)
+
     if n_layers > 0
         if layer_outwards
             inner_radius = radius
@@ -227,7 +233,7 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
     coords = zeros(length(center), 0)
 
     for layer in 0:(n_layers - 1)
-        sphere_coords = round_sphere(particle_spacing,
+        sphere_coords = round_sphere(sphere, particle_spacing,
                                      inner_radius + layer * particle_spacing, center)
         coords = hcat(coords, sphere_coords)
     end
@@ -235,8 +241,8 @@ function sphere_shape_coords(::RoundSphere, particle_spacing, radius, center,
     return coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{2})
-    n_particles = round(Int, 2pi * radius / particle_spacing)
+function round_sphere(sphere, particle_spacing, radius, center::SVector{2})
+    n_particles = round(Int, sphere.theta * radius / particle_spacing)
 
     if n_particles <= 2
         # 2 or less particles produce weird, asymmetric results.
@@ -244,8 +250,12 @@ function round_sphere(particle_spacing, radius, center::SVector{2})
         return collect(reshape(center, (2, 1)))
     end
 
-    # Remove the last particle at 2pi, which overlaps with the first at 0
-    t = LinRange(0, 2pi, n_particles + 1)[1:(end - 1)]
+    if !isapprox(sphere.theta, 2pi)
+        t = LinRange(0, sphere.theta, n_particles + 1)
+    else
+        # Remove the last particle at 2pi, which overlaps with the first at 0
+        t = LinRange(0, 2pi, n_particles + 1)[1:(end - 1)]
+    end
 
     particle_coords = Array{Float64, 2}(undef, 2, length(t))
 
@@ -256,7 +266,7 @@ function round_sphere(particle_spacing, radius, center::SVector{2})
     return particle_coords
 end
 
-function round_sphere(particle_spacing, radius, center::SVector{3})
+function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     # The number of particles can either be calculated in 2D or in 3D.
     # Let δ be the particle spacing and r the sphere radius.
     #
@@ -374,7 +384,7 @@ function round_sphere(particle_spacing, radius, center::SVector{3})
             circle_spacing = 1.0
         end
 
-        circle_coords_2d = round_sphere(circle_spacing, circle_radius,
+        circle_coords_2d = round_sphere(sphere, circle_spacing, circle_radius,
                                         SVector(center[1], center[2]))
         circle_coords_3d = vcat(circle_coords_2d,
                                 center[3] .+ z * ones(1, size(circle_coords_2d, 2)))
