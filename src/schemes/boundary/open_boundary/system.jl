@@ -163,7 +163,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 @inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi)
-    (; interior_system, volume, sound_speed, characteristics,
+    (; interior_system, volume, sound_speed, characteristics, initial_velocity_function,
     previous_characteristics, unit_normal, boundary_zone) = system
 
     system_interior_nhs = neighborhood_searches(system, interior_system, semi)
@@ -196,8 +196,9 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
         p_ref = interior_system.initial_condition.pressure[neighbor]
 
         v_neighbor = current_velocity(v_interior, interior_system, neighbor)
-        v_neighbor_ref = initial_velocity(interior_system, neighbor)
 
+        position = current_coords(u_interior, interior_system, neighbor)
+        v_neighbor_ref = reference_velocity(system, initial_velocity_function, position)
         density_term = -sound_speed^2 * (rho - rho_ref)
         pressure_term = p - p_ref
         velocity_term = rho * sound_speed * (dot(v_neighbor - v_neighbor_ref, unit_normal))
