@@ -223,28 +223,14 @@ end
                                  grad_kernel, fluid_density_calculator)
 end
 
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with ContinuityDensity.
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
                                        boundary_model::BoundaryModelDummyParticles,
                                        ::PressureMirroring,
                                        rho_a, rho_b, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity)
-    return -m_b * 2p_a / (rho_a * rho_b) * grad_kernel
+                                       fluid_density_calculator)
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
+                                 grad_kernel, fluid_density_calculator)
 end
-
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with SummationDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelDummyParticles,
-                                       ::PressureMirroring,
-                                       rho_a, rho_b, grad_kernel,
-                                       fluid_density_calculator::SummationDensity)
-    return -m_b * (p_a / rho_a^2 + p_a / rho_b^2) * grad_kernel
-end
-
 function create_cache_model(initial_density,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing})
     density = copy(initial_density)
