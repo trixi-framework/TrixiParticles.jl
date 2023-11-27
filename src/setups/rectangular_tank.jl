@@ -121,7 +121,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                     boundary_masses, boundary_densities,
                                     particle_spacing=boundary_spacing)
 
-        # Shift tank corner in negative coordinate directions to desired coordinates.
+        # Move the tank corner in the negative coordinate directions to the desired position.
         fluid.coordinates .+= min_coordinates
         boundary.coordinates .+= min_coordinates
 
