@@ -51,7 +51,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        PressureMirroring, PressureZeroing
 export BoundaryMovement
 export GridNeighborhoodSearch
-export examples_dir, trixi_include, trixi_include_safe
+export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
