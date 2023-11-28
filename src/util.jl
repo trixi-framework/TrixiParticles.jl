@@ -183,30 +183,6 @@ end
 
 trixi_include(elixir::AbstractString; kwargs...) = trixi_include(Main, elixir; kwargs...)
 
-function trixi_include_safe(file_path; kwargs...)
-    # Read and parse the file's content
-    code = read(file_path, String)
-    expr = Meta.parse("begin \n$code \nend")
-
-    expr = insert_maxiters(expr)
-
-    for (key, val) in kwargs
-        # This will throw an error when `key` is not found
-        find_assignment(expr, key)
-    end
-
-    # Modify the expression (AST) by replacing assignments with values from kwargs
-    expr = replace_assignments(expr; kwargs...)
-
-    # Create a new isolated module
-    isolated_mod = Module(Symbol("IsolatedExecution$(rand(UInt64))"))
-
-    # Evaluate the modified expression in the context of the isolated module
-    Base.eval(isolated_mod, expr)
-
-    return isolated_mod
-end
-
 # Helper methods used in the functions defined above, also copied from Trixi.jl
 
 # Apply the function `f` to `expr` and all sub-expressions recursively.
