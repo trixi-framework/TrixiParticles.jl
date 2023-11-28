@@ -526,6 +526,7 @@ function check_configuration(systems)
     end
 end
 
+# TODO: Check when using OpenBoundarySPHSystem that `interior_system` has a buffer.
 check_configuration(system, systems) = nothing
 
 function check_configuration(boundary_system::BoundarySPHSystem, systems)

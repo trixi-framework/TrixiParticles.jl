@@ -25,8 +25,8 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, B, C} <:
-       FluidSystem{NDIMS}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, TV, B, C
+                                   } <: FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
     pressure           :: Array{ELTYPE, 1} # [particle]
@@ -38,6 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
     viscosity          :: V
     density_diffusion  :: DD
     correction         :: COR
+    transport_velocity :: TV
     buffer             :: B
     cache              :: C
 
@@ -45,6 +46,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          viscosity=NoViscosity(), density_diffusion=nothing,
+                                         transport_velocity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing, buffer=nothing)
@@ -80,11 +82,12 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(buffer), typeof(cache)
+                   typeof(correction), typeof(transport_velocity), typeof(buffer),
+                   typeof(cache)
                    }(initial_condition, mass, pressure,
                      density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, acceleration_, viscosity,
-                     density_diffusion, correction, buffer, cache)
+                     density_diffusion, correction, transport_velocity, buffer, cache)
     end
 end
 

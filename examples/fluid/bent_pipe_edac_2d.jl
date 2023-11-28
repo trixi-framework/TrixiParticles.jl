@@ -23,7 +23,7 @@ prescribed_velocity = (0.0, 2.0)
 
 reynolds_number = 1000.0
 fluid_density = 1000.0
-pressure = 0.0
+pressure = 100000.0
 sound_speed = 10 * maximum(prescribed_velocity)
 
 pipe_size = (pipe_radius - pipe_radius_inner, 2pipe_radius)
@@ -58,14 +58,12 @@ n_buffer_particles = 20 * pipe_in.n_particles_per_dimension[1]
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, pressure,
-                                   background_pressure=pressure)
+nu = maximum(prescribed_velocity) * (pipe_radius - pipe_radius_inner) / reynolds_number
+viscosity = ViscosityAdami(; nu) #alpha * smoothing_length * sound_speed / 8)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           transport_velocity=TransportVelocityAdami(pressure),
                                            buffer=n_buffer_particles)
 
 # ==========================================================================================
@@ -108,7 +106,6 @@ boundary = union(pipe, inflow.boundary, outflow.boundary)
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              boundary_density_calculator,
-                                             state_equation=state_equation,
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(boundary, boundary_model)
