@@ -146,7 +146,7 @@ end
     return dv
 end
 
-# This formulation was choosen to be consistent with the used pressure_acceleration formulations.
+# This formulation was chosen to be consistent with the used pressure_acceleration formulations.
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
