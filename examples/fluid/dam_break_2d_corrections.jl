@@ -8,7 +8,6 @@ smoothing_length = 3.0 * particle_spacing
 # i.e. 0.0, 5.7/sqrt(9.81(gravity))
 tspan = (0.0, 1.82)
 
-
 correction_dict = Dict(
     "no_correction" => Nothing(),
     "shepard_kernel_correction" => ShepardKernelCorrection(),
@@ -39,7 +38,6 @@ smoothing_kernel_dict = Dict(
     "blended_gradient_continuity_correction" => WendlandC6Kernel{2}(),
 )
 
-
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing, smoothing_length=smoothing_length,
               boundary_density_calculator=ContinuityDensity(),
@@ -57,12 +55,13 @@ for correction_name in keys(correction_dict)
     println("fluid/dam_break_2d.jl with ", correction_name)
 
     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-                        fluid_particle_spacing=particle_spacing,
-                        smoothing_length=smoothing_length,
-                        boundary_density_calculator=SummationDensity(),
-                        fluid_density_calculator=fluid_density_calculator,
-                        correction=correction, use_reinit=false,
-                        clip_pressure=(fluid_density_calculator isa SummationDensity), smoothing_kernel=smoothing_kernel,
-                        prefix="$(correction_name)", tspan=tspan,
-                        fluid_density=fluid_density, density_diffusion=Nothing())
+                  fluid_particle_spacing=particle_spacing,
+                  smoothing_length=smoothing_length,
+                  boundary_density_calculator=SummationDensity(),
+                  fluid_density_calculator=fluid_density_calculator,
+                  correction=correction, use_reinit=false,
+                  clip_pressure=(fluid_density_calculator isa SummationDensity),
+                  smoothing_kernel=smoothing_kernel,
+                  prefix="$(correction_name)", tspan=tspan,
+                  fluid_density=fluid_density, density_diffusion=Nothing())
 end
