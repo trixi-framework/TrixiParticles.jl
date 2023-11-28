@@ -155,7 +155,7 @@ where the first sum is over all fluid particles and the second over all boundary
 This approach was first mentioned by Akinci et al. (2012) and written down in this form
 by Band et al. (2018).
 
-!! note
+!!! note
     This boundary model requires high viscosity for stability with WCSPH.
     It also produces significantly worse results than [`AdamiPressureExtrapolation`](@ref)
     and is not more efficient because smaller time steps are required due to more noise
@@ -182,7 +182,7 @@ This is the simplest way to implement dummy boundary particles.
 The density of each particle is set to the reference density and the pressure to the
 reference pressure (the corresponding pressure to the reference density by the state equation).
 
-!! note
+!!! note
     This boundary model produces significantly worse results than all other models and
     is only included for research purposes.
 """
@@ -204,33 +204,23 @@ function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelDummyParticles,
+                                       boundary_model::BoundaryModelDummyParticles{
+                                                                                   <:PressureMirroring
+                                                                                   },
                                        rho_a, rho_b, pos_diff, smoothing_length,
                                        grad_kernel, fluid_density_calculator)
-    (; density_calculator) = boundary_model
-
-    pressure_acceleration(pressure_correction, m_b, p_a, p_b, boundary_model,
-                          density_calculator, rho_a, rho_b, grad_kernel,
-                          fluid_density_calculator)
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
+                                 grad_kernel, fluid_density_calculator)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
                                        boundary_model::BoundaryModelDummyParticles,
-                                       boundary_density_calculator,
-                                       rho_a, rho_b, grad_kernel,
-                                       fluid_density_calculator)
+                                       rho_a, rho_b, pos_diff, smoothing_length,
+                                       grad_kernel, fluid_density_calculator)
     return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, fluid_density_calculator)
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelDummyParticles,
-                                       ::PressureMirroring,
-                                       rho_a, rho_b, grad_kernel,
-                                       fluid_density_calculator)
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
-                                 grad_kernel, fluid_density_calculator)
-end
 function create_cache_model(initial_density,
                             ::Union{SummationDensity, PressureMirroring, PressureZeroing})
     density = copy(initial_density)
