@@ -94,6 +94,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    correction          :: COR
+
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
