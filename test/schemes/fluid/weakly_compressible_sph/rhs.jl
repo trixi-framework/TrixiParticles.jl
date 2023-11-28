@@ -69,12 +69,12 @@
     end
 
     @testset verbose=true "`interact!`" begin
-        # The following tests for linear and angular momentum conservation
-        # are based on Section 3.3.4 of
+        # The following tests for linear and angular momentum and total energy conservation
+        # are based on Sections 3.3.4 and 3.4.2 of
         # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
         # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
         # https://doi.org/10.1016/j.jcp.2010.12.011
-        @testset verbose=true "Momentum Conservation" begin
+        @testset verbose=true "Momentum and Total Energy Conservation" begin
             # We are testing the momentum conservation of SPH with random initial configurations
             density_calculators = [ContinuityDensity(), SummationDensity()]
 
@@ -159,6 +159,50 @@
                     deriv_angular_momentum = sum(deriv_angular_momentum, 1:8)
 
                     @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-14)
+
+                    # Total energy conservation
+                    drho(::ContinuityDensity, particle) = dv[3, particle]
+
+                    # Derivative of the density summation. This is a slightly different
+                    # formulation of the continuity equation.
+                    function drho_particle(particle, neighbor)
+                        m_b = mass[i][neighbor]
+                        vdiff = TrixiParticles.current_velocity(v, system, particle) -
+                                TrixiParticles.current_velocity(v, system, neighbor)
+
+                        pos_diff = TrixiParticles.current_coords(u, system, particle) -
+                                   TrixiParticles.current_coords(u, system, neighbor)
+                        distance = norm(pos_diff)
+
+                        # Only consider particles with a distance > 0
+                        distance < sqrt(eps()) && return 0.0
+
+                        grad_kernel = TrixiParticles.smoothing_kernel_grad(system,
+                                                                           pos_diff,
+                                                                           distance)
+
+                        return m_b * dot(vdiff, grad_kernel)
+                    end
+
+                    function drho(::SummationDensity, particle)
+                        return sum(neighbor -> drho_particle(particle, neighbor), 1:8)
+                    end
+
+                    # m_a (v_a ⋅ dv_a + dte_a),
+                    # where `te` is the thermal energy, called `u` in the Price paper.
+                    function deriv_energy(particle)
+                        dte_a = pressure[i][particle] / density[i][particle]^2 *
+                                drho(density_calculator, particle)
+                        v_a = TrixiParticles.extract_svector(v, system, particle)
+                        dv_a = TrixiParticles.extract_svector(dv, system, particle)
+
+                        return mass[i][particle] * (dot(v_a, dv_a) + dte_a)
+                    end
+
+                    # ∑ m_a (v_a ⋅ dv_a + dte_a)
+                    deriv_total_energy = sum(deriv_energy, 1:8)
+
+                    @test isapprox(deriv_total_energy, 0.0, atol=4e-14)
                 end
             end
         end
