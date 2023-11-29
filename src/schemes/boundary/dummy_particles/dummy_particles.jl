@@ -234,6 +234,19 @@ end
            (rho_a * rho_b) * grad_kernel
 end
 
+@inline function pressure_acceleration(pressure_correction, m_b,
+                                       particle, boundary_particle,
+                                       particle_system, boundary_system,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       boundary_density_calculator,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       fluid_density_calculator::ContinuityDensity,
+                                       correction::Union{MixedKernelGradientCorrection})
+    return (-m_b *
+            (particle_system.pressure[particle] / rho_a^2) * grad_kernel) *
+           pressure_correction
+end
+
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with SummationDensity.

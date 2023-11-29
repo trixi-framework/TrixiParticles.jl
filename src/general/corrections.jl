@@ -334,7 +334,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, system,
+    @trixi_timeit timer() "compute correction matrix" for_particle_neighbor(system, system,
                           coordinates, coordinates,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
@@ -363,8 +363,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
 
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        if cond(L) > 1e10
-            set_one!(corr_matrix)
+        if cond(L) > 1e8
+            # if the matrix is really bad condition set the identity matrix instead and
+            # basically deactivate the gradient correction
+            for i in  1:ndims(system)
+                corr_matrix[i, i, particle] = 1.0
+            end
             return corr_matrix
         end
         invert(corr_matrix, L, particle, system)

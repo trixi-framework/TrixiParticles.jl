@@ -87,6 +87,17 @@ end
            pressure_correction
 end
 
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
+                                       neighbor_system::WeaklyCompressibleSPHSystem,
+                                       rho_a, rho_b, pos_diff, distance,
+                                       grad_kernel, ::ContinuityDensity,
+                                       correction::Union{MixedKernelGradientCorrection})
+    return (-m_b *
+            (particle_system.pressure[particle] / rho_a^2) * grad_kernel) *
+           pressure_correction
+end
+
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
 # used with `SummationDensity`.
@@ -123,8 +134,7 @@ end
                                       m_b, rho_a, rho_b,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel,
-                                      correction::Union{GradientCorrection,
-                                                        MixedKernelGradientCorrection})
+                                      correction::Union{MixedKernelGradientCorrection})
     (; density_diffusion) = particle_system
 
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
