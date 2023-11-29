@@ -40,7 +40,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        periodic_box = neighborhood_searches(system, system, semi).periodic_box
+        periodic_box = get_neighborhood_search(system, semi).periodic_box
 
         trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
