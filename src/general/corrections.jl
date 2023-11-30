@@ -361,9 +361,10 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
     end
 
-    @threaded for particle in eachparticle(system)
+    #@threaded for particle in eachparticle(system)
+    for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        if cond(L) > 1e8
+        if cond(L) > 1e10
             # if the matrix is really bad condition set the identity matrix instead and
             # basically deactivate the gradient correction
             for i in  1:ndims(system)
