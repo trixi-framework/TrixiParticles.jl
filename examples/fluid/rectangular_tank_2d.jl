@@ -84,6 +84,9 @@ sol = solve(ode, RDPK3SpFSAL49(),
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
 
-println(TrixiParticles.interpolate_point([0.0, 0.0], semi, sol, 2 * smoothing_length))
-println(TrixiParticles.interpolate_point([0.1, 0.1], semi, sol, 2 * smoothing_length))
-println(TrixiParticles.interpolate_point([0.05, 0.05], semi, sol, 2 * smoothing_length))
+println(TrixiParticles.interpolate_point([0.0, 0.0], semi, fluid_system, sol))
+println(TrixiParticles.interpolate_point([0.0, 0.0], semi, fluid_system, sol, smoothing_length = 2.0 * smoothing_length))
+println(TrixiParticles.interpolate_point([0.1, 0.1], semi, fluid_system, sol))
+println(TrixiParticles.interpolate_point([0.1, 0.1], semi, fluid_system, sol, smoothing_length = 2.0 * smoothing_length))
+println(TrixiParticles.interpolate_point([0.05, 0.05], semi, fluid_system, sol))
+println(TrixiParticles.interpolate_point([0.05, 0.05], semi, fluid_system, sol, smoothing_length = 2.0 * smoothing_length))
