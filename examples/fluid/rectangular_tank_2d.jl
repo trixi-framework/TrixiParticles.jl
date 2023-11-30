@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.1
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -83,3 +83,7 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
+
+println(TrixiParticles.interpolate_point([0.0, 0.0], semi, sol, 2*smoothing_length))
+println(TrixiParticles.interpolate_point([0.1, 0.1], semi, sol, 2*smoothing_length))
+println(TrixiParticles.interpolate_point([0.05, 0.05], semi, sol, 2*smoothing_length))
