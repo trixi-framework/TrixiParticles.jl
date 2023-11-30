@@ -23,7 +23,7 @@ reynolds_number = 100
 
 particle_spacing = domain_length_factor * domain_length
 
-water_density = 1000.0
+fluid_density = 1000.0
 pressure = 1000.0
 
 prescribed_velocity = (1.0, 0.0)
@@ -32,7 +32,7 @@ sound_speed = 10 * maximum(prescribed_velocity)
 
 pipe = RectangularTank(particle_spacing, (domain_length, domain_width),
                        (domain_length + particle_spacing * open_boundary_cols,
-                        domain_width), water_density, pressure=pressure,
+                        domain_width), fluid_density, pressure=pressure,
                        n_layers=3, spacing_ratio=1, faces=(false, false, true, true),
                        init_velocity=prescribed_velocity)
 
@@ -45,7 +45,7 @@ smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 nu = maximum(prescribed_velocity) * domain_length / reynolds_number
-viscosity = ViscosityAdami(;nu) #alpha * smoothing_length * sound_speed / 8)
+viscosity = ViscosityAdami(; nu) #alpha * smoothing_length * sound_speed / 8)
 
 fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, viscosity=viscosity,
@@ -54,42 +54,37 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 
 # ==========================================================================================
 # ==== Open Boundary
-length_open_boundary = particle_spacing * open_boundary_cols
-height_open_boundary = particle_spacing * n_particles_y
+open_boundary_length = particle_spacing * open_boundary_cols
+open_boundary_size = (open_boundary_length, domain_width)
 
-zone_origin_in = (-length_open_boundary, 0.0)
+zone_origin_in = (-open_boundary_length, 0.0)
 zone_origin_out = (domain_length, 0.0)
 
-inflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_y),
-                          zone_origin_in, water_density,
-                          init_velocity=prescribed_velocity, pressure=pressure)
-outflow = RectangularShape(particle_spacing, (open_boundary_cols, n_particles_y),
-                           zone_origin_out, water_density,
-                           init_velocity=prescribed_velocity, pressure=pressure)
+inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
+                         fluid_density; n_layers=boundary_layers,
+                         init_velocity=prescribed_velocity, pressure=pressure,
+                         min_coordinates=zone_origin_in, spacing_ratio=spacing_ratio,
+                         faces=(false, false, true, true))
+outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
+                          fluid_density; n_layers=boundary_layers,
+                          init_velocity=prescribed_velocity, pressure=pressure,
+                          min_coordinates=zone_origin_out, spacing_ratio=spacing_ratio,
+                          faces=(false, false, true, true))
+zone_plane_in = ([0.0; 0.0], [0.0; domain_width])
+zone_plane_out = ([domain_length + open_boundary_length; 0.0],
+                  [domain_length + open_boundary_length; domain_width])
 
-zone_plane_in = ([0.0; 0.0], [0.0; height_open_boundary])
-zone_plane_out = ([domain_length + length_open_boundary; 0.0],
-                  [domain_length + length_open_boundary; height_open_boundary])
-
-open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_plane_in,
-                                         buffer=n_buffer_particles,
+open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), sound_speed,
+                                         zone_plane_in, buffer=n_buffer_particles,
                                          zone_origin_in, fluid_system)
 
-open_boundary_out = OpenBoundarySPHSystem(outflow, OutFlow(), sound_speed, zone_plane_out,
-                                          buffer=n_buffer_particles,
+open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), sound_speed,
+                                          zone_plane_out, buffer=n_buffer_particles,
                                           zone_origin_out, fluid_system)
 
 # ==========================================================================================
 # ==== Boundary
-wall_position = -open_boundary_cols * particle_spacing
-
-bottom_wall = RectangularShape(particle_spacing, (open_boundary_cols, boundary_layers),
-                               (wall_position, -boundary_layers * particle_spacing),
-                               water_density)
-top_wall = RectangularShape(particle_spacing, (open_boundary_cols, boundary_layers),
-                            (wall_position, n_particles_y * particle_spacing),
-                            water_density)
-boundary = union(bottom_wall, top_wall, pipe.boundary)
+boundary = union(pipe.boundary, inflow.boundary, outflow.boundary)
 
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              AdamiPressureExtrapolation(),

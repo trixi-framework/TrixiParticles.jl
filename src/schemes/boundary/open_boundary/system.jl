@@ -48,7 +48,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         # zone[2, :] = cross(zone[1, :], zone[3, :])
         # zone[3, :] = cross(zone[1, :], zone[2, :])
         for dim in 1:NDIMS
-            zone[:, dim] .= zone_plane[dim] - zone_origin_
+            zone[:, dim] .= zone_plane[dim] .- zone_origin_
         end
 
         unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
@@ -367,7 +367,6 @@ end
 @inline function transform_particle!(interior_system, system::OpenBoundarySPHSystem,
                                      boundary_zone, particle,
                                      v, u, v_interior, u_interior)
-
     # Activate particle in boundary zone
     activate_particle!(system, interior_system, particle, v, u, v_interior, u_interior)
 
