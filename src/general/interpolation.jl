@@ -5,6 +5,8 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
     ref_id = system_indices(ref_system, semi)
 
     neighbor_count = 0
+    ref_density = 0.0
+    other_density = 0.0
     ref_smoothing_kernel = ref_system.smoothing_kernel
     search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
     search_radius2 = search_radius^2
@@ -30,16 +32,21 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
 
             distance = sqrt(distance2)
             mass = hydrodynamic_mass(system, particle)
-            density += mass * kernel(ref_smoothing_kernel, distance, smoothing_length)
-            neighbor_count +=1
+            m_W = mass * kernel(ref_smoothing_kernel, distance, smoothing_length)
+            density += m_W
+
             if system_id === ref_id
-                in_ref_system = true
+                ref_density += m_W
+            else
+                other_density += m_W
             end
+
+            neighbor_count +=1
         end
     end
 
-    # point is not within the search_radius of any particle within the reference system
-    if !in_ref_system
+    # point is not within the ref_system
+    if other_density > ref_density
         return (density=0.0, neighbor_count=0)
     end
 
