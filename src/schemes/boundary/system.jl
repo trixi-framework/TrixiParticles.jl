@@ -138,11 +138,7 @@ end
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{
-                                                              <:BoundaryModelDummyParticles{
-                                                                                            ContinuityDensity
-                                                                                            }
-                                                              })
+@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return nparticles(system)
 end
 
@@ -238,10 +234,7 @@ function write_v0!(v0, system::BoundarySPHSystem)
 end
 
 function write_v0!(v0,
-                   system::BoundarySPHSystem{
-                                             <:BoundaryModelDummyParticles{ContinuityDensity
-                                                                           }
-                                             })
+                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -257,10 +250,7 @@ function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
 
-function restart_with!(system::BoundarySPHSystem{
-                                                 <:BoundaryModelDummyParticles{
-                                                                               ContinuityDensity
-                                                                               }},
+function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                        v, u)
     (; initial_density) = model.cache
 
