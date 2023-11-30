@@ -136,9 +136,7 @@ end
 
 @inline function continuity_equation!(dv, v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
-                                      particle_system::TotalLagrangianSPHSystem{
-                                                                                <:BoundaryModelDummyParticles
-                                                                                },
+                                      particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles},
                                       neighbor_system::WeaklyCompressibleSPHSystem)
     (; density_calculator) = particle_system.boundary_model
 

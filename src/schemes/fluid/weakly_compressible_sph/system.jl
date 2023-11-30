@@ -83,11 +83,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(transport_velocity), typeof(buffer),
-                   typeof(cache)
-                   }(initial_condition, mass, pressure,
-                     density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, acceleration_, viscosity,
-                     density_diffusion, correction, transport_velocity, buffer, cache)
+                   typeof(cache)}(initial_condition, mass, pressure, density_calculator,
+                                  state_equation, smoothing_kernel, smoothing_length,
+                                  acceleration_, viscosity, density_diffusion, correction,
+                                  transport_velocity, buffer, cache)
     end
 end
 
