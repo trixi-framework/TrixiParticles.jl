@@ -184,7 +184,11 @@ timer_name(::TotalLagrangianSPHSystem) = "solid"
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{
+                                                               <:BoundaryModelDummyParticles{
+                                                                                             ContinuityDensity
+                                                                                             }
+                                                               })
     return ndims(system) + 1
 end
 

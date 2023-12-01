@@ -9,7 +9,10 @@ end
 # For dummy particles with `ContinuityDensity`, solve the continuity equation
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                   particle_system::BoundarySPHSystem{
+                                                      <:BoundaryModelDummyParticles{
+                                                                                    ContinuityDensity
+                                                                                    }},
                    neighbor_system::FluidSystem)
     (; boundary_model) = particle_system
 
