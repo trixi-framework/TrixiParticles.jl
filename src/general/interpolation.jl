@@ -34,16 +34,20 @@ An array of interpolated properties at each point along the line.
 results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
-function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true, smoothing_length=ref_system.smoothing_length)
+function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
+                          smoothing_length=ref_system.smoothing_length)
     if endpoint
         # Include both start and end points
-        points_coords = [start + (end_ - start) * t / (no_points - 1) for t in 0:(no_points - 1)]
+        points_coords = [start + (end_ - start) * t / (no_points - 1)
+                         for t in 0:(no_points - 1)]
     else
         # Exclude start and end points
-        points_coords = [start + (end_ - start) * (t + 1) / (no_points + 1) for t in 0:(no_points - 1)]
+        points_coords = [start + (end_ - start) * (t + 1) / (no_points + 1)
+                         for t in 0:(no_points - 1)]
     end
 
-    return interpolate_point(points_coords, semi, ref_system, sol, smoothing_length=smoothing_length)
+    return interpolate_point(points_coords, semi, ref_system, sol,
+                             smoothing_length=smoothing_length)
 end
 
 @doc raw"""
@@ -83,18 +87,21 @@ results = interpolate_point(points, semi, ref_system, sol)
 - The accuracy of interpolation depends on the local particle density and the smoothing length.
 - This function is particularly useful for extracting physical properties at specific locations within the SPH simulation domain, which can be crucial for analysis and visualization.
 """
-function interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
+function interpolate_point(points_coords::Array{Array{Float64, 1}, 1}, semi, ref_system,
+                           sol; smoothing_length=ref_system.smoothing_length)
     results = []
 
     for point in points_coords
-        result = interpolate_point(point, semi, ref_system, sol, smoothing_length=smoothing_length)
+        result = interpolate_point(point, semi, ref_system, sol,
+                                   smoothing_length=smoothing_length)
         push!(results, result)
     end
 
     return results
 end
 
-function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
+function interpolate_point(point_coords, semi, ref_system, sol;
+                           smoothing_length=ref_system.smoothing_length)
     density = 0.0
     shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
@@ -126,9 +133,8 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
 
             distance = sqrt(distance2)
             mass = hydrodynamic_mass(system, particle)
-            volume = mass/particle_density(v, system, particle)
+            volume = mass / particle_density(v, system, particle)
             kernel_value = kernel(ref_smoothing_kernel, distance, smoothing_length)
-
 
             m_W = mass * kernel_value
             density += m_W
@@ -140,7 +146,7 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
                 other_density += m_W
             end
 
-            neighbor_count +=1
+            neighbor_count += 1
         end
     end
 
@@ -149,5 +155,6 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
         return (density=0.0, neighbor_count=0, coord=point_coords)
     end
 
-    return (density=density/shepard_coefficient, neighbor_count=neighbor_count, coord=point_coords)
+    return (density=density / shepard_coefficient, neighbor_count=neighbor_count,
+            coord=point_coords)
 end
