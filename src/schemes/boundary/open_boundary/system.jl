@@ -206,12 +206,11 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
     system_coords = current_coordinates(u, system)
     interior_coords = current_coordinates(u_interior, interior_system)
 
-    set_zero!(previous_characteristics)
-
     for particle in eachparticle(system)
         previous_characteristics[1, particle] = characteristics[1, particle]
         previous_characteristics[2, particle] = characteristics[2, particle]
         previous_characteristics[3, particle] = characteristics[3, particle]
+        previous_characteristics[4, particle] = 0.0
     end
 
     set_zero!(characteristics)
@@ -229,6 +228,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
         v_neighbor = current_velocity(v_interior, interior_system, neighbor)
 
         position = current_coords(u_interior, interior_system, neighbor)
+        # Determine the reference velocity at the position of the interior particle
         v_neighbor_ref = reference_velocity(system, initial_velocity_function, position)
         density_term = -sound_speed^2 * (rho - rho_ref)
         pressure_term = p - p_ref
@@ -245,7 +245,9 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
         previous_characteristics[end, particle] = 1.0
     end
 
-    (; search_radius) = system_nhs
+    # Only some of the in-/outlet particles are in the influence of the interior particles.
+    # Thus, we find the characteristics for the particle which are outside the influence
+    # using the average of the values of the previous time step.
     for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of interior particles
@@ -253,19 +255,13 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 
             # Using the average of the values at the previous time step for particles which
             # are outside of the influence of interior particles.
-            particle_coords = current_coords(u, system, particle)
             avg_J1 = 0.0
             avg_J2 = 0.0
             avg_J3 = 0.0
             counter = 0
 
-            for neighbor in eachneighbor(particle_coords, system_nhs)
-                neighbor_coords = current_coords(u, system, neighbor)
-                pos_diff = particle_coords - neighbor_coords
-                distance2 = dot(pos_diff, pos_diff)
-
-                if distance2 <= search_radius^2 &&
-                   isapprox(previous_characteristics[end, neighbor], 1.0)
+            for neighbor in each_moving_particle(system)
+                if isapprox(previous_characteristics[end, neighbor], 1.0)
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
                     avg_J3 += previous_characteristics[3, neighbor]
@@ -273,11 +269,9 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
                 end
             end
 
-            if counter > 0
-                characteristics[1, particle] = avg_J1 / counter
-                characteristics[2, particle] = avg_J2 / counter
-                characteristics[3, particle] = avg_J3 / counter
-            end
+            characteristics[1, particle] = avg_J1 / counter
+            characteristics[2, particle] = avg_J2 / counter
+            characteristics[3, particle] = avg_J3 / counter
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
