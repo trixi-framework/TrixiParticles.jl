@@ -74,7 +74,7 @@ We provide five options to compute the boundary density and pressure, determined
   In: Computers, Materials and Continua 5 (2007), pages 173-184.
   [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
-struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
@@ -96,8 +96,8 @@ struct BoundaryModelDummyParticles{ELTYPE <: Real, SE, DC, K, V, C}
         cache = (; create_cache_model(viscosity, n_particles, ndims(smoothing_kernel))...,
                  create_cache_model(initial_density, density_calculator)...)
 
-        new{eltype(initial_density), typeof(state_equation),
-            typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity),
+        new{typeof(density_calculator), eltype(initial_density),
+            typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity),
             typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
                            smoothing_kernel, smoothing_length, viscosity, cache)
     end
