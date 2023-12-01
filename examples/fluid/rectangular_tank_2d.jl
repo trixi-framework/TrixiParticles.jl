@@ -1,6 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
-using PyPlot
+# using PyPlot
 
 # ==========================================================================================
 # ==== Resolution
@@ -109,67 +109,67 @@ println(interpolate_point([
                               [1.0, -0.05],
                           ], semi, fluid_system, sol))
 
-# it is also possible to interpolate along a line
-result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
-result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
-                                   endpoint=false)
-# Extract densities and coordinates for plotting
-densities = [r.density for r in result]
-coords = [r.coord[2] for r in result]  # Assuming you want to plot against the y-coordinate
+# # it is also possible to interpolate along a line
+# result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
+# result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
+#                                    endpoint=false)
+# # Extract densities and coordinates for plotting
+# densities = [r.density for r in result]
+# coords = [r.coord[2] for r in result]  # Assuming you want to plot against the y-coordinate
 
-densities_endpoint = [r.density for r in result_endpoint]
-coords_endpoint = [r.coord[2] for r in result_endpoint]
+# densities_endpoint = [r.density for r in result_endpoint]
+# coords_endpoint = [r.coord[2] for r in result_endpoint]
 
-# Create the plot
-figure()
-plot(coords, densities, marker="o", linestyle="-", label="With Endpoint")
-plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--",
-     label="Without Endpoint")
+# # Create the plot
+# figure()
+# plot(coords, densities, marker="o", linestyle="-", label="With Endpoint")
+# plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--",
+#      label="Without Endpoint")
 
-# Add labels and legend
-xlabel("Y-Coordinate")
-ylabel("Density")
-title("Density Interpolation Along a Line")
-legend()
+# # Add labels and legend
+# xlabel("Y-Coordinate")
+# ylabel("Density")
+# title("Density Interpolation Along a Line")
+# legend()
 
-# Display the plot
-show()
+# # Display the plot
+# show()
 
-plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol)
+# plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol)
 
-# Extracting densities and coordinates for plotting
-densities = [p.density for p in plane]
-x_coords = [p.coord[1] for p in plane]
-y_coords = [p.coord[2] for p in plane]
+# # Extracting densities and coordinates for plotting
+# densities = [p.density for p in plane]
+# x_coords = [p.coord[1] for p in plane]
+# y_coords = [p.coord[2] for p in plane]
 
-# Create the scatter plot
-scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
+# # Create the scatter plot
+# scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
 
-# Add colorbar, labels, and title
-colorbar(label="Density")
-xlabel("X Coordinate")
-ylabel("Y Coordinate")
-title("Density Distribution in Plane")
+# # Add colorbar, labels, and title
+# colorbar(label="Density")
+# xlabel("X Coordinate")
+# ylabel("Y Coordinate")
+# title("Density Distribution in Plane")
 
-# Show the plot
-show()
+# # Show the plot
+# show()
 
-plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol,
-                          smoothing_length=2.0 * smoothing_length)
+# plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol,
+#                           smoothing_length=2.0 * smoothing_length)
 
-# Extracting densities and coordinates for plotting
-densities = [p.density for p in plane]
-x_coords = [p.coord[1] for p in plane]
-y_coords = [p.coord[2] for p in plane]
+# # Extracting densities and coordinates for plotting
+# densities = [p.density for p in plane]
+# x_coords = [p.coord[1] for p in plane]
+# y_coords = [p.coord[2] for p in plane]
 
-# Create the scatter plot
-scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
+# # Create the scatter plot
+# scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
 
-# Add colorbar, labels, and title
-colorbar(label="Density")
-xlabel("X Coordinate")
-ylabel("Y Coordinate")
-title("Density Distribution in Plane")
+# # Add colorbar, labels, and title
+# colorbar(label="Density")
+# xlabel("X Coordinate")
+# ylabel("Y Coordinate")
+# title("Density Distribution in Plane")
 
-# Show the plot
-show()
+# # Show the plot
+# show()
