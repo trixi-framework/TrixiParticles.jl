@@ -1,6 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
-using PyPlot
+# using PyPlot
 
 # ==========================================================================================
 # ==== Resolution
