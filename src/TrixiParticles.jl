@@ -57,5 +57,6 @@ export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
+export interpolate_line, interpolate_point
 
 end # module

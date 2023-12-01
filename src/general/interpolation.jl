@@ -36,18 +36,19 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 """
 function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
                           smoothing_length=ref_system.smoothing_length)
-    if endpoint
-        # Include both start and end points
-        points_coords = [start + (end_ - start) * t / (no_points - 1)
-                         for t in 0:(no_points - 1)]
-    else
-        # Exclude start and end points
-        points_coords = [start + (end_ - start) * (t + 1) / (no_points + 1)
-                         for t in 0:(no_points - 1)]
+    points_coords = [start +
+                     (end_ - start) *
+                     (endpoint ? t / (no_points - 1) : (t + 1) / (no_points + 1))
+                     for t in 0:(no_points - 1)]
+
+    results = []
+    for point in points_coords
+        result = interpolate_point(point, semi, ref_system, sol,
+                                   smoothing_length=smoothing_length)
+        push!(results, result)
     end
 
-    return interpolate_point(points_coords, semi, ref_system, sol,
-                             smoothing_length=smoothing_length)
+    return results
 end
 
 @doc raw"""
