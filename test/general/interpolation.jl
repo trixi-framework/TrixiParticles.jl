@@ -1,5 +1,4 @@
 using OrdinaryDiffEq
-include("../test_util.jl")
 
 @testset verbose=true "SPHInterpolation" begin
     smoothing_length = 1.2 * fluid_particle_spacing
