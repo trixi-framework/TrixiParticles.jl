@@ -204,17 +204,21 @@ function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
                                        rho_a, rho_b, pos_diff, smoothing_length,
-                                       grad_kernel, fluid_density_calculator)
+                                       grad_kernel,
+                                       boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
+                                       fluid_density_calculator)
+
+    # Use `p_a` as pressure for both particles with `PressureMirroring`
     return pressure_acceleration(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
                                  grad_kernel, fluid_density_calculator)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelDummyParticles,
                                        rho_a, rho_b, pos_diff, smoothing_length,
-                                       grad_kernel, fluid_density_calculator)
+                                       grad_kernel,
+                                       boundary_model::BoundaryModelDummyParticles,
+                                       fluid_density_calculator)
     return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, fluid_density_calculator)
 end

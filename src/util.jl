@@ -317,5 +317,3 @@ end
 function type2string(type)
     return string(nameof(typeof(type)))
 end
-
-@inline ndims_svector(::SVector{NDIMS}) where {NDIMS} = NDIMS
