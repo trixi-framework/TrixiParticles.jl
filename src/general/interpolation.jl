@@ -1,9 +1,7 @@
 function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
     density = 0.0
-
-    in_ref_system = false
+    shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
-
     neighbor_count = 0
     ref_density = 0.0
     other_density = 0.0
@@ -13,7 +11,7 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
 
     foreach_system(semi) do system
         system_id = system_indices(system, semi)
-        #v = wrap_v(sol[end].x[1], system, semi)
+        v = wrap_v(sol[end].x[1], system, semi)
         u = wrap_u(sol[end].x[2], system, semi)
 
         system_coords = current_coordinates(u, system)
@@ -32,8 +30,13 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
 
             distance = sqrt(distance2)
             mass = hydrodynamic_mass(system, particle)
-            m_W = mass * kernel(ref_smoothing_kernel, distance, smoothing_length)
+            volume = mass/particle_density(v, system, particle)
+            kernel_value = kernel(ref_smoothing_kernel, distance, smoothing_length)
+
+
+            m_W = mass * kernel_value
             density += m_W
+            shepard_coefficient += volume * kernel_value
 
             if system_id === ref_id
                 ref_density += m_W
@@ -50,5 +53,5 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
         return (density=0.0, neighbor_count=0)
     end
 
-    return (density=density, neighbor_count=neighbor_count)
+    return (density=density/shepard_coefficient, neighbor_count=neighbor_count)
 end
