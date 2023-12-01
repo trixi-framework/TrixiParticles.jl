@@ -1,7 +1,7 @@
 using OrdinaryDiffEq
 
 @testset verbose=true "SPHInterpolation" begin
-    smoothing_length = 1.2 * fluid_particle_spacing
+    smoothing_length = 1.2 * 0.1
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
     state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
