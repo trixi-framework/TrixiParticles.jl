@@ -1,3 +1,14 @@
+function interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
+    results = []
+
+    for point in points_coords
+        result = interpolate_point(point, semi, ref_system, sol, smoothing_length=smoothing_length)
+        push!(results, result)
+    end
+
+    return results
+end
+
 function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
     density = 0.0
     shepard_coefficient = 0.0

@@ -92,3 +92,6 @@ println(TrixiParticles.interpolate_point([1.0, 0.0], semi, fluid_system, sol))
 println(TrixiParticles.interpolate_point([1.0, 0.0], semi, fluid_system, sol, smoothing_length = 2.0 * smoothing_length))
 println(TrixiParticles.interpolate_point([1.0, -0.01], semi, fluid_system, sol))
 println(TrixiParticles.interpolate_point([1.0, -0.05], semi, fluid_system, sol))
+
+
+println(TrixiParticles.interpolate_point( [[1.0, 0.01], [1.0, 0.1], [1.0, 0.0], [1.0, -0.01], [1.0, -0.05]], semi, fluid_system, sol))
