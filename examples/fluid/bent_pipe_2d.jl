@@ -79,10 +79,11 @@ zone_origin_out = (pipe_radius + pipe_radius_inner, 0.0)
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density; n_layers=boundary_layers,
                          init_velocity=prescribed_velocity, pressure=pressure,
-                         min_coordinates=zone_origin_in,
+                         min_coordinates=(0.0, -open_boundary_length),
                          spacing_ratio=spacing_ratio, faces=(true, true, false, false))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
-                          min_coordinates=(zone_origin_out[1], -open_boundary_length),
+                          min_coordinates=(pipe_radius + pipe_radius_inner,
+                                           -open_boundary_length),
                           fluid_density; n_layers=boundary_layers, pressure=pressure,
                           spacing_ratio=spacing_ratio, faces=(true, true, false, false))
 
@@ -93,14 +94,22 @@ zone_plane_out = ([pipe_radius + pipe_radius_inner; -open_boundary_length],
 v_x(position) = prescribed_velocity[1]
 v_y(position) = prescribed_velocity[2]
 
-open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), sound_speed, zone_plane_in,
+open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
+                                         flow_direction=(0.0, 1.0),
+                                         zone_width=open_boundary_length,
+                                         zone_plane_min_corner=[0.0, 0.0],
+                                         zone_plane_max_corner=[pipe_size[1], 0.0],
                                          buffer=n_buffer_particles,
-                                         initial_velocity_function=(v_x, v_y),
-                                         zone_origin_in, fluid_system)
+                                         initial_velocity_function=(v_x, v_y))
 
-open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), sound_speed,
-                                          zone_plane_out, buffer=n_buffer_particles,
-                                          zone_origin_out, fluid_system)
+zone_plane_min_corner = [pipe_radius + pipe_radius_inner, 0.0]
+zone_plane_max_corner = [pipe_radius + pipe_radius_inner + pipe_size[1], 0.0]
+open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
+                                          flow_direction=(0.0, -1.0),
+                                          zone_width=open_boundary_length,
+                                          zone_plane_min_corner=zone_plane_min_corner,
+                                          zone_plane_max_corner=zone_plane_max_corner,
+                                          buffer=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Boundary

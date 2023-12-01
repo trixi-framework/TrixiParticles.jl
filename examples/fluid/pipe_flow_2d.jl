@@ -4,7 +4,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-domain_length_factor = 0.01
+domain_length_factor = 0.05
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -26,7 +26,7 @@ particle_spacing = domain_length_factor * domain_length
 fluid_density = 1000.0
 pressure = 1000.0
 
-prescribed_velocity = (1.0, 0.0)
+prescribed_velocity = (2.0, 0.0)
 
 sound_speed = 10 * maximum(prescribed_velocity)
 
@@ -57,30 +57,32 @@ fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothi
 open_boundary_length = particle_spacing * open_boundary_cols
 open_boundary_size = (open_boundary_length, domain_width)
 
-zone_origin_in = (-open_boundary_length, 0.0)
-zone_origin_out = (domain_length, 0.0)
-
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density; n_layers=boundary_layers,
                          init_velocity=prescribed_velocity, pressure=pressure,
-                         min_coordinates=zone_origin_in, spacing_ratio=spacing_ratio,
+                         min_coordinates=(-open_boundary_length, 0.0),
+                         spacing_ratio=spacing_ratio,
                          faces=(false, false, true, true))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                           fluid_density; n_layers=boundary_layers,
                           init_velocity=prescribed_velocity, pressure=pressure,
-                          min_coordinates=zone_origin_out, spacing_ratio=spacing_ratio,
+                          min_coordinates=(domain_length, 0.0), spacing_ratio=spacing_ratio,
                           faces=(false, false, true, true))
-zone_plane_in = ([0.0; 0.0], [0.0; domain_width])
-zone_plane_out = ([domain_length + open_boundary_length; 0.0],
-                  [domain_length + open_boundary_length; domain_width])
 
-open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), sound_speed,
-                                         zone_plane_in, buffer=n_buffer_particles,
-                                         zone_origin_in, fluid_system)
+open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
+                                         flow_direction=(1.0, 0.0),
+                                         zone_width=open_boundary_length,
+                                         zone_plane_min_corner=[0.0, 0.0],
+                                         zone_plane_max_corner=[0.0, domain_width],
+                                         buffer=n_buffer_particles)
 
-open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), sound_speed,
-                                          zone_plane_out, buffer=n_buffer_particles,
-                                          zone_origin_out, fluid_system)
+open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
+                                          flow_direction=(1.0, 0.0),
+                                          zone_width=open_boundary_length,
+                                          zone_plane_min_corner=[domain_length, 0.0],
+                                          zone_plane_max_corner=[domain_length,
+                                              domain_width],
+                                          buffer=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Boundary

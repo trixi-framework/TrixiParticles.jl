@@ -10,17 +10,21 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
     boundary_zone             :: BZ
     interior_system           :: System
     zone_origin               :: SVector{NDIMS, ELTYPE}
-    zone                      :: Array{ELTYPE, 2}
+    spanning_set              :: SMatrix{NDIMS, NDIMS, ELTYPE}
     unit_normal               :: SVector{NDIMS, ELTYPE}
     viscosity                 :: V
     buffer                    :: B
     initial_velocity_function :: VF
     acceleration              :: SVector{NDIMS, ELTYPE}
 
-    function OpenBoundarySPHSystem(initial_condition, boundary_zone, sound_speed,
-                                   zone_plane, zone_origin, interior_system;
-                                   initial_velocity_function=nothing,
-                                   buffer=nothing)
+    function OpenBoundarySPHSystem(initial_condition, boundary_zone, interior_system;
+                                   zone_width=0.0,
+                                   flow_direction=ntuple(_ -> 0.0, ndims(interior_system)),
+                                   zone_plane_min_corner=ntuple(_ -> 0.0,
+                                                                ndims(interior_system)),
+                                   zone_plane_max_corner=ntuple(_ -> 0.0,
+                                                                ndims(interior_system)),
+                                   initial_velocity_function=nothing, buffer=nothing)
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -33,36 +37,62 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         volume = similar(initial_condition.density)
 
         viscosity = interior_system.viscosity
+        sound_speed = speed_of_sound(interior_system)
 
         characteristics = zeros(ELTYPE, 3, length(mass))
         previous_characteristics = zeros(ELTYPE, 4, length(mass))
 
-        zone_origin_ = SVector{NDIMS}(zone_origin)
+        zone_origin = SVector(zone_plane_min_corner...)
+        unit_normal = normalize(SVector(flow_direction...))
 
-        # spans vectors in each direction
-        zone = zeros(NDIMS, NDIMS)
+        plane_size = SVector{NDIMS}(zone_plane_max_corner - zone_plane_min_corner)
 
-        # TODO either check if the vectors are perpendicular to the faces, or obtain perpendicular
-        # vectors by using the cross-product (?):
-        # zone[1, :] = cross(zone[2, :], zone[3, :])
-        # zone[2, :] = cross(zone[1, :], zone[3, :])
-        # zone[3, :] = cross(zone[1, :], zone[2, :])
-        for dim in 1:NDIMS
-            zone[:, dim] .= zone_plane[dim] .- zone_origin_
+        spanning_set = spanning_vectors(plane_size, zone_width)
+
+        span_angle = 0
+        if isapprox(dot(normalize(spanning_set[:, 1]), unit_normal), 1.0)
+            # Flip the inflow vector in upstream direction
+            (boundary_zone isa InFlow) && (span_angle = π)
+        elseif isapprox(dot(normalize(spanning_set[:, 1]), unit_normal), -1.0)
+            # Flip the outflow vector in downstream direction
+            (boundary_zone isa OutFlow) && (span_angle = π)
+        else
+            throw(ArgumentError("TODO"))
         end
 
-        unit_normal_ = SVector{NDIMS}(normalize(zone[:, 1]))
+        spanning_set[:, 1] = rot_matrix(span_angle, Val(NDIMS)) * spanning_set[:, 1]
+
+        spanning_set_ = SMatrix{NDIMS, NDIMS}(spanning_set)
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(viscosity), typeof(buffer),
                    typeof(initial_velocity_function)}(initial_condition, mass, volume,
                                                       density, pressure, characteristics,
                                                       previous_characteristics, sound_speed,
                                                       boundary_zone, interior_system,
-                                                      zone_origin_, zone, unit_normal_,
-                                                      viscosity, buffer,
+                                                      zone_origin, spanning_set_,
+                                                      unit_normal, viscosity, buffer,
                                                       initial_velocity_function,
                                                       interior_system.acceleration)
     end
+end
+
+spanning_vectors(plane_size::SVector{1}, zone_width) = [-zone_width]
+
+function spanning_vectors(plane_size::SVector{2}, zone_width)
+    # Calculate normal vector of plane
+    b = normalize([-plane_size[2]; plane_size[1]]) * zone_width
+
+    return hcat(b, plane_size)
+end
+
+function spanning_vectors(plane_size::SVector{3}, zone_width)
+    a = [plane_size[1]; plane_size[2]; zero(eltype(plane_size))]
+    b = [plane_size[1]; zero(eltype(plane_size)); plane_size[3]]
+
+    # Calculate normal vector of plane
+    c = normalize(cross(b, a)) * zone_width
+
+    return hcat(c, a, b)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -121,14 +151,15 @@ struct InFlow end
 
 struct OutFlow end
 
-function (boundary_zone::Union{InFlow, OutFlow})(particle_coords, particle, zone_origin,
-                                                 zone, system)
-    position = particle_coords - zone_origin
+@inline function within_boundary_zone(particle_coords, system)
+    (; zone_origin, spanning_set) = system
+    particle_positon = particle_coords - zone_origin
 
     for dim in 1:ndims(system)
-        direction = extract_svector(zone, system, dim)
-
-        if !(0 <= dot(position, direction) <= dot(direction, direction))
+        span_dim = spanning_set[:, dim]
+        # This condition checks whether the projection of the particle position onto the
+        # vectors which span the boundary zone falls within the range of the zone.
+        if !(0 <= dot(particle_positon, span_dim) <= dot(span_dim, span_dim))
 
             # Particle is not in boundary zone.
             return false
@@ -302,7 +333,7 @@ end
 end
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    (; boundary_zone, zone, zone_origin, interior_system) = system
+    (; boundary_zone, interior_system) = system
 
     neighborhood_search = neighborhood_searches(system, interior_system, semi)
 
@@ -313,7 +344,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
         particle_coords = current_coords(u, system, particle)
 
         # Check if the particle position is outside the boundary zone.
-        if !boundary_zone(particle_coords, particle, zone_origin, zone, system)
+        if !within_boundary_zone(particle_coords, system)
             transform_particle!(system, interior_system, boundary_zone, particle,
                                 v, u, v_interior, u_interior)
         end
@@ -323,8 +354,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
             interior_coords = current_coords(u_interior, interior_system, interior_neighbor)
 
             # Check if particle position is in boundary zone
-            if boundary_zone(interior_coords, interior_neighbor, zone_origin, zone,
-                             interior_system)
+            if within_boundary_zone(interior_coords, system)
                 transform_particle!(interior_system, system, boundary_zone,
                                     interior_neighbor, v, u, v_interior, u_interior)
             end
@@ -345,14 +375,14 @@ end
 @inline function transform_particle!(system::OpenBoundarySPHSystem, interior_system,
                                      ::InFlow, particle,
                                      v, u, v_interior, u_interior)
-    (; zone) = system
+    (; spanning_set, zone_origin) = system
 
     # Activate a new particle in simulation domain
     activate_particle!(interior_system, system, particle, v_interior, u_interior, v, u)
 
     # Reset position and velocity of particle
     u_particle_ref = current_coords(u, system, particle) -
-                     extract_svector(zone, system, 1)
+                     (zone_origin - spanning_set[:, 1])
     v_particle_ref = initial_velocity(system, particle)
 
     for dim in 1:ndims(system)

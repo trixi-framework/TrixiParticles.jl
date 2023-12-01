@@ -5,7 +5,7 @@ using LinearAlgebra
 
 # ==========================================================================================
 # ==== Resolution
-domain_length_factor = 0.05
+domain_length_factor = 0.1
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -15,7 +15,7 @@ open_boundary_cols = 6
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 0.2)
+tspan = (0.0, 2.0)
 
 domain_length = 1.0
 particle_spacing = domain_length_factor * domain_length
@@ -30,7 +30,7 @@ sound_speed = max(10 * maximum(prescribed_velocity), 10.0)
 p(x) = 0.0#1.0 - 0.2 * ℯ^-((norm(x) - 0.5)^2 / 0.001)
 
 n_particles_x = Int(floor(domain_length / particle_spacing))
-n_buffer_particles = 100
+n_buffer_particles = 1
 
 fluid = RectangularShape(particle_spacing, (n_particles_x,), (0.0,),
                          fluid_density, init_velocity=prescribed_velocity,
@@ -53,9 +53,6 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
 # ==== Open Boundary
 open_boundary_length = particle_spacing * open_boundary_cols
 
-zone_origin_in = (-open_boundary_length,)
-zone_origin_out = (domain_length,)
-
 inflow = RectangularShape(particle_spacing, (open_boundary_cols,), (-open_boundary_length,),
                           fluid_density, init_velocity=prescribed_velocity,
                           pressure=pressure)
@@ -67,21 +64,24 @@ outflow = RectangularShape(particle_spacing, (open_boundary_cols,), (domain_leng
 zone_plane_in = (0.0,)
 zone_plane_out = (domain_length + open_boundary_length,)
 
-open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), sound_speed, zone_plane_in,
-                                         zone_origin_in, fluid_system,
+open_boundary_in = OpenBoundarySPHSystem(inflow, InFlow(), fluid_system,
+                                         flow_direction=(1,),
+                                         zone_width=open_boundary_length,
+                                         zone_plane_min_corner=[0.0],
+                                         zone_plane_max_corner=[0.0],
                                          buffer=n_buffer_particles)
 
-open_boundary_out = OpenBoundarySPHSystem(outflow, OutFlow(), sound_speed, zone_plane_out,
-                                          zone_origin_out, fluid_system,
+open_boundary_out = OpenBoundarySPHSystem(outflow, OutFlow(), fluid_system,
+                                          flow_direction=1,
+                                          zone_width=open_boundary_length,
+                                          zone_plane_min_corner=[domain_length],
+                                          zone_plane_max_corner=[domain_length],
                                           buffer=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(fluid_system,
-                          open_boundary_in,
-                          open_boundary_out,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out)
 
 ode = semidiscretize(semi, tspan)
 

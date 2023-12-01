@@ -5,7 +5,7 @@ using Reexport: @reexport
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
-using LinearAlgebra: normalize, dot, I, tr
+using LinearAlgebra: normalize, dot, I, tr, cross
 @reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
 using MuladdMacro: @muladd

@@ -96,6 +96,8 @@ end
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end
 
+@inline speed_of_sound(system) = system.sound_speed
+
 # System update orders. This can be dispatched if needed.
 function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system
