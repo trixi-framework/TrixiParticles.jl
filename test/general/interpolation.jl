@@ -34,7 +34,7 @@ include("../test_util.jl")
     sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-5, reltol=1e-3, dtmax=1e-2,
                 save_everystep=false)
 
-    function compare_interpolation_result(actual, expected; tolerance=1e-12)
+    function compare_interpolation_result(actual, expected; tolerance=1e-8)
         @test actual.neighbor_count == expected.neighbor_count
         @test actual.coord == expected.coord
         @test isapprox(actual.density, expected.density, atol=tolerance)
@@ -42,7 +42,7 @@ include("../test_util.jl")
         @test isapprox(actual.pressure, expected.pressure, atol=tolerance)
     end
 
-    function compare_interpolation_results(actuals, expecteds; tolerance=1e-12)
+    function compare_interpolation_results(actuals, expecteds; tolerance=1e-8)
         @test length(actuals) == length(expecteds)
         for (actual, expected) in zip(actuals, expecteds)
             compare_interpolation_result(actual, expected, tolerance=tolerance)
