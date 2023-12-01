@@ -61,7 +61,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              pressure=0.0, n_layers=1, spacing_ratio=1.0,
                              min_coordinates=zeros(length(fluid_size)),
                              init_velocity=zeros(length(fluid_size)),
-                             boundary_density=fluid_density,
+                             boundary_density=fluid_density, rot_angle=0,
                              faces=Tuple(trues(2 * length(fluid_size))),
                              acceleration=nothing, state_equation=nothing)
         NDIMS = length(fluid_size)
@@ -114,12 +114,22 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
                                  fluid_density, init_velocity=init_velocity,
-                                 pressure=pressure,
+                                 pressure=pressure,rot_angle=rot_angle,
                                  acceleration=acceleration, state_equation=state_equation)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities,
                                     particle_spacing=boundary_spacing)
+
+        if rot_angle != 0
+            # Rotate each boundary particle vector
+            for particle in axes(boundary.coordinates, 2)
+                particle_position = extract_svector(boundary.coordinates, boundary,
+                                                    particle)
+                boundary.coordinates[:, particle] = rot_matrix(rot_angle, Val(NDIMS)) *
+                                                    particle_position
+            end
+        end
 
         # Move the tank corner in the negative coordinate directions to the desired position.
         fluid.coordinates .+= min_coordinates

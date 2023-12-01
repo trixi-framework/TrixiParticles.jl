@@ -29,7 +29,7 @@ state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pr
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -gravity), state_equation=state_equation, rot_angle=π/6)
 
 # ==========================================================================================
 # ==== Fluid

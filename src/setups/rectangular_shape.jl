@@ -53,7 +53,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                           min_coordinates, density;
                           init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
                           acceleration=nothing, state_equation=nothing,
-                          pressure=0.0, tlsph=false,
+                          pressure=0.0, tlsph=false, rot_angle=0,
                           loop_order=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
@@ -76,6 +76,21 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                            min_coordinates, tlsph=tlsph,
                                            loop_order=loop_order)
+
+    if rot_angle != 0
+        # Set coordinates to origin
+        coordinates .-= min_coordinates
+
+        # Rotate each vector
+        for particle in axes(coordinates, 2)
+            particle_position = extract_svector(coordinates, Val(NDIMS), particle)
+            coordinates[:, particle] = rot_matrix(rot_angle, Val(NDIMS)) * particle_position
+        end
+
+        # Sift coordinates back
+        coordinates .+= min_coordinates
+    end
+
     velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
     # Allow zero acceleration with state equation, but interpret `nothing` acceleration

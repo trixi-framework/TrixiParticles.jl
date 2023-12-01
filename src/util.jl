@@ -317,3 +317,7 @@ end
 function type2string(type)
     return string(nameof(typeof(type)))
 end
+
+rot_matrix(θ, NDIMS::Val{1}) = sign(θ) == π ? -1 : 1
+rot_matrix(θ, NDIMS::Val{2}) = SMatrix{2, 2}(cos(θ), -sin(θ), sin(θ), cos(θ))
+rot_matrix(θ, NDIMS::Val{3}) = SMatrix{3, 3}(cos(θ), -sin(θ), 0, sin(θ), cos(θ), 0, 0, 0, 1)
