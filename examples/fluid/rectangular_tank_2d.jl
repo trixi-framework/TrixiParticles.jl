@@ -94,7 +94,6 @@ println(interpolate_point([1.0, 0.01], semi, fluid_system, sol))
 println(interpolate_point([1.0, 0.01], semi, fluid_system, sol,
                           smoothing_length=2.0 * smoothing_length))
 
-
 # a point outside of the domain will result in properties with value 0
 # on the boundary a result can still be obtained
 println(interpolate_point([1.0, 0.0], semi, fluid_system, sol))
@@ -113,7 +112,7 @@ println(interpolate_point([
 # it is also possible to interpolate along a line
 result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
 result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
-                                    endpoint=false)
+                                   endpoint=false)
 # Extract densities and coordinates for plotting
 densities = [r.density for r in result]
 coords = [r.coord[2] for r in result]  # Assuming you want to plot against the y-coordinate
@@ -124,7 +123,8 @@ coords_endpoint = [r.coord[2] for r in result_endpoint]
 # Create the plot
 figure()
 plot(coords, densities, marker="o", linestyle="-", label="With Endpoint")
-plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--", label="Without Endpoint")
+plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--",
+     label="Without Endpoint")
 
 # Add labels and legend
 xlabel("Y-Coordinate")
