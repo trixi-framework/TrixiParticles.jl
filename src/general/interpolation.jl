@@ -194,7 +194,11 @@ function interpolate_point(point_coords, semi, ref_system, sol;
 
         system_coords = current_coordinates(u, system)
         nhs = get_neighborhood_search(system, semi)
-        nhs = create_neighborhood_search(system, nhs, search_radius)
+        if system isa FluidSystem
+            nhs = create_neighborhood_search(u, system, nhs, search_radius)
+        else
+            nhs = create_neighborhood_search(initial_coordinates(system), system, nhs, search_radius)
+        end
 
         for particle in eachneighbor(point_coords, nhs)
             coords = extract_svector(system_coords, Val(ndims(system)), particle)
@@ -230,7 +234,7 @@ function interpolate_point(point_coords, semi, ref_system, sol;
     end
 
     # point is not within the ref_system
-    if other_density > ref_density
+    if other_density > ref_density || neighbor_count == 0
         return (density=0.0, neighbor_count=0, coord=point_coords,
                 velocity=zeros(size(point_coords)), pressure=0.0)
     end
