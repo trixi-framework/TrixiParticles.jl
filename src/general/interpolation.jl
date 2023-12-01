@@ -1,3 +1,42 @@
+function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
+                           smoothing_length=ref_system.smoothing_length)
+    dims = length(lower_left)
+    if dims != length(top_right)
+        error("Dimensions of lower_left and top_right must match")
+    end
+
+    # Check that lower_left is indeed lower and to the left of top_right
+    for i in 1:dims
+        if lower_left[i] >= top_right[i]
+            error("lower_left should be lower and to the left of top_right in all dimensions")
+        end
+    end
+
+    # Calculate the number of points in each dimension based on the resolution
+    no_points_x = ceil(Int, (top_right[1] - lower_left[1]) / resolution) + 1
+    no_points_y = ceil(Int, (top_right[2] - lower_left[2]) / resolution) + 1
+    no_points_z = dims == 3 ? ceil(Int, (top_right[3] - lower_left[3]) / resolution) + 1 : 1
+
+    x_range = range(lower_left[1], top_right[1], length=no_points_x)
+    y_range = range(lower_left[2], top_right[2], length=no_points_y)
+    z_range = dims == 3 ? range(lower_left[3], top_right[3], length=no_points_z) : 1:1
+
+    points_coords = dims == 2 ? [[x, y] for x in x_range, y in y_range] :
+                    [[x, y, z] for x in x_range, y in y_range, z in z_range]
+
+    results = []
+    for point in points_coords
+        result = interpolate_point(point, semi, ref_system, sol,
+                                   smoothing_length=smoothing_length)
+        push!(results, result)
+    end
+
+    # Filter out results with neighbor_count of 0
+    results = filter(r -> r.neighbor_count > 0, results)
+
+    return results
+end
+
 @doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true, smoothing_length=ref_system.smoothing_length)
 
