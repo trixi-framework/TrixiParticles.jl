@@ -55,7 +55,7 @@
                                                                density_calculator)
 
                     dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, p_b, p_a,
-                                                               rho_b, rho_a, pos_diff,
+                                                               rho_b, rho_a, -pos_diff,
                                                                -grad_kernel, system, system,
                                                                density_calculator)
 
