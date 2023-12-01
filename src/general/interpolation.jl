@@ -197,7 +197,8 @@ function interpolate_point(point_coords, semi, ref_system, sol;
         if system isa FluidSystem
             nhs = create_neighborhood_search(u, system, nhs, search_radius)
         else
-            nhs = create_neighborhood_search(initial_coordinates(system), system, nhs, search_radius)
+            nhs = create_neighborhood_search(initial_coordinates(system), system, nhs,
+                                             search_radius)
         end
 
         for particle in eachneighbor(point_coords, nhs)
