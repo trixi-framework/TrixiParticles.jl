@@ -86,7 +86,7 @@ results = interpolate_point(points, semi, ref_system, sol)
 ```
 !!! note
 - The accuracy of interpolation depends on the local particle density and the smoothing length.
-- This function is particularly useful for extracting physical properties at specific locations within the SPH simulation domain, which can be crucial for analysis and visualization.
+- This function is particularly useful for extracting physical properties at specific locations within the SPH simulation domain.
 """
 function interpolate_point(points_coords::Array{Array{Float64, 1}, 1}, semi, ref_system,
                            sol; smoothing_length=ref_system.smoothing_length)
