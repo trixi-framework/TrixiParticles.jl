@@ -153,3 +153,23 @@ title("Density Distribution in Plane")
 
 # Show the plot
 show()
+
+plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol,
+                          smoothing_length=2.0 * smoothing_length)
+
+# Extracting densities and coordinates for plotting
+densities = [p.density for p in plane]
+x_coords = [p.coord[1] for p in plane]
+y_coords = [p.coord[2] for p in plane]
+
+# Create the scatter plot
+scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
+
+# Add colorbar, labels, and title
+colorbar(label="Density")
+xlabel("X Coordinate")
+ylabel("Y Coordinate")
+title("Density Distribution in Plane")
+
+# Show the plot
+show()
