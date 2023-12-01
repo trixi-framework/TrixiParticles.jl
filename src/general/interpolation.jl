@@ -1,3 +1,16 @@
+function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true, smoothing_length=ref_system.smoothing_length)
+    if endpoint
+        # Include both start and end points
+        points_coords = [start + (end_ - start) * t / (no_points - 1) for t in 0:(no_points - 1)]
+    else
+        # Exclude start and end points
+        points_coords = [start + (end_ - start) * (t + 1) / (no_points + 1) for t in 0:(no_points - 1)]
+    end
+
+    return interpolate_point(points_coords, semi, ref_system, sol, smoothing_length=smoothing_length)
+end
+
+
 function interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol; smoothing_length=ref_system.smoothing_length)
     results = []
 
@@ -61,8 +74,8 @@ function interpolate_point(point_coords, semi, ref_system, sol; smoothing_length
 
     # point is not within the ref_system
     if other_density > ref_density
-        return (density=0.0, neighbor_count=0)
+        return (density=0.0, neighbor_count=0, coord=point_coords)
     end
 
-    return (density=density/shepard_coefficient, neighbor_count=neighbor_count)
+    return (density=density/shepard_coefficient, neighbor_count=neighbor_count, coord=point_coords)
 end

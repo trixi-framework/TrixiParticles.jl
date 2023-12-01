@@ -95,3 +95,6 @@ println(TrixiParticles.interpolate_point([1.0, -0.05], semi, fluid_system, sol))
 
 
 println(TrixiParticles.interpolate_point( [[1.0, 0.01], [1.0, 0.1], [1.0, 0.0], [1.0, -0.01], [1.0, -0.05]], semi, fluid_system, sol))
+
+println(TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5, semi, fluid_system, sol))
+println(TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5, semi, fluid_system, sol, endpoint=false))
