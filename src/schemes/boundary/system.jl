@@ -162,6 +162,8 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
+@inline pressure(system::BoundarySPHSystem, particle) = system.boundary_model.pressure[particle]
+
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
