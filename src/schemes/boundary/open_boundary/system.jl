@@ -198,7 +198,6 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
     previous_characteristics, unit_normal, boundary_zone) = system
 
     system_interior_nhs = neighborhood_searches(system, interior_system, semi)
-    system_nhs = neighborhood_searches(system, system, semi)
 
     u_interior = wrap_u(u_ode, interior_system, semi)
     v_interior = wrap_v(v_ode, interior_system, semi)
