@@ -421,7 +421,7 @@ end
 
     # Pressure acceleration for fluid-solid interaction. This is identical to
     # `pressure_acceleration` for the `BoundarySPHSystem`.
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                 boundary_model, rho_a, rho_b, pos_diff, smoothing_length,
-                                 grad_kernel, density_calculator)
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                 smoothing_length, grad_kernel, boundary_model,
+                                 density_calculator)
 end
