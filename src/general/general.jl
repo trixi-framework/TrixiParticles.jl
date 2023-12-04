@@ -17,6 +17,13 @@ end
     end
 end
 
+@inline function pseudo_invert(inverse, A, particle, system)
+    A_inv = pinv(A)
+    @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+        inverse[i, j, particle] = A_inv[i, j]
+    end
+end
+
 struct SimulationDiverged <: Exception
     msg::AbstractString
 end

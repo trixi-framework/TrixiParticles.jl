@@ -87,16 +87,16 @@ end
            pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, ::ContinuityDensity,
-                                       correction::Union{MixedKernelGradientCorrection})
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2) * grad_kernel) *
-           pressure_correction
-end
+# @inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+#                                        particle_system,
+#                                        neighbor_system::WeaklyCompressibleSPHSystem,
+#                                        rho_a, rho_b, pos_diff, distance,
+#                                        grad_kernel, ::ContinuityDensity,
+#                                        correction::Union{KernelGradientCorrection, MixedKernelGradientCorrection})
+#     return (-m_b *
+#             (particle_system.pressure[particle] / rho_a^2) * grad_kernel) *
+#            pressure_correction
+# end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
@@ -128,23 +128,23 @@ end
                                  distance, grad_kernel, density_calculator, correction)
 end
 
-@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      m_b, rho_a, rho_b,
-                                      particle_system::WeaklyCompressibleSPHSystem,
-                                      neighbor_system, grad_kernel,
-                                      correction::Union{MixedKernelGradientCorrection})
-    (; density_diffusion) = particle_system
+# @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
+#                                       v_particle_system, v_neighbor_system,
+#                                       particle, neighbor, pos_diff, distance,
+#                                       m_b, rho_a, rho_b,
+#                                       particle_system::WeaklyCompressibleSPHSystem,
+#                                       neighbor_system, grad_kernel,
+#                                       correction::Union{KernelGradientCorrection, MixedKernelGradientCorrection})
+#     (; density_diffusion) = particle_system
 
-    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+#     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(v_b, grad_kernel)
+#     dv[end, particle] += rho_a / rho_b * m_b * dot(v_b, grad_kernel)
 
-    density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
-                       particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                       particle_system, neighbor_system, grad_kernel)
-end
+#     density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
+#                        particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+#                        particle_system, neighbor_system, grad_kernel)
+# end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,

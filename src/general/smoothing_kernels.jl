@@ -60,9 +60,10 @@ end
     return kernel_grad(kernel, pos_diff, distance, h)
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+@inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
                                        ::KernelGradientCorrection, system, particle)
-    return (kernel_grad(kernel, pos_diff, distance, h) .- dw_gamma(system, particle)) /
+    return (kernel_grad(kernel_, pos_diff, distance, h) .-
+            kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end
 

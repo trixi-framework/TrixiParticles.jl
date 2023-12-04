@@ -364,8 +364,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
     end
 
-    #@threaded for particle in eachparticle(system)
-    for particle in eachparticle(system)
+    @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
         if cond(L) > 1e10
             # if the matrix is really bad condition set the identity matrix instead and
@@ -373,7 +372,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
             for i in 1:ndims(system)
                 corr_matrix[i, i, particle] = 1.0
             end
-            return corr_matrix
+            # pseudo_invert(corr_matrix, L, particle, system)
         end
         invert(corr_matrix, L, particle, system)
     end
