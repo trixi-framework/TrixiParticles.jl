@@ -31,7 +31,7 @@ function (update_each_dt::UpdateEachDt)(integrator)
     v_ode, u_ode = integrator.u.x
 
     foreach_system(semi) do system
-        update_open_boundary_eachstep!(system, v_ode, u_ode, semi)
+        update_open_boundary_eachstep!(system, v_ode, u_ode, semi, integrator.t)
     end
 
     foreach_system(semi) do system

@@ -171,16 +171,17 @@ struct OutFlow end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    evaluate_characteristics!(system, v, u, v_ode, u_ode, semi)
+    evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi) = system
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
-function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode, semi)
+function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
+                                        semi, t)
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
-    compute_quantities!(system, v)
+    compute_quantities!(system, v, u, t)
 
     check_domain!(system, v, u, v_ode, u_ode, semi)
 
@@ -193,7 +194,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 # J1: Associated with convection and entropy and propagates at flow velocity.
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
-@inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi)
+@inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; interior_system, volume, sound_speed, characteristics, initial_velocity_function,
     previous_characteristics, unit_normal, boundary_zone) = system
 
@@ -209,7 +210,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
         previous_characteristics[1, particle] = characteristics[1, particle]
         previous_characteristics[2, particle] = characteristics[2, particle]
         previous_characteristics[3, particle] = characteristics[3, particle]
-        previous_characteristics[4, particle] = 0.0
+        previous_characteristics[4, particle] = zero(eltype(characteristics))
     end
 
     set_zero!(characteristics)
@@ -228,16 +229,17 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 
         position = current_coords(u_interior, interior_system, neighbor)
         # Determine the reference velocity at the position of the interior particle
-        v_neighbor_ref = reference_velocity(system, initial_velocity_function, position)
+        v_neighbor_ref = reference_velocity(system, initial_velocity_function, position, t)
         density_term = -sound_speed^2 * (rho - rho_ref)
         pressure_term = p - p_ref
         velocity_term = rho * sound_speed * (dot(v_neighbor - v_neighbor_ref, unit_normal))
 
         kernel_ = smoothing_kernel(system, distance)
 
-        evaluate_characteristics_per_particle!(characteristics, particle, density_term,
-                                               pressure_term, velocity_term, kernel_,
-                                               boundary_zone)
+        characteristics[1, particle] += (density_term + pressure_term) * kernel_
+        characteristics[2, particle] += (velocity_term + pressure_term) * kernel_
+        characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_
+
         volume[particle] += kernel_
 
         # Indicate that particle is inside the influence of interior particles.
@@ -260,6 +262,8 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
             counter = 0
 
             for neighbor in each_moving_particle(system)
+                # Make sure that only neighbors in the influence of
+                # the interior particles are used.
                 if isapprox(previous_characteristics[end, neighbor], 1.0)
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
@@ -276,36 +280,31 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
             characteristics[2, particle] /= volume[particle]
             characteristics[3, particle] /= volume[particle]
         end
+        prescribe_conditions!(characteristics, particle, boundary_zone)
     end
 
     return system
 end
 
-@inline function evaluate_characteristics_per_particle!(characteristics, particle,
-                                                        density_term, pressure_term,
-                                                        velocity_term, kernel_weight,
-                                                        boundary_zone::OutFlow)
+@inline function prescribe_conditions!(characteristics, particle, boundary_zone::OutFlow)
     # J3 is prescribed (i.e. determined from the exterior of the domain).
     # J1 and J2 is transimtted from the domain interior.
-    characteristics[1, particle] += (density_term + pressure_term) * kernel_weight
-    characteristics[2, particle] += (velocity_term + pressure_term) * kernel_weight
+    characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics
 end
 
-@inline function evaluate_characteristics_per_particle!(characteristics, particle,
-                                                        density_term, pressure_term,
-                                                        velocity_term, kernel_weight,
-                                                        boundary_zone::InFlow)
+@inline function prescribe_conditions!(characteristics, particle, boundary_zone::InFlow)
     # Allow only J3 to propagate upstream to the boundary
-    characteristics[3, particle] += (-velocity_term + pressure_term) * kernel_weight
+    characteristics[1, particle] = zero(eltype(characteristics))
+    characteristics[2, particle] = zero(eltype(characteristics))
 
     return characteristics
 end
 
-@inline function compute_quantities!(system, v)
+@inline function compute_quantities!(system, v, u, t)
     (; initial_condition, density, pressure, characteristics, unit_normal,
-    sound_speed) = system
+    sound_speed, initial_velocity_function) = system
 
     for particle in each_moving_particle(system)
         J1 = characteristics[1, particle]
@@ -314,11 +313,15 @@ end
 
         density[particle] = initial_condition.density[particle] +
                             ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
+
         pressure[particle] = initial_condition.pressure[particle] + 0.5 * (J2 + J3)
 
-        particle_velocity = initial_velocity(system, particle) +
-                            ((J2 - J3) /
-                             (2 * sound_speed * density[particle])) * unit_normal
+        particle_position = current_coordinates(u, system)
+        v_ref = reference_velocity(system, initial_velocity_function, particle_position, t)
+
+        particle_velocity = v_ref +
+                            ((J2 - J3) / (2 * sound_speed * density[particle])) *
+                            unit_normal
         for dim in 1:ndims(system)
             v[dim, particle] = particle_velocity[dim]
         end
@@ -357,8 +360,7 @@ end
 
 # Outflow particle is outside the boundary zone
 @inline function transform_particle!(system::OpenBoundarySPHSystem, interior_system,
-                                     ::OutFlow, particle,
-                                     v, u, v_interior, u_interior)
+                                     ::OutFlow, particle, v, u, v_interior, u_interior)
     deactivate_particle!(system, particle, u)
 
     return system
@@ -366,8 +368,7 @@ end
 
 # Inflow particle is outside the boundary zone
 @inline function transform_particle!(system::OpenBoundarySPHSystem, interior_system,
-                                     ::InFlow, particle,
-                                     v, u, v_interior, u_interior)
+                                     ::InFlow, particle, v, u, v_interior, u_interior)
     (; spanning_set, zone_origin) = system
 
     # Activate a new particle in simulation domain
@@ -376,11 +377,9 @@ end
     # Reset position and velocity of particle
     u_particle_ref = current_coords(u, system, particle) -
                      (zone_origin - spanning_set[:, 1])
-    v_particle_ref = initial_velocity(system, particle)
 
     for dim in 1:ndims(system)
         u[dim, particle] = u_particle_ref[dim]
-        v[dim, particle] = v_particle_ref[dim]
     end
 
     return system
@@ -388,8 +387,7 @@ end
 
 # Interior particle is in boundary zone
 @inline function transform_particle!(interior_system, system::OpenBoundarySPHSystem,
-                                     boundary_zone, particle,
-                                     v, u, v_interior, u_interior)
+                                     boundary_zone, particle, v, u, v_interior, u_interior)
     # Activate particle in boundary zone
     activate_particle!(system, interior_system, particle, v, u, v_interior, u_interior)
 
