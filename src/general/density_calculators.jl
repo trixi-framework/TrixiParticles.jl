@@ -42,9 +42,7 @@ end
     set_particle_density(particle, v, system.density_calculator, system, density)
 end
 
-@inline function set_particle_density(particle, v, ::SummationDensity, system, density)
-    system.cache.density[particle] = density
-end
+@inline set_particle_density(particle, v, ::SummationDensity, system, density) = system
 
 @inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
     v[end, particle] = density

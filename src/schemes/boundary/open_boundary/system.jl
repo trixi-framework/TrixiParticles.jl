@@ -129,13 +129,9 @@ end
     return system.pressure[particle]
 end
 
-@inline function set_particle_density(particle, v, system::OpenBoundarySPHSystem, density)
-    return system.density[particle] = density
-end
+@inline set_particle_density(particle, v, system::OpenBoundarySPHSystem, density) = system
 
-@inline function set_particle_pressure(particle, v, system::FluidSystem, pressure)
-    return system.pressure[particle] = pressure
-end
+@inline set_particle_pressure(particle, v, system, pressure) = system
 
 function set_transport_velocity!(system::OpenBoundarySPHSystem,
                                  particle, particle_old, v, v_old)
