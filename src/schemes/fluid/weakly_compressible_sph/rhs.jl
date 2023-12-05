@@ -42,8 +42,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                            particle_system, neighbor_system, rho_a, rho_b,
-                                            pos_diff, grad_kernel, density_calculator)
+                                            rho_a, rho_b, pos_diff, grad_kernel,
+                                            particle_system, neighbor_system,
+                                            density_calculator)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -72,8 +73,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       particle_system, neighbor_system, rho_a, rho_b,
-                                       pos_diff, grad_kernel, density_calculator)
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system, neighbor_system,
+                                       density_calculator)
+
+    # By default, just call the pressure acceleration formulation corresponding to the density calculator
     return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, density_calculator)
 end

@@ -77,12 +77,12 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff::SVector{NDIMS},
+                                       smoothing_length, grad_kernel,
                                        boundary_model::BoundaryModelMonaghanKajtar,
-                                       rho_a, rho_b, pos_diff, smoothing_length,
-                                       grad_kernel, density_calculator)
+                                       density_calculator) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
-    NDIMS = ndims_svector(pos_diff)
     distance = norm(pos_diff)
     return K / beta^(NDIMS - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
@@ -109,8 +109,8 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
-# This model does not not use any particle pressure.
-@inline particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = 0.0
+# This model does not not use any particle pressure
+particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = zero(eltype(v))
 
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
                                   v, u, v_ode, u_ode, semi)

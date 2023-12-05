@@ -222,6 +222,8 @@ end
     return particle_density(v, system.boundary_model, system, particle)
 end
 
+# In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+# corresponding to the chosen boundary model.
 @inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
     return particle_pressure(v, system.boundary_model, system, particle)
 end
@@ -411,14 +413,16 @@ function viscosity_model(system::TotalLagrangianSPHSystem)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
                                        particle_system,
                                        neighbor_system::TotalLagrangianSPHSystem,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
                                        density_calculator)
     (; boundary_model) = neighbor_system
     (; smoothing_length) = particle_system
 
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                 boundary_model, rho_a, rho_b, pos_diff, smoothing_length,
-                                 grad_kernel, density_calculator)
+    # Pressure acceleration for fluid-solid interaction. This is identical to
+    # `pressure_acceleration` for the `BoundarySPHSystem`.
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                 smoothing_length, grad_kernel, boundary_model,
+                                 density_calculator)
 end
