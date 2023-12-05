@@ -77,9 +77,9 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       boundary_model::BoundaryModelMonaghanKajtar,
                                        rho_a, rho_b, pos_diff::SVector{NDIMS},
                                        smoothing_length, grad_kernel,
+                                       boundary_model::BoundaryModelMonaghanKajtar,
                                        density_calculator) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
