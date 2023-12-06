@@ -1,21 +1,21 @@
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem{NDIMS}
-    initial_condition         :: InitialCondition{ELTYPE}
-    mass                      :: Array{ELTYPE, 1} # [particle]
-    volume                    :: Array{ELTYPE, 1} # [particle]
-    density                   :: Array{ELTYPE, 1} # [particle]
-    pressure                  :: Array{ELTYPE, 1} # [particle]
-    characteristics           :: Array{ELTYPE, 2} # [characteristics, particle]
-    previous_characteristics  :: Array{ELTYPE, 2} # [characteristics, particle]
-    sound_speed               :: ELTYPE
-    boundary_zone             :: BZ
-    interior_system           :: System
-    zone_origin               :: SVector{NDIMS, ELTYPE}
-    spanning_set              :: SMatrix{NDIMS, NDIMS, ELTYPE}
-    unit_normal               :: SVector{NDIMS, ELTYPE}
-    viscosity                 :: V
-    buffer                    :: B
-    initial_velocity_function :: VF
-    acceleration              :: SVector{NDIMS, ELTYPE}
+    initial_condition        :: InitialCondition{ELTYPE}
+    mass                     :: Array{ELTYPE, 1} # [particle]
+    volume                   :: Array{ELTYPE, 1} # [particle]
+    density                  :: Array{ELTYPE, 1} # [particle]
+    pressure                 :: Array{ELTYPE, 1} # [particle]
+    characteristics          :: Array{ELTYPE, 2} # [characteristics, particle]
+    previous_characteristics :: Array{ELTYPE, 2} # [characteristics, particle]
+    sound_speed              :: ELTYPE
+    boundary_zone            :: BZ
+    interior_system          :: System
+    zone_origin              :: SVector{NDIMS, ELTYPE}
+    spanning_set             :: SMatrix{NDIMS, NDIMS, ELTYPE}
+    unit_normal              :: SVector{NDIMS, ELTYPE}
+    viscosity                :: V
+    buffer                   :: B
+    velocity_function        :: VF
+    acceleration             :: SVector{NDIMS, ELTYPE}
 
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, interior_system;
                                    zone_width=0.0,
@@ -24,7 +24,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
                                                                 ndims(interior_system)),
                                    zone_plane_max_corner=ntuple(_ -> 0.0,
                                                                 ndims(interior_system)),
-                                   initial_velocity_function=nothing, buffer=nothing)
+                                   velocity_function=nothing, buffer=nothing)
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -65,14 +65,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         spanning_set_ = SMatrix{NDIMS, NDIMS}(spanning_set)
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(viscosity), typeof(buffer),
-                   typeof(initial_velocity_function)}(initial_condition, mass, volume,
-                                                      density, pressure, characteristics,
-                                                      previous_characteristics, sound_speed,
-                                                      boundary_zone, interior_system,
-                                                      zone_origin, spanning_set_,
-                                                      unit_normal, viscosity, buffer,
-                                                      initial_velocity_function,
-                                                      interior_system.acceleration)
+                   typeof(velocity_function)}(initial_condition, mass, volume, density,
+                                              pressure, characteristics,
+                                              previous_characteristics, sound_speed,
+                                              boundary_zone, interior_system, zone_origin,
+                                              spanning_set_, unit_normal, viscosity, buffer,
+                                              velocity_function,
+                                              interior_system.acceleration)
     end
 end
 
@@ -191,7 +190,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 # J2: Propagates downstream to the local flow
 # J3: Propagates upstream to the local flow
 @inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
-    (; interior_system, volume, sound_speed, characteristics, initial_velocity_function,
+    (; interior_system, volume, sound_speed, characteristics, velocity_function,
     previous_characteristics, unit_normal, boundary_zone) = system
 
     system_interior_nhs = neighborhood_searches(system, interior_system, semi)
@@ -225,7 +224,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 
         position = current_coords(u_interior, interior_system, neighbor)
         # Determine the reference velocity at the position of the interior particle
-        v_neighbor_ref = reference_velocity(system, initial_velocity_function, position, t)
+        v_neighbor_ref = reference_velocity(system, velocity_function, position, t)
         density_term = -sound_speed^2 * (rho - rho_ref)
         pressure_term = p - p_ref
         velocity_term = rho * sound_speed * (dot(v_neighbor - v_neighbor_ref, unit_normal))
@@ -300,7 +299,7 @@ end
 
 @inline function compute_quantities!(system, v, u, t)
     (; initial_condition, density, pressure, characteristics, unit_normal,
-    sound_speed, initial_velocity_function) = system
+    sound_speed, velocity_function) = system
 
     for particle in each_moving_particle(system)
         J1 = characteristics[1, particle]
@@ -313,7 +312,7 @@ end
         pressure[particle] = initial_condition.pressure[particle] + 0.5 * (J2 + J3)
 
         particle_position = current_coordinates(u, system)
-        v_ref = reference_velocity(system, initial_velocity_function, particle_position, t)
+        v_ref = reference_velocity(system, velocity_function, particle_position, t)
 
         particle_velocity = v_ref +
                             ((J2 - J3) / (2 * sound_speed * density[particle])) *
@@ -409,13 +408,10 @@ end
     pressure_ref = system_old.initial_condition.pressure[particle_old]
     system_new.initial_condition.pressure[particle_new] = pressure_ref
 
-    v_ref_new = initial_velocity(system_old, particle_old)
-
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
         u_new[dim, particle_new] = u_old[dim, particle_old]
         v_new[dim, particle_new] = v_old[dim, particle_old]
-        system_new.initial_condition.velocity[dim, particle_new] = v_ref_new[dim]
     end
 
     # Only when using TVF
@@ -452,12 +448,20 @@ end
 
 function write_v0!(v0, system::OpenBoundarySPHSystem)
     for particle in eachparticle(system)
-        v_init = initial_velocity(system, particle)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = v_init[dim]
+            v0[dim, particle] = system.initial_condition.velocity[dim, particle]
         end
     end
 
     return v0
+end
+
+function reference_velocity(system::OpenBoundarySPHSystem, velocity_function, position, t)
+    return SVector(ntuple(i -> velocity_function[i](position, t), Val(ndims(system))))
+end
+
+function reference_velocity(system::OpenBoundarySPHSystem, ::Nothing, position, t)
+    # For a constant velocity field, use the velocity of the first particle
+    return extract_svector(system.initial_condition.velocity, system, 1)
 end

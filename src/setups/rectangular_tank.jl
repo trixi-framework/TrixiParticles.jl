@@ -61,7 +61,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                              pressure=0.0, n_layers=1, spacing_ratio=1.0,
                              min_coordinates=zeros(length(fluid_size)),
                              init_velocity=zeros(length(fluid_size)),
-                             boundary_density=fluid_density,
+                             boundary_density=fluid_density, loop_order_fluid=nothing,
                              faces=Tuple(trues(2 * length(fluid_size))),
                              acceleration=nothing, state_equation=nothing)
         NDIMS = length(fluid_size)
@@ -114,7 +114,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
         fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
                                  fluid_density, init_velocity=init_velocity,
-                                 pressure=pressure,
+                                 pressure=pressure, loop_order=loop_order_fluid,
                                  acceleration=acceleration, state_equation=state_equation)
 
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,

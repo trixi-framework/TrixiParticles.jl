@@ -75,7 +75,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
         # Store particle index
-        vtk["index"] = eachparticle(system)
+        vtk["index"] = active_particles(system)
         vtk["time"] = t
 
         # Extract custom quantities for this system

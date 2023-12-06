@@ -2,6 +2,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+wcsph = false
+
 # ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.05
@@ -23,10 +25,10 @@ prescribed_velocity = (0.0, 2.0)
 
 reynolds_number = 1000.0
 fluid_density = 1000.0
-pressure = 0.0
+pressure = wcsph ? 10_000.0 : 100_000.0
 sound_speed = 10 * maximum(prescribed_velocity)
 
-pipe_size = (pipe_radius - pipe_radius_inner, 2pipe_radius)
+pipe_size = (pipe_radius - pipe_radius_inner, pipe_radius)
 pipe_coords_min = (-(boundary_layers * particle_spacing + pipe_radius), 0.0)
 pipe_coords_max = (boundary_layers * particle_spacing + 2pipe_radius, pipe_size[2])
 
@@ -58,16 +60,24 @@ n_buffer_particles = 20 * pipe_in.n_particles_per_dimension[1]
 smoothing_length = 1.2 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, pressure,
-                                   background_pressure=pressure)
+if wcsph
+    fluid_density_calculator = ContinuityDensity()
+    viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+    state_equation = StateEquationCole(sound_speed, 7, fluid_density, pressure)
 
-fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           buffer=n_buffer_particles)
+    fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
+                                               state_equation, smoothing_kernel,
+                                               smoothing_length, viscosity=viscosity,
+                                               buffer=n_buffer_particles)
+else
+    nu = maximum(prescribed_velocity) * (pipe_radius - pipe_radius_inner) / reynolds_number
+    viscosity = ViscosityAdami(; nu) #alpha * smoothing_length * sound_speed / 8)
 
+    fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
+                                               sound_speed, viscosity=viscosity,
+                                               transport_velocity=TransportVelocityAdami(pressure),
+                                               buffer=n_buffer_particles)
+end
 # ==========================================================================================
 # ==== Open Boundary
 open_boundary_length = open_boundary_cols * particle_spacing
@@ -91,21 +101,21 @@ zone_plane_in = ([0.0; 0.0], [pipe_size[1]; 0.0])
 zone_plane_out = ([pipe_radius + pipe_radius_inner; -open_boundary_length],
                   [pipe_radius + pipe_radius_inner + pipe_size[1]; -open_boundary_length])
 
-v_x(position) = prescribed_velocity[1]
-v_y(position) = prescribed_velocity[2]
-
 open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
                                          flow_direction=(0.0, 1.0),
                                          zone_width=open_boundary_length,
                                          zone_plane_min_corner=[0.0, 0.0],
                                          zone_plane_max_corner=[pipe_size[1], 0.0],
-                                         buffer=n_buffer_particles,
-                                         initial_velocity_function=(v_x, v_y))
+                                         buffer=n_buffer_particles)
 
 zone_plane_min_corner = [pipe_radius + pipe_radius_inner, 0.0]
 zone_plane_max_corner = [pipe_radius + pipe_radius_inner + pipe_size[1], 0.0]
+v_x(position, t) = prescribed_velocity[1]
+v_y_out(position, t) = -prescribed_velocity[2]
+
 open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
                                           flow_direction=(0.0, -1.0),
+                                          velocity_function=(v_x, v_y_out),
                                           zone_width=open_boundary_length,
                                           zone_plane_min_corner=zone_plane_min_corner,
                                           zone_plane_max_corner=zone_plane_max_corner,
@@ -115,9 +125,12 @@ open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system
 # ==== Boundary
 boundary = union(pipe, inflow.boundary, outflow.boundary)
 boundary_density_calculator = AdamiPressureExtrapolation()
+state_equation = wcsph ? state_equation : nothing
+
 boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              boundary_density_calculator,
                                              state_equation=state_equation,
+                                             #viscosity=viscosity,
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(boundary, boundary_model)

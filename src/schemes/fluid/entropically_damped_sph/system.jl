@@ -299,17 +299,7 @@ end
     return initial_pressure_function(particle_position)
 end
 
-@inline function initial_velocity(system, particle, init_velocity_function)
+@inline function initial_velocity(system, particle, initial_velocity_function)
     position = initial_coords(system, particle)
-    v_init = reference_velocity(system, init_velocity_function, position, 0.0)
-
-    return v_init
-end
-
-@inline function reference_velocity(system, velocity_function, position, t)
-    return SVector(ntuple(i -> velocity_function[i](position, t), Val(ndims(system))))
-end
-@inline function reference_velocity(system, ::Nothing, position, t)
-    # For a constant velocity field, use the velocity of the first particle.
-    return extract_svector(system.initial_condition.velocity, system, 1)
+    return SVector(ntuple(i -> initial_velocity_function[i](position), Val(ndims(system))))
 end
