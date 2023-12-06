@@ -219,16 +219,8 @@ function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
     return system
 end
 
-# function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
-#     ::Union{ShepardKernelCorrection},
-#     ::SummationDensity)
-# system.cache.density ./= system.cache.kernel_correction_coefficient
-# end
-
 function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
-                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection,
-                                         MixedKernelGradientCorrection},
-                                 ::SummationDensity)
+                                 ::Union{ShepardKernelCorrection}, ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 

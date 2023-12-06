@@ -74,7 +74,7 @@ end
     return kernel_deriv(smoothing_kernel, distance, smoothing_length)
 end
 
-@inline function smoothing_kernel_grad(system::FluidSystem, pos_diff, distance)
+@inline function smoothing_kernel_grad(system, pos_diff, distance)
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end
 

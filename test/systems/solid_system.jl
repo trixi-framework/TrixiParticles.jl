@@ -1,3 +1,4 @@
+include("../test_util.jl")
 @testset verbose=true "TotalLagrangianSPHSystem" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructor" begin

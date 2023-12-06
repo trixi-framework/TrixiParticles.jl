@@ -331,6 +331,7 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
     (; mass) = system
 
     set_zero!(corr_matrix)
+    neighbor_count = zeros(nparticles(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, system,
@@ -349,26 +350,11 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             corr_matrix[i, j, particle] -= result[i, j]
         end
+
+        neighbor_count[particle] += 1
     end
 
-    @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
-        if neighbor_count[particle] < 3 || cond(L) > 1e10
-            # if the matrix is really bad conditioned set the identity matrix instead and
-            # basically deactivate the gradient correction
-            pseudo_invert(corr_matrix, L, particle, system)
-            if norm(correction_matrix(system, particle)) < eps()
-                @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                    corr_matrix[i, j, particle] = 0.0
-                end
-                @inbounds for i in 1:ndims(system)
-                    corr_matrix[i, i, particle] = 1.0
-                end
-            end
-            continue
-        end
-        invert(corr_matrix, L, particle, system)
-    end
+    correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
 
     return corr_matrix
 end
@@ -377,7 +363,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                              neighborhood_search, system, semi, u_ode,
                                              v_ode,
                                              coordinates, density_fun)
-    (; mass, smoothing_length, smoothing_kernel, correction) = system
+    (; smoothing_length, smoothing_kernel, correction) = system
 
     set_zero!(corr_matrix)
     neighbor_count = zeros(nparticles(system))
@@ -411,8 +397,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                                     neighbor_system,
                                                     neighbor)
             else
-                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                                          smoothing_length)
+                grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance)
             end
 
             L = volume * grad_kernel * pos_diff'
@@ -425,6 +410,12 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
     end
 
+    correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
+
+    return corr_matrix
+end
+
+function correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
         if neighbor_count[particle] < 3 || cond(L) > 1e10
@@ -443,6 +434,4 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
         end
         invert(corr_matrix, L, particle, system)
     end
-
-    return corr_matrix
 end
