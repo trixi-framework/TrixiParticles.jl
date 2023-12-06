@@ -208,14 +208,14 @@ end
                                        particle_system, boundary_system,
                                        boundary_model::BoundaryModelDummyParticles,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator, correction)
+                                       fluid_density_calculator)
     (; density_calculator) = boundary_model
 
     pressure_acceleration(pressure_correction, m_b, particle, boundary_particle,
                           particle_system, boundary_system,
                           boundary_model, density_calculator,
                           rho_a, rho_b, pos_diff, distance, grad_kernel,
-                          fluid_density_calculator, correction)
+                          fluid_density_calculator)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -227,24 +227,10 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        boundary_density_calculator,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity,
-                                       correction)
+                                       fluid_density_calculator::ContinuityDensity)
     return -m_b *
            (particle_system.pressure[particle] + boundary_model.pressure[boundary_particle]) /
            (rho_a * rho_b) * grad_kernel
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b,
-                                       particle, boundary_particle,
-                                       particle_system, boundary_system,
-                                       boundary_model::BoundaryModelDummyParticles,
-                                       boundary_density_calculator,
-                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity,
-                                       correction::Union{MixedKernelGradientCorrection})
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2) * grad_kernel) *
-           pressure_correction
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -256,8 +242,7 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        boundary_density_calculator,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::SummationDensity,
-                                       correction)
+                                       fluid_density_calculator::SummationDensity)
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
             boundary_model.pressure[boundary_particle] / rho_b^2) *
@@ -273,8 +258,7 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        ::PressureMirroring,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity,
-                                       correction)
+                                       fluid_density_calculator::ContinuityDensity)
     return -m_b *
            (particle_system.pressure[particle] + particle_system.pressure[particle]) /
            (rho_a * rho_b) * grad_kernel
@@ -289,8 +273,7 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        ::PressureMirroring,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::SummationDensity,
-                                       correction)
+                                       fluid_density_calculator::SummationDensity)
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
             particle_system.pressure[particle] / rho_b^2) *

@@ -103,8 +103,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             neighbor_system, particle_system,
                                             boundary_model, rho_a,
                                             rho_b, pos_diff, distance,
-                                            grad_kernel, density_calculator,
-                                            neighbor_correction)
+                                            grad_kernel, density_calculator)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)
