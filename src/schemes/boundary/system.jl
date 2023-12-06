@@ -7,7 +7,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
 argument `movement`.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
     boundary_model :: BM
     movement       :: M

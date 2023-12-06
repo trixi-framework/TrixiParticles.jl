@@ -61,27 +61,27 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
-                                       ::KernelGradientCorrection, system, particle)
+                                       ::KernelGradientCorrection, system::FluidSystem, particle)
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
             kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       corr::BlendedGradientCorrection, system, particle)
+                                       corr::BlendedGradientCorrection, system::FluidSystem, particle)
     grad = kernel_grad(kernel, pos_diff, distance, h)
     factor = corr.blending_factor
     return (1 - factor) * grad + factor * correction_matrix(system, particle) * grad
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::GradientCorrection, system, particle)
+                                       ::GradientCorrection, system::FluidSystem, particle)
     grad = kernel_grad(kernel, pos_diff, distance, h)
     return correction_matrix(system, particle) * grad
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::MixedKernelGradientCorrection, system, particle)
+                                       ::MixedKernelGradientCorrection, system::FluidSystem, particle)
     grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelGradientCorrection(),
                                  system, particle)
     return correction_matrix(system, particle) * grad

@@ -1,3 +1,9 @@
+abstract type System{NDIMS} end
+abstract type FluidSystem{NDIMS} <: System{NDIMS} end
+abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
+
+timer_name(::FluidSystem) = "fluid"
+
 @inline function set_zero!(du)
     du .= zero(eltype(du))
 

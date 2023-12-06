@@ -204,7 +204,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
                                density_calculator, correction)
 
     nhs = neighborhood_searches(system, system, semi)
-    compute_gradient_correction_matrix!(correction, nhs, system, u, v)
+    compute_gradient_correction_matrix!(correction, nhs, system, semi, u_ode, v_ode, u, v)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
@@ -219,6 +219,12 @@ function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
     return system
 end
 
+# function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
+#     ::Union{ShepardKernelCorrection},
+#     ::SummationDensity)
+# system.cache.density ./= system.cache.kernel_correction_coefficient
+# end
+
 function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
                                  ::Union{ShepardKernelCorrection, KernelGradientCorrection,
                                          MixedKernelGradientCorrection},
@@ -226,7 +232,7 @@ function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function compute_gradient_correction_matrix!(correction, neighborhood_search, system, u, v)
+function compute_gradient_correction_matrix!(correction, neighborhood_search, system, semi, u_ode, v_ode, u, v)
     return system
 end
 
@@ -234,14 +240,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              neighborhood_search,
-                                             system, u, v)
+                                             system, semi, u_ode, v_ode, u, v)
     (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        system_coords,
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system, semi, u_ode, v_ode, system_coords,
                                         particle -> particle_density(v, system, particle))
 end
 

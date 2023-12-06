@@ -14,10 +14,10 @@ correction_dict = Dict(
     "kernel_gradient_summation_correction" => KernelGradientCorrection(),
     "kernel_gradient_continuity_correction" => KernelGradientCorrection(),
     "blended_gradient_summation_correction" => BlendedGradientCorrection(0.5),
-    "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.05),
+    "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.25),
     "gradient_summation_correction" => GradientCorrection(),
-    # "gradient_continuity_correction" => GradientCorrection(),
     "mixed_kernel_gradient_summation_correction" => MixedKernelGradientCorrection(),
+    # "gradient_continuity_correction" => GradientCorrection(),
     # "mixed_kernel_gradient_continuity_correction" => MixedKernelGradientCorrection(),
 )
 
@@ -28,11 +28,11 @@ smoothing_length_dict = Dict(
     "kernel_gradient_summation_correction" => 3.0 * particle_spacing,
     "kernel_gradient_continuity_correction" => 3.5 * particle_spacing,
     "blended_gradient_summation_correction" => 3.0 * particle_spacing,
-    "blended_gradient_continuity_correction" => 3.5 * particle_spacing,
+    "blended_gradient_continuity_correction" => 4.0 * particle_spacing,
     "gradient_summation_correction" => 3.5 * particle_spacing,
-    "gradient_continuity_correction" => 4.0 * particle_spacing,
-    "mixed_kernel_gradient_summation_correction" => 3.0 * particle_spacing,
-    "mixed_kernel_gradient_continuity_correction" => 3.5 * particle_spacing,
+    "gradient_continuity_correction" => 4.5 * particle_spacing,
+    "mixed_kernel_gradient_summation_correction" => 3.5 * particle_spacing,
+    "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing,
 )
 
 density_calculator_dict = Dict(
@@ -63,14 +63,14 @@ smoothing_kernel_dict = Dict(
     "mixed_kernel_gradient_continuity_correction" => WendlandC6Kernel{2}(),
 )
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=3.0 * particle_spacing,
-              boundary_density_calculator=ContinuityDensity(),
-              fluid_density_calculator=ContinuityDensity(),
-              correction=Nothing(), use_reinit=false,
-              prefix="continuity_reinit", tspan=tspan,
-              fluid_density=fluid_density, density_diffusion=Nothing())
+# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+#               fluid_particle_spacing=particle_spacing,
+#               smoothing_length=3.0 * particle_spacing,
+#               boundary_density_calculator=ContinuityDensity(),
+#               fluid_density_calculator=ContinuityDensity(),
+#               correction=Nothing(), use_reinit=false,
+#               prefix="continuity_reinit", tspan=tspan,
+#               fluid_density=fluid_density, density_diffusion=Nothing())
 
 for correction_name in keys(correction_dict)
     local fluid_density_calculator = density_calculator_dict[correction_name]

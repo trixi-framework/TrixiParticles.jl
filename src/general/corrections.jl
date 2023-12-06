@@ -327,7 +327,7 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
-                                             neighborhood_search, system,
+                                             neighborhood_search, system, semi, u_ode, v_ode,
                                              coordinates, density_fun)
     (; mass, smoothing_length, smoothing_kernel, correction) = system
 
@@ -335,46 +335,55 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
     neighbor_count = zeros(nparticles(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    @trixi_timeit timer() "compute correction matrix" for_particle_neighbor(system, system,
-                                                                            coordinates,
-                                                                            coordinates,
-                                                                            neighborhood_search;
-                                                                            particles=eachparticle(system)) do particle,
+    @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+
+        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+
+
+        for_particle_neighbor(system, neighbor_system, coordinates, neighbor_coords, neighborhood_search; particles=eachparticle(system)) do particle,
                                                                                                                neighbor,
                                                                                                                pos_diff,
                                                                                                                distance
-        # Only consider particles with a distance > 0.
-        distance < sqrt(eps()) && return
+            # Only consider particles with a distance > 0.
+            distance < sqrt(eps()) && return
 
-        volume = mass[neighbor] / density_fun(neighbor)
+            volume = hydrodynamic_mass(neighbor_system, neighbor) / particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        grad_kernel = nothing
-        if correction isa MixedKernelGradientCorrection
-            grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                                smoothing_length,
-                                                KernelGradientCorrection(), system,
-                                                particle)
-        else
-            grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            grad_kernel = nothing
+            if correction isa MixedKernelGradientCorrection
+                grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                                    smoothing_length,
+                                                    KernelGradientCorrection(), neighbor_system,
+                                                    neighbor)
+            else
+                grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance)
+            end
+
+            L = volume * grad_kernel * pos_diff'
+
+            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+                corr_matrix[i, j, particle] -= L[i, j]
+            end
+            neighbor_count[particle] += 1
         end
-
-        L = volume * grad_kernel * pos_diff'
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] -= L[i, j]
-        end
-        neighbor_count[particle] += 1
     end
 
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        if neighbor_count[particle] < 3 || cond(L) > 1e10
+        if cond(L) > 1e10
             # if the matrix is really bad condition set the identity matrix instead and
             # basically deactivate the gradient correction
-            for i in 1:ndims(system)
-                corr_matrix[i, i, particle] = 1.0
+            # set_zero!(corr_matrix)
+            pseudo_invert(corr_matrix, L, particle, system)
+            @inbounds for i in 1:ndims(system)
+                corr_matrix[i, i, particle] += 1.0
             end
-            # pseudo_invert(corr_matrix, L, particle, system)
+            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+                corr_matrix[i, j, particle] = 0.5 * corr_matrix[i, j, particle]
+            end
             continue
         end
         invert(corr_matrix, L, particle, system)

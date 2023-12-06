@@ -13,7 +13,7 @@ using OrdinaryDiffEq
 fluid_particle_spacing = 0.02
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
+boundary_layers = 5
 spacing_ratio = 1
 
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
