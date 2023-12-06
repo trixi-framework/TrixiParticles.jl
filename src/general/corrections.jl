@@ -326,54 +326,28 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
-function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
-                                             neighborhood_search, system, semi, u_ode,
-                                             v_ode,
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
                                              coordinates, density_fun)
-    (; mass, smoothing_length, smoothing_kernel, correction) = system
+    (; mass) = system
 
     set_zero!(corr_matrix)
-    neighbor_count = zeros(nparticles(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
-        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
-        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+    for_particle_neighbor(system, system,
+                          coordinates, coordinates,
+                          neighborhood_search;
+                          particles=eachparticle(system)) do particle, neighbor,
+                                                             pos_diff, distance
+        # Only consider particles with a distance > 0.
+        distance < sqrt(eps()) && return
 
-        neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+        volume = mass[neighbor] / density_fun(neighbor)
 
-        for_particle_neighbor(system, neighbor_system, coordinates, neighbor_coords,
-                              neighborhood_search;
-                              particles=eachparticle(system)) do particle,
-                                                                 neighbor,
-                                                                 pos_diff,
-                                                                 distance
-            # Only consider particles with a distance > 0.
-            distance < sqrt(eps()) && return
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+        result = volume * grad_kernel * pos_diff'
 
-            volume = hydrodynamic_mass(neighbor_system, neighbor) /
-                     particle_density(v_neighbor_system, neighbor_system, neighbor)
-
-            grad_kernel = nothing
-            if correction isa MixedKernelGradientCorrection
-                grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                                    smoothing_length,
-                                                    KernelGradientCorrection(),
-                                                    neighbor_system,
-                                                    neighbor)
-            else
-                grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
-                                          smoothing_length)
-            end
-
-            L = volume * grad_kernel * pos_diff'
-
-            # pos_diff is always x_a - x_b hence * -1 to switch the order to x_b - x_a
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] -= L[i, j]
-            end
-            neighbor_count[particle] += 1
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            corr_matrix[i, j, particle] -= result[i, j]
         end
     end
 
