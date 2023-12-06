@@ -63,14 +63,14 @@ smoothing_kernel_dict = Dict(
     "mixed_kernel_gradient_continuity_correction" => WendlandC6Kernel{2}(),
 )
 
-# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-#               fluid_particle_spacing=particle_spacing,
-#               smoothing_length=3.0 * particle_spacing,
-#               boundary_density_calculator=ContinuityDensity(),
-#               fluid_density_calculator=ContinuityDensity(),
-#               correction=Nothing(), use_reinit=false,
-#               prefix="continuity_reinit", tspan=tspan,
-#               fluid_density=fluid_density, density_diffusion=Nothing())
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+              fluid_particle_spacing=particle_spacing,
+              smoothing_length=3.0 * particle_spacing,
+              boundary_density_calculator=ContinuityDensity(),
+              fluid_density_calculator=ContinuityDensity(),
+              correction=Nothing(), use_reinit=false,
+              prefix="continuity_reinit", tspan=tspan,
+              fluid_density=fluid_density, density_diffusion=Nothing())
 
 for correction_name in keys(correction_dict)
     local fluid_density_calculator = density_calculator_dict[correction_name]
