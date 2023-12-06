@@ -278,11 +278,16 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(system, v)
-    (; state_equation, pressure) = system
-
-    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, system, particle))
+    @threaded for particle in eachparticle(system)
+        apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
+end
+
+# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function apply_state_equation!(system, density, particle)
+    system.pressure[particle] = system.state_equation(density)
 end
 
 function write_v0!(v0, system::WeaklyCompressibleSPHSystem)
