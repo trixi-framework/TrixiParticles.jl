@@ -232,7 +232,8 @@ function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function compute_gradient_correction_matrix!(correction, neighborhood_search, system, semi, u_ode, v_ode, u, v)
+function compute_gradient_correction_matrix!(correction, neighborhood_search, system, semi,
+                                             u_ode, v_ode, u, v)
     return system
 end
 
@@ -246,7 +247,8 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system, semi, u_ode, v_ode, system_coords,
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        semi, u_ode, v_ode, system_coords,
                                         particle -> particle_density(v, system, particle))
 end
 
