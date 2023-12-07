@@ -2,7 +2,7 @@ using TrixiParticles
 
 fluid_density = 1000.0
 
-particle_spacing = 0.05
+particle_spacing_default = 0.05
 
 # i.e. 0.0, 5.7/sqrt(9.81(gravity))
 tspan = (0.0, 1.82)
@@ -22,17 +22,17 @@ correction_dict = Dict(
 )
 
 smoothing_length_dict = Dict(
-    "no_correction" => 3.0 * particle_spacing,
-    "shepard_kernel_correction" => 3.0 * particle_spacing,
-    "akinci_free_surf_correction" => 3.0 * particle_spacing,
-    "kernel_gradient_summation_correction" => 3.0 * particle_spacing,
-    "kernel_gradient_continuity_correction" => 3.5 * particle_spacing,
-    "blended_gradient_summation_correction" => 3.0 * particle_spacing,
-    "blended_gradient_continuity_correction" => 4.0 * particle_spacing,
-    "gradient_summation_correction" => 3.5 * particle_spacing,
-    "gradient_continuity_correction" => 4.5 * particle_spacing,
-    "mixed_kernel_gradient_summation_correction" => 3.5 * particle_spacing,
-    "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing,
+    "no_correction" => 3.0 * particle_spacing_default,
+    "shepard_kernel_correction" => 3.0 * particle_spacing_default,
+    "akinci_free_surf_correction" => 3.0 * particle_spacing_default,
+    "kernel_gradient_summation_correction" => 3.0 * particle_spacing_default,
+    "kernel_gradient_continuity_correction" => 3.5 * particle_spacing_default,
+    "blended_gradient_summation_correction" => 3.0 * particle_spacing_default,
+    "blended_gradient_continuity_correction" => 4.0 * particle_spacing_default,
+    "gradient_summation_correction" => 3.5 * particle_spacing_default,
+    "mixed_kernel_gradient_summation_correction" => 3.5 * particle_spacing_default,
+    "gradient_continuity_correction" => 4.5 * particle_spacing_default,
+    "mixed_kernel_gradient_continuity_correction" => 4.0 * particle_spacing_default,
 )
 
 density_calculator_dict = Dict(
@@ -64,8 +64,8 @@ smoothing_kernel_dict = Dict(
 )
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=3.0 * particle_spacing,
+              fluid_particle_spacing=particle_spacing_default,
+              smoothing_length=3.0 * particle_spacing_default,
               boundary_density_calculator=ContinuityDensity(),
               fluid_density_calculator=ContinuityDensity(),
               correction=Nothing(), use_reinit=false,
@@ -85,9 +85,9 @@ for correction_name in keys(correction_dict)
        (correction isa BlendedGradientCorrection || correction isa GradientCorrection ||
         correction isa MixedKernelGradientCorrection)
         global particle_spacing = 0.025
-        smoothing_length *= 0.5
+        smoothing_length *= particle_spacing/particle_spacing_default
     else
-        global particle_spacing = 0.05
+        global particle_spacing = particle_spacing_default
     end
 
     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
