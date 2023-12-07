@@ -85,7 +85,7 @@ for correction_name in keys(correction_dict)
        (correction isa BlendedGradientCorrection || correction isa GradientCorrection ||
         correction isa MixedKernelGradientCorrection)
         global particle_spacing = 0.025
-        smoothing_length *= particle_spacing/particle_spacing_default
+        smoothing_length *= particle_spacing / particle_spacing_default
     else
         global particle_spacing = particle_spacing_default
     end
