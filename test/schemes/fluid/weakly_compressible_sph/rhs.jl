@@ -37,7 +37,6 @@
                     smoothing_kernel = Val(:smoothing_kernel)
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
                     smoothing_length = -1.0
-                    correction = Nothing()
 
                     initial_condition = InitialCondition(coordinates, velocity, mass,
                                                          density)
