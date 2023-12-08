@@ -11,12 +11,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
     interior_system          :: System
     zone_origin              :: SVector{NDIMS, ELTYPE}
     spanning_set             :: SMatrix{NDIMS, NDIMS, ELTYPE}
-    unit_normal              :: SVector{NDIMS, ELTYPE}
+    flow_direction           :: SVector{NDIMS, ELTYPE}
     viscosity                :: V
     buffer                   :: B
     velocity_function        :: VF
     acceleration             :: SVector{NDIMS, ELTYPE}
 
+    # TODO: Mutltiple interior systems. Same as in `semidiscretization(systems...)`
     function OpenBoundarySPHSystem(initial_condition, boundary_zone, interior_system;
                                    zone_width=0.0,
                                    flow_direction=ntuple(_ -> 0.0, ndims(interior_system)),
@@ -43,21 +44,31 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
         previous_characteristics = zeros(ELTYPE, 4, length(mass))
 
         zone_origin = SVector(zone_plane_min_corner...)
-        unit_normal = normalize(SVector(flow_direction...))
+
+        # Unit vector pointing in downstream direction.
+        flow_direction_ = normalize(SVector(flow_direction...))
 
         plane_size = SVector{NDIMS}(zone_plane_max_corner - zone_plane_min_corner)
 
+        # Vectors spanning the boundary zone/box.
         spanning_set = spanning_vectors(plane_size, zone_width)
 
+        # First vector of `spanning_vectors` is normal to the in-/outflow plane.
+        # The normal vector must point in downstream direction for an outflow boundary and
+        # for an inflow boundary the normal vector must point in upstream direction.
+        # Thus, rotate the normal vector correspondingly.
         span_angle = 0
-        if isapprox(dot(normalize(spanning_set[:, 1]), unit_normal), 1.0)
+        if isapprox(dot(normalize(spanning_set[:, 1]), flow_direction_), 1.0)
+            # Normal vector points in downstream direction.
             # Flip the inflow vector in upstream direction
             (boundary_zone isa InFlow) && (span_angle = π)
-        elseif isapprox(dot(normalize(spanning_set[:, 1]), unit_normal), -1.0)
+        elseif isapprox(dot(normalize(spanning_set[:, 1]), flow_direction_), -1.0)
+            # Normal vector points in upstream direction.
             # Flip the outflow vector in downstream direction
             (boundary_zone isa OutFlow) && (span_angle = π)
         else
-            throw(ArgumentError("TODO"))
+            throw(ArgumentError("Flow direction and normal vector of " *
+                                "$(typeof(boundary_zone))-plane do not correspond."))
         end
 
         spanning_set[:, 1] = rot_matrix(span_angle, Val(NDIMS)) * spanning_set[:, 1]
@@ -69,8 +80,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, V, B, VF} <: FluidSystem
                                               pressure, characteristics,
                                               previous_characteristics, sound_speed,
                                               boundary_zone, interior_system, zone_origin,
-                                              spanning_set_, unit_normal, viscosity, buffer,
-                                              velocity_function,
+                                              spanning_set_, flow_direction_, viscosity,
+                                              buffer, velocity_function,
                                               interior_system.acceleration)
     end
 end
@@ -152,8 +163,8 @@ struct OutFlow end
 
     for dim in 1:ndims(system)
         span_dim = spanning_set[:, dim]
-        # This condition checks whether the projection of the particle position onto the
-        # vectors which span the boundary zone falls within the range of the zone.
+        # Checks whether the projection of the particle position
+        # falls within the range of the zone.
         if !(0 <= dot(particle_positon, span_dim) <= dot(span_dim, span_dim))
 
             # Particle is not in boundary zone.
@@ -176,7 +187,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
-    compute_quantities!(system, v, u, t)
+    update_quantities!(system, v, u, t)
 
     check_domain!(system, v, u, v_ode, u_ode, semi)
 
@@ -191,7 +202,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 # J3: Propagates upstream to the local flow
 @inline function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; interior_system, volume, sound_speed, characteristics, velocity_function,
-    previous_characteristics, unit_normal, boundary_zone) = system
+    previous_characteristics, flow_direction, boundary_zone) = system
 
     system_interior_nhs = neighborhood_searches(system, interior_system, semi)
 
@@ -222,12 +233,13 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
 
         v_neighbor = current_velocity(v_interior, interior_system, neighbor)
 
-        position = current_coords(u_interior, interior_system, neighbor)
+        position = current_coords(u, system, particle)
         # Determine the reference velocity at the position of the interior particle
         v_neighbor_ref = reference_velocity(system, velocity_function, position, t)
         density_term = -sound_speed^2 * (rho - rho_ref)
         pressure_term = p - p_ref
-        velocity_term = rho * sound_speed * (dot(v_neighbor - v_neighbor_ref, unit_normal))
+        velocity_term = rho * sound_speed *
+                        (dot(v_neighbor - v_neighbor_ref, flow_direction))
 
         kernel_ = smoothing_kernel(system, distance)
 
@@ -297,8 +309,8 @@ end
     return characteristics
 end
 
-@inline function compute_quantities!(system, v, u, t)
-    (; initial_condition, density, pressure, characteristics, unit_normal,
+@inline function update_quantities!(system::OpenBoundarySPHSystem, v, u, t)
+    (; initial_condition, density, pressure, characteristics, flow_direction,
     sound_speed, velocity_function) = system
 
     for particle in each_moving_particle(system)
@@ -311,12 +323,12 @@ end
 
         pressure[particle] = initial_condition.pressure[particle] + 0.5 * (J2 + J3)
 
-        particle_position = current_coordinates(u, system)
+        particle_position = current_coords(u, system, particle)
         v_ref = reference_velocity(system, velocity_function, particle_position, t)
 
         particle_velocity = v_ref +
                             ((J2 - J3) / (2 * sound_speed * density[particle])) *
-                            unit_normal
+                            flow_direction
         for dim in 1:ndims(system)
             v[dim, particle] = particle_velocity[dim]
         end
@@ -370,11 +382,8 @@ end
     activate_particle!(interior_system, system, particle, v_interior, u_interior, v, u)
 
     # Reset position and velocity of particle
-    u_particle_ref = current_coords(u, system, particle) -
-                     (zone_origin - spanning_set[:, 1])
-
     for dim in 1:ndims(system)
-        u[dim, particle] = u_particle_ref[dim]
+        u[dim, particle] -= (zone_origin - spanning_set[:, 1])[dim]
     end
 
     return system
@@ -399,14 +408,10 @@ end
     # Exchange densities
     density = particle_density(v_old, system_old, particle_old)
     set_particle_density(particle_new, v_new, system_new, density)
-    density_ref = system_old.initial_condition.density[particle_old]
-    system_new.initial_condition.density[particle_new] = density_ref
 
     # Exchange pressure
     pressure = particle_pressure(v_old, system_old, particle_old)
     set_particle_pressure(particle_new, v_new, system_new, pressure)
-    pressure_ref = system_old.initial_condition.pressure[particle_old]
-    system_new.initial_condition.pressure[particle_new] = pressure_ref
 
     # Exchange position and velocity
     for dim in 1:ndims(system_new)
