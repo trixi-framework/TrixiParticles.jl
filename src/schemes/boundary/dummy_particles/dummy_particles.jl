@@ -74,7 +74,7 @@ We provide five options to compute the boundary density and pressure, determined
   In: Computers, Materials and Continua 5 (2007), pages 173-184.
   [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, C}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
     state_equation     :: SE
@@ -82,35 +82,32 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, C}
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
     viscosity          :: V
+    correction         :: COR
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=NoViscosity(),
-                                         state_equation=nothing)
+                                         state_equation=nothing, correction=nothing)
         pressure = initial_boundary_pressure(initial_density, density_calculator,
                                              state_equation)
+        NDIMS = ndims(smoothing_kernel)
 
         n_particles = length(initial_density)
 
-        cache = (; create_cache_model(viscosity, n_particles, ndims(smoothing_kernel))...,
+        cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
                  create_cache_model(initial_density, density_calculator)...)
+        cache = (;
+                 create_cache_model(correction, initial_density, NDIMS,
+                                    n_particles)..., cache...)
 
         new{typeof(density_calculator), eltype(initial_density),
             typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(cache)}(pressure, hydrodynamic_mass, state_equation, density_calculator,
-                           smoothing_kernel, smoothing_length, viscosity, cache)
+            typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
+                                               density_calculator,
+                                               smoothing_kernel, smoothing_length,
+                                               viscosity, correction, cache)
     end
-end
-
-function Base.show(io::IO, model::BoundaryModelDummyParticles)
-    @nospecialize model # reduce precompilation time
-
-    print(io, "BoundaryModelDummyParticles(")
-    print(io, model.density_calculator |> typeof |> nameof)
-    print(io, ", ")
-    print(io, model.viscosity |> typeof |> nameof)
-    print(io, ")")
 end
 
 @doc raw"""
@@ -208,14 +205,14 @@ end
                                        particle_system, boundary_system,
                                        boundary_model::BoundaryModelDummyParticles,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator)
+                                       fluid_density_calculator, correction)
     (; density_calculator) = boundary_model
 
     pressure_acceleration(pressure_correction, m_b, particle, boundary_particle,
                           particle_system, boundary_system,
                           boundary_model, density_calculator,
                           rho_a, rho_b, pos_diff, distance, grad_kernel,
-                          fluid_density_calculator)
+                          fluid_density_calculator, correction)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -227,7 +224,8 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        boundary_density_calculator,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity)
+                                       fluid_density_calculator::ContinuityDensity,
+                                       correction)
     return -m_b *
            (particle_system.pressure[particle] + boundary_model.pressure[boundary_particle]) /
            (rho_a * rho_b) * grad_kernel
@@ -242,7 +240,8 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        boundary_density_calculator,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::SummationDensity)
+                                       fluid_density_calculator::SummationDensity,
+                                       correction)
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
             boundary_model.pressure[boundary_particle] / rho_b^2) *
@@ -258,7 +257,8 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        ::PressureMirroring,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::ContinuityDensity)
+                                       fluid_density_calculator::ContinuityDensity,
+                                       correction)
     return -m_b *
            (particle_system.pressure[particle] + particle_system.pressure[particle]) /
            (rho_a * rho_b) * grad_kernel
@@ -273,11 +273,35 @@ end
                                        boundary_model::BoundaryModelDummyParticles,
                                        ::PressureMirroring,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       fluid_density_calculator::SummationDensity)
+                                       fluid_density_calculator::SummationDensity,
+                                       correction)
     return -m_b *
            (particle_system.pressure[particle] / rho_a^2 +
             particle_system.pressure[particle] / rho_b^2) *
            grad_kernel
+end
+
+create_cache_model(correction, density, NDIMS, nparticles) = (;)
+
+function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density))
+end
+
+function create_cache_model(::KernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+end
+
+function create_cache_model(::Union{GradientCorrection, BlendedGradientCorrection}, density,
+                            NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; correction_matrix)
+end
+
+function create_cache_model(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
 function create_cache_model(initial_density,
@@ -321,6 +345,16 @@ function reset_cache!(cache, viscosity::ViscosityAdami)
     return cache
 end
 
+function Base.show(io::IO, model::BoundaryModelDummyParticles)
+    @nospecialize model # reduce precompilation time
+
+    print(io, "BoundaryModelDummyParticles(")
+    print(io, model.density_calculator |> typeof |> nameof)
+    print(io, ", ")
+    print(io, model.viscosity |> typeof |> nameof)
+    print(io, ")")
+end
+
 @inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
     return particle_density(v, model.density_calculator, model, particle)
 end
@@ -359,11 +393,50 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; density_calculator) = boundary_model
+    (; density_calculator, correction) = boundary_model
+
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi, density_calculator,
+                               correction)
+
+    compute_gradient_correction_matrix!(correction, boundary_model, system, semi, u_ode,
+                                        v_ode, u)
+
+    # `kernel_correct_density!` only performed for `SummationDensity`
+    kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
+                            density_calculator)
 
     compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 
     return boundary_model
+end
+
+function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
+                                 correction, density_calculator)
+    return boundary_model
+end
+
+function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
+                                 ::Union{ShepardKernelCorrection}, ::SummationDensity)
+    boundary_model.cache.density ./= boundary_model.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction, boundary_model, system, semi,
+                                             u_ode, v_ode, u)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
+                                             boundary_model,
+                                             system, semi, u_ode, v_ode, u)
+    (; cache) = boundary_model
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, system, semi, u_ode, v_ode,
+                                        system_coords)
 end
 
 function compute_density!(boundary_model, ::SummationDensity,
@@ -527,4 +600,16 @@ end
                                          particle)
     # The density is constant when using EDAC
     return density
+end
+
+@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff,
+                                       distance, particle)
+    (; boundary_model) = system
+    return corrected_kernel_grad(boundary_model.smoothing_kernel, pos_diff, distance,
+                                 boundary_model.smoothing_length,
+                                 boundary_model.correction, system, particle)
+end
+
+@inline function correction_matrix(system::BoundarySystem, particle)
+    extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
 end

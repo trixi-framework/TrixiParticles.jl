@@ -53,13 +53,13 @@
                                                                system, system, rho_a, rho_b,
                                                                pos_diff, distance,
                                                                grad_kernel,
-                                                               density_calculator)
+                                                               density_calculator, nothing)
 
                     dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, neighbor, particle,
                                                                system, system, rho_b, rho_a,
                                                                -pos_diff, distance,
                                                                -grad_kernel,
-                                                               density_calculator)
+                                                               density_calculator, nothing)
 
                     # Test that both forces are identical but in opposite directions
                     @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())

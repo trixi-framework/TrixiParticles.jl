@@ -60,7 +60,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
-    (; boundary_model) = particle_system
+    (; boundary_model, correction) = particle_system
     (; density_calculator, state_equation, viscosity) = neighbor_system
     (; sound_speed) = state_equation
 
@@ -102,7 +102,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                             neighbor_system, particle_system,
                                             boundary_model, rho_a,
                                             rho_b, pos_diff, distance,
-                                            grad_kernel, density_calculator)
+                                            grad_kernel, density_calculator, correction)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)

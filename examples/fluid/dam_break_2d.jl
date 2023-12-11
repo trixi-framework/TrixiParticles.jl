@@ -60,7 +60,8 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length,
+                                             correction=nothing)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

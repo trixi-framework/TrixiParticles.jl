@@ -159,8 +159,12 @@ struct MixedKernelGradientCorrection
     end
 end
 
-function kernel_correction_coefficient(system, particle)
+function kernel_correction_coefficient(system::FluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
+end
+
+function kernel_correction_coefficient(system::BoundarySystem, particle)
+    return system.boundary_model.cache.kernel_correction_coefficient[particle]
 end
 
 function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
@@ -172,6 +176,12 @@ function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::SummationDensity, ::ShepardKernelCorrection)
     return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                   system.cache.kernel_correction_coefficient)
+end
+
+function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
+                                    ::SummationDensity, ::ShepardKernelCorrection)
+    return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
+                                  system.boundary_model.cache.kernel_correction_coefficient)
 end
 
 function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
@@ -190,8 +200,9 @@ function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
-                              neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
+                              neighbor_coords, neighborhood_search,
+                              particles=eachparticle(system)) do particle, neighbor,
+                                                                 pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -204,17 +215,43 @@ function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
     return kernel_correction_coefficient
 end
 
-function dw_gamma(system, particle)
+function dw_gamma(system::FluidSystem, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
+end
+
+function dw_gamma(system::BoundarySystem, particle)
+    return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
+end
+
+function compute_correction_values!(system::FluidSystem, v, u, v_ode, u_ode, semi,
+                                    density_calculator::Union{SummationDensity,
+                                                              ContinuityDensity},
+                                    correction::Union{KernelGradientCorrection,
+                                                      MixedKernelGradientCorrection})
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
+                               density_calculator,
+                               correction,
+                               system.cache.kernel_correction_coefficient,
+                               system.cache.dw_gamma)
+end
+
+function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
+                                    density_calculator::Union{SummationDensity,
+                                                              ContinuityDensity},
+                                    correction::Union{KernelGradientCorrection,
+                                                      MixedKernelGradientCorrection})
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
+                               density_calculator,
+                               correction,
+                               system.boundary_model.cache.kernel_correction_coefficient,
+                               system.boundary_model.cache.dw_gamma)
 end
 
 function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
                                     ::Union{KernelGradientCorrection,
-                                            MixedKernelGradientCorrection})
-    (; cache) = system
-    (; kernel_correction_coefficient, dw_gamma) = cache
-
+                                            MixedKernelGradientCorrection},
+                                    kernel_correction_coefficient, dw_gamma)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
@@ -231,7 +268,9 @@ function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
                               neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
+                              neighborhood_search,
+                              particles=eachparticle(system)) do particle, neighbor,
+                                                                 pos_diff, distance
             rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
             m_b = hydrodynamic_mass(neighbor_system, neighbor)
             volume = m_b / rho_b
@@ -331,7 +370,6 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
     (; mass) = system
 
     set_zero!(corr_matrix)
-    neighbor_count = zeros(nparticles(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(system, system,
@@ -339,8 +377,8 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        # Only consider particles with a distance > 0.
-        distance < sqrt(eps()) && return
+        # # Only consider particles with a distance > 0.
+        # distance < sqrt(eps()) && return
 
         volume = mass[neighbor] / density_fun(neighbor)
 
@@ -350,23 +388,35 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
             corr_matrix[i, j, particle] -= result[i, j]
         end
-
-        neighbor_count[particle] += 1
     end
 
-    correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
+    correction_matrix_inversion_step(corr_matrix, system)
 
     return corr_matrix
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
-                                             neighborhood_search, system, semi, u_ode,
-                                             v_ode,
-                                             coordinates, density_fun)
-    (; smoothing_length, smoothing_kernel, correction) = system
+                                             system::FluidSystem, semi,
+                                             u_ode, v_ode, coordinates)
+    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
+                                        u_ode, v_ode, coordinates, system.correction,
+                                        system.smoothing_length, system.smoothing_kernel)
+end
 
+function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
+                                             system::BoundarySystem, semi,
+                                             u_ode, v_ode, coordinates)
+    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
+                                        u_ode, v_ode, coordinates,
+                                        system.boundary_model.correction,
+                                        system.boundary_model.smoothing_length,
+                                        system.boundary_model.smoothing_kernel)
+end
+
+function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
+                                             u_ode, v_ode, coordinates, correction,
+                                             smoothing_length, smoothing_kernel)
     set_zero!(corr_matrix)
-    neighbor_count = zeros(nparticles(system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
@@ -382,10 +432,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
                                                                  neighbor,
                                                                  pos_diff,
                                                                  distance
-            # Only consider particles with a distance > 0.
-            distance < sqrt(eps()) &&
-                return
-
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
 
@@ -405,30 +451,19 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
                 corr_matrix[i, j, particle] -= L[i, j]
             end
-            neighbor_count[particle] += 1
         end
     end
 
-    correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
+    correction_matrix_inversion_step(corr_matrix, system)
 
     return corr_matrix
 end
 
-function correction_matrix_inversion_step(corr_matrix, system, neighbor_count)
+function correction_matrix_inversion_step(corr_matrix, system)
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        if neighbor_count[particle] < 3 || cond(L) > 1e10
-            # if the matrix is really bad conditioned set the identity matrix instead and
-            # basically deactivate the gradient correction
+        if cond(L) > 1e10
             pseudo_invert(corr_matrix, L, particle, system)
-            if norm(correction_matrix(system, particle)) < eps()
-                @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                    corr_matrix[i, j, particle] = 0.0
-                end
-                @inbounds for i in 1:ndims(system)
-                    corr_matrix[i, i, particle] = 1.0
-                end
-            end
             continue
         end
         invert(corr_matrix, L, particle, system)

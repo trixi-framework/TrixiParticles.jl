@@ -52,6 +52,8 @@ abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
+    distance < sqrt(eps()) && return zero(pos_diff)
+
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
 
@@ -61,15 +63,27 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
-                                       ::KernelGradientCorrection, system::FluidSystem,
+                                       ::KernelGradientCorrection, system,
                                        particle)
+    #     kernel_uncorrected = kernel_grad(kernel_, pos_diff, distance, h)
+    #     kernel_corrected = (kernel_grad(kernel_, pos_diff, distance, h) .-
+    #     kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
+    #    kernel_correction_coefficient(system, particle)
+
+    #     diff = kernel_uncorrected - kernel_corrected
+
+    #     if norm(diff) > 0.1
+    #         println(kernel_uncorrected, " ", kernel_corrected)
+    #     end
+
+    #     return kernel_corrected
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
             kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       corr::BlendedGradientCorrection, system::FluidSystem,
+                                       corr::BlendedGradientCorrection, system,
                                        particle)
     grad = kernel_grad(kernel, pos_diff, distance, h)
     factor = corr.blending_factor
@@ -77,13 +91,13 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::GradientCorrection, system::FluidSystem, particle)
+                                       ::GradientCorrection, system, particle)
     grad = kernel_grad(kernel, pos_diff, distance, h)
     return correction_matrix(system, particle) * grad
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::MixedKernelGradientCorrection, system::FluidSystem,
+                                       ::MixedKernelGradientCorrection, system,
                                        particle)
     grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelGradientCorrection(),
                                  system, particle)

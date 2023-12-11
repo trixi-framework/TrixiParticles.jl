@@ -21,9 +21,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
-
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = 0.5 * (rho_a + rho_b)
@@ -41,7 +38,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_pressure = pressure_acceleration(pressure_correction, m_b, particle, neighbor,
                                             particle_system, neighbor_system,
                                             rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, density_calculator)
+                                            distance, grad_kernel, density_calculator,
+                                            correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -79,7 +77,9 @@ end
                                        particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
                                        rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, ::ContinuityDensity)
+                                       grad_kernel, ::ContinuityDensity,
+                                       correction::Union{Nothing, ShepardKernelCorrection,
+                                                         AkinciFreeSurfaceCorrection})
     return (-m_b *
             (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
             (rho_a * rho_b) * grad_kernel) *
@@ -95,7 +95,9 @@ end
                                        particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
                                        rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, ::SummationDensity)
+                                       grad_kernel, ::SummationDensity,
+                                       correction::Union{Nothing, ShepardKernelCorrection,
+                                                         AkinciFreeSurfaceCorrection})
     return (-m_b *
             (particle_system.pressure[particle] / rho_a^2 +
              neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
@@ -107,13 +109,47 @@ end
                                        neighbor_system::Union{BoundarySPHSystem,
                                                               TotalLagrangianSPHSystem},
                                        rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, density_calculator)
+                                       grad_kernel, density_calculator, correction)
     (; boundary_model) = neighbor_system
 
     return pressure_acceleration(pressure_correction, m_b, particle, neighbor,
                                  particle_system, neighbor_system,
                                  boundary_model, rho_a, rho_b, pos_diff,
-                                 distance, grad_kernel, density_calculator)
+                                 distance, grad_kernel, density_calculator, correction)
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
+                                       neighbor_system::WeaklyCompressibleSPHSystem,
+                                       rho_a, rho_b, pos_diff, distance,
+                                       W_a, density_calculator,
+                                       correction::Union{KernelGradientCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    p_a = particle_system.pressure[particle]
+    p_b = neighbor_system.pressure[neighbor]
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+
+    return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
+                                       neighbor_system::Union{BoundarySPHSystem,
+                                                              TotalLagrangianSPHSystem},
+                                       rho_a, rho_b, pos_diff, distance,
+                                       W_a, density_calculator,
+                                       correction::Union{KernelGradientCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    p_a = particle_system.pressure[particle]
+    #todo: add particle_pressure() and combine both functions
+    p_b = neighbor_system.boundary_model.pressure[neighbor]
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+
+    return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
@@ -151,6 +187,9 @@ end
                                     particle_system::WeaklyCompressibleSPHSystem,
                                     neighbor_system::WeaklyCompressibleSPHSystem,
                                     grad_kernel)
+    # only consider particles with distance larger than sqrt(eps)
+    distance < sqrt(eps()) && return
+
     (; delta) = density_diffusion
     (; smoothing_length, state_equation) = particle_system
     (; sound_speed) = state_equation

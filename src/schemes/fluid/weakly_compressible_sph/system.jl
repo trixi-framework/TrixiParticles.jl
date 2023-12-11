@@ -200,11 +200,10 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                               density_calculator, correction)
+    compute_correction_values!(system, v, u, v_ode, u_ode, semi, density_calculator,
+                               correction)
 
-    nhs = neighborhood_searches(system, system, semi)
-    compute_gradient_correction_matrix!(correction, nhs, system, semi, u_ode, v_ode, u, v)
+    compute_gradient_correction_matrix!(correction, system, semi, u_ode, v_ode, u)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
@@ -214,34 +213,39 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
+                                 semi,
                                  correction, density_calculator)
     return system
 end
 
-function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
+function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
+                                 semi,
                                  ::Union{ShepardKernelCorrection}, ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function compute_gradient_correction_matrix!(correction, neighborhood_search, system, semi,
-                                             u_ode, v_ode, u, v)
+function compute_gradient_correction_matrix!(correction::Union{Nothing,
+                                                               ShepardKernelCorrection,
+                                                               AkinciFreeSurfaceCorrection,
+                                                               KernelGradientCorrection},
+                                             system::WeaklyCompressibleSPHSystem, semi,
+                                             u_ode, v_ode, u)
     return system
 end
 
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
-                                             neighborhood_search,
-                                             system, semi, u_ode, v_ode, u, v)
+                                             system::WeaklyCompressibleSPHSystem, semi,
+                                             u_ode, v_ode, u)
     (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        semi, u_ode, v_ode, system_coords,
-                                        particle -> particle_density(v, system, particle))
+    compute_gradient_correction_matrix!(correction_matrix, system, semi, u_ode, v_ode,
+                                        system_coords)
 end
 
 function reinit_density!(vu_ode, semi)
