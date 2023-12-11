@@ -233,7 +233,7 @@ end
     return system.boundary_model.hydrodynamic_mass[particle]
 end
 
-@inline function correction_matrix(system::TotalLagrangianSPHSystem, particle)
+@inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
 
