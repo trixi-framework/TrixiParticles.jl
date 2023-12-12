@@ -189,8 +189,8 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
-# with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
     (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
