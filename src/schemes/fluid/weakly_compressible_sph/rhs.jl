@@ -131,7 +131,6 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     return (-m_b *
