@@ -1,4 +1,5 @@
 using OrdinaryDiffEq
+include("../test_util.jl")
 
 @testset verbose=true "SPHInterpolation" begin
     smoothing_length = 1.2 * 0.1
@@ -49,11 +50,22 @@ using OrdinaryDiffEq
     end
 
     @testset verbose=true "Interpolation Point" begin
-        result = TrixiParticles.interpolate_point([1.0, 0.01], semi, fluid_system, sol)
+        result = TrixiParticles.interpolate_point([1.0, 0.01], semi, fluid_system, sol,
+                                                  calculate_other_system_density=true)
 
-        expected_result = (density=1010.0529725852786, neighbor_count=16, coord=[1.0, 0.01],
-                           velocity=[9.815064195161356e-15, 0.0031924859596571607],
-                           pressure=9149.453039221622)
+        expected_result = (density=1009.4921501393262, neighbor_count=16, coord=[1.0, 0.01],
+                           velocity=[1.7405906444065288e-14, 0.005661512837091638],
+                           pressure=8623.500764832543)
+        compare_interpolation_result(result, expected_result)
+
+        # with deactivated calculate_other_system_density
+        # results extend outside of the fluid domain
+        result = TrixiParticles.interpolate_point([1.0, 0.01], semi, fluid_system, sol,
+                                                  calculate_other_system_density=false)
+
+        expected_result = (density=1009.4921501393262, neighbor_count=8, coord=[1.0, 0.01],
+                           velocity=[1.7405906444065288e-14, 0.005661512837091638],
+                           pressure=8623.500764832543)
         compare_interpolation_result(result, expected_result)
     end
     @testset verbose=true "Interpolation Multi Point" begin
@@ -63,22 +75,60 @@ using OrdinaryDiffEq
                                                       [1.0, 0.0],
                                                       [1.0, -0.01],
                                                       [1.0, -0.05],
-                                                  ], semi, fluid_system, sol)
+                                                  ], semi, fluid_system, sol,
+                                                  calculate_other_system_density=true)
 
         expected_result = [
-            (density=1010.0529725852786, neighbor_count=16, coord=[1.0, 0.01],
-             velocity=[9.815064195161356e-15, 0.0031924859596571607],
-             pressure=9149.453039221622),
-            (density=1009.0647585308516, neighbor_count=16, coord=[1.0, 0.1],
-             velocity=[1.3682298856802571e-14, 0.004737022064423743],
-             pressure=8225.817113637197),
-            (density=1010.1591108027769, neighbor_count=16, coord=[1.0, 0.0],
-             velocity=[8.868604289943732e-15, 0.002876825373832205],
-             pressure=9248.978120690132),
+            (density=1009.4921501393262, neighbor_count=16, coord=[1.0, 0.01],
+             velocity=[1.7405906444065288e-14, 0.005661512837091638],
+             pressure=8623.500764832543),
+            (density=1008.9764089268859, neighbor_count=16, coord=[1.0, 0.1],
+             velocity=[1.442422876475543e-14, 0.004993889596774216],
+             pressure=8143.159169507029),
+            (density=1009.5229791447398, neighbor_count=16, coord=[1.0, 0.0],
+             velocity=[1.763368469598575e-14, 0.005720069349028347],
+             pressure=8652.234332097962),
             (density=0.0, neighbor_count=0, coord=[1.0, -0.01], velocity=[0.0, 0.0],
              pressure=0.0),
             (density=0.0, neighbor_count=0, coord=[1.0, -0.05], velocity=[0.0, 0.0],
              pressure=0.0),
+        ]
+        compare_interpolation_results(result, expected_result)
+
+        # with deactivated calculate_other_system_density
+        # results extend outside of the fluid domain
+        result = TrixiParticles.interpolate_point([
+                                                      [1.0, 0.01],
+                                                      [1.0, 0.1],
+                                                      [1.0, 0.0],
+                                                      [1.0, -0.01],
+                                                      [1.0, -0.05],
+                                                      [1.0, -0.1],
+                                                      [1.0, -0.2],
+                                                  ], semi, fluid_system, sol,
+                                                  calculate_other_system_density=false)
+
+        expected_result = [
+            (density=1009.4921501393262, neighbor_count=8, coord=[1.0, 0.01],
+             velocity=[1.7405906444065288e-14, 0.005661512837091638],
+             pressure=8623.500764832543),
+            (density=1008.9764089268859, neighbor_count=12, coord=[1.0, 0.1],
+             velocity=[1.442422876475543e-14, 0.004993889596774216],
+             pressure=8143.159169507029),
+            (density=1009.5229791447398, neighbor_count=8, coord=[1.0, 0.0],
+             velocity=[1.763368469598575e-14, 0.005720069349028347],
+             pressure=8652.234332097962),
+            (density=1009.5501117234779, neighbor_count=8, coord=[1.0, -0.01],
+             velocity=[1.7847274797051723e-14, 0.005771554677158952],
+             pressure=8677.522799474411),
+            (density=1009.6243395503883, neighbor_count=6, coord=[1.0, -0.05],
+             velocity=[1.8600165065214594e-14, 0.005911333559787621],
+             pressure=8746.706496708202),
+            (density=1009.6443775884171, neighbor_count=4, coord=[1.0, -0.1],
+             velocity=[1.9714720554750176e-14, 0.005939365031527732],
+             pressure=8765.385734383106),
+            (density=0.0, neighbor_count=0, coord=[1.0, -0.2],
+             velocity=[0.0, 0.0], pressure=0.0),
         ]
         compare_interpolation_results(result, expected_result)
     end
@@ -101,14 +151,15 @@ using OrdinaryDiffEq
         ]
 
         result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5, semi,
-                                                 fluid_system, sol)
+                                                 fluid_system, sol,
+                                                 calculate_other_system_density=true)
         compare_interpolation_results(result, expected_result)
 
         expected_result_endpoint = [
-            (density=1008.7906994450206, neighbor_count=18,
+            (density=1008.7564078596042, neighbor_count=18,
              coord=[1.0, 0.12499999999999999],
-             velocity=[1.314244588843225e-14, 0.0048440659144444315],
-             pressure=7970.563443828845),
+             velocity=[1.337918590523148e-14, 0.004931323967907031],
+             pressure=7938.501675547604),
             (density=1006.8750741471611, neighbor_count=16, coord=[1.0, 0.3],
              velocity=[8.615538908774422e-15, 0.006930108317141729],
              pressure=6198.230935398052),
@@ -118,12 +169,13 @@ using OrdinaryDiffEq
             (density=1002.9010166322735, neighbor_count=16, coord=[1.0, 0.6499999999999999],
              velocity=[8.79464240569385e-15, 0.009688271686523272],
              pressure=2585.310932375168),
-            (density=1001.1009176645862, neighbor_count=14, coord=[1.0, 0.8250000000000001],
-             velocity=[6.6843891671872114e-15, 0.010448501275587224],
-             pressure=976.1166227776027),
+            (density=1001.1010154235912, neighbor_count=14, coord=[1.0, 0.8250000000000001],
+             velocity=[6.684982725866203e-15, 0.010449429078930126],
+             pressure=976.2032997317216),
         ]
         result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0], 5, semi,
-                                                          fluid_system, sol, endpoint=false)
+                                                          fluid_system, sol, endpoint=false,
+                                                          calculate_other_system_density=true)
         compare_interpolation_results(result_endpoint, expected_result_endpoint)
     end
 end

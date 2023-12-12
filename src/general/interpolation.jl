@@ -35,7 +35,8 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
 function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
-                          smoothing_length=ref_system.smoothing_length)
+                          smoothing_length=ref_system.smoothing_length,
+                          calculate_other_system_density=false)
     points_coords = [start +
                      (end_ - start) *
                      (endpoint ? t / (no_points - 1) : (t + 1) / (no_points + 1))
@@ -44,7 +45,8 @@ function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoin
     results = []
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
-                                   smoothing_length=smoothing_length)
+                                   smoothing_length=smoothing_length,
+                                   calculate_other_system_density=calculate_other_system_density)
         push!(results, result)
     end
 
@@ -89,12 +91,14 @@ results = interpolate_point(points, semi, ref_system, sol)
 - This function is particularly useful for extracting physical properties at specific locations within the SPH simulation domain.
 """
 function interpolate_point(points_coords::Array{Array{Float64, 1}, 1}, semi, ref_system,
-                           sol; smoothing_length=ref_system.smoothing_length)
+                           sol; smoothing_length=ref_system.smoothing_length,
+                           calculate_other_system_density=false)
     results = []
 
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
-                                   smoothing_length=smoothing_length)
+                                   smoothing_length=smoothing_length,
+                                   calculate_other_system_density=calculate_other_system_density)
         push!(results, result)
     end
 
@@ -183,7 +187,8 @@ function interpolate_point(point_coords, semi, ref_system, sol;
     end
 
     # point is not within the ref_system
-    if other_density > ref_density && min_dist_other < min_dist_ref
+    if (other_density > ref_density && min_dist_other < min_dist_ref) ||
+       shepard_coefficient < eps()
         return (density=0.0, neighbor_count=0, coord=point_coords,
                 velocity=zeros(size(point_coords)), pressure=0.0)
     end
