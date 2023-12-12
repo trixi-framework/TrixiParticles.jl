@@ -106,6 +106,42 @@ end
 
 @inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
                                        particle_system,
+                                       neighbor_system::WeaklyCompressibleSPHSystem,
+                                       rho_a, rho_b, pos_diff, distance,
+                                       W_a, ::SummationDensity,
+                                       correction::Union{KernelGradientCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+
+    return (-m_b *
+            (particle_system.pressure[particle] / rho_a^2 * W_a -
+             neighbor_system.pressure[neighbor] / rho_b^2 * W_b)) *
+           pressure_correction
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
+                                       neighbor_system::Union{BoundarySPHSystem,
+                                                              TotalLagrangianSPHSystem},
+                                       rho_a, rho_b, pos_diff, distance,
+                                       W_a, ::SummationDensity,
+                                       correction::Union{KernelGradientCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
+
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+
+    return (-m_b *
+            (particle_system.pressure[particle] / rho_a^2 * W_a -
+             neighbor_system.boundary_model.pressure[neighbor] / rho_b^2 * W_b)) *
+           pressure_correction
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+                                       particle_system,
                                        neighbor_system::Union{BoundarySPHSystem,
                                                               TotalLagrangianSPHSystem},
                                        rho_a, rho_b, pos_diff, distance,
@@ -122,7 +158,7 @@ end
                                        particle_system,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
                                        rho_a, rho_b, pos_diff, distance,
-                                       W_a, density_calculator,
+                                       W_a, ::ContinuityDensity,
                                        correction::Union{KernelGradientCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
@@ -139,7 +175,7 @@ end
                                        neighbor_system::Union{BoundarySPHSystem,
                                                               TotalLagrangianSPHSystem},
                                        rho_a, rho_b, pos_diff, distance,
-                                       W_a, density_calculator,
+                                       W_a, ::ContinuityDensity,
                                        correction::Union{KernelGradientCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
@@ -170,10 +206,11 @@ end
                                       neighbor_system, grad_kernel)
     (; density_diffusion) = particle_system
 
-    vdiff = current_velocity(v_particle_system, particle_system, particle) -
-            current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
-    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+    dv[end, particle] += rho_a / rho_b * m_b * (dot(v_a, grad_kernel) - dot(v_b, W_b))
 
     density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
                        particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
