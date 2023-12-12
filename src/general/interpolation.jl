@@ -31,7 +31,8 @@ results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
 function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
-                           smoothing_length=ref_system.smoothing_length)
+                           smoothing_length=ref_system.smoothing_length,
+                           calculate_other_system_density=false)
     dims = length(lower_left)
     if dims != length(top_right)
         error("Dimensions of lower_left and top_right must match")
@@ -59,7 +60,8 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
     results = []
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
-                                   smoothing_length=smoothing_length)
+                                   smoothing_length=smoothing_length,
+                                   calculate_other_system_density=calculate_other_system_density)
         push!(results, result)
     end
 
