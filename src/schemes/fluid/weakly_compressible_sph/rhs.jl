@@ -35,12 +35,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle, neighbor,
+        p_a = particle_pressure(v_particle_system, particle_system, particle)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                            rho_a, rho_b, pos_diff, grad_kernel,
                                             particle_system, neighbor_system,
-                                            v_neighbor_system,
-                                            rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, density_calculator,
-                                            correction)
+                                            density_calculator, correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -67,6 +68,16 @@ function interact!(dv, v_particle_system, u_particle_system,
     # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
 
     return dv
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system, neighbor_system,
+                                       density_calculator, correction)
+
+    # By default, just call the pressure acceleration formulation corresponding to the density calculator
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+                                 grad_kernel, density_calculator, correction)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
