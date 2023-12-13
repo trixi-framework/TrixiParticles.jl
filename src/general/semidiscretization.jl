@@ -255,8 +255,8 @@ function restart_with!(semi, sol; reset_threads=true)
     end
 
     foreach_system(semi) do system
-        v = wrap_v(sol[end].x[1], system, semi)
-        u = wrap_u(sol[end].x[2], system, semi)
+        v = wrap_v(sol.u[end].x[1], system, semi)
+        u = wrap_u(sol.u[end].x[2], system, semi)
 
         restart_with!(system, v, u)
     end
@@ -459,7 +459,7 @@ end
 
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
-# dv_ode, du_ode = copy(sol[end]).x; v_ode, u_ode = copy(sol[end]).x;
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)
