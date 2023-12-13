@@ -131,8 +131,8 @@ function interpolate_point(point_coords, semi, ref_system, sol;
 
     foreach_system(systems) do system
         system_id = system_indices(system, semi)
-        v = wrap_v(sol[end].x[1], system, semi)
-        u = wrap_u(sol[end].x[2], system, semi)
+        v = wrap_v(sol.u[end].x[1], system, semi)
+        u = wrap_u(sol.u[end].x[2], system, semi)
 
         system_coords = current_coordinates(u, system)
         nhs = get_neighborhood_search(system, semi)
