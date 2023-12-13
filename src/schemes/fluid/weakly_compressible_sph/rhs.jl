@@ -39,8 +39,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
         dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, grad_kernel,
-                                            particle_system, neighbor_system,
+                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                            particle_system, neighbor, neighbor_system,
                                             density_calculator, correction)
 
         dv_viscosity = viscosity_correction *
@@ -71,8 +71,8 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
-                                       particle_system, neighbor_system,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       particle_system, neighbor, neighbor_system,
                                        density_calculator, correction)
 
     # By default, just call the pressure acceleration formulation corresponding to the density calculator
@@ -85,18 +85,11 @@ end
 # used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system,
-                                       rho_a, rho_b, pos_diff, distance,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::ContinuityDensity,
                                        correction::Union{Nothing, ShepardKernelCorrection,
                                                          AkinciFreeSurfaceCorrection})
-    return (-m_b *
-            (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
-            (rho_a * rho_b) * grad_kernel) *
-           pressure_correction
+    return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -104,65 +97,34 @@ end
 # used with `SummationDensity`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system,
-                                       rho_a, rho_b, pos_diff, distance,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::SummationDensity,
                                        correction::Union{Nothing, ShepardKernelCorrection,
                                                          AkinciFreeSurfaceCorrection})
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2 +
-             neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
-           pressure_correction
+    return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system::WeaklyCompressibleSPHSystem,
-                                       neighbor_system,
-                                       v_neighbor_system,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       W_a, ::SummationDensity,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, distance, W_a,
+                                       particle_system, neighbor,
+                                       neighbor_system, ::SummationDensity,
                                        correction::Union{KernelGradientCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2 * W_a -
-             p_b / rho_b^2 * W_b)) * pressure_correction
+    return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system,
-                                       neighbor_system::Union{BoundarySPHSystem,
-                                                              TotalLagrangianSPHSystem},
-                                       v_neighbor_system::AbstractArray,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, density_calculator, correction::Union{Nothing, ShepardKernelCorrection,
-                                       AkinciFreeSurfaceCorrection})
-    (; boundary_model) = neighbor_system
-
-    return pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                 particle_system, neighbor_system,
-                                 boundary_model, rho_a, rho_b, pos_diff,
-                                 distance, grad_kernel, density_calculator, correction)
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, particle, neighbor,
-                                       particle_system::WeaklyCompressibleSPHSystem,
-                                       neighbor_system, v_neighbor_system,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       W_a, ::ContinuityDensity,
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, distance, W_a,
+                                       particle_system, neighbor,
+                                       neighbor_system, ::ContinuityDensity,
                                        correction::Union{KernelGradientCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-    p_a = particle_system.pressure[particle]
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
