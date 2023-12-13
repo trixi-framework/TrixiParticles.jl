@@ -202,7 +202,7 @@ end
 
 @inline function pressure_acceleration(pressure_correction, m_b,
                                        particle, boundary_particle,
-                                       particle_system, boundary_system,
+                                       particle_system, boundary_system::BoundarySystem,
                                        boundary_model::BoundaryModelDummyParticles,
                                        rho_a, rho_b, pos_diff, distance, grad_kernel,
                                        fluid_density_calculator, correction)
