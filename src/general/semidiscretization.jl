@@ -168,8 +168,7 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
-    @assert all(system -> eltype(system) === eltype(systems[1]),
-                systems)
+    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
     ELTYPE = eltype(systems[1])
 
     # Optionally reset Polyester.jl threads. See
@@ -190,10 +189,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
         end
     end
 
-    sizes_u = (u_nvariables(system) * n_moving_particles(system)
-               for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system)
-               for system in systems)
+    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
