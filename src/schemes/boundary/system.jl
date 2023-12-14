@@ -133,23 +133,13 @@ end
 end
 
 # No particle positions are advanced for boundary systems,
-# except when using BoundaryModelDummyParticles with ContinuityDensity.
+# except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
 @inline function n_moving_particles(system::BoundarySPHSystem)
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{
-                                                              <:BoundaryModelDummyParticles
-                                                              })
-    return n_moving_particles(system, system.boundary_model.density_calculator)
-end
-
-@inline function n_moving_particles(system::BoundarySPHSystem, density_calculator)
-    return 0
-end
-
-@inline function n_moving_particles(system::BoundarySPHSystem, ::ContinuityDensity)
-    nparticles(system)
+@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+    return nparticles(system)
 end
 
 @inline u_nvariables(system::BoundarySPHSystem) = 0
@@ -239,21 +229,12 @@ function write_u0!(u0, system::BoundarySPHSystem)
     return u0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar})
+function write_v0!(v0, system::BoundarySPHSystem)
     return v0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
-    (; density_calculator) = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
+function write_v0!(v0,
+                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -266,22 +247,11 @@ function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
 end
 
 function restart_with!(system::BoundarySPHSystem, v, u)
-    restart_with!(system, system.boundary_model, v, u)
-end
-
-function restart_with!(system, ::BoundaryModelMonaghanKajtar, v, u)
     return system
 end
 
-function restart_with!(system, model::BoundaryModelDummyParticles, v, u)
-    restart_with!(system, model, model.density_calculator, v, u)
-end
-
-function restart_with!(system, model, density_calculator, v, u)
-    return system
-end
-
-function restart_with!(system, model, ::ContinuityDensity, v, u)
+function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                       v, u)
     (; initial_density) = model.cache
 
     for particle in eachparticle(system)
@@ -293,4 +263,16 @@ end
 
 function viscosity_model(system::BoundarySPHSystem)
     return system.boundary_model.viscosity
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system, neighbor_system::BoundarySPHSystem,
+                                       density_calculator)
+    (; boundary_model) = neighbor_system
+    (; smoothing_length) = particle_system
+
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                 smoothing_length, grad_kernel, boundary_model,
+                                 density_calculator)
 end

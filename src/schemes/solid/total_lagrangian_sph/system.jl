@@ -180,23 +180,11 @@ end
 
 timer_name(::TotalLagrangianSPHSystem) = "solid"
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelMonaghanKajtar
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelDummyParticles
-                                                               })
-    return v_nvariables(system, system.boundary_model.density_calculator)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, density_calculator)
-    return ndims(system)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
 
@@ -231,6 +219,12 @@ end
 
 @inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
     return particle_density(v, system.boundary_model, system, particle)
+end
+
+# In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+# corresponding to the chosen boundary model.
+@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
+    return particle_pressure(v, system.boundary_model, system, particle)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
@@ -386,21 +380,12 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
-    (; density_calculator) = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
+                   system::TotalLagrangianSPHSystem)
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -424,4 +409,19 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system,
+                                       neighbor_system::TotalLagrangianSPHSystem,
+                                       density_calculator)
+    (; boundary_model) = neighbor_system
+    (; smoothing_length) = particle_system
+
+    # Pressure acceleration for fluid-solid interaction. This is identical to
+    # `pressure_acceleration` for the `BoundarySPHSystem`.
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                 smoothing_length, grad_kernel, boundary_model,
+                                 density_calculator)
 end
