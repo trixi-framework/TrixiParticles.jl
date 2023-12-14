@@ -90,9 +90,9 @@ to an improvement, especially at free surfaces.
 struct ShepardKernelCorrection end
 
 @doc raw"""
-    KernelGradientCorrection()
+KernelCorrection()
 
-Kernel gradient correction uses Shepard interpolation to obtain a 0-th order accurate result, which
+Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
 as shown by Basa et al.
 
@@ -129,12 +129,12 @@ This correction can be applied with [`SummationDensity`](@ref) and
   In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
   [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
-struct KernelGradientCorrection end
+struct KernelCorrection end
 
 @doc raw"""
     MixedKernelGradientCorrection()
 
-Combines [`GradientCorrection`](@ref) and [`KernelGradientCorrection`](@ref),
+Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
 which results in a 1st-order-accurate SPH method.
 
 # Notes:
@@ -226,7 +226,7 @@ end
 function compute_correction_values!(system::FluidSystem, v, u, v_ode, u_ode, semi,
                                     density_calculator::Union{SummationDensity,
                                                               ContinuityDensity},
-                                    correction::Union{KernelGradientCorrection,
+                                    correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection})
     compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                density_calculator,
@@ -238,7 +238,7 @@ end
 function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
                                     density_calculator::Union{SummationDensity,
                                                               ContinuityDensity},
-                                    correction::Union{KernelGradientCorrection,
+                                    correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection})
     compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                density_calculator,
@@ -249,7 +249,7 @@ end
 
 function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
                                     ::Union{SummationDensity, ContinuityDensity},
-                                    ::Union{KernelGradientCorrection,
+                                    ::Union{KernelCorrection,
                                             MixedKernelGradientCorrection},
                                     kernel_correction_coefficient, dw_gamma)
     set_zero!(kernel_correction_coefficient)
@@ -439,7 +439,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             if correction isa MixedKernelGradientCorrection
                 grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
                                                     smoothing_length,
-                                                    KernelGradientCorrection(),
+                                                    KernelCorrection(),
                                                     system, particle)
             else
                 grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)

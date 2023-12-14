@@ -260,7 +260,7 @@ function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particl
     return (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache_model(::KernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_model(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end

@@ -63,7 +63,7 @@ end
 end
 
 @inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
-                                       ::KernelGradientCorrection, system,
+                                       ::KernelCorrection, system,
                                        particle)
     #     kernel_uncorrected = kernel_grad(kernel_, pos_diff, distance, h)
     #     kernel_corrected = (kernel_grad(kernel_, pos_diff, distance, h) .-
@@ -99,7 +99,7 @@ end
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
                                        ::MixedKernelGradientCorrection, system,
                                        particle)
-    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelGradientCorrection(),
+    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelCorrection(),
                                  system, particle)
     return correction_matrix(system, particle) * grad
 end

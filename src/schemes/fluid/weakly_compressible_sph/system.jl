@@ -90,7 +90,7 @@ function create_cache_wcsph(::ShepardKernelCorrection, density, NDIMS, n_particl
     return (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache_wcsph(::KernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density), dw_gamma)
 end
@@ -228,7 +228,7 @@ end
 function compute_gradient_correction_matrix!(correction::Union{Nothing,
                                                                ShepardKernelCorrection,
                                                                AkinciFreeSurfaceCorrection,
-                                                               KernelGradientCorrection},
+                                                               KernelCorrection},
                                              system::WeaklyCompressibleSPHSystem, semi,
                                              u_ode, v_ode, u)
     return system
