@@ -180,23 +180,11 @@ end
 
 timer_name(::TotalLagrangianSPHSystem) = "solid"
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelMonaghanKajtar
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelDummyParticles
-                                                               })
-    return v_nvariables(system, system.boundary_model.density_calculator)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, density_calculator)
-    return ndims(system)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
 
@@ -386,21 +374,12 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
-    (; density_calculator) = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
+                   system::TotalLagrangianSPHSystem)
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
