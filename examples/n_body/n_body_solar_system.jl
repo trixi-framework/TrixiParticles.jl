@@ -51,7 +51,7 @@ sol = solve(ode, SymplecticEuler(),
             save_everystep=false, callback=callbacks);
 
 @printf("%.9e\n", energy(ode.u0.x..., particle_system, semi))
-@printf("%.9e\n", energy(sol[end].x..., particle_system, semi))
+@printf("%.9e\n", energy(sol.u[end].x..., particle_system, semi))
 
 # Enable timers again.
 TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
