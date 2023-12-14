@@ -1,6 +1,7 @@
 @doc raw"""
     RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                    n_layers=1, spacing_ratio=1.0, min_coordinates=zeros(length(fluid_size))
+                    n_layers=1, spacing_ratio=1.0,
+                    min_coordinates=zeros(length(fluid_size)),
                     init_velocity=zeros(length(fluid_size)),
                     boundary_density=fluid_density,
                     faces=Tuple(trues(2 * length(fluid_size))))
@@ -121,7 +122,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                     boundary_masses, boundary_densities,
                                     particle_spacing=boundary_spacing)
 
-        # Move the tank corner in the negative coordinate directions to the desired position.
+        # Move the tank corner in the negative coordinate directions to the desired position
         fluid.coordinates .+= min_coordinates
         boundary.coordinates .+= min_coordinates
 
