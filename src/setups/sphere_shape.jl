@@ -148,7 +148,7 @@ The resulting ball will be perfectly round, but will not have a regular inner st
 """
 struct RoundSphere{AR}
     angle_range::AR
-    function RoundSphere(; start_angle=0.0, end_angle=2π)
+    function RoundSphere(; start_angle=0.0, end_angle=2pi)
         if start_angle > end_angle
             throw(ArgumentError("`end_angle` should be greater than `start_angle`."))
         end
@@ -266,11 +266,11 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{2})
         return collect(reshape(center, (2, 1)))
     end
 
-    if !isapprox(theta, 2π)
+    if !isapprox(theta, 2pi)
         t = LinRange(angle_range[1], angle_range[2], n_particles + 1)
     else
-        # Remove the last particle at 2π, which overlaps with the first at 0
-        t = LinRange(0, 2π, n_particles + 1)[1:(end - 1)]
+        # Remove the last particle at 2pi, which overlaps with the first at 0
+        t = LinRange(0, 2pi, n_particles + 1)[1:(end - 1)]
     end
 
     particle_coords = Array{Float64, 2}(undef, 2, length(t))
@@ -287,16 +287,16 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     # Let δ be the particle spacing and r the sphere radius.
     #
     # The volume of a particle is δ^3 and the volume of the sphere shell with
-    # inner radius r - δ/2 and outer radius r + δ/2 is 4π/3 * ((r + δ/2)^3 - (r - δ/2)^3).
+    # inner radius r - δ/2 and outer radius r + δ/2 is 4pi/3 * ((r + δ/2)^3 - (r - δ/2)^3).
     # The number of particles is then
-    # n = 4π / (3 δ^3) * ((r + δ/2)^3 - (r - δ/2)^3) = 4π r^2 / δ^2 + π/3.
+    # n = 4pi / (3 δ^3) * ((r + δ/2)^3 - (r - δ/2)^3) = 4pi r^2 / δ^2 + pi/3.
     #
-    # For small numbers of particles, we get better results without the term π/3.
+    # For small numbers of particles, we get better results without the term pi/3.
     # Omitting the term for the inner layers yields results with only ~5 particles less than
     # the theoretically optimal number of particles for the target density.
-    n_particles = round(Int, 4π * radius^2 / particle_spacing^2 + π / 3)
+    n_particles = round(Int, 4pi * radius^2 / particle_spacing^2 + pi / 3)
     if n_particles < 300
-        n_particles = round(Int, 4π * radius^2 / particle_spacing^2)
+        n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
     end
 
     # With less than 5 particles, this doesn't work properly
@@ -308,7 +308,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
                     +1 +1 -1 -1] * radius / sqrt(3) .+ center
         elseif n_particles == 3
             # Return 2D triangle
-            y = sin(2π / 3)
+            y = sin(2pi / 3)
             return [1 -0.5 -0.5;
                     0 y -y;
                     0 0 0] * radius .+ center
@@ -337,10 +337,10 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
 
     # This is the Θ function, which is only defined by Leopardi as the inverse of V, without
     # giving a closed formula.
-    theta(v) = acos(1 - v / 2π)
+    theta(v) = acos(1 - v / 2pi)
 
     # Ideal area of the equal area partition
-    ideal_area = 4π / n_particles
+    ideal_area = 4pi / n_particles
 
     # Increase polar area to avoid higher density at the poles
     polar_area = 1.23ideal_area
@@ -348,14 +348,14 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     polar_radius = theta(polar_area)
 
     # Divide the remaining surface area equally
-    collar_cell_area = (4π - 2polar_area) / (n_particles - 2)
+    collar_cell_area = (4pi - 2polar_area) / (n_particles - 2)
 
     # Strictly following Leopardi here. The collars should have equiangular spacing.
     collar_angle = sqrt(collar_cell_area)
-    n_collars = max(1, round(Int, (π - 2polar_radius) / collar_angle))
-    fitting_collar_angle = (π - 2polar_radius) / n_collars
+    n_collars = max(1, round(Int, (pi - 2polar_radius) / collar_angle))
+    fitting_collar_angle = (pi - 2polar_radius) / n_collars
 
-    collar_area = [2π * (cos(polar_radius + (j - 2) * fitting_collar_angle) -
+    collar_area = [2pi * (cos(polar_radius + (j - 2) * fitting_collar_angle) -
                     cos(polar_radius + (j - 1) * fitting_collar_angle))
                    for j in 2:(n_collars + 1)]
 
@@ -383,7 +383,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
 
     # Put the first and last particle on the pole
     pushfirst!(collar_latitude, 0.0)
-    push!(collar_latitude, π)
+    push!(collar_latitude, pi)
 
     # To compute the particle positions in each collar, we use the 2D `round_sphere`
     # function to generate a circle.
@@ -393,7 +393,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
         z = radius * cos(collar_latitude[circle])
         circle_radius = radius * sin(collar_latitude[circle])
 
-        circle_spacing = 2π * circle_radius / actual_number_cells[circle]
+        circle_spacing = 2pi * circle_radius / actual_number_cells[circle]
 
         # At the poles, `circle_radius` is zero, so we can pass any positive spacing
         if circle_spacing < eps()
