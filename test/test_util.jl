@@ -2,6 +2,7 @@ using Test
 using TrixiParticles
 using LinearAlgebra
 using Printf
+using QuadGK: quadgk
 
 """
     @trixi_testset "name of the testset" #= code to test #=
