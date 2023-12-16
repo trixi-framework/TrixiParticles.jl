@@ -79,10 +79,6 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
                           "At least one particle's absolute coordinates exceed `max_coordinates`"))
     end
 
-    println("max ", abs(maximum(points)))
-    println("min ", abs(minimum(points)))
-    println("max_cord", max_coordinates)
-
     vtk_grid(file, points, cells) do vtk
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
