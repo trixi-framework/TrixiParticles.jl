@@ -51,7 +51,7 @@ end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), write_meta_data=true, append_to_collection=true,
+                   iter=nothing, system_name=vtkname(system), write_meta_data=true,
                    custom_quantities...)
     mkpath(output_directory)
 
