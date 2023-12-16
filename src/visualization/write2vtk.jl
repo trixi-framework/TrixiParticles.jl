@@ -51,7 +51,7 @@ end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), write_meta_data=true,
+                   iter=nothing, system_name=vtkname(system), write_meta_data=true, append_to_collection=true,
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -66,7 +66,8 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     collection_file = joinpath(output_directory,
                                add_opt_str_pre(prefix) * "$system_name")
 
-    pvd = paraview_collection(collection_file; append=true)
+    # reset the collection when the iteration is 0
+    pvd = paraview_collection(collection_file; append=iter>0)
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
