@@ -15,10 +15,10 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
 
 
 ## Quickstart
-1. Installation
-2. Get started tutorial
+1. [Installation](@ref)
+2. [Get Started](@ref)
 
 
 ## Start with development
-1. Installation
-2. Contributing
+1. [Installation](@ref)
+2. [Contributing](@ref)
