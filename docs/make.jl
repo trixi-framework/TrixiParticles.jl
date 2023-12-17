@@ -5,7 +5,14 @@ trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
 function copy_file(filename, replaces...)
-    content = read(joinpath(trixiparticles_root_dir, filename), String)
+    source_path = joinpath(trixiparticles_root_dir, filename)
+
+    if !isfile(source_path)
+        error("File $filename not found. Ensure that you are running make.jl from the TrixiParticles.jl root directory.")
+        return
+    end
+
+    content = read(source_path, String)
     content = replace(content, replaces...)
 
     header = """

@@ -1,6 +1,9 @@
 MIT License
 
 Copyright (c) 2023-present The TrixiParticles.jl Authors (see [AUTHORS.md](AUTHORS.md))
+Copyright (c) 2023-present University Stuttgart, High-Performance Computing Center Stuttgart
+Copyright (c) 2023-present University of Cologne, Numerical Simulation Group
+Copyright (c) 2023-present Helmholtzentrum hereon GmbH, Institute of Surface Science
 
 Permission is hereby granted, free of charge, to any person obtaining a copy  
 of this software and associated documentation files (the "Software"), to deal  
