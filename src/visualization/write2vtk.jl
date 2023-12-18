@@ -28,6 +28,8 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
+
     # Add `_i` to each system name, where `i` is the index of the corresponding
     # system type.
     # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
