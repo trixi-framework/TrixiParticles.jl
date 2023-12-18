@@ -67,7 +67,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
                                add_opt_str_pre(prefix) * "$system_name")
 
     # reset the collection when the iteration is 0
-    pvd = paraview_collection(collection_file; append=iter>0)
+    pvd = paraview_collection(collection_file; append=iter > 0)
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
