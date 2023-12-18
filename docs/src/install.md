@@ -29,6 +29,6 @@ julia --project=.
 ## Optional Packages
 - [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- a Julia package of Ordinary Differential Equation solvers that is used in the examples
 - [PyPlot.jl](https://github.com/JuliaPy/PyPlot.jl) -- Plotting library that is used in some examples for plotting
-
+- [ParaView](https://www.paraview.org/) -- ParaView can be used for visualization of results
 
 ## Common Issues
