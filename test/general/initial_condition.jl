@@ -140,8 +140,6 @@ shapes_dict = Dict(
     end
 
     @testset verbose=true "Intersect of Disjoint Shapes" begin
-
-
         @testset "$key" for key in keys(shapes_dict)
             shapes = shapes_dict[key]
             initial_condition = intersect(shapes...)
