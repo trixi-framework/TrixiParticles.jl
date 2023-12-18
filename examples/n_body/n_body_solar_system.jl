@@ -39,7 +39,7 @@ tspan = (0.0, 10year)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100000)
-saving_callback = SolutionSavingCallback(dt=10day)
+saving_callback = SolutionSavingCallback(dt=10day, max_coordinates=Inf)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

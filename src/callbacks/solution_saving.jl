@@ -2,7 +2,7 @@
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                            save_initial_solution=true,
                            save_final_solution=true,
-                           output_directory="out", append_timestamp=false,
+                           output_directory="out", append_timestamp=false, max_coordinates=2^15,
                            custom_quantities...)
 
 Callback to save the current numerical solution in VTK format in regular intervals.
@@ -68,8 +68,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=32768.0,
-                                custom_quantities...)
+                                max_coordinates=32768.0, custom_quantities...)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
