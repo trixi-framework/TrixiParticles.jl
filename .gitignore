@@ -10,3 +10,8 @@ docs/src/license.md
 docs/src/code_of_conduct.md
 docs/src/news.md
 run
+*.json
+*.png
+*.svg
+*.vtu
+*.pvd
