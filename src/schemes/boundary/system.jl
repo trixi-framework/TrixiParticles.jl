@@ -266,3 +266,15 @@ end
 function viscosity_model(system::BoundarySPHSystem)
     return system.boundary_model.viscosity
 end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system, neighbor_system::BoundarySPHSystem,
+                                       density_calculator)
+    (; boundary_model) = neighbor_system
+    (; smoothing_length) = particle_system
+
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                 smoothing_length, grad_kernel, boundary_model,
+                                 density_calculator)
+end

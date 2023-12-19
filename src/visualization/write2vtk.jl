@@ -19,7 +19,7 @@ Convert Trixi simulation data to VTK format.
 
 # Example
 ```julia
-trixi2vtk(sol[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
 
 TODO: example for custom_quantities
 """
@@ -66,7 +66,8 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     collection_file = joinpath(output_directory,
                                add_opt_str_pre(prefix) * "$system_name")
 
-    pvd = paraview_collection(collection_file; append=true)
+    # Reset the collection when the iteration is 0
+    pvd = paraview_collection(collection_file; append=iter > 0)
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]

@@ -81,14 +81,6 @@ function (info_callback::InfoCallback)(integrator)
     return nothing
 end
 
-@inline function isfinished(integrator)
-    # Checking for floating point equality is OK here as `DifferentialEquations.jl`
-    # sets the time exactly to the final time in the last iteration
-    return integrator.t == last(integrator.sol.prob.tspan) ||
-           isempty(integrator.opts.tstops) ||
-           integrator.iter == integrator.opts.maxiters
-end
-
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
 function initialize_info_callback(discrete_callback, u, t, integrator;
