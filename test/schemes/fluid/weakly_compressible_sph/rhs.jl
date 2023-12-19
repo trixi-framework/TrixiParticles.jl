@@ -124,7 +124,7 @@
                     deriv_linear_momentum = sum(initial_condition.mass' .* view(dv, 1:2, :),
                                                 dims=2)
 
-                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=6e-14)
+                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
 
                     # Angular momentum conservation
                     # m_a (r_a × dv_a)
@@ -138,7 +138,7 @@
                     # ∑ m_a (r_a × dv_a)
                     deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
-                    @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
+                    @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
 
                     # Total energy conservation
                     drho(::ContinuityDensity, particle) = dv[3, particle]

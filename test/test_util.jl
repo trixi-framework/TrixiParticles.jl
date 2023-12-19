@@ -61,7 +61,7 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
     perturbate!(ic.coordinates, perturbation_factor * 0.5particle_spacing)
 
     # Don't perturbate center particle position
-    center_particle = ceil(prod(size))
+    center_particle = ceil(Int, prod(size) / 2)
     ic.coordinates[:, center_particle] .= 0.0
 
     return ic
