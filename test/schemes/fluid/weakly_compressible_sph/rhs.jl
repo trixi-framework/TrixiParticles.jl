@@ -76,73 +76,55 @@
             # We are testing the momentum conservation of SPH with random initial configurations
             density_calculators = [ContinuityDensity(), SummationDensity()]
 
-            # Random initial configuration
-            mass = [
-                [3.11, 1.55, 2.22, 3.48, 0.21, 3.73, 0.21, 3.45],
-                [0.82, 1.64, 1.91, 0.02, 0.08, 1.58, 4.94, 0.7],
-            ]
-            density = [
-                [914.34, 398.36, 710.22, 252.54, 843.81, 694.73, 670.5, 539.14],
-                [280.15, 172.25, 267.1, 130.42, 382.3, 477.21, 848.31, 188.62],
-            ]
-            pressure = [
-                [91438.0, 16984.0, 58638.0, 10590.0, 92087.0, 66586.0, 64723.0, 49862.0],
-                [31652.0, -21956.0, 2874.0, -12489.0, 27206.0, 32225.0, 42848.0, 3001.0],
-            ]
-            coordinates = [
-                [0.16 0.55 0.08 0.58 0.52 0.26 0.32 0.99;
-                 0.76 0.6 0.47 0.4 0.25 0.79 0.45 0.63],
-                [0.4 0.84 0.47 0.02 0.64 0.85 0.02 0.15;
-                 0.83 0.62 0.99 0.57 0.25 0.72 0.34 0.69],
-            ]
-            velocity = [
-                [1.05 0.72 0.12 1.22 0.67 0.85 1.42 -0.57;
-                 1.08 0.68 0.74 -0.27 -1.22 0.43 1.41 1.25],
-                [-1.84 -1.4 5.21 -5.99 -5.02 9.5 -4.51 -8.28;
-                 0.78 0.1 9.67 8.46 9.29 5.18 -4.83 -4.87]]
+            particle_spacing = 0.1
 
             # The state equation is only needed to unpack `sound_speed`, so we can mock
             # it by using a `NamedTuple`.
             state_equation = (; sound_speed=0.0)
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            smoothing_length = 0.3
+            smoothing_length = 1.2particle_spacing
             search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                            smoothing_length)
 
             @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
-                for i in eachindex(mass)
-                    initial_condition = InitialCondition(coordinates[i], velocity[i],
-                                                         mass[i], density[i])
+                # Run three times with different seed for the random initial condition
+                for seed in 1:3
+                    # A larger number of particles will increase accumulated errors in the
+                    # summation. A larger tolerance has to be used for the tests below.
+                    initial_condition = rectangular_patch(particle_spacing, (3, 3),
+                                                          seed=seed)
                     system = WeaklyCompressibleSPHSystem(initial_condition,
                                                          density_calculator,
                                                          state_equation, smoothing_kernel,
                                                          smoothing_length)
+                    n_particles = TrixiParticles.nparticles(system)
 
                     # Overwrite `system.pressure`
-                    system.pressure .= pressure[i]
+                    system.pressure .= initial_condition.pressure
 
-                    u = coordinates[i]
+                    u = initial_condition.coordinates
                     if density_calculator isa SummationDensity
                         # Density is stored in the cache
-                        v = velocity[i]
-                        system.cache.density .= density[i]
+                        v = initial_condition.velocity
+                        system.cache.density .= initial_condition.density
                     else
                         # Density is integrated with `ContinuityDensity`
-                        v = vcat(velocity[i], density[i]')
+                        v = vcat(initial_condition.velocity, initial_condition.density')
                     end
 
                     nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
                                                                       TrixiParticles.eachparticle(system))
 
                     # Result
-                    dv = zeros(3, 8)
+                    dv = zeros(3, n_particles)
                     TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
 
                     # Linear momentum conservation
                     # ∑ m_a dv_a
-                    deriv_linear_momentum = sum(mass[i]' .* view(dv, 1:2, :), dims=2)
+                    deriv_linear_momentum = sum(initial_condition.mass' .* view(dv, 1:2, :),
+                                                dims=2)
 
-                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
+                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=6e-14)
 
                     # Angular momentum conservation
                     # m_a (r_a × dv_a)
@@ -150,13 +132,13 @@
                         r_a = SVector(u[1, particle], u[2, particle], 0.0)
                         dv_a = SVector(dv[1, particle], dv[2, particle], 0.0)
 
-                        return mass[i][particle] * cross(r_a, dv_a)
+                        return initial_condition.mass[particle] * cross(r_a, dv_a)
                     end
 
                     # ∑ m_a (r_a × dv_a)
-                    deriv_angular_momentum = sum(deriv_angular_momentum, 1:8)
+                    deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
-                    @test isapprox(deriv_angular_momentum, zeros(3), atol=2e-14)
+                    @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
 
                     # Total energy conservation
                     drho(::ContinuityDensity, particle) = dv[3, particle]
@@ -164,7 +146,7 @@
                     # Derivative of the density summation. This is a slightly different
                     # formulation of the continuity equation.
                     function drho_particle(particle, neighbor)
-                        m_b = mass[i][neighbor]
+                        m_b = initial_condition.mass[neighbor]
                         vdiff = TrixiParticles.current_velocity(v, system, particle) -
                                 TrixiParticles.current_velocity(v, system, neighbor)
 
@@ -183,24 +165,26 @@
                     end
 
                     function drho(::SummationDensity, particle)
-                        return sum(neighbor -> drho_particle(particle, neighbor), 1:8)
+                        return sum(neighbor -> drho_particle(particle, neighbor),
+                                   1:n_particles)
                     end
 
                     # m_a (v_a ⋅ dv_a + dte_a),
                     # where `te` is the thermal energy, called `u` in the Price paper.
                     function deriv_energy(particle)
-                        dte_a = pressure[i][particle] / density[i][particle]^2 *
-                                drho(density_calculator, particle)
+                        p_a = initial_condition.pressure[particle]
+                        rho_a = initial_condition.density[particle]
+                        dte_a = p_a / rho_a^2 * drho(density_calculator, particle)
                         v_a = TrixiParticles.extract_svector(v, system, particle)
                         dv_a = TrixiParticles.extract_svector(dv, system, particle)
 
-                        return mass[i][particle] * (dot(v_a, dv_a) + dte_a)
+                        return initial_condition.mass[particle] * (dot(v_a, dv_a) + dte_a)
                     end
 
                     # ∑ m_a (v_a ⋅ dv_a + dte_a)
-                    deriv_total_energy = sum(deriv_energy, 1:8)
+                    deriv_total_energy = sum(deriv_energy, 1:n_particles)
 
-                    @test isapprox(deriv_total_energy, 0.0, atol=4e-14)
+                    @test isapprox(deriv_total_energy, 0.0, atol=2e-15)
                 end
             end
         end

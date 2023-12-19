@@ -37,14 +37,14 @@ end
 function perturbate!(data, amplitude)
     for i in eachindex(data)
         # Perturbation in the interval (-amplitude, amplitude)
-        data[i] .+= 2amplitude * rand() .- amplitude
+        data[i] += 2amplitude * rand() - amplitude
     end
 
     return data
 end
 
 # Rectangular patch of particles, optionally with a perturbation in position and quantities
-function rectangular_patch(particle_spacing, size, density=1000.0, pressure=0.0, seed=1,
+function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0, seed=1,
                            perturbation_factor=1.0)
     # Fixed seed to ensure reproducibility
     Random.seed!(seed)
