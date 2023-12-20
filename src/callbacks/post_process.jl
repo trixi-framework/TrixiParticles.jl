@@ -112,17 +112,17 @@ function pp_keys(system)
     return nothing
 end
 
-function pp_value(system, key)
-    # skip systems that don't have support implemented
-    return false, 0.0
-end
+# function pp_value(system, key)
+#     # skip systems that don't have support implemented
+#     return false, 0.0
+# end
+
+# function calculate_ekin(system, system_index, u, semi)
+#     return system
+# end
 
 function calculate_ekin(system, system_index, u, semi)
-    return system
-end
-
-function calculate_ekin(system::WeaklyCompressibleSPHSystem, system_index, u, semi)
-    @unpack mass = system
+    mass = system.mass
     v_ode, u_ode = u.x
 
     v = wrap_v(v_ode, system_index, system, semi)
@@ -135,7 +135,7 @@ function calculate_ekin(system::WeaklyCompressibleSPHSystem, system_index, u, se
 end
 
 function compute_pressure!(system, v, pp_values::Dict)
-    @unpack state_equation, pressure, cache = system
+    (; state_equation, pressure, cache) = system
 
     if haskey(pp_values, "dp")
         p_old = copy(system.pressure)
@@ -149,7 +149,7 @@ function compute_pressure!(system, v, pp_values::Dict)
     return system
 end
 
-function pp_value(system::WeaklyCompressibleSPHSystem, pp_key)
+function pp_value(system, pp_key)
     if system.pp_values !== nothing
         if haskey(system.pp_values, pp_key)
             return system.cache.pp_update[pp_key], system.pp_values[pp_key]
