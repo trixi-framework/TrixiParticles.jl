@@ -319,16 +319,22 @@ end
 
 function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityDensity},
                            system, v, u, v_ode, u_ode, semi)
-    (; state_equation, pressure) = boundary_model
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
-        pressure[particle] = max(state_equation(particle_density(v, boundary_model,
-                                                                 particle)), 0.0)
+    @threaded for particle in eachparticle(system)
+        apply_state_equation!(boundary_model, particle_density(v, boundary_model,
+        particle), particle)
     end
 
     return boundary_model
+end
+
+# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function apply_state_equation!(boundary_model, density, particle)
+    boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0.0)
 end
 
 function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
