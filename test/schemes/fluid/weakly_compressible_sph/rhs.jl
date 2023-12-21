@@ -38,8 +38,7 @@
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
                     smoothing_length = -1.0
 
-                    fluid = InitialCondition(coordinates, velocity, mass,
-                                                         density)
+                    fluid = InitialCondition(coordinates, velocity, mass, density)
                     system = WeaklyCompressibleSPHSystem(fluid,
                                                          density_calculator,
                                                          state_equation, smoothing_kernel,
@@ -66,125 +65,118 @@
         end
     end
 
-    @testset verbose=true "`interact!`" begin
-        # The following tests for linear and angular momentum and total energy conservation
-        # are based on Sections 3.3.4 and 3.4.2 of
-        # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
-        # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
-        # https://doi.org/10.1016/j.jcp.2010.12.011
-        @testset verbose=true "Momentum and Total Energy Conservation" begin
-            # We are testing the momentum conservation of SPH with random initial configurations
-            density_calculators = [ContinuityDensity(), SummationDensity()]
+    # The following tests for linear and angular momentum and total energy conservation
+    # are based on Sections 3.3.4 and 3.4.2 of
+    # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
+    # In: Journal of Computational Physics 231.3 (2012), pages 759–94.
+    # https://doi.org/10.1016/j.jcp.2010.12.011
+    @testset verbose=true "Momentum and Total Energy Conservation" begin
+        # We are testing the momentum conservation of SPH with random initial configurations
+        density_calculators = [ContinuityDensity(), SummationDensity()]
 
-            particle_spacing = 0.1
+        particle_spacing = 0.1
 
-            # The state equation is only needed to unpack `sound_speed`, so we can mock
-            # it by using a `NamedTuple`.
-            state_equation = (; sound_speed=0.0)
-            smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-            smoothing_length = 1.2particle_spacing
-            search_radius = TrixiParticles.compact_support(smoothing_kernel,
-                                                           smoothing_length)
+        # The state equation is only needed to unpack `sound_speed`, so we can mock
+        # it by using a `NamedTuple`.
+        state_equation = (; sound_speed=0.0)
+        smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+        smoothing_length = 1.2particle_spacing
+        search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
-            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
-                # Run three times with different seed for the random initial condition
-                for seed in 1:3
-                    # A larger number of particles will increase accumulated errors in the
-                    # summation. A larger tolerance has to be used for the tests below.
-                    fluid = rectangular_patch(particle_spacing, (3, 3),
-                                                          seed=seed)
-                    system = WeaklyCompressibleSPHSystem(fluid,
-                                                         density_calculator,
-                                                         state_equation, smoothing_kernel,
-                                                         smoothing_length)
-                    n_particles = TrixiParticles.nparticles(system)
+        @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+            # Run three times with different seed for the random initial condition
+            for seed in 1:3
+                # A larger number of particles will increase accumulated errors in the
+                # summation. A larger tolerance has to be used for the tests below.
+                fluid = rectangular_patch(particle_spacing, (3, 3), seed=seed)
+                system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
+                                                     state_equation, smoothing_kernel,
+                                                     smoothing_length)
+                n_particles = TrixiParticles.nparticles(system)
 
-                    # Overwrite `system.pressure`
-                    system.pressure .= fluid.pressure
+                # Overwrite `system.pressure` because we skip the update step
+                system.pressure .= fluid.pressure
 
-                    u = fluid.coordinates
-                    if density_calculator isa SummationDensity
-                        # Density is stored in the cache
-                        v = fluid.velocity
-                        system.cache.density .= fluid.density
-                    else
-                        # Density is integrated with `ContinuityDensity`
-                        v = vcat(fluid.velocity, fluid.density')
-                    end
-
-                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                      TrixiParticles.eachparticle(system))
-
-                    # Result
-                    dv = zeros(3, n_particles)
-                    TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
-
-                    # Linear momentum conservation
-                    # ∑ m_a dv_a
-                    deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims=2)
-
-                    @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
-
-                    # Angular momentum conservation
-                    # m_a (r_a × dv_a)
-                    function deriv_angular_momentum(particle)
-                        r_a = SVector(u[1, particle], u[2, particle], 0.0)
-                        dv_a = SVector(dv[1, particle], dv[2, particle], 0.0)
-
-                        return fluid.mass[particle] * cross(r_a, dv_a)
-                    end
-
-                    # ∑ m_a (r_a × dv_a)
-                    deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
-
-                    @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
-
-                    # Total energy conservation
-                    drho(::ContinuityDensity, particle) = dv[3, particle]
-
-                    # Derivative of the density summation. This is a slightly different
-                    # formulation of the continuity equation.
-                    function drho_particle(particle, neighbor)
-                        m_b = fluid.mass[neighbor]
-                        vdiff = TrixiParticles.current_velocity(v, system, particle) -
-                                TrixiParticles.current_velocity(v, system, neighbor)
-
-                        pos_diff = TrixiParticles.current_coords(u, system, particle) -
-                                   TrixiParticles.current_coords(u, system, neighbor)
-                        distance = norm(pos_diff)
-
-                        # Only consider particles with a distance > 0
-                        distance < sqrt(eps()) && return 0.0
-
-                        grad_kernel = TrixiParticles.smoothing_kernel_grad(system,
-                                                                           pos_diff,
-                                                                           distance)
-
-                        return m_b * dot(vdiff, grad_kernel)
-                    end
-
-                    function drho(::SummationDensity, particle)
-                        return sum(neighbor -> drho_particle(particle, neighbor),
-                                   1:n_particles)
-                    end
-
-                    # m_a (v_a ⋅ dv_a + dte_a),
-                    # where `te` is the thermal energy, called `u` in the Price paper.
-                    function deriv_energy(particle)
-                        p_a = fluid.pressure[particle]
-                        rho_a = fluid.density[particle]
-                        dte_a = p_a / rho_a^2 * drho(density_calculator, particle)
-                        v_a = TrixiParticles.extract_svector(v, system, particle)
-                        dv_a = TrixiParticles.extract_svector(dv, system, particle)
-
-                        return fluid.mass[particle] * (dot(v_a, dv_a) + dte_a)
-                    end
-
-                    # ∑ m_a (v_a ⋅ dv_a + dte_a)
-                    deriv_total_energy = sum(deriv_energy, 1:n_particles)
-
-                    @test isapprox(deriv_total_energy, 0.0, atol=2e-15)
+                u = fluid.coordinates
+                if density_calculator isa SummationDensity
+                    # Density is stored in the cache
+                    v = fluid.velocity
+                    system.cache.density .= fluid.density
+                else
+                    # Density is integrated with `ContinuityDensity`
+                    v = vcat(fluid.velocity, fluid.density')
                 end
+
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
+                                                                  TrixiParticles.eachparticle(system))
+
+                # Result
+                dv = zeros(3, n_particles)
+                TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
+
+                # Linear momentum conservation
+                # ∑ m_a dv_a
+                deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims=2)
+
+                @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
+
+                # Angular momentum conservation
+                # m_a (r_a × dv_a)
+                function deriv_angular_momentum(particle)
+                    r_a = SVector(u[1, particle], u[2, particle], 0.0)
+                    dv_a = SVector(dv[1, particle], dv[2, particle], 0.0)
+
+                    return fluid.mass[particle] * cross(r_a, dv_a)
+                end
+
+                # ∑ m_a (r_a × dv_a)
+                deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
+
+                @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
+
+                # Total energy conservation
+                drho(::ContinuityDensity, particle) = dv[3, particle]
+
+                function drho(::SummationDensity, particle)
+                    return sum(neighbor -> drho_particle(particle, neighbor), 1:n_particles)
+                end
+
+                # Derivative of the density summation. This is a slightly different
+                # formulation of the continuity equation.
+                function drho_particle(particle, neighbor)
+                    m_b = TrixiParticles.hydrodynamic_mass(system, neighbor)
+                    v_diff = TrixiParticles.current_velocity(v, system, particle) -
+                             TrixiParticles.current_velocity(v, system, neighbor)
+
+                    pos_diff = TrixiParticles.current_coords(u, system, particle) -
+                               TrixiParticles.current_coords(u, system, neighbor)
+                    distance = norm(pos_diff)
+
+                    # Only consider particles with a distance > 0
+                    distance < sqrt(eps()) && return 0.0
+
+                    grad_kernel = TrixiParticles.smoothing_kernel_grad(system, pos_diff,
+                                                                       distance)
+
+                    return m_b * dot(v_diff, grad_kernel)
+                end
+
+                # m_a (v_a ⋅ dv_a + dte_a),
+                # where `te` is the thermal energy, called `u` in the Price paper.
+                function deriv_energy(particle)
+                    p_a = fluid.pressure[particle]
+                    rho_a = fluid.density[particle]
+                    dte_a = p_a / rho_a^2 * drho(density_calculator, particle)
+                    v_a = TrixiParticles.extract_svector(v, system, particle)
+                    dv_a = TrixiParticles.extract_svector(dv, system, particle)
+
+                    return fluid.mass[particle] * (dot(v_a, dv_a) + dte_a)
+                end
+
+                # ∑ m_a (v_a ⋅ dv_a + dte_a)
+                deriv_total_energy = sum(deriv_energy, 1:n_particles)
+
+                @test isapprox(deriv_total_energy, 0.0, atol=2e-15)
             end
         end
     end
