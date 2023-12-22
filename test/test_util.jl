@@ -34,7 +34,7 @@ macro trixi_testset(name, expr)
     end
 end
 
-function perturbate!(data, amplitude)
+function perturb!(data, amplitude)
     for i in eachindex(data)
         # Perturbation in the interval (-amplitude, amplitude)
         data[i] += 2amplitude * rand() - amplitude
@@ -53,13 +53,13 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
     min_corner = -particle_spacing / 2 .* size
     ic = RectangularShape(particle_spacing, size, min_corner, density, pressure=pressure)
 
-    perturbate!(ic.mass, perturbation_factor * 0.1 * ic.mass[1])
-    perturbate!(ic.density, perturbation_factor * 0.1density)
-    perturbate!(ic.pressure, perturbation_factor * 2000)
-    perturbate!(ic.velocity, perturbation_factor * 0.5particle_spacing)
-    perturbate!(ic.coordinates, perturbation_factor * 0.5particle_spacing)
+    perturb!(ic.mass, perturbation_factor * 0.1 * ic.mass[1])
+    perturb!(ic.density, perturbation_factor * 0.1density)
+    perturb!(ic.pressure, perturbation_factor * 2000)
+    perturb!(ic.velocity, perturbation_factor * 0.5particle_spacing)
+    perturb!(ic.coordinates, perturbation_factor * 0.5particle_spacing)
 
-    # Don't perturbate center particle position
+    # Don't perturb center particle position
     center_particle = ceil(Int, prod(size) / 2)
     ic.coordinates[:, center_particle] .= 0.0
 
