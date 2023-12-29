@@ -159,7 +159,7 @@ function fluid_particles_per_dimension(size::NTuple{3}, particle_spacing)
                                                   "fluid length in x-direction")
     n_particles_y, new_y_size = round_n_particles(size[2], particle_spacing,
                                                   "fluid length in y-direction")
-    n_particles_z, new_z_size = round_n_particles(size[2], particle_spacing,
+    n_particles_z, new_z_size = round_n_particles(size[3], particle_spacing,
                                                   "fluid length in z-direction")
 
     return (n_particles_x, n_particles_y, n_particles_z),
