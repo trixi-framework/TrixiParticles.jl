@@ -12,6 +12,8 @@ docs/src/news.md
 run
 *.json
 *.png
+*.gif
 *.svg
 *.vtu
 *.pvd
+*.mp4
