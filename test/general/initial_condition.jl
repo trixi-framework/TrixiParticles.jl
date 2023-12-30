@@ -1,4 +1,5 @@
-shapes_dict = Dict(
+@testset verbose=true "InitialCondition" begin
+    disjoint_shapes_dict = Dict(
     "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0), 1.0),
                              RectangularShape(0.1, (4, 5), (0.0, 1.0), 1.0,
                                               init_velocity=(0.3, -0.5))),
@@ -17,10 +18,9 @@ shapes_dict = Dict(
                                 SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
                                             sphere_type=RoundSphere())))
 
-@testset verbose=true "InitialCondition" begin
     @testset verbose=true "Union of Disjoint Shapes" begin
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = union(shapes...)
 
             # Number of particles should be the sum of the individual numbers of particles
@@ -92,8 +92,8 @@ shapes_dict = Dict(
     end
 
     @testset verbose=true "Setdiff of Disjoint Shapes" begin
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = setdiff(shapes...)
 
             @test initial_condition.particle_spacing == first(shapes).particle_spacing
@@ -140,8 +140,8 @@ shapes_dict = Dict(
     end
 
     @testset verbose=true "Intersect of Disjoint Shapes" begin
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = intersect(shapes...)
 
             @test initial_condition.particle_spacing == first(shapes).particle_spacing
