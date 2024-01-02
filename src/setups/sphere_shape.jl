@@ -129,7 +129,7 @@ struct VoxelSphere end
 """
     RoundSphere(; start_angle=0.0, end_angle=2π)
 
-Construct a sphere (segment) by nesting perfectly round concentric spheres.
+Construct a sphere (or sphere segment) by nesting perfectly round concentric spheres.
 The resulting ball will be perfectly round, but will not have a regular inner structure.
 
 # Keywords
@@ -137,22 +137,25 @@ The resulting ball will be perfectly round, but will not have a regular inner st
                  beginning point of the segment. The default is set to `0.0` representing
                  the positive x-axis.
 - `end_angle`: The ending angle of the sphere segment in radians. It defines the termination
-               point of the segment. The default is set to `2π`, completing a full sphere.
+               point of the segment. The default is set to `2pi`, completing a full sphere.
 
 !!! note "Usage"
     See [`SphereShape`](@ref) on how to use this.
 
 !!! warning "Warning"
-    The sphere segment is intended for 2D geometries and hollow spheres. If used in a
-    3D context or for a full circle, results may not be accurate.
+    The sphere segment is intended for 2D geometries and hollow spheres. If used for filled
+    spheres or in a 3D context, results may not be accurate.
 """
 struct RoundSphere{AR}
     angle_range::AR
+
     function RoundSphere(; start_angle=0.0, end_angle=2pi)
         if start_angle > end_angle
-            throw(ArgumentError("`end_angle` should be greater than `start_angle`."))
+            throw(ArgumentError("`end_angle` should be greater than `start_angle`"))
         end
+
         angle_range = (start_angle, end_angle)
+
         new{typeof(angle_range)}(angle_range)
     end
 end
@@ -257,6 +260,7 @@ end
 
 function round_sphere(sphere, particle_spacing, radius, center::SVector{2})
     (; angle_range) = sphere
+
     theta = angle_range[2] - angle_range[1]
     n_particles = round(Int, theta * radius / particle_spacing)
 
@@ -270,7 +274,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{2})
         t = LinRange(angle_range[1], angle_range[2], n_particles + 1)
     else
         # Remove the last particle at 2pi, which overlaps with the first at 0
-        t = LinRange(0, 2pi, n_particles + 1)[1:(end - 1)]
+        t = LinRange(angle_range[1], angle_range[2], n_particles + 1)[1:(end - 1)]
     end
 
     particle_coords = Array{Float64, 2}(undef, 2, length(t))
