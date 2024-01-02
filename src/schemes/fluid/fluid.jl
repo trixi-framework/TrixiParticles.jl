@@ -17,6 +17,39 @@ function write_u0!(u0, system::FluidSystem)
     return u0
 end
 
+function write_v0!(v0, system::FluidSystem)
+    write_v0!(v0, system, system.transport_velocity)
+end
+
+function write_v0!(v0, system::FluidSystem, ::Nothing)
+    for particle in eachparticle(system)
+        # Write particle velocities
+        v_init = initial_velocity(system, particle)
+        for dim in 1:ndims(system)
+            v0[dim, particle] = v_init[dim]
+        end
+    end
+
+    write_v0!(v0, system.density_calculator, system)
+
+    return v0
+end
+
+@inline function initial_velocity(system, particle)
+    initial_velocity(system, particle, system.initial_velocity_function)
+end
+
+@inline function initial_velocity(system, particle, ::Nothing)
+    return extract_svector(system.initial_condition.velocity, system, particle)
+end
+
+@inline function initial_velocity(system, particle, init_velocity_function)
+    position = initial_coords(system, particle)
+    v_init = SVector(ntuple(i -> init_velocity_function[i](position), Val(ndims(system))))
+
+    return v_init
+end
+
 @inline viscosity_model(system::FluidSystem) = system.viscosity
 
 include("viscosity.jl")

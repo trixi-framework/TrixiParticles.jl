@@ -43,6 +43,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                  particle, neighbor, pos_diff, distance,
                                  sound_speed, m_a, m_b, rho_mean)
 
+        # Add convection term when using `TransportVelocityAdami`
         dv_convection = momentum_convection(particle_system, neighbor_system,
                                             v_particle_system, v_neighbor_system,
                                             rho_a, rho_b, particle, neighbor, grad_kernel,

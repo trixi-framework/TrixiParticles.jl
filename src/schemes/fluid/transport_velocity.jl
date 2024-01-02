@@ -5,6 +5,11 @@ struct TransportVelocityAdami{ELTYPE}
     end
 end
 
+# Calculate `v_nvariables` appropriately
+@inline factor_tvf(system::FluidSystem) = factor_tvf(system, system.transport_velocity)
+@inline factor_tvf(system, ::Nothing) = 1
+@inline factor_tvf(system, ::TransportVelocityAdami) = 2
+
 @inline update_transport_velocity!(system, v_ode, semi) = system
 
 @inline function update_transport_velocity!(system::FluidSystem, v_ode, semi)
@@ -15,7 +20,6 @@ end
 
 @inline function update_transport_velocity!(system, v_ode, semi, ::TransportVelocityAdami)
     v = wrap_v(v_ode, system, semi)
-
     for particle in each_moving_particle(system)
         for i in 1:ndims(system)
             v[ndims(system) + i, particle] = v[i, particle]
@@ -23,6 +27,25 @@ end
     end
 
     return system
+end
+
+function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
+    for particle in eachparticle(system)
+        # Write particle velocities
+        v_init = initial_velocity(system, particle)
+        for dim in 1:ndims(system)
+            v0[dim, particle] = v_init[dim]
+            v0[ndims(system) + dim, particle] = v_init[dim]
+        end
+    end
+
+    write_v0!(v0, system.density_calculator, system)
+
+    return v0
+end
+
+@inline function add_velocity!(du, v, particle, system::FluidSystem)
+    add_velocity!(du, v, particle, system, system.transport_velocity)
 end
 
 # Add momentum velocity.
@@ -83,13 +106,13 @@ end
     return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
 end
 
+@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
+
 @inline function transport_velocity!(dv, system::FluidSystem, volume_term,
                                      grad_kernel, particle)
     transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
                         particle)
 end
-
-@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
 
 @inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
 
@@ -97,10 +120,10 @@ end
                                      grad_kernel, particle)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
-    n_dims = ndims(system)
+    NDIMS = ndims(system)
 
-    for dim in 1:n_dims
-        dv[n_dims + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
+    for dim in 1:NDIMS
+        dv[NDIMS + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]
     end
 
     return dv

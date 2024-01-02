@@ -150,14 +150,7 @@ end
 @inline average_pressure(system, ::Nothing, particle) = zero(eltype(system))
 
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
-    v_nvariables(system, system.transport_velocity)
-end
-
-@inline v_nvariables(system, ::Nothing) = ndims(system) + 1
-@inline v_nvariables(system, ::TransportVelocityAdami) = ndims(system) * 2 + 1
-
-@inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPHSystem)
-    add_velocity!(du, v, particle, system, system.transport_velocity)
+    return ndims(system) * factor_tvf(system) + 1
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
@@ -192,7 +185,6 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
                                                             neighbor)
@@ -207,31 +199,8 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
     end
 end
 
-function write_v0!(v0, system::EntropicallyDampedSPHSystem)
-    write_v0!(v0, system, system.transport_velocity)
-end
-
-function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::Nothing)
+function write_v0!(v0, density_calculator, system::EntropicallyDampedSPHSystem)
     for particle in eachparticle(system)
-        # Write particle velocities
-        v_init = initial_velocity(system, particle)
-        for dim in 1:ndims(system)
-            v0[dim, particle] = v_init[dim]
-        end
-        v0[end, particle] = initial_pressure(system, particle)
-    end
-
-    return v0
-end
-
-function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::TransportVelocityAdami)
-    for particle in eachparticle(system)
-        # Write particle velocities
-        v_init = initial_velocity(system, particle)
-        for dim in 1:ndims(system)
-            v0[dim, particle] = v_init[dim]
-            v0[ndims(system) + dim, particle] = v_init[dim]
-        end
         v0[end, particle] = initial_pressure(system, particle)
     end
 
@@ -257,19 +226,4 @@ end
 @inline function initial_pressure(system, particle, initial_pressure_function)
     particle_position = initial_coords(system, particle)
     return initial_pressure_function(particle_position)
-end
-
-@inline function initial_velocity(system, particle)
-    initial_velocity(system, particle, system.initial_velocity_function)
-end
-
-@inline function initial_velocity(system, particle, ::Nothing)
-    return extract_svector(system.initial_condition.velocity, system, particle)
-end
-
-@inline function initial_velocity(system, particle, init_velocity_function)
-    position = initial_coords(system, particle)
-    v_init = SVector(ntuple(i -> init_velocity_function[i](position), Val(ndims(system))))
-
-    return v_init
 end
