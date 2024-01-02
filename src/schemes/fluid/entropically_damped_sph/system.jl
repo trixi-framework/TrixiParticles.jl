@@ -125,9 +125,8 @@ create_cache_edac(initial_condition, ::Nothing) = (;)
 function create_cache_edac(initial_condition, ::TransportVelocityAdami)
     pressure_average = copy(initial_condition.pressure)
     neighbor_counter = Vector{Int}(undef, nparticles(initial_condition))
-    advection_velocity = copy(initial_condition.velocity)
 
-    return (; pressure_average, neighbor_counter, advection_velocity)
+    return (; pressure_average, neighbor_counter)
 end
 
 @inline function particle_density(v, system::EntropicallyDampedSPHSystem, particle)
@@ -146,7 +145,7 @@ end
     return system.cache.pressure_average[particle]
 end
 
-@inline average_pressure(system, ::Nothing, particle) = 0.0
+@inline average_pressure(system, ::Nothing, particle) = zero(eltype(system))
 
 @inline function v_nvariables(system::EntropicallyDampedSPHSystem)
     v_nvariables(system, system.transport_velocity)
@@ -157,30 +156,6 @@ end
 
 @inline function add_velocity!(du, v, particle, system::EntropicallyDampedSPHSystem)
     add_velocity!(du, v, particle, system, system.transport_velocity)
-end
-
-# Add momentum velocity.
-@inline function add_velocity!(du, v, particle, system, ::Nothing)
-    for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
-    end
-
-    return du
-end
-
-# Add advection velocity.
-@inline function add_velocity!(du, v, particle, system, ::TransportVelocityAdami)
-    for i in 1:ndims(system)
-        du[i, particle] = v[ndims(system) + i, particle]
-        system.cache.advection_velocity[i, particle] = v[ndims(system) + i, particle]
-    end
-
-    return du
-end
-
-@inline function advection_velocity(v, system::EntropicallyDampedSPHSystem, particle)
-    (; cache) = system
-    extract_svector(cache.advection_velocity, system, particle)
 end
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
@@ -215,8 +190,6 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                               neighborhood_search) do particle, neighbor, pos_diff, distance
-            ## Only consider particles with a distance > 0.
-            #distance < sqrt(eps()) && return
 
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
