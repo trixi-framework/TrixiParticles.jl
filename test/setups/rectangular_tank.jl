@@ -10,6 +10,7 @@
         @testset "Coordinates" begin
             particle_spacings = [0.1, 0.2]
             spacing_ratios = [1, 3]
+            min_coordinates = [(0.0, 0.0), (-0.3, 2.0)]
 
             expected_fluid_coords = [
                 [0.05 0.15 0.25 0.35 0.45 0.05 0.15 0.25 0.35 0.45 0.05 0.15 0.25 0.35 0.45 0.05 0.15 0.25 0.35 0.45;
@@ -33,17 +34,22 @@
                 ],
             ]
 
-            @testset "Particle Spacing: $(particle_spacings[i])" for i in eachindex(particle_spacings)
-                @testset "Spacing Ratio: $(spacing_ratios[j])" for j in eachindex(spacing_ratios)
-                    tank = RectangularTank(particle_spacings[i],
-                                           (water_width, water_height),
-                                           (tank_width, tank_height),
-                                           water_density,
-                                           spacing_ratio=spacing_ratios[j])
-
-                    @test isapprox(tank.fluid.coordinates, expected_fluid_coords[i])
-                    @test isapprox(tank.boundary.coordinates,
-                                   expected_bound_coords[i][j])
+            @testset "Move Tank: $(min_coordinates[i])" for i in eachindex(min_coordinates)
+                @testset "Particle Spacing: $(particle_spacings[j])" for j in eachindex(particle_spacings)
+                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in eachindex(spacing_ratios)
+                        tank = RectangularTank(particle_spacings[j],
+                                               (water_width, water_height),
+                                               (tank_width, tank_height),
+                                               water_density,
+                                               spacing_ratio=spacing_ratios[k],
+                                               min_coordinates=min_coordinates[i])
+                        expected_fluid_coords_ = copy(expected_fluid_coords[j])
+                        expected_bound_coords_ = copy(expected_bound_coords[j][k])
+                        expected_fluid_coords_ .+= min_coordinates[i]
+                        expected_bound_coords_ .+= min_coordinates[i]
+                        @test isapprox(tank.fluid.coordinates, expected_fluid_coords_)
+                        @test isapprox(tank.boundary.coordinates, expected_bound_coords_)
+                    end
                 end
             end
         end
@@ -267,6 +273,7 @@ end
         @testset "Coordinates" begin
             particle_spacings = [0.1, 0.2]
             spacing_ratios = [1, 3]
+            min_coordinates = [(0.0, 0.0, 0.0), (-0.3, 2.0, -0.5)]
 
             expected_fluid_coords = [
                 [0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35 0.05 0.15 0.25 0.35;
@@ -296,17 +303,23 @@ end
                 ],
             ]
 
-            @testset "Particle Spacing: $(particle_spacings[i])" for i in eachindex(particle_spacings)
-                @testset "Spacing Ratio: $(spacing_ratios[j])" for j in eachindex(spacing_ratios)
-                    tank = RectangularTank(particle_spacings[i],
-                                           (water_width, water_height, water_depth),
-                                           (tank_width, tank_height, tank_depth),
-                                           water_density,
-                                           spacing_ratio=spacing_ratios[j])
+            @testset "Move Tank: $(min_coordinates[i])" for i in eachindex(min_coordinates)
+                @testset "Particle Spacing: $(particle_spacings[j])" for j in eachindex(particle_spacings)
+                    @testset "Spacing Ratio: $(spacing_ratios[k])" for k in eachindex(spacing_ratios)
+                        tank = RectangularTank(particle_spacings[j],
+                                               (water_width, water_height, water_depth),
+                                               (tank_width, tank_height, tank_depth),
+                                               water_density,
+                                               spacing_ratio=spacing_ratios[k],
+                                               min_coordinates=min_coordinates[i])
+                        expected_fluid_coords_ = copy(expected_fluid_coords[j])
+                        expected_bound_coords_ = copy(expected_bound_coords[j][k])
+                        expected_fluid_coords_ .+= min_coordinates[i]
+                        expected_bound_coords_ .+= min_coordinates[i]
 
-                    @test isapprox(tank.fluid.coordinates, expected_fluid_coords[i])
-                    @test isapprox(tank.boundary.coordinates,
-                                   expected_bound_coords[i][j])
+                        @test isapprox(tank.fluid.coordinates, expected_fluid_coords_)
+                        @test isapprox(tank.boundary.coordinates, expected_bound_coords_)
+                    end
                 end
             end
         end
