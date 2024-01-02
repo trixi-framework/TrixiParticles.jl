@@ -101,7 +101,13 @@ function symplectic_euler!(velocities, coordinates, semi)
 end
 
 # One RHS evaluation is so fast that timers make it multiple times slower.
-TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+# Disabling timers throws a warning, which we suppress here in order to make the tests pass.
+filename = tempname()
+open(filename, "w") do f
+    redirect_stderr(f) do
+        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+    end
+end
 
 @printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
 
@@ -112,5 +118,9 @@ end
 
 @printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
 
-# Enable timers again.
-TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+# Enable timers again
+open(filename, "w") do f
+    redirect_stderr(f) do
+        TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+    end
+end
