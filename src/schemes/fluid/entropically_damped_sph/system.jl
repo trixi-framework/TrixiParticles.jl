@@ -137,6 +137,8 @@ end
     return v[end, particle]
 end
 
+@inline average_pressure(system, particle) = zero(eltype(system))
+
 @inline function average_pressure(system::EntropicallyDampedSPHSystem, particle)
     average_pressure(system, system.transport_velocity, particle)
 end
