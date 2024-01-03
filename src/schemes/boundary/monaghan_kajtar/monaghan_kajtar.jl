@@ -79,8 +79,8 @@ end
 @inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
                                            rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
                                            smoothing_length, grad_kernel,
-                                           boundary_model::BoundaryModelMonaghanKajtar,
-                                           particle_system, neighbor, neighbor_system,
+                                           particle_system, neighbor, neighbor_system,                                            boundary_model::BoundaryModelMonaghanKajtar,
+
                                            fluid_density_calculator,
                                            correction) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
