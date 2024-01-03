@@ -79,7 +79,7 @@ end
                                                          AkinciFreeSurfaceCorrection})
 
     # By default, just call the pressure acceleration formulation corresponding to the density calculator
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, density_calculator)
 end
 
@@ -91,7 +91,7 @@ end
                                        correction)
 
     # By default, just call the pressure acceleration formulation corresponding to a locally corrected gradient
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                  rho_a, rho_b, pos_diff, distance, grad_kernel,
                                  particle_system, neighbor,
                                  neighbor_system, density_calculator)
@@ -102,7 +102,7 @@ end
 # used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::ContinuityDensity)
     return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
 end
@@ -112,12 +112,12 @@ end
 # used with `SummationDensity`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::SummationDensity)
     return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance, W_a,
                                        particle_system, neighbor,
                                        neighbor_system, ::SummationDensity)
@@ -126,7 +126,7 @@ end
     return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance, W_a,
                                        particle_system, neighbor,
                                        neighbor_system, ::ContinuityDensity)

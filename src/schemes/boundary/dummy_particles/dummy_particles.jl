@@ -211,7 +211,7 @@ end
                                                              AkinciFreeSurfaceCorrection})
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
+    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
                                  grad_kernel, fluid_density_calculator)
 end
 
@@ -224,7 +224,7 @@ end
                                            correction::Union{Nothing,
                                                              ShepardKernelCorrection,
                                                              AkinciFreeSurfaceCorrection})
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                  grad_kernel, fluid_density_calculator)
 end
 
@@ -236,7 +236,7 @@ end
                                            fluid_density_calculator, correction)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_a,
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_a,
                                  rho_a, rho_b, pos_diff, distance, grad_kernel,
                                  particle_system, neighbor, neighbor_system,
                                  fluid_density_calculator)
@@ -248,7 +248,7 @@ end
                                            boundary_model::BoundaryModelDummyParticles,
                                            particle_system, neighbor, neighbor_system,
                                            fluid_density_calculator, correction)
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                  rho_a, rho_b, pos_diff, distance, grad_kernel,
                                  particle_system, neighbor, neighbor_system,
                                  fluid_density_calculator)
@@ -389,7 +389,7 @@ function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
 end
 
 function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
-                                 ::Union{ShepardKernelCorrection}, ::SummationDensity)
+                                 corr::ShepardKernelCorrection, ::SummationDensity)
     boundary_model.cache.density ./= boundary_model.cache.kernel_correction_coefficient
 end
 
@@ -583,10 +583,10 @@ end
 
 @inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff,
                                        distance, particle)
-    (; boundary_model) = system
-    return corrected_kernel_grad(boundary_model.smoothing_kernel, pos_diff, distance,
-                                 boundary_model.smoothing_length,
-                                 boundary_model.correction, system, particle)
+    (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
+
+    return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                 smoothing_length, correction, system, particle)
 end
 
 @inline function correction_matrix(system::BoundarySystem, particle)
