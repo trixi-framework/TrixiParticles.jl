@@ -220,8 +220,7 @@ function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_od
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
-                                 semi,
-                                 ::Union{ShepardKernelCorrection}, ::SummationDensity)
+                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
