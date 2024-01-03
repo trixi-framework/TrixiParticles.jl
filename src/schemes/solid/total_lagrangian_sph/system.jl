@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,8 +94,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
-    correction          :: COR
-
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
@@ -130,12 +128,11 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System
         lame_lambda = young_modulus * poisson_ratio /
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
-        correction = Nothing()
 
         return new{typeof(boundary_model),
                    NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
-                   typeof(penalty_force), typeof(correction)}(initial_condition,
+                   typeof(penalty_force)}(initial_condition,
                                                               initial_coordinates,
                                                               current_coordinates, mass,
                                                               correction_matrix,
@@ -148,7 +145,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: System
                                                               smoothing_kernel,
                                                               smoothing_length,
                                                               acceleration_, boundary_model,
-                                                              penalty_force, correction)
+                                                              penalty_force)
     end
 end
 

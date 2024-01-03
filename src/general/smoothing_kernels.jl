@@ -65,18 +65,6 @@ end
 @inline function corrected_kernel_grad(kernel_, pos_diff, distance, h,
                                        ::KernelCorrection, system,
                                        particle)
-    #     kernel_uncorrected = kernel_grad(kernel_, pos_diff, distance, h)
-    #     kernel_corrected = (kernel_grad(kernel_, pos_diff, distance, h) .-
-    #     kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
-    #    kernel_correction_coefficient(system, particle)
-
-    #     diff = kernel_uncorrected - kernel_corrected
-
-    #     if norm(diff) > 0.1
-    #         println(kernel_uncorrected, " ", kernel_corrected)
-    #     end
-
-    #     return kernel_corrected
     return (kernel_grad(kernel_, pos_diff, distance, h) .-
             kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
