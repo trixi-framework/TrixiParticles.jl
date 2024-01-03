@@ -218,8 +218,7 @@ function dw_gamma(system::BoundarySystem, particle)
 end
 
 function compute_correction_values!(system::FluidSystem, v, u, v_ode, u_ode, semi,
-                                    density_calculator::Union{SummationDensity,
-                                                              ContinuityDensity},
+                                    density_calculator,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection})
     compute_correction_values!(system, v, u, v_ode, u_ode, semi,
@@ -230,8 +229,7 @@ function compute_correction_values!(system::FluidSystem, v, u, v_ode, u_ode, sem
 end
 
 function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
-                                    density_calculator::Union{SummationDensity,
-                                                              ContinuityDensity},
+                                    density_calculator,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection})
     compute_correction_values!(system, v, u, v_ode, u_ode, semi,
@@ -242,7 +240,7 @@ function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, 
 end
 
 function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                                    ::Union{SummationDensity, ContinuityDensity},
+                                    density_calculator,
                                     ::Union{KernelCorrection,
                                             MixedKernelGradientCorrection},
                                     kernel_correction_coefficient, dw_gamma)
@@ -372,12 +370,13 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        # # Only consider particles with a distance > 0.
-        # distance < sqrt(eps()) && return
 
         volume = mass[neighbor] / density_fun(neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+
+        iszero(grad_kernel) && return
+
         result = volume * grad_kernel * pos_diff'
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -446,6 +445,8 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 
             grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
                                               distance, smoothing_length, system, particle)
+
+            iszero(grad_kernel) && return
 
             L = volume * grad_kernel * pos_diff'
 
