@@ -457,10 +457,10 @@ end
 function correction_matrix_inversion_step!(corr_matrix, system)
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
-        norm_val = norm(L)
+        norm_ = norm(L)
 
         # The norm value is quasi-zero, so there are probably no neighbors for this particle
-        if norm_val < eps()
+        if norm_ < sqrt(eps())
             # set the identity matrix for this matrix which deactivates corrections.
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
                 corr_matrix[i, j, particle] = 0.0
@@ -471,8 +471,8 @@ function correction_matrix_inversion_step!(corr_matrix, system)
             continue
         end
 
-        det_val = abs(det(L))
-        @fastmath if det_val < 1e-6 * norm_val
+        det_ = abs(det(L))
+        @fastmath if det_ < 1e-6 * norm_
             pseudo_invert(corr_matrix, L, particle, system)
             continue
         end
