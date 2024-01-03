@@ -185,75 +185,6 @@ reference pressure (the corresponding pressure to the reference density by the s
 """
 struct PressureZeroing end
 
-# For most density calculators, the pressure is updated in every step
-initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
-# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
-initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
-
-# For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
-function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
-    return state_equation.(initial_density)
-end
-
-# With EDAC, just use zero pressure
-function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing)
-    return zero(initial_density)
-end
-
-@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                           rho_a, rho_b, pos_diff, distance,
-                                           smoothing_length, grad_kernel,
-                                           particle_system, neighbor, neighbor_system,
-                                           boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
-                                           fluid_density_calculator,
-                                           correction::Union{Nothing,
-                                                             ShepardKernelCorrection,
-                                                             AkinciFreeSurfaceCorrection})
-
-    # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
-                                           grad_kernel, fluid_density_calculator)
-end
-
-@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                           rho_a, rho_b, pos_diff, distance,
-                                           smoothing_length, grad_kernel,
-                                           particle_system, neighbor, neighbor_system,
-                                           boundary_model::BoundaryModelDummyParticles,
-                                           fluid_density_calculator,
-                                           correction::Union{Nothing,
-                                                             ShepardKernelCorrection,
-                                                             AkinciFreeSurfaceCorrection})
-    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                           grad_kernel, fluid_density_calculator)
-end
-
-@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                           rho_a, rho_b, pos_diff, distance,
-                                           smoothing_length, grad_kernel,
-                                           particle_system, neighbor, neighbor_system,
-                                           boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
-                                           fluid_density_calculator, correction)
-
-    # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_a,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            fluid_density_calculator)
-end
-
-@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                           rho_a, rho_b, pos_diff, distance,
-                                           smoothing_length, grad_kernel,
-                                           particle_system, neighbor, neighbor_system,
-                                           boundary_model::BoundaryModelDummyParticles,
-                                           fluid_density_calculator, correction)
-    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            fluid_density_calculator)
-end
-
 create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
@@ -326,6 +257,75 @@ function Base.show(io::IO, model::BoundaryModelDummyParticles)
     print(io, ", ")
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
+end
+
+# For most density calculators, the pressure is updated in every step
+initial_boundary_pressure(initial_density, density_calculator, _) = similar(initial_density)
+# Pressure mirroring does not use the pressure, so we set it to zero for the visualization
+initial_boundary_pressure(initial_density, ::PressureMirroring, _) = zero(initial_density)
+
+# For pressure zeroing, set the pressure to the reference pressure (zero with free surfaces)
+function initial_boundary_pressure(initial_density, ::PressureZeroing, state_equation)
+    return state_equation.(initial_density)
+end
+
+# With EDAC, just use zero pressure
+function initial_boundary_pressure(initial_density, ::PressureZeroing, ::Nothing)
+    return zero(initial_density)
+end
+
+@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                           rho_a, rho_b, pos_diff, distance,
+                                           smoothing_length, grad_kernel,
+                                           particle_system, neighbor, neighbor_system,
+                                           boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
+                                           fluid_density_calculator,
+                                           correction::Union{Nothing,
+                                                             ShepardKernelCorrection,
+                                                             AkinciFreeSurfaceCorrection})
+
+    # Use `p_a` as pressure for both particles with `PressureMirroring`
+    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
+                                           grad_kernel, fluid_density_calculator)
+end
+
+@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                           rho_a, rho_b, pos_diff, distance,
+                                           smoothing_length, grad_kernel,
+                                           particle_system, neighbor, neighbor_system,
+                                           boundary_model::BoundaryModelDummyParticles,
+                                           fluid_density_calculator,
+                                           correction::Union{Nothing,
+                                                             ShepardKernelCorrection,
+                                                             AkinciFreeSurfaceCorrection})
+    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+                                           grad_kernel, fluid_density_calculator)
+end
+
+@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                           rho_a, rho_b, pos_diff, distance,
+                                           smoothing_length, grad_kernel,
+                                           particle_system, neighbor, neighbor_system,
+                                           boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
+                                           fluid_density_calculator, correction)
+
+    # Use `p_a` as pressure for both particles with `PressureMirroring`
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_a,
+                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                            particle_system, neighbor, neighbor_system,
+                                            fluid_density_calculator)
+end
+
+@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                           rho_a, rho_b, pos_diff, distance,
+                                           smoothing_length, grad_kernel,
+                                           particle_system, neighbor, neighbor_system,
+                                           boundary_model::BoundaryModelDummyParticles,
+                                           fluid_density_calculator, correction)
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
+                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                            particle_system, neighbor, neighbor_system,
+                                            fluid_density_calculator)
 end
 
 @inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)
