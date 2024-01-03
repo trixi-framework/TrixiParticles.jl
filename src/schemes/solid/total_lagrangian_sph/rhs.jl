@@ -61,7 +61,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
     (; boundary_model) = particle_system
-    (; density_calculator, state_equation, viscosity) = neighbor_system
+    (; density_calculator, state_equation, viscosity, correction) = neighbor_system
     (; sound_speed) = state_equation
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -104,10 +104,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Boundary forces
         # Note: neighbor and particle pressure are switched in this call
         #       and `pressure_correction` is set to `1.0` (no correction)
-        dv_boundary = pressure_acceleration(1.0, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+        dv_boundary = pressure_acceleration(1.0, m_b, p_b, p_a,
+                                            rho_b, rho_a, pos_diff, distance, grad_kernel,
                                             particle_system, neighbor, neighbor_system,
-                                            density_calculator, nothing)
+                                            density_calculator, correction)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)
