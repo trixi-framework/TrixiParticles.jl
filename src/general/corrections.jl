@@ -102,7 +102,7 @@ c(x) = \sum_{b=1} V_b W_b(x)
 ```
 The gradient of corrected kernel is determined by
 ```math
-\nabla \tilde{W}_{b}(r) =\frac{\nabla W_{b}(r) - \gamma(r)}{\sum_{b=1} V_b W_b(r)} , \quad  \text{where} \quad
+\nabla \tilde{W}_{b}(r) =\frac{\nabla W_{b}(r) - W_b(r) \gamma(r)}{\sum_{b=1} V_b W_b(r)} , \quad  \text{where} \quad
 \gamma(r) = \frac{\sum_{b=1} V_b \nabla W_b(r)}{\sum_{b=1} V_b W_b(r)}.
 ```
 
