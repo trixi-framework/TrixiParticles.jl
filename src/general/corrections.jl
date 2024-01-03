@@ -359,7 +359,8 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
-function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system::SolidSystem,
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
+                                             system::SolidSystem,
                                              coordinates, density_fun)
     (; mass) = system
 
@@ -429,16 +430,22 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-            function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
+            function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance,
+                                         smoothing_length, system, particle)
                 return smoothing_kernel_grad(system, pos_diff, distance)
             end
 
             # Compute gradient of corrected kernel
-            function compute_grad_kernel(correction::MixedKernelGradientCorrection, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
-                return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length, KernelCorrection(), system, particle)
+            function compute_grad_kernel(correction::MixedKernelGradientCorrection,
+                                         smoothing_kernel, pos_diff, distance,
+                                         smoothing_length, system, particle)
+                return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
+                                             smoothing_length, KernelCorrection(), system,
+                                             particle)
             end
 
-            grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
+            grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff,
+                                              distance, smoothing_length, system, particle)
 
             L = volume * grad_kernel * pos_diff'
 

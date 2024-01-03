@@ -89,5 +89,6 @@ for correction_name in keys(correction_dict)
                   clip_negative_pressure=(fluid_density_calculator isa SummationDensity),
                   smoothing_kernel=smoothing_kernel,
                   prefix="$(correction_name)", tspan=tspan,
-                  fluid_density=fluid_density, density_diffusion=Nothing(), boundary_layers=5)
+                  fluid_density=fluid_density, density_diffusion=Nothing(),
+                  boundary_layers=5)
 end

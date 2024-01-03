@@ -80,7 +80,7 @@ end
 
     # By default, just call the pressure acceleration formulation corresponding to the density calculator
     return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                 grad_kernel, density_calculator)
+                                           grad_kernel, density_calculator)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
@@ -92,9 +92,9 @@ end
 
     # By default, just call the pressure acceleration formulation corresponding to a locally corrected gradient
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                 rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                 particle_system, neighbor,
-                                 neighbor_system, density_calculator)
+                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                            particle_system, neighbor,
+                                            neighbor_system, density_calculator)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -102,8 +102,9 @@ end
 # used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                       grad_kernel, ::ContinuityDensity)
+@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a,
+                                                 rho_b,
+                                                 grad_kernel, ::ContinuityDensity)
     return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
 end
 
@@ -112,24 +113,25 @@ end
 # used with `SummationDensity`.
 # This can also be seen in the tests for total energy conservation, which fail with the
 # other `pressure_acceleration` form.
-@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                       grad_kernel, ::SummationDensity)
+@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a,
+                                                 rho_b,
+                                                 grad_kernel, ::SummationDensity)
     return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
 end
 
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system, neighbor,
-                                       neighbor_system, ::SummationDensity)
+                                                  rho_a, rho_b, pos_diff, distance, W_a,
+                                                  particle_system, neighbor,
+                                                  neighbor_system, ::SummationDensity)
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system, neighbor,
-                                       neighbor_system, ::ContinuityDensity)
+                                                  rho_a, rho_b, pos_diff, distance, W_a,
+                                                  particle_system, neighbor,
+                                                  neighbor_system, ::ContinuityDensity)
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b) * pressure_correction

@@ -133,19 +133,19 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem
                    NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
                    typeof(penalty_force)}(initial_condition,
-                                                              initial_coordinates,
-                                                              current_coordinates, mass,
-                                                              correction_matrix,
-                                                              pk1_corrected,
-                                                              deformation_grad,
-                                                              material_density,
-                                                              n_moving_particles,
-                                                              young_modulus, poisson_ratio,
-                                                              lame_lambda, lame_mu,
-                                                              smoothing_kernel,
-                                                              smoothing_length,
-                                                              acceleration_, boundary_model,
-                                                              penalty_force)
+                                          initial_coordinates,
+                                          current_coordinates, mass,
+                                          correction_matrix,
+                                          pk1_corrected,
+                                          deformation_grad,
+                                          material_density,
+                                          n_moving_particles,
+                                          young_modulus, poisson_ratio,
+                                          lame_lambda, lame_mu,
+                                          smoothing_kernel,
+                                          smoothing_length,
+                                          acceleration_, boundary_model,
+                                          penalty_force)
     end
 end
 
@@ -430,7 +430,6 @@ end
     return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
                                      rho_a, rho_b, pos_diff, distance,
                                      smoothing_length, grad_kernel,
-                                     particle_system, neighbor, neighbor_system,                                      boundary_model,
-
-                                     density_calculator, correction)
+                                     particle_system, neighbor, neighbor_system,
+                                     boundary_model, density_calculator, correction)
 end
