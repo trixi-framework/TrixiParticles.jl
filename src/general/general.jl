@@ -10,12 +10,6 @@ timer_name(::FluidSystem) = "fluid"
     return du
 end
 
-@inline function set_one!(du)
-    du .= one(eltype(du))
-
-    return du
-end
-
 @inline function invert(inverse, A, particle, system)
     A_inv = inv(A)
     @inbounds for j in 1:ndims(system), i in 1:ndims(system)

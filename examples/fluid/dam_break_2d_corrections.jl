@@ -4,8 +4,7 @@ fluid_density = 1000.0
 
 particle_spacing_default = 0.05
 
-# i.e. 0.0, 5.7/sqrt(9.81(gravity))
-tspan = (0.0, 1.82)
+tspan = (0.0, 5.7 / sqrt(9.81))
 
 correction_dict = Dict(
     "no_correction" => Nothing(),
@@ -68,9 +67,9 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               smoothing_length=3.0 * particle_spacing_default,
               boundary_density_calculator=ContinuityDensity(),
               fluid_density_calculator=ContinuityDensity(),
-              correction=Nothing(), use_reinit=false,
+              correction=nothing, use_reinit=true,
               prefix="continuity_reinit", tspan=tspan,
-              fluid_density=fluid_density, density_diffusion=Nothing())
+              fluid_density=fluid_density, density_diffusion=nothing)
 
 for correction_name in keys(correction_dict)
     local fluid_density_calculator = density_calculator_dict[correction_name]
@@ -96,8 +95,8 @@ for correction_name in keys(correction_dict)
                   boundary_density_calculator=SummationDensity(),
                   fluid_density_calculator=fluid_density_calculator,
                   correction=correction, use_reinit=false,
-                  clip_pressure=(fluid_density_calculator isa SummationDensity),
+                  clip_negative_pressure=(fluid_density_calculator isa SummationDensity),
                   smoothing_kernel=smoothing_kernel,
                   prefix="$(correction_name)", tspan=tspan,
-                  fluid_density=fluid_density, density_diffusion=Nothing())
+                  fluid_density=fluid_density, density_diffusion=Nothing(), boundary_layers=5)
 end

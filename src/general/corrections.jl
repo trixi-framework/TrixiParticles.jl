@@ -15,7 +15,7 @@ at rest, its density will be identical to the rest density ``\rho_0``. If we now
 particle at a free surface at rest, it will have neighbors missing in the direction normal to
 the surface, which will result in a lower density. If we calculate the correction factor
 ```math
-k = \rho_0/rho_\text{mean},
+k = \rho_0/\rho_\text{mean},
 ```
 this value will be about ~1.5 for particles at the free surface and can then be used to increase
 the pressure and viscosity accordingly.
@@ -90,7 +90,7 @@ to an improvement, especially at free surfaces.
 struct ShepardKernelCorrection end
 
 @doc raw"""
-KernelCorrection()
+    KernelCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
@@ -151,13 +151,7 @@ which results in a 1st-order-accurate SPH method.
   In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
   [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
-struct MixedKernelGradientCorrection
-    use_factorization::Bool
-
-    function MixedKernelGradientCorrection(; use_factorization=false)
-        return new{}(use_factorization)
-    end
-end
+struct MixedKernelGradientCorrection end
 
 function kernel_correction_coefficient(system::FluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
@@ -351,10 +345,10 @@ This calculates the following,
 ```math
 \tilde\nabla A_i = (1-\lambda) \nabla A_i + \lambda L_i \nabla A_i
 ```
-with ``\lambda`` being the blending factor.
+with ``0 \leq \lambda \leq 1`` being the blending factor.
 
 # Arguments
-- `blending_factor`: Blending factor between gradient corrected and normal sph gradient.
+- `blending_factor`: Blending factor between corrected and regular SPH gradient.
 """
 struct BlendedGradientCorrection{ELTYPE <: Real}
     blending_factor   :: ELTYPE
@@ -390,7 +384,7 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, s
         end
     end
 
-    correction_matrix_inversion_step(corr_matrix, system)
+    correction_matrix_inversion_step!(corr_matrix, system)
 
     return corr_matrix
 end
@@ -418,7 +412,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
                                              smoothing_length, smoothing_kernel)
     set_zero!(corr_matrix)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
     @trixi_timeit timer() "compute correction matrix" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -435,15 +429,16 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
             volume = hydrodynamic_mass(neighbor_system, neighbor) /
                      particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-            grad_kernel = nothing
-            if correction isa MixedKernelGradientCorrection
-                grad_kernel = corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
-                                                    smoothing_length,
-                                                    KernelCorrection(),
-                                                    system, particle)
-            else
-                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
+            function compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
+                return smoothing_kernel_grad(system, pos_diff, distance)
             end
+
+            # Compute gradient of corrected kernel
+            function compute_grad_kernel(correction::MixedKernelGradientCorrection, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
+                return corrected_kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length, KernelCorrection(), system, particle)
+            end
+
+            grad_kernel = compute_grad_kernel(correction, smoothing_kernel, pos_diff, distance, smoothing_length, system, particle)
 
             L = volume * grad_kernel * pos_diff'
 
@@ -454,17 +449,17 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         end
     end
 
-    correction_matrix_inversion_step(corr_matrix, system)
+    correction_matrix_inversion_step!(corr_matrix, system)
 
     return corr_matrix
 end
 
-function correction_matrix_inversion_step(corr_matrix, system)
+function correction_matrix_inversion_step!(corr_matrix, system)
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
         norm_val = norm(L)
 
-        # the norm value is quasi-zero so there are probably no neighbors for this particle
+        # The norm value is quasi-zero, so there are probably no neighbors for this particle
         if norm_val < eps()
             # set the identity matrix for this matrix which deactivates corrections.
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)

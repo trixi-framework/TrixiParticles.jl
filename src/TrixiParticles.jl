@@ -5,7 +5,7 @@ using Reexport: @reexport
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
-using LinearAlgebra: norm, dot, I, tr, cond, inv, pinv, det
+using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
