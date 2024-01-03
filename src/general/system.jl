@@ -79,8 +79,9 @@ end
 end
 
 @inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance)
-    return kernel_grad(system.boundary_model.smoothing_kernel, pos_diff, distance,
-                       system.boundary_model.smoothing_length)
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end
 
 # This is dispatched for some system types

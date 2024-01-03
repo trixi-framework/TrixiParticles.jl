@@ -73,9 +73,11 @@ end
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
                                        corr::BlendedGradientCorrection, system,
                                        particle)
+    (; blending_factor) = corr
+
     grad = kernel_grad(kernel, pos_diff, distance, h)
-    factor = corr.blending_factor
-    return (1 - factor) * grad + factor * correction_matrix(system, particle) * grad
+    return (1 - blending_factor) * grad +
+           blending_factor * correction_matrix(system, particle) * grad
 end
 
 @inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
