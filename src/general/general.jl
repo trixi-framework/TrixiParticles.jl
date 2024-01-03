@@ -17,20 +17,6 @@ timer_name(::FluidSystem) = "fluid"
     return du
 end
 
-@inline function invert(inverse, A, particle, system)
-    A_inv = inv(A)
-    @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-        inverse[i, j, particle] = A_inv[i, j]
-    end
-end
-
-@inline function pseudo_invert(inverse, A, particle, system)
-    A_inv = pinv(A)
-    @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-        inverse[i, j, particle] = A_inv[i, j]
-    end
-end
-
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included later.
 # `density_calculators.jl` needs to be included before `corrections.jl`.

@@ -463,13 +463,28 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 end
 
 function correction_matrix_inversion_step!(corr_matrix, system)
+    @inline function invert(inverse, A, particle, system)
+        A_inv = inv(A)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            inverse[i, j, particle] = A_inv[i, j]
+        end
+    end
+
+    @inline function pseudo_invert(inverse, A, particle, system)
+        A_inv = pinv(A)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            inverse[i, j, particle] = A_inv[i, j]
+        end
+    end
+
     @threaded for particle in eachparticle(system)
         L = correction_matrix(system, particle)
         norm_ = norm(L)
 
         # The norm value is quasi-zero, so there are probably no neighbors for this particle
         if norm_ < sqrt(eps())
-            # set the identity matrix for this matrix which deactivates corrections.
+            # The correction matrix is set to an identity matrix, which effectively disables
+            # the correction for this particle.
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
                 corr_matrix[i, j, particle] = 0.0
             end
