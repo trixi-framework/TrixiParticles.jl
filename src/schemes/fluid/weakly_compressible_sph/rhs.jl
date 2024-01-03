@@ -170,7 +170,7 @@ end
                                     particle_system::WeaklyCompressibleSPHSystem,
                                     neighbor_system::WeaklyCompressibleSPHSystem,
                                     grad_kernel)
-    # only consider particles with distance larger than sqrt(eps)
+    # Density diffusion terms are all zero for distance zero
     distance < sqrt(eps()) && return
 
     (; delta) = density_diffusion
