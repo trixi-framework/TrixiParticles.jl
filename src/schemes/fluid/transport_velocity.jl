@@ -72,28 +72,32 @@ end
 
 @inline function momentum_convection(system, neighbor_system,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     particle, neighbor, grad_kernel, volume_term)
+                                     m_a, m_b, particle, neighbor, grad_kernel)
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
 @inline function momentum_convection(system::FluidSystem,
                                      neighbor_system::FluidSystem,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     particle, neighbor, grad_kernel, volume_term)
+                                     m_a, m_b, particle, neighbor, grad_kernel)
     momentum_convection(system, neighbor_system, system.transport_velocity,
                         v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        particle, neighbor, grad_kernel, volume_term)
+                        m_a, m_b, particle, neighbor, grad_kernel)
 end
 
 @inline function momentum_convection(system, neighbor_system, ::Nothing,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     particle, neighbor, grad_kernel, volume_term)
+                                     m_a, m_b, particle, neighbor, grad_kernel)
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
 @inline function momentum_convection(system, neighbor_system, ::TransportVelocityAdami,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     particle, neighbor, grad_kernel, volume_term)
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
     momentum_velocity_a = current_velocity(v_particle_system, system, particle)
     advection_velocity_a = advection_velocity(v_particle_system, system, particle)
 
@@ -106,21 +110,29 @@ end
     return volume_term * (0.5 * (A_a + A_b)) * grad_kernel
 end
 
-@inline transport_velocity!(dv, system, volume_term, grad_kernel, particle) = dv
+@inline transport_velocity!(dv, system, rho_a, rho_b, m_a, m_b, grad_kernel, particle) = dv
 
-@inline function transport_velocity!(dv, system::FluidSystem, volume_term,
-                                     grad_kernel, particle)
-    transport_velocity!(dv, system, system.transport_velocity, volume_term, grad_kernel,
-                        particle)
+@inline function transport_velocity!(dv, system::FluidSystem,
+                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+    transport_velocity!(dv, system, system.transport_velocity, rho_a, rho_b, m_a, m_b,
+                        grad_kernel, particle)
 end
 
-@inline transport_velocity!(dv, system, ::Nothing, volume_term, grad_kernel, particle) = dv
+@inline function transport_velocity!(dv, system, ::Nothing,
+                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
+    return dv
+end
 
-@inline function transport_velocity!(dv, system, ::TransportVelocityAdami, volume_term,
-                                     grad_kernel, particle)
+@inline function transport_velocity!(dv, system, ::TransportVelocityAdami,
+                                     rho_a, rho_b, m_a, m_b, grad_kernel, particle)
     (; transport_velocity) = system
     (; background_pressure) = transport_velocity
+
     NDIMS = ndims(system)
+
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
 
     for dim in 1:NDIMS
         dv[NDIMS + dim, particle] -= volume_term * background_pressure * grad_kernel[dim]

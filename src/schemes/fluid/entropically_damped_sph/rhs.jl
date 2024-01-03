@@ -46,8 +46,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # Add convection term when using `TransportVelocityAdami`
         dv_convection = momentum_convection(particle_system, neighbor_system,
                                             v_particle_system, v_neighbor_system,
-                                            rho_a, rho_b, particle, neighbor, grad_kernel,
-                                            volume_term)
+                                            rho_a, rho_b, m_a, m_b,
+                                            particle, neighbor, grad_kernel)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_convection[i]
@@ -60,7 +60,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                             particle, pos_diff, distance, sound_speed, volume_term, m_b,
                             p_a, p_b, rho_a, rho_b)
 
-        transport_velocity!(dv, particle_system, volume_term, grad_kernel, particle)
+        transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
+                            grad_kernel, particle)
     end
 
     return dv
