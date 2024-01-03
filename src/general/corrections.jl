@@ -359,7 +359,7 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
-function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system,
+function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search, system::SolidSystem,
                                              coordinates, density_fun)
     (; mass) = system
 
