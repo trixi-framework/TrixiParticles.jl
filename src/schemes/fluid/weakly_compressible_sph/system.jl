@@ -214,8 +214,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
 end
 
 function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
-                                 semi,
-                                 correction, density_calculator)
+                                 semi, correction, density_calculator)
     return system
 end
 
@@ -224,10 +223,7 @@ function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_od
     system.cache.density ./= system.cache.kernel_correction_coefficient
 end
 
-function compute_gradient_correction_matrix!(correction::Union{Nothing,
-                                                               ShepardKernelCorrection,
-                                                               AkinciFreeSurfaceCorrection,
-                                                               KernelCorrection},
+function compute_gradient_correction_matrix!(correction,
                                              system::WeaklyCompressibleSPHSystem, u,
                                              u_ode, v_ode, semi)
     return system
@@ -238,13 +234,13 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
                                              u_ode, v_ode, semi)
-    (; cache) = system
+    (; cache, correction, smoothing_kernel, smoothing_length) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, system,
-                                        system_coords, u_ode, v_ode, semi)
+    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
+        u_ode, v_ode, semi, correction, smoothing_length, smoothing_kernel)
 end
 
 function reinit_density!(vu_ode, semi)
