@@ -130,7 +130,6 @@ end
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                                   rho_a, rho_b, pos_diff, distance, W_a,
                                                   W_b, ::ContinuityDensity)
-
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b) * pressure_correction
 end
 
@@ -139,7 +138,6 @@ end
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                                   rho_a, rho_b, pos_diff, distance, W_a,
                                                   W_b, ::SummationDensity)
-
     return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 
