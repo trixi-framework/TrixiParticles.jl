@@ -96,9 +96,8 @@ end
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            W_b, density_calculator)
+    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
+                                            rho_b, grad_kernel, W_b, density_calculator)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -127,17 +126,15 @@ end
 
 # Same as above, but not assuming symmetry of the kernel gradient. To be used with
 # corrections that do not produce a symmetric kernel gradient.
-@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                                  rho_a, rho_b, pos_diff, distance, W_a,
-                                                  W_b, ::ContinuityDensity)
+@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
+                                                  rho_b, W_a, W_b, ::ContinuityDensity)
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b) * pressure_correction
 end
 
 # Same as above, but not assuming symmetry of the kernel gradient. To be used with
 # corrections that do not produce a symmetric kernel gradient.
-@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
-                                                  rho_a, rho_b, pos_diff, distance, W_a,
-                                                  W_b, ::SummationDensity)
+@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
+                                                  rho_b, W_a, W_b, ::SummationDensity)
     return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 

@@ -471,11 +471,11 @@ function correction_matrix_inversion_step!(corr_matrix, system)
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
                 corr_matrix[i, j, particle] = L_inv[i, j]
             end
-            continue
-        end
-        L_inv = inv(L)
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] = L_inv[i, j]
+        else
+            L_inv = inv(L)
+            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+                corr_matrix[i, j, particle] = L_inv[i, j]
+            end
         end
     end
 end
