@@ -308,12 +308,12 @@ end
                                                              GradientCorrection,
                                                              BlendedGradientCorrection,
                                                              MixedKernelGradientCorrection})
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_a,
                                             rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            fluid_density_calculator)
+                                            W_b, fluid_density_calculator)
 end
 
 @inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
@@ -326,10 +326,11 @@ end
                                                              GradientCorrection,
                                                              BlendedGradientCorrection,
                                                              MixedKernelGradientCorrection})
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                             rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            fluid_density_calculator)
+                                            W_b, fluid_density_calculator)
 end
 
 @inline function particle_density(v, model::BoundaryModelDummyParticles, system, particle)

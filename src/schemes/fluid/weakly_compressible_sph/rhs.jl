@@ -92,13 +92,13 @@ end
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                             rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor,
-                                            neighbor_system, density_calculator)
+                                            W_b, density_calculator)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
@@ -129,9 +129,7 @@ end
 # corrections that do not produce a symmetric kernel gradient.
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                                   rho_a, rho_b, pos_diff, distance, W_a,
-                                                  particle_system, neighbor,
-                                                  neighbor_system, ::ContinuityDensity)
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+                                                  W_b, ::ContinuityDensity)
 
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b) * pressure_correction
 end
@@ -140,9 +138,7 @@ end
 # corrections that do not produce a symmetric kernel gradient.
 @inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                                   rho_a, rho_b, pos_diff, distance, W_a,
-                                                  particle_system, neighbor,
-                                                  neighbor_system, ::SummationDensity)
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
+                                                  W_b, ::SummationDensity)
 
     return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
