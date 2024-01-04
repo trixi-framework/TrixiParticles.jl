@@ -370,7 +370,6 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-
         volume = mass[neighbor] / density_fun(neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, pos_diff, distance)
