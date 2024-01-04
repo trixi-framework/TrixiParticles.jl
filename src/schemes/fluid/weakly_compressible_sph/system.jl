@@ -203,7 +203,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     compute_correction_values!(system,
                                correction, v, u, v_ode, u_ode, semi, density_calculator)
 
-    compute_gradient_correction_matrix!(correction, system, semi, u_ode, v_ode, u)
+    compute_gradient_correction_matrix!(correction, system, u, u_ode, v_ode, semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
@@ -228,23 +228,23 @@ function compute_gradient_correction_matrix!(correction::Union{Nothing,
                                                                ShepardKernelCorrection,
                                                                AkinciFreeSurfaceCorrection,
                                                                KernelCorrection},
-                                             system::WeaklyCompressibleSPHSystem, semi,
-                                             u_ode, v_ode, u)
+                                             system::WeaklyCompressibleSPHSystem, u,
+                                             u_ode, v_ode, semi)
     return system
 end
 
 function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
-                                             system::WeaklyCompressibleSPHSystem, semi,
-                                             u_ode, v_ode, u)
+                                             system::WeaklyCompressibleSPHSystem, u,
+                                             u_ode, v_ode, semi)
     (; cache) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, system, semi, u_ode, v_ode,
-                                        system_coords)
+    compute_gradient_correction_matrix!(correction_matrix, system,
+                                        system_coords, u_ode, v_ode, semi)
 end
 
 function reinit_density!(vu_ode, semi)

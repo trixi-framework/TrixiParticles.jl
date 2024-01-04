@@ -393,26 +393,27 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
-                                             system::FluidSystem, semi,
-                                             u_ode, v_ode, coordinates)
-    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
-                                        u_ode, v_ode, coordinates, system.correction,
+                                             system::FluidSystem, coordinates,
+                                             u_ode, v_ode, semi)
+    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, coordinates,
+                                        u_ode, v_ode, semi,
+                                        system.correction,
                                         system.smoothing_length, system.smoothing_kernel)
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray,
-                                             system::BoundarySystem, semi,
-                                             u_ode, v_ode, coordinates)
-    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
-                                        u_ode, v_ode, coordinates,
+                                             system::BoundarySystem, coordinates,
+                                             u_ode, v_ode, semi)
+    compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, coordinates,
+                                        u_ode, v_ode, semi,
                                         system.boundary_model.correction,
                                         system.boundary_model.smoothing_length,
                                         system.boundary_model.smoothing_kernel)
 end
 
-function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system, semi,
-                                             u_ode, v_ode, coordinates, correction,
-                                             smoothing_length, smoothing_kernel)
+function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
+                                             coordinates, u_ode, v_ode, semi,
+                                             correction, smoothing_length, smoothing_kernel)
     set_zero!(corr_matrix)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff

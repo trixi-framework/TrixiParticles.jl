@@ -371,8 +371,8 @@ end
     compute_correction_values!(system,
                                correction, v, u, v_ode, u_ode, semi, density_calculator)
 
-    compute_gradient_correction_matrix!(correction, boundary_model, system, semi, u_ode,
-                                        v_ode, u)
+    compute_gradient_correction_matrix!(correction, boundary_model, system, u, u_ode,
+                                        v_ode, semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
@@ -393,8 +393,8 @@ function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
     boundary_model.cache.density ./= boundary_model.cache.kernel_correction_coefficient
 end
 
-function compute_gradient_correction_matrix!(correction, boundary_model, system, semi,
-                                             u_ode, v_ode, u)
+function compute_gradient_correction_matrix!(correction, boundary_model, system, u,
+                                             u_ode, v_ode, semi)
     return system
 end
 
@@ -402,14 +402,14 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
-                                             system, semi, u_ode, v_ode, u)
+                                             system, u, u_ode, v_ode, semi)
     (; cache) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
-    compute_gradient_correction_matrix!(correction_matrix, system, semi, u_ode, v_ode,
-                                        system_coords)
+    compute_gradient_correction_matrix!(correction_matrix, system,
+                                        system_coords, u_ode, v_ode, semi)
 end
 
 function compute_density!(boundary_model, ::SummationDensity,
