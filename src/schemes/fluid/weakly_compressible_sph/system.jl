@@ -13,7 +13,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref).
 
 # Keyword Arguments
 - `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
