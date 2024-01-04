@@ -280,9 +280,7 @@ end
                                            particle_system, neighbor, neighbor_system,
                                            boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
                                            fluid_density_calculator,
-                                           correction::Union{Nothing,
-                                                             ShepardKernelCorrection,
-                                                             AkinciFreeSurfaceCorrection})
+                                           correction)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
     return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_a, rho_a, rho_b,
@@ -295,9 +293,7 @@ end
                                            particle_system, neighbor, neighbor_system,
                                            boundary_model::BoundaryModelDummyParticles,
                                            fluid_density_calculator,
-                                           correction::Union{Nothing,
-                                                             ShepardKernelCorrection,
-                                                             AkinciFreeSurfaceCorrection})
+                                           correction)
     return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                            grad_kernel, fluid_density_calculator)
 end
@@ -307,7 +303,11 @@ end
                                            smoothing_length, grad_kernel,
                                            particle_system, neighbor, neighbor_system,
                                            boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
-                                           fluid_density_calculator, correction)
+                                           fluid_density_calculator,
+                                           correction::Union{KernelCorrection,
+                                                             GradientCorrection,
+                                                             BlendedGradientCorrection,
+                                                             MixedKernelGradientCorrection})
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_a,
@@ -321,7 +321,11 @@ end
                                            smoothing_length, grad_kernel,
                                            particle_system, neighbor, neighbor_system,
                                            boundary_model::BoundaryModelDummyParticles,
-                                           fluid_density_calculator, correction)
+                                           fluid_density_calculator,
+                                           correction::Union{KernelCorrection,
+                                                             GradientCorrection,
+                                                             BlendedGradientCorrection,
+                                                             MixedKernelGradientCorrection})
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
                                             rho_a, rho_b, pos_diff, distance, grad_kernel,
                                             particle_system, neighbor, neighbor_system,
