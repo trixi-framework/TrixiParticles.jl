@@ -45,6 +45,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 
 # One RHS evaluation is so fast that timers make it multiple times slower.
 # Disabling timers throws a warning, which we suppress here in order to make the tests pass.
+# For some reason, this only works with a file and not with devnull. See issue #332.
 filename = tempname()
 open(filename, "w") do f
     redirect_stderr(f) do
