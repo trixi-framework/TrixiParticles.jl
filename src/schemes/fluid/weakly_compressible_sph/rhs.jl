@@ -75,8 +75,7 @@ end
                                        grad_kernel, particle_system, neighbor,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
                                        density_calculator,
-                                       correction::Union{Nothing, ShepardKernelCorrection,
-                                                         AkinciFreeSurfaceCorrection})
+                                       correction)
 
     # By default, just call the pressure acceleration formulation corresponding to the density calculator
     return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
@@ -86,9 +85,12 @@ end
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        grad_kernel, particle_system, neighbor,
-                                       neighbor_system,
+                                       neighbor_system::WeaklyCompressibleSPHSystem,
                                        density_calculator,
-                                       correction)
+                                       correction::Union{KernelCorrection,
+                                                         GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection})
 
     # By default, just call the pressure acceleration formulation corresponding to a locally corrected gradient
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b,
