@@ -353,7 +353,7 @@ with ``0 \leq \lambda \leq 1`` being the blending factor.
 - `blending_factor`: Blending factor between corrected and regular SPH gradient.
 """
 struct BlendedGradientCorrection{ELTYPE <: Real}
-    blending_factor   :: ELTYPE
+    blending_factor::ELTYPE
 
     function BlendedGradientCorrection(blending_factor)
         return new{eltype(blending_factor)}(blending_factor)
