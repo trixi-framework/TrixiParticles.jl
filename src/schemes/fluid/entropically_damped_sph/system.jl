@@ -72,15 +72,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
         density_calculator = SummationDensity()
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(initial_pressure_function)}(initial_condition, mass,
-                                                                  density,
-                                                                  density_calculator,
-                                                                  smoothing_kernel,
-                                                                  smoothing_length,
-                                                                  sound_speed, viscosity,
-                                                                  nu_edac,
-                                                                  initial_pressure_function,
-                                                                  acceleration_)
+            typeof(viscosity), typeof(initial_pressure_function)}
+        (initial_condition, mass, density, density_calculator, smoothing_kernel,
+         smoothing_length, sound_speed, viscosity, nu_edac, initial_pressure_function,
+         acceleration_)
     end
 end
 
