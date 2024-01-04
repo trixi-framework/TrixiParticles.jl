@@ -21,6 +21,9 @@ The function relies on the existing `interpolate_point` function for performing 
 - `endpoint`: Optional. A boolean to include (`true`) or exclude (`false`) the end point in the interpolation. Default is `true`.
 - `smoothing_length`: Optional. The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
 
+### Keyword Arguments
+- `cut_off_bnd`: Cut-off at the boundary.
+
 ### Returns:
 An array of interpolated properties at each point along the line.
 
@@ -36,7 +39,7 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 """
 function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
                           smoothing_length=ref_system.smoothing_length,
-                          calculate_other_system_density=false)
+                          cut_off_bnd=true)
     points_coords = [start +
                      (end_ - start) *
                      (endpoint ? t / (no_points - 1) : (t + 1) / (no_points + 1))
@@ -46,7 +49,7 @@ function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoin
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
                                    smoothing_length=smoothing_length,
-                                   calculate_other_system_density=calculate_other_system_density)
+                                   cut_off_bnd=cut_off_bnd)
         push!(results, result)
     end
 
@@ -73,6 +76,9 @@ The interpolation is based on the SPH method, utilizing a kernel function to wei
 - `sol`: The current solution state from which properties are interpolated.
 - `smoothing_length`: Optional. The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
 
+### Keyword Arguments
+- `cut_off_bnd`: Cut-off at the boundary.
+
 ### Returns:
 - For multiple points: An array of results, each containing the interpolated property (e.g., density), the neighbor count, and the coordinates of the point.
 - For a single point: A tuple containing the interpolated property, the neighbor count, and the coordinates of the point.
@@ -92,13 +98,13 @@ results = interpolate_point(points, semi, ref_system, sol)
 """
 function interpolate_point(points_coords::Array{Array{Float64, 1}, 1}, semi, ref_system,
                            sol; smoothing_length=ref_system.smoothing_length,
-                           calculate_other_system_density=false)
+                           cut_off_bnd=true)
     results = []
 
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
                                    smoothing_length=smoothing_length,
-                                   calculate_other_system_density=calculate_other_system_density)
+                                   cut_off_bnd=cut_off_bnd)
         push!(results, result)
     end
 
@@ -107,9 +113,39 @@ end
 
 function interpolate_point(point_coords, semi, ref_system, sol;
                            smoothing_length=ref_system.smoothing_length,
-                           calculate_other_system_density=false)
+                           cut_off_bnd=true)
+    neighborhood_searches = process_neighborhood_searches(semi, sol, ref_system,
+    smoothing_length)
+
+    return interpolate_point(SVector{ndims(ref_system)}(point_coords), semi, ref_system,
+                    sol, neighborhood_searches, smoothing_length=smoothing_length,
+                    cut_off_bnd=cut_off_bnd)
+end
+
+function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
+    if isapprox(smoothing_length, ref_system.smoothing_length)
+        # Update existing NHS
+        update_nhs(sol.u[end].x[2], semi)
+        neighborhood_searches = semi.neighborhood_searches[system_indices(ref_system, semi)]
+    else
+        ref_smoothing_kernel = ref_system.smoothing_kernel
+        search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
+        neighborhood_searches = map(semi.systems) do system
+            u = wrap_u(sol[end].x[2], system, semi)
+            system_coords = current_coordinates(u, system)
+            old_nhs = get_neighborhood_search(ref_system, system, semi)
+            nhs = create_neighborhood_search(system_coords, system, old_nhs, search_radius)
+            return nhs
+        end
+    end
+
+    return neighborhood_searches
+end
+
+@inline function interpolate_point(point_coords, semi, ref_system, sol,
+    neighborhood_searches; smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
     interpolated_density = 0.0
-    interpolated_velocity = zeros(size(point_coords))
+    interpolated_velocity = zero(SVector{ndims(ref_system)})
     interpolated_pressure = 0.0
 
     shepard_coefficient = 0.0
@@ -118,12 +154,8 @@ function interpolate_point(point_coords, semi, ref_system, sol;
     ref_density = 0.0
     other_density = 0.0
     ref_smoothing_kernel = ref_system.smoothing_kernel
-    search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
-    search_radius2 = search_radius^2
-    min_dist_ref = 10 * search_radius
-    min_dist_other = 10 * search_radius
 
-    if calculate_other_system_density
+    if cut_off_bnd
         systems = semi
     else
         systems = (ref_system,)
@@ -131,25 +163,21 @@ function interpolate_point(point_coords, semi, ref_system, sol;
 
     foreach_system(systems) do system
         system_id = system_indices(system, semi)
+        nhs = neighborhood_searches[system_id]
+        (; search_radius, periodic_box) = nhs
+
         v = wrap_v(sol.u[end].x[1], system, semi)
         u = wrap_u(sol.u[end].x[2], system, semi)
 
         system_coords = current_coordinates(u, system)
-        nhs = get_neighborhood_search(system, semi)
-        if system isa FluidSystem
-            nhs = create_neighborhood_search(u, system, nhs, search_radius)
-        else
-            nhs = create_neighborhood_search(initial_coordinates(system), system, nhs,
-                                             search_radius)
-        end
 
         for particle in eachneighbor(point_coords, nhs)
             coords = extract_svector(system_coords, Val(ndims(system)), particle)
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, nhs)
-            if distance2 > search_radius2
+            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, search_radius, periodic_box)
+            if distance2 > search_radius^2
                 continue
             end
 
@@ -163,7 +191,7 @@ function interpolate_point(point_coords, semi, ref_system, sol;
 
                 volume = mass / particle_density(v, system, particle)
                 particle_velocity = current_velocity(v, system, particle)
-                interpolated_velocity .+= particle_velocity * (volume * kernel_value)
+                interpolated_velocity += particle_velocity * (volume * kernel_value)
 
                 particle_pressure = pressure(system, particle)
                 interpolated_pressure += particle_pressure * (volume * kernel_value)
@@ -172,14 +200,8 @@ function interpolate_point(point_coords, semi, ref_system, sol;
 
             if system_id === ref_id
                 ref_density += m_W
-                if min_dist_ref > distance
-                    min_dist_ref = distance
-                end
             else
                 other_density += m_W
-                if min_dist_other > distance
-                    min_dist_other = distance
-                end
             end
 
             neighbor_count += 1
@@ -187,8 +209,7 @@ function interpolate_point(point_coords, semi, ref_system, sol;
     end
 
     # point is not within the ref_system
-    if (other_density > ref_density && min_dist_other < min_dist_ref) ||
-       shepard_coefficient < eps()
+    if other_density > ref_density || shepard_coefficient < eps()
         return (density=0.0, neighbor_count=0, coord=point_coords,
                 velocity=zeros(size(point_coords)), pressure=0.0)
     end
