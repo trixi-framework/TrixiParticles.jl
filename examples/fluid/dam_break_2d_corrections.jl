@@ -7,7 +7,7 @@ particle_spacing = 0.05
 tspan = (0.0, 5.7 / sqrt(9.81))
 
 correction_dict = Dict(
-    "no_correction" => Nothing(),
+    "no_correction" => nothing,
     "shepard_kernel_correction" => ShepardKernelCorrection(),
     "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
     "kernel_gradient_summation_correction" => KernelCorrection(),

@@ -361,7 +361,7 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
-# called by DensityDiffusion and TLSPH
+# Called only by DensityDiffusion and TLSPH
 function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
                                              system, coordinates, density_fun)
     (; mass) = system

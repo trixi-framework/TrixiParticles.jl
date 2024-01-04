@@ -1,12 +1,9 @@
 abstract type System{NDIMS} end
 
-# WCSPH EDAC
 abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 
-# TLSPH
 abstract type SolidSystem{NDIMS} <: System{NDIMS} end
 
-# all Boundary Condition Systems
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 
 timer_name(::FluidSystem) = "fluid"
