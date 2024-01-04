@@ -413,10 +413,12 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        u_ode, v_ode, semi, correction, smoothing_length, smoothing_kernel)
+                                        u_ode, v_ode, semi, correction, smoothing_length,
+                                        smoothing_kernel)
 end
 
-function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode, semi)
+function compute_density!(boundary_model, ::SummationDensity, system, v, u, v_ode, u_ode,
+                          semi)
     (; cache) = boundary_model
     (; density) = cache # Density is in the cache for SummationDensity
 

@@ -240,7 +240,8 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-        u_ode, v_ode, semi, correction, smoothing_length, smoothing_kernel)
+                                        u_ode, v_ode, semi, correction, smoothing_length,
+                                        smoothing_kernel)
 end
 
 function reinit_density!(vu_ode, semi)
