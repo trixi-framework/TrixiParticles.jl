@@ -200,8 +200,8 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi, density_calculator,
-                               correction)
+    compute_correction_values!(system,
+                               correction, v, u, v_ode, u_ode, semi, density_calculator)
 
     compute_gradient_correction_matrix!(correction, system, semi, u_ode, v_ode, u)
 

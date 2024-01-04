@@ -368,8 +368,8 @@ end
                                   system, v, u, v_ode, u_ode, semi)
     (; density_calculator, correction) = boundary_model
 
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi, density_calculator,
-                               correction)
+    compute_correction_values!(system,
+                               correction, v, u, v_ode, u_ode, semi, density_calculator)
 
     compute_gradient_correction_matrix!(correction, boundary_model, system, semi, u_ode,
                                         v_ode, u)

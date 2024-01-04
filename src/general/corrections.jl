@@ -161,19 +161,21 @@ function kernel_correction_coefficient(system::BoundarySystem, particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]
 end
 
-function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                                    density_calculator, correction)
+function compute_correction_values!(system, correction, v, u, v_ode, u_ode, semi,
+                                    density_calculator)
     return system
 end
 
-function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                                    ::SummationDensity, ::ShepardKernelCorrection)
+function compute_correction_values!(system, ::ShepardKernelCorrection, v, u, v_ode, u_ode,
+                                    semi,
+                                    ::SummationDensity)
     return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
-                                    ::SummationDensity, ::ShepardKernelCorrection)
+function compute_correction_values!(system::BoundarySystem, ::ShepardKernelCorrection, v, u,
+                                    v_ode, u_ode, semi,
+                                    ::SummationDensity)
     return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
                                   system.boundary_model.cache.kernel_correction_coefficient)
 end
@@ -217,33 +219,35 @@ function dw_gamma(system::BoundarySystem, particle)
     return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
 end
 
-function compute_correction_values!(system::FluidSystem, v, u, v_ode, u_ode, semi,
-                                    density_calculator,
+function compute_correction_values!(system::FluidSystem,
                                     correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection})
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
+                                                      MixedKernelGradientCorrection}, v, u,
+                                    v_ode, u_ode, semi,
+                                    density_calculator)
+    compute_correction_values!(system, correction,
+                               v, u, v_ode, u_ode, semi,
                                density_calculator,
-                               correction,
                                system.cache.kernel_correction_coefficient,
                                system.cache.dw_gamma)
 end
 
-function compute_correction_values!(system::BoundarySystem, v, u, v_ode, u_ode, semi,
-                                    density_calculator,
+function compute_correction_values!(system::BoundarySystem,
                                     correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection})
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
+                                                      MixedKernelGradientCorrection}, v, u,
+                                    v_ode, u_ode, semi,
+                                    density_calculator)
+    compute_correction_values!(system, correction, v, u, v_ode, u_ode, semi,
                                density_calculator,
-                               correction,
                                system.boundary_model.cache.kernel_correction_coefficient,
                                system.boundary_model.cache.dw_gamma)
 end
 
-function compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                                    density_calculator,
+function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection},
-                                    kernel_correction_coefficient, dw_gamma)
+                                            MixedKernelGradientCorrection}, v, u, v_ode,
+                                    u_ode, semi,
+                                    density_calculator, kernel_correction_coefficient,
+                                    dw_gamma)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
