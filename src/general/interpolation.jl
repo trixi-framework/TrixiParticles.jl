@@ -45,15 +45,9 @@ function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoin
                      (endpoint ? t / (no_points - 1) : (t + 1) / (no_points + 1))
                      for t in 0:(no_points - 1)]
 
-    results = []
-    for point in points_coords
-        result = interpolate_point(point, semi, ref_system, sol,
-                                   smoothing_length=smoothing_length,
-                                   cut_off_bnd=cut_off_bnd)
-        push!(results, result)
-    end
-
-    return results
+    return interpolate_point(points_coords, semi, ref_system, sol,
+                             smoothing_length=smoothing_length,
+                             cut_off_bnd=cut_off_bnd)
 end
 
 @doc raw"""
@@ -99,27 +93,36 @@ results = interpolate_point(points, semi, ref_system, sol)
 function interpolate_point(points_coords::Array{Array{Float64, 1}, 1}, semi, ref_system,
                            sol; smoothing_length=ref_system.smoothing_length,
                            cut_off_bnd=true)
-    results = []
+    densities = []
+    neighbor_counts = []
+    coords = []
+    velocities = []
+    pressures = []
 
     for point in points_coords
         result = interpolate_point(point, semi, ref_system, sol,
                                    smoothing_length=smoothing_length,
                                    cut_off_bnd=cut_off_bnd)
-        push!(results, result)
+        push!(densities, result.density)
+        push!(neighbor_counts, result.neighbor_count)
+        push!(coords, result.coord)
+        push!(velocities, result.velocity)
+        push!(pressures, result.pressure)
     end
 
-    return results
+    return (density=densities, neighbor_count=neighbor_counts, coord=coords,
+            velocity=velocities, pressure=pressures)
 end
 
 function interpolate_point(point_coords, semi, ref_system, sol;
                            smoothing_length=ref_system.smoothing_length,
                            cut_off_bnd=true)
     neighborhood_searches = process_neighborhood_searches(semi, sol, ref_system,
-    smoothing_length)
+                                                          smoothing_length)
 
     return interpolate_point(SVector{ndims(ref_system)}(point_coords), semi, ref_system,
-                    sol, neighborhood_searches, smoothing_length=smoothing_length,
-                    cut_off_bnd=cut_off_bnd)
+                             sol, neighborhood_searches, smoothing_length=smoothing_length,
+                             cut_off_bnd=cut_off_bnd)
 end
 
 function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
@@ -143,7 +146,9 @@ function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
 end
 
 @inline function interpolate_point(point_coords, semi, ref_system, sol,
-    neighborhood_searches; smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+                                   neighborhood_searches;
+                                   smoothing_length=ref_system.smoothing_length,
+                                   cut_off_bnd=true)
     interpolated_density = 0.0
     interpolated_velocity = zero(SVector{ndims(ref_system)})
     interpolated_pressure = 0.0
@@ -176,7 +181,8 @@ end
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, search_radius, periodic_box)
+            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
+                                                            search_radius, periodic_box)
             if distance2 > search_radius^2
                 continue
             end

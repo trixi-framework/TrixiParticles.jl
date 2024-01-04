@@ -1,6 +1,5 @@
 using TrixiParticles
 using OrdinaryDiffEq
-# using PyPlot
 
 # ==========================================================================================
 # ==== Resolution
@@ -109,21 +108,20 @@ println(interpolate_point([
                               [1.0, -0.05],
                           ], semi, fluid_system, sol))
 
+# using PyPlot
+
 # # it is also possible to interpolate along a line
 # result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
 # result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
 #                                    endpoint=false)
-# # Extract densities and coordinates for plotting
-# densities = [r.density for r in result]
-# coords = [r.coord[2] for r in result]  # Assuming you want to plot against the y-coordinate
 
-# densities_endpoint = [r.density for r in result_endpoint]
-# coords_endpoint = [r.coord[2] for r in result_endpoint]
+# # Extracting wall distance for the standard and endpoint cases
+# walldistance = [coord[2] for coord in result.coord]
+# walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
-# # Create the plot
 # figure()
-# plot(coords, densities, marker="o", linestyle="-", label="With Endpoint")
-# plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--",
+# plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
+# plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
 #      label="Without Endpoint")
 
 # # Add labels and legend
