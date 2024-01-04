@@ -118,25 +118,23 @@ struct StateEquationCole{ELTYPE, CLIP} # Boolean to clip negative pressure
     sound_speed         :: ELTYPE
     gamma               :: ELTYPE
     reference_density   :: ELTYPE
-    reference_pressure  :: ELTYPE
     background_pressure :: ELTYPE
 
-    function StateEquationCole(sound_speed, gamma, reference_density, reference_pressure;
+    function StateEquationCole(; sound_speed, reference_density, gamma=7,
                                background_pressure=0.0, clip_negative_pressure=false)
         new{typeof(sound_speed),
             clip_negative_pressure}(sound_speed, gamma, reference_density,
-                                    reference_pressure, background_pressure)
+                                    background_pressure)
     end
 end
 
 clip_negative_pressure(::StateEquationCole{<:Any, CLIP}) where {CLIP} = CLIP
 
 function (state_equation::StateEquationCole)(density)
-    (; sound_speed, gamma, reference_density, reference_pressure, background_pressure) = state_equation
+    (; sound_speed, gamma, reference_density, background_pressure) = state_equation
 
-    pressure = reference_density * sound_speed^2 / gamma *
-               ((density / reference_density)^gamma - 1) +
-               reference_pressure - background_pressure
+    p_0 = reference_density * sound_speed^2 / gamma
+    pressure = p_0 * ((density / reference_density)^gamma - 1) + background_pressure
 
     # This is determined statically and has therefore no overhead
     if clip_negative_pressure(state_equation)
@@ -147,11 +145,10 @@ function (state_equation::StateEquationCole)(density)
 end
 
 function inverse_state_equation(state_equation::StateEquationCole, pressure)
-    (; sound_speed, gamma, reference_density, reference_pressure, background_pressure) = state_equation
+    (; sound_speed, gamma, reference_density, background_pressure) = state_equation
 
-    tmp = gamma * (pressure + background_pressure - reference_pressure) /
-          (reference_density * sound_speed^2) + 1
-    density = reference_density * tmp^(1 / gamma)
+    p_0 = reference_density * sound_speed^2 / gamma
+    tmp = (pressure - background_pressure) / p_0 + 1
 
-    return density
+    return reference_density * tmp^(1 / gamma)
 end
