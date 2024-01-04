@@ -34,8 +34,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               prefix="continuity_reinit", tspan=tspan)
 
 # Clip negative pressure to be able to use `SummationDensity`
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure,
+state_equation = StateEquationCole(sound_speed, reference_density=fluid_density,
                                    clip_negative_pressure=true)
 
 for correction_name in keys(correction_dict)
