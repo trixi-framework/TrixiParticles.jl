@@ -38,7 +38,7 @@ density and therefore strong attractive forces between particles at the free sur
 Setting `clip_negative_pressure=true` can avoid this.
 
 # Keywords
-- `gamma=7`: To limit density variation to 1%, an average value of ``\gamma=7`` is ususally used.
+- `gamma=7`: To limit density variation to 1%, an average value of ``\gamma=7`` is usually used.
 - `background_pressure=0.0`: Background pressure
 - `reference_density`: Reference density of fluid
 - `sound_speed`: Artificial speed of sound.
