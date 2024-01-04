@@ -393,7 +393,7 @@ function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
 end
 
 function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
-                                             coordinates, u_ode, v_ode, semi,
+                                             coordinates, v_ode, u_ode, semi,
                                              correction, smoothing_length, smoothing_kernel)
     set_zero!(corr_matrix)
 
@@ -448,20 +448,6 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 end
 
 function correction_matrix_inversion_step!(corr_matrix, system)
-    @inline function invert(inverse, A, particle, system)
-        A_inv = inv(A)
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            inverse[i, j, particle] = A_inv[i, j]
-        end
-    end
-
-    @inline function pseudo_invert(inverse, A, particle, system)
-        A_inv = pinv(A)
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            inverse[i, j, particle] = A_inv[i, j]
-        end
-    end
-
     @threaded for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
         norm_ = norm(L)
@@ -481,9 +467,15 @@ function correction_matrix_inversion_step!(corr_matrix, system)
 
         det_ = abs(det(L))
         @fastmath if det_ < 1e-6 * norm_
-            pseudo_invert(corr_matrix, L, particle, system)
+            L_inv = pinv(L)
+            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+                corr_matrix[i, j, particle] = L_inv[i, j]
+            end
             continue
         end
-        invert(corr_matrix, L, particle, system)
+        L_inv = inv(L)
+        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
+            corr_matrix[i, j, particle] = L_inv[i, j]
+        end
     end
 end

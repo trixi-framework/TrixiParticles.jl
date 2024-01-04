@@ -203,7 +203,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     compute_correction_values!(system,
                                correction, v, u, v_ode, u_ode, semi, density_calculator)
 
-    compute_gradient_correction_matrix!(correction, system, u, u_ode, v_ode, semi)
+    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
@@ -225,7 +225,7 @@ end
 
 function compute_gradient_correction_matrix!(correction,
                                              system::WeaklyCompressibleSPHSystem, u,
-                                             u_ode, v_ode, semi)
+                                             v_ode, u_ode, semi)
     return system
 end
 
@@ -233,14 +233,14 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              system::WeaklyCompressibleSPHSystem, u,
-                                             u_ode, v_ode, semi)
+                                             v_ode, u_ode, semi)
     (; cache, correction, smoothing_kernel, smoothing_length) = system
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        u_ode, v_ode, semi, correction, smoothing_length,
+                                        v_ode, u_ode, semi, correction, smoothing_length,
                                         smoothing_kernel)
 end
 

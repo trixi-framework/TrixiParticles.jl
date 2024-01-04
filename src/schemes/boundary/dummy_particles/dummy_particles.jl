@@ -376,8 +376,8 @@ end
     compute_correction_values!(system,
                                correction, v, u, v_ode, u_ode, semi, density_calculator)
 
-    compute_gradient_correction_matrix!(correction, boundary_model, system, u, u_ode,
-                                        v_ode, semi)
+    compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
+                                        semi)
 
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi, correction,
@@ -399,7 +399,7 @@ function kernel_correct_density!(boundary_model, v, u, v_ode, u_ode, semi,
 end
 
 function compute_gradient_correction_matrix!(correction, boundary_model, system, u,
-                                             u_ode, v_ode, semi)
+                                             v_ode, u_ode, semi)
     return system
 end
 
@@ -407,14 +407,14 @@ function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection},
                                              boundary_model,
-                                             system, u, u_ode, v_ode, semi)
+                                             system, u, v_ode, u_ode, semi)
     (; cache, correction, smoothing_kernel, smoothing_length) = boundary_model
     (; correction_matrix) = cache
 
     system_coords = current_coordinates(u, system)
 
     compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
-                                        u_ode, v_ode, semi, correction, smoothing_length,
+                                        v_ode, u_ode, semi, correction, smoothing_length,
                                         smoothing_kernel)
 end
 
