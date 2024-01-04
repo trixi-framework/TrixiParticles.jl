@@ -357,9 +357,9 @@ struct BlendedGradientCorrection{ELTYPE <: Real}
     end
 end
 
+# called by DensityDiffusion and TLSPH
 function compute_gradient_correction_matrix!(corr_matrix, neighborhood_search,
-                                             system::SolidSystem,
-                                             coordinates, density_fun)
+                                             system, coordinates, density_fun)
     (; mass) = system
 
     set_zero!(corr_matrix)
@@ -478,7 +478,7 @@ function correction_matrix_inversion_step!(corr_matrix, system)
     end
 
     @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
+        L = extract_smatrix(corr_matrix, system, particle)
         norm_ = norm(L)
 
         # The norm value is quasi-zero, so there are probably no neighbors for this particle
