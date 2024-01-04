@@ -473,19 +473,29 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
-        # The summation is only over fluid particles, thus the volume stays zero when a boundary
-        # particle isn't surrounded by fluid particles.
-        # Check the volume to avoid NaNs in pressure and velocity.
-        if volume[particle] > eps()
-            pressure[particle] /= volume[particle]
-
-            # To impose no-slip condition
-            compute_wall_velocity!(viscosity, system, system_coords, particle)
-        end
-
-        # Apply inverse state equation to compute density (not used with EDAC)
-        inverse_state_equation!(density, state_equation, pressure, particle)
+        compute_adami_density!(boundary_model, system, system_coords, particle)
     end
+end
+
+# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+function compute_adami_density!(boundary_model, system, system_coords, particle)
+    (; pressure, state_equation, cache, viscosity) = boundary_model
+    (; volume, density) = cache
+
+    # The summation is only over fluid particles, thus the volume stays zero when a boundary
+    # particle isn't surrounded by fluid particles.
+    # Check the volume to avoid NaNs in pressure and velocity.
+    if volume[particle] > eps()
+        pressure[particle] /= volume[particle]
+
+        # To impose no-slip condition
+        compute_wall_velocity!(viscosity, system, system_coords, particle)
+    end
+
+    # Apply inverse state equation to compute density (not used with EDAC)
+    inverse_state_equation!(density, state_equation, pressure, particle)
 end
 
 function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZeroing},

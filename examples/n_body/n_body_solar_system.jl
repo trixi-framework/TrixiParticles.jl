@@ -44,7 +44,14 @@ saving_callback = SolutionSavingCallback(dt=10day)
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # One RHS evaluation is so fast that timers make it multiple times slower.
-TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+# Disabling timers throws a warning, which we suppress here in order to make the tests pass.
+# For some reason, this only works with a file and not with devnull. See issue #332.
+filename = tempname()
+open(filename, "w") do f
+    redirect_stderr(f) do
+        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+    end
+end
 
 sol = solve(ode, SymplecticEuler(),
             dt=1.0e5,
@@ -53,5 +60,9 @@ sol = solve(ode, SymplecticEuler(),
 @printf("%.9e\n", energy(ode.u0.x..., particle_system, semi))
 @printf("%.9e\n", energy(sol.u[end].x..., particle_system, semi))
 
-# Enable timers again.
-TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+# Enable timers again
+open(filename, "w") do f
+    redirect_stderr(f) do
+        TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+    end
+end
