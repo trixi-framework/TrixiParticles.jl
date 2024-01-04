@@ -354,7 +354,6 @@ with ``0 \leq \lambda \leq 1`` being the blending factor.
 """
 struct BlendedGradientCorrection{ELTYPE <: Real}
     blending_factor   :: ELTYPE
-    use_factorization :: Bool
 
     function BlendedGradientCorrection(blending_factor)
         return new{eltype(blending_factor)}(blending_factor)
