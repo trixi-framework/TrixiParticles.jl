@@ -55,7 +55,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             # debug_array[i, particle] += dv_pressure[i]
         end
 
-        # if variable smoothing_length is used this uses the neighbor smoothing length
+        # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
