@@ -20,7 +20,7 @@ tank_size = (4.0, 4.0)
 
 fluid_density = 1000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(sound_speed, reference_density=fluid_density)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio)
