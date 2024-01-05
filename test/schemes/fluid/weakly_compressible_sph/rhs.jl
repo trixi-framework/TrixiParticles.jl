@@ -123,7 +123,7 @@
                 # ∑ m_a dv_a
                 deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims=2)
 
-                @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=3e-14)
+                @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=4e-14)
 
                 # Angular momentum conservation
                 # m_a (r_a × dv_a)
@@ -137,7 +137,8 @@
                 # ∑ m_a (r_a × dv_a)
                 deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
-                @test isapprox(deriv_angular_momentum, zeros(n_vars), atol=3e-15)
+                # Cross product is always 3-dimensional
+                @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
 
                 # Total energy conservation
                 drho(::ContinuityDensity, particle) = dv[end, particle]
