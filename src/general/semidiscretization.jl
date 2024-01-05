@@ -101,8 +101,8 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
     return search
 end
 
-# create a copy of a neighborhood search but with a different search radius
-function create_neighborhood_search(u, system, nhs::GridNeighborhoodSearch, search_radius)
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::GridNeighborhoodSearch, search_radius, u)
     if nhs.periodic_box isa Nothing
         search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs))
     else

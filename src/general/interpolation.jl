@@ -147,7 +147,7 @@ function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
             u = wrap_u(sol.u[end].x[2], system, semi)
             system_coords = current_coordinates(u, system)
             old_nhs = get_neighborhood_search(ref_system, system, semi)
-            nhs = create_neighborhood_search(system_coords, system, old_nhs, search_radius)
+            nhs = copy_neighborhood_search(old_nhs, search_radius, system_coords)
             return nhs
         end
     end
