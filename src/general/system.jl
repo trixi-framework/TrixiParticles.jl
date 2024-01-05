@@ -1,5 +1,3 @@
-abstract type System{NDIMS} end
-
 initialize!(system, neighborhood_search) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS

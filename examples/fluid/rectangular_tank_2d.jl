@@ -67,8 +67,9 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+pp_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
