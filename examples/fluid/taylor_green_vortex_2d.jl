@@ -28,8 +28,6 @@ b = -8pi^2 / reynolds_number
 p(pos) = -U^2 * exp(2 * b * 0) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
 p(pos, t) = -U^2 * exp(2 * b * t) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
 
-v_x(pos) = -U * exp(b * 0) * cos(2pi * pos[1]) * sin(2pi * pos[2])
-v_y(pos) = U * exp(b * 0) * sin(2pi * pos[1]) * cos(2pi * pos[2])
 v_x(pos, t) = -U * exp(b * t) * cos(2pi * pos[1]) * sin(2pi * pos[2])
 v_y(pos, t) = U * exp(b * t) * sin(2pi * pos[1]) * cos(2pi * pos[2])
 

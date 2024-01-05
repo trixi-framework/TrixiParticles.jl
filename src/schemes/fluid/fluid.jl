@@ -45,9 +45,8 @@ end
 
 @inline function initial_velocity(system, particle, init_velocity_function)
     position = initial_coords(system, particle)
-    v_init = SVector(ntuple(i -> init_velocity_function[i](position), Val(ndims(system))))
 
-    return v_init
+    return SVector(ntuple(i -> init_velocity_function[i](position, 0), Val(ndims(system))))
 end
 
 @inline viscosity_model(system::FluidSystem) = system.viscosity
