@@ -14,7 +14,7 @@ pp_cb = PostprocessCallback([
                                 TrixiParticles.max_density,
                                 TrixiParticles.min_density,
                                 TrixiParticles.avg_density,
-                            ], interval=10)
+                            ], interval=25)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               pp_callback=pp_cb)

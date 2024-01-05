@@ -21,6 +21,10 @@ end
 
 # TODO: implement exclude_bnd
 # TODO: include current git hash
+# TODO: add description for each entry
+# TODO: add filename
+# TODO: add overwrite option
+# TODO: option to save initial
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -209,39 +213,88 @@ function test_function(pp, t, system, u, v, system_name)
 end
 
 function calculate_ekin(pp, t, system, u, v, system_name)
-    mass = system.mass
-
     ekin = 0.0
     for particle in each_moving_particle(system)
         velocity = current_velocity(v, system, particle)
-        ekin += 0.5 * mass[particle] * dot(velocity, velocity)
+        ekin += 0.5 * hydrodynamic_mass(system, particle) * dot(velocity, velocity)
     end
     add_entry!(pp, "ekin", t, ekin, system_name)
 end
 
 function calculate_total_mass(pp, t, system, u, v, system_name)
-    mass = system.mass
     total_mass = 0.0
     for particle in each_moving_particle(system)
-        total_mass += mass[particle]
+        total_mass += hydrodynamic_mass(system, particle)
     end
     add_entry!(pp, "totalm", t, total_mass, system_name)
 end
 
 function max_pressure(pp, t, system, u, v, system_name)
+    max_p = 0.0
+    for particle in each_moving_particle(system)
+        pressure = particle_pressure(v, system, particle)
+        if max_p < pressure
+            max_p = pressure
+        end
+    end
+    add_entry!(pp, "maxp", t, max_p, system_name)
 end
 
 function min_pressure(pp, t, system, u, v, system_name)
+    min_p = typemax(Int64)
+    for particle in each_moving_particle(system)
+        pressure = particle_pressure(v, system, particle)
+        if min_p > pressure
+            min_p = pressure
+        end
+    end
+    add_entry!(pp, "minp", t, min_p, system_name)
 end
 
 function avg_pressure(pp, t, system, u, v, system_name)
+    total_pressure = 0.0
+    count = 0
+
+    for particle in each_moving_particle(system)
+        total_pressure += particle_pressure(v, system, particle)
+        count += 1
+    end
+
+    avg_p = count > 0 ? total_pressure / count : 0.0
+    add_entry!(pp, "avgp", t, avg_p, system_name)
 end
 
 function max_density(pp, t, system, u, v, system_name)
+    max_rho = 0.0
+    for particle in each_moving_particle(system)
+        rho = particle_density(v, system, particle)
+        if max_rho < rho
+            max_rho = rho
+        end
+    end
+    add_entry!(pp, "maxrho", t, max_rho, system_name)
 end
 
 function min_density(pp, t, system, u, v, system_name)
+    min_rho = typemax(Int64)
+    for particle in each_moving_particle(system)
+        rho = particle_density(v, system, particle)
+        if min_rho > rho
+            min_rho = rho
+        end
+    end
+    add_entry!(pp, "minrho", t, min_rho, system_name)
 end
 
 function avg_density(pp, t, system, u, v, system_name)
+    total_density = 0.0
+    count = 0
+
+    for particle in each_moving_particle(system)
+        total_density += particle_density(v, system, particle)
+        count += 1
+    end
+
+    avg_rho = count > 0 ? total_density / count : 0.0
+    add_entry!(pp, "avgp", t, avg_rho, system_name)
 end
