@@ -77,22 +77,20 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor, neighbor_system,
-                                       v_neighbor_system,
-                                       boundary_model::BoundaryModelMonaghanKajtar, rho_a,
-                                       rho_b, pos_diff, distance, grad_kernel,
-                                       density_calculator)
-    (; smoothing_length) = particle_system
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff::SVector{NDIMS},
+                                       smoothing_length, grad_kernel,
+                                       boundary_model::BoundaryModelMonaghanKajtar,
+                                       density_calculator) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
-    NDIMS = ndims(particle_system)
+    distance = norm(pos_diff)
     return K / beta^(NDIMS - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
            boundary_kernel(distance, smoothing_length)
 end
 
-@inline function boundary_kernel(r, h)
+@fastpow @inline function boundary_kernel(r, h)
     q = r / h
 
     # TODO The neighborhood search fluid->boundary should use this search distance
@@ -112,15 +110,16 @@ end
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
 
+# This model does not not use any particle pressure
+particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = zero(eltype(v))
+
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                  system_index,
                                   v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model
 end
 
 @inline function update_density!(boundary_model::BoundaryModelMonaghanKajtar, system,
-                                 system_index,
                                  v, u, v_ode, u_ode, semi)
     # Nothing to do in the update step
     return boundary_model

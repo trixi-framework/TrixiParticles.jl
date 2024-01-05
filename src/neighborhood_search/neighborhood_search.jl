@@ -48,8 +48,8 @@ end
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
-# with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function for_particle_neighbor_inner(f, system_coords, neighbor_system_coords,
                                              neighborhood_search, particle)

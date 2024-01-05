@@ -41,9 +41,12 @@ export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
-       SchoenbergQuinticSplineKernel
+       SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
+       WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationIdealGas, StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
+export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
+       DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing
 export BoundaryMovement

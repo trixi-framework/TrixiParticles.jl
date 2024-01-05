@@ -81,19 +81,19 @@ end
 end
 
 # System update orders. This can be dispatched if needed.
-function update_positions!(system, system_index, v, u, v_ode, u_ode, semi, t)
+function update_positions!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_quantities!(system, system_index, v, u, v_ode, u_ode, semi, t)
+function update_quantities!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_pressure!(system, system_index, v, u, v_ode, u_ode, semi, t)
+function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_final!(system, system_index, v, u, v_ode, u_ode, semi, t)
+function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 

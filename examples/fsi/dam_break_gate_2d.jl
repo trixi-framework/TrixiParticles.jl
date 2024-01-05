@@ -8,76 +8,66 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+# ==========================================================================================
+# ==== Resolution
+# Note that the effect of the gate is less pronounced with lower fluid resolutions,
+# since "larger" particles don't fit through the slightly opened gate. Lower fluid
+# resolutions thereforce cause a later and more violent fluid impact against the gate.
+fluid_particle_spacing = 0.02
+n_particles_x = 5
+
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 3
+spacing_ratio = 1
+
+boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 # ==========================================================================================
-# ==== Fluid
+# ==== Experiment Setup
+gravity = 9.81
+tspan = (0.0, 1.0)
 
-# Note that the effect of the gate is less pronounced with lower resolutions,
-# since "larger" particles don't fit through the slightly opened gate.
-fluid_particle_spacing = 0.02
+# Boundary geometry and initial fluid particle positions
+initial_fluid_size = (0.2, 0.4)
+tank_size = (0.8, 0.8)
 
-# Spacing ratio between fluid and boundary particles
-beta_tank = 1
-beta_gate = 1
-tank_layers = 3
-gate_layers = 3
+fluid_density = 997.0
+atmospheric_pressure = 100000.0
+sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
+                                   background_pressure=atmospheric_pressure)
 
-water_width = 0.2
-water_height = 0.4
-water_density = 997.0
-
-tank_width = 0.8
-tank_height = 0.8
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # Make the gate slightly higher than the fluid
-gate_height = water_height + 4 * fluid_particle_spacing
+gate_height = initial_fluid_size[2] + 4 * fluid_particle_spacing
 
-sound_speed = 20 * sqrt(9.81 * water_height)
-
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
-
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
-
-tank = RectangularTank(fluid_particle_spacing, (water_width, water_height),
-                       (tank_width, tank_height), water_density,
-                       n_layers=tank_layers, spacing_ratio=beta_tank,
-                       acceleration=(0.0, gravity), state_equation=state_equation)
-
-gate = RectangularShape(fluid_particle_spacing / beta_gate,
-                        (gate_layers,
-                         round(Int, gate_height / fluid_particle_spacing * beta_gate)),
-                        (water_width, 0.0), water_density)
+gate = RectangularShape(boundary_particle_spacing,
+                        (boundary_layers,
+                         round(Int, gate_height / boundary_particle_spacing)),
+                        (initial_fluid_size[1], 0.0), fluid_density)
 
 # Movement of the gate according to the paper
 f_x(t) = 0.0
 f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
 is_moving(t) = t < 0.1
 
-movement = BoundaryMovement((f_x, f_y), is_moving)
+gate_movement = BoundaryMovement((f_x, f_y), is_moving)
 
-# ==========================================================================================
-# ==== Solid
-
+# Elastic plate/beam
 length_beam = 0.09
 thickness = 0.004
 solid_density = 1161.54
-n_particles_x = 5
-
-# The structure starts at the position of the first particle and ends
-# at the position of the last particle.
-solid_particle_spacing = thickness / (n_particles_x - 1)
-
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # Young's modulus and Poisson ratio
 E = 3.5e6
 nu = 0.45
+
+# The structure starts at the position of the first particle and ends
+# at the position of the last particle.
+solid_particle_spacing = thickness / (n_particles_x - 1)
 
 n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 
@@ -98,31 +88,44 @@ fixed_particles = RectangularShape(solid_particle_spacing,
 solid = union(plate, fixed_particles)
 
 # ==========================================================================================
-# ==== Boundary models
+# ==== Fluid
+smoothing_length = 1.2 * fluid_particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
+fluid_density_calculator = ContinuityDensity()
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                           acceleration=(0.0, -gravity))
+
+# ==========================================================================================
+# ==== Boundary
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                                   state_equation=state_equation,
-                                                  AdamiPressureExtrapolation(),
+                                                  boundary_density_calculator,
                                                   smoothing_kernel, smoothing_length)
-
-# K_tank = 9.81 * water_height
-# boundary_model_tank = BoundaryModelMonaghanKajtar(K_tank, beta_tank,
-#                                                   fluid_particle_spacing / beta_tank,
-#                                                   tank.boundary.mass)
 
 boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
                                                   state_equation=state_equation,
-                                                  AdamiPressureExtrapolation(),
+                                                  boundary_density_calculator,
                                                   smoothing_kernel, smoothing_length)
-# K_gate = 9.81 * water_height
-# boundary_model_gate = BoundaryModelMonaghanKajtar(K_gate, beta_gate,
-#                                                   fluid_particle_spacing / beta_gate,
-#                                                   gate.mass)
 
-hydrodynamic_densites = water_density * ones(size(solid.density))
+boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
+boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gate_movement)
+
+# ==========================================================================================
+# ==== Solid
+solid_smoothing_length = sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+# For the FSI we need the hydrodynamic masses and densities in the solid boundary model
+hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-k_solid = 9.81 * water_height
+k_solid = gravity * initial_fluid_size[2]
 beta_solid = fluid_particle_spacing / solid_particle_spacing
 boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
                                                    solid_particle_spacing,
@@ -140,41 +143,31 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
 #                                                    AdamiPressureExtrapolation(),
 #                                                    smoothing_kernel, smoothing_length)
 
-# ==========================================================================================
-# ==== Systems
-
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, ContinuityDensity(), state_equation,
-                                           smoothing_kernel, smoothing_length,
-                                           viscosity=viscosity, acceleration=(0.0, gravity))
-
-boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
-
-boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate,
-                                         movement=movement)
-
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
-                                        acceleration=(0.0, gravity))
+                                        acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
-
-tspan = (0.0, 1.0)
-
 semi = Semidiscretization(fluid_system, boundary_system_tank,
                           boundary_system_gate, solid_system,
                           neighborhood_search=GridNeighborhoodSearch)
-
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# See above for an explanation of the parameter choice
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so because forces become extremely large when
+# fluid particles are very close to boundary particles, and the time integration method
+# interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)

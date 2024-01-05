@@ -6,22 +6,22 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, smoothing_length) = particle_system
+    (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
     viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # In order to visualize quantities like pressure forces or viscosity forces, uncomment the following code
-    # and the two other lines below that are marked as "debug example".
+    # In order to visualize quantities like pressure forces or viscosity forces, uncomment
+    # the following code and the two other lines below that are marked as "debug example".
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0.
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
@@ -38,11 +38,13 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, particle,
-                                            particle_system, v_particle_system,
-                                            neighbor, neighbor_system,
-                                            v_neighbor_system, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, density_calculator)
+        p_a = particle_pressure(v_particle_system, particle_system, particle)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                            rho_a, rho_b, pos_diff, grad_kernel,
+                                            particle_system, neighbor_system,
+                                            density_calculator)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -56,9 +58,8 @@ function interact!(dv, v_particle_system, u_particle_system,
             # debug_array[i, particle] += dv_pressure[i]
         end
 
-        continuity_equation!(dv, density_calculator,
-                             v_particle_system, v_neighbor_system,
-                             particle, neighbor, pos_diff, distance,
+        continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
+                             particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
     end
     # Debug example
@@ -71,65 +72,88 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, grad_kernel,
+                                       particle_system, neighbor_system,
+                                       density_calculator)
+
+    # By default, just call the pressure acceleration formulation corresponding to the density calculator
+    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
+                                 grad_kernel, density_calculator)
+end
+
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with ContinuityDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+# used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
+# This can also be seen in the tests for total energy conservation, which fail with the
+# other `pressure_acceleration` form.
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::ContinuityDensity)
-    return (-m_b *
-            (particle_system.pressure[particle] + neighbor_system.pressure[neighbor]) /
-            (rho_a * rho_b) * grad_kernel) *
-           pressure_correction
+    return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
 # formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with SummationDensity.
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
+# used with `SummationDensity`.
+# This can also be seen in the tests for total energy conservation, which fail with the
+# other `pressure_acceleration` form.
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
                                        grad_kernel, ::SummationDensity)
-    return (-m_b *
-            (particle_system.pressure[particle] / rho_a^2 +
-             neighbor_system.pressure[neighbor] / rho_b^2) * grad_kernel) *
-           pressure_correction
+    return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor,
-                                       neighbor_system::Union{BoundarySPHSystem,
-                                                              TotalLagrangianSPHSystem},
-                                       v_neighbor_system, rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, density_calculator)
-    (; boundary_model) = neighbor_system
-
-    return pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                 v_particle_system, neighbor, neighbor_system,
-                                 v_neighbor_system, boundary_model, rho_a, rho_b, pos_diff,
-                                 distance, grad_kernel, density_calculator)
+# With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
+@inline function continuity_equation!(dv, density_calculator::SummationDensity,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
+                                      particle_system, neighbor_system, grad_kernel)
+    return dv
 end
 
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
+                                      m_b, rho_a, rho_b,
                                       particle_system::WeaklyCompressibleSPHSystem,
                                       neighbor_system, grad_kernel)
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
+    (; density_diffusion) = particle_system
+
     vdiff = current_velocity(v_particle_system, particle_system, particle) -
             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    dv[end, particle] += m_b * dot(vdiff, grad_kernel)
 
-    return dv
+    dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+
+    density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
+                       particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+                       particle_system, neighbor_system, grad_kernel)
 end
 
-# 'SummationDensity' is used so density is recalculated in wcsph/system.jl:compute_density!()
-@inline function continuity_equation!(dv, density_calculator::SummationDensity,
-                                      v_particle_system, v_neighbor_system,
-                                      particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system, grad_kernel)
+@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b,
+                                    particle_system::WeaklyCompressibleSPHSystem,
+                                    neighbor_system::WeaklyCompressibleSPHSystem,
+                                    grad_kernel)
+    (; delta) = density_diffusion
+    (; smoothing_length, state_equation) = particle_system
+    (; sound_speed) = state_equation
+
+    volume_b = m_b / rho_b
+
+    psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
+                                particle_system, particle, neighbor)
+    density_diffusion_term = dot(psi, grad_kernel) * volume_b
+
+    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
+end
+
+# Density diffusion `nothing` or interaction other than fluid-fluid
+@inline function density_diffusion!(dv, density_diffusion,
+                                    v_particle_system, v_neighbor_system,
+                                    particle, neighbor, pos_diff, distance,
+                                    m_b, rho_a, rho_b,
+                                    particle_system, neighbor_system, grad_kernel)
     return dv
 end
