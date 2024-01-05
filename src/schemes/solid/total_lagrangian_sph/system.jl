@@ -144,16 +144,10 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, C} <: System{N
     end
 end
 
-create_solid_cache(::Nothing, initial_condition) = (;)
+create_solid_cache(boundary_model, initial_condition) = (;)
 
-function create_solid_cache(boundary_model, initial_condition)
-    create_solid_cache(boundary_model, boundary_model.density_calculator, initial_condition)
-end
-
-create_solid_cache(boundary_model, density_calculator, initial_condition) = (;)
-
-function create_solid_cache(boundary_model, ::AdamiPressureExtrapolation, initial_condition)
-    acceleration = similar(initial_condition.velocity)
+function create_solid_cache(::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation}, ic)
+    acceleration = similar(ic.velocity)
 
     return (; acceleration)
 end
@@ -430,17 +424,11 @@ function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
 end
 
-function copy_dv!(system::TotalLagrangianSPHSystem, dv)
-    copy_dv!(system, system.boundary_model, dv)
-end
+copy_dv!(system::TotalLagrangianSPHSystem, dv) = copy_dv!(system, system.boundary_model, dv)
 
-copy_dv!(system, ::Nothing, dv) = system
+copy_dv!(system, boundary_model, dv) = system
 
-copy_dv!(system, model, dv) = copy_dv!(system, model, model.density_calculator, dv)
-
-copy_dv!(system, boundary_model, density_calculator, dv) = system
-
-function copy_dv!(system, boundary_model, ::AdamiPressureExtrapolation, dv)
+function copy_dv!(system, ::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation}, dv)
     for particle in each_moving_particle(system)
         for dim in 1:ndims(system)
             system.cache.acceleration[dim, particle] = dv[dim, particle]

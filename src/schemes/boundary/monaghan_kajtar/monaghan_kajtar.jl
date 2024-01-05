@@ -56,7 +56,6 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: Vector{ELTYPE}
     viscosity                 :: V
-    density_calculator        :: Nothing
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
                                          viscosity=NoViscosity())
