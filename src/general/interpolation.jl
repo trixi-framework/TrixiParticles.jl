@@ -45,7 +45,7 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint
     points_coords = range(start_svector, end_svector, length=n_points)
 
     if !endpoint
-        points_coords = points_coords[2:(end-1)]
+        points_coords = points_coords[2:(end - 1)]
     end
 
     return interpolate_point(points_coords, semi, ref_system, sol,
@@ -107,7 +107,7 @@ function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi, 
     neighbor_counts = Vector{Int}(undef, num_points)
 
     neighborhood_searches = process_neighborhood_searches(semi, sol, ref_system,
-    smoothing_length)
+                                                          smoothing_length)
 
     for (i, point) in enumerate(points_coords)
         result = interpolate_point(SVector{ndims(ref_system)}(point), semi, ref_system, sol,
