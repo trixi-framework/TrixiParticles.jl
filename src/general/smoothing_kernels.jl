@@ -52,6 +52,8 @@ abstract type SmoothingKernel{NDIMS} end
 @inline Base.ndims(::SmoothingKernel{NDIMS}) where {NDIMS} = NDIMS
 
 @inline function kernel_grad(kernel, pos_diff, distance, h)
+    distance < sqrt(eps()) && return zero(pos_diff)
+
     return kernel_deriv(kernel, distance, h) / distance * pos_diff
 end
 
@@ -60,10 +62,35 @@ end
     return kernel_grad(kernel, pos_diff, distance, h)
 end
 
-@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
-                                       ::KernelGradientCorrection, system, particle)
-    return (kernel_grad(kernel, pos_diff, distance, h) .- dw_gamma(system, particle)) /
+@inline function corrected_kernel_grad(kernel_, pos_diff, distance, h, ::KernelCorrection,
+                                       system, particle)
+    return (kernel_grad(kernel_, pos_diff, distance, h) .-
+            kernel(kernel_, distance, h) * dw_gamma(system, particle)) /
            kernel_correction_coefficient(system, particle)
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       corr::BlendedGradientCorrection, system,
+                                       particle)
+    (; blending_factor) = corr
+
+    grad = kernel_grad(kernel, pos_diff, distance, h)
+    return (1 - blending_factor) * grad +
+           blending_factor * correction_matrix(system, particle) * grad
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::GradientCorrection, system, particle)
+    grad = kernel_grad(kernel, pos_diff, distance, h)
+    return correction_matrix(system, particle) * grad
+end
+
+@inline function corrected_kernel_grad(kernel, pos_diff, distance, h,
+                                       ::MixedKernelGradientCorrection, system,
+                                       particle)
+    grad = corrected_kernel_grad(kernel, pos_diff, distance, h, KernelCorrection(),
+                                 system, particle)
+    return correction_matrix(system, particle) * grad
 end
 
 @doc raw"""
