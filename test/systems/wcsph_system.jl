@@ -88,7 +88,7 @@
             "SphereShape 2D",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
-            "RectangularShape 2D with KernelGradientCorrection",
+            "RectangularShape 2D with KernelCorrection",
         ]
         NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
@@ -103,7 +103,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
-            KernelGradientCorrection(),
+            KernelCorrection(),
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
@@ -146,7 +146,7 @@
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
-                if corr isa ShepardKernelCorrection || corr isa KernelGradientCorrection
+                if corr isa ShepardKernelCorrection || corr isa KernelCorrection
                     @test length(system.cache.kernel_correction_coefficient) ==
                           size(setup.coordinates, 2)
                 end
