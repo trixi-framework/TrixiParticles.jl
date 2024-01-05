@@ -7,7 +7,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
 argument `movement`.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
     boundary_model :: BM
     movement       :: M
@@ -268,13 +268,17 @@ function viscosity_model(system::BoundarySPHSystem)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
-                                       particle_system, neighbor_system::BoundarySPHSystem,
-                                       density_calculator)
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       particle_system, neighbor,
+                                       neighbor_system::BoundarySPHSystem,
+                                       density_calculator, correction)
     (; boundary_model) = neighbor_system
     (; smoothing_length) = particle_system
 
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                 smoothing_length, grad_kernel, boundary_model,
-                                 density_calculator)
+    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                     rho_a, rho_b, pos_diff, distance,
+                                     smoothing_length, grad_kernel,
+                                     particle_system, neighbor, neighbor_system,
+                                     boundary_model,
+                                     density_calculator, correction)
 end
