@@ -225,5 +225,5 @@ end
 
 @inline function initial_pressure(system, particle, initial_pressure_function)
     particle_position = initial_coords(system, particle)
-    return initial_pressure_function(particle_position)
+    return initial_pressure_function(particle_position, 0)
 end
