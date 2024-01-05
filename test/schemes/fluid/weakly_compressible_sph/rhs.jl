@@ -133,7 +133,7 @@
                 # ∑ m_a (r_a × dv_a)
                 deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
-                @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
+                @test isapprox(deriv_angular_momentum, zeros(n_vars), atol=3e-15)
 
                 # Total energy conservation
                 drho(::ContinuityDensity, particle) = dv[end, particle]
