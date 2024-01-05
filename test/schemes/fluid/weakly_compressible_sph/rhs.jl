@@ -112,7 +112,7 @@
                                                                   TrixiParticles.eachparticle(system))
 
                 # Result
-                dv = zeros(3, n_particles)
+                dv = zeros(n_vars, n_particles)
                 TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
 
                 # Linear momentum conservation
