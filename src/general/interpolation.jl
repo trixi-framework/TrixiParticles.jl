@@ -11,7 +11,7 @@ but does not include these points.
 # Arguments
 - `start`: The starting point of the line.
 - `end_`: The ending point of the line.
-- `no_points`: The number of points to interpolate along the line.
+- `n_points`: The number of points to interpolate along the line.
 - `semi`: The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
 - `sol`: The solution state from which the properties are interpolated.
@@ -37,12 +37,12 @@ but does not include these points.
 results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 ```
 """
-function interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
+function interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
                           smoothing_length=ref_system.smoothing_length,
                           cut_off_bnd=true)
     start_svector = SVector{ndims(ref_system)}(start)
     end_svector = SVector{ndims(ref_system)}(end_)
-    points_coords = range(start_svector, end_svector, length=no_points)
+    points_coords = range(start_svector, end_svector, length=n_points)
 
     if !endpoint
         points_coords = points_coords[2:(end-1)]
@@ -190,8 +190,7 @@ end
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
-                                                            search_radius, periodic_box)
+            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, nhs)
             if distance2 > search_radius^2
                 continue
             end
@@ -208,8 +207,8 @@ end
                 particle_velocity = current_velocity(v, system, particle)
                 interpolated_velocity += particle_velocity * (volume * kernel_value)
 
-                particle_pressure = pressure(system, particle)
-                interpolated_pressure += particle_pressure * (volume * kernel_value)
+                pressure = particle_pressure(v, system, particle)
+                interpolated_pressure += pressure * (volume * kernel_value)
                 shepard_coefficient += volume * kernel_value
             else
                 other_density += m_W

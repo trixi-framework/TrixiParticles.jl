@@ -326,3 +326,24 @@ end
 
     return cartesian2morton(SVector(cell))
 end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::GridNeighborhoodSearch, search_radius, u)
+    if nhs.periodic_box isa Nothing
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs))
+    else
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs),
+                                                    min_corner=nhs.periodic_box.min_corner,
+                                                    max_corner=nhs.periodic_box.max_corner)
+    end
+
+    # Initialize neighborhood search
+    initialize!(search, u)
+
+    return search
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch, search_radius, u)
+    return nhs
+end
