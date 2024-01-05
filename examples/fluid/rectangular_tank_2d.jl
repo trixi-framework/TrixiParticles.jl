@@ -14,7 +14,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 0.1)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.9)
@@ -108,27 +108,27 @@ println(interpolate_point([
                               [1.0, -0.05],
                           ], semi, fluid_system, sol))
 
-# using PyPlot
+using PyPlot
 
-# # it is also possible to interpolate along a line
-# result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
-# result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
-#                                    endpoint=false)
+# it is also possible to interpolate along a line
+result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
+result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
+                                   endpoint=false)
 
-# # Extracting wall distance for the standard and endpoint cases
-# walldistance = [coord[2] for coord in result.coord]
-# walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
+# Extracting wall distance for the standard and endpoint cases
+walldistance = [coord[2] for coord in result.coord]
+walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
-# figure()
-# plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
-# plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
-#      label="Without Endpoint")
+figure()
+plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
+plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
+     label="Without Endpoint")
 
-# # Add labels and legend
-# xlabel("Y-Coordinate")
-# ylabel("Density")
-# title("Density Interpolation Along a Line")
-# legend()
+# Add labels and legend
+xlabel("Y-Coordinate")
+ylabel("Density")
+title("Density Interpolation Along a Line")
+legend()
 
-# # Display the plot
-# show()
+# Display the plot
+show()
