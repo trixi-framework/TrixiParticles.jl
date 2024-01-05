@@ -1,16 +1,17 @@
 function running_average(data::Vector{Float64}, window_size::Int)
-    @assert window_size >= 1 "Window size for running average must be >= 1"
+    @assert window_size>=1 "Window size for running average must be >= 1"
 
     cum_sum = cumsum(data)
     cum_sum = vcat(zeros(window_size - 1), cum_sum)  # prepend zeros
 
-# See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
-    averaged_data = (cum_sum[window_size:end] - cum_sum[1:end-window_size + 1]) / window_size
+    # See above for an explanation of the parameter choice
+    sol = solve(ode, RDPK3SpFSAL49(),
+                abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+                reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+                dtmax=1e-2, # Limit stepsize to prevent crashing
+                save_everystep=false, callback=callbacks)
+    averaged_data = (cum_sum[window_size:end] - cum_sum[1:(end - window_size + 1)]) /
+                    window_size
     return averaged_data
 end
 
@@ -18,10 +19,10 @@ using GLM
 using DataFrames
 
 function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
-    @assert length(data) == length(t) "Data and time vectors must have the same length"
+    @assert length(data)==length(t) "Data and time vectors must have the same length"
 
     df = DataFrame(Y=data, T=t)
-    model = lm(@formula(Y ~ T), df)  # Perform linear regression
+    model = lm(@formula(Y~T), df)  # Perform linear regression
 
     # Get the regression line values
     trend = predict(model, df)
@@ -45,7 +46,7 @@ function plot_json_data(dir_path::AbstractString="")
         return
     end
 
-    recent_file = sort(json_files, by = x -> stat(joinpath(dir_path, x)).ctime, rev=true)[1]
+    recent_file = sort(json_files, by=x -> stat(joinpath(dir_path, x)).ctime, rev=true)[1]
     file_path = joinpath(dir_path, recent_file)
 
     json_string = read(file_path, String)
@@ -94,10 +95,12 @@ function plot_json_data(dir_path::AbstractString="")
                 # println("Length of accumulated_dt: ", length(accumulated_dt))
                 # println("Length of averaged_ekin: ", length(averaged_ekin))
                 # println("Window size: ", window_size)
-                scatter(accumulated_dt, averaged_ekin, s=4, color="orange", label="ekin (run. avg. windowsize = $window_size)")
+                scatter(accumulated_dt, averaged_ekin, s=4, color="orange",
+                        label="ekin (run. avg. windowsize = $window_size)")
 
                 trend_line, gradient = calculate_regression(values, accumulated_dt)
-                plot(accumulated_dt, trend_line, label="trend (gradient=$gradient)", color="red", linewidth=2)
+                plot(accumulated_dt, trend_line, label="trend (gradient=$gradient)",
+                     color="red", linewidth=2)
             end
 
             legend()

@@ -19,20 +19,30 @@ mutable struct PostprocessCallback{I, F}
     func::F
 end
 
+# TODO: implement exclude_bnd
+# TODO: include current git hash
 function PostprocessCallback(func; interval=0, exclude_bnd=true)
-    post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(), exclude_bnd, func)
+    post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
+                                        exclude_bnd, func)
 
     DiscreteCallback(post_callback, post_callback,
                      save_positions=(false, false),
                      initialize=initialize_post_callback!)
 end
 
-
-
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
-    print(io, "PostprocessCallback(interval=", callback.interval, ")")
+    print(io, "PostprocessCallback(interval=", callback.interval, ", functions=[")
+
+    funcs = callback.func
+
+    for (i, func) in enumerate(funcs)
+        print(io, nameof(func))
+        if i < length(funcs)
+            print(io, ", ")
+        end
+    end
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -42,9 +52,12 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
-        setup = [
-            "interval" => callback.interval,
-        ]
+        setup = ["interval" => string(callback.interval)]
+
+        for (i, f) in enumerate(callback.func)
+            func_key = "function" * string(i)
+            setup = [setup..., func_key => string(nameof(f))]
+        end
         summary_box(io, "PostprocessCallback", setup)
     end
 end
@@ -79,7 +92,7 @@ function (pp::PostprocessCallback)(u, t, integrator)
 end
 
 # affect! function for a single function
-function (pp::PostprocessCallback{I,F})(integrator) where {I, F<:Function}
+function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
@@ -105,7 +118,7 @@ function (pp::PostprocessCallback{I,F})(integrator) where {I, F<:Function}
 end
 
 # affect! function for an array of functions
-function (pp::PostprocessCallback{I,F})(integrator) where {I, F<:Array}
+function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
@@ -139,7 +152,7 @@ function prepare_series_data(post_callback)
 
     for (key, data_array) in post_callback.values
         # Sort the data_array by time
-        sorted_data_array = sort(data_array, by = data -> data.time)
+        sorted_data_array = sort(data_array, by=data -> data.time)
 
         # Extracting times and values into separate arrays
         data_times = [data.time for data in sorted_data_array]
@@ -160,7 +173,6 @@ function create_series_dict(values, times, system_name="")
          "time" => times, "system_name" => system_name)
 end
 
-
 # After the simulation has finished, this function is called to write the data to a JSON file.
 function (pp::PostprocessCallback)(integrator, finished::Bool)
     if isempty(pp.values)
@@ -178,14 +190,14 @@ end
 
 function add_entry!(pp, entry_key, t, value, system_name)
     # Get the list of DataEntry for the system, or initialize it if it doesn't exist
-    entries = get!(pp.values, entry_key*"_"*system_name, DataEntry[])
+    entries = get!(pp.values, entry_key * "_" * system_name, DataEntry[])
 
     # Add the new entry to the list
     push!(entries, DataEntry(value, t, system_name))
 end
 
 function test_function(pp, t, system, u, v, system_name)
-    add_entry!(pp, "test", t, 2*t, system_name)
+    add_entry!(pp, "test", t, 2 * t, system_name)
 end
 
 function calculate_ekin(pp, t, system, u, v, system_name)
@@ -209,142 +221,19 @@ function calculate_total_mass(pp, t, system, u, v, system_name)
 end
 
 function max_pressure(pp, t, system, u, v, system_name)
-
 end
 
 function min_pressure(pp, t, system, u, v, system_name)
-
 end
 
 function avg_pressure(pp, t, system, u, v, system_name)
-
 end
 
 function max_density(pp, t, system, u, v, system_name)
-
 end
 
 function min_density(pp, t, system, u, v, system_name)
-
 end
 
 function avg_density(pp, t, system, u, v, system_name)
-
 end
-
-# # This function prepares the data for writing to a JSON file by creating a dictionary
-# # that maps each key to a dictionary with the associated values and times.
-# function prepare_series_data(post_callback)
-#     series_data = Dict("dt" => create_dict(post_callback.dt))
-
-#     for (key, data_array) in post_callback.values
-#         data_values = [data.value for data in data_array]
-#         data_times = [data.time for data in data_array]
-#         series_data[key] = create_dict(data_values, data_times)
-#     end
-
-#     return series_data
-# end
-
-# function create_dict(values, times=nothing)
-#     Dict("type" => "series", "datatype" => typeof(values),
-#          "novalues" => length(values), "values" => values, "time" => times)
-# end
-
-
-# function postprocess_value(system, key, system_index, u, semi)
-#     data_available, value = pp_value(system, key)
-#     if !data_available
-#         if key == "ekin"
-#             value = calculate_ekin(system, system_index, u, semi)
-#             data_available = true
-#         end
-#     end
-#     return data_available, value
-# end
-
-# # This function is called at each timestep. It adds the current dt to the array and
-# # checks each system for new values to add to the `values` field.
-# function (post_callback::PostprocessCallback)(u, t, integrator)
-#     push!(post_callback.dt, integrator.dt)
-
-#     systems = integrator.p.systems
-#     semi = integrator.p
-
-#     foreach_enumerate(systems) do (system_index, system)
-#         keys = pp_keys(system)
-#         if keys !== nothing
-#             for key in keys
-#                 data_available, value = postprocess_value(system, key, system_index, u, semi)
-#                 if data_available
-#                     value_array = get!(post_callback.values, key, DataEntry[])
-#                     push!(value_array, DataEntry(value, t))
-#                 end
-#             end
-#         end
-#     end
-#     return isfinished(integrator)
-# end
-
-
-
-# # This function prepares the data for writing to a JSON file by creating a dictionary
-# # that maps each key to a dictionary with the associated values and times.
-# function prepare_series_data(post_callback)
-#     series_data = Dict("dt" => create_dict(post_callback.dt))
-
-#     for (key, data_array) in post_callback.values
-#         data_values = [data.value for data in data_array]
-#         data_times = [data.time for data in data_array]
-#         series_data[key] = create_dict(data_values, data_times)
-#     end
-
-#     return series_data
-# end
-
-# function create_dict(values, times=nothing)
-#     Dict("type" => "series", "datatype" => typeof(values),
-#          "novalues" => length(values), "values" => values, "time" => times)
-# end
-
-# # function calculate_ekin(system, system_index, u, semi)
-# #     return system
-# # end
-
-# function calculate_ekin(system, system_index, u, semi)
-#     mass = system.mass
-#     v_ode, u_ode = u.x
-
-#     v = wrap_v(v_ode, system_index, system, semi)
-#     ekin = 0.0
-#     for particle in each_moving_particle(system)
-#         velocity = current_velocity(v, system, particle)
-#         ekin += 0.5 * mass[particle] * dot(velocity, velocity)
-#     end
-#     return ekin
-# end
-
-# function compute_pressure!(system, v, pp_values::Dict)
-#     (; state_equation, pressure, cache) = system
-
-#     if haskey(pp_values, "dp")
-#         p_old = copy(system.pressure)
-#         compute_pressure!(system, v, pressure, state_equation)
-#         dp = p_old-system.pressure
-#         pp_values["dp"] = sqrt(dot(dp, dp))
-#         cache.pp_update["dp"] = true
-#     else
-#         compute_pressure!(system, v, pressure, state_equation)
-#     end
-#     return system
-# end
-
-# function pp_value(system, pp_key)
-#     if system.pp_values !== nothing
-#         if haskey(system.pp_values, pp_key)
-#             return system.cache.pp_update[pp_key], system.pp_values[pp_key]
-#         end
-#     end
-
-#     return false, 0.0
-# end
