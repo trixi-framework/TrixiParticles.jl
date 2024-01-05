@@ -1,6 +1,7 @@
 @doc raw"""
     RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
                     n_layers=1, spacing_ratio=1.0,
+                    min_coordinates=zeros(length(fluid_size)),
                     init_velocity=zeros(length(fluid_size)),
                     boundary_density=fluid_density,
                     faces=Tuple(trues(2 * length(fluid_size))))
@@ -18,6 +19,7 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing.
                         A value of 2 means that the boundary particle spacing will be
                         half the fluid particle spacing.
+- `min_coordinates`:    Coordinates of the corner in negative coordinate directions.
 - `init_velocity`:      The initial velocity of each fluid particle as `(x, y)` (or `(x, y, z)` in 3D).
 - `boundary_density`:   Density of each boundary particle (by default set to the rest density)
 - `faces`:              By default all faces are generated. Set faces by passing a
@@ -58,6 +60,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
                              pressure=0.0, n_layers=1, spacing_ratio=1.0,
+                             min_coordinates=zeros(length(fluid_size)),
                              init_velocity=zeros(length(fluid_size)),
                              boundary_density=fluid_density,
                              faces=Tuple(trues(2 * length(fluid_size))),
@@ -118,6 +121,10 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         boundary = InitialCondition(boundary_coordinates, boundary_velocities,
                                     boundary_masses, boundary_densities,
                                     particle_spacing=boundary_spacing)
+
+        # Move the tank corner in the negative coordinate directions to the desired position
+        fluid.coordinates .+= min_coordinates
+        boundary.coordinates .+= min_coordinates
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
