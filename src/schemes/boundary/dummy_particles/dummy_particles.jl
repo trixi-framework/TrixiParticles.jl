@@ -408,6 +408,8 @@ end
                                                              pos_diff, distance
         density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
+        # The current acceleration for `TotalLagrangianSPHSystem` is a copy of `dv`
+        # from the previous time integration stage.
         resulting_acc = neighbor_system.acceleration -
                         current_acceleration(system, particle)
 

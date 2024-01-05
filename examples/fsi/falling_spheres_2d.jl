@@ -41,9 +41,9 @@ sphere2_E = 1e5
 nu = 0.0
 
 sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, (0.5, 1.6),
-                      sphere1_density)
+                      sphere1_density, sphere_type=RoundSphere())
 sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, (1.5, 1.6),
-                      sphere2_density)
+                      sphere2_density, sphere_type=RoundSphere())
 
 # ==========================================================================================
 # ==== Fluid
