@@ -85,7 +85,7 @@ end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, particle_system, neighbor,
+                                       W_a, particle_system, neighbor,
                                        neighbor_system::WeaklyCompressibleSPHSystem,
                                        density_calculator,
                                        correction::Union{KernelCorrection,
@@ -97,7 +97,7 @@ end
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                            rho_b, grad_kernel, W_b, density_calculator)
+                                            rho_b, W_a, W_b, density_calculator)
 end
 
 # As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
