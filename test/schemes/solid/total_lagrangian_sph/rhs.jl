@@ -174,7 +174,7 @@
             initial_condition = InitialCondition(coordinates, velocities, masses, densities)
             system = TotalLagrangianSPHSystem(initial_condition,
                                               smoothing_kernel, smoothing_length,
-                                              E, nu, nothing)
+                                              E, nu)
 
             semi = Semidiscretization(system)
             tspan = (0.0, 1.0)
