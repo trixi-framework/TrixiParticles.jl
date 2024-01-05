@@ -136,7 +136,7 @@
                 @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
 
                 # Total energy conservation
-                drho(::ContinuityDensity, particle) = dv[3, particle]
+                drho(::ContinuityDensity, particle) = dv[end, particle]
 
                 function drho(::SummationDensity, particle)
                     return sum(neighbor -> drho_particle(particle, neighbor), 1:n_particles)
