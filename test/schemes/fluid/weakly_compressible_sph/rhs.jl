@@ -93,6 +93,7 @@
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length)
                 n_particles = TrixiParticles.nparticles(system)
+                n_vars = TrixiParticles.v_nvariables(system)
 
                 # Overwrite `system.pressure` because we skip the update step
                 system.pressure .= fluid.pressure
