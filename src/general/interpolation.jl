@@ -134,7 +134,7 @@ function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
         ref_smoothing_kernel = ref_system.smoothing_kernel
         search_radius = compact_support(ref_smoothing_kernel, smoothing_length)
         neighborhood_searches = map(semi.systems) do system
-            u = wrap_u(sol[end].x[2], system, semi)
+            u = wrap_u(sol.u[end].x[2], system, semi)
             system_coords = current_coordinates(u, system)
             old_nhs = get_neighborhood_search(ref_system, system, semi)
             nhs = create_neighborhood_search(system_coords, system, old_nhs, search_radius)
