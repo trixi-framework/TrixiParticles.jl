@@ -21,13 +21,28 @@ end
 
 # TODO: implement exclude_bnd
 # TODO: include current git hash
-function PostprocessCallback(func; interval=0, exclude_bnd=true)
+function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true)
+    if dt > 0 && interval > 0
+        throw(ArgumentError("Setting both interval and dt is not supported!"))
+    end
+
+    if dt > 0
+        interval = Float64(dt)
+    end
+
     post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
                                         exclude_bnd, func)
-
-    DiscreteCallback(post_callback, post_callback,
-                     save_positions=(false, false),
-                     initialize=initialize_post_callback!)
+    if dt > 0
+        # Add a `tstop` every `dt`, and save the final solution.
+        return PeriodicCallback(post_callback, dt,
+                                initialize=initialize_post_callback!,
+                                save_positions=(false, false))
+    else
+        # The first one is the condition, the second the affect!
+        DiscreteCallback(post_callback, post_callback,
+        save_positions=(false, false),
+        initialize=initialize_post_callback!)
+    end
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
@@ -72,7 +87,7 @@ function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
 end
 
 # condition with interval
-function (pp::PostprocessCallback{Int, Any})(u, t, integrator)
+function (pp::PostprocessCallback)(u, t, integrator)
     (; interval) = pp
 
     # With error-based step size control, some steps can be rejected. Thus,
@@ -80,15 +95,8 @@ function (pp::PostprocessCallback{Int, Any})(u, t, integrator)
     #    (total #steps)       (#accepted steps)
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
-    return interval > 0 && ((integrator.stats.naccept % interval == 0) &&
-            !(integrator.stats.naccept == 0 && integrator.iter > 0))
-end
-
-# condition with dt
-function (pp::PostprocessCallback)(u, t, integrator)
-    (; interval, last_t) = pp
-
-    return (t - last_t) > interval
+    return (interval > 0 && ((integrator.stats.naccept % interval == 0) &&
+            !(integrator.stats.naccept == 0 && integrator.iter > 0))) || isfinished(integrator)
 end
 
 # affect! function for a single function
