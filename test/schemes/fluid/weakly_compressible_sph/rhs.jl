@@ -115,7 +115,7 @@
                                                                   TrixiParticles.eachparticle(system))
 
                 # Result
-                dv = similar(v)
+                dv = zero(v)
                 TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
 
                 # Linear momentum conservation
