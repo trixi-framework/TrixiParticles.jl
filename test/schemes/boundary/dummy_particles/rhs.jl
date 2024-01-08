@@ -41,7 +41,7 @@
             # particles with `SummationDensity` and `AdamiPressureExtrpolation`,
             # since the same code will be run as for `ContinuityDensity`.
             # The advantage of `ContinuityDensity` is that the density will be
-            # perturbated without having to run a summation or Adami update step.
+            # perturbed without having to run a summation or Adami update step.
             boundary_model_zeroing = BoundaryModelDummyParticles(initial_condition.density,
                                                                  initial_condition.mass,
                                                                  PressureZeroing(),
@@ -81,6 +81,7 @@
                                                     smoothing_length, 0.0, 0.0,
                                                     boundary_model_continuity)
 
+            # Positions of the solid particles are not used here
             u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
             v_solid = vcat(initial_condition.velocity,
                            initial_condition.density')
@@ -94,7 +95,7 @@
 
             if density_calculator isa SummationDensity
                 # Dummy particles with `SummationDensity` will only pass energy preservation
-                # if the fluid is also using
+                # if the fluid is also using `SummationDensity`.
                 systems["Fluid-BoundaryDummySummationDensity"] = boundary_system_summation
             end
 
@@ -124,7 +125,7 @@
             # Run three times with different seed for the random initial condition
             for seed in 1:3
                 # A larger number of particles will increase accumulated errors in the
-                # summation. A larger tolerance has to be used for the tests below.
+                # summation. A larger tolerance will have to be used for the tests below.
                 ic = rectangular_patch(particle_spacing, (3, 3), seed=seed)
 
                 # Split initial condition at center particle into two systems
