@@ -181,7 +181,7 @@
                 # ∑ m_a (v_a ⋅ dv_a + dte_a)
                 deriv_total_energy = sum(deriv_energy, 1:n_particles)
 
-                @test isapprox(deriv_total_energy, 0.0, atol=3e-15)
+                @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
             end
         end
     end

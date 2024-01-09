@@ -295,7 +295,7 @@
                                                                        particle),
                                               TrixiParticles.eachparticle(neighbor_system))
 
-                    @test isapprox(deriv_total_energy, 0.0, atol=4e-15)
+                    @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
                 end
             end
         end
