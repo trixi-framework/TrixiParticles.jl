@@ -200,6 +200,26 @@ include("../test_util.jl")
                 result_zero = interpolation_walldistance(-distance_bottom_outside)
                 compare_interpolation_result(result_zero,
                                              expected_zero(-distance_bottom_outside))
+
+                multi_point_coords = [[0.0, 0.0], [0.0, 0.5], [0.0, 1.0]]
+
+                result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
+                                                                     semi_no_boundary,
+                                                                     fluid_system,
+                                                                     sol_no_boundary,
+                                                                     cut_off_bnd=cut_off_bnd)
+
+                expected_multi = (density=[666.0, 666.0000000000001, 666.0],
+                                  neighbor_count=[2, 6, 5],
+                                  coord=[[0.0, 0.0], [0.0, 0.5], [0.0, 1.0]],
+                                  velocity=[
+                                      [5.0, 0.10100000000000002],
+                                      [5.000000000000001, 0.12501295337729817],
+                                      [5.0, 0.20035665520692278],
+                                  ],
+                                  pressure=[0.19999999999999996, 1.0000000000000002, 2.0])
+
+                compare_interpolation_result(result_multipoint, expected_multi)
             end
         end
 
@@ -290,6 +310,26 @@ include("../test_util.jl")
                 result_zero = interpolation_walldistance(-distance_bottom_outside)
                 compare_interpolation_result(result_zero,
                                              expected_zero(-distance_bottom_outside))
+
+                multi_point_coords = [[0.0, 0.0], [0.0, 0.5], [0.0, 1.0]]
+
+                result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
+                                                                     semi_no_boundary,
+                                                                     fluid_system,
+                                                                     sol_no_boundary,
+                                                                     cut_off_bnd=cut_off_bnd)
+
+                expected_multi = (density=[666.0, 666.0000000000001, 666.0],
+                                  neighbor_count=[2, 6, 5],
+                                  coord=[[0.0, 0.0], [0.0, 0.5], [0.0, 1.0]],
+                                  velocity=[
+                                      [5.0, 0.10100000000000002],
+                                      [5.000000000000001, 0.12501295337729817],
+                                      [5.0, 0.20035665520692278],
+                                  ],
+                                  pressure=[0.19999999999999996, 1.0000000000000002, 2.0])
+
+                compare_interpolation_result(result_multipoint, expected_multi)
             end
         end
     end
@@ -391,7 +431,11 @@ include("../test_util.jl")
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point no boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_point([0.0, y, 0.0],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_point([
+                                                                                     0.0,
+                                                                                     y,
+                                                                                     0.0,
+                                                                                 ],
                                                                                  semi_no_boundary,
                                                                                  fluid_system,
                                                                                  sol_no_boundary,
@@ -400,7 +444,8 @@ include("../test_util.jl")
                 # top outside
                 distance_top_outside = binary_search_outside(ny * particle_spacing,
                                                              (ny + 2) * particle_spacing,
-                                                             interpolation_walldistance, tolerance=1e-8)
+                                                             interpolation_walldistance,
+                                                             tolerance=1e-8)
                 @test isapprox(distance_top_outside, 0.09390581548213905, atol=1e-14)
 
                 result_zero = interpolation_walldistance(ny * particle_spacing +
@@ -440,7 +485,8 @@ include("../test_util.jl")
                 compare_interpolation_result(result_bottom, exp_res)
 
                 distance_bottom_outside = binary_search_outside(0.0, -2 * particle_spacing,
-                                                                interpolation_walldistance, tolerance=1e-12)
+                                                                interpolation_walldistance,
+                                                                tolerance=1e-12)
                 @test isapprox(distance_bottom_outside, 0.09390581390689477, atol=1e-14)
 
                 exp_res = (density=666.0,
@@ -455,12 +501,34 @@ include("../test_util.jl")
                 result_zero = interpolation_walldistance(-distance_bottom_outside)
                 compare_interpolation_result(result_zero,
                                              expected_zero(-distance_bottom_outside))
+
+                multi_point_coords = [[0.0, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 1.0, 0.0]]
+
+                result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
+                                                                     semi_no_boundary,
+                                                                     fluid_system,
+                                                                     sol_no_boundary,
+                                                                     cut_off_bnd=cut_off_bnd)
+
+                expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
+                                  coord=[[0.0, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 1.0, 0.0]],
+                                  velocity=[
+                                      [5.0, 0.101, 0.0],
+                                      [5.0, 0.125, 0.0],
+                                      [5.0, 0.20025646054622268, 0.0],
+                                  ], pressure=[0.19999999999999996, 1.0, 2.0])
+
+                compare_interpolation_result(result_multipoint, expected_multi)
             end
         end
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_walldistance(y) = TrixiParticles.interpolate_point([0.0, y, 0.0],
+                interpolation_walldistance(y) = TrixiParticles.interpolate_point([
+                                                                                     0.0,
+                                                                                     y,
+                                                                                     0.0,
+                                                                                 ],
                                                                                  semi_boundary,
                                                                                  fluid_system,
                                                                                  sol_boundary,
@@ -544,6 +612,24 @@ include("../test_util.jl")
                 result_zero = interpolation_walldistance(-distance_bottom_outside)
                 compare_interpolation_result(result_zero,
                                              expected_zero(-distance_bottom_outside))
+
+                multi_point_coords = [[0.0, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 1.0, 0.0]]
+
+                result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
+                                                                     semi_no_boundary,
+                                                                     fluid_system,
+                                                                     sol_no_boundary,
+                                                                     cut_off_bnd=cut_off_bnd)
+
+                expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
+                                  coord=[[0.0, 0.0, 0.0], [0.0, 0.5, 0.0], [0.0, 1.0, 0.0]],
+                                  velocity=[
+                                      [5.0, 0.101, 0.0],
+                                      [5.0, 0.125, 0.0],
+                                      [5.0, 0.20025646054622268, 0.0],
+                                  ], pressure=[0.19999999999999996, 1.0, 2.0])
+
+                compare_interpolation_result(result_multipoint, expected_multi)
             end
         end
     end
