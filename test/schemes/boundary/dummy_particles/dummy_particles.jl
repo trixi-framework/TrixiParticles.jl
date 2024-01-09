@@ -1,4 +1,3 @@
-
 @testset verbose=true "Dummy Particles" begin
     @testset "show" begin
         boundary_model = BoundaryModelDummyParticles([1000.0], [1.0],
@@ -136,3 +135,5 @@
         end
     end
 end
+
+include("rhs.jl")
