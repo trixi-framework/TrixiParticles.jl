@@ -64,8 +64,10 @@ struct InitialCondition{ELTYPE}
     density          :: Array{ELTYPE, 1}
     pressure         :: Array{ELTYPE, 1}
 
-    function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
-                              particle_spacing=-1.0)
+    function InitialCondition(coordinates,
+                              velocities::AbstractMatrix, masses::AbstractVector,
+                              densities::AbstractVector;
+                              pressure=0.0, particle_spacing=-1.0)
         ELTYPE = eltype(coordinates)
 
         if size(coordinates) != size(velocities)
@@ -89,6 +91,56 @@ struct InitialCondition{ELTYPE}
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
                            densities, pressure)
     end
+
+    # Velocity, mass, density and pressure are given per particle either constant
+    # or as functions of the coordinates.
+    function InitialCondition(coordinates, velocity, mass, density;
+                              pressure=0.0, particle_spacing=-1.0)
+        NDIMS = size(coordinates, 1)
+
+        return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                       pressure, particle_spacing)
+    end
+
+    # Function barrier to make NDIMS static and therefore SVectors type-stable
+    function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                     pressure, particle_spacing) where {NDIMS}
+        ELTYPE = eltype(coordinates)
+
+        coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        velocity_fun = wrap_function(velocity, Val(NDIMS))
+        mass_fun = wrap_function(mass, Val(NDIMS))
+        density_fun = wrap_function(density, Val(NDIMS))
+        pressure_fun = wrap_function(pressure, Val(NDIMS))
+
+        if length(velocity_fun(coordinates_svector[1])) != NDIMS
+            throw(ArgumentError("`velocity` must be $NDIMS-dimensional " *
+                                "for $NDIMS-dimensional `coordinates`"))
+        end
+
+        velocities_svector = velocity_fun.(coordinates_svector)
+        velocities = reinterpret(reshape, ELTYPE, velocities_svector)
+        masses = mass_fun.(coordinates_svector)
+        densities = density_fun.(coordinates_svector)
+        pressures = pressure_fun.(coordinates_svector)
+
+        return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
+                           densities, pressures)
+    end
+end
+
+function wrap_function(function_::Function, ::Val)
+    # Already a function
+    return function_
+end
+
+function wrap_function(constant_scalar::Number, ::Val)
+    return coords -> constant_scalar
+end
+
+# For vectors and tuples
+function wrap_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
+    return coords -> SVector{NDIMS}(constant_vector)
 end
 
 @inline function Base.ndims(initial_condition::InitialCondition)
