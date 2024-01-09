@@ -118,8 +118,7 @@
         state_equation = (; sound_speed=0.0)
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2particle_spacing
-        search_radius = TrixiParticles.compact_support(smoothing_kernel,
-                                                       smoothing_length)
+        search_radius = TrixiParticles.compact_support(smoothing_kernel, smoothing_length)
 
         @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
             # Run three times with different seed for the random initial condition
@@ -136,8 +135,7 @@
                                          ic.density[1:center_particle],
                                          pressure=ic.pressure[1:center_particle])
 
-                boundary = InitialCondition(ic.coordinates[:,
-                                                           (center_particle + 1):end],
+                boundary = InitialCondition(ic.coordinates[:, (center_particle + 1):end],
                                             ic.velocity[:, (center_particle + 1):end],
                                             ic.mass[(center_particle + 1):end],
                                             ic.density[(center_particle + 1):end],
