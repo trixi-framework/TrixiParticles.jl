@@ -97,7 +97,6 @@
                                                      state_equation, smoothing_kernel,
                                                      smoothing_length)
                 n_particles = TrixiParticles.nparticles(system)
-                n_vars = TrixiParticles.v_nvariables(system)
 
                 # Overwrite `system.pressure` because we skip the update step
                 system.pressure .= fluid.pressure
@@ -116,7 +115,7 @@
                                                                   TrixiParticles.eachparticle(system))
 
                 # Result
-                dv = zeros(n_vars, n_particles)
+                dv = zero(v)
                 TrixiParticles.interact!(dv, v, u, v, u, nhs, system, system)
 
                 # Linear momentum conservation
