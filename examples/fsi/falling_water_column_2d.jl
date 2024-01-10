@@ -30,7 +30,7 @@ state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pr
 
 fluid = RectangularShape(fluid_particle_spacing,
                          round.(Int, (initial_fluid_size ./ fluid_particle_spacing)),
-                         (0.1, 0.2), fluid_density)
+                         (0.1, 0.2), density=fluid_density)
 
 # ==========================================================================================
 # ==== Fluid

@@ -70,9 +70,9 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 ```
 """
 function SphereShape(particle_spacing, radius, center_position, density;
+                     mass=nothing, pressure=0.0, velocity=zeros(length(center_position)),
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
-                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     init_velocity=zeros(length(center_position)), pressure=0.0)
+                     cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -82,7 +82,6 @@ function SphereShape(particle_spacing, radius, center_position, density;
     end
 
     NDIMS = length(center_position)
-    ELTYPE = eltype(particle_spacing)
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
@@ -103,13 +102,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    n_particles = size(coordinates, 2)
-    densities = density * ones(ELTYPE, n_particles)
-    masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
-    velocities = init_velocity .* ones(ELTYPE, size(coordinates))
-
-    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
-                            particle_spacing=particle_spacing)
+    return InitialCondition(; coordinates, velocity, mass, density, pressure,
+                            particle_spacing)
 end
 
 """

@@ -59,12 +59,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
     function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                             pressure=0.0, n_layers=1, spacing_ratio=1.0,
-                             min_coordinates=zeros(length(fluid_size)),
-                             init_velocity=zeros(length(fluid_size)),
+                             velocity=zeros(length(fluid_size)), fluid_mass=nothing,
+                             pressure=0.0,
+                             acceleration=nothing, state_equation=nothing,
                              boundary_density=fluid_density,
-                             faces=Tuple(trues(2 * length(fluid_size))),
-                             acceleration=nothing, state_equation=nothing)
+                             n_layers=1, spacing_ratio=1.0,
+                             min_coordinates=zeros(length(fluid_size)),
+                             faces=Tuple(trues(2 * length(fluid_size))))
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
         fluid_size_ = Tuple(ELTYPE.(fluid_size))
@@ -113,13 +114,21 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               particle_spacing,
                                                               n_particles_per_dim)
 
-        fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
-                                 fluid_density, init_velocity=init_velocity,
-                                 pressure=pressure,
-                                 acceleration=acceleration, state_equation=state_equation)
+        if state_equation !== nothing
+            # Use hydrostatic pressure gradient and calculate density from inverse state
+            # equation, so don't pass fluid density.
+            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
+                                     velocity, pressure, acceleration, state_equation,
+                                     mass=fluid_mass)
+        else
+            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
+                                     density=fluid_density, velocity, pressure,
+                                     acceleration, state_equation, mass=fluid_mass)
+        end
 
-        boundary = InitialCondition(boundary_coordinates, boundary_velocities,
-                                    boundary_masses, boundary_densities,
+        boundary = InitialCondition(coordinates=boundary_coordinates,
+                                    velocity=boundary_velocities,
+                                    mass=boundary_masses, density=boundary_densities,
                                     particle_spacing=boundary_spacing)
 
         # Move the tank corner in the negative coordinate directions to the desired position
