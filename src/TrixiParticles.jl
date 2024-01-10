@@ -5,7 +5,7 @@ using Reexport: @reexport
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
-using LinearAlgebra: dot, I, tr
+using LinearAlgebra: dot, I, tr, inv, pinv, det
 @reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
@@ -58,7 +58,8 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
-export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
+export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
+       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
 
 end # module

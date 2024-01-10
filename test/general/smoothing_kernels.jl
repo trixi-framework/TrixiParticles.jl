@@ -6,14 +6,14 @@
             integral_2d_radial, _ = quadgk(r -> r * TrixiParticles.kernel(smk, r, 1.0), 0,
                                            TrixiParticles.compact_support(smk, 1.0),
                                            rtol=1e-15)
-            return 2 * π * integral_2d_radial
+            return 2 * pi * integral_2d_radial
         end
 
         function integrate_kernel_3d(smk)
             integral_3d_radial, _ = quadgk(r -> r^2 * TrixiParticles.kernel(smk, r, 1.0), 0,
                                            TrixiParticles.compact_support(smk, 1.0),
                                            rtol=1e-15)
-            return 4 * π * integral_3d_radial
+            return 4 * pi * integral_3d_radial
         end
 
         # Treat the truncated Gaussian kernel separately
