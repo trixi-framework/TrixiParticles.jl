@@ -76,7 +76,7 @@
             # Work with pressures in ATM
             ATM = 101_325.0
 
-            state_equation = StateEquationCole(; sound_speed, exponent=7,
+            state_equation = StateEquationCole(; sound_speed, exponent=1,
                                                reference_density=rest_density,
                                                background_pressure=1ATM)
 
