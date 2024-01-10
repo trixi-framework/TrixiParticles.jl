@@ -41,7 +41,7 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0)
 
 # 2D with hydrostatic pressure gradient.
 # `state_equation` has to be the same as for the WCSPH system.
-state_equation = StateEquationCole(20.0, 7, 1000.0, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(sound_speed=20.0, exponent=7, reference_density=1000.0)
 rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0,
                                acceleration=(0.0, -9.81), state_equation=state_equation)
 

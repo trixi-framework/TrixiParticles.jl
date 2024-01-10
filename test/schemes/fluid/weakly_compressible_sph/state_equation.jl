@@ -15,7 +15,7 @@
             ATM = 101_325.0
 
             # 7.15 is the value used by Cole (see p. 39 of Cole 1948)
-            state_equation = StateEquationCole(; sound_speed, gamma=7.15,
+            state_equation = StateEquationCole(; sound_speed, exponent=7.15,
                                                reference_density=rest_density,
                                                background_pressure=1ATM)
 
@@ -43,7 +43,7 @@
             background_pressures = [0.0, 10_000.0, 100_000.0, 200_000.0]
 
             for background_pressure in background_pressures
-                state_equation = StateEquationCole(sound_speed=10.0,
+                state_equation = StateEquationCole(sound_speed=10.0, exponent=7,
                                                    reference_density=1000.0,
                                                    background_pressure=background_pressure)
                 @test state_equation(1000.0) == background_pressure
@@ -53,7 +53,7 @@
             end
 
             # Test pressure clipping
-            state_equation = StateEquationCole(sound_speed=10.0,
+            state_equation = StateEquationCole(sound_speed=10.0, exponent=7,
                                                reference_density=1000.0,
                                                clip_negative_pressure=true)
             @test state_equation(999.0) == 0.0
@@ -76,7 +76,7 @@
             # Work with pressures in ATM
             ATM = 101_325.0
 
-            state_equation = StateEquationCole(; sound_speed, gamma=1,
+            state_equation = StateEquationCole(; sound_speed, exponent=7,
                                                reference_density=rest_density,
                                                background_pressure=1ATM)
 
@@ -103,23 +103,23 @@
     @testset verbose=false "inverse_state_equation" begin
         # Verify that the `inverse_state_equation` actually is the inverse
         state_equations = [
-            StateEquationCole(sound_speed=1484.0, gamma=7.15, reference_density=998.34,
+            StateEquationCole(sound_speed=1484.0, exponent=7.15, reference_density=998.34,
                               background_pressure=101_325.0),
-            StateEquationCole(sound_speed=10.0, gamma=7, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
                               background_pressure=10_000.0),
-            StateEquationCole(sound_speed=10.0, gamma=7, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
                               background_pressure=0.0),
-            StateEquationCole(sound_speed=10.0, gamma=7, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=7, reference_density=1000.0,
                               background_pressure=-100_000.0),
-            StateEquationCole(sound_speed=1484.0, gamma=1, reference_density=998.34,
+            StateEquationCole(sound_speed=1484.0, exponent=1, reference_density=998.34,
                               background_pressure=101_325.0),
-            StateEquationCole(sound_speed=10.0, gamma=1, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
                               background_pressure=100_000.0),
-            StateEquationCole(sound_speed=10.0, gamma=1, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
                               background_pressure=90_000.0),
-            StateEquationCole(sound_speed=10.0, gamma=1, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
                               background_pressure=0.0),
-            StateEquationCole(sound_speed=10.0, gamma=1, reference_density=1000.0,
+            StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0,
                               background_pressure=-100_000.0),
         ]
 

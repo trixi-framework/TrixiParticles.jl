@@ -11,7 +11,8 @@ using OrdinaryDiffEq
         smoothing_length = 1.0
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-        state_equation = StateEquationCole(sound_speed=10, reference_density=water_density)
+        state_equation = StateEquationCole(sound_speed=10, reference_density=water_density,
+                                           exponent=7)
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
         fluid_system = WeaklyCompressibleSPHSystem(initial_condition, SummationDensity(),

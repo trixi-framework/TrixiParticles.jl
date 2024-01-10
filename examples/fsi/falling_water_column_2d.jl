@@ -24,7 +24,8 @@ tank_size = (2.0, 4.0)
 
 fluid_density = 1000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 fluid = RectangularShape(fluid_particle_spacing,
                          round.(Int, (initial_fluid_size ./ fluid_particle_spacing)),
