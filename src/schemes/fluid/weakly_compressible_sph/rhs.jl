@@ -38,10 +38,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+        dv_pressure = pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                             rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            density_calculator, correction)
+                                            particle_system, neighbor_system, correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,

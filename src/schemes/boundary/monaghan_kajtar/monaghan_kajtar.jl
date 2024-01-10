@@ -76,16 +76,13 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                           rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
-                                           smoothing_length, grad_kernel,
-                                           particle_system, neighbor, neighbor_system,
-                                           boundary_model::BoundaryModelMonaghanKajtar,
-                                           fluid_density_calculator,
-                                           correction) where {NDIMS}
+@inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
+                                       smoothing_length, grad_kernel,
+                                       boundary_model::BoundaryModelMonaghanKajtar,
+                                       pressure_gradient) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
-    distance = norm(pos_diff)
     return K / beta^(NDIMS - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
            boundary_kernel(distance, smoothing_length)
