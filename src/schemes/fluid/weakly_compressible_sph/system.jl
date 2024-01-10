@@ -25,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, GP, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -38,11 +38,13 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
     viscosity          :: V
     density_diffusion  :: DD
     correction         :: COR
+    grad_pressure      :: GP
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
+                                         pressure_acceleration=nothing,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -69,6 +71,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
+        pressure_acceleration = set_pressure_acceleration(pressure_acceleration,
+                                                          density_calculator, correction)
+
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
@@ -80,7 +85,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
                                                       density_calculator, state_equation,
                                                       smoothing_kernel, smoothing_length,
                                                       acceleration_, viscosity,
-                                                      density_diffusion, correction, cache)
+                                                      density_diffusion, correction,
+                                                      pressure_acceleration, cache)
     end
 end
 
