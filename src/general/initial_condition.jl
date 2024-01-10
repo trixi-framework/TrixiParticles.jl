@@ -1,11 +1,6 @@
 @doc raw"""
-    InitialCondition(coordinates,
-                     velocities::AbstractMatrix, masses::AbstractVector,
-                     densities::AbstractVector; pressures=zero(masses),
-                     particle_spacing=-1.0)
-
-    InitialCondition(coordinates, velocity, mass, density;
-                     pressure=0.0, particle_spacing=-1.0)
+    InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
+                     mass=nothing, pressure=0.0, particle_spacing=-1.0)
 
 Struct to hold the initial configuration of the particles.
 
@@ -19,27 +14,26 @@ to build more complex geometries.
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
-- `velocities`: An array where the $i$-th column holds the velocity of particle $i$.
-- `masses`: A vector holding the mass of each particle.
-- `densities`: A vector holding the density of each particle.
-- `velocity`: Either a function mapping each particle's coordinates to its velocity,
-              or, for a constant fluid velocity, a vector holding this velocity.
-- `mass`: Either a function mapping each particle's coordinates to its mass,
-          or a scalar for a constant mass over all particles.
-- `density`: Either a function mapping each particle's coordinates to its density,
-             or a scalar for a constant density over all particles.
-- `pressures`: Either a function mapping each particle's coordinates to its pressure,
-              or a scalar for a constant pressure over all particles.
+- `density`:     Either a vector holding the density of each particle,
+                 or a function mapping each particle's coordinates to its density,
+                 or a scalar for a constant density over all particles.
 
 # Keywords
-- `pressures`: A vector holding the pressure of each particle. This is optional and
-               only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
-- `pressure`: Either a function mapping each particle's coordinates to its pressure,
-              or a scalar for a constant pressure over all particles. This is optional and
-              only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
+- `velocity`:   Either an array where the $i$-th column holds the velocity of particle $i$,
+                or a function mapping each particle's coordinates to its velocity,
+                or, for a constant fluid velocity, a vector holding this velocity.
+                Velocity is constant zero by default.
+- `mass`:       Either `nothing` (default) to automatically compute particle mass from particle
+                density and spacing, or a vector holding the mass of each particle,
+                or a function mapping each particle's coordinates to its mass,
+                or a scalar for a constant mass over all particles.
+- `pressure`:   Either a vector holding the pressure of each particle,
+                or a function mapping each particle's coordinates to its pressure,
+                or a scalar for a constant pressure over all particles. This is optional and
+                only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
 - `particle_spacing`: The spacing between the particles. This is a scalar, as the spacing
                       is assumed to be uniform. This is only needed when using
-                      set operations on the `InitialCondition`.
+                      set operations on the `InitialCondition` or for automatic mass calculation.
 
 # Examples
 ```julia
@@ -65,10 +59,13 @@ initial_condition = intersect(shape1, shape2)
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
                0.0 0.0 1.0]
-velocities = zero(coordinates)
-masses = ones(3)
-densities = 1000 * ones(3)
-initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+velocity = zero(coordinates)
+mass = ones(3)
+density = 1000 * ones(3)
+initial_condition = InitialCondition(; coordinates, velocity, mass, density)
+
+# With functions
+initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, density=1000.0)
 ```
 """
 struct InitialCondition{ELTYPE}
