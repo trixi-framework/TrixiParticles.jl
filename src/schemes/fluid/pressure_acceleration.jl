@@ -54,13 +54,13 @@ end
 
 function set_pressure_acceleration(pressure_acceleration::Nothing,
                                    density_calculator::SummationDensity,
-                                   correction::Nothing)
+                                   correction)
     return symmetric_pressure_acceleration_summation_density
 end
 
 function set_pressure_acceleration(pressure_acceleration::Nothing,
                                    density_calculator::ContinuityDensity,
-                                   correction::Nothing)
+                                   correction)
     return symmetric_pressure_acceleration_continuity_density
 end
 
@@ -87,7 +87,8 @@ end
 # No correction
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
-                                       W_a, particle_system, neighbor_system::FluidSystem,
+                                       W_a, particle_system, neighbor,
+                                       neighbor_system::FluidSystem,
                                        correction)
     (; pressure_gradient) = neighbor_system
 
@@ -99,14 +100,15 @@ end
 # Correction
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
-                                       W_a, particle_system, neighbor_system::FluidSystem,
+                                       W_a, particle_system, neighbor,
+                                       neighbor_system::FluidSystem,
                                        correction::Union{KernelCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
     (; pressure_gradient, smoothing_kernel, smoothing_length) = neighbor_system
 
-    W_b = kernel_grad(smoothing_kernel, -pos_diff, distance, smoothing_length)
+    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric pressure acceleration formulation corresponding to the density calculator.
@@ -119,7 +121,7 @@ end
 # No correction
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system,
+                                       particle_system, neighbor,
                                        neighbor_system::Union{BoundarySystem, SolidSystem},
                                        correction)
     (; boundary_model) = neighbor_system
@@ -136,14 +138,14 @@ end
 # Correction
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system,
+                                       particle_system, neighbor,
                                        neighbor_system::Union{BoundarySystem, SolidSystem},
                                        correction::Union{KernelCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
     (; boundary_model) = neighbor_system
-    (; smoothing_length) = particle_system
+    (; smoothing_length, pressure_gradient) = particle_system
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
