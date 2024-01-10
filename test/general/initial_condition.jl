@@ -109,8 +109,10 @@
 
     @testset verbose=true "Union of Overlapping Shapes" begin
         @testset "Rectangular Shapes" begin
-            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), density=1.0, loop_order=:x_first)
-            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), density=1.0,
+                                      loop_order=:x_first)
+            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), density=1.0,
+                                      loop_order=:x_first)
 
             initial_condition = union(shape1, shape2)
 
@@ -120,7 +122,8 @@
         end
 
         @testset "Rectangle with Added RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.3, (0.7, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = union(shape1, shape2)
@@ -134,7 +137,8 @@
             # Same as above, but this will produce a `RoundSphere` inside the rectangle,
             # as the first shape in the union is prioritized.
             shape1 = SphereShape(0.1, 0.3, (0.7, 0.6), 1.0, sphere_type=RoundSphere())
-            shape2 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape2 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
 
             initial_condition = union(shape1, shape2)
 
@@ -146,20 +150,22 @@
 
     @testset verbose=true "Setdiff of Disjoint Shapes" begin
         shapes_dict = Dict(
-            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0), density=1.0),
+            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
+                                                      density=1.0),
                                      RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
                                                       velocity=(0.3, -0.5))),
             "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-            density=1.0),
+                                                               density=1.0),
                                               RectangularShape(0.1, (4, 5), (0.0, 1.0),
-                                              density=1.0),
+                                                               density=1.0),
                                               RectangularShape(0.1, (2, 10), (0.0, 0.0),
-                                              density=1.0)),
+                                                               density=1.0)),
             "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
                                 SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
                                 SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
                                             sphere_type=RoundSphere())),
-            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0), density=1.0),
+            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
+                                                         density=1.0),
                                         SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
                                         SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
                                                     sphere_type=RoundSphere())))
@@ -178,8 +184,10 @@
 
     @testset verbose=true "Setdiff of Overlapping Shapes" begin
         @testset "Rectangular Shapes" begin
-            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), density=1.0, loop_order=:x_first)
-            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.13, (9, 10), (0.0, 0.0), density=1.0,
+                                      loop_order=:x_first)
+            shape2 = RectangularShape(0.13, (4, 5), (1.0, 1.0), density=1.0,
+                                      loop_order=:x_first)
 
             initial_condition = setdiff(shape1, shape2)
 
@@ -189,7 +197,8 @@
         end
 
         @testset "Rectangle without RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = setdiff(shape1, shape2)
@@ -200,7 +209,8 @@
         end
 
         @testset "Rectangle without Low-Res Sphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
             shape2 = SphereShape(0.2, 0.35, (0.0, 0.6), 1.0)
 
             initial_condition = setdiff(shape1, shape2)
@@ -213,20 +223,22 @@
 
     @testset verbose=true "Intersect of Disjoint Shapes" begin
         shapes_dict = Dict(
-            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0), density=1.0),
+            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
+                                                      density=1.0),
                                      RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
                                                       velocity=(0.3, -0.5))),
             "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-            density=1.0),
+                                                               density=1.0),
                                               RectangularShape(0.1, (4, 5), (0.0, 1.0),
-                                              density=1.0),
+                                                               density=1.0),
                                               RectangularShape(0.1, (2, 10), (0.0, 0.0),
-                                              density=1.0)),
+                                                               density=1.0)),
             "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
                                 SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
                                 SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
                                             sphere_type=RoundSphere())),
-            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0), density=1.0),
+            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
+                                                         density=1.0),
                                         SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
                                         SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
                                                     sphere_type=RoundSphere())))
@@ -255,7 +267,8 @@
         end
 
         @testset "Rectangle and RoundSphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
             shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 
             initial_condition = intersect(shape1, shape2)
@@ -277,7 +290,8 @@
         end
 
         @testset "Rectangle and Low-Res Sphere" begin
-            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0, loop_order=:x_first)
+            shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0,
+                                      loop_order=:x_first)
             shape2 = SphereShape(0.2, 0.35, (0.0, 0.6), 1.0)
 
             initial_condition = intersect(shape1, shape2)
