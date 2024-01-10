@@ -1,53 +1,104 @@
 @testset verbose=true "InitialCondition" begin
     @testset verbose=true "Constructors" begin
-        # @testset "Illegal Inputs" begin
-        #     error_str = "`coordinates` and `velocities` must be of the same size"
-        #     @test_throws ArgumentError(error_str) InitialCondition(zeros(2, 3), zeros(2, 4),
-        #                                                            ones(3), ones(3))
+        @testset "Illegal Inputs" begin
+            error_str = "`coordinates` and `velocities` must be of the same size"
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 3),
+                                                                   velocity=zeros(2, 4),
+                                                                   mass=ones(3),
+                                                                   density=ones(3))
 
-        #     error_str = """
-        #                 Expected: size(coordinates, 2) == length(masses) == length(densities)
-        #                 Got: size(coordinates, 2) = 2, length(masses) = 3, length(densities) = 3"""
-        #     @test_throws ArgumentError(error_str) InitialCondition(zeros(2, 2), zeros(2, 2),
-        #                                                            ones(3), ones(3))
+            error_str = "`velocity` must be 2-dimensional for 2-dimensional `coordinates`"
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 3),
+                                                                   velocity=x -> (1, 2, 3),
+                                                                   mass=ones(3),
+                                                                   density=ones(3))
 
-        #     error_str = "`pressure` must either be a scalar or a vector of the " *
-        #                 "same length as `masses`"
-        #     @test_throws ArgumentError(error_str) InitialCondition(zeros(2, 2), zeros(2, 2),
-        #                                                            ones(2), ones(2),
-        #                                                            pressures=ones(3))
-        # end
+            error_str = """
+                        Expected: length(mass) == size(coordinates, 2)
+                        Got: size(coordinates, 2) = 2, length(mass) = 3"""
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
+                                                                   velocity=zeros(2, 2),
+                                                                   mass=ones(3),
+                                                                   density=ones(2))
 
-        # @testset "Constant Quantities" begin
-        #     ic_actual1 = InitialCondition(zeros(2, 5), (1.0, 2.0), 3.0, 4.0, pressure=5.0)
-        #     ic_actual2 = InitialCondition(zeros(2, 5), [1.0, 2.0], 3.0, 4.0, pressure=5.0)
-        #     ic_expected = InitialCondition(zeros(2, 5),
-        #                                    (1, 2) .* ones(2, 5),
-        #                                    3 * ones(5), 4 * ones(5), pressure=5 * ones(5))
+            error_str = """
+                        Expected: length(density) == size(coordinates, 2)
+                        Got: size(coordinates, 2) = 2, length(density) = 3"""
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
+                                                                   velocity=zeros(2, 2),
+                                                                   mass=ones(2),
+                                                                   density=ones(3))
 
-        #     @test ic_actual1.coordinates == ic_actual2.coordinates ==
-        #           ic_expected.coordinates
-        #     @test ic_actual1.velocity == ic_actual2.velocity == ic_expected.velocity
-        #     @test ic_actual1.mass == ic_actual2.mass == ic_expected.mass
-        #     @test ic_actual1.density == ic_actual2.density == ic_expected.density
-        #     @test ic_actual1.pressure == ic_actual2.pressure == ic_expected.pressure
-        # end
+            error_str = """
+                        Expected: length(pressure) == size(coordinates, 2)
+                        Got: size(coordinates, 2) = 2, length(pressure) = 3"""
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
+                                                                   velocity=zeros(2, 2),
+                                                                   mass=ones(2),
+                                                                   density=ones(2),
+                                                                   pressure=ones(3))
 
-        # @testset "Quantities as Functions" begin
-        #     coords = [88.3 10.4 5.2 48.3 58.9;
-        #               23.6 92.5 92.1 96.7 84.8;
-        #               77.5 44.1 18.2 30.5 44.0]
-        #     ic_actual = InitialCondition(coords, x -> 2x, x -> 3x[1], x -> 4x[2],
-        #                                  pressure=x -> 5x[3])
-        #     ic_expected = InitialCondition(coords, 2coords, 3coords[1, :], 4coords[2, :],
-        #                                    pressure=5coords[3, :])
+            error_str = "`mass` must be specified when not using `particle_spacing`"
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
+                                                                   velocity=zeros(2, 2),
+                                                                   density=ones(2))
+        end
 
-        #     @test ic_actual.coordinates == ic_expected.coordinates
-        #     @test ic_actual.velocity == ic_expected.velocity
-        #     @test ic_actual.mass == ic_expected.mass
-        #     @test ic_actual.density == ic_expected.density
-        #     @test ic_actual.pressure == ic_expected.pressure
-        # end
+        @testset "Constant Quantities" begin
+            ic_actual1 = InitialCondition(coordinates=zeros(2, 5), velocity=(1.0, 2.0),
+                                          mass=3.0, density=4.0, pressure=5.0)
+            ic_actual2 = InitialCondition(coordinates=zeros(2, 5), velocity=[1.0, 2.0],
+                                          mass=3.0, density=4.0, pressure=5.0)
+            ic_expected = InitialCondition(coordinates=zeros(2, 5),
+                                           velocity=(1, 2) .* ones(2, 5),
+                                           mass=3 * ones(5), density=4 * ones(5),
+                                           pressure=5 * ones(5))
+
+            @test ic_actual1.coordinates == ic_actual2.coordinates ==
+                  ic_expected.coordinates
+            @test ic_actual1.velocity == ic_actual2.velocity == ic_expected.velocity
+            @test ic_actual1.mass == ic_actual2.mass == ic_expected.mass
+            @test ic_actual1.density == ic_actual2.density == ic_expected.density
+            @test ic_actual1.pressure == ic_actual2.pressure == ic_expected.pressure
+        end
+
+        @testset "Automatic Mass Calculation" begin
+            particle_spacing = 0.13
+            coordinates = [88.3 10.4 5.2 48.3 58.9;
+                           23.6 92.5 92.1 96.7 84.8;
+                           77.5 44.1 18.2 30.5 44.0]
+            ic_actual = InitialCondition(; coordinates, velocity=x -> 2x,
+                                         density=x -> 4x[2], pressure=x -> 5x[3],
+                                         particle_spacing)
+            ic_expected = InitialCondition(; coordinates, velocity=2coordinates,
+                                           mass=particle_spacing^3 * 4coordinates[2, :],
+                                           density=4coordinates[2, :],
+                                           pressure=5coordinates[3, :])
+
+            @test ic_actual.coordinates == ic_expected.coordinates
+            @test ic_actual.velocity == ic_expected.velocity
+            @test ic_actual.mass == ic_expected.mass
+            @test ic_actual.density == ic_expected.density
+            @test ic_actual.pressure == ic_expected.pressure
+        end
+
+        @testset "Quantities as Functions" begin
+            coordinates = [88.3 10.4 5.2 48.3 58.9;
+                           23.6 92.5 92.1 96.7 84.8;
+                           77.5 44.1 18.2 30.5 44.0]
+            ic_actual = InitialCondition(; coordinates, velocity=x -> 2x, mass=x -> 3x[1],
+                                         density=x -> 4x[2], pressure=x -> 5x[3])
+            ic_expected = InitialCondition(; coordinates, velocity=2coordinates,
+                                           mass=3coordinates[1, :],
+                                           density=4coordinates[2, :],
+                                           pressure=5coordinates[3, :])
+
+            @test ic_actual.coordinates == ic_expected.coordinates
+            @test ic_actual.velocity == ic_expected.velocity
+            @test ic_actual.mass == ic_expected.mass
+            @test ic_actual.density == ic_expected.density
+            @test ic_actual.pressure == ic_expected.pressure
+        end
     end
 
     @testset verbose=true "Union of Disjoint Shapes" begin
