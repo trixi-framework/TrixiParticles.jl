@@ -36,19 +36,6 @@ function replace_with_code(filepath)
    # Define a regex pattern to match the include markers
    pattern = r"!!include:([^\s!]+\.jl)!!"
 
-#    # Function to replace matched patterns with file contents
-#    replace_include(match) = begin
-#         println(match)
-#        file_to_include = joinpath(trixiparticles_root_dir, match.captures[1])
-#        try
-#            # Read the content of the file to include
-#            return read(file_to_include, String)
-#        catch
-#            # In case the file is not found or any other error occurs
-#            return "Error: Unable to include file $(file_to_include)"
-#        end
-#    end
-
    function replace_include(match_::SubString{String})
         # Extract the filename using regex
         m = match(pattern, match_)
@@ -80,6 +67,9 @@ function replace_with_code(filepath)
 end
 
 replace_with_code("src/tutorials/tut_setup.md")
+replace_with_code("src/tutorials/tut_dam_break.md")
+replace_with_code("src/tutorials/tut_beam.md")
+replace_with_code("src/tutorials/tut_falling.md")
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
