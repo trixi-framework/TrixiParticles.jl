@@ -66,10 +66,10 @@ function replace_with_code(filepath)
     write(filepath, new_md_content)
 end
 
-replace_with_code("src/tutorials/tut_setup.md")
-replace_with_code("src/tutorials/tut_dam_break.md")
-replace_with_code("src/tutorials/tut_beam.md")
-replace_with_code("src/tutorials/tut_falling.md")
+replace_with_code("docs/src/tutorials/tut_setup.md")
+replace_with_code("docs/src/tutorials/tut_dam_break.md")
+replace_with_code("docs/src/tutorials/tut_beam.md")
+replace_with_code("docs/src/tutorials/tut_falling.md")
 
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
