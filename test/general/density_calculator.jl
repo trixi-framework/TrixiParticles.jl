@@ -5,8 +5,8 @@ using OrdinaryDiffEq
     @testset verbose=true "SummationDensity" begin
         water_density = 1000.0
 
-        initial_condition = InitialCondition(zeros(2, 1), zeros(2, 1), [water_density],
-                                             [water_density])
+        initial_condition = InitialCondition(coordinates=zeros(2, 1),
+                                             mass=water_density, density=water_density)
 
         smoothing_length = 1.0
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
