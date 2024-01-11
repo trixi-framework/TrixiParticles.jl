@@ -17,9 +17,11 @@ but does not include these points.
 - `sol`: The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: Cut-off at the boundary.
-- `endpoint`: Optional. A boolean to include (`true`) or exclude (`false`) the end point in the interpolation. Default is `true`.
-- `smoothing_length`: Optional. The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
+                  point is "closer" to a boundary than to the fluid system
+                  (see an explanation for "closer" below). Defaults to `true`.
+- `endpoint`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation. Default is `true`.
+- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -28,7 +30,7 @@ but does not include these points.
     - This function is particularly useful for analyzing gradients or creating visualizations
       along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - When `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -75,11 +77,11 @@ The interpolation utilizes the same kernel function of the SPH simulation to wei
 
 # Keywords
 - `cut_off_bnd`: Cut-off at the boundary.
-- `smoothing_length`: Optional. The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
+- `smoothing_length`: The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
 
 # Returns:
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
-- For a single point: A `NamedTuple` of containing interpolated properties at the point.
+- For a single point: A `NamedTuple` of interpolated properties at the point.
 
 # Examples:
 ```julia
@@ -91,9 +93,10 @@ points = [[1.0, 0.5], [1.0, 0.6], [1.0, 0.7]]
 results = interpolate_point(points, semi, ref_system, sol)
 ```
 !!! note
-    - This function is particularly useful for analyzing gradients or creating visualizations along a specified line in the SPH simulation domain.
+    - This function is particularly useful for analyzing gradients or creating visualizations
+      along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - When `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
     accurate as a real surface reconstruction.
 """
 function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi, ref_system,
@@ -172,6 +175,7 @@ end
     if cut_off_bnd
         systems = semi
     else
+         # Don't loop over other systems
         systems = (ref_system,)
     end
 
@@ -185,6 +189,7 @@ end
 
         system_coords = current_coordinates(u, system)
 
+        # This is basically `for_particle_neighbor` unrolled
         for particle in eachneighbor(point_coords, nhs)
             coords = extract_svector(system_coords, Val(ndims(system)), particle)
 

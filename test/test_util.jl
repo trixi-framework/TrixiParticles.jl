@@ -68,16 +68,16 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
         ic.coordinates[:, i] .+= offset
     end
 
-    if set_function === nothing
+    for i in 1:Base.size(ic.coordinates, 2)
+        coord = ic.coordinates[:, i]
+        ic.mass[i], ic.density[i], ic.pressure[i], ic.velocity[:, i] = set_function(coord)
+    end
+
+    if perturbation_factor > eps()
         perturb!(ic.mass, perturbation_factor * 0.1 * ic.mass[1])
         perturb!(ic.density, perturbation_factor * 0.1 * density)
         perturb!(ic.pressure, perturbation_factor * 2000)
         perturb!(ic.velocity, perturbation_factor * 0.5 * particle_spacing)
-    else
-        for i in 1:Base.size(ic.coordinates, 2)
-            coord = ic.coordinates[:, i]
-            ic.mass[i], ic.density[i], ic.pressure[i], ic.velocity[:, i] = set_function(coord)
-        end
     end
 
     return ic
