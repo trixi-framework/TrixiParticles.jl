@@ -84,11 +84,11 @@
                                            clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny), seed=1,
-                                  perturbation_factor=0.0,
+                                  perturbation_factor=0.0, perturbation_factor_position=0.0,
                                   set_function=set_values,
                                   offset=[0.0, ny * 0.5 * particle_spacing])
         bnd = rectangular_patch(particle_spacing, (bnd_nx, bnd_ny), seed=1,
-                                perturbation_factor=0.0, set_function=set_values_bnd,
+                                perturbation_factor=0.0, perturbation_factor_position=0.0, set_function=set_values_bnd,
                                 offset=[0.0, -bnd_ny * 0.5 * particle_spacing])
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
@@ -585,11 +585,12 @@
                                            clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny, nz), seed=1,
-                                  perturbation_factor=0.0,
+                                  perturbation_factor=0.0, perturbation_factor_position=0.0,
                                   set_function=set_values,
                                   offset=[0.0, ny * 0.5 * particle_spacing, 0.0])
         bnd = rectangular_patch(particle_spacing, (bnd_nx, bnd_ny, bnd_nz), seed=1,
-                                perturbation_factor=0.0, set_function=set_values_bnd,
+                                perturbation_factor=0.0, perturbation_factor_position=0.0,
+                                set_function=set_values_bnd,
                                 offset=[0.0, -bnd_ny * 0.5 * particle_spacing, 0.0])
 
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)

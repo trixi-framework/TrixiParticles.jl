@@ -45,14 +45,10 @@ end
 
 # Rectangular patch of particles, optionally with a perturbation in position and/or quantities
 function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0, seed=1,
-                           perturbation_factor=1.0, perturbation_factor_position=0.0,
+                           perturbation_factor=1.0, perturbation_factor_position=1.0,
                            set_function=nothing, offset=ntuple(_ -> 0.0, length(size)))
     # Fixed seed to ensure reproducibility
     Random.seed!(seed)
-
-    if perturbation_factor_position < eps()
-        perturbation_factor_position = perturbation_factor
-    end
 
     # Center particle at the origin (assuming odd size)
     min_corner = -particle_spacing / 2 .* size
@@ -68,9 +64,11 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
         ic.coordinates[:, i] .+= offset
     end
 
-    for i in 1:Base.size(ic.coordinates, 2)
-        coord = ic.coordinates[:, i]
-        ic.mass[i], ic.density[i], ic.pressure[i], ic.velocity[:, i] = set_function(coord)
+    if set_function !== nothing
+        for i in 1:Base.size(ic.coordinates, 2)
+            coord = ic.coordinates[:, i]
+            ic.mass[i], ic.density[i], ic.pressure[i], ic.velocity[:, i] = set_function(coord)
+        end
     end
 
     if perturbation_factor > eps()
