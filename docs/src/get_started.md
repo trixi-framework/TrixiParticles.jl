@@ -81,6 +81,6 @@ Open the "dam_break_2d.jl" in you favorite text editor and lets make some edits:
 
 
 ## Setup you first simulation from scratch
-Please see the following [tutorial](tut_setup.md). 
+Please see the following [tutorial](tutorials/tut_setup.md). 
 
 For more information follow the [tutorial series](tutorial.md)
