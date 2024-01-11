@@ -25,7 +25,6 @@ println(interpolate_point([
                               [1.0, -0.05],
                           ], semi, fluid_system, sol))
 
-using PyPlot
 
 # It is also possible to interpolate along a line
 result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
@@ -36,14 +35,24 @@ result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_sys
 walldistance = [coord[2] for coord in result.coord]
 walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
-figure()
-plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
-plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
-     label="Without Endpoint")
+#using PythonPlot
+#
+# figure()
+# plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
+# plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
+#      label="Without Endpoint")
 
-xlabel("Wall distance")
-ylabel("Density")
-title("Density Interpolation Along a Line")
-legend()
+# xlabel("Wall distance")
+# ylabel("Density")
+# title("Density Interpolation Along a Line")
+# legend()
 
-show()
+# show()
+
+using Plots
+
+plot(walldistance, result.density, marker=:circle, linewidth=2, ylims=(1000, Inf),
+     label="With Endpoint", xlabel="Wall distance", ylabel="Density",
+     title="Density Interpolation Along a Line")
+plot!(walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
+      label="Without Endpoint")
