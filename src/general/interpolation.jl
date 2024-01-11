@@ -1,6 +1,6 @@
 @doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
-                     smoothing_length=ref_system.smoothing_length)
+                     smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
 
 Interpolates properties along a line in an TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
@@ -55,10 +55,10 @@ end
 
 @doc raw"""
     interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length)
+                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
 
     interpolate_point(point_coords, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length)
+                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
 
 Performs interpolation of properties at specified points or an array of points in a TrixiParticles simulation.
 
