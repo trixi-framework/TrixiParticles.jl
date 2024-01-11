@@ -28,7 +28,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `custom_quantities...`:       Additional user-defined quantities.
 - `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
-- `max_coordinates=2^15`        Particles with absolute coordinates larger than this value will cause an error.
+- `max_coordinates=2^15`        Particles with absolute coordinates larger than this will be clipped.
 
 # Examples
 ```julia

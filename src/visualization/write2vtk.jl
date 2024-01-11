@@ -15,7 +15,7 @@ Convert Trixi simulation data to VTK format.
 - `prefix`:               Prefix for output files. Defaults to an empty string.
 - `write_meta_data`:      Write meta data.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
-- `max_coordinates=Inf`  Particles with absolute coordinates larger than this value will cause an error.
+- `max_coordinates=Inf`   Particles with absolute coordinates larger than this will be clipped.
 
 
 # Example
@@ -75,7 +75,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
-        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`")
+        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates` and have been clipped")
         for i in eachindex(points)
             points[i] = clamp(points[i], -max_coordinates, max_coordinates)
         end
