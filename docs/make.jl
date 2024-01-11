@@ -33,10 +33,10 @@ function replace_with_code(filepath)
 
     md_content = read(filepath, String)
 
-   # Define a regex pattern to match the include markers
-   pattern = r"!!include:([^\s!]+\.jl)!!"
+    # Define a regex pattern to match the include markers
+    pattern = r"!!include:([^\s!]+\.jl)!!"
 
-   function replace_include(match_::SubString{String})
+    function replace_include(match_::SubString{String})
         # Extract the filename using regex
         m = match(pattern, match_)
         if m === nothing
@@ -58,12 +58,11 @@ function replace_with_code(filepath)
         end
     end
 
+    # Replace all occurrences in the markdown content
+    new_md_content = replace(md_content, pattern => replace_include)
 
-   # Replace all occurrences in the markdown content
-   new_md_content = replace(md_content, pattern => replace_include)
-
-   # Write the new content back to the file or to a new file
-   write(filepath, new_md_content)
+    # Write the new content back to the file or to a new file
+    write(filepath, new_md_content)
 end
 
 replace_with_code("src/tutorials/tut_setup.md")
