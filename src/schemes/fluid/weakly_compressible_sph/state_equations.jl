@@ -8,22 +8,22 @@ The pressure ``p`` is calculated as
 ```math
     p = B \left(\left(\frac{\rho}{\rho_0}\right)^\gamma - 1\right) + p_{\text{background}},
 ```
-where ``\rho`` denoutes the density, ``\rho_0`` an arbitrary reference density,
-and ``p_{\text{background}}`` the background pressure which is set to zero when applied to
-free-surfaces flows (Adami et al., 2012).
+where ``\rho`` denotes the density, ``\rho_0`` the reference density,
+and ``p_{\text{background}}`` the background pressure, which is set to zero when applied to
+free-surface flows (Adami et al., 2012).
 
-The bulk modulus ``B =  \frac{\rho_0 c^2}{\gamma}`` is calculated with an artificial
-speed of sound ``c`` and ``\gamma`` as an isentropic exponent.
+The bulk modulus, ``B =  \frac{\rho_0 c^2}{\gamma}``, is calculated from the artificial
+speed of sound ``c`` and the isentropic exponent ``\gamma``.
 
 An ideal gas equation of state with a linear relationship between pressure and density can
-be obtained by choosing `gamma=1`, i.e.
+be obtained by choosing `exponent=1`, i.e.
 ```math
-    p = c^2(\rho - \rho_0) = B \left( \frac{\rho}{\rho_0} -1 \right).
+    p = B \left( \frac{\rho}{\rho_0} -1 \right) = c^2(\rho - \rho_0).
 ```
 
-For water, an average value of `gamma = 7` is recommended and works even at high
-Reynolds numbers, whereas at lower Reynolds numbers `gamma = 1` yields more accurate pressure
-estimates since pressure and density are proportional.
+For higher Reynolds numbers, `exponent=7` is recommended, whereas at lower Reynolds
+numbers `exponent=1` yields more accurate pressure estimates since pressure and
+density are proportional.
 
 When using [`SummationDensity`](@ref) (or [`DensityReinitializationCallback`](@ref))
 and free surfaces, initializing particles with equal spacing will cause underestimated
@@ -32,7 +32,7 @@ Setting `clip_negative_pressure=true` can avoid this.
 
 # Keywords
 - `sound_speed`: Artificial speed of sound.
-- `reference_density`: Reference density of fluid.
+- `reference_density`: Reference density of the fluid.
 - `exponent`: To limit density variation to 1%, an average value of `7` is usually used.
 - `background_pressure=0.0`: Background pressure.
 
