@@ -25,6 +25,62 @@ function copy_file(filename, replaces...)
     write(joinpath(@__DIR__, "src", lowercase(filename)), content)
 end
 
+function replace_with_code(filepath)
+    if !isfile(filepath)
+        error("Markdown file not found: $filepath")
+        return
+    end
+
+    md_content = read(filepath, String)
+
+   # Define a regex pattern to match the include markers
+   pattern = r"!!include:([^\s!]+\.jl)!!"
+
+#    # Function to replace matched patterns with file contents
+#    replace_include(match) = begin
+#         println(match)
+#        file_to_include = joinpath(trixiparticles_root_dir, match.captures[1])
+#        try
+#            # Read the content of the file to include
+#            return read(file_to_include, String)
+#        catch
+#            # In case the file is not found or any other error occurs
+#            return "Error: Unable to include file $(file_to_include)"
+#        end
+#    end
+
+   function replace_include(match_::SubString{String})
+        # Extract the filename using regex
+        m = match(pattern, match_)
+        if m === nothing
+            return "Error: Invalid include format in: $match"
+        end
+        file_to_include = joinpath(trixiparticles_root_dir, m.captures[1])
+
+        try
+            # Check if the Julia file exists
+            if !isfile(file_to_include)
+                return "Error: File to include not found: $(file_to_include)"
+            end
+
+            # Read the content of the file to include
+            return read(file_to_include, String)
+        catch e
+            # In case of any error
+            return "Error: Unable to include file $(file_to_include): $(e)"
+        end
+    end
+
+
+   # Replace all occurrences in the markdown content
+   new_md_content = replace(md_content, pattern => replace_include)
+
+   # Write the new content back to the file or to a new file
+   write(filepath, new_md_content)
+end
+
+replace_with_code("src/tutorials/tut_setup.md")
+
 copy_file("AUTHORS.md",
           "in the [LICENSE.md](LICENSE.md) file" => "under [License](@ref)")
 copy_file("CONTRIBUTING.md",
