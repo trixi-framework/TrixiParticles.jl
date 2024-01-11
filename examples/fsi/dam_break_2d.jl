@@ -56,11 +56,11 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 # but not for solids. We therefore need to pass `tlsph=true`.
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
-                         (2initial_fluid_size[1], solid_particle_spacing), solid_density,
-                         tlsph=true)
+                         (2initial_fluid_size[1], solid_particle_spacing),
+                         density=solid_density, tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_x, 1), (2initial_fluid_size[1], 0.0),
-                                   solid_density, tlsph=true)
+                                   density=solid_density, tlsph=true)
 
 solid = union(plate, fixed_particles)
 

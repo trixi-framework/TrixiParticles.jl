@@ -55,10 +55,10 @@ coordinates = [0.0 4.84143144246472090e+0 8.34336671824457987e+0 1.2894369562139
                0.0 -1.16032004402742839e+0 4.12479856412430479e+0 -1.51111514016986312e+1 -2.59193146099879641e+1;
                0.0 -1.03622044471123109e-1 -4.03523417114321381e-1 -2.23307578892655734e-1 1.79258772950371181e-1]
 
-velocities = [0.0 1.66007664274403694e-3 -2.76742510726862411e-3 2.96460137564761618e-3 2.68067772490389322e-3;
-              0.0 7.69901118419740425e-3 4.99852801234917238e-3 2.37847173959480950e-3 1.62824170038242295e-3;
-              0.0 -6.90460016972063023e-5 2.30417297573763929e-5 -2.96589568540237556e-5 -9.51592254519715870e-5] *
-             DAYS_PER_YEAR
+velocity = [0.0 1.66007664274403694e-3 -2.76742510726862411e-3 2.96460137564761618e-3 2.68067772490389322e-3;
+            0.0 7.69901118419740425e-3 4.99852801234917238e-3 2.37847173959480950e-3 1.62824170038242295e-3;
+            0.0 -6.90460016972063023e-5 2.30417297573763929e-5 -2.96589568540237556e-5 -9.51592254519715870e-5] *
+           DAYS_PER_YEAR
 
 masses = [
     1.0, 9.54791938424326609e-4, 2.85885980666130812e-4, 4.36624404335156298e-5,
@@ -66,9 +66,9 @@ masses = [
 ] * SOLAR_MASS
 
 # Offset sun momentum
-velocities[:, 1] = -velocities[:, 2:end] * masses[2:end] / SOLAR_MASS
+velocity[:, 1] = -velocity[:, 2:end] * masses[2:end] / SOLAR_MASS
 
-initial_condition = InitialCondition(coordinates, velocities, masses, zeros(size(masses)))
+initial_condition = InitialCondition(; coordinates, velocity, density=0.0, mass=masses)
 
 G = 1.0
 particle_system = NBodySystem(initial_condition, G)
@@ -79,8 +79,8 @@ particle_system = NBodySystem(initial_condition, G)
 semi = Semidiscretization(particle_system)
 
 # This is significantly faster than using OrdinaryDiffEq.
-function symplectic_euler!(velocities, coordinates, semi)
-    v = vec(velocities)
+function symplectic_euler!(velocity, coordinates, semi)
+    v = vec(velocity)
     u = vec(coordinates)
     dv = copy(v)
     du = copy(u)
@@ -110,14 +110,14 @@ open(filename, "w") do f
     end
 end
 
-@printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
+@printf("%.9f\n", energy(velocity, coordinates, particle_system, semi))
 
 # Disable multithreading, since it adds a significant overhead for this small problem.
 disable_polyester_threads() do
-    symplectic_euler!(velocities, coordinates, semi)
+    symplectic_euler!(velocity, coordinates, semi)
 end
 
-@printf("%.9f\n", energy(velocities, coordinates, particle_system, semi))
+@printf("%.9f\n", energy(velocity, coordinates, particle_system, semi))
 
 # Enable timers again
 open(filename, "w") do f
