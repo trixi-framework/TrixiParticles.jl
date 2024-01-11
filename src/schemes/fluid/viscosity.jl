@@ -101,7 +101,7 @@ end
 end
 
 @doc raw"""
-    ViscosityAdami(; nu)
+    ViscosityAdami(; nu, epsilon=0.01)
 
 Viscosity by Adami (Adami et al. 2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
@@ -116,16 +116,6 @@ The inter-particle-averaged shear stress  is
     \bar{\eta}_{ab} =\frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
 ```
 where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
-
-For the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles,
-Adami (Adami et al. 2012) imposes a no-slip boundary condition by assigning a wall velocity ``v_w``
-to the boundary particle.
-
-The wall velocity of particle ``a`` is calculated from the prescribed boundary particle velocity ``v_a`` and the smoothed velocity field
-```math
-v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
-```
-where the sum is over all fluid particles.
 
 # Keywords
 - `nu`: Kinematic viscosity
