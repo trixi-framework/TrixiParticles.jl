@@ -96,6 +96,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Components" => [
+                "Overview" => "overview.md",
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
                      "Initial Condition and Setups" => joinpath("general",
