@@ -15,6 +15,7 @@ Convert Trixi simulation data to VTK format.
 - `prefix`:               Prefix for output files. Defaults to an empty string.
 - `write_meta_data`:      Write meta data.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
+- `max_coordinates=Inf`   The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 
 # Example
@@ -24,7 +25,7 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solu
 TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   write_meta_data=true, custom_quantities...)
+                   write_meta_data=true, max_coordinates=Inf, custom_quantities...)
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
@@ -49,13 +50,15 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
-                  write_meta_data=write_meta_data, custom_quantities...)
+                  write_meta_data=write_meta_data, max_coordinates=max_coordinates,
+                  custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
                    iter=nothing, system_name=vtkname(system), write_meta_data=true,
+                   max_coordinates=Inf,
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -75,6 +78,15 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+
+    if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
+        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`"
+                *
+                " and have been clipped")
+        for i in eachindex(points)
+            points[i] = clamp(points[i], -max_coordinates, max_coordinates)
+        end
+    end
 
     vtk_grid(file, points, cells) do vtk
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
@@ -112,10 +124,12 @@ end
 Convert coordinate data to VTK format.
 
 # Arguments
-- `coordinates`:                 Coordinates to be saved.
-- `output_directory` (optional): Output directory path. Defaults to `"out"`.
-- `prefix` (optional):           Prefix for the output file. Defaults to an empty string.
-- `filename` (optional):         Name of the output file. Defaults to `"coordinates"`.
+- `coordinates`: Coordinates to be saved.
+
+# Keywords
+- `output_directory="out"`: Output directory path.
+- `prefix=""`:              Prefix for the output file.
+- `filename="coordinates"`: Name of the output file.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
