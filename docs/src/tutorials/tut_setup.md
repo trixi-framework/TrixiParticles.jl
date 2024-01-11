@@ -3,8 +3,8 @@
 
 
 # Example file
-'''julia
+```julia
 !!include:examples/fluid/rectangular_tank_2d.jl!!
 
-'''
+```
 
