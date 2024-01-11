@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,7 +94,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
-
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
@@ -130,17 +129,15 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        return new{typeof(boundary_model),
-                   NDIMS, ELTYPE,
+        return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
                    typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
+                                          current_coordinates, mass, correction_matrix,
+                                          pk1_corrected, deformation_grad, material_density,
                                           n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force)
+                                          lame_lambda, lame_mu, smoothing_kernel,
+                                          smoothing_length, acceleration_, boundary_model,
+                                          penalty_force)
     end
 end
 
@@ -234,6 +231,7 @@ end
 @inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
+
 @inline function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
@@ -412,16 +410,18 @@ function viscosity_model(system::TotalLagrangianSPHSystem)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
-                                       particle_system,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       particle_system, neighbor,
                                        neighbor_system::TotalLagrangianSPHSystem,
-                                       density_calculator)
+                                       density_calculator, correction)
     (; boundary_model) = neighbor_system
     (; smoothing_length) = particle_system
 
     # Pressure acceleration for fluid-solid interaction. This is identical to
     # `pressure_acceleration` for the `BoundarySPHSystem`.
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                 smoothing_length, grad_kernel, boundary_model,
-                                 density_calculator)
+    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                     rho_a, rho_b, pos_diff, distance,
+                                     smoothing_length, grad_kernel,
+                                     particle_system, neighbor, neighbor_system,
+                                     boundary_model, density_calculator, correction)
 end
