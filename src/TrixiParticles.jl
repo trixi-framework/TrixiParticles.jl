@@ -33,11 +33,12 @@ include("schemes/schemes.jl")
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 
-export Semidiscretization, semidiscretize, restart_with!
+export Semidiscretization, semidiscretize, initialize_ode, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem
-export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
+export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
+       default_callback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,

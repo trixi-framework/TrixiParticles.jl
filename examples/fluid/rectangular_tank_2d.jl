@@ -62,14 +62,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch)
-ode = semidiscretize(semi, tspan)
-
-info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-
-callbacks = CallbackSet(info_callback, saving_callback)
+ode = initialize_ode(tspan, fluid_system, boundary_system,
+                     neighborhood_search=GridNeighborhoodSearch)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -82,4 +76,4 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=callbacks);
+            save_everystep=false, callback=default_callback());

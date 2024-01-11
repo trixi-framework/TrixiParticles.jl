@@ -1,10 +1,22 @@
 """
-    Semidiscretization(systems...; neighborhood_search=nothing, damping_coefficient=nothing)
+    Semidiscretization(systems...; neighborhood_search=nothing, damping_coefficient=nothing,
+     periodic_box_min_corner=nothing, periodic_box_max_corner=nothing)
 
-The semidiscretization couples the passed systems to one simulation.
+Create a semidiscretization that couples multiple systems into a single simulation environment.
 
-The type of neighborhood search to be used in the simulation can be specified with
-the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
+This constructor allows for the integration of different systems (e.g., fluid dynamics,
+     boundary conditions) into a cohesive simulation framework. The interaction among these
+     systems is managed through neighborhood searches, damping effects,
+     and periodic boundary conditions.
+
+# Arguments
+- `systems...`: Variable number of systems to be coupled.
+
+# Keyword Arguments
+- `neighborhood_search`: The type of neighborhood search algorithm to be used for particle interaction (default: `nothing`, implying no neighborhood search).
+- `damping_coefficient`: Damping coefficient to apply to the system, providing a means to simulate energy dissipation (default: `nothing`).
+- `periodic_box_min_corner`: Minimum corner of the periodic box, defining the lower boundary for periodic simulations (default: `nothing`).
+- `periodic_box_max_corner`: Maximum corner of the periodic box, defining the upper boundary for periodic simulations (default: `nothing`).
 
 # Examples
 ```julia
@@ -161,9 +173,29 @@ end
 @inline foreach_system(f, semi) = foreach_noalloc(f, semi.systems)
 
 """
-    semidiscretize(semi, tspan)
+    semidiscretize(semi, tspan; reset_threads=true)
 
-Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
+Prepare the semidiscretization `semi` for time integration over the time span `tspan`.
+
+This function sets up the necessary data structures and initial conditions
+for time integration of the coupled systems within the semidiscretization.
+
+# Arguments
+- `semi`: The `Semidiscretization` object representing the coupled simulation environment.
+- `tspan`: The time span over which the simulation will be run.
+
+# Keyword Arguments
+- `reset_threads`: A boolean flag to reset Polyester.jl threads before simulation (default: `true`). This is relevant for managing parallel computations and is typically needed to avoid issues in thread management.
+
+# Returns
+- `DynamicalODEProblem`: An object representing the dynamical ODE problem set up for time integration, containing initial conditions and other necessary information.
+
+# Examples
+```julia
+semi = Semidiscretization(fluid_system, boundary_system)
+tspan = (0.0, 1.0)
+ode_problem = semidiscretize(semi, tspan)
+```
 """
 function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
@@ -203,6 +235,19 @@ function semidiscretize(semi, tspan; reset_threads=true)
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
+end
+
+function initialize_ode(tspan, systems...; neighborhood_search=nothing,
+                        periodic_box_min_corner=nothing,
+                        periodic_box_max_corner=nothing,
+                        damping_coefficient=nothing)
+    semi = Semidiscretization(systems..., neighborhood_search=neighborhood_search,
+                              periodic_box_min_corner=periodic_box_min_corner,
+                              periodic_box_max_corner=periodic_box_max_corner,
+                              damping_coefficient=damping_coefficient)
+    ode = semidiscretize(semi, tspan)
+
+    return ode
 end
 
 """
