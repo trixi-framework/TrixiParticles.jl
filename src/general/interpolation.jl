@@ -91,10 +91,10 @@ points = [[1.0, 0.5], [1.0, 0.6], [1.0, 0.7]]
 results = interpolate_point(points, semi, ref_system, sol)
 ```
 !!! note
-- This function is particularly useful for analyzing gradients or creating visualizations along a specified line in the SPH simulation domain.
-- The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-- When `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
-  accurate as a real surface reconstruction.
+    - This function is particularly useful for analyzing gradients or creating visualizations along a specified line in the SPH simulation domain.
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - When `cut_off_bnd` is used a density-based estimation of the surface is used which is not as
+    accurate as a real surface reconstruction.
 """
 function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi, ref_system,
                            sol; smoothing_length=ref_system.smoothing_length,
