@@ -68,7 +68,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=32768.0, custom_quantities...)
+                                max_coordinates=Float64(2^15), custom_quantities...)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end

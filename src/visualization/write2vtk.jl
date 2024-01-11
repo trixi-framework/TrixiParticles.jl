@@ -75,8 +75,10 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
-        throw(DomainError(max_coordinates,
-                          "At least one particle's absolute coordinates exceed `max_coordinates`"))
+        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`")
+        for i in eachindex(points)
+            points[i] = clamp(points[i], -max_coordinates, max_coordinates)
+        end
     end
 
     vtk_grid(file, points, cells) do vtk
@@ -118,9 +120,9 @@ Convert coordinate data to VTK format.
 - `coordinates`: Coordinates to be saved.
 
 # Keywords
-- `output_directory='out'`: Output directory path.
-- `prefix=''`:              Prefix for the output file.
-- `filename='coordinates'`: Name of the output file.
+- `output_directory="out"`: Output directory path.
+- `prefix=""`:              Prefix for the output file.
+- `filename="coordinates"`: Name of the output file.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
