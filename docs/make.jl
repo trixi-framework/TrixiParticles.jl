@@ -27,7 +27,8 @@ end
 
 function replace_with_code(filepath)
     if !isfile(filepath)
-        error("Markdown file not found: $filepath")
+        cwd = pwd()
+        error("Markdown file not found: $filepath in directory: $cwd")
         return
     end
 
