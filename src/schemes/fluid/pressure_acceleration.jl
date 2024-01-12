@@ -83,7 +83,8 @@ end
 
     # Without correction, the kernel gradient is symmetric, so call the symmetric
     # pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a) *
+           pressure_correction
 end
 
 # Correction

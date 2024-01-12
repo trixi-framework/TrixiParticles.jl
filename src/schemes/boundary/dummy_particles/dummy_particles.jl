@@ -282,7 +282,8 @@ end
                                        pressure_acceleration_formulation)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a) *
+           pressure_correction
 end
 
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
@@ -290,7 +291,8 @@ end
                                        smoothing_length, W_a,
                                        boundary_model::BoundaryModelDummyParticles,
                                        pressure_acceleration_formulation)
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a) *
+           pressure_correction
 end
 
 # ==== Pressure acceleration with correction

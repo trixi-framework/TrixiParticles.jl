@@ -38,7 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
     viscosity                         :: V
     density_diffusion                 :: DD
     correction                        :: COR
-    pressure_acceleration_formulation :: PG
+    pressure_acceleration_formulation :: PF
     cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
