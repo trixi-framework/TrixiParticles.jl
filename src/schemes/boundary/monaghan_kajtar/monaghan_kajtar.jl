@@ -80,7 +80,7 @@ end
                                        rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
                                        smoothing_length, grad_kernel,
                                        boundary_model::BoundaryModelMonaghanKajtar,
-                                       pressure_gradient) where {NDIMS}
+                                       pressure_acceleration_formulation) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
     return K / beta^(NDIMS - 1) * pos_diff /

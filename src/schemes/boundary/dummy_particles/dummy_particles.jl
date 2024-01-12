@@ -279,18 +279,18 @@ end
                                        rho_a, rho_b, pos_diff, distance,
                                        smoothing_length, W_a,
                                        boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
-                                       pressure_gradient)
+                                       pressure_acceleration_formulation)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_gradient(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a)
 end
 
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        smoothing_length, W_a,
                                        boundary_model::BoundaryModelDummyParticles,
-                                       pressure_gradient)
-    return pressure_gradient(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+                                       pressure_acceleration_formulation)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
 # ==== Pressure acceleration with correction
@@ -298,10 +298,10 @@ end
                                        rho_a, rho_b, pos_diff, distance,
                                        smoothing_length, W_a, W_b,
                                        boundary_model::BoundaryModelDummyParticles{<:PressureMirroring},
-                                       pressure_gradient)
+                                       pressure_acceleration_formulation)
 
     # Use `p_a` as pressure for both particles with `PressureMirroring`
-    return pressure_gradient(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a, W_b) *
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_a, W_a, W_b) *
            pressure_correction
 end
 
@@ -309,8 +309,8 @@ end
                                        rho_a, rho_b, pos_diff, distance,
                                        smoothing_length, W_a, W_b,
                                        boundary_model::BoundaryModelDummyParticles,
-                                       pressure_gradient)
-    return pressure_gradient(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b) *
+                                       pressure_acceleration_formulation)
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b) *
            pressure_correction
 end
 

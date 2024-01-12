@@ -25,21 +25,21 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, PG, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, PF, C} <:
        FluidSystem{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    viscosity          :: V
-    density_diffusion  :: DD
-    correction         :: COR
-    pressure_gradient  :: PG
-    cache              :: C
+    initial_condition                 :: InitialCondition{ELTYPE}
+    mass                              :: Array{ELTYPE, 1} # [particle]
+    pressure                          :: Array{ELTYPE, 1} # [particle]
+    density_calculator                :: DC
+    state_equation                    :: SE
+    smoothing_kernel                  :: K
+    smoothing_length                  :: ELTYPE
+    acceleration                      :: SVector{NDIMS, ELTYPE}
+    viscosity                         :: V
+    density_diffusion                 :: DD
+    correction                        :: COR
+    pressure_acceleration_formulation :: PG
+    cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
@@ -71,8 +71,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        pressure_acceleration = set_pressure_acceleration(pressure_acceleration,
-                                                          density_calculator, correction)
+        pressure_acceleration = set_pressure_acceleration_formulation(pressure_acceleration,
+                                                                      density_calculator,
+                                                                      correction)
 
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
