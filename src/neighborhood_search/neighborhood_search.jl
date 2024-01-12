@@ -83,7 +83,7 @@ end
 end
 
 @inline function compute_periodic_distance(pos_diff, distance2, search_radius,
-                                           periodic_box::Nothing)
+                                           periodic_box)
     if distance2 > search_radius^2
         # Use periodic `pos_diff`
         pos_diff -= periodic_box.size .* round.(pos_diff ./ periodic_box.size)
