@@ -78,7 +78,7 @@ Open the "dam\_break\_2d.jl" in you favorite text editor and lets make some edit
 - increase time span from `tspan = (0.0, 5.7 / sqrt(gravity))` to `tspan = (0.0, 3.0)` to simulate a longer time span
 - increase the height of the initial fluid from `initial_fluid_size = (2.0, 1.0)` to `initial_fluid_size = (2.0, 2.0)`
 
-Run the simulation as before. The orginal files will be overwritten and will appear in **ParaView** as they are generated.
+Run the simulation as before. The original files will be overwritten and will appear in **ParaView** as they are generated.
 
 
 ## Setup you first simulation from scratch
