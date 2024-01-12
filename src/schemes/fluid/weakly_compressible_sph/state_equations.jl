@@ -33,7 +33,7 @@ Setting `clip_negative_pressure=true` can avoid this.
 # Keywords
 - `sound_speed`: Artificial speed of sound.
 - `reference_density`: Reference density of the fluid.
-- `exponent`: To limit density variation to 1%, an average value of `7` is usually used.
+- `exponent`: A value of `7` is usually used for most simulations.
 - `background_pressure=0.0`: Background pressure.
 
 ## References:
