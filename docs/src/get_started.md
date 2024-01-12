@@ -1,6 +1,6 @@
 # Get Started
 
-If you have not installed TrixiParticles.jl follow the instructions given [here](install.md).
+If you have not installed **TrixiParticles.jl** follow the instructions given [here](install.md).
 
 In the following examples we will run through some easy first steps to get a more thorough discussion take a look at our [tutorial section](tutorial.md).
 
@@ -57,7 +57,7 @@ Afterwards you will find the following files in the "out" directory:
 - fluid_1.pvd -- Collection of the first fluid's solution files
 - boundary_1.pvd -- Collection of the first boundaries solution files
 
-We can now view these files by opening them in ParaView:
+We can now view these files by opening them in **ParaView**:
 
 1. Click file open
 2. Navigate to the out directory
@@ -74,10 +74,11 @@ Lets, for example pick "density". To now view the time progression of the result
 
 
 ## Modifying an Example
-Open the "dam_break_2d.jl" in you favorite text editor and lets make some edits:
+Open the "dam\_break\_2d.jl" in you favorite text editor and lets make some edits:
 - increase time span from `tspan = (0.0, 5.7 / sqrt(gravity))` to `tspan = (0.0, 3.0)` to simulate a longer time span
 - increase the height of the initial fluid from `initial_fluid_size = (2.0, 1.0)` to `initial_fluid_size = (2.0, 2.0)`
 
+Run the simulation as before. The orginal files will be overwritten and will appear in **ParaView** as they are generated.
 
 
 ## Setup you first simulation from scratch
