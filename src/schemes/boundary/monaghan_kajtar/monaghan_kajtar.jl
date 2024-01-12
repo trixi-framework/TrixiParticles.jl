@@ -1,5 +1,15 @@
 @doc raw"""
-    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
+    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
+                                viscosity=NoViscosity())
+## Arguments
+- `K`: Scaling factor for repulsive force.
+- `beta`: Ratio of fluid particle spacing to boundary particle spacing.
+- `boundary_particle_spacing`: Boundary particle spacing.
+- `mass`: Vector holding the mass of each boundary particles.
+
+# Keywords
+- `viscosity`:  Slip (default) or no-slip condition. See description below for further
+                information
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` due to boundary particle ``b`` is given by
@@ -41,6 +51,12 @@ where ``g`` is the gravitational acceleration and ``D`` is the depth of the flui
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
 simulation, where the density of the boundary particle if needed is assumed to be
 identical to the density of the fluid particle.
+
+# No slip condition
+
+By choosing the viscosity model [`ArtificialViscosityMonaghan`](@ref) for `viscosity`,
+a non-slip condition is imposed. When omitting the viscous interaction
+(default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
 
 ## References:
 - Joseph J. Monaghan, Jules B. Kajtar. "SPH particle boundary forces for arbitrary boundaries".

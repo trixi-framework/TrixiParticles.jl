@@ -12,7 +12,6 @@
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system
 
-
 # Keywords
 - `state_equation`: This should be the same as for the adjacent fluid system
                     (see e.g. [`StateEquationIdealGas`](@ref)).
@@ -88,10 +87,9 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
-By simply omitting the viscous interaction (choosing `viscosity=NoViscosity()`) a free-slip
-wall boundary condition is applied. By choosing a viscosity model for `viscosity`, a non-slip
-condition is imposed. The viscosity model should be the same as for the adjacent fluid system
-(see [`ViscosityAdami`](@ref) and [`ArtificialViscosityMonaghan`](@ref)).
+By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a non-slip
+condition is imposed. When omitting the viscous interaction
+(default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
 
 # Examples
 
