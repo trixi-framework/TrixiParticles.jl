@@ -93,6 +93,7 @@ makedocs(sitename="TrixiParticles.jl",
              "News" => "news.md",
              "Installation" => "install.md",
              "Get Started" => "get_started.md",
+             "Development" => "development.md",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Components" => [
