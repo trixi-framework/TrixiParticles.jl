@@ -35,7 +35,7 @@ n_wall_particles_y = size(tank.face_indices[2], 2)
 
 wall = RectangularShape(boundary_particle_spacing,
                         (boundary_layers, n_wall_particles_y),
-                        (wall_position, 0.0), fluid_density)
+                        (wall_position, 0.0), density=fluid_density)
 
 # Movement function
 f_y(t) = 0.0

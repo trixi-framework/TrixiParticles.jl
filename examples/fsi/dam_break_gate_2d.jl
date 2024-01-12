@@ -46,7 +46,7 @@ gate_height = initial_fluid_size[2] + 4 * fluid_particle_spacing
 gate = RectangularShape(boundary_particle_spacing,
                         (boundary_layers,
                          round(Int, gate_height / boundary_particle_spacing)),
-                        (initial_fluid_size[1], 0.0), fluid_density)
+                        (initial_fluid_size[1], 0.0), density=fluid_density)
 
 # Movement of the gate according to the paper
 f_x(t) = 0.0
@@ -78,11 +78,11 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 plate_position = 0.6 - n_particles_x * solid_particle_spacing
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
-                         (plate_position, solid_particle_spacing), solid_density,
-                         tlsph=true)
+                         (plate_position, solid_particle_spacing),
+                         density=solid_density, tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_x, 1), (plate_position, 0.0),
-                                   solid_density, tlsph=true)
+                                   density=solid_density, tlsph=true)
 
 solid = union(plate, fixed_particles)
 
