@@ -38,7 +38,7 @@
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
                     smoothing_length = -1.0
 
-                    fluid = InitialCondition(coordinates, velocity, mass, density)
+                    fluid = InitialCondition(; coordinates, velocity, mass, density)
                     system = WeaklyCompressibleSPHSystem(fluid,
                                                          density_calculator,
                                                          state_equation, smoothing_kernel,

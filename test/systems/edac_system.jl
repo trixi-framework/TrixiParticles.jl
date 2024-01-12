@@ -12,9 +12,8 @@
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
-            velocities = zero(coordinates)
-            masses = [1.25, 1.5]
-            densities = [990.0, 1000.0]
+            mass = [1.25, 1.5]
+            density = [990.0, 1000.0]
             smoothing_kernel = Val(:smoothing_kernel)
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
             smoothing_kernel2 = Val(:smoothing_kernel2)
@@ -23,14 +22,14 @@
             smoothing_length = 0.362
             sound_speed = 10.0
 
-            initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+            initial_condition = InitialCondition(; coordinates, mass, density)
 
             system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                                  smoothing_length, sound_speed)
 
             @test system isa EntropicallyDampedSPHSystem{NDIMS}
             @test system.initial_condition == initial_condition
-            @test system.mass == masses
+            @test system.mass == mass
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
             @test system.viscosity isa TrixiParticles.NoViscosity
@@ -55,8 +54,8 @@
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors with Setups" begin
         setups = [
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0, pressure=ones(6)),
-            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0, pressure=1.0),
+            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density=1.0),
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
@@ -116,15 +115,14 @@
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
         smoothing_length = 0.362
         sound_speed = 10.0
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+        initial_condition = InitialCondition(; coordinates, mass, density)
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
@@ -147,16 +145,14 @@
     @trixi_testset "write_u0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         pressure = [5.0, 7.8]
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
         sound_speed = 10.0
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities,
-                                             pressure=pressure)
+        initial_condition = InitialCondition(; coordinates, mass, density, pressure)
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
@@ -171,17 +167,17 @@
     @trixi_testset "write_v0!" begin
         coordinates = [0.5 2.0
                        1.0 2.0]
-        velocities = 2 * coordinates
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        velocity = 2 * coordinates
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         pressure = [5.0, 7.8]
         pressure_function(x) = 1.0 - 0.2 * ℯ^-((first(x) - 0.5)^2 / 0.001)
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
         sound_speed = 10.0
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities,
-                                             pressure=pressure)
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure)
 
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
@@ -190,7 +186,7 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
-        @test v0 == vcat(velocities, pressure')
+        @test v0 == vcat(velocity, pressure')
 
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed,
@@ -200,6 +196,6 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
-        @test v0 == vcat(velocities, [0.8, 1.0]')
+        @test v0 == vcat(velocity, [0.8, 1.0]')
     end
 end
