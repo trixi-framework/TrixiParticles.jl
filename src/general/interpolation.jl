@@ -175,7 +175,7 @@ end
     if cut_off_bnd
         systems = semi
     else
-         # Don't loop over other systems
+        # Don't loop over other systems
         systems = (ref_system,)
     end
 
@@ -195,7 +195,8 @@ end
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
-            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2, nhs)
+            pos_diff, distance2 = compute_periodic_distance(pos_diff, distance2,
+                                                            search_radius, periodic_box)
             if distance2 > search_radius^2
                 continue
             end

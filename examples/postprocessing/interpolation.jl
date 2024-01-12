@@ -25,7 +25,6 @@ println(interpolate_point([
                               [1.0, -0.05],
                           ], semi, fluid_system, sol))
 
-
 # It is also possible to interpolate along a line
 result = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol)
 result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_system, sol,
@@ -52,7 +51,7 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 using Plots
 
 p = plot(walldistance, result.density, marker=:circle, color=:blue, markerstrokecolor=:blue,
-     linewidth=2, label="With Endpoint")
+         linewidth=2, label="With Endpoint")
 
 plot!(p, walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
       linestyle=:dash, label="Without Endpoint", color=:orange)
