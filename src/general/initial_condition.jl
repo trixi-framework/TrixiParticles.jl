@@ -1,6 +1,6 @@
 @doc raw"""
-    InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
-                     particle_spacing=-1.0)
+    InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
+                     mass=nothing, pressure=0.0, particle_spacing=-1.0)
 
 Struct to hold the initial configuration of the particles.
 
@@ -14,46 +14,58 @@ to build more complex geometries.
 
 # Arguments
 - `coordinates`: An array where the $i$-th column holds the coordinates of particle $i$.
-- `velocities`: An array where the $i$-th column holds the velocity of particle $i$.
-- `masses`: A vector holding the mass of each particle.
-- `densities`: A vector holding the density of each particle.
+- `density`:     Either a vector holding the density of each particle,
+                 or a function mapping each particle's coordinates to its density,
+                 or a scalar for a constant density over all particles.
 
 # Keywords
-- `pressure`: Either a vector of pressure values of each particle or a number for a constant
-              pressure over all particles. This is optional and only needed when using
-              the [`EntropicallyDampedSPHSystem`](@ref).
-- `particle_spacing`: The spacing between the particles. This is a number, as the spacing
+- `velocity`:   Either an array where the $i$-th column holds the velocity of particle $i$,
+                or a function mapping each particle's coordinates to its velocity,
+                or, for a constant fluid velocity, a vector holding this velocity.
+                Velocity is constant zero by default.
+- `mass`:       Either `nothing` (default) to automatically compute particle mass from particle
+                density and spacing, or a vector holding the mass of each particle,
+                or a function mapping each particle's coordinates to its mass,
+                or a scalar for a constant mass over all particles.
+- `pressure`:   Either a vector holding the pressure of each particle,
+                or a function mapping each particle's coordinates to its pressure,
+                or a scalar for a constant pressure over all particles. This is optional and
+                only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
+- `particle_spacing`: The spacing between the particles. This is a scalar, as the spacing
                       is assumed to be uniform. This is only needed when using
-                      set operations on the `InitialCondition`.
+                      set operations on the `InitialCondition` or for automatic mass calculation.
 
 # Examples
 ```julia
 # Rectangle filled with particles
-initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), 1.0)
+initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), density=1.0)
 
 # Two spheres in one initial condition
 initial_condition = union(SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
                           SphereShape(0.15, 0.2, (0.0, 1.0), 1.0))
 
 # Rectangle with a spherical hole
-shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = setdiff(shape1, shape2)
 
 # Intersect of a rectangle with a sphere. Note that this keeps the particles of the
 # rectangle that are in the intersect, while `intersect(shape2, shape1)` would consist of
 # the particles of the sphere that are in the intersect.
-shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), 1.0)
+shape1 = RectangularShape(0.1, (16, 13), (-0.8, 0.0), density=1.0)
 shape2 = SphereShape(0.1, 0.35, (0.0, 0.6), 1.0, sphere_type=RoundSphere())
 initial_condition = intersect(shape1, shape2)
 
 # Build `InitialCondition` manually
 coordinates = [0.0 1.0 1.0
                0.0 0.0 1.0]
-velocities = zero(coordinates)
-masses = ones(3)
-densities = 1000 * ones(3)
-initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+velocity = zero(coordinates)
+mass = ones(3)
+density = 1000 * ones(3)
+initial_condition = InitialCondition(; coordinates, velocity, mass, density)
+
+# With functions
+initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, density=1000.0)
 ```
 """
 struct InitialCondition{ELTYPE}
@@ -64,31 +76,103 @@ struct InitialCondition{ELTYPE}
     density          :: Array{ELTYPE, 1}
     pressure         :: Array{ELTYPE, 1}
 
-    function InitialCondition(coordinates, velocities, masses, densities; pressure=0.0,
-                              particle_spacing=-1.0)
+    function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
+                              mass=nothing, pressure=0.0, particle_spacing=-1.0)
+        NDIMS = size(coordinates, 1)
+
+        return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                       pressure, particle_spacing)
+    end
+
+    # Function barrier to make `NDIMS` static and therefore SVectors type-stable
+    function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+                                     pressure, particle_spacing) where {NDIMS}
         ELTYPE = eltype(coordinates)
+        n_particles = size(coordinates, 2)
 
-        if size(coordinates) != size(velocities)
-            throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
+        if n_particles == 0
+            return new{ELTYPE}(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
+                               zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
         end
 
-        if !(size(coordinates, 2) == length(masses) == length(densities))
-            throw(ArgumentError("Expected: size(coordinates, 2) == length(masses) == length(densities)\n" *
-                                "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
-                                "length(masses) = $(length(masses)), " *
-                                "length(densities) = $(length(densities))"))
+        # SVector of coordinates to pass to functions
+        coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+
+        if velocity isa AbstractMatrix
+            velocities = velocity
+            if size(coordinates) != size(velocities)
+                throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
+            end
+        else
+            # Assuming `velocity` is a scalar or a function
+            velocity_fun = wrap_function(velocity, Val(NDIMS))
+            if length(velocity_fun(coordinates_svector[1])) != NDIMS
+                throw(ArgumentError("`velocity` must be $NDIMS-dimensional " *
+                                    "for $NDIMS-dimensional `coordinates`"))
+            end
+            velocities_svector = velocity_fun.(coordinates_svector)
+            velocities = reinterpret(reshape, ELTYPE, velocities_svector)
         end
 
-        if pressure isa Number
-            pressure = pressure * ones(ELTYPE, length(masses))
-        elseif length(pressure) != length(masses)
-            throw(ArgumentError("`pressure` must either be a scalar or a vector of the " *
-                                "same length as `masses`"))
+        if density isa AbstractVector
+            if length(density) != n_particles
+                throw(ArgumentError("Expected: length(density) == size(coordinates, 2)\n" *
+                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                    "length(density) = $(length(density))"))
+            end
+            densities = density
+        else
+            density_fun = wrap_function(density, Val(NDIMS))
+            densities = density_fun.(coordinates_svector)
+        end
+
+        if pressure isa AbstractVector
+            if length(pressure) != n_particles
+                throw(ArgumentError("Expected: length(pressure) == size(coordinates, 2)\n" *
+                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                    "length(pressure) = $(length(pressure))"))
+            end
+            pressures = pressure
+        else
+            pressure_fun = wrap_function(pressure, Val(NDIMS))
+            pressures = pressure_fun.(coordinates_svector)
+        end
+
+        if mass isa AbstractVector
+            if length(mass) != n_particles
+                throw(ArgumentError("Expected: length(mass) == size(coordinates, 2)\n" *
+                                    "Got: size(coordinates, 2) = $(size(coordinates, 2)), " *
+                                    "length(mass) = $(length(mass))"))
+            end
+            masses = mass
+        elseif mass === nothing
+            if particle_spacing < 0
+                throw(ArgumentError("`mass` must be specified when not using `particle_spacing`"))
+            end
+            particle_volume = particle_spacing^NDIMS
+            masses = particle_volume * densities
+        else
+            mass_fun = wrap_function(mass, Val(NDIMS))
+            masses = mass_fun.(coordinates_svector)
         end
 
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
-                           densities, pressure)
+                           densities, pressures)
     end
+end
+
+function wrap_function(function_::Function, ::Val)
+    # Already a function
+    return function_
+end
+
+function wrap_function(constant_scalar::Number, ::Val)
+    return coords -> constant_scalar
+end
+
+# For vectors and tuples
+function wrap_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
+    return coords -> SVector{NDIMS}(constant_vector)
 end
 
 @inline function Base.ndims(initial_condition::InitialCondition)
@@ -127,8 +211,8 @@ function Base.union(initial_condition::InitialCondition, initial_conditions...)
     density = vcat(initial_condition.density, ic.density[valid_particles])
     pressure = vcat(initial_condition.pressure, ic.pressure[valid_particles])
 
-    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
-                              particle_spacing=particle_spacing)
+    result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                         particle_spacing)
 
     return union(result, Base.tail(initial_conditions)...)
 end
@@ -157,8 +241,8 @@ function Base.setdiff(initial_condition::InitialCondition, initial_conditions...
     density = initial_condition.density[valid_particles]
     pressure = initial_condition.pressure[valid_particles]
 
-    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
-                              particle_spacing=particle_spacing)
+    result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                         particle_spacing)
 
     return setdiff(result, Base.tail(initial_conditions)...)
 end
@@ -186,8 +270,8 @@ function Base.intersect(initial_condition::InitialCondition, initial_conditions.
     density = initial_condition.density[too_close]
     pressure = initial_condition.pressure[too_close]
 
-    result = InitialCondition(coordinates, velocity, mass, density, pressure=pressure,
-                              particle_spacing=particle_spacing)
+    result = InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                         particle_spacing)
 
     return intersect(result, Base.tail(initial_conditions)...)
 end
