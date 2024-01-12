@@ -28,7 +28,8 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         smoothing_length = 1.2 * particle_spacing
         viscosity = ViscosityAdami(nu=1e-6)
-        state_equation = StateEquationCole(10, 7, 257, 0.0)
+        state_equation = StateEquationCole(sound_speed=10, reference_density=257,
+                                           exponent=7)
 
         boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                                      state_equation=state_equation,

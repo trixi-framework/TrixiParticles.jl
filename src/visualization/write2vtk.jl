@@ -184,12 +184,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             end
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
-            vtk["state_equation_p0"] = system.state_equation.reference_pressure
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            if system.state_equation isa StateEquationCole
-                vtk["state_equation_gamma"] = system.state_equation.gamma
-            end
+            vtk["state_equation_exponent"] = system.state_equation.exponent
 
             vtk["solver"] = "WCSPH"
         else
