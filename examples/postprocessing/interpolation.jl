@@ -35,8 +35,8 @@ result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_sys
 walldistance = [coord[2] for coord in result.coord]
 walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
-#using PythonPlot
-#
+# using PythonPlot
+
 # figure()
 # plot(walldistance, result.density, marker="o", linestyle="-", label="With Endpoint")
 # plot(walldistance_endpoint, result_endpoint.density, marker="x", linestyle="--",
@@ -47,12 +47,16 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 # title("Density Interpolation Along a Line")
 # legend()
 
-# show()
+# plotshow()
 
 using Plots
 
-plot(walldistance, result.density, marker=:circle, linewidth=2, ylims=(1000, Inf),
-     label="With Endpoint", xlabel="Wall distance", ylabel="Density",
-     title="Density Interpolation Along a Line")
-plot!(walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
-      label="Without Endpoint")
+p = plot(walldistance, result.density, marker=:circle, color=:blue, markerstrokecolor=:blue,
+     linewidth=2, label="With Endpoint")
+
+plot!(p, walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
+      linestyle=:dash, label="Without Endpoint", color=:orange)
+
+plot!(p, framestyle=:box, legend=:best, xlabel="Wall distance",
+      ylabel="Density", title="Density Interpolation Along a Line", size=(800, 600),
+      dpi=300)
