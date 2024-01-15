@@ -63,6 +63,12 @@
             @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
                                                                    velocity=zeros(2, 2),
                                                                    density=ones(2))
+
+            error_str = "density must be positive and larger than `eps()`"
+            @test_throws ArgumentError(error_str) InitialCondition(coordinates=zeros(2, 2),
+                                                                   velocity=zeros(2, 2),
+                                                                   density=zeros(2),
+                                                                   mass=ones(2))
         end
 
         @testset "Constant Quantities" begin
