@@ -421,6 +421,23 @@ end
 
 @inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing) = dv
 
+@doc raw"""
+    SourceTermDamping(; damping_coefficient)
+
+Source term to be used when a damping step is required before running a full simulation.
+A term ``-dv_a`` is added to the acceleration ``\frac{\mathrm{d}v_a}{\mathrm{d}t}`` of
+particle ``a``, where ``d``is the damping coefficient and ``v_a`` is the velocity of
+particle ``a``.
+
+# Keywords
+- `damping_coefficient`:    The coefficient ``d`` above. A higher coefficient means more
+                            damping.
+
+# Examples
+```julia
+source_terms = SourceTermDamping(; damping_coefficient=1e-3)
+```
+"""
 struct SourceTermDamping{ELTYPE}
     damping_coefficient::ELTYPE
 

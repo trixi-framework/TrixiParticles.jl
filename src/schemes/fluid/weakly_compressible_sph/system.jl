@@ -27,12 +27,16 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
 - `correction`:     Correction method used for this system. (default: no correction)
-- `source_terms`:   Additional source terms for this system. See, for example,
-                    [`SourceTermDamping`](@ref). Note that these source terms will not be
-                    used in the calculation of the boundary pressure when using a boundary
-                    with [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
-                    Therefore, `acceleration` should be used instead for gravity-like
-                    source terms.
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+                    Note that these source terms will not be used in the calculation of the
+                    boundary pressure when using a boundary with
+                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    The keyword argument `acceleration` should be used instead for
+                    gravity-like source terms.
 
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
