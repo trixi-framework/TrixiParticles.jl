@@ -1,6 +1,7 @@
 # Example for using interpolation
 #######################################################################################
 using TrixiParticles
+using Plots
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))
 
@@ -34,6 +35,7 @@ result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_sys
 walldistance = [coord[2] for coord in result.coord]
 walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
+# Alternatively, to using Plots.jl one can also use PythonPlot which uses matplotlib
 # using PythonPlot
 
 # figure()
@@ -47,8 +49,6 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 # legend()
 
 # plotshow()
-
-using Plots
 
 p = plot(walldistance, result.density, marker=:circle, color=:blue, markerstrokecolor=:blue,
          linewidth=2, label="With Endpoint")
