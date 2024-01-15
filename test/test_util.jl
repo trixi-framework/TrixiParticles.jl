@@ -52,7 +52,8 @@ function rectangular_patch(particle_spacing, size; density=1000.0, pressure=0.0,
 
     # Center particle at the origin (assuming odd size)
     min_corner = -particle_spacing / 2 .* size
-    ic = RectangularShape(particle_spacing, size, min_corner, density, pressure=pressure)
+    ic = RectangularShape(particle_spacing, size, min_corner,
+                          density=density, pressure=pressure)
 
     perturb!(ic.coordinates, perturbation_factor_position * 0.5 * particle_spacing)
 

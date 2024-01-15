@@ -57,7 +57,7 @@
         @testset "Velocities" begin
             tank = RectangularTank(0.2, (water_width, water_height),
                                    (tank_width, tank_height), water_density,
-                                   init_velocity=(1.0, 2.5))
+                                   velocity=(1.0, 2.5))
 
             expected_velocities = [1.0 1.0 1.0 1.0; 2.5 2.5 2.5 2.5]
 
