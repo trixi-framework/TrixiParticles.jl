@@ -25,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, ST, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -38,6 +38,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
     viscosity          :: V
     density_diffusion  :: DD
     correction         :: COR
+    source_terms       :: ST
     cache              :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
@@ -46,7 +47,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing)
+                                         correction=nothing,
+                                         source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -74,13 +76,16 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(cache)}(initial_condition, mass, pressure,
-                                                      density_calculator, state_equation,
-                                                      smoothing_kernel, smoothing_length,
-                                                      acceleration_, viscosity,
-                                                      density_diffusion, correction, cache)
+        return new{NDIMS, ELTYPE, typeof(density_calculator),
+                   typeof(state_equation), typeof(smoothing_kernel),
+                   typeof(viscosity), typeof(density_diffusion),
+                   typeof(correction),
+                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
+                                                        density_calculator, state_equation,
+                                                        smoothing_kernel, smoothing_length,
+                                                        acceleration_, viscosity,
+                                                        density_diffusion, correction,
+                                                        source_terms, cache)
     end
 end
 

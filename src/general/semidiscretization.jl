@@ -1,27 +1,29 @@
 """
-    Semidiscretization(systems...; neighborhood_search=nothing, damping_coefficient=nothing)
+    Semidiscretization(systems...; neighborhood_search=nothing,
+                       periodic_box_min_corner=nothing, periodic_box_max_corner=nothing)
 
 The semidiscretization couples the passed systems to one simulation.
 
 The type of neighborhood search to be used in the simulation can be specified with
 the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
 
+TODO
+
 # Examples
 ```julia
-semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search=GridNeighborhoodSearch, damping_coefficient=nothing)
+semi = Semidiscretization(fluid_system, boundary_system;
+                          neighborhood_search=GridNeighborhoodSearch)
 ```
 """
-struct Semidiscretization{S, RU, RV, NS, DC}
+struct Semidiscretization{S, RU, RV, NS}
     systems               :: S
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
-    damping_coefficient   :: DC
 
     function Semidiscretization(systems...; neighborhood_search=nothing,
                                 periodic_box_min_corner=nothing,
-                                periodic_box_max_corner=nothing,
-                                damping_coefficient=nothing)
+                                periodic_box_max_corner=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -45,8 +47,7 @@ struct Semidiscretization{S, RU, RV, NS, DC}
                          for system in systems)
 
         new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches), typeof(damping_coefficient)}(systems, ranges_u, ranges_v,
-                                                           searches, damping_coefficient)
+            typeof(searches)}(systems, ranges_u, ranges_v, searches)
     end
 end
 
@@ -75,7 +76,6 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "#systems", length(semi.systems))
         summary_line(io, "neighborhood search",
                      semi.neighborhood_searches |> eltype |> eltype |> nameof)
-        summary_line(io, "damping coefficient", semi.damping_coefficient)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_footer(io)
     end
@@ -300,8 +300,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
                                                                               semi, t)
 
-        @trixi_timeit timer() "gravity and damping" gravity_and_damping!(dv_ode, v_ode,
-                                                                         semi)
+        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
 
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
@@ -364,23 +363,24 @@ function update_nhs(u_ode, semi)
     end
 end
 
-function gravity_and_damping!(dv_ode, v_ode, semi)
-    (; damping_coefficient) = semi
-
-    # Set velocity and add acceleration for each system
+function add_source_terms!(dv_ode, v_ode, u_ode, semi)
     foreach_system(semi) do system
         dv = wrap_v(dv_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
 
         @threaded for particle in each_moving_particle(system)
-            # This can be dispatched per system
+            # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
-            add_damping_force!(dv, damping_coefficient, v, particle, system)
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
         end
     end
 
     return dv_ode
 end
+
+@inline source_terms(system) = nothing
+@inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
 @inline function add_acceleration!(dv, particle, system)
     (; acceleration) = system
@@ -394,18 +394,36 @@ end
 
 @inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
 
-@inline function add_damping_force!(dv, damping_coefficient, v, particle,
-                                    system::FluidSystem)
+@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_)
+    coords = current_coords(u, system, particle)
+    velocity = current_velocity(v, system, particle)
+    density = particle_density(v, system, particle)
+    pressure = particle_pressure(v, system, particle)
+
+    source = source_terms_(coords, velocity, density, pressure)
+
     for i in 1:ndims(system)
-        dv[i, particle] -= damping_coefficient * v[i, particle]
+        dv[i, particle] += source[i]
     end
 
     return dv
 end
 
-# Currently no damping for non-fluid systems
-@inline add_damping_force!(dv, damping_coefficient, v, particle, system) = dv
-@inline add_damping_force!(dv, ::Nothing, v, particle, system::FluidSystem) = dv
+@inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing) = dv
+
+struct SourceTermDamping{ELTYPE}
+    damping_coefficient::ELTYPE
+
+    function SourceTermDamping(; damping_coefficient)
+        return new{typeof(damping_coefficient)}(damping_coefficient)
+    end
+end
+
+@inline function (source_term::SourceTermDamping)(coords, velocity, density, pressure)
+    (; damping_coefficient) = source_term
+
+    return -damping_coefficient * velocity
+end
 
 function system_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems

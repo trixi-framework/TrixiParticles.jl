@@ -31,7 +31,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, ST} <:
        FluidSystem{NDIMS}
     initial_condition         :: InitialCondition{ELTYPE}
     mass                      :: Array{ELTYPE, 1} # [particle]
@@ -44,13 +44,15 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
     nu_edac                   :: ELTYPE
     initial_pressure_function :: PF
     acceleration              :: SVector{NDIMS, ELTYPE}
+    source_terms              :: ST
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
                                          initial_pressure_function=nothing,
                                          acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)))
+                                                             ndims(smoothing_kernel)),
+                                         source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -61,7 +63,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
         if length(acceleration_) != NDIMS
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
@@ -73,11 +74,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
 
         new{NDIMS, ELTYPE, typeof(density_calculator),
             typeof(smoothing_kernel), typeof(viscosity),
-            typeof(initial_pressure_function)}(initial_condition, mass, density,
-                                               density_calculator, smoothing_kernel,
-                                               smoothing_length, sound_speed, viscosity,
-                                               nu_edac, initial_pressure_function,
-                                               acceleration_)
+            typeof(initial_pressure_function),
+            typeof(source_terms)}(initial_condition, mass, density, density_calculator,
+                                  smoothing_kernel, smoothing_length, sound_speed,
+                                  viscosity, nu_edac, initial_pressure_function,
+                                  acceleration_, source_terms)
     end
 end
 
