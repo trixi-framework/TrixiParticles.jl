@@ -23,7 +23,7 @@
     TrixiParticles.compact_support(::System2, neighbor) = 0.2
 
     @testset verbose=true "Constructor" begin
-        semi = Semidiscretization(system1, system2)
+        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         # Verification
         @test semi.ranges_u == (1:6, 7:18)
@@ -37,7 +37,7 @@
     end
 
     @testset verbose=true "show" begin
-        semi = Semidiscretization(system1, system2)
+        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         show_compact = "Semidiscretization($System1(), $System2(), neighborhood_search=TrivialNeighborhoodSearch)"
         @test repr(semi) == show_compact
@@ -49,7 +49,6 @@
         │ #spatial dimensions: ………………………… 2                                                                │
         │ #systems: ……………………………………………………… 2                                                                │
         │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
-        │ damping coefficient: ………………………… nothing                                                          │
         │ total #particles: ………………………………… 5                                                                │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
