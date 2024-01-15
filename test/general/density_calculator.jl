@@ -23,7 +23,7 @@ using OrdinaryDiffEq
         (; cache) = fluid_system
         (; density) = cache # Density is in the cache for SummationDensity
 
-        semi = Semidiscretization(fluid_system, neighborhood_search=GridNeighborhoodSearch)
+        semi = Semidiscretization(fluid_system)
 
         tspan = (0.0, 0.01)
         ode = semidiscretize(semi, tspan)
