@@ -1,3 +1,4 @@
+include("../test_util.jl")
 @testset verbose=true "SPH Interpolation" begin
     function compare_interpolation_result(actual, expected; tolerance=1e-8)
         @test length(actual.density) == length(expected.density)
@@ -79,8 +80,8 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{2}()
         sound_speed = 10 * sqrt(9.81 * 0.9)
 
-        state_equation = StateEquationCole(sound_speed, 7, 1000, 100000.0,
-                                           background_pressure=100000.0,
+        state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
+                                           exponent=7, background_pressure=100000.0,
                                            clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny), seed=1,
@@ -581,8 +582,8 @@
         smoothing_kernel = SchoenbergCubicSplineKernel{3}()
         sound_speed = 10 * sqrt(9.81 * 0.9)
 
-        state_equation = StateEquationCole(sound_speed, 7, 1000, 100000.0,
-                                           background_pressure=100000.0,
+        state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
+                                           exponent=7, background_pressure=100000.0,
                                            clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny, nz), seed=1,
