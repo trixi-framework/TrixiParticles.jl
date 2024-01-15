@@ -1,7 +1,10 @@
 @doc raw"""
-    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel, smoothing_length,
-                                sound_speed; alpha=0.5, viscosity=NoViscosity(),
-                                acceleration=ntuple(_ -> 0.0, NDIMS))
+    EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                smoothing_length, sound_speed;
+                                alpha=0.5, viscosity=NoViscosity(),
+                                initial_pressure_function=nothing,
+                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                source_terms=nothing)
 
 Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
 As opposed to the weakly compressible SPH scheme, which uses an equation of state

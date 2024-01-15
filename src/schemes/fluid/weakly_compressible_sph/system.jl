@@ -2,8 +2,9 @@
     WeaklyCompressibleSPHSystem(initial_condition,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
-                                viscosity=NoViscosity(),
-                                acceleration=ntuple(_ -> 0.0, NDIMS))
+                                viscosity=NoViscosity(), density_diffusion=nothing,
+                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                correction=nothing, source_terms=nothing)
 
 Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
 equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
@@ -12,13 +13,26 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref).
+- `density_calculator`: Density calculator for the system.
+                        See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [`SmoothingKernel`](@ref).
 
 # Keyword Arguments
-- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
-- `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
-- `correction`:   Correction method used for this SPH system. (default: no correction)
+- `viscosity`:      Viscosity model for this system (default: no viscosity).
+                    See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `correction`:     Correction method used for this system. (default: no correction)
+- `source_terms`:   Additional source terms for this system. See, for example,
+                    [`SourceTermDamping`](@ref). Note that these source terms will not be
+                    used in the calculation of the boundary pressure when using a boundary
+                    with [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    Therefore, `acceleration` should be used instead for gravity-like
+                    source terms.
 
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
@@ -47,8 +61,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing,
-                                         source_terms=nothing)
+                                         correction=nothing, source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)

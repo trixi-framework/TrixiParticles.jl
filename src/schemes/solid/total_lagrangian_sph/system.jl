@@ -4,7 +4,7 @@
                              young_modulus, poisson_ratio, boundary_model;
                              n_fixed_particles=0,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
-                             penalty_force=nothing)
+                             penalty_force=nothing, source_terms=nothing)
 
 System for particles of an elastic solid.
 
