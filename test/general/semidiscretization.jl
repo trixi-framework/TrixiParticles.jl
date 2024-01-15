@@ -7,9 +7,6 @@
     system1 = System1()
     system2 = System2()
 
-    Base.ndims(::System1) = 2
-    Base.ndims(::System2) = 2
-
     TrixiParticles.u_nvariables(::System1) = 3
     TrixiParticles.u_nvariables(::System2) = 4
     TrixiParticles.v_nvariables(::System1) = 3
@@ -29,14 +26,14 @@
         @test semi.ranges_u == (1:6, 7:18)
         @test semi.ranges_v == (1:6, 7:12)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{2}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{2}(0.2, Base.OneTo(3))),
-               (TrixiParticles.TrivialNeighborhoodSearch{2}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{2}(0.2, Base.OneTo(3))))
+        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))),
+               (TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))))
         @test semi.neighborhood_searches == nhs
     end
 
-    @testset verbose=true "show" begin
+    @testset verbose=true "`show`" begin
         semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
 
         show_compact = "Semidiscretization($System1(), $System2(), neighborhood_search=TrivialNeighborhoodSearch)"
@@ -46,11 +43,34 @@
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ Semidiscretization                                                                               │
         │ ══════════════════                                                                               │
-        │ #spatial dimensions: ………………………… 2                                                                │
+        │ #spatial dimensions: ………………………… 3                                                                │
         │ #systems: ……………………………………………………… 2                                                                │
         │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
         │ total #particles: ………………………………… 5                                                                │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", semi) == show_box
+    end
+
+    @testset verbose=true "Source Terms" begin
+        TrixiParticles.source_terms(::System1) = SourceTermDamping(damping_coefficient=0.1)
+        TrixiParticles.particle_density(v, system::System1, particle) = 0.0
+        TrixiParticles.particle_pressure(v, system::System1, particle) = 0.0
+
+        semi = Semidiscretization(system1, system2, neighborhood_search=nothing)
+
+        dv_ode = zeros(3 * 2 + 2 * 3)
+        du_ode = zeros(3 * 2 + 4 * 3)
+        u_ode = zero(du_ode)
+
+        v1 = [1.0 2.0
+              3.0 4.0
+              5.0 6.0]
+        v2 = zeros(4 * 3)
+        v_ode = vcat(vec(v1), v2)
+
+        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
+
+        dv = TrixiParticles.wrap_v(dv_ode, system1, semi)
+        @test dv == -0.1 * v1
     end
 end

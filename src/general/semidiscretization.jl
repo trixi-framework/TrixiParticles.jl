@@ -392,7 +392,9 @@ end
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
-@inline function add_acceleration!(dv, particle, system)
+@inline add_acceleration!(dv, particle, system) = dv
+
+@inline function add_acceleration!(dv, particle, system::Union{FluidSystem, SolidSystem})
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -402,8 +404,6 @@ end
     return dv
 end
 
-@inline add_acceleration!(dv, particle, system::BoundarySPHSystem) = dv
-
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
@@ -412,7 +412,7 @@ end
 
     source = source_terms_(coords, velocity, density, pressure)
 
-    for i in 1:ndims(system)
+    for i in eachindex(source)
         dv[i, particle] += source[i]
     end
 

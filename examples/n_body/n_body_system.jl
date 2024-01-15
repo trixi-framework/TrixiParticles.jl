@@ -18,10 +18,6 @@ TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
 @inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
 
-@inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
-    return dv
-end
-
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
 
