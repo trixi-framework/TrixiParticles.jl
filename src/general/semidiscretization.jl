@@ -1,5 +1,5 @@
 """
-    Semidiscretization(systems...; neighborhood_search=nothing,
+    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                        periodic_box_min_corner=nothing, periodic_box_max_corner=nothing)
 
 The semidiscretization couples the passed systems to one simulation.
@@ -7,12 +7,22 @@ The semidiscretization couples the passed systems to one simulation.
 The type of neighborhood search to be used in the simulation can be specified with
 the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
 
-TODO
+# Arguments
+- `systems`: Systems to be coupled in this semidiscretization
+
+# Keywords
+- `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
+                            By default, the [`GridNeighborhoodSearch`](@ref) is used.
+                            Use a value of `nothing` to loop over all particles
+                            (no neighborhood search).
+- `periodic_box_min_corner`:    In order to use a periodic domain, pass the coordinates
+                                of the domain corner in negative coordinate directions.
+- `periodic_box_max_corner`:    In order to use a periodic domain, pass the coordinates
+                                of the domain corner in positive coordinate directions.
 
 # Examples
 ```julia
-semi = Semidiscretization(fluid_system, boundary_system;
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, boundary_system)
 ```
 """
 struct Semidiscretization{S, RU, RV, NS}
@@ -21,7 +31,7 @@ struct Semidiscretization{S, RU, RV, NS}
     ranges_v              :: RV
     neighborhood_searches :: NS
 
-    function Semidiscretization(systems...; neighborhood_search=nothing,
+    function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing)
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
@@ -46,8 +56,8 @@ struct Semidiscretization{S, RU, RV, NS}
                                for neighbor in systems)
                          for system in systems)
 
-        new{typeof(systems), typeof(ranges_u), typeof(ranges_v),
-            typeof(searches)}(systems, ranges_u, ranges_v, searches)
+        new{typeof(systems), typeof(ranges_u),
+            typeof(ranges_v), typeof(searches)}(systems, ranges_u, ranges_v, searches)
     end
 end
 
