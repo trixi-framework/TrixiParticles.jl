@@ -58,6 +58,9 @@ By choosing the viscosity model [`ArtificialViscosityMonaghan`](@ref) for `visco
 a non-slip condition is imposed. When omitting the viscous interaction
 (default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
 
+!!! warning
+    The no-slip conditions for `BoundaryModelMonaghanKajtar` have not been verified yet.
+
 ## References:
 - Joseph J. Monaghan, Jules B. Kajtar. "SPH particle boundary forces for arbitrary boundaries".
   In: Computer Physics Communications 180.10 (2009), pages 1811–1820.
