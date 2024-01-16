@@ -49,11 +49,8 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   neighbor_system::NBodySystem)
     (; mass, G) = neighbor_system
 
-    system_coords = TrixiParticles.current_coordinates(u_particle_system,
-                                                       particle_system)
-
-    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system,
-                                                         neighbor_system)
+    system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     TrixiParticles.for_particle_neighbor(particle_system, neighbor_system,

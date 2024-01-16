@@ -31,7 +31,7 @@ particle_system = NBodySystem(initial_condition, G)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_system)
+semi = Semidiscretization(particle_system, neighborhood_search=nothing)
 
 day = 24 * 3600.0
 year = 365day
