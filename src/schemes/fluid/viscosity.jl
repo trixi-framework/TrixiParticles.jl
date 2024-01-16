@@ -9,6 +9,15 @@ end
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
 
+# Keywords
+- `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
+           kinematic viscosity, see description below.
+- `beta`: A value of `0.0` works well for simulations with shocks of moderate strenght.
+          In simulations where the Mach number can be very high, eg. astrophysical calculation,
+          good results can be obtained by choosing a value of `beta=2` and `alpha=1`.
+- `epsilon=0.01`: Parameter to prevent singularities.
+
+
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
 \Pi_{ab} =
@@ -26,18 +35,11 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 ``v_{ab} = v_a - v_b`` is the difference of their velocities,
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
-TODO: Check the following statement, since in Monaghan 2005 p. 1741 (10.1088/0034-4885/68/8/r01) this was meant for "interstellar cloud collisions"
-The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their values should usually be near
-``\alpha = 1, \beta = 2`` (Monaghan 1992, p. 551).
-The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
-
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
 To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
 \nu = \frac{\alpha h c }{\rho_{ab}}.
 ```
-
-TODO: Check the following statement: [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
 
 ## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
