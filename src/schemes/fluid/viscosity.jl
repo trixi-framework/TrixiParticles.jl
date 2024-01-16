@@ -12,7 +12,7 @@ end
 # Keywords
 - `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
            kinematic viscosity, see description below.
-- `beta`: A value of `0.0` works well for simulations with shocks of moderate strenght.
+- `beta`: A value of `0.0` works well for simulations with shocks of moderate strength.
           In simulations where the Mach number can be very high, eg. astrophysical calculation,
           good results can be obtained by choosing a value of `beta=2` and `alpha=1`.
 - `epsilon=0.01`: Parameter to prevent singularities.
