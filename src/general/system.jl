@@ -59,8 +59,6 @@ end
 
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
-@inline pressure(system, particle) = system.pressure[particle]
-
 @inline function current_acceleration(system, particle)
     # TODO: Return `dv` of solid particles
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))

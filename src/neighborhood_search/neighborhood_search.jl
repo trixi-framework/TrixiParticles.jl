@@ -77,10 +77,6 @@ end
     end
 end
 
-@inline function compute_periodic_distance(pos_diff, distance2, nhs)
-    compute_periodic_distance(pos_diff, distance2, nhs.search_radius, nhs.periodic_box)
-end
-
 @inline function compute_periodic_distance(pos_diff, distance2, search_radius,
                                            periodic_box::Nothing)
     return pos_diff, distance2
