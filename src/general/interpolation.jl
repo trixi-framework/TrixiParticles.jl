@@ -1,14 +1,14 @@
 @doc raw"""
     interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length)
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
-Interpolates properties across a plane or a volume in an SPH simulation environment.
-The region for interpolation is defined by its lower left and top right corners, with a specified resolution determining the density of the interpolation points.
+Interpolates properties across a plane or a volume in a TrixiParticles simulation.
+The region for interpolation is defined by its lower left and top right corners,
+with a specified resolution determining the density of the interpolation points.
 
-The function generates a grid of points within the defined region, spaced uniformly according to the given resolution. In 2D, this grid lies within a plane,
- while in 3D, it fills a volumetric space. The function can handle both 2D and 3D interpolations by adapting to the dimensionality of the provided corner coordinates.
+The function generates a grid of points within the defined region, spaced uniformly according to the given resolution.
 
-### Parameters:
+# Arguments
 - `lower_left`: The lower left corner of the interpolation region.
 - `top_right`: The top right corner of the interpolation region.
 - `resolution`: The distance between adjacent interpolation points in the grid.
@@ -17,14 +17,23 @@ The function generates a grid of points within the defined region, spaced unifor
 - `sol`: The solution state from which the properties are interpolated.
 - `smoothing_length`: Optional. The smoothing length used in the interpolation. Defaults to `ref_system.smoothing_length`.
 
-### Returns:
-An array of interpolated properties at each point within the defined region. Points with a neighbor count of 0 are excluded from the results.
+# Keywords
+- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
+                  point is "closer" to a boundary than to the fluid system
+                  (see an explanation for "closer" below). Defaults to `true`.
+- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
 
 !!! note
-    - This function is especially useful for analyzing spatial variations of properties within a specified region in the SPH simulation domain.
-    - The accuracy of the interpolation is influenced by the local particle density, the chosen smoothing length, and the resolution of the interpolation grid.
+    - This function is particularly useful for analyzing gradients or creating visualizations
+      along a specified line in the SPH simulation domain.
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+      accurate as a real surface reconstruction.
 
-## Example
+# Examples
 ```julia
 # Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
 results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
@@ -74,7 +83,7 @@ end
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
 
-Interpolates properties along a line in an TrixiParticles simulation.
+Interpolates properties along a line in a TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
 evenly spaced points between `start` and `end_`.
 If `endpoint` is `false`, the line is interpolated between the start and end points,

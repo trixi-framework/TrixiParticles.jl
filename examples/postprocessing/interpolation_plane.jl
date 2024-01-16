@@ -12,7 +12,8 @@ interpolation_start = [0.0, 0.0]
 interpolation_end = [1.0, 1.0]
 resolution = 0.005
 
-# Original plane
+# We can interpolate a plane by providing the lower left and top right coordinates of a plane.
+# Per default the same `smoothing_length` will be used as during the simulation.
 original_plane = interpolate_plane(interpolation_start, interpolation_end, resolution, semi,
                                    fluid_system, sol)
 original_x = [point[1] for point in original_plane.coord]
@@ -20,6 +21,9 @@ original_y = [point[2] for point in original_plane.coord]
 original_density = original_plane.density
 
 # Plane with double smoothing length
+# Using an higher `smoothing_length` will increase the amount of smoothing and will decrease
+# the appearance of disturbances. At the same time it will also increase the distance at free surfaces
+# at which the fluid is cut_off.
 double_smoothing_plane = interpolate_plane(interpolation_start, interpolation_end,
                                            resolution, semi, fluid_system, sol,
                                            smoothing_length=2.0 * smoothing_length)
@@ -28,6 +32,9 @@ double_y = [point[2] for point in double_smoothing_plane.coord]
 double_density = double_smoothing_plane.density
 
 # Plane with half smoothing length
+# Using a lower `smoothing_length` will decrease the amount of smoothing and will increase
+# the appearance of disturbances. At the same time the fluid will be cut off more accurately
+# at free surfaces.
 half_smoothing_plane = interpolate_plane(interpolation_start, interpolation_end, resolution,
                                          semi, fluid_system, sol,
                                          smoothing_length=0.5 * smoothing_length)
