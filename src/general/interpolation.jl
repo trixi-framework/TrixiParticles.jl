@@ -15,7 +15,6 @@ The function generates a grid of points within the defined region, spaced unifor
 - `semi`: The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
 - `sol`: The solution state from which the properties are interpolated.
-- `smoothing_length`: Optional. The smoothing length used in the interpolation. Defaults to `ref_system.smoothing_length`.
 
 # Keywords
 - `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
