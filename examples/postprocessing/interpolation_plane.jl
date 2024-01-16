@@ -3,6 +3,7 @@
 using TrixiParticles
 # this needs to be commented out to use PythonPlot
 using Plots
+using Plots.PlotMeasures
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))
 
@@ -68,11 +69,14 @@ half_density = half_smoothing_plane.density
 # plotshow()
 
 scatter1 = scatter(original_x, original_y, zcolor=original_density, marker=:circle,
-                   cmap=:viridis, clim=(1000, 1010), colorbar=true)
-scatter2 = scatter(double_x, double_y, zcolor=double_density, marker=:circle, cmap=:viridis,
-                   clim=(1000, 1010), colorbar=true)
-scatter3 = scatter(half_x, half_y, zcolor=half_density, marker=:circle, cmap=:viridis,
-                   clim=(1000, 1010), colorbar=true)
+                   markersize=2, markercolor=:viridis, markerstrokewidth=0,
+                   clim=(1000, 1010), colorbar=true, legend=false)
+scatter2 = scatter(double_x, double_y, zcolor=double_density, marker=:circle, markersize=2,
+                   markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
+                   colorbar=true, legend=false)
+scatter3 = scatter(half_x, half_y, zcolor=half_density, marker=:circle, markersize=2,
+                   markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
+                   colorbar=true, legend=false)
 
 plot1 = plot(scatter1, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density Distribution", colorbar_title="Density")
@@ -80,4 +84,8 @@ plot2 = plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density with 2x Smoothing Length", colorbar_title="Density")
 plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density with 0.5x Smoothing Length", colorbar_title="Density")
-combined_plot = plot(plot1, plot2, plot3, layout=(1, 3), size=(1500, 500))
+
+combined_plot = plot(plot1, plot2, plot3, layout=(1, 3), size=(1800, 600))
+
+plot!(combined_plot, margin=5mm)
+display(combined_plot)
