@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "SPH Interpolation" begin
     function compare_interpolation_result(actual, expected; tolerance=1e-8)
         @test length(actual.density) == length(expected.density)
@@ -81,8 +80,7 @@ include("../test_util.jl")
         sound_speed = 10 * sqrt(9.81 * 0.9)
 
         state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
-                                           exponent=7, background_pressure=100000.0,
-                                           clip_negative_pressure=false)
+                                           exponent=7, clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny), seed=1,
                                   perturbation_factor=0.0, perturbation_factor_position=0.0,
@@ -583,8 +581,7 @@ include("../test_util.jl")
         sound_speed = 10 * sqrt(9.81 * 0.9)
 
         state_equation = StateEquationCole(; sound_speed, reference_density=1000.0,
-                                           exponent=7, background_pressure=100000.0,
-                                           clip_negative_pressure=false)
+                                           exponent=7, clip_negative_pressure=false)
 
         fluid = rectangular_patch(particle_spacing, (nx, ny, nz), seed=1,
                                   perturbation_factor=0.0, perturbation_factor_position=0.0,
