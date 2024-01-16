@@ -75,17 +75,16 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
-
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
-                                       smoothing_length, grad_kernel,
-                                       boundary_model::BoundaryModelMonaghanKajtar,
-                                       pressure_acceleration_formulation) where {NDIMS}
-    (; K, beta, boundary_particle_spacing) = boundary_model
+                                       rho_a, rho_b, pos_diff, distance,
+                                       W_a, particle_system, neighbor,
+                                       neighbor_system::BoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                       correction)
+    (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
     return K / beta^(NDIMS - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
-           boundary_kernel(distance, smoothing_length)
+           boundary_kernel(distance, particle_system.smoothing_length)
 end
 
 @fastpow @inline function boundary_kernel(r, h)
