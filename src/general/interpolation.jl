@@ -32,7 +32,7 @@ results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 """
 function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
                            smoothing_length=ref_system.smoothing_length,
-                           calculate_other_system_density=false)
+                           cut_off_bnd=true)
     dims = length(lower_left)
     if dims != length(top_right)
         error("Dimensions of lower_left and top_right must match")
@@ -54,21 +54,20 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
     y_range = range(lower_left[2], top_right[2], length=no_points_y)
     z_range = dims == 3 ? range(lower_left[3], top_right[3], length=no_points_z) : 1:1
 
-    points_coords = dims == 2 ? [[x, y] for x in x_range, y in y_range] :
-                    [[x, y, z] for x in x_range, y in y_range, z in z_range]
+    points_coords = dims == 2 ? [SVector(x, y) for x in x_range, y in y_range] :
+                    [SVector(x, y, z) for x in x_range, y in y_range, z in z_range]
 
-    results = []
-    for point in points_coords
-        result = interpolate_point(point, semi, ref_system, sol,
-                                   smoothing_length=smoothing_length,
-                                   calculate_other_system_density=calculate_other_system_density)
-        push!(results, result)
-    end
+    results = interpolate_point(points_coords, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd)
 
-    # Filter out results with neighbor_count of 0
-    results = filter(r -> r.neighbor_count > 0, results)
+    # Find indices where neighbor_count > 0
+    indices = findall(x -> x > 0, results.neighbor_count)
 
-    return results
+    # Filter all arrays in the named tuple using these indices
+    filtered_results = map(x -> x[indices], results)
+
+    return filtered_results
 end
 
 @doc raw"""
