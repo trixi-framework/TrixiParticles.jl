@@ -1,6 +1,5 @@
 using TrixiParticles
 using OrdinaryDiffEq
-# using PyPlot
 
 # ==========================================================================================
 # ==== Resolution
@@ -46,16 +45,12 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 
-# to set a no-slip boundary condition a wall visosity needs to be defined
-alpha = 0.2
-viscosity_wall = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
-
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
+                                             viscosity=viscosity)
 
 # Uncomment to use repulsive boundary particles by Monaghan & Kajtar.
 # Also change spacing ratio and boundary layers (see comment above).
@@ -88,124 +83,3 @@ sol = solve(ode, RDPK3SpFSAL49(),
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
-
-# # Example for using interpolation
-# #######################################################################################
-
-# # interpolate_point can be used to interpolate the properties of the 'fluid_system' with the original kernel and smoothing_length
-# println(interpolate_point([1.0, 0.01], semi, fluid_system, sol))
-# # or with an increased smoothing_length smoothing the result
-# println(interpolate_point([1.0, 0.01], semi, fluid_system, sol,
-#                           smoothing_length=2.0 * smoothing_length))
-
-# # a point outside of the domain will result in properties with value 0
-# # on the boundary a result can still be obtained
-# println(interpolate_point([1.0, 0.0], semi, fluid_system, sol))
-# # slightly befind the result is 0
-# println(interpolate_point([1.0, -0.01], semi, fluid_system, sol))
-
-# # multiple points can be interpolated by providing an array
-# println(interpolate_point([
-#                               [1.0, 0.01],
-#                               [1.0, 0.1],
-#                               [1.0, 0.0],
-#                               [1.0, -0.01],
-#                               [1.0, -0.05],
-#                           ], semi, fluid_system, sol))
-
-# # # it is also possible to interpolate along a line
-# result = interpolate_line([0.5, -0.05], [0.5, 1.0], 20, semi, fluid_system, sol)
-# result_endpoint = interpolate_line([0.5, -0.05], [0.5, 1.0], 20, semi, fluid_system, sol,
-#                                    endpoint=false)
-# # Extract densities and coordinates for plotting
-# densities = [r.density for r in result]
-# coords = [r.coord[2] for r in result]  # Assuming you want to plot against the y-coordinate
-
-# densities_endpoint = [r.density for r in result_endpoint]
-# coords_endpoint = [r.coord[2] for r in result_endpoint]
-
-# Create the plot
-# figure()
-# plot(coords, densities, marker="o", linestyle="-", label="With Endpoint")
-# plot(coords_endpoint, densities_endpoint, marker="x", linestyle="--",
-#      label="Without Endpoint")
-
-# # Add labels and legend
-# xlabel("Y-Coordinate")
-# ylabel("Density")
-# title("Density Interpolation Along a Line")
-# legend()
-
-# # Display the plot
-# show()
-
-# v_x = [r.velocity[1] for r in result]
-# v_x_endpoint = [r.velocity[1] for r in result_endpoint]
-
-# figure()
-# plot(v_x, coords, marker="o", linestyle="-", label="With Endpoint")
-# plot(v_x_endpoint, coords_endpoint, marker="x", linestyle="--",
-#      label="Without Endpoint")
-
-# # Add labels and legend
-# xlabel("Velocity-X")
-# ylabel("Y-Coordinate")
-# title("Velocity Interpolation Along a Line")
-# legend()
-
-# # Display the plot
-# show()
-
-# plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol)
-
-# # Extracting densities and coordinates for plotting
-# densities = [p.density for p in plane]
-# x_coords = [p.coord[1] for p in plane]
-# y_coords = [p.coord[2] for p in plane]
-
-# # Create the scatter plot
-# scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
-
-# # Add colorbar, labels, and title
-# colorbar(label="Density")
-# xlabel("X Coordinate")
-# ylabel("Y Coordinate")
-# title("Density Distribution in Plane")
-
-# # Show the plot
-# show()
-
-# plane = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.005, semi, fluid_system, sol,
-#                           smoothing_length=2.0 * smoothing_length)
-
-# # Extracting densities and coordinates for plotting
-# densities = [p.density for p in plane]
-# x_coords = [p.coord[1] for p in plane]
-# y_coords = [p.coord[2] for p in plane]
-
-# # Create the scatter plot
-# scatter(x_coords, y_coords, c=densities, cmap="viridis", marker="o")
-
-# # Add colorbar, labels, and title
-# colorbar(label="Density")
-# xlabel("X Coordinate")
-# ylabel("Y Coordinate")
-# title("Density Distribution in Plane")
-
-# # Show the plot
-# show()
-
-# # Extracting densities and coordinates for plotting
-# velocity = [p.velocity[1] for p in plane]
-
-# # Create the scatter plot
-# scatter(x_coords, y_coords, c=velocity, cmap="viridis", marker="o")
-
-# # Add colorbar, labels, and title
-# colorbar(label="velocity_x")
-# xlabel("X Coordinate")
-# ylabel("Y Coordinate")
-# title("Velocity Distribution in Plane")
-
-# # Show the plot
-# show()
