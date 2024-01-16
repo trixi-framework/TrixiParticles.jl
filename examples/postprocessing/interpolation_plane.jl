@@ -85,7 +85,4 @@ plot2 = plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
 plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density with 0.5x Smoothing Length", colorbar_title="Density")
 
-combined_plot = plot(plot1, plot2, plot3, layout=(1, 3), size=(1800, 600))
-
-plot!(combined_plot, margin=5mm)
-display(combined_plot)
+combined_plot = plot(plot1, plot2, plot3, layout=(1, 3), size=(1800, 600), margin=5mm)
