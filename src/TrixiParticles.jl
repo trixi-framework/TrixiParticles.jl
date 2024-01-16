@@ -58,5 +58,6 @@ export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
+export interpolate_line, interpolate_point
 
 end # module
