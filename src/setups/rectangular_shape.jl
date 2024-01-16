@@ -1,9 +1,9 @@
 """
-    RectangularShape(particle_spacing, n_particles_per_dimension,
-                     min_coordinates, density;
-                     init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
+    RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
+                     velocity=zeros(length(n_particles_per_dimension)),
+                     mass=nothing, density=nothing, pressure=0.0,
                      acceleration=nothing, state_equation=nothing,
-                     pressure=0.0, tlsph=false)
+                     tlsph=false, loop_order=nothing)
 
 Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 
@@ -12,14 +12,22 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 - `n_particles_per_dimension`:  Tuple containing the number of particles in x, y and z
                                 (only 3D) direction, respectively.
 - `min_coordinates`:            Coordinates of the corner in negative coordinate directions.
-- `density`:                    Rest density of the particles.
 
 # Keywords
-- `init_velocity`:  The initial velocity of the fluid particles as `(vel_x, vel_y)`
-                    (or `(vel_x, vel_y, vel_z)` in 3D).
+- `velocity`:       Either a function mapping each particle's coordinates to its velocity,
+                    or, for a constant fluid velocity, a vector holding this velocity.
+                    Velocity is constant zero by default.
+- `mass`:           Either `nothing` (default) to automatically compute particle mass from particle
+                    density and spacing, or a function mapping each particle's coordinates to its mass,
+                    or a scalar for a constant mass over all particles.
+- `density`:        Either a function mapping each particle's coordinates to its density,
+                    or a scalar for a constant density over all particles.
+                    Obligatory when not using a state equation. Cannot be used together with
+                    `state_equation`.
 - `pressure`:       Scalar to set the pressure of all particles to this value.
                     This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                     will be overwritten when using an initial pressure function in the system.
+                    Cannot be used together with hydrostatic pressure gradient.
 - `acceleration`:   In order to initialize particles with a hydrostatic pressure gradient,
                     an acceleration vector can be passed. Note that only accelerations
                     in one coordinate direction and no diagonal accelerations are supported.
@@ -28,8 +36,10 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
                     to initialize the particles with the corresponding density and mass.
                     When using the [`EntropicallyDampedSPHSystem`](@ref), the pressure
                     will be overwritten when using an initial pressure function in the system.
+                    This cannot be used together with the `pressure` keyword argument.
 - `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
-                    the `state_equation` will be used to set the corresponding density and mass.
+                    the `state_equation` will be used to set the corresponding density.
+                    Cannot be used together with `density`.
 - `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                     on the boundary of the shape and not one particle radius away, as for fluids.
                     When `tlsph=true`, particles will be placed on the boundary of the shape.
@@ -37,24 +47,23 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
 # Examples
 ```julia
 # 2D
-rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0)
+rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), density=1000.0)
 
 # 2D with hydrostatic pressure gradient.
 # `state_equation` has to be the same as for the WCSPH system.
-state_equation = StateEquationCole(20.0, 7, 1000.0, 100000.0, background_pressure=100000.0)
-rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), 1000.0,
+state_equation = StateEquationCole(sound_speed=20.0, exponent=7, reference_density=1000.0)
+rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0),
                                acceleration=(0.0, -9.81), state_equation=state_equation)
 
 # 3D
-rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), 1000.0)
+rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), density=1000.0)
 ```
 """
-function RectangularShape(particle_spacing, n_particles_per_dimension,
-                          min_coordinates, density;
-                          init_velocity=ntuple(_ -> 0.0, length(n_particles_per_dimension)),
+function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
+                          velocity=zeros(length(n_particles_per_dimension)),
+                          mass=nothing, density=nothing, pressure=0.0,
                           acceleration=nothing, state_equation=nothing,
-                          pressure=0.0, tlsph=false,
-                          loop_order=nothing)
+                          tlsph=false, loop_order=nothing)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
@@ -65,7 +74,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
         throw(ArgumentError("`min_coordinates` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if density < eps()
+    if density !== nothing && density < eps()
         throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
     end
 
@@ -76,14 +85,10 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
     coordinates = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                            min_coordinates, tlsph=tlsph,
                                            loop_order=loop_order)
-    velocities = init_velocity .* ones(ELTYPE, size(coordinates))
 
     # Allow zero acceleration with state equation, but interpret `nothing` acceleration
     # with state equation as a likely mistake.
-    if (acceleration === nothing && state_equation === nothing) ||
-       all(abs.(acceleration) .< eps())
-        densities = density * ones(ELTYPE, n_particles)
-    elseif acceleration isa AbstractVector || acceleration isa Tuple
+    if acceleration isa AbstractVector || acceleration isa Tuple
         if pressure != 0.0
             throw(ArgumentError("`pressure` cannot be used together with `acceleration` " *
                                 "and `state_equation` (hydrostatic pressure gradient)"))
@@ -92,6 +97,10 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
         if state_equation === nothing
             density_fun = pressure -> density
         else
+            if density !== nothing
+                throw(ArgumentError("`density` cannot be used together with `acceleration` " *
+                                    "and `state_equation` (hydrostatic pressure gradient)"))
+            end
             density_fun = pressure -> inverse_state_equation(state_equation, pressure)
         end
 
@@ -100,22 +109,23 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
         initialize_pressure!(pressure, particle_spacing, acceleration,
                              density_fun, n_particles_per_dimension, loop_order)
 
-        if state_equation === nothing
-            # Incompressible case
-            densities = density * ones(ELTYPE, n_particles)
-        else
+        if state_equation !== nothing
             # Weakly compressible case: get density from inverse state equation
-            densities = inverse_state_equation.(Ref(state_equation), pressure)
+            density = inverse_state_equation.(Ref(state_equation), pressure)
         end
-    else
+    elseif acceleration !== nothing
         throw(ArgumentError("`acceleration` must either be `nothing` or a vector/tuple"))
+    elseif state_equation !== nothing
+        throw(ArgumentError("`state_equation` must be used together with `acceleration`"))
     end
 
-    particle_volume = particle_spacing^NDIMS
-    masses = particle_volume * densities
+    if density === nothing
+        throw(ArgumentError("`density` must be specified when not using `acceleration` " *
+                            "and `state_equation` (hydrostatic pressure gradient)"))
+    end
 
-    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
-                            particle_spacing=particle_spacing)
+    return InitialCondition(; coordinates, velocity, density, mass, pressure,
+                            particle_spacing)
 end
 
 # 1D
