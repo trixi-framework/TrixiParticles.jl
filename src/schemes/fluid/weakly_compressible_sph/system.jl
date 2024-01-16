@@ -176,6 +176,15 @@ end
     return system.pressure[particle]
 end
 
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system, neighbor_system,
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+    return p_a, p_b
+end
+
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 

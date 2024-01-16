@@ -71,15 +71,12 @@ function set_pressure_acceleration_formulation(pressure_acceleration::Nothing,
     return asymmetric_pressure_acceleration_continuity_density
 end
 
-# ==== Fluid System
-
 # No correction
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        W_a, particle_system, neighbor,
-                                       neighbor_system::FluidSystem,
-                                       correction)
-    (; pressure_acceleration_formulation) = neighbor_system
+                                       neighbor_system, correction)
+    (; pressure_acceleration_formulation) = particle_system
 
     # Without correction, the kernel gradient is symmetric, so call the symmetric
     # pressure acceleration formulation corresponding to the density calculator.
@@ -91,12 +88,12 @@ end
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        W_a, particle_system, neighbor,
-                                       neighbor_system::FluidSystem,
+                                       neighbor_system,
                                        correction::Union{KernelCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
                                                          MixedKernelGradientCorrection})
-    (; pressure_acceleration_formulation, smoothing_kernel, smoothing_length) = neighbor_system
+    (; pressure_acceleration_formulation) = particle_system
 
     W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
 
@@ -104,44 +101,4 @@ end
     # asymmetric pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b) *
            pressure_correction
-end
-
-# ==== Boundary and Solid System
-
-# No correction
-@inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system, neighbor,
-                                       neighbor_system::Union{BoundarySystem, SolidSystem},
-                                       correction)
-    (; boundary_model) = neighbor_system
-    (; smoothing_length, pressure_acceleration_formulation) = particle_system
-
-    # Without correction, the kernel gradient is symmetric, so call the symmetric
-    # pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                 rho_a, rho_b, pos_diff, distance,
-                                 smoothing_length, W_a,
-                                 boundary_model, pressure_acceleration_formulation)
-end
-
-# Correction
-@inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, W_a,
-                                       particle_system, neighbor,
-                                       neighbor_system::Union{BoundarySystem, SolidSystem},
-                                       correction::Union{KernelCorrection,
-                                                         GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    (; boundary_model) = neighbor_system
-    (; smoothing_length, pressure_acceleration_formulation) = particle_system
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
-
-    # With correction, the kernel gradient is not necessarily symmetric, so call the
-    # asymmetric pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                 rho_a, rho_b, pos_diff, distance,
-                                 smoothing_length, W_a, W_b,
-                                 boundary_model, pressure_acceleration_formulation)
 end
