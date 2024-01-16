@@ -14,7 +14,7 @@
 
 # Keywords
 - `state_equation`: This should be the same as for the adjacent fluid system
-                    (see e.g. [`StateEquationIdealGas`](@ref)).
+                    (see e.g. [`StateEquationCole`](@ref)).
 - `correction`:     Correction method of the adjacent fluid system (see TODO)
 - `viscosity`:      Slip (default) or no-slip condition. See description below for further
                     information
@@ -511,7 +511,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
-        nhs = neighborhood_searches(system, neighbor_system, semi)
+        nhs = get_neighborhood_search(system, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 

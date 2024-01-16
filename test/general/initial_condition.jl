@@ -1,4 +1,25 @@
 @testset verbose=true "InitialCondition" begin
+    disjoint_shapes_dict = Dict(
+        "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
+                                                  density=1.0),
+                                 RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
+                                                  velocity=(0.3, -0.5))),
+        "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
+                                                           density=1.0),
+                                          RectangularShape(0.1, (4, 5), (0.0, 1.0),
+                                                           density=1.0),
+                                          RectangularShape(0.1, (2, 10), (0.0, 0.0),
+                                                           density=1.0)),
+        "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
+                            SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
+                            SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
+                                        sphere_type=RoundSphere())),
+        "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
+                                                     density=1.0),
+                                    SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
+                                    SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
+                                                sphere_type=RoundSphere())))
+
     @testset verbose=true "Constructors" begin
         @testset "Illegal Inputs" begin
             error_str = "`coordinates` and `velocities` must be of the same size"
@@ -102,29 +123,8 @@
     end
 
     @testset verbose=true "Union of Disjoint Shapes" begin
-        shapes_dict = Dict(
-            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                      density=1.0),
-                                     RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
-                                                      velocity=(0.3, -0.5))),
-            "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (4, 5), (0.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (2, 10), (0.0, 0.0),
-                                                               density=1.0)),
-            "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
-                                SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
-                                SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
-                                            sphere_type=RoundSphere())),
-            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
-                                                         density=1.0),
-                                        SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
-                                        SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
-                                                    sphere_type=RoundSphere())))
-
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = union(shapes...)
 
             # Number of particles should be the sum of the individual numbers of particles
@@ -200,29 +200,8 @@
     end
 
     @testset verbose=true "Setdiff of Disjoint Shapes" begin
-        shapes_dict = Dict(
-            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                      density=1.0),
-                                     RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
-                                                      velocity=(0.3, -0.5))),
-            "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (4, 5), (0.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (2, 10), (0.0, 0.0),
-                                                               density=1.0)),
-            "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
-                                SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
-                                SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
-                                            sphere_type=RoundSphere())),
-            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
-                                                         density=1.0),
-                                        SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
-                                        SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
-                                                    sphere_type=RoundSphere())))
-
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = setdiff(shapes...)
 
             @test initial_condition.particle_spacing == first(shapes).particle_spacing
@@ -273,29 +252,8 @@
     end
 
     @testset verbose=true "Intersect of Disjoint Shapes" begin
-        shapes_dict = Dict(
-            "Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                      density=1.0),
-                                     RectangularShape(0.1, (4, 5), (0.0, 1.0), density=1.0,
-                                                      velocity=(0.3, -0.5))),
-            "Touching Rectangular Shapes" => (RectangularShape(0.1, (3, 4), (-1.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (4, 5), (0.0, 1.0),
-                                                               density=1.0),
-                                              RectangularShape(0.1, (2, 10), (0.0, 0.0),
-                                                               density=1.0)),
-            "Sphere Shapes" => (SphereShape(0.15, 0.5, (-1.0, 1.0), 1.0),
-                                SphereShape(0.15, 0.2, (0.0, 1.0), 1.0),
-                                SphereShape(0.15, 1.0, (0.0, -0.2), 1.0,
-                                            sphere_type=RoundSphere())),
-            "Touching Mixed Shapes" => (RectangularShape(0.1, (3, 10), (-1.0, 0.0),
-                                                         density=1.0),
-                                        SphereShape(0.1, 0.5, (-1.0, 1.5), 1000.0),
-                                        SphereShape(0.1, 0.5, (1.0, 0.5), 1000.0,
-                                                    sphere_type=RoundSphere())))
-
-        @testset "$key" for key in keys(shapes_dict)
-            shapes = shapes_dict[key]
+        @testset "$key" for key in keys(disjoint_shapes_dict)
+            shapes = disjoint_shapes_dict[key]
             initial_condition = intersect(shapes...)
 
             @test initial_condition.particle_spacing == first(shapes).particle_spacing
