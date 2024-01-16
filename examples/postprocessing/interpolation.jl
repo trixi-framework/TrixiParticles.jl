@@ -35,7 +35,7 @@ result_endpoint = interpolate_line([1.0, -0.05], [1.0, 1.0], 10, semi, fluid_sys
 walldistance = [coord[2] for coord in result.coord]
 walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 
-# Alternatively, to using Plots.jl one can also use PythonPlot which uses matplotlib
+# Instead of using Plots.jl one can also use PythonPlot which uses matplotlib
 # using PythonPlot
 
 # figure()
