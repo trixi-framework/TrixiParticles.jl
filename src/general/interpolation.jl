@@ -40,7 +40,7 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
 
     # Check that lower_left is indeed lower and to the left of top_right
     for i in 1:dims
-        if lower_left[i] >= top_right[i]
+        if lower_left[i] > top_right[i]
             error("lower_left should be lower and to the left of top_right in all dimensions")
         end
     end
