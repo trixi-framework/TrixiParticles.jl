@@ -68,7 +68,7 @@ masses = [
 # Offset sun momentum
 velocity[:, 1] = -velocity[:, 2:end] * masses[2:end] / SOLAR_MASS
 
-initial_condition = InitialCondition(; coordinates, velocity, density=0.0, mass=masses)
+initial_condition = InitialCondition(; coordinates, velocity, density=1.0, mass=masses)
 
 G = 1.0
 particle_system = NBodySystem(initial_condition, G)
