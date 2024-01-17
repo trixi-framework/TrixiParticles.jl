@@ -13,7 +13,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref).
 
 # Keyword Arguments
 - `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
@@ -179,7 +179,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
-    nhs = neighborhood_searches(system, system, semi)
+    nhs = get_neighborhood_search(system, semi)
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
                                                              system, semi)
 

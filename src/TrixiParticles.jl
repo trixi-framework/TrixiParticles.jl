@@ -46,7 +46,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
-export StateEquationIdealGas, StateEquationCole
+export StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
@@ -61,5 +61,6 @@ export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
+export interpolate_line, interpolate_point
 
 end # module
