@@ -343,13 +343,6 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     return system
 end
 
-@inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff,
-                                       distance, particle)
-    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
-                                 system.smoothing_length,
-                                 system.correction, system, particle)
-end
-
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
 end

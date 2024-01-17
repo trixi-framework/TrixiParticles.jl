@@ -32,7 +32,7 @@ initial_fluid_size = (0.2, 0.4)
 tank_size = (0.8, 0.8)
 
 fluid_density = 997.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 10 * sqrt(2 * gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -88,8 +88,8 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
@@ -97,7 +97,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+                                           acceleration=(0.0, -gravity), correction=KernelCorrection)
 
 # ==========================================================================================
 # ==== Boundary
@@ -105,12 +105,12 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                                   state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length, correction=KernelCorrection)
 
 boundary_model_gate = BoundaryModelDummyParticles(gate.density, gate.mass,
                                                   state_equation=state_equation,
                                                   boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+                                                  smoothing_kernel, smoothing_length, correction=KernelCorrection)
 
 boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
 boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gate_movement)
@@ -168,7 +168,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
+            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-6, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-4, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);

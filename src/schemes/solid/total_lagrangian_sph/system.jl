@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,13 +94,14 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    correction          :: COR
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
                                       n_fixed_particles=0,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
-                                      penalty_force=nothing)
+                                      penalty_force=nothing, correction=KernelCorrection)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -131,13 +132,13 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem
 
         return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
-                   typeof(penalty_force)}(initial_condition, initial_coordinates,
+                   typeof(penalty_force), typeof(correction)}(initial_condition, initial_coordinates,
                                           current_coordinates, mass, correction_matrix,
                                           pk1_corrected, deformation_grad, material_density,
                                           n_moving_particles, young_modulus, poisson_ratio,
                                           lame_lambda, lame_mu, smoothing_kernel,
                                           smoothing_length, acceleration_, boundary_model,
-                                          penalty_force)
+                                          penalty_force, correction)
     end
 end
 
@@ -151,6 +152,7 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ", ", system.penalty_force)
+    print(io, ", ", system.correction)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -171,6 +173,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "penalty force", system.penalty_force |> typeof |> nameof)
+        summary_line(io, "correction", system.correction |> typeof |> nameof)
         summary_footer(io)
     end
 end
@@ -313,7 +316,7 @@ end
         pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance)
+                                            initial_distance, particle)
 
         result = volume * pos_diff * grad_kernel'
 
