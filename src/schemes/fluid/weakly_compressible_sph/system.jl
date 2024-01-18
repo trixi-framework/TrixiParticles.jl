@@ -25,24 +25,26 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, PF, C} <:
        FluidSystem{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    viscosity          :: V
-    density_diffusion  :: DD
-    correction         :: COR
-    cache              :: C
+    initial_condition                 :: InitialCondition{ELTYPE}
+    mass                              :: Array{ELTYPE, 1} # [particle]
+    pressure                          :: Array{ELTYPE, 1} # [particle]
+    density_calculator                :: DC
+    state_equation                    :: SE
+    smoothing_kernel                  :: K
+    smoothing_length                  :: ELTYPE
+    acceleration                      :: SVector{NDIMS, ELTYPE}
+    viscosity                         :: V
+    density_diffusion                 :: DD
+    correction                        :: COR
+    pressure_acceleration_formulation :: PF
+    cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
+                                         pressure_acceleration=nothing,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -69,6 +71,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
+        pressure_acceleration = set_pressure_acceleration_formulation(pressure_acceleration,
+                                                                      density_calculator,
+                                                                      correction)
+
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
@@ -76,11 +82,11 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(cache)}(initial_condition, mass, pressure,
-                                                      density_calculator, state_equation,
-                                                      smoothing_kernel, smoothing_length,
-                                                      acceleration_, viscosity,
-                                                      density_diffusion, correction, cache)
+                   typeof(correction), typeof(pressure_acceleration),
+                   typeof(cache)}(initial_condition, mass, pressure, density_calculator,
+                                  state_equation, smoothing_kernel, smoothing_length,
+                                  acceleration_, viscosity, density_diffusion, correction,
+                                  pressure_acceleration, cache)
     end
 end
 
@@ -168,6 +174,15 @@ end
 
 @inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
     return system.pressure[particle]
+end
+
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system, neighbor_system,
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+    return p_a, p_b
 end
 
 # Nothing to initialize for this system

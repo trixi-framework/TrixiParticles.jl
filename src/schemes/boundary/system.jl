@@ -192,6 +192,15 @@ end
     return particle_pressure(v, system.boundary_model, system, particle)
 end
 
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+
+    return p_a, p_a
+end
+
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
@@ -263,20 +272,4 @@ end
 
 function viscosity_model(system::BoundarySPHSystem)
     return system.boundary_model.viscosity
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       particle_system, neighbor,
-                                       neighbor_system::BoundarySPHSystem,
-                                       density_calculator, correction)
-    (; boundary_model) = neighbor_system
-    (; smoothing_length) = particle_system
-
-    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                     rho_a, rho_b, pos_diff, distance,
-                                     smoothing_length, grad_kernel,
-                                     particle_system, neighbor, neighbor_system,
-                                     boundary_model,
-                                     density_calculator, correction)
 end
