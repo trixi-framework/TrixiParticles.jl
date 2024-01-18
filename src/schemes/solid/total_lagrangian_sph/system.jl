@@ -75,7 +75,8 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR, C} <: SolidSystem{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR, C} <:
+       SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -95,7 +96,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR, C} <: Sol
     boundary_model      :: BM
     penalty_force       :: PF
     correction          :: COR
-    cache              :: C
+    cache               :: C
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
@@ -137,13 +138,17 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, COR, C} <: Sol
         return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel), typeof(penalty_force),
                    typeof(correction), typeof(cache)}(initial_condition,
-                                          initial_coordinates, current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu, smoothing_kernel,
-                                          smoothing_length, acceleration_, boundary_model,
-                                          penalty_force, correction, cache)
+                                                      initial_coordinates,
+                                                      current_coordinates, mass,
+                                                      correction_matrix, pk1_corrected,
+                                                      deformation_grad, material_density,
+                                                      n_moving_particles, young_modulus,
+                                                      poisson_ratio,
+                                                      lame_lambda, lame_mu,
+                                                      smoothing_kernel,
+                                                      smoothing_length, acceleration_,
+                                                      boundary_model,
+                                                      penalty_force, correction, cache)
     end
 end
 
@@ -256,7 +261,8 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_ode, u_ode, semi)
+function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_ode, u_ode,
+                     semi)
     (; correction_matrix, correction) = system
 
     initial_coords = initial_coordinates(system)
@@ -268,7 +274,8 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_od
                                         initial_coords, density_fun)
     if correction !== nothing
         compute_correction_values!(system, correction, initial_coords, v_ode, u_ode, semi,
-        system.cache.kernel_correction_coefficient, system.cache.dw_gamma)
+                                   system.cache.kernel_correction_coefficient,
+                                   system.cache.dw_gamma)
     end
 end
 

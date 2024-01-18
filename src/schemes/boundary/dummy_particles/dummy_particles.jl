@@ -600,7 +600,6 @@ end
                                        distance, particle)
     (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
 
-
     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
                                  smoothing_length, correction, system, particle)
 end

@@ -137,7 +137,8 @@ hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 # or fluid particles can penetrate the solid.
 # For higher fluid resolutions, uncomment the code below for better results.
 #
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites, hydrodynamic_masses,
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses,
                                                    state_equation=state_equation,
                                                    AdamiPressureExtrapolation(),
                                                    smoothing_kernel, smoothing_length)

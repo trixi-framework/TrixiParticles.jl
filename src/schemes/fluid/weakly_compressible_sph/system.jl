@@ -262,7 +262,8 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi, kernel_correction_coefficient)
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)

@@ -167,17 +167,20 @@ end
 
 function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode, u_ode,
                                     semi)
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
                                   system.cache.kernel_correction_coefficient)
 end
 
 function compute_correction_values!(system::BoundarySystem, ::ShepardKernelCorrection, u,
                                     v_ode, u_ode, semi)
-    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
                                   system.boundary_model.cache.kernel_correction_coefficient)
 end
 
-function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi, kernel_correction_coefficient)
+function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
+                                kernel_correction_coefficient)
     set_zero!(kernel_correction_coefficient)
 
     # Use all other systems for the density summation
@@ -218,7 +221,8 @@ function compute_correction_values!(system::Union{FluidSystem, SolidSystem},
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
-    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode, u_ode, semi,
+    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
+                               u_ode, semi,
                                system.cache.kernel_correction_coefficient,
                                system.cache.dw_gamma)
 end
@@ -227,14 +231,16 @@ function compute_correction_values!(system::BoundarySystem,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
-    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode, u_ode, semi,
+    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
+                               u_ode, semi,
                                system.boundary_model.cache.kernel_correction_coefficient,
                                system.boundary_model.cache.dw_gamma)
 end
 
 function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection}, system_coords, v_ode,
+                                            MixedKernelGradientCorrection}, system_coords,
+                                    v_ode,
                                     u_ode, semi, kernel_correction_coefficient, dw_gamma)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
