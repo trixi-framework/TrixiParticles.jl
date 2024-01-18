@@ -78,7 +78,8 @@ end
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        W_a, particle_system, neighbor,
-                                       neighbor_system::BoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                       neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
+                                                              SolidSystem{<:BoundaryModelMonaghanKajtar}},
                                        correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
