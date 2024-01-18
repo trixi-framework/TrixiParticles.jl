@@ -75,6 +75,7 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
+
 @inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
                                        rho_a, rho_b, pos_diff, distance,
                                        W_a, particle_system, neighbor,
