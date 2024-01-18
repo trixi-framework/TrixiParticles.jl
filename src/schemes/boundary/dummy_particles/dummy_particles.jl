@@ -371,10 +371,9 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; density_calculator, correction) = boundary_model
+    (; correction, density_calculator) = boundary_model
 
-    compute_correction_values!(system,
-                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
     compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
                                         semi)
@@ -600,6 +599,7 @@ end
 @inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff,
                                        distance, particle)
     (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
+
 
     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
                                  smoothing_length, correction, system, particle)

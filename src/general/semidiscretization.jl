@@ -188,6 +188,20 @@ function semidiscretize(semi, tspan; reset_threads=true)
         Polyester.reset_threads!()
     end
 
+    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
+    u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
+    v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+
+    # Set initial condition
+    foreach_system(semi) do system
+        u0_system = wrap_u(u0_ode, system, semi)
+        v0_system = wrap_v(v0_ode, system, semi)
+
+        write_u0!(u0_system, system)
+        write_v0!(v0_system, system)
+    end
+
     # Initialize all particle systems
     @trixi_timeit timer() "initialize particle systems" begin
         foreach_system(semi) do system
@@ -195,21 +209,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
             neighborhood_search = get_neighborhood_search(system, semi)
 
             # Initialize this system
-            initialize!(system, neighborhood_search)
+            initialize!(system, neighborhood_search, v0_ode, u0_ode, semi)
         end
-    end
-
-    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
-    u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-    v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
-
-    foreach_system(semi) do system
-        u0_system = wrap_u(u0_ode, system, semi)
-        v0_system = wrap_v(v0_ode, system, semi)
-
-        write_u0!(u0_system, system)
-        write_v0!(v0_system, system)
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)

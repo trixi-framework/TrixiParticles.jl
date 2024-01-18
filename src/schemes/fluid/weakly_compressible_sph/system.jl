@@ -170,9 +170,6 @@ end
     return system.pressure[particle]
 end
 
-# Nothing to initialize for this system
-initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
-
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system
@@ -201,8 +198,7 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system,
-                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
     compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
 
@@ -266,7 +262,7 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi, kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)
