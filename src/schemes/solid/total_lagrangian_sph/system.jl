@@ -282,8 +282,8 @@ end
     calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
     @threaded for particle in eachparticle(system)
-        J_particle = deformation_gradient(system, particle)
-        pk1_particle = pk1_stress_tensor(J_particle, system)
+        F_particle = deformation_gradient(system, particle)
+        pk1_particle = pk1_stress_tensor(F_particle, system)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -329,18 +329,18 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(J, system)
-    S = pk2_stress_tensor(J, system)
+@inline function pk1_stress_tensor(F, system)
+    S = pk2_stress_tensor(F, system)
 
-    return J * S
+    return F * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(J, system)
+@inline function pk2_stress_tensor(F, system)
     (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
-    E = 0.5 * (transpose(J) * J - I)
+    E = 0.5 * (transpose(F) * F - I)
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
