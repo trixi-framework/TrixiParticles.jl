@@ -13,7 +13,7 @@ using OrdinaryDiffEq
 # Note that the effect of the gate is less pronounced with lower fluid resolutions,
 # since "larger" particles don't fit through the slightly opened gate. Lower fluid
 # resolutions thereforce cause a later and more violent fluid impact against the gate.
-fluid_particle_spacing = 0.005
+fluid_particle_spacing = 0.02
 n_particles_x = 5
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -124,11 +124,11 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 
-# k_solid = gravity * initial_fluid_size[2]
-# beta_solid = fluid_particle_spacing / solid_particle_spacing
-# boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
-#                                                    solid_particle_spacing,
-#                                                    hydrodynamic_masses)
+k_solid = gravity * initial_fluid_size[2]
+beta_solid = fluid_particle_spacing / solid_particle_spacing
+boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
+                                                   solid_particle_spacing,
+                                                   hydrodynamic_masses)
 
 # `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
 # tend to introduce a non-physical gap between fluid and boundary.
@@ -137,17 +137,17 @@ hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
 # or fluid particles can penetrate the solid.
 # For higher fluid resolutions, uncomment the code below for better results.
 #
-boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-                                                   hydrodynamic_masses,
-                                                   state_equation=state_equation,
-                                                   AdamiPressureExtrapolation(),
-                                                   smoothing_kernel, smoothing_length)
+# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+#                                                    hydrodynamic_masses,
+#                                                    state_equation=state_equation,
+#                                                    AdamiPressureExtrapolation(),
+#                                                    smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
-                                        acceleration=(0.0, -gravity), correction=nothing)
+                                        acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
@@ -157,7 +157,7 @@ semi = Semidiscretization(fluid_system, boundary_system_tank,
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.01, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
@@ -169,7 +169,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-6, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
