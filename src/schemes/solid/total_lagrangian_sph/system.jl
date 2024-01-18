@@ -33,15 +33,15 @@ The zero subscript on quantities denotes that the quantity is to be measured in 
 The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
 the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
 
-For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
+For the computation of the PK1 stress tensor, the deformation gradient $\bm{F}$ is computed per particle as
 ```math
-\bm{J}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
+\bm{F}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
     \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
 ```
 with $1 \leq i,j \leq d$.
 From the deformation gradient, the Green-Lagrange strain
 ```math
-\bm{E} = \frac{1}{2}(\bm{J}^T\bm{J} - \bm{I})
+\bm{E} = \frac{1}{2}(\bm{F}^T\bm{F} - \bm{I})
 ```
 and the second Piola-Kirchhoff stress tensor
 ```math
@@ -49,7 +49,7 @@ and the second Piola-Kirchhoff stress tensor
 ```
 are computed to obtain the PK1 stress tensor as
 ```math
-\bm{P} = \bm{J}\bm{S}.
+\bm{P} = \bm{F}\bm{S}.
 ```
 
 Here,
