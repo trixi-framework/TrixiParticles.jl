@@ -1,3 +1,4 @@
+include("../test_util.jl")
 @testset verbose=true "TotalLagrangianSPHSystem" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructor" begin
@@ -65,7 +66,7 @@
                                           smoothing_length, E, nu, boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
-                       "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
+                       "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -80,6 +81,7 @@
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
         │ penalty force: ………………………………………… Nothing                                                          │
+        │ correction: ………………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
@@ -217,7 +219,11 @@
                                                   1.0, 1.0, nothing)
                 nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
                                                                   TrixiParticles.eachparticle(system))
-                TrixiParticles.initialize!(system, nhs)
+
+                semi = Semidiscretization(system, neighborhood_search=nothing)
+                v_ode = vcat(density')
+                u_ode = coordinates
+                TrixiParticles.initialize!(system, nhs, v_ode, u_ode, semi)
 
                 # Apply the deformation matrix
                 for particle in TrixiParticles.eachparticle(system)
