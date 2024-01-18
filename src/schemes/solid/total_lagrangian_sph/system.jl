@@ -425,3 +425,30 @@ end
                                      particle_system, neighbor, neighbor_system,
                                      boundary_model, density_calculator, correction)
 end
+
+function compute_von_mises_stress(system::TotalLagrangianSPHSystem)
+    von_mises_stress = zeros(eltype(system.pk1_corrected), nparticles(system))
+
+    @threaded for particle in each_moving_particle(system)
+        F = system.deformation_grad[:, :, particle]
+        J = det(F)
+        P = system.pk1_corrected[:, :, particle]
+        sigma = (1.0 / J) * P * F'
+
+        # Calculate deviatoric stress tensor
+        s = sigma - (1.0 / 3.0) * tr(sigma) * I
+
+        # Preparing to calculate Von Mises stress
+        sum_s = 0.0
+        @inbounds for i in 1:ndims(system)
+            for j in 1:ndims(system)
+                sum_s += s[i, j] * s[i, j]
+            end
+        end
+
+        # Von Mises stress
+        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum_s)
+    end
+
+    return von_mises_stress
+end
