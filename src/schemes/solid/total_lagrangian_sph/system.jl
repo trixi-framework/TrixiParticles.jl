@@ -438,7 +438,6 @@ function compute_von_mises_stress(system::TotalLagrangianSPHSystem)
         # Calculate deviatoric stress tensor
         s = sigma - (1.0 / 3.0) * tr(sigma) * I
 
-        # Preparing to calculate Von Mises stress
         sum_s = 0.0
         @inbounds for i in 1:ndims(system)
             for j in 1:ndims(system)
