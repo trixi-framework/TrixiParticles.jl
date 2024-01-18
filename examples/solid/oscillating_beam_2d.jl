@@ -50,7 +50,8 @@ smoothing_length = sqrt(2) * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
-                                        E, nu, nothing, n_fixed_particles=nparticles(fixed_particles),
+                                        E, nu, nothing,
+                                        n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
 # ==========================================================================================

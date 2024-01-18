@@ -214,8 +214,10 @@ end
 function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_data=true)
     n_fixed_particles = nparticles(system) - n_moving_particles(system)
 
-    vtk["velocity"] = hcat(view(v, 1:ndims(system), :), zeros(ndims(system), n_fixed_particles))
-    vtk["jacobian"] = [det(system.deformation_grad[:,:,particle]) for particle in 1:nparticles(system)]
+    vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
+                           zeros(ndims(system), n_fixed_particles))
+    vtk["jacobian"] = [det(system.deformation_grad[:, :, particle])
+                       for particle in 1:nparticles(system)]
     vtk["von_mises_stress"] = compute_von_mises_stress(system)
     vtk["material_density"] = system.material_density
     vtk["young_modulus"] = system.young_modulus
