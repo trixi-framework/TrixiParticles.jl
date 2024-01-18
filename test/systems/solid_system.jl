@@ -349,9 +349,9 @@
         boundary_model = Val(:boundary_model)
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
-                                            density=material_densities)
+                                             density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                        smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu, boundary_model)
 
         # Initialize deformation_grad and pk1_corrected with arbitrary values
         n_particles = nparticles(system)
@@ -365,5 +365,4 @@
         # manual calculation
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
     end
-
 end
