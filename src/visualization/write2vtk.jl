@@ -221,6 +221,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     vtk["poisson_ratio"] = system.poisson_ratio
     vtk["lame_lambda"] = system.lame_lambda
     vtk["lame_mu"] = system.lame_mu
+    vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
+    vtk["smoothing_length"] = system.smoothing_length
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
