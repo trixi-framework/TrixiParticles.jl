@@ -10,10 +10,8 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-# Note that the effect of the gate is less pronounced with lower fluid resolutions,
-# since "larger" particles don't fit through the slightly opened gate. Lower fluid
-# resolutions thereforce cause a later and more violent fluid impact against the gate.
-fluid_particle_spacing = 0.02
+# TODO: Investigate the impact of excessive low or high resolution compared to solid resolution
+fluid_particle_spacing = 0.01
 n_particles_x = 5
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -92,10 +90,15 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+
+# Note that the aritificial viscosity parameter `alpha` needs to adjusted for different
+# resolutions to maintain a specific Reynolds Number.
+viscosity = ArtificialViscosityMonaghan(alpha=0.05, beta=0.0)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
+                                           density_diffusion=density_diffusion,
                                            smoothing_length, viscosity=viscosity,
                                            acceleration=(0.0, -gravity))
 
@@ -122,7 +125,7 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
-hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^ndims(solid)
 
 k_solid = gravity * initial_fluid_size[2]
 beta_solid = fluid_particle_spacing / solid_particle_spacing
@@ -138,14 +141,15 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
 # For higher fluid resolutions, uncomment the code below for better results.
 #
 # boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses, state_equation,
+#                                                    hydrodynamic_masses,
+#                                                    state_equation=state_equation,
 #                                                    AdamiPressureExtrapolation(),
 #                                                    smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model_solid,
-                                        n_fixed_particles=n_particles_x,
+                                        n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
 # ==========================================================================================

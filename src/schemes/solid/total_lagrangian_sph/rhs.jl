@@ -55,14 +55,17 @@ end
     return dv
 end
 
-# Solid-fluid interaction
+# Solid-fluid interaction according to O'Conner et al. (https://doi.org/10.1016/j.jfluidstructs.2021.103312)
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::WeaklyCompressibleSPHSystem)
-    (; boundary_model) = particle_system
-    (; density_calculator, state_equation, viscosity, correction) = neighbor_system
+    (; density_calculator, state_equation, correction) = neighbor_system
     (; sound_speed) = state_equation
+
+    # For viscous interaction with `WeaklyCompressibleSPHSystem`, use the viscosity model
+    # for the corresponding boundary model.
+    viscosity = viscosity_model(particle_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -78,7 +81,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # that the fluid particle experiences due to the soild particle.
         # Note that the same arguments are passed here as in fluid-solid interact!,
         # except that pos_diff has a flipped sign.
-        #
+
         # In fluid-solid interaction, use the "hydrodynamic mass" of the solid particles
         # corresponding to the rest density of the fluid and not the material density.
         m_a = hydrodynamic_mass(particle_system, particle)
@@ -88,35 +91,30 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        # Use the kernel-gradient of the fluid system, as this is a hydrodynamics interaction.
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance)
 
-        # use `m_a` to get the same viscosity as for the fluid-solid direction.
-        dv_viscosity = viscosity(neighbor_system, particle_system, v_neighbor_system,
-                                 v_particle_system, neighbor, particle, pos_diff, distance,
-                                 sound_speed, m_b, m_a, rho_mean)
+        dv_viscosity = viscosity(particle_system, neighbor_system,
+                                 v_particle_system, v_neighbor_system,
+                                 particle, neighbor, pos_diff, distance,
+                                 sound_speed, m_a, m_b, rho_mean)
 
         # In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
         # corresponding to the chosen boundary model.
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
 
-        # Particle and neighbor (and corresponding systems and all corresponding quantities)
-        # are switched in this call.
-        # This way, we obtain the exact same force as for the fluid-solid interaction,
-        # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
         # `pressure_correction` is set to `1.0` (no correction).
-        dv_boundary = pressure_acceleration(1.0, m_a, p_b, p_a,
-                                            rho_b, rho_a, pos_diff, distance, grad_kernel,
-                                            neighbor_system, neighbor, particle_system,
+        dv_boundary = pressure_acceleration(1.0, m_b, p_a, p_b,
+                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                            particle_system, neighbor, neighbor_system,
                                             density_calculator, correction)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)
-            # Multiply `dv` (acceleration on fluid particle b) by the mass of
-            # particle b to obtain the same force as for the fluid-solid interaction.
-            # Divide by the material mass of particle a to obtain the acceleration
-            # of solid particle a.
-            dv[i, particle] += dv_particle[i] * m_b / particle_system.mass[particle]
+            # Multiply by the ratio of hydrodynamic mass and material mass to obtain the
+            # acceleration of solid particle `a`.
+            dv[i, particle] += dv_particle[i] * m_a / particle_system.mass[particle]
         end
 
         continuity_equation!(dv, v_particle_system, v_neighbor_system,

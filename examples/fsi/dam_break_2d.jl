@@ -93,13 +93,7 @@ solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
-hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^2
-
-k_solid = gravity * initial_fluid_size[2]
-spacing_ratio_solid = fluid_particle_spacing / solid_particle_spacing
-boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
-                                                   solid_particle_spacing,
-                                                   hydrodynamic_masses)
+hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^ndims(solid)
 
 # `BoundaryModelDummyParticles` usually produces better results, since Monaghan-Kajtar BCs
 # tend to introduce a non-physical gap between fluid and boundary.
@@ -108,15 +102,16 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
 # or fluid particles can penetrate the solid.
 # With higher fluid resolutions, uncomment the code below for better results.
 #
-# boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses, state_equation,
-#                                                    boundary_density_calculator,
-#                                                    smoothing_kernel, smoothing_length)
+boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
+                                                   hydrodynamic_masses,
+                                                   state_equation=state_equation,
+                                                   boundary_density_calculator,
+                                                   smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
                                         E, nu, boundary_model_solid,
-                                        n_fixed_particles=n_particles_x,
+                                        n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
