@@ -19,7 +19,6 @@ mutable struct PostprocessCallback{I, F}
     func::F
 end
 
-# TODO: include current git hash
 # TODO: add description for each entry
 # TODO: add filename
 # TODO: add overwrite option
@@ -158,8 +157,7 @@ end
 
 # This function prepares the data for writing to a JSON file by creating a dictionary
 # that maps each key to separate arrays of times and values, sorted by time, and includes system name.
-function prepare_series_data(post_callback)
-    series_data = Dict()
+function prepare_series_data!(data, post_callback)
 
     for (key, data_array) in post_callback.values
         # Sort the data_array by time
@@ -172,16 +170,28 @@ function prepare_series_data(post_callback)
         # Assuming each DataEntry in sorted_data_array has a `system` field.
         system_name = isempty(sorted_data_array) ? "" : sorted_data_array[1].system
 
-        series_data[key] = create_series_dict(data_values, data_times, system_name)
+        data[key] = create_series_dict(data_values, data_times, system_name)
     end
 
-    return series_data
+    return data
 end
 
 function create_series_dict(values, times, system_name="")
-    Dict("type" => "series", "datatype" => eltype(values),
-         "novalues" => length(values), "values" => values,
-         "time" => times, "system_name" => system_name)
+    return Dict("type" => "series",
+         "datatype" => eltype(values),
+         "novalues" => length(values),
+         "system_name" => system_name,
+         "values" => values,
+         "time" => times)
+end
+
+function meta_data!(data)
+    meta_data = Dict("solver_name" => "TrixiParticles.jl",
+                     "solver_version" => get_git_hash(),
+                     "julia_version" => get_julia_version())
+
+    data["meta"] = meta_data
+    return data
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file.
@@ -190,12 +200,14 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
         return nothing
     end
 
-    series_data = prepare_series_data(pp)
+    data = Dict()
+    data = meta_data!(data)
+    data = prepare_series_data!(data, pp)
     filename = get_unique_filename("values", ".json")
     println("writing a postproccessing results to ", filename)
 
     open(filename, "w") do file
-        JSON.print(file, series_data, 4)
+        JSON.print(file, data, 4)
     end
 end
 

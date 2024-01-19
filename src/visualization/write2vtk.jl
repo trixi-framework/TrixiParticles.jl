@@ -94,6 +94,11 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         vtk["index"] = eachparticle(system)
         vtk["time"] = t
 
+        if write_meta_data
+            vtk["solver_version"] = get_git_hash()
+            vtk["julia_version"] = get_julia_version()
+        end
+
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities
             value = custom_quantity(quantity, v, u, t, system)

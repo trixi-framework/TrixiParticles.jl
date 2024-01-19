@@ -26,18 +26,33 @@ function system_names(systems)
 end
 
 function get_git_hash()
-    cmd = pipeline(`git rev-parse HEAD`, stdout=true, stderr=devnull)
-    result = run(cmd; wait=false)
-    git_hash = read(result.out, String)
-    success = wait(result)
+    cmd = `git rev-parse HEAD`
+    out = IOBuffer()
+    err = IOBuffer()
 
-    if success
+    # Run the command and wait for it to complete
+    process = run(pipeline(cmd, stdout=out, stderr=err), wait=true)
+
+    # Rewind the IOBuffers to read from the start
+    seekstart(out)
+    seekstart(err)
+
+    git_hash = read(out, String)
+    git_error = read(err, String)
+
+    # Check the exit code of the process
+    if process.exitcode == 0
         return chomp(git_hash)
     else
-        if occursin("not a git repository", git_hash)
+        if occursin("not a git repository", git_error)
             return "Not a Git repository"
         else
             return "Git is not installed or not accessible"
         end
     end
+end
+
+
+function get_julia_version()
+    return string(VERSION)
 end

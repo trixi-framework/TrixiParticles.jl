@@ -17,4 +17,4 @@ pp_cb = PostprocessCallback([
                             ], interval=25)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
-              pp_callback=pp_cb)
+              pp_callback=pp_cb);
