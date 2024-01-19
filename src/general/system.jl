@@ -78,6 +78,12 @@ end
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
 end
 
+@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance)
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
+end
+
 # This is dispatched for some system types
 @inline function smoothing_kernel_grad(system, pos_diff, distance, particle)
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
