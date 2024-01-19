@@ -1,8 +1,88 @@
 @doc raw"""
+    interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+
+Interpolates properties across a plane or a volume in a TrixiParticles simulation.
+The region for interpolation is defined by its lower left and top right corners,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points within the defined region, spaced uniformly according to the given resolution.
+
+# Arguments
+- `lower_left`: The lower left corner of the interpolation region.
+- `top_right`: The top right corner of the interpolation region.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`: The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`: The solution state from which the properties are interpolated.
+
+# Keywords
+- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
+                  point is "closer" to a boundary than to the fluid system
+                  (see an explanation for "closer" below). Defaults to `true`.
+- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
+
+!!! note
+    - This function is particularly useful for analyzing gradients or creating visualizations
+      along a specified line in the SPH simulation domain.
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```julia
+# Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
+results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+```
+"""
+function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
+                           smoothing_length=ref_system.smoothing_length,
+                           cut_off_bnd=true)
+    dims = length(lower_left)
+    if dims != length(top_right)
+        error("Dimensions of lower_left and top_right must match")
+    end
+
+    # Check that lower_left is indeed lower and to the left of top_right
+    for i in 1:dims
+        if lower_left[i] > top_right[i]
+            error("lower_left should be lower and to the left of top_right in all dimensions")
+        end
+    end
+
+    # Calculate the number of points in each dimension based on the resolution
+    no_points_x = ceil(Int, (top_right[1] - lower_left[1]) / resolution) + 1
+    no_points_y = ceil(Int, (top_right[2] - lower_left[2]) / resolution) + 1
+    no_points_z = dims == 3 ? ceil(Int, (top_right[3] - lower_left[3]) / resolution) + 1 : 1
+
+    x_range = range(lower_left[1], top_right[1], length=no_points_x)
+    y_range = range(lower_left[2], top_right[2], length=no_points_y)
+    z_range = dims == 3 ? range(lower_left[3], top_right[3], length=no_points_z) : 1:1
+
+    points_coords = dims == 2 ? [SVector(x, y) for x in x_range, y in y_range] :
+                    [SVector(x, y, z) for x in x_range, y in y_range, z in z_range]
+
+    results = interpolate_point(points_coords, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd)
+
+    # Find indices where neighbor_count > 0
+    indices = findall(x -> x > 0, results.neighbor_count)
+
+    # Filter all arrays in the named tuple using these indices
+    filtered_results = map(x -> x[indices], results)
+
+    return filtered_results
+end
+
+@doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
 
-Interpolates properties along a line in an TrixiParticles simulation.
+Interpolates properties along a line in a TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
 evenly spaced points between `start` and `end_`.
 If `endpoint` is `false`, the line is interpolated between the start and end points,

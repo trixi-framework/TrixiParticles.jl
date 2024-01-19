@@ -1,6 +1,7 @@
 # Example for using interpolation
 #######################################################################################
 using TrixiParticles
+# this needs to be commented out to use PythonPlot
 using Plots
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))

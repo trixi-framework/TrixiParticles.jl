@@ -59,7 +59,7 @@ export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
-export interpolate_line, interpolate_point
+export interpolate_line, interpolate_point, interpolate_plane
 export calculate_ekin, calculate_total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 
