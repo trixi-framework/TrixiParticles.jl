@@ -260,7 +260,7 @@ function max_pressure(pp, t, system, u, v, system_name)
             max_p = pressure
         end
     end
-    add_entry!(pp, "maxp", t, max_p, system_name)
+    add_entry!(pp, "max_p", t, max_p, system_name)
 end
 
 function min_pressure(pp, t, system, u, v, system_name)
@@ -271,7 +271,7 @@ function min_pressure(pp, t, system, u, v, system_name)
             min_p = pressure
         end
     end
-    add_entry!(pp, "minp", t, min_p, system_name)
+    add_entry!(pp, "min_p", t, min_p, system_name)
 end
 
 function avg_pressure(pp, t, system, u, v, system_name)
@@ -284,7 +284,7 @@ function avg_pressure(pp, t, system, u, v, system_name)
     end
 
     avg_p = count > 0 ? total_pressure / count : 0.0
-    add_entry!(pp, "avgp", t, avg_p, system_name)
+    add_entry!(pp, "avg_p", t, avg_p, system_name)
 end
 
 function max_density(pp, t, system, u, v, system_name)
@@ -295,7 +295,7 @@ function max_density(pp, t, system, u, v, system_name)
             max_rho = rho
         end
     end
-    add_entry!(pp, "maxrho", t, max_rho, system_name)
+    add_entry!(pp, "max_rho", t, max_rho, system_name)
 end
 
 function min_density(pp, t, system, u, v, system_name)
@@ -306,7 +306,7 @@ function min_density(pp, t, system, u, v, system_name)
             min_rho = rho
         end
     end
-    add_entry!(pp, "minrho", t, min_rho, system_name)
+    add_entry!(pp, "min_rho", t, min_rho, system_name)
 end
 
 function avg_density(pp, t, system, u, v, system_name)
@@ -319,5 +319,5 @@ function avg_density(pp, t, system, u, v, system_name)
     end
 
     avg_rho = count > 0 ? total_density / count : 0.0
-    add_entry!(pp, "avgp", t, avg_rho, system_name)
+    add_entry!(pp, "avg_rho", t, avg_rho, system_name)
 end
