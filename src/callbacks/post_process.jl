@@ -263,10 +263,6 @@ function add_entry!(pp, entry_key, t, value, system_name)
     push!(entries, DataEntry(value, t, system_name))
 end
 
-function test_function(pp, t, system, u, v, system_name)
-    add_entry!(pp, "test", t, 2 * t, system_name)
-end
-
 function calculate_ekin(pp, t, system, u, v, system_name)
     ekin = 0.0
     for particle in each_moving_particle(system)
