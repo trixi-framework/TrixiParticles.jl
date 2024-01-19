@@ -19,7 +19,6 @@ mutable struct PostprocessCallback{I, F}
     func::F
 end
 
-# TODO: implement exclude_bnd
 # TODO: include current git hash
 # TODO: add description for each entry
 # TODO: add filename
@@ -113,7 +112,7 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
-        if system isa BoundarySystem
+        if system isa BoundarySystem && pp.exclude_bnd
             return
         end
 
