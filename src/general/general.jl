@@ -1,22 +1,6 @@
 abstract type System{NDIMS} end
 
 abstract type FluidSystem{NDIMS} <: System{NDIMS} end
-
-abstract type SolidSystem{NDIMS} <: System{NDIMS} end
-
-abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
-
-timer_name(::FluidSystem) = "fluid"
-
-@inline function set_zero!(du)
-    du .= zero(eltype(du))
-
-    return du
-end
-
-abstract type System{NDIMS} end
-
-abstract type FluidSystem{NDIMS} <: System{NDIMS} end
 timer_name(::FluidSystem) = "fluid"
 
 abstract type SolidSystem{NDIMS} <: System{NDIMS} end
@@ -24,6 +8,12 @@ timer_name(::SolidSystem) = "solid"
 
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 timer_name(::BoundarySystem) = "boundary"
+
+@inline function set_zero!(du)
+    du .= zero(eltype(du))
+
+    return du
+end
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included later.
