@@ -19,5 +19,6 @@ pp_cb = PostprocessCallback([
 # trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
 #               pp_callback=pp_cb);
 
-file = TrixiParticles.get_latest_unique_filename("/media/svenb/Extreme SSD/GIT/TrixParticles2/TrixiParticles.jl/", "values", ".json")
+file = TrixiParticles.get_latest_unique_filename("/media/svenb/Extreme SSD/GIT/TrixParticles2/TrixiParticles.jl/",
+                                                 "values", ".json")
 println(file)

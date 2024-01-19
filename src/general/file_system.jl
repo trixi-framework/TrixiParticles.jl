@@ -16,7 +16,8 @@ end
 
 function get_latest_unique_filename(dir_path, base_name, extension)
     files = readdir(dir_path)
-    extension_regex = startswith(extension, ".") ? escape_string(extension) : "\\." * escape_string(extension)
+    extension_regex = startswith(extension, ".") ? escape_string(extension) :
+                      "\\." * escape_string(extension)
     regex_pattern = "^" * escape_string(base_name) * "\\d*" * extension_regex * "\$"
 
     regex = Regex(regex_pattern)
