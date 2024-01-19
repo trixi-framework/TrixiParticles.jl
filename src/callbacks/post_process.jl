@@ -21,7 +21,6 @@ mutable struct PostprocessCallback{I, F}
     overwrite::Bool
 end
 
-# TODO: option to save initial
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true, filename="values", overwrite=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -84,6 +83,14 @@ end
 
 function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
     cb.last_t = t
+    # Write initial values.
+    if t < eps()
+        # Update systems to compute quantities like density and pressure.
+        semi = integrator.p
+        v_ode, u_ode = u.x
+        update_systems_and_nhs(v_ode, u_ode, semi, t)
+        cb(integrator)
+    end
     return nothing
 end
 
