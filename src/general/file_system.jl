@@ -1,5 +1,8 @@
 # This function creates a unique filename by appending a number to the base name if needed.
 function get_unique_filename(base_name, extension)
+    # Ensure the extension starts with a dot
+    extension = startswith(extension, ".") ? extension : "." * extension
+
     filename = base_name * extension
     counter = 1
 
