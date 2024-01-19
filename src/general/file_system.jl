@@ -52,7 +52,6 @@ function get_git_hash()
     end
 end
 
-
 function get_julia_version()
     return string(VERSION)
 end

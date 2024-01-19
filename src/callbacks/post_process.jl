@@ -21,7 +21,8 @@ mutable struct PostprocessCallback{I, F}
     overwrite::Bool
 end
 
-function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true, filename="values", overwrite=true)
+function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
+                             filename="values", overwrite=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -40,8 +41,8 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     else
         # The first one is the condition, the second the affect!
         DiscreteCallback(post_callback, post_callback,
-        save_positions=(false, false),
-        initialize=initialize_post_callback!)
+                         save_positions=(false, false),
+                         initialize=initialize_post_callback!)
     end
 end
 
@@ -104,7 +105,8 @@ function (pp::PostprocessCallback)(u, t, integrator)
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
     return (interval > 0 && ((integrator.stats.naccept % interval == 0) &&
-            !(integrator.stats.naccept == 0 && integrator.iter > 0))) || isfinished(integrator)
+             !(integrator.stats.naccept == 0 && integrator.iter > 0))) ||
+           isfinished(integrator)
 end
 
 # affect! function for a single function
@@ -164,7 +166,6 @@ end
 # This function prepares the data for writing to a JSON file by creating a dictionary
 # that maps each key to separate arrays of times and values, sorted by time, and includes system name.
 function prepare_series_data!(data, post_callback)
-
     for (key, data_array) in post_callback.values
         # Sort the data_array by time
         sorted_data_array = sort(data_array, by=data -> data.time)
@@ -184,11 +185,11 @@ end
 
 function create_series_dict(values, times, system_name="")
     return Dict("type" => "series",
-         "datatype" => eltype(values),
-         "novalues" => length(values),
-         "system_name" => system_name,
-         "values" => values,
-         "time" => times)
+                "datatype" => eltype(values),
+                "novalues" => length(values),
+                "system_name" => system_name,
+                "values" => values,
+                "time" => times)
 end
 
 function meta_data!(data)
