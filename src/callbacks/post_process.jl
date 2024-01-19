@@ -7,9 +7,41 @@ struct DataEntry
 end
 
 """
-    PostprocessCallback
-This struct holds the values and time deltas (dt) collected during the simulation. The `values` field is a dictionary
-that maps a string key to an array of `DataEntry` structs. The `dt` field is an array of time deltas.
+    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
+                        filename="values", overwrite=true)
+
+Create a callback for post-processing simulation data at regular intervals.
+This callback allows for the execution of a user-defined function `func` at specified intervals during the simulation. The function is applied to the current state of the simulation, and its results can be saved or used for further analysis.
+
+The callback can be triggered either by a fixed number of time steps (`interval`) or by a fixed interval of simulation time (`dt`).
+
+# Keywords
+- `interval=0`: Specifies the number of time steps between each invocation of the callback. If set to `0`, the callback will not be triggered based on time steps.
+- `dt=0.0`: Specifies the simulation time interval between each invocation of the callback. If set to `0.0`, the callback will not be triggered based on simulation time.
+- `exclude_bnd=true`: If set to `true`, boundary particles will be excluded from the post-processing.
+- `filename="values"`: The filename or path where the results of the post-processing will be saved.
+- `overwrite=true`: If set to `true`, existing files with the same name as `filename` will be overwritten.
+
+# Behavior
+- If both `interval` and `dt` are specified, an `ArgumentError` is thrown as only one mode of time control is allowed.
+- If `dt` is specified and greater than `0`, the callback will be triggered at regular intervals of simulation time.
+- If `interval` is specified and greater than `0`, the callback will be triggered every `interval` time steps.
+
+# Usage
+The callback is designed to be used with simulation frameworks. The user-defined function `func` should take the current state of the simulation as input and return data for post-processing.
+
+# Examples
+```julia
+# Define a custom post-processing function
+function my_postprocess_function(simulation_state)
+    # Custom processing code here
+end
+
+# Create a callback that is triggered every 100 time steps
+postprocess_callback = PostprocessCallback(my_postprocess_function, interval=100)
+
+# Create a callback that is triggered every 0.1 simulation time units
+postprocess_callback = PostprocessCallback(my_postprocess_function, dt=0.1)
 """
 mutable struct PostprocessCallback{I, F}
     interval::I
