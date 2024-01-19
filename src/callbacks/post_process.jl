@@ -17,12 +17,12 @@ mutable struct PostprocessCallback{I, F}
     values::Dict{String, Vector{DataEntry}}
     exclude_bnd::Bool
     func::F
+    filename::String
+    overwrite::Bool
 end
 
-# TODO: add filename
-# TODO: add overwrite option
 # TODO: option to save initial
-function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true)
+function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true, filename="values", overwrite=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -32,7 +32,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     end
 
     post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
-                                        exclude_bnd, func)
+                                        exclude_bnd, func, filename, overwrite)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -202,7 +202,12 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
     data = Dict()
     data = meta_data!(data)
     data = prepare_series_data!(data, pp)
-    filename = get_unique_filename("values", ".json")
+
+    filename = pp.filename * ".json"
+    if !pp.overwrite
+        filename = get_unique_filename(pp.filename, ".json")
+    end
+
     println("writing a postproccessing results to ", filename)
 
     open(filename, "w") do file
