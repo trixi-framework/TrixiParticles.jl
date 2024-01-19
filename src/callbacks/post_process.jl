@@ -19,7 +19,6 @@ mutable struct PostprocessCallback{I, F}
     func::F
 end
 
-# TODO: add description for each entry
 # TODO: add filename
 # TODO: add overwrite option
 # TODO: option to save initial

@@ -42,7 +42,7 @@ function get_git_hash()
 
     # Check the exit code of the process
     if process.exitcode == 0
-        return chomp(git_hash)
+        return string(chomp(git_hash))
     else
         if occursin("not a git repository", git_error)
             return "Not a Git repository"
