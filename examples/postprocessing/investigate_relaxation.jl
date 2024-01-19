@@ -10,11 +10,7 @@ using Printf
 # example_cb = PostprocessCallback([a,])
 
 # see also the implementation for the functions calculate_ekin, calculate_total_mass,...
-pp_cb = PostprocessCallback([
-                                TrixiParticles.calculate_ekin,
-                                TrixiParticles.max_pressure,
-                                TrixiParticles.avg_density,
-                            ], interval=10)
+pp_cb = PostprocessCallback([calculate_ekin, max_pressure, avg_density,], interval=10)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               pp_callback=pp_cb, tspan=(0.0, 5.0));
