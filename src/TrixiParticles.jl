@@ -60,5 +60,6 @@ export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
 export interpolate_line, interpolate_point
+export calculate_ekin, calculate_total_mass, max_pressure, min_pressure, avg_pressure, max_density, min_density, avg_density
 
 end # module
