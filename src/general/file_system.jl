@@ -11,6 +11,26 @@ function get_unique_filename(base_name, extension)
     return filename
 end
 
+function get_latest_unique_filename(dir_path, base_name, extension)
+    files = readdir(dir_path)
+    extension_regex = startswith(extension, ".") ? escape_string(extension) : "\\." * escape_string(extension)
+    regex_pattern = "^" * escape_string(base_name) * "\\d*" * extension_regex * "\$"
+
+    regex = Regex(regex_pattern)
+
+    # Filter files based on the constructed regex
+    matching_files = filter(x -> occursin(regex, x), files)
+
+    if isempty(matching_files)
+        println("No matching files found.")
+        return ""
+    end
+
+    recent_file = sort(matching_files, by=x -> stat(joinpath(dir_path, x)).ctime, rev=true)[1]
+    file_path = joinpath(dir_path, recent_file)
+    return file_path
+end
+
 vtkname(system::FluidSystem) = "fluid"
 vtkname(system::SolidSystem) = "solid"
 vtkname(system::BoundarySystem) = "boundary"
