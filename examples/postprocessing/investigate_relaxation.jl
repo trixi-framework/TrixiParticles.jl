@@ -11,7 +11,7 @@ using Printf
 
 # see also the implementation for the functions calculate_ekin, calculate_total_mass,...
 # pp_cb = PostprocessCallback([calculate_ekin, max_pressure, avg_density], interval=10)
-pp_cb = PostprocessCallback([calculate_ekin, max_pressure, avg_density], dt=0.01)
+pp_cb = PostprocessCallback([calculate_ekin, max_pressure, avg_density], dt=0.1)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               pp_callback=pp_cb, tspan=(0.0, 5.0));
