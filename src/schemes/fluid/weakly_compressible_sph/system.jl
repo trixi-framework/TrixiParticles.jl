@@ -71,7 +71,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        pressure_acceleration = set_pressure_acceleration_formulation(pressure_acceleration,
+        pressure_acceleration = get_pressure_acceleration_formulation(pressure_acceleration,
                                                                       density_calculator,
                                                                       correction)
 

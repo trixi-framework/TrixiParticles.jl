@@ -35,19 +35,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        # When the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
-        # the following holds:
-        # For the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
-        # the pressure of the fluid particle. For all other boundary models, it will just
-        # return the hydrodynamic pressures of the fluid particle and neighbor particle.
+        # The following call is equivalent to
+        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
+        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
+        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
+        # the pressure of the fluid particle.
         p_a, p_b = particle_neighbor_pressure(v_particle_system, v_neighbor_system,
                                               particle_system, neighbor_system,
                                               particle, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor,
-                                            neighbor_system, correction)
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, pressure_correction,
+                                            correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,

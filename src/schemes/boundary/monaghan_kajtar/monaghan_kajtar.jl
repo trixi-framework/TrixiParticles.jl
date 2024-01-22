@@ -75,11 +75,12 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
-@inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       W_a, particle_system, neighbor,
+
+@inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               SolidSystem{<:BoundaryModelMonaghanKajtar}},
+                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, grad_kernel, pressure_correction,
                                        correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
