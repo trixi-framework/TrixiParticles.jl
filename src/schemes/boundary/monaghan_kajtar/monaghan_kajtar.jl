@@ -79,9 +79,9 @@ end
 @inline function pressure_acceleration(particle_system,
                                        neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               SolidSystem{<:BoundaryModelMonaghanKajtar}},
-                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, grad_kernel, pressure_correction,
-                                       correction)
+                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff::SVector{NDIMS}, distance, grad_kernel,
+                                       pressure_correction, correction) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
     return K / beta^(NDIMS - 1) * pos_diff /
