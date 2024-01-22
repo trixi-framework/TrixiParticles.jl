@@ -14,7 +14,7 @@ using Printf
 pp_cb = PostprocessCallback([calculate_ekin, max_pressure, avg_density], dt=0.01)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
-              pp_callback=pp_cb, tspan=(0.0, 0.1));
+              pp_callback=pp_cb, tspan=(0.0, 5.0));
 
 function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     @assert length(data)==length(t) "Data and time vectors must have the same length"
