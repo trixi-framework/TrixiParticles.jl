@@ -18,8 +18,8 @@ include("point_in_poly/algorithm.jl")
     return TrixiParticles.extract_svector(A, Val(ndims(shape)), i)
 end
 
-@inline function position(A, ::Val{2}, i)
-    return TrixiParticles.extract_svector(A, Val(2), i)
+@inline function position(A, ::Val{NDIMS}, i) where NDIMS
+    return TrixiParticles.extract_svector(A, Val(NDIMS), i)
 end
 
 function particle_grid(vertices, particle_spacing; pad=2*particle_spacing)
@@ -34,11 +34,11 @@ function particle_grid(vertices, particle_spacing; pad=2*particle_spacing)
     return hcat(collect.(Iterators.product(ranges_...))...)
 end
 
-function sample(shape, particle_spacing; point_in_poly=WindingNumberHorman(shape))
+function sample(; shape, particle_spacing, density, point_in_poly=WindingNumberHorman(shape))
     grid = particle_grid(shape.vertices, particle_spacing)
 
     inpoly = point_in_poly(shape, grid)
     coordinates = grid[:, inpoly]
 
-    return coordinates #InitialCondition(coordinates, velocities, masses, densities)
+    return InitialCondition(; coordinates, density, particle_spacing=particle_spacing)
 end
