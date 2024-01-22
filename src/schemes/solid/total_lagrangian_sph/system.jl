@@ -451,3 +451,19 @@ function compute_von_mises_stress(system::TotalLagrangianSPHSystem)
 
     return von_mises_stress
 end
+
+function compute_cauchy_stress(system::TotalLagrangianSPHSystem)
+    NDIMS = ndims(system)
+
+    cauchy_stress_tensors = [zeros(eltype(system.pk1_corrected), NDIMS, NDIMS) for _ in 1:nparticles(system)]
+
+    @threaded for particle in each_moving_particle(system)
+        F = system.deformation_grad[:, :, particle]
+        J = det(F)
+        P = system.pk1_corrected[:, :, particle]
+        sigma = (1.0 / J) * P * F'
+        cauchy_stress_tensors[particle] = sigma
+    end
+
+    return cauchy_stress_tensors
+end
