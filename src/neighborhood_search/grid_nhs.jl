@@ -189,8 +189,8 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
-# with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
     (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
@@ -208,6 +208,19 @@ end
     end
 end
 
+# 1D
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{1})
+    cell = cell_coords(coords, neighborhood_search)
+    x = cell[1]
+    # Generator of all neighboring cells to consider
+    neighboring_cells = ((x + i) for i in -1:1)
+
+    # Merge all lists of particles in the neighboring cells into one iterator
+    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
+                      for cell in neighboring_cells)
+end
+
+# 2D
 @inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
     cell = cell_coords(coords, neighborhood_search)
     x, y = cell
@@ -219,6 +232,7 @@ end
                       for cell in neighboring_cells)
 end
 
+# 3D
 @inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{3})
     cell = cell_coords(coords, neighborhood_search)
     x, y, z = cell
@@ -311,4 +325,25 @@ end
     cell = cell_coords(coords, neighborhood_search.search_radius) .+ 1
 
     return cartesian2morton(SVector(cell))
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::GridNeighborhoodSearch, search_radius, u)
+    if nhs.periodic_box === nothing
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs))
+    else
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs),
+                                                    min_corner=nhs.periodic_box.min_corner,
+                                                    max_corner=nhs.periodic_box.max_corner)
+    end
+
+    # Initialize neighborhood search
+    initialize!(search, u)
+
+    return search
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch, search_radius, u)
+    return nhs
 end

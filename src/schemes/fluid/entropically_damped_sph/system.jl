@@ -71,11 +71,13 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF} <:
 
         density_calculator = SummationDensity()
 
-        new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(initial_pressure_function)
-            }(initial_condition, mass, density, density_calculator, smoothing_kernel,
-              smoothing_length, sound_speed, viscosity, nu_edac, initial_pressure_function,
-              acceleration_)
+        new{NDIMS, ELTYPE, typeof(density_calculator),
+            typeof(smoothing_kernel), typeof(viscosity),
+            typeof(initial_pressure_function)}(initial_condition, mass, density,
+                                               density_calculator, smoothing_kernel,
+                                               smoothing_length, sound_speed, viscosity,
+                                               nu_edac, initial_pressure_function,
+                                               acceleration_)
     end
 end
 
@@ -115,9 +117,9 @@ end
 
 @inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
 
-function update_quantities!(system::EntropicallyDampedSPHSystem, system_index, v, u,
+function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    summation_density!(system, system_index, semi, u, u_ode, system.density)
+    summation_density!(system, semi, u, u_ode, system.density)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem)

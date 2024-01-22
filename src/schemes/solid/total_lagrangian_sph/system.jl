@@ -24,9 +24,9 @@ The discretized version of this equation is given by (O’Connor & Rogers 2021):
     \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
     \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{PF}}{m_{0a}} + \bm{g},
 ```
-with
+with the correction matrix (see also [`GradientCorrection`](@ref))
 ```math
-\bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
+\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
 ```
 The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
 The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,7 +94,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
-
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
@@ -130,17 +129,15 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        return new{typeof(boundary_model),
-                   NDIMS, ELTYPE,
+        return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
                    typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
+                                          current_coordinates, mass, correction_matrix,
+                                          pk1_corrected, deformation_grad, material_density,
                                           n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force)
+                                          lame_lambda, lame_mu, smoothing_kernel,
+                                          smoothing_length, acceleration_, boundary_model,
+                                          penalty_force)
     end
 end
 
@@ -180,23 +177,11 @@ end
 
 timer_name(::TotalLagrangianSPHSystem) = "solid"
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelMonaghanKajtar
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelDummyParticles
-                                                               })
-    return v_nvariables(system, system.boundary_model.density_calculator)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, density_calculator)
-    return ndims(system)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
 
@@ -233,6 +218,12 @@ end
     return particle_density(v, system.boundary_model, system, particle)
 end
 
+# In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+# corresponding to the chosen boundary model.
+@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
+    return particle_pressure(v, system.boundary_model, system, particle)
+end
+
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
@@ -240,6 +231,7 @@ end
 @inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
+
 @inline function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
@@ -252,13 +244,14 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
 
     initial_coords = initial_coordinates(system)
 
-    # Calculate kernel correction matrix
+    density_fun(particle) = system.material_density[particle]
+
+    # Calculate correction matrix
     compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
-                                        initial_coords)
+                                        initial_coords, density_fun)
 end
 
-function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                           v_ode, u_ode, semi, t)
+function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; current_coordinates) = system
 
     for particle in each_moving_particle(system)
@@ -268,24 +261,19 @@ function update_positions!(system::TotalLagrangianSPHSystem, system_index, v, u,
     end
 end
 
-function update_quantities!(system::TotalLagrangianSPHSystem, system_index, v, u,
-                            v_ode, u_ode, semi, t)
-    (; neighborhood_searches) = semi
-
+function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    neighborhood_search = neighborhood_searches[system_index][system_index]
-    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 system)
+    nhs = get_neighborhood_search(system, semi)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
 
     return system
 end
 
-function update_final!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                       semi, t)
+function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
     # Only update boundary model
-    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, system)
@@ -390,21 +378,12 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
-    (; density_calculator) = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
+                   system::TotalLagrangianSPHSystem)
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -428,4 +407,21 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       particle_system, neighbor,
+                                       neighbor_system::TotalLagrangianSPHSystem,
+                                       density_calculator, correction)
+    (; boundary_model) = neighbor_system
+    (; smoothing_length) = particle_system
+
+    # Pressure acceleration for fluid-solid interaction. This is identical to
+    # `pressure_acceleration` for the `BoundarySPHSystem`.
+    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                     rho_a, rho_b, pos_diff, distance,
+                                     smoothing_length, grad_kernel,
+                                     particle_system, neighbor, neighbor_system,
+                                     boundary_model, density_calculator, correction)
 end

@@ -11,8 +11,7 @@
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
-            velocities = zero(coordinates)
-            masses = [1.25, 1.5]
+            mass = [1.25, 1.5]
             material_densities = [990.0, 1000.0]
             smoothing_kernel = Val(:smoothing_kernel)
             TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
@@ -22,8 +21,8 @@
             E = 2.5
             boundary_model = Val(:boundary_model)
 
-            initial_condition = InitialCondition(coordinates, velocities, masses,
-                                                 material_densities)
+            initial_condition = InitialCondition(; coordinates, mass,
+                                                 density=material_densities)
             system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                               smoothing_length, E, nu, boundary_model)
 
@@ -32,7 +31,7 @@
             @test system.initial_condition == initial_condition
             @test system.initial_coordinates == coordinates
             @test system.current_coordinates == coordinates
-            @test system.mass == masses
+            @test system.mass == mass
             @test system.material_density == material_densities
             @test system.n_moving_particles == 2
             @test system.young_modulus == E
@@ -50,8 +49,7 @@
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
+        mass = [1.25, 1.5]
         material_densities = [990.0, 1000.0]
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
@@ -61,8 +59,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses,
-                                             material_densities)
+        initial_condition = InitialCondition(; coordinates, mass,
+                                             density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
@@ -205,17 +203,15 @@
                 coordinates = hcat(collect.(Iterators.product(range, range))...)
 
                 n_particles_per_dimension = (9, 9)
-                velocities = zero(coordinates)
-                masses = 10 * ones(Float64, prod(n_particles_per_dimension))
-                densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+                mass = 10 * ones(Float64, prod(n_particles_per_dimension))
+                density = 1000 * ones(Float64, prod(n_particles_per_dimension))
 
                 smoothing_length = 0.12
                 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
                 search_radius = TrixiParticles.compact_support(smoothing_kernel,
                                                                smoothing_length)
 
-                initial_condition = InitialCondition(coordinates, velocities, masses,
-                                                     densities)
+                initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition,
                                                   smoothing_kernel, smoothing_length,
                                                   1.0, 1.0, nothing)
@@ -294,8 +290,7 @@
     @testset verbose=true "write_u0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
+        mass = [1.25, 1.5]
         material_densities = [990.0, 1000.0]
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
@@ -304,8 +299,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses,
-                                             material_densities)
+        initial_condition = InitialCondition(; coordinates, mass,
+                                             density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
@@ -319,8 +314,8 @@
     @testset verbose=true "write_v0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
+        velocity = zero(coordinates)
+        mass = [1.25, 1.5]
         material_densities = [990.0, 1000.0]
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
@@ -329,8 +324,8 @@
         E = 2.5
         boundary_model = Val(:boundary_model)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses,
-                                             material_densities)
+        initial_condition = InitialCondition(; coordinates, velocity, mass,
+                                             density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                           smoothing_length, E, nu, boundary_model)
 
@@ -338,6 +333,6 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
-        @test v0 == velocities
+        @test v0 == velocity
     end
 end

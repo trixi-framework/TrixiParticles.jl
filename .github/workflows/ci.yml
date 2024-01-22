@@ -25,6 +25,7 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
+
 # Cancel redundant CI tests automatically
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,6 +42,7 @@ jobs:
         uses: julia-actions/setup-julia@v1
         with:
           version: '1'
+      - uses: julia-actions/cache@v1
       - name: Apply JuliaFormatter and check format
         run: |
           julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
@@ -58,7 +60,7 @@ jobs:
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,test,examples
+          directories: src,test
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v3
         with:

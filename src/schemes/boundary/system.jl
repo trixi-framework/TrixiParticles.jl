@@ -4,10 +4,10 @@
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-For moving boundaries, a [`BoundaryMovement`](@ref)) can be passed with the keyword
+For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
 argument `movement`.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
     boundary_model :: BM
     movement       :: M
@@ -19,7 +19,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: System{NDIMS}
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        cache = create_cache(movement, inititial_condition)
+        cache = create_cache_boundary(movement, inititial_condition)
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(coordinates, model, movement,
@@ -58,9 +58,9 @@ struct BoundaryMovement{MF, IM}
     end
 end
 
-create_cache(::Nothing, inititial_condition) = (;)
+create_cache_boundary(::Nothing, inititial_condition) = (;)
 
-function create_cache(::BoundaryMovement, inititial_condition)
+function create_cache_boundary(::BoundaryMovement, inititial_condition)
     initial_coordinates = copy(inititial_condition.coordinates)
     velocity = similar(inititial_condition.velocity)
     acceleration = similar(inititial_condition.velocity)
@@ -133,23 +133,13 @@ end
 end
 
 # No particle positions are advanced for boundary systems,
-# except when using BoundaryModelDummyParticles with ContinuityDensity.
+# except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
 @inline function n_moving_particles(system::BoundarySPHSystem)
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{
-                                                              <:BoundaryModelDummyParticles
-                                                              })
-    return n_moving_particles(system, system.boundary_model.density_calculator)
-end
-
-@inline function n_moving_particles(system::BoundarySPHSystem, density_calculator)
-    return 0
-end
-
-@inline function n_moving_particles(system::BoundarySPHSystem, ::ContinuityDensity)
-    nparticles(system)
+@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
+    return nparticles(system)
 end
 
 @inline u_nvariables(system::BoundarySPHSystem) = 0
@@ -211,28 +201,26 @@ end
     return kernel(smoothing_kernel, distance, smoothing_length)
 end
 
-function update_positions!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                           semi, t)
+function update_positions!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; movement) = system
 
     movement(system, t)
 end
 
-function update_quantities!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode,
-                            semi, t)
+function update_quantities!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    update_density!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_density!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, system_index, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     (; boundary_model) = system
 
-    update_pressure!(boundary_model, system, system_index, v, u, v_ode, u_ode, semi)
+    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 
     return system
 end
@@ -241,21 +229,12 @@ function write_u0!(u0, system::BoundarySPHSystem)
     return u0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelMonaghanKajtar})
+function write_v0!(v0, system::BoundarySPHSystem)
     return v0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
-    (; density_calculator) = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::BoundarySPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
+function write_v0!(v0,
+                   system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     (; cache) = system.boundary_model
     (; initial_density) = cache
 
@@ -268,22 +247,11 @@ function write_v0!(v0, ::ContinuityDensity, system::BoundarySPHSystem)
 end
 
 function restart_with!(system::BoundarySPHSystem, v, u)
-    restart_with!(system, system.boundary_model, v, u)
-end
-
-function restart_with!(system, ::BoundaryModelMonaghanKajtar, v, u)
     return system
 end
 
-function restart_with!(system, model::BoundaryModelDummyParticles, v, u)
-    restart_with!(system, model, model.density_calculator, v, u)
-end
-
-function restart_with!(system, model, density_calculator, v, u)
-    return system
-end
-
-function restart_with!(system, model, ::ContinuityDensity, v, u)
+function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                       v, u)
     (; initial_density) = model.cache
 
     for particle in eachparticle(system)
@@ -295,4 +263,20 @@ end
 
 function viscosity_model(system::BoundarySPHSystem)
     return system.boundary_model.viscosity
+end
+
+@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
+                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
+                                       particle_system, neighbor,
+                                       neighbor_system::BoundarySPHSystem,
+                                       density_calculator, correction)
+    (; boundary_model) = neighbor_system
+    (; smoothing_length) = particle_system
+
+    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                     rho_a, rho_b, pos_diff, distance,
+                                     smoothing_length, grad_kernel,
+                                     particle_system, neighbor, neighbor_system,
+                                     boundary_model,
+                                     density_calculator, correction)
 end
