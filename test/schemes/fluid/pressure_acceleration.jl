@@ -1,6 +1,5 @@
 @testset verbose=true "Pressure Acceleration" begin
     @testset verbose=true "Corresponding Density Calculator Formulation" begin
-
         f_1 = TrixiParticles.choose_pressure_acceleration_formulation(nothing,
                                                                       SummationDensity(),
                                                                       nothing, nothing)
