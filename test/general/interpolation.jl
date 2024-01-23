@@ -278,7 +278,7 @@
                 interpolation_end = [1.0, 1.0]
                 resolution = 0.25
 
-                result = interpolate_plane(interpolation_start, interpolation_end,
+                result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                            resolution, semi_no_boundary,
                                            fluid_system, sol_no_boundary)
 
@@ -399,7 +399,7 @@
 
                 compare_interpolation_result(result, expected_res)
 
-                result = interpolate_plane(interpolation_start, interpolation_end,
+                result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                            resolution, semi_no_boundary, fluid_system,
                                            sol_no_boundary,
                                            smoothing_length=0.5 * smoothing_length)
@@ -1044,11 +1044,12 @@
             end
 
             @testset verbose=true "Interpolation Plane no boundary - cut_off_bnd = $(cut_off_bnd)" begin
-                interpolation_start = [0.0, 0.0, 0.0]
-                interpolation_end = [1.0, 1.0, 0.0]
+                p1 = [0.0, 0.0, 0.0]
+                p2 = [1.0, 1.0, 0.0]
+                p3 = [0.0, 1.0, 0.0]
                 resolution = 0.25
 
-                result = interpolate_plane(interpolation_start, interpolation_end,
+                result = interpolate_plane_3d(p1, p2, p3,
                                            resolution, semi_no_boundary,
                                            fluid_system, sol_no_boundary)
 

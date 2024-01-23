@@ -1,5 +1,5 @@
 @doc raw"""
-    interpolate_plane2D(lower_left, top_right, resolution, semi, ref_system, sol;
+    interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
                       smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
 Interpolates properties across a plane or a volume in a TrixiParticles simulation.
@@ -35,7 +35,7 @@ The function generates a grid of points within the defined region, spaced unifor
 # Examples
 ```julia
 # Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
-results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
 function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
@@ -76,6 +76,47 @@ function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_syste
     return filtered_results
 end
 
+@doc raw"""
+    interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+
+Interpolates properties across a plane in a 3D space in a TrixiParticles simulation.
+The plane for interpolation is defined by three points in 3D space,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points on a parallelogram within the plane defined by the three points, spaced uniformly according to the given resolution.
+
+# Arguments
+- `point1`: The first point defining the plane.
+- `point2`: The second point defining the plane.
+- `point3`: The third point defining the plane. The points must not be collinear.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`: The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`: The solution state from which the properties are interpolated.
+
+# Keywords
+- `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
+                  point is "closer" to a boundary than to the fluid system
+                  (see an explanation for "closer" below). Defaults to `true`.
+- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
+
+!!! note
+    - This function is particularly useful for analyzing gradients or creating visualizations
+      along a specified plane in the SPH simulation domain in 3D space.
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```julia
+# Interpolating across a plane defined by points [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], and [0.0, 1.0, 0.0]
+# with a resolution of 0.1
+results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 0.1, semi, ref_system, sol)
+"""
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
