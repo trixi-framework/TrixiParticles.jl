@@ -36,9 +36,25 @@ end
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 
-function get_pressure_acceleration_formulation(pressure_acceleration,
-                                               density_calculator, correction)
-    if correction === nothing || correction isa AkinciFreeSurfaceCorrection
+function choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                  density_calculator, initial_condition,
+                                                  correction)
+    ELTYPE = eltype(initial_condition)
+    NDIMS = ndims(initial_condition)
+
+    if correction isa KernelCorrection ||
+       correction isa GradientCorrection ||
+       correctin isa BlendedGradientCorrection ||
+       correction isa MixedKernelGradientCorrection
+        if isempty(methods(pressure_acceleration,
+                           (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
+                            SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
+            throw(ArgumentError("when a correction with an asymmetric kernel gradient is " *
+                                "used, the passed pressure acceleration formulation must " *
+                                "provide a version with the arguments " *
+                                "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`"))
+        end
+    else
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
                             SVector{NDIMS, ELTYPE})))
@@ -48,31 +64,24 @@ function get_pressure_acceleration_formulation(pressure_acceleration,
                                 "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a`, " *
                                 "using the symmetry of the kernel gradient"))
         end
-    else
-        if isempty(methods(pressure_acceleration,
-                           (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
-                            SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE})))
-            throw(ArgumentError("when a correction with an asymmetric kernel gradient is " *
-                                "used, the passed pressure acceleration formulation must " *
-                                "provide a version with the arguments " *
-                                "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b`"))
-        end
     end
 
     return pressure_acceleration
 end
 
-function get_pressure_acceleration_formulation(pressure_acceleration::Nothing,
-                                               density_calculator::SummationDensity,
-                                               correction)
+function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
+                                                  density_calculator::SummationDensity,
+                                                  initial_condition,
+                                                  correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_summation_density
 end
 
-function get_pressure_acceleration_formulation(pressure_acceleration::Nothing,
-                                               density_calculator::ContinuityDensity,
-                                               correction)
+function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
+                                                  density_calculator::ContinuityDensity,
+                                                  initial_condition,
+                                                  correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
     return pressure_acceleration_continuity_density

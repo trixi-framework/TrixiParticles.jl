@@ -80,11 +80,11 @@ end
                                        neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
                                                               SolidSystem{<:BoundaryModelMonaghanKajtar}},
                                        neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff::SVector{NDIMS}, distance, grad_kernel,
-                                       pressure_correction, correction) where {NDIMS}
+                                       pos_diff, distance, grad_kernel,
+                                       pressure_correction, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
-    return K / beta^(NDIMS - 1) * pos_diff /
+    return K / beta^(ndims(particle_system) - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
            boundary_kernel(distance, particle_system.smoothing_length)
 end

@@ -71,9 +71,10 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        pressure_acceleration = get_pressure_acceleration_formulation(pressure_acceleration,
-                                                                      density_calculator,
-                                                                      correction)
+        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                         density_calculator,
+                                                                         initial_condition,
+                                                                         correction)
 
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
@@ -174,15 +175,6 @@ end
 
 @inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
     return system.pressure[particle]
-end
-
-@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
-                                            particle_system, neighbor_system,
-                                            particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-
-    return p_a, p_b
 end
 
 # Nothing to initialize for this system
