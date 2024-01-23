@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "SPH Interpolation" begin
     function compare_interpolation_result(actual, expected; tolerance=1e-8)
         @test length(actual.density) == length(expected.density)
