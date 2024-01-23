@@ -126,7 +126,6 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
     point2_ = SVector{3}(point2)
     point3_ = SVector{3}(point3)
 
-
     # Vectors defining the edges of the parallelogram
     edge1 = point2_ - point1_
     edge2 = point3_ - point1_
@@ -141,7 +140,9 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
     num_points_edge2 = ceil(Int, norm(edge2) / resolution)
 
     # Create a set of points on the plane
-    points_coords = Vector{SVector{3, Float64}}(undef, (num_points_edge1 + 1) * (num_points_edge2 + 1))
+    points_coords = Vector{SVector{3, Float64}}(undef,
+                                                (num_points_edge1 + 1) *
+                                                (num_points_edge2 + 1))
     index = 1
     for i in 0:num_points_edge1
         for j in 0:num_points_edge2

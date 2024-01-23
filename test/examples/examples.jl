@@ -157,7 +157,8 @@
         @trixi_testset "postprocessing/interpolation_plane.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "postprocessing",
-                                                "interpolation_plane.jl"), tspan=(0.0, 0.01))
+                                                "interpolation_plane.jl"),
+                                       tspan=(0.0, 0.01))
             @test sol.retcode == ReturnCode.Success
         end
         @trixi_testset "postprocessing/interpolation_point_line.jl" begin
