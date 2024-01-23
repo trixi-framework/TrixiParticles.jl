@@ -1,3 +1,5 @@
+using LinearAlgebra
+
 @doc raw"""
     interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
                       smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
