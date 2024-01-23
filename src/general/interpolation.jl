@@ -39,8 +39,8 @@ results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
 function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
-                           smoothing_length=ref_system.smoothing_length,
-                           cut_off_bnd=true)
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true)
     dims = length(lower_left)
     if dims != 2 || length(top_right) != 2
         error("Function is intended for 2D coordinates only")
@@ -76,7 +76,6 @@ function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_syste
     return filtered_results
 end
 
-
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
@@ -102,7 +101,8 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
     points_coords = []
     for i in 0:num_points_edge1
         for j in 0:num_points_edge2
-            point_on_plane = point1 + (i / num_points_edge1) * edge1 + (j / num_points_edge2) * edge2
+            point_on_plane = point1 + (i / num_points_edge1) * edge1 +
+                             (j / num_points_edge2) * edge2
             push!(points_coords, point_on_plane)
         end
     end
@@ -121,8 +121,6 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
 
     return filtered_results
 end
-
-
 
 @doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,

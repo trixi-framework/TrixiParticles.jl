@@ -15,8 +15,9 @@ resolution = 0.005
 
 # We can interpolate a plane by providing the lower left and top right coordinates of a plane.
 # Per default the same `smoothing_length` will be used as during the simulation.
-original_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution, semi,
-                                   fluid_system, sol)
+original_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution,
+                                      semi,
+                                      fluid_system, sol)
 original_x = [point[1] for point in original_plane.coord]
 original_y = [point[2] for point in original_plane.coord]
 original_density = original_plane.density
@@ -26,8 +27,8 @@ original_density = original_plane.density
 # the appearance of disturbances. At the same time it will also increase the distance at free surfaces
 # at which the fluid is cut_off.
 double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
-                                           resolution, semi, fluid_system, sol,
-                                           smoothing_length=2.0 * smoothing_length)
+                                              resolution, semi, fluid_system, sol,
+                                              smoothing_length=2.0 * smoothing_length)
 double_x = [point[1] for point in double_smoothing_plane.coord]
 double_y = [point[2] for point in double_smoothing_plane.coord]
 double_density = double_smoothing_plane.density
@@ -36,9 +37,10 @@ double_density = double_smoothing_plane.density
 # Using a lower `smoothing_length` will decrease the amount of smoothing and will increase
 # the appearance of disturbances. At the same time the fluid will be cut off more accurately
 # at free surfaces.
-half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution,
-                                         semi, fluid_system, sol,
-                                         smoothing_length=0.5 * smoothing_length)
+half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
+                                            resolution,
+                                            semi, fluid_system, sol,
+                                            smoothing_length=0.5 * smoothing_length)
 half_x = [point[1] for point in half_smoothing_plane.coord]
 half_y = [point[2] for point in half_smoothing_plane.coord]
 half_density = half_smoothing_plane.density
@@ -100,19 +102,30 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_3
 p1 = [0.0, 0.0, 0.0]
 p2 = [1.0, 1.0, 0.1]
 p3 = [1.0, 0.5, 0.2]
-resolution = 0.05
+resolution = 0.025
 
 # We can also interpolate a 3D plane but in this case we have to provide 3 points instead!
 original_plane = interpolate_plane_3d(p1, p2, p3, resolution, semi,
-                                   fluid_system, sol)
+                                      fluid_system, sol)
 original_x = [point[1] for point in original_plane.coord]
 original_y = [point[2] for point in original_plane.coord]
 original_z = [point[3] for point in original_plane.coord]
 original_density = original_plane.density
 
 scatter_3d = scatter3d(original_x, original_y, original_z, marker_z=original_density,
-          color=:viridis)
+                       color=:viridis, legend=false)
 
-plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z", title="3D Scatter Plot with Density Coloring")
+plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
+               title="3D Scatter Plot with Density Coloring")
 
-combined_plot = plot(plot1, plot2, plot3, plot_3d, layout=(2, 2), size=(1000, 1000), margin=5mm)
+# by ignoring the z coordinate we can also plot this into a 2D plane
+scatter_3d_in_2d = scatter(original_x, original_y, zcolor=original_density,
+                           marker=:circle, markersize=4,
+                           markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
+                           colorbar=true, legend=false)
+
+plot_3d_in_2d = plot(scatter_3d_in_2d, xlabel="X", ylabel="Y", zlabel="Z",
+                     title="3D in 2D Scatter Plot")
+
+combined_plot = plot(plot1, plot2, plot3, plot_3d, plot_3d_in_2d, layout=(3, 2),
+                     size=(1000, 1500), margin=5mm)
