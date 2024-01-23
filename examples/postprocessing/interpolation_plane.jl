@@ -45,55 +45,25 @@ half_x = [point[1] for point in half_smoothing_plane.coord]
 half_y = [point[2] for point in half_smoothing_plane.coord]
 half_density = half_smoothing_plane.density
 
-# Instead of using Plots.jl one can also use PythonPlot which uses matplotlib
-# using PythonPlot
-
-# # Initialize figure with three subplots
-# fig, (subplot1, subplot2, subplot3) = subplots(1, 3, figsize=(15, 5))
-
-# # Plot for original plane
-# scatter1 = subplot1.scatter(original_x, original_y, c=original_density, cmap="viridis",
-#                             marker="o", vmin=1000, vmax=1010)
-# subplot1.set_xlabel("X Coordinate")
-# subplot1.set_ylabel("Y Coordinate")
-# subplot1.set_title("Density Distribution")
-# fig.colorbar(scatter1, ax=subplot1, label="Density")
-
-# # Plot for plane with double smoothing length
-# scatter2 = subplot2.scatter(double_x, double_y, c=double_density, cmap="viridis",
-#                             marker="o", vmin=1000, vmax=1010)
-# subplot2.set_xlabel("X Coordinate")
-# subplot2.set_ylabel("Y Coordinate")
-# subplot2.set_title("Density with 2x Smoothing Length")
-# fig.colorbar(scatter2, ax=subplot2, label="Density")
-
-# # Plot for plane with half smoothing length
-# scatter3 = subplot3.scatter(half_x, half_y, c=half_density, cmap="viridis", marker="o",
-#                             vmin=1000, vmax=1010)
-# subplot3.set_xlabel("X Coordinate")
-# subplot3.set_ylabel("Y Coordinate")
-# subplot3.set_title("Density with 0.5x Smoothing Length")
-# fig.colorbar(scatter3, ax=subplot3, label="Density")
-
-# fig.subplots_adjust(left=0.1, right=0.9, bottom=0.1, top=0.9, wspace=0.4, hspace=0.4)
-# plotshow()
-
 scatter1 = scatter(original_x, original_y, zcolor=original_density, marker=:circle,
                    markersize=2, markercolor=:viridis, markerstrokewidth=0,
-                   clim=(1000, 1010), colorbar=true, legend=false)
+                   clim=(1000, 1010), colorbar=true)
 scatter2 = scatter(double_x, double_y, zcolor=double_density, marker=:circle, markersize=2,
                    markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
-                   colorbar=true, legend=false)
+                   colorbar=true)
 scatter3 = scatter(half_x, half_y, zcolor=half_density, marker=:circle, markersize=2,
                    markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
-                   colorbar=true, legend=false)
+                   colorbar=true)
 
 plot1 = plot(scatter1, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Density Distribution", colorbar_title="Density")
+             title="Density Distribution", colorbar_title="Density", ylim=(0.0, 1.0),
+             legend=false)
 plot2 = plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Density with 2x Smoothing Length", colorbar_title="Density")
+             title="Density with 2x Smoothing Length", colorbar_title="Density",
+             ylim=(0.0, 1.0), legend=false)
 plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Density with 0.5x Smoothing Length", colorbar_title="Density")
+             title="Density with 0.5x Smoothing Length", colorbar_title="Density",
+             ylim=(0.0, 1.0), legend=false)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_3d.jl"),
               tspan=(0.0, 0.1))
@@ -116,16 +86,16 @@ scatter_3d = scatter3d(original_x, original_y, original_z, marker_z=original_den
                        color=:viridis, legend=false)
 
 plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
-               title="3D Scatter Plot with Density Coloring")
+               title="3D Scatter Plot with Density Coloring", legend=false)
 
 # by ignoring the z coordinate we can also plot this into a 2D plane
 scatter_3d_in_2d = scatter(original_x, original_y, zcolor=original_density,
                            marker=:circle, markersize=4,
                            markercolor=:viridis, markerstrokewidth=0, clim=(1000, 1010),
-                           colorbar=true, legend=false)
+                           colorbar=true)
 
 plot_3d_in_2d = plot(scatter_3d_in_2d, xlabel="X", ylabel="Y", zlabel="Z",
-                     title="3D in 2D Scatter Plot")
+                     title="3D in 2D Scatter Plot", legend=false)
 
 combined_plot = plot(plot1, plot2, plot3, plot_3d, plot_3d_in_2d, layout=(3, 2),
                      size=(1000, 1500), margin=5mm)
