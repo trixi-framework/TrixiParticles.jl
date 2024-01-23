@@ -104,8 +104,6 @@ The function generates a grid of points on a parallelogram within the plane defi
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
 
 !!! note
-    - This function is particularly useful for analyzing gradients or creating visualizations
-      along a specified plane in the SPH simulation domain in 3D space.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
     - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
       accurate as a real surface reconstruction.
