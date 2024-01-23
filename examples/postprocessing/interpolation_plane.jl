@@ -1,7 +1,6 @@
 # Example for using interpolation
 #######################################################################################
 using TrixiParticles
-# this needs to be commented out to use PythonPlot
 using Plots
 using Plots.PlotMeasures
 
@@ -23,9 +22,10 @@ original_y = [point[2] for point in original_plane.coord]
 original_density = original_plane.density
 
 # Plane with double smoothing length
-# Using an higher `smoothing_length` will increase the amount of smoothing and will decrease
-# the appearance of disturbances. At the same time it will also increase the distance at free surfaces
-# at which the fluid is cut_off.
+# Utilizing a higher `smoothing_length` in SPH interpolation enhances the level of smoothing,
+# thereby reducing the visibility of disturbances. Concurrently, it also increases the distance
+# from free surfaces where the fluid undergoes cutoff. This adjustment in `smoothing_length`
+# can affect both the accuracy and smoothness of the interpolated results.
 double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi, fluid_system, sol,
                                               smoothing_length=2.0 * smoothing_length)
@@ -34,9 +34,10 @@ double_y = [point[2] for point in double_smoothing_plane.coord]
 double_density = double_smoothing_plane.density
 
 # Plane with half smoothing length
-# Using a lower `smoothing_length` will decrease the amount of smoothing and will increase
-# the appearance of disturbances. At the same time the fluid will be cut off more accurately
-# at free surfaces.
+# Employing a lower `smoothing_length` in SPH interpolation reduces the level of smoothing,
+# consequently increasing the visibility of disturbances. Simultaneously, it allows for a more
+# precise cutoff of the fluid at free surfaces. This change in `smoothing_length` can impact the
+# balance between the detail of disturbances captured and the precision of fluid representation near surfaces.
 half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                             resolution,
                                             semi, fluid_system, sol,

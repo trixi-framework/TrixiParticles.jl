@@ -8,7 +8,8 @@ Interpolates properties across a plane or a volume in a TrixiParticles simulatio
 The region for interpolation is defined by its lower left and top right corners,
 with a specified resolution determining the density of the interpolation points.
 
-The function generates a grid of points within the defined region, spaced uniformly according to the given resolution.
+The function generates a grid of points within the defined region,
+    spaced uniformly according to the given resolution.
 
 # Arguments
 - `lower_left`: The lower left corner of the interpolation region.
@@ -28,10 +29,8 @@ The function generates a grid of points within the defined region, spaced unifor
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
 
 !!! note
-    - This function is particularly useful for analyzing gradients or creating visualizations
-      along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
       accurate as a real surface reconstruction.
 
 # Examples
@@ -40,27 +39,25 @@ The function generates a grid of points within the defined region, spaced unifor
 results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
-function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
-    dims = length(lower_left)
-    if dims != 2 || length(top_right) != 2
+    dims = length(min_corner)
+    if dims != 2 || length(max_corner) != 2
         error("Function is intended for 2D coordinates only")
     end
 
     # Check that lower_left is indeed lower and to the left of top_right
-    for i in 1:dims
-        if lower_left[i] > top_right[i]
-            error("lower_left should be lower and to the left of top_right in all dimensions")
-        end
+    if any(min_corner .> max_corner)
+        error("lower_left should be lower and to the left of top_right in all dimensions")
     end
 
     # Calculate the number of points in each dimension based on the resolution
-    no_points_x = ceil(Int, (top_right[1] - lower_left[1]) / resolution) + 1
-    no_points_y = ceil(Int, (top_right[2] - lower_left[2]) / resolution) + 1
+    no_points_x = ceil(Int, (max_corner[1] - min_corner[1]) / resolution) + 1
+    no_points_y = ceil(Int, (max_corner[2] - min_corner[2]) / resolution) + 1
 
-    x_range = range(lower_left[1], top_right[1], length=no_points_x)
-    y_range = range(lower_left[2], top_right[2], length=no_points_y)
+    x_range = range(min_corner[1], max_corner[1], length=no_points_x)
+    y_range = range(min_corner[2], max_corner[2], length=no_points_y)
 
     # Generate points within the plane
     points_coords = [SVector(x, y) for x in x_range, y in y_range]
