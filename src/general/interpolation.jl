@@ -1,5 +1,5 @@
 @doc raw"""
-    interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
+    interpolate_plane2D(lower_left, top_right, resolution, semi, ref_system, sol;
                       smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
 Interpolates properties across a plane or a volume in a TrixiParticles simulation.
@@ -38,12 +38,12 @@ The function generates a grid of points within the defined region, spaced unifor
 results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
-function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
+function interpolate_plane_2d(lower_left, top_right, resolution, semi, ref_system, sol;
                            smoothing_length=ref_system.smoothing_length,
                            cut_off_bnd=true)
     dims = length(lower_left)
-    if dims != length(top_right)
-        error("Dimensions of lower_left and top_right must match")
+    if dims != 2 || length(top_right) != 2
+        error("Function is intended for 2D coordinates only")
     end
 
     # Check that lower_left is indeed lower and to the left of top_right
@@ -56,14 +56,12 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
     # Calculate the number of points in each dimension based on the resolution
     no_points_x = ceil(Int, (top_right[1] - lower_left[1]) / resolution) + 1
     no_points_y = ceil(Int, (top_right[2] - lower_left[2]) / resolution) + 1
-    no_points_z = dims == 3 ? ceil(Int, (top_right[3] - lower_left[3]) / resolution) + 1 : 1
 
     x_range = range(lower_left[1], top_right[1], length=no_points_x)
     y_range = range(lower_left[2], top_right[2], length=no_points_y)
-    z_range = dims == 3 ? range(lower_left[3], top_right[3], length=no_points_z) : 1:1
 
-    points_coords = dims == 2 ? [SVector(x, y) for x in x_range, y in y_range] :
-                    [SVector(x, y, z) for x in x_range, y in y_range, z in z_range]
+    # Generate points within the plane
+    points_coords = [SVector(x, y) for x in x_range, y in y_range]
 
     results = interpolate_point(points_coords, semi, ref_system, sol,
                                 smoothing_length=smoothing_length,
@@ -77,6 +75,54 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
 
     return filtered_results
 end
+
+
+function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true)
+    # Verify that points are in 3D space
+    if length(point1) != 3 || length(point2) != 3 || length(point3) != 3
+        error("All points must be 3D coordinates")
+    end
+
+    # Vectors defining the edges of the parallelogram
+    edge1 = point2 - point1
+    edge2 = point3 - point1
+
+    # Check if the points are collinear
+    if norm(cross(edge1, edge2)) == 0
+        error("The points must not be collinear")
+    end
+
+    # Determine the number of points along each edge
+    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
+    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
+
+    # Create a set of points on the plane
+    points_coords = []
+    for i in 0:num_points_edge1
+        for j in 0:num_points_edge2
+            point_on_plane = point1 + (i / num_points_edge1) * edge1 + (j / num_points_edge2) * edge2
+            push!(points_coords, point_on_plane)
+        end
+    end
+
+    # Convert points_coords to an array of SVectors
+    svector_points = [SVector{3}(pt...) for pt in points_coords]
+
+    # Interpolate using the generated points
+    results = interpolate_point(svector_points, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd)
+
+    # Filter results
+    indices = findall(x -> x > 0, results.neighbor_count)
+    filtered_results = map(x -> x[indices], results)
+
+    return filtered_results
+end
+
+
 
 @doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,

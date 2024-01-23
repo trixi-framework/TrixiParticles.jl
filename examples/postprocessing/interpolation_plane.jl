@@ -5,7 +5,8 @@ using TrixiParticles
 using Plots
 using Plots.PlotMeasures
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
+              tspan=(0.0, 0.1))
 
 # Interpolation parameters
 interpolation_start = [0.0, 0.0]
@@ -14,7 +15,7 @@ resolution = 0.005
 
 # We can interpolate a plane by providing the lower left and top right coordinates of a plane.
 # Per default the same `smoothing_length` will be used as during the simulation.
-original_plane = interpolate_plane(interpolation_start, interpolation_end, resolution, semi,
+original_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution, semi,
                                    fluid_system, sol)
 original_x = [point[1] for point in original_plane.coord]
 original_y = [point[2] for point in original_plane.coord]
@@ -24,7 +25,7 @@ original_density = original_plane.density
 # Using an higher `smoothing_length` will increase the amount of smoothing and will decrease
 # the appearance of disturbances. At the same time it will also increase the distance at free surfaces
 # at which the fluid is cut_off.
-double_smoothing_plane = interpolate_plane(interpolation_start, interpolation_end,
+double_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end,
                                            resolution, semi, fluid_system, sol,
                                            smoothing_length=2.0 * smoothing_length)
 double_x = [point[1] for point in double_smoothing_plane.coord]
@@ -35,7 +36,7 @@ double_density = double_smoothing_plane.density
 # Using a lower `smoothing_length` will decrease the amount of smoothing and will increase
 # the appearance of disturbances. At the same time the fluid will be cut off more accurately
 # at free surfaces.
-half_smoothing_plane = interpolate_plane(interpolation_start, interpolation_end, resolution,
+half_smoothing_plane = interpolate_plane_2d(interpolation_start, interpolation_end, resolution,
                                          semi, fluid_system, sol,
                                          smoothing_length=0.5 * smoothing_length)
 half_x = [point[1] for point in half_smoothing_plane.coord]
@@ -92,4 +93,26 @@ plot2 = plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
 plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density with 0.5x Smoothing Length", colorbar_title="Density")
 
-combined_plot = plot(plot1, plot2, plot3, layout=(1, 3), size=(1800, 600), margin=5mm)
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_3d.jl"),
+              tspan=(0.0, 0.1))
+
+# Interpolation parameters
+p1 = [0.0, 0.0, 0.0]
+p2 = [1.0, 1.0, 0.1]
+p3 = [1.0, 0.5, 0.2]
+resolution = 0.05
+
+# We can also interpolate a 3D plane but in this case we have to provide 3 points instead!
+original_plane = interpolate_plane_3d(p1, p2, p3, resolution, semi,
+                                   fluid_system, sol)
+original_x = [point[1] for point in original_plane.coord]
+original_y = [point[2] for point in original_plane.coord]
+original_z = [point[3] for point in original_plane.coord]
+original_density = original_plane.density
+
+scatter_3d = scatter3d(original_x, original_y, original_z, marker_z=original_density,
+          color=:viridis)
+
+plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z", title="3D Scatter Plot with Density Coloring")
+
+combined_plot = plot(plot1, plot2, plot3, plot_3d, layout=(2, 2), size=(1000, 1000), margin=5mm)
