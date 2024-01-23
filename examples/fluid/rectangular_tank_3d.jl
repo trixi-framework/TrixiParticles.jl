@@ -1,5 +1,4 @@
 using TrixiParticles
-using Plots
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               fluid_particle_spacing=0.05, initial_fluid_size=(1.0, 1.0, 0.9),
