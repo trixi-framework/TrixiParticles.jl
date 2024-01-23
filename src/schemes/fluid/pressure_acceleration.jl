@@ -44,7 +44,7 @@ function choose_pressure_acceleration_formulation(pressure_acceleration,
 
     if correction isa KernelCorrection ||
        correction isa GradientCorrection ||
-       correctin isa BlendedGradientCorrection ||
+       correction isa BlendedGradientCorrection ||
        correction isa MixedKernelGradientCorrection
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
