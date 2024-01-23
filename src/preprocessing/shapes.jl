@@ -35,6 +35,7 @@ function particle_grid(vertices, particle_spacing; pad=2*particle_spacing)
 end
 
 function sample(; shape, particle_spacing, density, point_in_poly=WindingNumberHorman(shape))
+    # TODO: Default value for density and velocity.
     grid = particle_grid(shape.vertices, particle_spacing)
 
     inpoly = point_in_poly(shape, grid)
