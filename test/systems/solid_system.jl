@@ -335,4 +335,34 @@
 
         @test v0 == velocity
     end
+
+    @testset verbose=true "compute_von_mises_stress" begin
+        # System setup
+        coordinates = [1.0 2.0; 1.0 2.0]
+        velocity = zero(coordinates)
+        mass = [1.25, 1.5]
+        material_densities = [990.0, 1000.0]
+        smoothing_kernel = Val(:smoothing_kernel)
+        smoothing_length = 0.362
+        nu = 0.25  # Poisson's ratio
+        E = 2.5    # Young's modulus
+        boundary_model = Val(:boundary_model)
+
+        initial_condition = InitialCondition(; coordinates, velocity, mass,
+                                             density=material_densities)
+        system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                          smoothing_length, E, nu, boundary_model)
+
+        # Initialize deformation_grad and pk1_corrected with arbitrary values
+        n_particles = nparticles(system)
+        for particle in 1:n_particles
+            system.deformation_grad[:, :, particle] = [1.0 0.2; 0.2 1.0]
+            system.pk1_corrected[:, :, particle] = [1.0 0.5; 0.5 1.0]
+        end
+
+        von_mises_stress = TrixiParticles.compute_von_mises_stress(system)
+
+        # manual calculation
+        @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
+    end
 end
