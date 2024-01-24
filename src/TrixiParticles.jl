@@ -3,6 +3,8 @@ module TrixiParticles
 using Reexport: @reexport
 
 using Dates
+using FileIO: load
+using DelimitedFiles: readdlm
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, cross, det, normalize
@@ -54,7 +56,8 @@ export BoundaryMovement
 export GridNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape
+export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export WindingNumberHorman, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

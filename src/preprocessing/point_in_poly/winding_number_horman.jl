@@ -1,18 +1,13 @@
-
-struct WindingNumberHorman{}
-    quadrant_numbers::Array{Int, 1}
-
-    function WindingNumberHorman(shape)
-        quadrant_numbers = zeros(Int, shape.n_vertices)
-
-        return new{}(quadrant_numbers)
-    end
-end
+# Kai Horman, Alexander Agathos
+# The point in polygon problem for arbitrary polygons
+# Computational Geometry 2001
+# doi: 10.1016/s0925-7721(01)00012-8
+struct WindingNumberHorman end
 
 # Only for 2D yet.
 function (point_in_poly::WindingNumberHorman)(shape, points)
-    (; quadrant_numbers) = point_in_poly
-    (; vertices) = shape
+    (; vertices, n_vertices) = shape
+    quadrant_numbers = zeros(Int, n_vertices)
 
     inpoly = falses(size(points, 2))
 

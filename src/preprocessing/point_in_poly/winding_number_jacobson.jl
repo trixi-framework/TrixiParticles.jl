@@ -1,3 +1,7 @@
+# Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung. 2013.
+# Robust inside-outside segmentation using generalized winding numbers.
+# ACM Trans. Graph. 32, 4, Article 33 (July 2013), 12 pages.
+# https://doi.org/10.1145/2461912.2461916
 struct WindingNumberJacobson end
 
 function (point_in_poly::WindingNumberJacobson)(mesh, points)
@@ -15,7 +19,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
 
         winding_number /= pi_factor(Val(ndims(mesh)))
 
-        # TODO make this condition better (`winding_number` != 0)
+        # `(winding_number != 0.0)`
         if !(-sqrt(eps()) < winding_number < sqrt(eps()))
             inpoly[querry_point] = true
         end
