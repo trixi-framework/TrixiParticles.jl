@@ -8,8 +8,8 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
     faces = unpack_faces_or_edges(mesh)
     inpoly = falses(size(points, 2))
 
-    for querry_point in axes(points, 2)
-        p = position(points, mesh, querry_point)
+    for query_point in axes(points, 2)
+        p = position(points, mesh, query_point)
 
         winding_number = 0.0
         for face in eachfaces(mesh)
@@ -21,7 +21,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
 
         # `(winding_number != 0.0)`
         if !(-sqrt(eps()) < winding_number < sqrt(eps()))
-            inpoly[querry_point] = true
+            inpoly[query_point] = true
         end
     end
 

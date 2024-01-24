@@ -42,7 +42,7 @@ function read_in_2d(; filename, scale_factor=nothing, ELTYPE=Float64, skipstart=
     # header.
 
     # Either `header=true` which returns a tuple `(data_cells, header_cells)`
-    # or ignoring the corresponding number of lines from the imput with `skipstart`
+    # or ignoring the corresponding number of lines from the input with `skipstart`
     points = readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
     if scale_factor isa ELTYPE
         points .*= scale_factor

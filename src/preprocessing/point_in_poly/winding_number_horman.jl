@@ -21,10 +21,10 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
         (dot_v < 0.0 && dot_h >= 0.0) && return 3
     end
 
-    for querry_point in axes(points, 2)
+    for query_point in axes(points, 2)
         for vertex in eachvertices(shape)
             direction = position(vertices, shape, vertex) -
-                        position(points, shape, querry_point)
+                        position(points, shape, query_point)
 
             dot_v = dot(direction, v_unit)
             dot_h = dot(direction, h_unit)
@@ -39,24 +39,24 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
         for vertex in eachvertices(shape)
             v1 = position(vertices, shape, vertex)
             v2 = position(vertices, shape, vertex + 1)
-            v_query = position(points, shape, querry_point)
+            v_query = position(points, shape, query_point)
 
             # because 0 <= `quadrant_numbers` <= 3 we know that -3 <= `quarter_angel` <= 3
             quarter_angel = quadrant_numbers[vertex + 1] - quadrant_numbers[vertex]
-            positiv_det = positive_determinant(v1, v2, v_query)
+            positive_det = positive_determinant(v1, v2, v_query)
 
             if quarter_angel == -3
                 winding_number += 1
             elseif quarter_angel == 3
                 winding_number -= 1
-            elseif quarter_angel == -2 && positiv_det
+            elseif quarter_angel == -2 && positive_det
                 winding_number += 1
-            elseif quarter_angel == 2 && !positiv_det
+            elseif quarter_angel == 2 && !positive_det
                 winding_number -= 1
             end
         end
 
-        !(winding_number == 0) && (inpoly[querry_point] = true)
+        !(winding_number == 0) && (inpoly[query_point] = true)
     end
 
     return inpoly
