@@ -34,7 +34,8 @@ smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ViscosityAdami(nu=1.0)
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity_wall = ViscosityAdami(nu=1.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -48,7 +49,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity)
+                                             viscosity=viscosity_wall)
 
 # Uncomment to use repulsive boundary particles by Monaghan & Kajtar.
 # Also change spacing ratio and boundary layers (see comment above).

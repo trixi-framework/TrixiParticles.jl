@@ -1,16 +1,19 @@
-@doc raw"""
-    interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+using LinearAlgebra
 
-Interpolates properties across a plane or a volume in a TrixiParticles simulation.
+@doc raw"""
+    interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
+                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+
+Interpolates properties along a plane in a TrixiParticles simulation.
 The region for interpolation is defined by its lower left and top right corners,
 with a specified resolution determining the density of the interpolation points.
 
-The function generates a grid of points within the defined region, spaced uniformly according to the given resolution.
+The function generates a grid of points within the defined region,
+spaced uniformly according to the given resolution.
 
 # Arguments
-- `lower_left`: The lower left corner of the interpolation region.
-- `top_right`: The top right corner of the interpolation region.
+- `min_corner`: The lower left corner of the interpolation region.
+- `max_corner`: The top right corner of the interpolation region.
 - `resolution`: The distance between adjacent interpolation points in the grid.
 - `semi`: The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
@@ -26,44 +29,37 @@ The function generates a grid of points within the defined region, spaced unifor
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
 
 !!! note
-    - This function is particularly useful for analyzing gradients or creating visualizations
-      along a specified line in the SPH simulation domain.
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
-    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
       accurate as a real surface reconstruction.
 
 # Examples
 ```julia
 # Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
-results = interpolate_plane([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
 ```
 """
-function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, sol;
-                           smoothing_length=ref_system.smoothing_length,
-                           cut_off_bnd=true)
-    dims = length(lower_left)
-    if dims != length(top_right)
-        error("Dimensions of lower_left and top_right must match")
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true)
+    dims = length(min_corner)
+    if dims != 2 || length(max_corner) != 2
+        throw(ArgumentError("Function is intended for 2D coordinates only"))
     end
 
-    # Check that lower_left is indeed lower and to the left of top_right
-    for i in 1:dims
-        if lower_left[i] > top_right[i]
-            error("lower_left should be lower and to the left of top_right in all dimensions")
-        end
+    if any(min_corner .> max_corner)
+        throw(ArgumentError("`min_corner` should be smaller than `max_corner` in every dimension"))
     end
 
     # Calculate the number of points in each dimension based on the resolution
-    no_points_x = ceil(Int, (top_right[1] - lower_left[1]) / resolution) + 1
-    no_points_y = ceil(Int, (top_right[2] - lower_left[2]) / resolution) + 1
-    no_points_z = dims == 3 ? ceil(Int, (top_right[3] - lower_left[3]) / resolution) + 1 : 1
+    no_points_x = ceil(Int, (max_corner[1] - min_corner[1]) / resolution) + 1
+    no_points_y = ceil(Int, (max_corner[2] - min_corner[2]) / resolution) + 1
 
-    x_range = range(lower_left[1], top_right[1], length=no_points_x)
-    y_range = range(lower_left[2], top_right[2], length=no_points_y)
-    z_range = dims == 3 ? range(lower_left[3], top_right[3], length=no_points_z) : 1:1
+    x_range = range(min_corner[1], max_corner[1], length=no_points_x)
+    y_range = range(min_corner[2], max_corner[2], length=no_points_y)
 
-    points_coords = dims == 2 ? [SVector(x, y) for x in x_range, y in y_range] :
-                    [SVector(x, y, z) for x in x_range, y in y_range, z in z_range]
+    # Generate points within the plane
+    points_coords = [SVector(x, y) for x in x_range, y in y_range]
 
     results = interpolate_point(points_coords, semi, ref_system, sol,
                                 smoothing_length=smoothing_length,
@@ -73,6 +69,97 @@ function interpolate_plane(lower_left, top_right, resolution, semi, ref_system, 
     indices = findall(x -> x > 0, results.neighbor_count)
 
     # Filter all arrays in the named tuple using these indices
+    filtered_results = map(x -> x[indices], results)
+
+    return filtered_results
+end
+
+@doc raw"""
+    interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
+
+Interpolates properties along a plane in a 3D space in a TrixiParticles simulation.
+The plane for interpolation is defined by three points in 3D space,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points on a parallelogram within the plane defined by the three points, spaced uniformly according to the given resolution.
+
+# Arguments
+- `point1`: The first point defining the plane.
+- `point2`: The second point defining the plane.
+- `point3`: The third point defining the plane. The points must not be collinear.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`: The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`: The solution state from which the properties are interpolated.
+
+# Keywords
+- `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
+                  point is "closer" to a boundary than to the fluid system
+                  (see an explanation for "closer" below). Defaults to `true`.
+- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
+
+!!! note
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```julia
+# Interpolating across a plane defined by points [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], and [0.0, 1.0, 0.0]
+# with a resolution of 0.1
+results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 0.1, semi, ref_system, sol)
+```
+"""
+function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true)
+    # Verify that points are in 3D space
+    if length(point1) != 3 || length(point2) != 3 || length(point3) != 3
+        throw(ArgumentError("all points must be 3D coordinates"))
+    end
+
+    point1_ = SVector{3}(point1)
+    point2_ = SVector{3}(point2)
+    point3_ = SVector{3}(point3)
+
+    # Vectors defining the edges of the parallelogram
+    edge1 = point2_ - point1_
+    edge2 = point3_ - point1_
+
+    # Check if the points are collinear
+    if norm(cross(edge1, edge2)) == 0
+        throw(ArgumentError("the points must not be collinear"))
+    end
+
+    # Determine the number of points along each edge
+    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
+    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
+
+    # Create a set of points on the plane
+    points_coords = Vector{SVector{3, Float64}}(undef,
+                                                (num_points_edge1 + 1) *
+                                                (num_points_edge2 + 1))
+    index = 1
+    for i in 0:num_points_edge1
+        for j in 0:num_points_edge2
+            point_on_plane = point1 + (i / num_points_edge1) * edge1 +
+                             (j / num_points_edge2) * edge2
+            points_coords[index] = point_on_plane
+            index += 1
+        end
+    end
+
+    # Interpolate using the generated points
+    results = interpolate_point(points_coords, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd)
+
+    # Filter results
+    indices = findall(x -> x > 0, results.neighbor_count)
     filtered_results = map(x -> x[indices], results)
 
     return filtered_results
