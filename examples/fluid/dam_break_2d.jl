@@ -36,6 +36,9 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
+boundary = tank.boundary
+fluid = tank.fluid
+
 # ==========================================================================================
 # ==== Fluid
 smoothing_length = 3.0 * fluid_particle_spacing
@@ -46,7 +49,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
@@ -55,13 +58,13 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+boundary_model = BoundaryModelDummyParticles(boundary.density, boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
