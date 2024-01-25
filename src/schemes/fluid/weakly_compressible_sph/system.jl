@@ -332,8 +332,8 @@ function compute_surface_normal!(surface_tension, v, u, container, container_ind
                                  v_ode, semi, t)
 end
 
-function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, system
-                                 , u_ode, v_ode, semi, t)
+function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, system, u_ode,
+                                 v_ode, semi, t)
     (; cache) = system
 
     # reset surface normal

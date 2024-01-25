@@ -52,7 +52,6 @@ end
 # just the cohesion force to compensate near boundaries
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
                                                  distance)
-    (; surface_tension_coefficient) = surface_tension
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
                                  distance)
 end
@@ -88,19 +87,21 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = current_coords(u_particle_container,
-        particle_container, particle)
+                                         particle_container, particle)
 
         for neighbor in eachneighbor(particle_coords, neighborhood_search)
             neighbor_coords = current_coords(u_particle_container,
-            particle_container, neighbor)
+                                             particle_container, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
             # correctness strongly depends on this leading to a symmetric distribution of points!
             if sqrt(eps()) < distance <= smoothing_length
                 m_b = hydrodynamic_mass(neighbor_container, neighbor)
-                density_neighbor = particle_density(v_neighbor_container, neighbor_container, neighbor)
-                grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance, particle)
+                density_neighbor = particle_density(v_neighbor_container,
+                                                    neighbor_container, neighbor)
+                grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance,
+                                                    particle)
                 cache.surface_normal[:, particle] .+= m_b / density_neighbor *
                                                       grad_kernel
             end

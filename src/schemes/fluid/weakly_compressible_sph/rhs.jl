@@ -52,10 +52,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_surface_tension = surface_tension_correction *
                              calc_surface_tension(particle, neighbor, pos_diff, distance,
-                             particle_system, neighbor_system, surface_tension)
+                                                  particle_system, neighbor_system,
+                                                  surface_tension)
 
         dv_adhesion = calc_adhesion(particle, neighbor, pos_diff, distance,
-        particle_system, neighbor_system, surface_tension)
+                                    particle_system, neighbor_system, surface_tension)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_surface_tension[i] +
@@ -198,6 +199,7 @@ end
 end
 
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-    particle_container, neighbor_container, surface_tension::NoSurfaceTension)
-return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+                               particle_container, neighbor_container,
+                               surface_tension::NoSurfaceTension)
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end

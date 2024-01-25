@@ -25,26 +25,26 @@ state_equation = StateEquationCole(c, incompressible_gamma, water_density,
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{3}()
 
-setup = RectangularShape(particle_spacing, (3, 3, 3), (0.0, 0.0, 0.0),
-                         density=water_density)
+fluid = RectangularShape(particle_spacing, (3, 3, 3), (0.0, 0.0, 0.0),
+                         water_density)
 
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup,
-                                            SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            water_density,
-                                            viscosity=ArtificialViscosityMonaghan(1.0,
-                                                                                  2.0),
-                                            acceleration=(0.0, 0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1))
+fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
+                                                 state_equation, smoothing_kernel,
+                                                 smoothing_length,
+                                                 viscosity=ArtificialViscosityMonaghan(alpha=1.0,
+                                                                                       beta=2.0),
+                                                 acceleration=(0.0, 0.0, 0.0),
+                                                 surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2),
+                                                 correction=AkinciFreeSurfaceCorrection(water_density))
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container,
-                          neighborhood_search=SpatialHashingSearch,
+semi = Semidiscretization(fluid_system,
+                          neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=0.0)
 
 tspan = (0.0, 20.0)
