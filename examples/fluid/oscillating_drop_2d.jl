@@ -7,6 +7,7 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
+using LinearAlgebra: dot
 
 # ==========================================================================================
 # ==== Resolution
@@ -26,8 +27,8 @@ period = 4.567375
 tspan = (0.0, 1period)
 
 fluid_density = 1000.0
-sound_speed = 10.0
-state_equation = StateEquationCole(; sound_speed, exponent=7,
+sound_speed = 15 * sigma * radius
+state_equation = StateEquationCole(; sound_speed, exponent=1,
                                    reference_density=fluid_density)
 
 # Equation A.19 in the paper rearranged.
@@ -56,13 +57,81 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            density_diffusion=density_diffusion,
                                            source_terms=source_terms)
 
+energy_system = TrixiParticles.EnergyCalculatorSystem{2}()
+
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system)
+semi = Semidiscretization(fluid_system, energy_system)
 ode = semidiscretize(semi, tspan)
 
+function kinetic_energy(v, u, t, system)
+    return nothing
+end
+
+function kinetic_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return sum(TrixiParticles.eachparticle(system)) do particle
+        vel = TrixiParticles.current_velocity(v, system, particle)
+        return system.mass[particle] * dot(vel, vel) / 2
+    end
+end
+
+function potential_energy(v, u, t, system)
+    return nothing
+end
+
+function potential_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return sum(TrixiParticles.eachparticle(system)) do particle
+        coords = TrixiParticles.current_coords(u, system, particle)
+        return system.mass[particle] * 0.5 * omega^2 * dot(coords, coords)
+    end
+end
+
+function mechanical_energy_normalized(v, u, t, system)
+    return nothing
+end
+
+function mechanical_energy_normalized(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return (mechanical_energy(v, u, t, system) - 898.547) / 898.547
+end
+
+function mechanical_energy(v, u, t, system)
+    return nothing
+end
+
+function mechanical_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return kinetic_energy(v, u, t, system) + potential_energy(v, u, t, system)
+end
+
+function internal_energy(v, u, t, system)
+    return nothing
+end
+
+function internal_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return energy_system.current_energy[1]
+end
+
+function total_energy(v, u, t, system)
+    return nothing
+end
+
+function total_energy(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return internal_energy(v, u, t, system) + mechanical_energy(v, u, t, system)
+end
+
+function total_energy_normalized(v, u, t, system)
+    return nothing
+end
+
+function total_energy_normalized(v, u, t, system::WeaklyCompressibleSPHSystem)
+    return (total_energy(v, u, t, system) - 898.547) / 898.547
+end
+
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.04, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.1, prefix="";
+                                         kinetic_energy, potential_energy,
+                                         mechanical_energy, mechanical_energy_normalized,
+                                         internal_energy, total_energy,
+                                         total_energy_normalized)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
