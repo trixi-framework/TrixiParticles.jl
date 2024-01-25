@@ -181,7 +181,7 @@ end
 # adhesion term to compensate for cohesion force
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
                                particle_container,
-                               neighbor_container::BoundaryParticleContainer,
+                               neighbor_container::BoundarySPHSystem,
                                surface_tension::AkinciTypeSurfaceTension)
     (;smoothing_length) = particle_container
 
