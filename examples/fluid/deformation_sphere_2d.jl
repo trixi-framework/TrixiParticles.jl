@@ -25,7 +25,9 @@ particle_spacing = 0.2
 smoothing_length = 4.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-setup = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), density=water_density)
+setup = RectangularShape(particle_spacing,
+(boundary_layers, n_wall_particles_y),
+(0.0, 0.0), water_density)
 
 # ==========================================================================================
 # ==== Containers
