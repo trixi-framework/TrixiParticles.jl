@@ -1,5 +1,6 @@
 @testset verbose=true "EntropicallyDampedSPHSystem" begin
-    @testset verbose=true "Constructors" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Constructors" begin
         coordinates_ = [
             [1.0 2.0
              1.0 2.0],
@@ -51,7 +52,8 @@
         end
     end
 
-    @testset verbose=true "Constructors with Setups" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "Constructors with Setups" begin
         setups = [
             RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0, pressure=ones(6)),
             RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
@@ -110,7 +112,8 @@
         end
     end
 
-    @testset verbose=true "show" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
         velocities = zero(coordinates)
@@ -140,7 +143,8 @@
         @test repr("text/plain", system) == show_box
     end
 
-    @testset verbose=true "write_u0!" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "write_u0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
         velocities = zero(coordinates)
@@ -163,7 +167,8 @@
         @test u0 == coordinates
     end
 
-    @testset verbose=true "write_v0!" begin
+    # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+    @trixi_testset "write_v0!" begin
         coordinates = [0.5 2.0
                        1.0 2.0]
         velocities = 2 * coordinates

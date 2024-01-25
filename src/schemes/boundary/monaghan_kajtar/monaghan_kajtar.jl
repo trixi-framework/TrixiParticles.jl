@@ -68,6 +68,10 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     @nospecialize model # reduce precompilation time
 
     print(io, "BoundaryModelMonaghanKajtar(")
+    print(io, model.K)
+    print(io, ", ")
+    print(io, model.beta)
+    print(io, ", ")
     print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
