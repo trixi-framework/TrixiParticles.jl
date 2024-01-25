@@ -157,7 +157,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "state equation", system.state_equation |> typeof |> nameof)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
-        summary_line(io, "surface tension", container.surface_tension)
+        summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
