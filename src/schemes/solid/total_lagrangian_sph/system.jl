@@ -180,15 +180,11 @@ end
 
 timer_name(::TotalLagrangianSPHSystem) = "solid"
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelMonaghanKajtar
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar})
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelDummyParticles
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles})
     return v_nvariables(system, system.boundary_model.density_calculator)
 end
 

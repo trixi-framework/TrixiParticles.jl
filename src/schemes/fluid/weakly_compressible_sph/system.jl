@@ -86,11 +86,18 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, SRF
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(correction), typeof(surface_tension), typeof(cache)
-                   }(initial_condition, mass, pressure,
-                     density_calculator, state_equation,
-                     smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, surface_tension, cache)
+                   typeof(correction), typeof(surface_tension), typeof(cache)}(initial_condition,
+                                                                               mass,
+                                                                               pressure,
+                                                                               density_calculator,
+                                                                               state_equation,
+                                                                               smoothing_kernel,
+                                                                               smoothing_length,
+                                                                               viscosity,
+                                                                               acceleration_,
+                                                                               correction,
+                                                                               surface_tension,
+                                                                               cache)
     end
 end
 
@@ -205,7 +212,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
-    compute_surface_normal!(surface_tension, v, u, system, system_index, u_ode, v_ode, semi, t)
+    compute_surface_normal!(surface_tension, v, u, system, system_index, u_ode, v_ode, semi,
+                            t)
 
     return system
 end
@@ -321,18 +329,17 @@ end
 end
 
 function compute_surface_normal!(surface_tension, v, u, container, container_index, u_ode,
-                                v_ode, semi, t)
+                                 v_ode, semi, t)
 end
 
 function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, container,
-                                container_index, u_ode, v_ode, semi, t)
+                                 container_index, u_ode, v_ode, semi, t)
     (; cache) = container
 
     # reset surface normal
     cache.surface_normal .= zero(eltype(cache.surface_normal))
 
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
-
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         nhs = neighborhood_searches(system, neighbor_system, semi)

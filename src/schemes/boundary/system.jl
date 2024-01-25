@@ -138,9 +138,7 @@ end
     return 0
 end
 
-@inline function n_moving_particles(system::BoundarySPHSystem{
-                                                              <:BoundaryModelDummyParticles
-                                                              })
+@inline function n_moving_particles(system::BoundarySPHSystem{<:BoundaryModelDummyParticles})
     return n_moving_particles(system, system.boundary_model.density_calculator)
 end
 

@@ -44,7 +44,7 @@ end
 
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, pos_diff,
                                                  distance)
-    (;surface_tension_coefficient) = surface_tension
+    (; surface_tension_coefficient) = surface_tension
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
                                  distance) .- (surface_tension_coefficient * (na - nb))
 end
@@ -52,14 +52,14 @@ end
 # just the cohesion force to compensate near boundaries
 function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
                                                  distance)
-    (;surface_tension_coefficient) = surface_tension
+    (; surface_tension_coefficient) = surface_tension
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
                                  distance)
 end
 
 @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
                                        smoothing_length, mb, pos_diff, distance)
-    (;surface_tension_coefficient) = surface_tension
+    (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
     C = 0
@@ -84,7 +84,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                             v_neighbor_container, u_neighbor_container,
                             neighborhood_search, particle_container,
                             neighbor_container)
-    (;smoothing_kernel, smoothing_length, cache) = particle_container
+    (; smoothing_kernel, smoothing_length, cache) = particle_container
 
     @threaded for particle in each_moving_particle(particle_container)
         particle_coords = get_current_coords(particle, u_particle_container,

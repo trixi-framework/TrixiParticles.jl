@@ -32,9 +32,12 @@ fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), water_density)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            state_equation, smoothing_kernel,
-                                           smoothing_length,  viscosity=ArtificialViscosityMonaghan(alpha=1.0,
-                                           beta=2.0),
-                                           acceleration=(0.0, 0.0), surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2), correction=AkinciFreeSurfaceCorrection())
+                                           smoothing_length,
+                                           viscosity=ArtificialViscosityMonaghan(alpha=1.0,
+                                                                                 beta=2.0),
+                                           acceleration=(0.0, 0.0),
+                                           surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2),
+                                           correction=AkinciFreeSurfaceCorrection())
 
 # ==========================================================================================
 # ==== Simulation

@@ -18,5 +18,6 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_density_calculator=SummationDensity(),
               relaxation_step_file_prefix="relaxation_surface_tension",
               simulation_step_file_prefix="surface_tension",
-              surface_tension=surface_tension, correction=AkinciFreeSurfaceCorrection(fluid_density),
+              surface_tension=surface_tension,
+              correction=AkinciFreeSurfaceCorrection(fluid_density),
               relaxation_tspan=relaxation_tspan, simulation_tspan=simulation_tspan)
