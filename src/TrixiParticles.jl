@@ -54,5 +54,6 @@ export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
 export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
 export nparticles
+export SurfaceTensionAkinci
 
 end # module

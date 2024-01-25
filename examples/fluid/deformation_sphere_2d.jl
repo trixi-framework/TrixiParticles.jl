@@ -25,28 +25,22 @@ particle_spacing = 0.2
 smoothing_length = 4.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-setup = RectangularShape(particle_spacing,
-(boundary_layers, n_wall_particles_y),
-(0.0, 0.0), water_density)
+fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), water_density)
 
 # ==========================================================================================
 # ==== Containers
 
-particle_container = FluidParticleContainer(setup,
-                                            SummationDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            water_density,
-                                            viscosity=ArtificialViscosityMonaghan(1.0,
-                                                                                  2.0),
-                                            acceleration=(0.0, 0.0),
-                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2),
-                                            store_options=StoreAll())
+fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length,  viscosity=ArtificialViscosityMonaghan(alpha=1.0,
+                                           beta=2.0),
+                                           acceleration=(0.0, 0.0), surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2), correction=AkinciFreeSurfaceCorrection())
 
 # ==========================================================================================
 # ==== Simulation
 
 semi = Semidiscretization(particle_container,
-                          neighborhood_search=SpatialHashingSearch,
+                          neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=0.0)
 
 tspan = (0.0, 3.0)
