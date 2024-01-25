@@ -145,7 +145,7 @@ end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
                                       particle_container,
-                                      neighbor_container::FluidParticleContainer,
+                                      neighbor_container::FluidSystem,
                                       surface_tension::CohesionForceAkinci)
     (;smoothing_length) = particle_container
 
@@ -156,7 +156,7 @@ end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
                                       particle_container,
-                                      neighbor_container::FluidParticleContainer,
+                                      neighbor_container::FluidSystem,
                                       surface_tension::SurfaceTensionAkinci)
     (;smoothing_length) = particle_container
 
