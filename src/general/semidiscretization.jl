@@ -323,10 +323,10 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
                                                                               semi, t)
 
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
-
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
+
+        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
     end
 
     return dv_ode
