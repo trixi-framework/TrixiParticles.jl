@@ -26,7 +26,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} <:
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, SRFT, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -86,11 +86,11 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, COR, C} 
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(correction), typeof(cache)
+                   typeof(correction), typeof(surface_tension), typeof(cache)
                    }(initial_condition, mass, pressure,
                      density_calculator, state_equation,
                      smoothing_kernel, smoothing_length, viscosity, acceleration_,
-                     correction, cache)
+                     correction, surface_tension, cache)
     end
 end
 
@@ -326,28 +326,24 @@ end
 
 function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, container,
                                 container_index, u_ode, v_ode, semi, t)
-    @unpack particle_containers, neighborhood_searches = semi
-    @unpack cache = container
+    (; cache) = container
 
     # reset surface normal
     cache.surface_normal .= zero(eltype(cache.surface_normal))
 
-    @trixi_timeit timer() "compute surface normal" foreach_enumerate(particle_containers) do (neighbor_container_index,
-                                                                                              neighbor_container)
-        u_neighbor_container = wrap_u(u_ode, neighbor_container_index,
-                                      neighbor_container, semi)
-        v_neighbor_container = wrap_v(v_ode, neighbor_container_index,
-                                      neighbor_container, semi)
+    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
 
-        calc_normal_akinci(surface_tension, u, v_neighbor_container,
-                           u_neighbor_container,
-                           neighborhood_searches[container_index][neighbor_container_index],
-                           container, particle_containers[neighbor_container_index])
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        nhs = neighborhood_searches(system, neighbor_system, semi)
+
+        calc_normal_akinci(surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
+                           container, neighbor_system)
     end
 end
 
 @inline function get_normal(particle, particle_container::FluidParticleContainer,
                             ::SurfaceTensionAkinci)
-    @unpack cache = particle_container
+    (; cache) = particle_container
     return get_particle_coords(particle, cache.surface_normal, particle_container)
 end

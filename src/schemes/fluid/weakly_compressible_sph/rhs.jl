@@ -147,7 +147,7 @@ end
                                       particle_container,
                                       neighbor_container::FluidParticleContainer,
                                       surface_tension::CohesionForceAkinci)
-    @unpack smoothing_length = particle_container
+    (;smoothing_length) = particle_container
 
     m_b = neighbor_container.mass[neighbor]
 
@@ -158,7 +158,7 @@ end
                                       particle_container,
                                       neighbor_container::FluidParticleContainer,
                                       surface_tension::SurfaceTensionAkinci)
-    @unpack smoothing_length = particle_container
+    (;smoothing_length) = particle_container
 
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
@@ -183,7 +183,7 @@ end
                                particle_container,
                                neighbor_container::BoundaryParticleContainer,
                                surface_tension::AkinciTypeSurfaceTension)
-    @unpack smoothing_length = particle_container
+    (;smoothing_length) = particle_container
 
     m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
 
