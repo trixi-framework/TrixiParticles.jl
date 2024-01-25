@@ -6,7 +6,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction, smoothing_length) = particle_system
+    (; density_calculator, state_equation, correction, surface_tension) = particle_system
     (; sound_speed) = state_equation
 
     viscosity = viscosity_model(neighbor_system)
@@ -55,7 +55,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                              particle_system, neighbor_system, surface_tension)
 
         dv_adhesion = calc_adhesion(particle, neighbor, pos_diff, distance,
-                                    particle_container, neighbor_container, surface_tension)
+        particle_system, neighbor_system, surface_tension)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_surface_tension[i] +
@@ -159,7 +159,7 @@ end
                                       surface_tension::SurfaceTensionAkinci)
     (; smoothing_length) = particle_container
 
-    m_b = get_hydrodynamic_mass(neighbor, neighbor_container)
+    m_b = hydrodynamic_mass(neighbor_container, neighbor)
 
     return surface_tension(smoothing_length, m_b,
                            get_normal(particle, particle_container,
