@@ -44,7 +44,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
                               cut_off_bnd=true)
     dims = length(min_corner)
     if dims != 2 || length(max_corner) != 2
-        throw(ArgumentError("Function is intended for 2D coordinates only"))
+        throw(ArgumentError("function is intended for 2D coordinates only"))
     end
 
     if any(min_corner .> max_corner)
