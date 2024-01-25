@@ -42,7 +42,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_container,
+semi = Semidiscretization(fluid_system,
                           neighborhood_search=GridNeighborhoodSearch,
                           damping_coefficient=0.0)
 
