@@ -99,10 +99,8 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
             # correctness strongly depends on this leading to a symmetric distribution of points!
             if sqrt(eps()) < distance <= smoothing_length
                 m_b = hydrodynamic_mass(neighbor_container, neighbor)
-                density_neighbor = get_particle_density(neighbor, v_neighbor_container,
-                                                        neighbor_container)
-                grad_kernel = smoothing_kernel_deriv(particle_container, distance) *
-                              pos_diff / distance
+                density_neighbor = particle_density(v_neighbor_container, neighbor_container, neighbor)
+                grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance, particle)
                 cache.surface_normal[:, particle] .+= m_b / density_neighbor *
                                                       grad_kernel
             end
