@@ -7,6 +7,6 @@ filename = joinpath(expanduser("~/") * dir, "bar.stl")
 
 # Returns `InitialCondition`.
 test = ComplexShape(; filename, particle_spacing, density=1.0,
-                    point_in_poly_algorithm=WindingNumberJacobson())
+                    point_in_shape_algorithm=WindingNumberJacobson())
 
 trixi2vtk(test.coordinates, filename="coords")

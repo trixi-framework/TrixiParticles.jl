@@ -2,9 +2,18 @@
 # Robust inside-outside segmentation using generalized winding numbers.
 # ACM Trans. Graph. 32, 4, Article 33 (July 2013), 12 pages.
 # https://doi.org/10.1145/2461912.2461916
-struct WindingNumberJacobson end
+struct WindingNumberJacobson{ELTYPE}
+    winding_number_factor::ELTYPE
+
+    function WindingNumberJacobson(;winding_number_factor=sqrt(eps()))
+        ELTYPE = typeof(winding_number_factor)
+        return new{ELTYPE}(winding_number_factor)
+    end
+
+end
 
 function (point_in_poly::WindingNumberJacobson)(mesh, points)
+    (; winding_number_factor) = point_in_poly
     faces = unpack_faces_or_edges(mesh)
     inpoly = falses(size(points, 2))
 
@@ -20,7 +29,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
         winding_number /= pi_factor(Val(ndims(mesh)))
 
         # `(winding_number != 0.0)`
-        if !(-sqrt(eps()) < winding_number < sqrt(eps()))
+        if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
     end

@@ -19,11 +19,11 @@ filename_fluid = joinpath(examples_dir(), "preprocessing", "fluid.asc")
 
 tank = ComplexShape(; filename=filename_tank, particle_spacing,
                     density=fluid_density, scale_factor,
-                    point_in_poly_algorithm=WindingNumberHorman())
+                    point_in_shape_algorithm=WindingNumberHorman())
 
 fluid = ComplexShape(; filename=filename_fluid, particle_spacing,
                      density=fluid_density, scale_factor,
-                     point_in_poly_algorithm=WindingNumberHorman())
+                     point_in_shape_algorithm=WindingNumberHorman())
 fluid = setdiff(fluid, tank)
 
 viscosity = ArtificialViscosityMonaghan(alpha=0.1, beta=0.0)
