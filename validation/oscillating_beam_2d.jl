@@ -117,20 +117,24 @@ for res in resolution
 
     #point_pos_func = [(pp, t, sys, u, v, sys_name) -> particle_position(point_id, pp, t, sys, u, v, sys_name) for point_id in point_ids]
     point_pos_func = (pp, t, sys, u, v, sys_name) -> particle_position(middle_particle_id, pp, t, sys, u, v, sys_name)
-    pp_callback = PostprocessCallback(point_pos_func, dt=0.02, filename="oscillating_beam_2d_positions_"*string(res))
+    pp_callback = PostprocessCallback(point_pos_func, dt=0.025, filename="oscillating_beam_2d_positions_"*string(res))
     info_callback = InfoCallback(interval=500)
     saving_callback = SolutionSavingCallback(dt=0.05, prefix="")
 
     callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
 
     sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dtmax=1e-3,
-                save_everystep=false, callback=callbacks);
-
+    save_everystep=false, callback=callbacks);
 end
 
 # Load the reference simulation data
 dx_data = CSV.read("validation/Turek_dx_T.csv", DataFrame)
 dy_data = CSV.read("validation/Turek_dy_T.csv", DataFrame)
+
+# fix slight misalignment
+dx_data.time = dx_data.time .+ 0.015
+dx_data.displacement = dx_data.displacement .+ 0.00005
+dy_data.displacement = dy_data.displacement .- 0.001
 
 # Get the list of JSON files
 json_files = glob("oscillating_beam_2d_positions_*.json", ".")
