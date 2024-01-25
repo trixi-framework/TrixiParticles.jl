@@ -2,13 +2,13 @@
     @testset verbose=true "Corresponding Density Calculator Formulation" begin
         f_1 = TrixiParticles.choose_pressure_acceleration_formulation(nothing,
                                                                       SummationDensity(),
-                                                                      nothing, nothing)
+                                                                      2, Float64, nothing)
 
         @test f_1 == TrixiParticles.pressure_acceleration_summation_density
 
         f_2 = TrixiParticles.choose_pressure_acceleration_formulation(nothing,
                                                                       ContinuityDensity(),
-                                                                      nothing, nothing)
+                                                                      2, Float64, nothing)
         @test f_2 == TrixiParticles.pressure_acceleration_continuity_density
     end
 

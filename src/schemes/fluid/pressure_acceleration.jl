@@ -68,7 +68,7 @@ end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::SummationDensity,
-                                                  initial_condition,
+                                                  NDIMS, ELTYPE,
                                                   correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
@@ -77,7 +77,7 @@ end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing,
                                                   density_calculator::ContinuityDensity,
-                                                  initial_condition,
+                                                  NDIMS, ELTYPE,
                                                   correction)
 
     # Choose the pressure acceleration formulation corresponding to the density calculator.
