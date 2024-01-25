@@ -118,6 +118,18 @@ function RectangularShape(particle_spacing, n_particles_per_dimension,
                             particle_spacing=particle_spacing)
 end
 
+# 1D
+function loop_permutation(loop_order, NDIMS::Val{1})
+    if loop_order === :x_first || loop_order === nothing
+        permutation = (1,)
+    else
+        throw(ArgumentError("$loop_order is not a valid loop order. " *
+                            "Possible values are :x_first."))
+    end
+
+    return permutation
+end
+
 # 2D
 function loop_permutation(loop_order, NDIMS::Val{2})
     if loop_order === :y_first || loop_order === nothing
