@@ -70,7 +70,10 @@
 
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
 
-        dv = TrixiParticles.wrap_v(dv_ode, system1, semi)
-        @test dv == -0.1 * v1
+        dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)
+        @test dv1 == -0.1 * v1
+
+        dv2 = TrixiParticles.wrap_v(dv_ode, system2, semi)
+        @test iszero(dv2)
     end
 end

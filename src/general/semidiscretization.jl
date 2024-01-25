@@ -13,7 +13,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 # Keywords
 - `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
                             By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use a value of `nothing` to loop over all particles
+                            Use [`TrivialNeighborhoodSearch`](@ref) to loop over all particles
                             (no neighborhood search).
 - `periodic_box_min_corner`:    In order to use a periodic domain, pass the coordinates
                                 of the domain corner in negative coordinate directions.
@@ -23,6 +23,9 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 # Examples
 ```julia
 semi = Semidiscretization(fluid_system, boundary_system)
+
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=TrivialNeighborhoodSearch)
 ```
 """
 struct Semidiscretization{S, RU, RV, NS}
@@ -434,18 +437,19 @@ end
 @doc raw"""
     SourceTermDamping(; damping_coefficient)
 
-Source term to be used when a damping step is required before running a full simulation.
-A term ``-dv_a`` is added to the acceleration ``\frac{\mathrm{d}v_a}{\mathrm{d}t}`` of
-particle ``a``, where ``d``is the damping coefficient and ``v_a`` is the velocity of
+A source term to be used when a damping step is required before running a full simulation.
+The term ``-c \cdot v_a`` is added to the acceleration ``\frac{\mathrm{d}v_a}{\mathrm{d}t}``
+of particle ``a``, where ``c`` is the damping coefficient and ``v_a`` is the velocity of
 particle ``a``.
 
 # Keywords
 - `damping_coefficient`:    The coefficient ``d`` above. A higher coefficient means more
-                            damping.
+                            damping. A coefficient of `1e-4` is a good starting point for
+                            damping a fluid at rest.
 
 # Examples
 ```julia
-source_terms = SourceTermDamping(; damping_coefficient=1e-3)
+source_terms = SourceTermDamping(; damping_coefficient=1e-4)
 ```
 """
 struct SourceTermDamping{ELTYPE}
