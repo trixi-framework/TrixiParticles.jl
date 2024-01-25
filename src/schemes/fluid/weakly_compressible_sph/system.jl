@@ -73,7 +73,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
 
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
-                                                                         initial_condition,
+                                                                         NDIMS, ELTYPE,
                                                                          correction)
 
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)

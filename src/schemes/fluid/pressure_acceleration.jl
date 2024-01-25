@@ -37,11 +37,8 @@ end
 end
 
 function choose_pressure_acceleration_formulation(pressure_acceleration,
-                                                  density_calculator, initial_condition,
+                                                  density_calculator, NDIMS, ELTYPE,
                                                   correction)
-    ELTYPE = eltype(initial_condition)
-    NDIMS = ndims(initial_condition)
-
     if correction isa KernelCorrection ||
        correction isa GradientCorrection ||
        correction isa BlendedGradientCorrection ||
@@ -58,8 +55,8 @@ function choose_pressure_acceleration_formulation(pressure_acceleration,
         if isempty(methods(pressure_acceleration,
                            (ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE, ELTYPE,
                             SVector{NDIMS, ELTYPE})))
-            throw(ArgumentError("when no correction or `AkinciFreeSurfaceCorrection` is " *
-                                "used, the passed pressure acceleration formulation must " *
+            throw(ArgumentError("when not using a correction with an asymmetric kernel " *
+                                "gradient, the passed pressure acceleration formulation must " *
                                 "provide a version with the arguments " *
                                 "`m_a, m_b, rho_a, rho_b, p_a, p_b, W_a`, " *
                                 "using the symmetry of the kernel gradient"))
@@ -87,7 +84,7 @@ function choose_pressure_acceleration_formulation(pressure_acceleration::Nothing
     return pressure_acceleration_continuity_density
 end
 
-# No correction or `AkinciFreeSurfaceCorrection`
+# Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, pressure_correction,
@@ -100,7 +97,7 @@ end
            pressure_correction
 end
 
-# Correction
+# Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                        distance, W_a, pressure_correction,

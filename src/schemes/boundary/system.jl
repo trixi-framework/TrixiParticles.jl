@@ -192,15 +192,6 @@ end
     return particle_pressure(v, system.boundary_model, system, particle)
 end
 
-@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
-                                            particle_system,
-                                            neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
-                                            particle, neighbor)
-    p_a = particle_pressure(v_particle_system, particle_system, particle)
-
-    return p_a, p_a
-end
-
 @inline function hydrodynamic_mass(system::BoundarySPHSystem, particle)
     return system.boundary_model.hydrodynamic_mass[particle]
 end
