@@ -21,7 +21,7 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
         (dot_v < 0.0 && dot_h >= 0.0) && return 3
     end
 
-    for query_point in axes(points, 2)
+    @threaded for query_point in axes(points, 2)
         for vertex in eachvertices(shape)
             direction = position(vertices, shape, vertex) -
                         position(points, shape, query_point)

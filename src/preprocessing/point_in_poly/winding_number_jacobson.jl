@@ -8,7 +8,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
     faces = unpack_faces_or_edges(mesh)
     inpoly = falses(size(points, 2))
 
-    for query_point in axes(points, 2)
+    @threaded for query_point in axes(points, 2)
         p = position(points, mesh, query_point)
 
         winding_number = 0.0
