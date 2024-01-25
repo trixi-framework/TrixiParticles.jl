@@ -260,8 +260,7 @@ end
 function compute_pressure!(system, v)
     (; state_equation, pressure) = system
 
-    # Note that @threaded makes this slower
-    for particle in eachparticle(system)
+    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
         pressure[particle] = state_equation(particle_density(v, system, particle))
     end
 end
