@@ -154,9 +154,8 @@
             # 9 x 9 grid of particles
             n_particles_per_dimension = (9, 9)
             coordinates = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-            velocities = Array{Float64, 2}(undef, 2, prod(n_particles_per_dimension))
-            masses = 10 * ones(Float64, prod(n_particles_per_dimension))
-            densities = 1000 * ones(Float64, prod(n_particles_per_dimension))
+            mass = 10.0
+            density = 1000.0
 
             for y in 1:n_particles_per_dimension[2],
                 x in 1:n_particles_per_dimension[1]
@@ -171,7 +170,7 @@
             smoothing_length = 0.07
             smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-            initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+            initial_condition = InitialCondition(; coordinates, mass, density)
             system = TotalLagrangianSPHSystem(initial_condition,
                                               smoothing_kernel, smoothing_length,
                                               E, nu)

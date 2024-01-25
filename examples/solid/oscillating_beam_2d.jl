@@ -39,7 +39,7 @@ n_particles_per_dimension = (round(Int, length_beam / particle_spacing) +
 # from the boundary, which is correct for fluids, but not for solids.
 # We therefore need to pass `tlsph=true`.
 beam = RectangularShape(particle_spacing, n_particles_per_dimension,
-                        (0.0, 0.0), material_density, tlsph=true)
+                        (0.0, 0.0), density=material_density, tlsph=true)
 
 solid = union(beam, fixed_particles)
 
