@@ -212,7 +212,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
-    compute_surface_normal!(surface_tension, v, u, system, system_index, u_ode, v_ode, semi,
+    compute_surface_normal!(surface_tension, v, u, system, u_ode, v_ode, semi,
                             t)
 
     return system
@@ -332,9 +332,9 @@ function compute_surface_normal!(surface_tension, v, u, container, container_ind
                                  v_ode, semi, t)
 end
 
-function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, container,
-                                 container_index, u_ode, v_ode, semi, t)
-    (; cache) = container
+function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, system
+                                 , u_ode, v_ode, semi, t)
+    (; cache) = system
 
     # reset surface normal
     cache.surface_normal .= zero(eltype(cache.surface_normal))
@@ -345,7 +345,7 @@ function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, co
         nhs = neighborhood_searches(system, neighbor_system, semi)
 
         calc_normal_akinci(surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
-                           container, neighbor_system)
+                           system, neighbor_system)
     end
 end
 
