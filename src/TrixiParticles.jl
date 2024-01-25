@@ -59,6 +59,6 @@ export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
 export interpolate_line, interpolate_point
-export SurfaceTensionAkinci
+export SurfaceTensionAkinci, CohesionForceAkinci
 
 end # module
