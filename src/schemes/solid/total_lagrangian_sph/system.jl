@@ -266,7 +266,7 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    nhs = neighborhood_searches(system, system, semi)
+    nhs = get_neighborhood_search(system, semi)
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
 
     return system
@@ -410,21 +410,4 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       particle_system, neighbor,
-                                       neighbor_system::TotalLagrangianSPHSystem,
-                                       density_calculator, correction)
-    (; boundary_model) = neighbor_system
-    (; smoothing_length) = particle_system
-
-    # Pressure acceleration for fluid-solid interaction. This is identical to
-    # `pressure_acceleration` for the `BoundarySPHSystem`.
-    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                     rho_a, rho_b, pos_diff, distance,
-                                     smoothing_length, grad_kernel,
-                                     particle_system, neighbor, neighbor_system,
-                                     boundary_model, density_calculator, correction)
 end

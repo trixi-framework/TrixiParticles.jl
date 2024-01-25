@@ -192,7 +192,7 @@ function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
@@ -259,7 +259,7 @@ function compute_correction_values!(system,
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff
         for_particle_neighbor(system, neighbor_system, system_coords,
@@ -402,7 +402,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         for_particle_neighbor(system, neighbor_system, coordinates, neighbor_coords,
                               neighborhood_search;
