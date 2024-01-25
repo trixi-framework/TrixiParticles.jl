@@ -453,11 +453,9 @@ end
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
-
-        # Only for `TotalLagrangianSPHSystem` with boundary model
-        # `AdamiPressureExtrapolation`.
-        copy_dv!(system, dv)
     end
+
+    update_after_interaction!(system, v_system, u_system, v_ode, u_ode, semi)
 end
 
 # NHS updates
@@ -526,15 +524,21 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    foreach_noalloc(systems) do system
+    foreach_system(systems) do system
         check_configuration(system, systems)
     end
+
+    # Make sure that `TotalLagrangianSPHSystem` is always first in `sytems`
+    # The reason behind this is that the acceleration of the solid system is required for
+    # the solid-fluid interaction with the boundary model `AdamiPressureExtrapolation`.
+    return (filter(i -> i isa TotalLagrangianSPHSystem, systems)...,
+            filter(i -> !(i isa TotalLagrangianSPHSystem), systems)...)
 end
 
 check_configuration(system, systems) = nothing
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems)
-    foreach_noalloc(systems) do neighbor
+    foreach_system(systems) do neighbor
         if !isa(neighbor, TotalLagrangianSPHSystem) && isnothing(system.boundary_model)
             throw(ArgumentError("Please specify a boundary model for `TotalLagrangianSPHSystem` when simulating a fluid-structure interaction."))
         end
@@ -544,7 +548,7 @@ end
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
 
-    foreach_noalloc(systems) do neighbor
+    foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)

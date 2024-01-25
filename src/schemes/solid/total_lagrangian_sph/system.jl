@@ -285,11 +285,16 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
     return system
 end
 
-function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; boundary_model) = system
+function update_after_interaction!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode,
+                                   semi)
 
-    # Only update boundary model
-    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+    # Only for FSI: Call the function for the corresponding boundary model
+    update_pressure!(system.boundary_model, system, v, u, v_ode, u_ode, semi)
+end
+
+function update_pressure!(boundary_model::Nothing, system::TotalLagrangianSPHSystem, v, u,
+                          v_ode, u_ode, semi)
+    return boundary_model
 end
 
 @inline function compute_pk1_corrected(neighborhood_search, system)
@@ -424,8 +429,6 @@ end
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
 end
-
-copy_dv!(system::TotalLagrangianSPHSystem, dv) = copy_dv!(system, system.boundary_model, dv)
 
 copy_dv!(system, boundary_model, dv) = system
 

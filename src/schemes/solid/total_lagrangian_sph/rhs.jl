@@ -4,6 +4,9 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::TotalLagrangianSPHSystem,
                    neighbor_system::TotalLagrangianSPHSystem)
     interact_solid_solid!(dv, neighborhood_search, particle_system, neighbor_system)
+
+    # Only with boundary model `AdamiPressureExtrapolation` for FSI
+    copy_dv!(particle_system, particle_system.boundary_model, dv)
 end
 
 # Function barrier without dispatch for unit testing
@@ -160,4 +163,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                    neighbor_system::BoundarySPHSystem)
     # TODO continuity equation?
     return dv
+end
+
+function compute_hydrodynamic_pressure!(boundary_model, density_calculator, system, v, u,
+                                        v_ode, u_ode, semi)
+    return boundary_model
+end
+
+function compute_hydrodynamic_pressure!(boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
+                                        density_calculator, system, v, u, v_ode, u_ode,
+                                        semi)
+    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
 end
