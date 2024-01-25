@@ -352,5 +352,5 @@ end
 @inline function get_normal(particle, particle_container::FluidSystem,
                             ::SurfaceTensionAkinci)
     (; cache) = particle_container
-    return get_particle_coords(particle, cache.surface_normal, particle_container)
+    return extract_svector(cache.surface_normal, particle_container, particle)
 end

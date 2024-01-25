@@ -192,7 +192,12 @@ end
 # skip
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
                                particle_container::FluidSystem,
-                               neighbor_container,
-                               surface_tension::NoSurfaceTension)
+                               neighbor_container::FluidSystem,
+                               surface_tension::AkinciTypeSurfaceTension)
     return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+end
+
+@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
+    particle_container, neighbor_container, surface_tension::NoSurfaceTension)
+return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end
