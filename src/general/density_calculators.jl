@@ -17,9 +17,9 @@ Density calculator to integrate the density from the continuity equation
 ```math
 \frac{\mathrm{d}\rho_a}{\mathrm{d}t} = \sum_{b} m_b v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
 ```
-where ``\rho_a`` denotes the density of particle ``a``, ``r_a`` and ``r_b`` denote the coordinates
-of particles ``a`` and ``b`` respectively, and ``v_{ab} = v_a - v_b`` is the difference of the
-velocities of particles ``a`` and ``b``.
+where ``\rho_a`` denotes the density of particle ``a`` and ``r_{ab} = r_a - r_b`` is the
+difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of particles
+``a`` and ``b``.
 """
 struct ContinuityDensity end
 
@@ -35,21 +35,6 @@ end
     return v[end, particle]
 end
 
-# *Note* that these functions are intended to internally set the density for buffer particles
-# and density correction. It cannot be used to set up an initial condition,
-# as the particle density depends on the particle positions.
-@inline function set_particle_density(particle, v, system, density)
-    set_particle_density(particle, v, system.density_calculator, system, density)
-end
-
-@inline function set_particle_density(particle, v, ::SummationDensity, system, density)
-    system.cache.density[particle] = density
-end
-
-@inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
-    v[end, particle] = density
-end
-
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)
@@ -61,7 +46,7 @@ function summation_density!(system, semi, u, u_ode, density;
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        nhs = neighborhood_searches(system, neighbor_system, semi)
+        nhs = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,

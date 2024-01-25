@@ -1,7 +1,3 @@
-abstract type FluidSystem{NDIMS} <: System{NDIMS} end
-
-timer_name(::FluidSystem) = "fluid"
-
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)

@@ -17,9 +17,8 @@
             @testset "$(typeof(density_calculator))" for density_calculator in density_calculators
                 NDIMS = i + 1
                 coordinates = coordinates_[i]
-                velocities = zero(coordinates)
-                masses = [1.25, 1.5]
-                densities = [990.0, 1000.0]
+                mass = [1.25, 1.5]
+                density = [990.0, 1000.0]
                 state_equation = Val(:state_equation)
                 smoothing_kernel = Val(:smoothing_kernel)
                 TrixiParticles.ndims(::Val{:smoothing_kernel}) = i + 1
@@ -28,8 +27,7 @@
                 TrixiParticles.ndims(::Val{:smoothing_kernel2}) = i % 2 + 2
                 smoothing_length = 0.362
 
-                initial_condition = InitialCondition(coordinates, velocities, masses,
-                                                     densities)
+                initial_condition = InitialCondition(; coordinates, mass, density)
                 system = WeaklyCompressibleSPHSystem(initial_condition,
                                                      density_calculator,
                                                      state_equation, smoothing_kernel,
@@ -37,7 +35,7 @@
 
                 @test system isa WeaklyCompressibleSPHSystem{NDIMS}
                 @test system.initial_condition == initial_condition
-                @test system.mass == masses
+                @test system.mass == mass
                 @test system.density_calculator == density_calculator
                 @test system.state_equation == state_equation
                 @test system.smoothing_kernel == smoothing_kernel
@@ -70,15 +68,15 @@
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructors with Setups" begin
         setups = [
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
-            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
+            RectangularShape(0.123, (2, 3, 2), (-1.0, 0.1, 2.1), density=1.0),
             RectangularTank(0.123, (0.369, 0.246), (0.369, 0.369), 1020.0).fluid,
             RectangularTank(0.123, (0.369, 0.246, 0.246), (0.369, 0.492, 0.492),
                             1020.0).fluid,
             SphereShape(0.52, 0.1, (-0.2, 0.123), 1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
-            RectangularShape(0.123, (2, 3), (-1.0, 0.1), 1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
+            RectangularShape(0.123, (2, 3), (-1.0, 0.1), density=1.0),
         ]
         setup_names = [
             "RectangularShape 2D",
@@ -88,7 +86,7 @@
             "SphereShape 2D",
             "RectangularShape 2D with ShepardKernelCorrection",
             "RectangularShape 2D with AkinciFreeSurfaceCorrection",
-            "RectangularShape 2D with KernelGradientCorrection",
+            "RectangularShape 2D with KernelCorrection",
         ]
         NDIMS_ = [2, 3, 2, 3, 2, 2, 2, 2]
         density_calculators = [
@@ -103,7 +101,7 @@
             Nothing(),
             ShepardKernelCorrection(),
             AkinciFreeSurfaceCorrection(1000.0),
-            KernelGradientCorrection(),
+            KernelCorrection(),
         ]
 
         @testset "$(setup_names[i])" for i in eachindex(setups)
@@ -146,7 +144,7 @@
                 if density_calculator isa SummationDensity
                     @test length(system.cache.density) == size(setup.coordinates, 2)
                 end
-                if corr isa ShepardKernelCorrection || corr isa KernelGradientCorrection
+                if corr isa ShepardKernelCorrection || corr isa KernelCorrection
                     @test length(system.cache.kernel_correction_coefficient) ==
                           size(setup.coordinates, 2)
                 end
@@ -179,22 +177,23 @@
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
         smoothing_length = 0.362
         density_calculator = SummationDensity()
+        density_diffusion = Val(:density_diffusion)
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+        initial_condition = InitialCondition(; coordinates, mass, density)
         system = WeaklyCompressibleSPHSystem(initial_condition,
                                              density_calculator,
                                              state_equation, smoothing_kernel,
-                                             smoothing_length)
+                                             smoothing_length,
+                                             density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), [0.0, 0.0]) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), TrixiParticles.NoViscosity(), Val{:density_diffusion}(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -206,6 +205,7 @@
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… TrixiParticles.NoViscosity()                                     │
+        │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
@@ -214,15 +214,14 @@
     @testset verbose=true "write_u0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = zero(coordinates)
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
         density_calculator = SummationDensity()
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+        initial_condition = InitialCondition(; coordinates, mass, density)
         system = WeaklyCompressibleSPHSystem(initial_condition,
                                              density_calculator,
                                              state_equation, smoothing_kernel,
@@ -238,14 +237,14 @@
     @testset verbose=true "write_v0!" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        velocities = 2 * coordinates
-        masses = [1.25, 1.5]
-        densities = [990.0, 1000.0]
+        velocity = 2 * coordinates
+        mass = [1.25, 1.5]
+        density = [990.0, 1000.0]
         state_equation = Val(:state_equation)
         smoothing_kernel = Val(:smoothing_kernel)
         smoothing_length = 0.362
 
-        initial_condition = InitialCondition(coordinates, velocities, masses, densities)
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 
         # SummationDensity
         system = WeaklyCompressibleSPHSystem(initial_condition,
@@ -257,7 +256,7 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
-        @test v0 == velocities
+        @test v0 == velocity
 
         # ContinuityDensity
         system = WeaklyCompressibleSPHSystem(initial_condition,
@@ -269,6 +268,6 @@
                    TrixiParticles.n_moving_particles(system))
         TrixiParticles.write_v0!(v0, system)
 
-        @test v0 == vcat(velocities, densities')
+        @test v0 == vcat(velocity, density')
     end
 end

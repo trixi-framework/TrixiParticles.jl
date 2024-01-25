@@ -76,16 +76,16 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, particle, particle_system,
-                                       v_particle_system, neighbor, neighbor_system,
-                                       v_neighbor_system,
-                                       boundary_model::BoundaryModelMonaghanKajtar, rho_a,
-                                       rho_b, pos_diff, distance, grad_kernel,
-                                       density_calculator)
-    (; smoothing_length) = particle_system
+@inline function pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
+                                           rho_a, rho_b, pos_diff::SVector{NDIMS}, distance,
+                                           smoothing_length, grad_kernel,
+                                           particle_system, neighbor, neighbor_system,
+                                           boundary_model::BoundaryModelMonaghanKajtar,
+                                           fluid_density_calculator,
+                                           correction) where {NDIMS}
     (; K, beta, boundary_particle_spacing) = boundary_model
 
-    NDIMS = ndims(particle_system)
+    distance = norm(pos_diff)
     return K / beta^(NDIMS - 1) * pos_diff /
            (distance * (distance - boundary_particle_spacing)) *
            boundary_kernel(distance, smoothing_length)
@@ -110,6 +110,9 @@ end
     # `ArtificialViscosityMonaghan` in the fluid interaction.
     return hydrodynamic_mass[particle] / boundary_particle_spacing^ndims(system)
 end
+
+# This model does not not use any particle pressure
+particle_pressure(v, model::BoundaryModelMonaghanKajtar, system, particle) = zero(eltype(v))
 
 @inline function update_pressure!(boundary_model::BoundaryModelMonaghanKajtar, system,
                                   v, u, v_ode, u_ode, semi)
