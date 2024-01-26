@@ -164,14 +164,3 @@ function interact!(dv, v_particle_system, u_particle_system,
     # TODO continuity equation?
     return dv
 end
-
-function compute_hydrodynamic_pressure!(boundary_model, density_calculator, system, v, u,
-                                        v_ode, u_ode, semi)
-    return boundary_model
-end
-
-function compute_hydrodynamic_pressure!(boundary_model::BoundaryModelDummyParticles{<:AdamiPressureExtrapolation},
-                                        density_calculator, system, v, u, v_ode, u_ode,
-                                        semi)
-    compute_pressure!(boundary_model, density_calculator, system, v, u, v_ode, u_ode, semi)
-end

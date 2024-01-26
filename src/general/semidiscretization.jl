@@ -33,7 +33,7 @@ struct Semidiscretization{S, RU, RV, NS, DC}
 
         # Check that the boundary systems are using a state equation if EDAC is not used.
         # Other checks might be added here later.
-        check_configuration(systems)
+        systems = check_configuration(systems)
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
@@ -528,7 +528,7 @@ function check_configuration(systems)
         check_configuration(system, systems)
     end
 
-    # Make sure that `TotalLagrangianSPHSystem` is always first in `sytems`
+    # Make sure that `TotalLagrangianSPHSystem` is always first in `systems`
     # The reason behind this is that the acceleration of the solid system is required for
     # the solid-fluid interaction with the boundary model `AdamiPressureExtrapolation`.
     return (filter(i -> i isa TotalLagrangianSPHSystem, systems)...,
@@ -539,8 +539,10 @@ check_configuration(system, systems) = nothing
 
 function check_configuration(system::TotalLagrangianSPHSystem, systems)
     foreach_system(systems) do neighbor
-        if !isa(neighbor, TotalLagrangianSPHSystem) && isnothing(system.boundary_model)
-            throw(ArgumentError("Please specify a boundary model for `TotalLagrangianSPHSystem` when simulating a fluid-structure interaction."))
+        if !isa(neighbor, TotalLagrangianSPHSystem) &&
+           !isa(system.boundary_model, BoundaryModel)
+            throw(ArgumentError("Please specify a boundary model for `TotalLagrangianSPHSystem` " *
+                                "when simulating a $(timer_name(neighbor))-structure interaction."))
         end
     end
 end
@@ -552,7 +554,8 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a `state_equation` for all boundary systems"))
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
+                                "setting a `state_equation` for all boundary systems"))
         end
     end
 end
