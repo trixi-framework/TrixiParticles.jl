@@ -19,30 +19,39 @@
             # Make both Lamé constants equal to 1
             nu = 0.25
             E = 2.5
-            boundary_model = Val(:boundary_model)
+            boundary_model1 = Val(:boundary_model)
+            boundary_model2 = BoundaryModelDummyParticles([0.0], [0.0],
+                                                         AdamiPressureExtrapolation(),
+                                                         smoothing_kernel, 1.0)
 
             initial_condition = InitialCondition(; coordinates, mass,
                                                  density=material_densities)
-            system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                              smoothing_length, E, nu,
-                                              boundary_model=boundary_model)
+            system1 = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                               smoothing_length, E, nu,
+                                               boundary_model=boundary_model1)
+            system2 = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                               smoothing_length, E, nu,
+                                               boundary_model=boundary_model2)
 
-            @test system isa TotalLagrangianSPHSystem
-            @test ndims(system) == NDIMS
-            @test system.initial_condition == initial_condition
-            @test system.initial_coordinates == coordinates
-            @test system.current_coordinates == coordinates
-            @test system.mass == mass
-            @test system.material_density == material_densities
-            @test system.n_moving_particles == 2
-            @test system.young_modulus == E
-            @test system.poisson_ratio == nu
-            @test system.lame_lambda == 1.0
-            @test system.lame_mu == 1.0
-            @test system.smoothing_kernel == smoothing_kernel
-            @test system.smoothing_length == smoothing_length
-            @test system.acceleration == [0.0 for _ in 1:NDIMS]
-            @test system.boundary_model == boundary_model
+            @test system1 isa TotalLagrangianSPHSystem
+            @test ndims(system1) == NDIMS
+            @test system1.initial_condition == initial_condition
+            @test system1.initial_coordinates == coordinates
+            @test system1.current_coordinates == coordinates
+            @test system1.mass == mass
+            @test system1.material_density == material_densities
+            @test system1.n_moving_particles == 2
+            @test system1.young_modulus == E
+            @test system1.poisson_ratio == nu
+            @test system1.lame_lambda == 1.0
+            @test system1.lame_mu == 1.0
+            @test system1.smoothing_kernel == smoothing_kernel
+            @test system1.smoothing_length == smoothing_length
+            @test system1.acceleration == [0.0 for _ in 1:NDIMS]
+            @test system1.boundary_model == boundary_model1
+            @test system1.cache == (;)
+
+            @test system2.cache != (;)
         end
     end
 
