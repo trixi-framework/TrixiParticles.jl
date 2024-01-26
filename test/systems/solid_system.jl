@@ -21,8 +21,8 @@
             E = 2.5
             boundary_model1 = Val(:boundary_model)
             boundary_model2 = BoundaryModelDummyParticles([0.0], [0.0],
-                                                         AdamiPressureExtrapolation(),
-                                                         smoothing_kernel, 1.0)
+                                                          AdamiPressureExtrapolation(),
+                                                          smoothing_kernel, 1.0)
 
             initial_condition = InitialCondition(; coordinates, mass,
                                                  density=material_densities)
