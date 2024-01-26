@@ -57,9 +57,9 @@
                                                      boundary_model=1)
 
             error_str = "Please specify a boundary model for `TotalLagrangianSPHSystem` " *
-                         "when simulating a $(TrixiParticles.timer_name(system1))-structure interaction."
+                        "when simulating a $(TrixiParticles.timer_name(system1))-structure interaction."
             @test_throws ArgumentError(error_str) Semidiscretization(system1,
-                                                                      solid_system1)
+                                                                     solid_system1)
 
             # FSI with boundary model.
             solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
@@ -88,9 +88,9 @@
                                                        kernel, 1.0)
 
             error_str = "`WeaklyCompressibleSPHSystem` cannot be used without setting a " *
-                         "`state_equation` for all boundary systems"
+                        "`state_equation` for all boundary systems"
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
-                                                                      boundary_system)
+                                                                     boundary_system)
         end
     end
 
