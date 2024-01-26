@@ -86,13 +86,13 @@ end
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
     # the force grow infinitely close to the boundary, with a singularity where
-    # `distance` = `boundary_particle_spacing`. This causes two problems:
-    # 1. An infinite force will make the adaptive time integrator crash.
-    # 2. The force will switch sign when `distance < boundary_particle_spacing`.
+    # `distance` = `boundary_particle_spacing`. However, when the time step is large
+    # enough for a particle to end up behind the singularity in a time integration stage,
+    # the force will switch sign and become smaller again.
     #
-    # In order to avoid this, we clip the force at a "large" value, large enough for the
-    # adaptive integrator to realize that the time step was too large, but small enough
-    # to not make it crash. The clipping also prevents the second problem.
+    # In order to avoid this, we clip the force at a "large" value, large enough to prevent
+    # penetration when a reasonable `K` is used, but small enough to not cause instabilites
+    # or super small time steps.
     distance_from_singularity = max(0.01 * boundary_particle_spacing,
                                     distance - boundary_particle_spacing)
 
