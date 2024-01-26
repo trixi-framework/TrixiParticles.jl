@@ -45,7 +45,7 @@
             struct BoundaryModelMock <: TrixiParticles.BoundaryModel end
 
             model = BoundaryModelMock()
-            TrixiParticles.compact_support(sytem, ::BoundaryModelMock, neighbor) = 0.2
+            TrixiParticles.compact_support(system, ::BoundaryModelMock, neighbor) = 0.2
 
             kernel = SchoenbergCubicSplineKernel{2}()
 
