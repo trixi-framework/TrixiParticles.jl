@@ -37,4 +37,3 @@ Features:
 
 #### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
-
