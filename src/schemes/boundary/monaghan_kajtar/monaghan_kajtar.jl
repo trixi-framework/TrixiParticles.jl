@@ -77,8 +77,8 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                              SolidSystem{<:BoundaryModelMonaghanKajtar}},
+                                       neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel,
                                        pressure_correction, correction)
