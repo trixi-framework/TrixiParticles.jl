@@ -33,6 +33,7 @@ Features:
 - Kernel summation and Continuity equation density formulations
 - Flexible boundary conditions e.g. dummy particles with Adami pressure extrapolation, pressure zeroing, pressure mirroring...
 - Moving boundaries
+- Density Diffusion based on the models by Molteni and Colagrossi, Ferrari and Antuono
 
 #### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
