@@ -47,7 +47,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length, viscosity=viscosity_wall)
+                                             smoothing_kernel, smoothing_length,
+                                             viscosity=viscosity_wall)
 
 # Uncomment to use repulsive boundary particles by Monaghan & Kajtar.
 # Also change spacing ratio and boundary layers (see comment above).
