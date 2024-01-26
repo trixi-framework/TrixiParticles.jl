@@ -106,10 +106,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         # This way, we obtain the exact same force as for the fluid-solid interaction,
         # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
         # `pressure_correction` is set to `1.0` (no correction).
-        dv_boundary = pressure_acceleration(1.0, m_a, p_b, p_a,
-                                            rho_b, rho_a, pos_diff, distance, grad_kernel,
-                                            neighbor_system, neighbor, particle_system,
-                                            density_calculator, correction)
+        dv_boundary = pressure_acceleration(neighbor_system, particle_system, particle,
+                                            m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
+                                            distance, grad_kernel, 1.0,
+                                            correction)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)

@@ -87,27 +87,5 @@ plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
                title="3D Scatter Plot with Density Coloring", legend=false,
                clim=(1000, 1010), colorbar=false)
 
-# Interpolation parameters
-p1 = [0.5, 0.0, 0.0]
-p2 = [0.5, 1.0, 0.0]
-p3 = [0.5, 0.0, 1.0]
-resolution = 0.01
-
-# We can also interpolate a 3D plane but in this case we have to provide 3 points instead!
-original_plane = interpolate_plane_3d(p1, p2, p3, resolution, semi,
-                                      fluid_system, sol)
-original_y = [point[2] for point in original_plane.coord]
-original_z = [point[3] for point in original_plane.coord]
-original_density = original_plane.density
-
-# by ignoring the z coordinate we can also plot this into a 2D plane
-scatter_3d_in_2d = scatter(original_y, original_z, zcolor=original_density,
-                           marker=:circle, markersize=4,
-                           markercolor=:viridis, markerstrokewidth=0)
-
-plot_3d_in_2d = plot(scatter_3d_in_2d, xlabel="Y", ylabel="Z",
-                     title="3D in 2D Scatter Plot", legend=false, clim=(1000, 1010),
-                     colorbar=true)
-
-combined_plot = plot(plot1, plot2, plot3, plot_3d, plot_3d_in_2d, layout=(3, 2),
+combined_plot = plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
                      size=(1000, 1500), margin=3mm)
