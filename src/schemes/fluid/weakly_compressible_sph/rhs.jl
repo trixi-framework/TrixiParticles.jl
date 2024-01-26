@@ -35,13 +35,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        p_a = particle_pressure(v_particle_system, particle_system, particle)
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        # The following call is equivalent to
+        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
+        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
+        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
+        # the pressure of the fluid particle.
+        p_a, p_b = particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                              particle_system, neighbor_system,
+                                              particle, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                            particle_system, neighbor, neighbor_system,
-                                            density_calculator, correction)
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, pressure_correction,
+                                            correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -68,74 +75,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     # trixi2vtk(v_particle_system, u_particle_system, -1.0, particle_system, periodic_box, debug=debug_array, prefix="debug", iter=iter += 1)
 
     return dv
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       grad_kernel, particle_system, neighbor,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       density_calculator,
-                                       correction)
-
-    # Without correction, the kernel gradient is symmetric, so call the symmetric
-    # pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                           grad_kernel, density_calculator)
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       W_a, particle_system, neighbor,
-                                       neighbor_system::WeaklyCompressibleSPHSystem,
-                                       density_calculator,
-                                       correction::Union{KernelCorrection,
-                                                         GradientCorrection,
-                                                         BlendedGradientCorrection,
-                                                         MixedKernelGradientCorrection})
-    W_b = smoothing_kernel_grad(neighbor_system, -pos_diff, distance, neighbor)
-
-    # With correction, the kernel gradient is not necessarily symmetric, so call the
-    # asymmetric pressure acceleration formulation corresponding to the density calculator.
-    return pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                            rho_b, W_a, W_b, density_calculator)
-end
-
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
-# This can also be seen in the tests for total energy conservation, which fail with the
-# other `pressure_acceleration` form.
-# We assume symmetry of the kernel gradient in this formulation. See below for the
-# asymmetric version.
-@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                                 rho_b, grad_kernel, ::ContinuityDensity)
-    return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
-end
-
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with `SummationDensity`.
-# This can also be seen in the tests for total energy conservation, which fail with the
-# other `pressure_acceleration` form.
-# We assume symmetry of the kernel gradient in this formulation. See below for the
-# asymmetric version.
-@inline function pressure_acceleration_symmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                                 rho_b, grad_kernel, ::SummationDensity)
-    return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
-end
-
-# Same as above, but not assuming symmetry of the kernel gradient. To be used with
-# corrections that do not produce a symmetric kernel gradient.
-@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                                  rho_b, W_a, W_b, ::ContinuityDensity)
-    return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b) * pressure_correction
-end
-
-# Same as above, but not assuming symmetry of the kernel gradient. To be used with
-# corrections that do not produce a symmetric kernel gradient.
-@inline function pressure_acceleration_asymmetric(pressure_correction, m_b, p_a, p_b, rho_a,
-                                                  rho_b, W_a, W_b, ::SummationDensity)
-    return (-m_b * (p_a / rho_a^2 * W_a - p_b / rho_b^2 * W_b)) * pressure_correction
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
@@ -196,4 +135,22 @@ end
                                     m_b, rho_a, rho_b,
                                     particle_system, neighbor_system, grad_kernel)
     return dv
+end
+
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system, neighbor_system,
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+    return p_a, p_b
+end
+
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+
+    return p_a, p_a
 end
