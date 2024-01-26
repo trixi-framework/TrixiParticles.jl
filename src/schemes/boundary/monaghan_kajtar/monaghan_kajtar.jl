@@ -84,8 +84,20 @@ end
                                        pressure_correction, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
+    # This is `distance - boundary_particle_spacing` in the paper. This factor makes
+    # the force grow infinitely close to the boundary, with a singularity where
+    # `distance` = `boundary_particle_spacing`. This causes two problems:
+    # 1. An infinite force will make the adaptive time integrator crash.
+    # 2. The force will switch sign when `distance < boundary_particle_spacing`.
+    #
+    # In order to avoid this, we clip the force at a "large" value, large enough for the
+    # adaptive integrator to realize that the time step was too large, but small enough
+    # to not make it crash. The clipping also prevents the second problem.
+    distance_from_singularity = max(0.01 * boundary_particle_spacing,
+                                    distance - boundary_particle_spacing)
+
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
-           (distance * (distance - boundary_particle_spacing)) *
+           (distance * distance_from_singularity) *
            boundary_kernel(distance, particle_system.smoothing_length)
 end
 
