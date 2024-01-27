@@ -2,8 +2,6 @@
     EntropicallyDampedSPHSystem(initial_condition,
                                 smoothing_kernel, smoothing_length, sound_speed;
                                 alpha=0.5, viscosity=NoViscosity(),
-                                initial_pressure_function=nothing,
-                                initial_velocity_function=nothing,
                                 transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS))
 
@@ -35,28 +33,24 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, C} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, TV, C} <:
        FluidSystem{NDIMS}
-    initial_condition         :: InitialCondition{ELTYPE}
-    mass                      :: Array{ELTYPE, 1} # [particle]
-    density                   :: Array{ELTYPE, 1} # [particle]
-    density_calculator        :: DC
-    smoothing_kernel          :: K
-    smoothing_length          :: ELTYPE
-    sound_speed               :: ELTYPE
-    viscosity                 :: V
-    nu_edac                   :: ELTYPE
-    initial_pressure_function :: PF
-    initial_velocity_function :: VF
-    acceleration              :: SVector{NDIMS, ELTYPE}
-    transport_velocity        :: TV
-    cache                     :: C
+    initial_condition  :: InitialCondition{ELTYPE}
+    mass               :: Array{ELTYPE, 1} # [particle]
+    density            :: Array{ELTYPE, 1} # [particle]
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    sound_speed        :: ELTYPE
+    viscosity          :: V
+    nu_edac            :: ELTYPE
+    acceleration       :: SVector{NDIMS, ELTYPE}
+    transport_velocity :: TV
+    cache              :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
-                                         initial_pressure_function=nothing,
-                                         initial_velocity_function=nothing,
                                          transport_velocity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)))
@@ -83,12 +77,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, PF, VF, TV, 
         cache = create_cache_edac(initial_condition, transport_velocity)
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(initial_pressure_function),
-            typeof(initial_velocity_function), typeof(transport_velocity),
+            typeof(viscosity), typeof(transport_velocity),
             typeof(cache)}(initial_condition, mass, density, density_calculator,
                            smoothing_kernel, smoothing_length, sound_speed, viscosity,
-                           nu_edac, initial_pressure_function, initial_velocity_function,
-                           acceleration_, transport_velocity, cache)
+                           nu_edac, acceleration_, transport_velocity, cache)
     end
 end
 
@@ -113,8 +105,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
-        summary_line(io, "initial pressure function", system.initial_pressure_function)
-        summary_line(io, "initial velocity function", system.initial_velocity_function)
         summary_line(io, "acceleration", system.acceleration)
         summary_footer(io)
     end
@@ -180,7 +170,7 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        neighborhood_search = neighborhood_searches(system, neighbor_system, semi)
+        neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
@@ -201,7 +191,7 @@ end
 
 function write_v0!(v0, density_calculator, system::EntropicallyDampedSPHSystem)
     for particle in eachparticle(system)
-        v0[end, particle] = initial_pressure(system, particle)
+        v0[end, particle] = system.initial_condition.pressure[particle]
     end
 
     return v0
@@ -213,17 +203,4 @@ function restart_with!(system::EntropicallyDampedSPHSystem, v, u)
         system.initial_condition.velocity[:, particle] .= v[1:ndims(system), particle]
         system.initial_condition.pressure[particle] = v[end, particle]
     end
-end
-
-@inline function initial_pressure(system, particle)
-    initial_pressure(system, particle, system.initial_pressure_function)
-end
-
-@inline function initial_pressure(system, particle, ::Nothing)
-    return system.initial_condition.pressure[particle]
-end
-
-@inline function initial_pressure(system, particle, initial_pressure_function)
-    particle_position = initial_coords(system, particle)
-    return initial_pressure_function(particle_position, 0)
 end

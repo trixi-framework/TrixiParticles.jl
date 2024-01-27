@@ -33,8 +33,6 @@
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
             @test system.viscosity isa TrixiParticles.NoViscosity
-            @test system.initial_pressure_function isa Nothing
-            @test system.initial_velocity_function isa Nothing
             @test system.transport_velocity isa Nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -90,8 +88,6 @@
             @test system.smoothing_kernel == smoothing_kernel
             @test system.smoothing_length == smoothing_length
             @test system.viscosity isa TrixiParticles.NoViscosity
-            @test system.initial_pressure_function isa Nothing
-            @test system.initial_velocity_function isa Nothing
             @test system.transport_velocity isa Nothing
             @test system.nu_edac == (0.5 * smoothing_length * sound_speed) / 8
             @test system.acceleration == [0.0 for _ in 1:NDIMS]
@@ -196,9 +192,11 @@
 
         @test v0 == vcat(velocity, pressure')
 
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure=pressure_function)
+
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                             smoothing_length, sound_speed,
-                                             initial_pressure_function=pressure_function)
+                                             smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))

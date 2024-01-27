@@ -26,9 +26,18 @@ sound_speed = 10U
 b = -8pi^2 / reynolds_number
 
 p(pos, t) = -U^2 * exp(2 * b * t) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
+p0(pos) = p(pos, 0.0)
 
-v_x(pos, t) = -U * exp(b * t) * cos(2pi * pos[1]) * sin(2pi * pos[2])
-v_y(pos, t) = U * exp(b * t) * sin(2pi * pos[1]) * cos(2pi * pos[2])
+function velocity_function(pos, t)
+    x = pos[1]
+    y = pos[2]
+
+    vel = U * exp(b * t) * [-cos(2pi * x) * sin(2pi * y), sin(2pi * x) * cos(2pi * y)]
+
+    return SVector{2}(vel)
+end
+
+v0(pos) = velocity_function(pos, 0.0)
 
 n_particles_xy = round(Int, box_length / particle_spacing)
 
@@ -42,8 +51,7 @@ smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         fluid_density, pressure=background_pressure,
-                         init_velocity=(0.0, 0.0))
+                         density=fluid_density, pressure=p0, velocity=v0)
 
 # Add small random displacement to the particles to avoid stagnant streamlines.
 #seed!(42);
@@ -51,8 +59,7 @@ fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.
 #                           size(fluid.coordinates))
 
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, initial_pressure_function=p,
-                                           initial_velocity_function=(v_x, v_y),
+                                           sound_speed,
                                            transport_velocity=TransportVelocityAdami(background_pressure),
                                            viscosity=ViscosityAdami(; nu))
 
@@ -69,8 +76,6 @@ ode = semidiscretize(semi, tspan)
 dt_max = min(smoothing_length / 4 * (sound_speed + U), smoothing_length^2 / (8 * nu))
 
 function compute_L1v_error(v, u, t, system)
-    (; initial_velocity_function) = system
-
     v_analytical_avg = 0.0
     L1v = 0.0
 
@@ -78,8 +83,7 @@ function compute_L1v_error(v, u, t, system)
         position = TrixiParticles.current_coords(u, system, particle)
 
         v_mag = norm(TrixiParticles.current_velocity(v, system, particle))
-        v_analytical = norm(SVector(ntuple(i -> initial_velocity_function[i](position, t),
-                                           Val(ndims(system)))))
+        v_analytical = norm(velocity_function(position, t))
 
         v_analytical_avg += abs(v_analytical)
         L1v += abs(v_mag - v_analytical)
@@ -100,7 +104,7 @@ function compute_L1p_error(v, u, t, system)
         position = TrixiParticles.current_coords(u, system, particle)
 
         # compute pressure error
-        p_analytical = system.initial_pressure_function(position, t)
+        p_analytical = p(position, t)
         p_max_exact = max(p_max_exact, abs(p_analytical))
 
         # p_computed - p_average

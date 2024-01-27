@@ -111,7 +111,7 @@ struct InitialCondition{ELTYPE}
                                     "for $NDIMS-dimensional `coordinates`"))
             end
             velocities_svector = velocity_fun.(coordinates_svector)
-            velocities = reinterpret(reshape, ELTYPE, velocities_svector)
+            velocities = stack(velocities_svector)
         end
 
         if density isa AbstractVector
