@@ -111,7 +111,7 @@ struct InitialCondition{ELTYPE}
                                     "for $NDIMS-dimensional `coordinates`"))
             end
             velocities_svector = velocity_fun.(coordinates_svector)
-            velocities = reinterpret(reshape, ELTYPE, velocities_svector)
+            velocities = stack(velocities_svector)
         end
 
         if density isa AbstractVector
@@ -135,7 +135,10 @@ struct InitialCondition{ELTYPE}
             pressures = pressure
         else
             pressure_fun = wrap_function(pressure, Val(NDIMS))
-            pressures = pressure_fun.(coordinates_svector)
+            pressures = stack((pressure_fun.(coordinates_svector)))
+            if  !isa(pressures, Vector)
+                pressures = pressures[findfirst(p -> abs(p) > eps(), pressures)[1], :]
+            end
         end
 
         if mass isa AbstractVector
