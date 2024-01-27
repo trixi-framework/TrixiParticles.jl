@@ -47,6 +47,7 @@ end
 
 @inline viscosity_model(system::FluidSystem) = system.viscosity
 
+include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("transport_velocity.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
