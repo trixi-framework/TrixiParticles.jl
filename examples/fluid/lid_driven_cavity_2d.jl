@@ -7,45 +7,52 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
-
-gravity = 0.0
-reynolds_number = 100.0
+# ==========================================================================================
+# ==== Resolution
 particle_spacing = 0.02
 
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 3
+spacing_ratio = 1
+
 # ==========================================================================================
-# ==== Fluid
+# ==== Experiment Setup
+tspan = (0.0, 5.0)
+reynolds_number = 100.0
 
-water_width = 1.0
-water_height = 1.0
-water_density = 1.0
+cavity_size = (1.0, 1.0)
 
-tank_width = 1.0
-tank_height = 1.0
+fluid_density = 1.0
 
 velocity_lid = 1.0
 sound_speed = 10 * velocity_lid
 
-pressure = sound_speed^2 * water_density
+pressure = sound_speed^2 * fluid_density
+
+viscosity = ViscosityAdami(; nu=velocity_lid / reynolds_number)
+
+cavity = RectangularTank(particle_spacing, cavity_size, cavity_size, fluid_density,
+                         n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                         faces=(true, true, true, false), pressure=pressure)
+
+lid_position = 0.0 - particle_spacing * boundary_layers
+lid_length = cavity.n_particles_per_dimension[1] + 2boundary_layers
+
+lid = RectangularShape(particle_spacing, (lid_length, 3),
+                       (lid_position, cavity_size[2]), fluid_density)
+
+# ==========================================================================================
+# ==== Fluid
 
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-nu = velocity_lid / reynolds_number
-viscosity = ViscosityAdami(nu)
-
-tank = RectangularTank(particle_spacing, (water_width, water_height),
-                       (tank_width, tank_height), water_density,
-                       n_layers=3, spacing_ratio=1, faces=(true, true, true, false),
-                       pressure=pressure)
+fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           transport_velocity=TransportVelocityAdami(pressure))
 
 # ==========================================================================================
-# ==== Lid
-
-lid_position = 0.0 - particle_spacing * 4
-lid_length = tank.n_particles_per_dimension[1] + 8
-
-lid = RectangularShape(particle_spacing, (lid_length, 3),
-                       (lid_position, water_height), water_density)
+# ==== Boundary
 
 f_y(t) = 0.0
 f_x(t) = velocity_lid * t
@@ -54,51 +61,36 @@ is_moving(t) = true
 
 movement = BoundaryMovement((f_x, f_y), is_moving)
 
-# ==========================================================================================
-# ==== Boundary models
-
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density,
-                                                  tank.boundary.mass,
-                                                  AdamiPressureExtrapolation(),
-                                                  viscosity=viscosity,
-                                                  smoothing_kernel, smoothing_length)
+boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
+                                                    cavity.boundary.mass,
+                                                    AdamiPressureExtrapolation(),
+                                                    viscosity=viscosity,
+                                                    smoothing_kernel, smoothing_length)
 
 boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
                                                  AdamiPressureExtrapolation(),
                                                  viscosity=viscosity,
                                                  smoothing_kernel, smoothing_length)
 
-# ==========================================================================================
-# ==== Systems
-
-fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
-                                           smoothing_length,
-                                           sound_speed,
-                                           viscosity=viscosity,
-                                           transport_velocity=TransportVelocityAdami(pressure),
-                                           acceleration=(0.0, gravity))
-
-boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
+boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
 
 boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=movement)
 
 # ==========================================================================================
 # ==== Simulation
-
-tspan = (0.0, 5.0)
-
-semi = Semidiscretization(fluid_system, boundary_system_tank, boundary_system_lid,
+bnd_thickness = boundary_layers * particle_spacing
+semi = Semidiscretization(fluid_system, boundary_system_cavity, boundary_system_lid,
                           neighborhood_search=GridNeighborhoodSearch,
-                          periodic_box_min_corner=[0.0 - 4 * particle_spacing, -0.24],
-                          periodic_box_max_corner=[1.0 + 4 * particle_spacing,
-                              1.0 + 4 * particle_spacing])
+                          periodic_box_min_corner=[-bnd_thickness, -bnd_thickness],
+                          periodic_box_max_corner=cavity_size .+
+                                                  [bnd_thickness, bnd_thickness])
 
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
 saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback, saving_callback, UpdateEachTimeStep())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
@@ -108,7 +100,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
 # become extremely large when fluid particles are very close to boundary particles,
 # and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49((step_limiter!)=TrixiParticles.update_transport_velocity!),
+sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing

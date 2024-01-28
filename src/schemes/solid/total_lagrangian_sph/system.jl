@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, B} <: System{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, B} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -235,6 +235,7 @@ end
 @inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
+
 @inline function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
@@ -266,7 +267,7 @@ end
 
 function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Precompute PK1 stress tensor
-    nhs = neighborhood_searches(system, system, semi)
+    nhs = get_neighborhood_search(system, semi)
     @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
 
     return system
@@ -410,19 +411,4 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
-end
-
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
-                                       particle_system,
-                                       neighbor_system::TotalLagrangianSPHSystem,
-                                       density_calculator)
-    (; boundary_model) = neighbor_system
-    (; smoothing_length) = particle_system
-
-    # Pressure acceleration for fluid-solid interaction. This is identical to
-    # `pressure_acceleration` for the `BoundarySPHSystem`.
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                 smoothing_length, grad_kernel, boundary_model,
-                                 density_calculator)
 end

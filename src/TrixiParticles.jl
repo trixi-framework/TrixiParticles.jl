@@ -5,7 +5,7 @@ using Reexport: @reexport
 using Dates
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
-using LinearAlgebra: normalize, dot, I, tr, cross
+using LinearAlgebra: normalize, dot, I, tr, cross, inv, pinv, det
 @reexport using LinearAlgebra: norm
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
@@ -46,7 +46,7 @@ export PenaltyForceGanzenmueller, TransportVelocityAdami
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
-export StateEquationIdealGas, StateEquationCole
+export StateEquationCole
 export ArtificialViscosityMonaghan, ViscosityAdami
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
@@ -58,7 +58,9 @@ export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
-export ShepardKernelCorrection, KernelGradientCorrection, AkinciFreeSurfaceCorrection
+export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
+       GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
+export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
 
 end # module

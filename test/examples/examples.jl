@@ -18,6 +18,22 @@
             @test sol.retcode == ReturnCode.Success
         end
 
+        @trixi_testset "fluid/rectangular_tank_3d.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_3d.jl"), tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+        end
+
+        @trixi_testset "fluid/rectangular_tank_3d.jl with SummationDensity" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "fluid",
+                                                "rectangular_tank_3d.jl"), tspan=(0.0, 0.1),
+                                       fluid_density_calculator=SummationDensity(),
+                                       clip_negative_pressure=true)
+            @test sol.retcode == ReturnCode.Success
+        end
+
         @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid",
@@ -158,6 +174,22 @@
         @trixi_testset "n_body/n_body_benchmark_reference_faster.jl" begin
             @test_nowarn trixi_include(joinpath(examples_dir(), "n_body",
                                                 "n_body_benchmark_reference_faster.jl"))
+        end
+    end
+
+    @testset verbose=true "Postprocessing" begin
+        @trixi_testset "postprocessing/interpolation_plane.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "postprocessing",
+                                                "interpolation_plane.jl"),
+                                       tspan=(0.0, 0.01))
+            @test sol.retcode == ReturnCode.Success
+        end
+        @trixi_testset "postprocessing/interpolation_point_line.jl" begin
+            @test_nowarn trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "postprocessing",
+                                                "interpolation_point_line.jl"))
+            @test sol.retcode == ReturnCode.Success
         end
     end
 end

@@ -13,7 +13,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref).
 
 # Keyword Arguments
 - `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
@@ -25,26 +25,28 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, TV, B,
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, PF, TV, B,
                                    C} <: FluidSystem{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    viscosity          :: V
-    density_diffusion  :: DD
-    correction         :: COR
-    transport_velocity :: TV
-    buffer             :: B
-    cache              :: C
+    initial_condition                 :: InitialCondition{ELTYPE}
+    mass                              :: Array{ELTYPE, 1} # [particle]
+    pressure                          :: Array{ELTYPE, 1} # [particle]
+    density_calculator                :: DC
+    state_equation                    :: SE
+    smoothing_kernel                  :: K
+    smoothing_length                  :: ELTYPE
+    acceleration                      :: SVector{NDIMS, ELTYPE}
+    viscosity                         :: V
+    density_diffusion                 :: DD
+    correction                        :: COR
+    pressure_acceleration_formulation :: PF
+    transport_velocity                :: TV
+    buffer                            :: B
+    cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
+                                         pressure_acceleration=nothing,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          transport_velocity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
@@ -75,6 +77,11 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
+        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                         density_calculator,
+                                                                         NDIMS, ELTYPE,
+                                                                         correction)
+
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
@@ -82,23 +89,37 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(transport_velocity), typeof(buffer),
+                   typeof(correction), typeof(pressure_acceleration),
+                   typeof(transport_velocity), typeof(buffer),
                    typeof(cache)}(initial_condition, mass, pressure, density_calculator,
                                   state_equation, smoothing_kernel, smoothing_length,
                                   acceleration_, viscosity, density_diffusion, correction,
-                                  transport_velocity, buffer, cache)
+                                  pressure_acceleration, transport_velocity, buffer, cache)
     end
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_wcsph(::ShepardKernelCorrection, density, NDIMS, n_particles)
-    (; kernel_correction_coefficient=similar(density))
+    return (; kernel_correction_coefficient=similar(density))
 end
 
-function create_cache_wcsph(::KernelGradientCorrection, density, NDIMS, n_particles)
+function create_cache_wcsph(::KernelCorrection, density, NDIMS, n_particles)
     dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    (; kernel_correction_coefficient=similar(density), dw_gamma)
+    return (; kernel_correction_coefficient=similar(density), dw_gamma)
+end
+
+function create_cache_wcsph(::Union{GradientCorrection, BlendedGradientCorrection}, density,
+                            NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+    return (; correction_matrix)
+end
+
+function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_particles)
+    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
+    correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
+
+    return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
 function create_cache_wcsph(n_particles, ELTYPE, ::SummationDensity)
@@ -168,17 +189,13 @@ end
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
-@inline function initial_velocity(system::WeaklyCompressibleSPHSystem, particle)
-    initial_velocity(system, particle, nothing)
-end
-
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    (; density_calculator, density_diffusion) = system
+    (; density_calculator, density_diffusion, correction) = system
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
-    nhs = neighborhood_searches(system, system, semi)
+    nhs = get_neighborhood_search(system, semi)
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
                                                              system, semi)
 
@@ -200,8 +217,11 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system, v, u, v_ode, u_ode, semi,
-                               density_calculator, correction)
+    compute_correction_values!(system,
+                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+
+    compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
+
     # `kernel_correct_density!` only performed for `SummationDensity`
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
@@ -210,15 +230,35 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     return system
 end
 
-function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
-                                 correction, density_calculator)
+function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
+                                 semi, correction, density_calculator)
     return system
 end
 
-function kernel_correct_density!(system, v, u, v_ode, u_ode, semi,
-                                 ::Union{ShepardKernelCorrection, KernelGradientCorrection},
-                                 ::SummationDensity)
+function kernel_correct_density!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode,
+                                 semi, corr::ShepardKernelCorrection, ::SummationDensity)
     system.cache.density ./= system.cache.kernel_correction_coefficient
+end
+
+function compute_gradient_correction_matrix!(correction,
+                                             system::WeaklyCompressibleSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    return system
+end
+
+function compute_gradient_correction_matrix!(corr::Union{GradientCorrection,
+                                                         BlendedGradientCorrection,
+                                                         MixedKernelGradientCorrection},
+                                             system::WeaklyCompressibleSPHSystem, u,
+                                             v_ode, u_ode, semi)
+    (; cache, correction, smoothing_kernel, smoothing_length) = system
+    (; correction_matrix) = cache
+
+    system_coords = current_coordinates(u, system)
+
+    compute_gradient_correction_matrix!(correction_matrix, system, system_coords,
+                                        v_ode, u_ode, semi, correction, smoothing_length,
+                                        smoothing_kernel)
 end
 
 function reinit_density!(vu_ode, semi)
@@ -255,11 +295,17 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(system, v)
-    (; state_equation, pressure) = system
-
-    @trixi_timeit timer() "state equation" @threaded for particle in eachparticle(system)
-        pressure[particle] = state_equation(particle_density(v, system, particle))
+    @threaded for particle in eachparticle(system)
+        apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
+end
+
+# Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function apply_state_equation!(system::WeaklyCompressibleSPHSystem, density,
+                                       particle)
+    system.pressure[particle] = system.state_equation(density)
 end
 
 function write_v0!(v0, system::WeaklyCompressibleSPHSystem)
@@ -318,4 +364,8 @@ end
     return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
                                  system.smoothing_length,
                                  system.correction, system, particle)
+end
+
+@inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
+    extract_smatrix(system.cache.correction_matrix, system, particle)
 end

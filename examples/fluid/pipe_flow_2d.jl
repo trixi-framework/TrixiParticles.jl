@@ -18,27 +18,25 @@ open_boundary_cols = 5
 tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
-domain_length = 1.0
-domain_width = 0.4
+domain_size = (1.0, 0.4)
 reynolds_number = 100
 
-particle_spacing = domain_length_factor * domain_length
+particle_spacing = domain_length_factor * domain_size[1]
+
+boundary_size = (domain_size[1] + particle_spacing * open_boundary_cols, domain_size[2])
 
 fluid_density = 1000.0
 pressure = wcsph ? 10_000.0 : 100_000.0
 
-prescribed_velocity = (4.0, 0.0)
+prescribed_velocity = [4.0, 0.0]
 
 sound_speed = 10 * maximum(prescribed_velocity)
 
-pipe = RectangularTank(particle_spacing, (domain_length, domain_width),
-                       (domain_length + particle_spacing * open_boundary_cols,
-                        domain_width), fluid_density, pressure=pressure,
-                       loop_order_fluid=:x_first,
-                       #init_velocity=prescribed_velocity,
-                       n_layers=3, spacing_ratio=1, faces=(false, false, true, true))
+pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
+                       pressure=pressure, n_layers=3, spacing_ratio=1,
+                       faces=(false, false, true, true))
 
-n_particles_y = Int(floor(domain_width / particle_spacing))
+n_particles_y = Int(floor(domain_size[2] / particle_spacing))
 n_buffer_particles = 4 * n_particles_y
 
 # ==========================================================================================
@@ -56,7 +54,7 @@ if wcsph
                                                smoothing_length, viscosity=viscosity,
                                                buffer=n_buffer_particles)
 else
-    nu = maximum(prescribed_velocity) * domain_length / reynolds_number
+    nu = maximum(prescribed_velocity) * domain_size[1] / reynolds_number
     viscosity = ViscosityAdami(; nu) #alpha * smoothing_length * sound_speed / 8)
 
     fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel,
@@ -68,38 +66,35 @@ end
 # ==========================================================================================
 # ==== Open Boundary
 open_boundary_length = particle_spacing * open_boundary_cols
-open_boundary_size = (open_boundary_length, domain_width)
+open_boundary_size = (open_boundary_length, domain_size[2])
 
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
                          fluid_density; n_layers=boundary_layers,
-                         init_velocity=prescribed_velocity, pressure=pressure,
+                         velocity=prescribed_velocity, pressure=pressure,
                          min_coordinates=(-open_boundary_length, 0.0),
-                         spacing_ratio=spacing_ratio,
-                         loop_order_fluid=:x_first,
-                         faces=(false, false, true, true))
+                         spacing_ratio=spacing_ratio, faces=(false, false, true, true))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
-                          fluid_density; n_layers=boundary_layers,
-                          loop_order_fluid=:x_first, pressure=pressure,
-                          min_coordinates=(domain_length, 0.0), spacing_ratio=spacing_ratio,
+                          fluid_density; n_layers=boundary_layers, pressure=pressure,
+                          min_coordinates=(domain_size[1], 0.0),
+                          spacing_ratio=spacing_ratio,
                           faces=(false, false, true, true))
 
 open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
                                          flow_direction=(1.0, 0.0),
                                          zone_width=open_boundary_length,
                                          zone_plane_min_corner=[0.0, 0.0],
-                                         zone_plane_max_corner=[0.0, domain_width],
+                                         zone_plane_max_corner=[0.0, domain_size[2]],
                                          buffer=n_buffer_particles)
 
-v_x(p, t) = prescribed_velocity[1]
-v_y(p, t) = prescribed_velocity[2]
+velocity_function(pos, t) = prescribed_velocity
 
 open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
                                           flow_direction=(1.0, 0.0),
-                                          velocity_function=(v_x, v_y),
+                                          velocity_function=velocity_function,
                                           zone_width=open_boundary_length,
-                                          zone_plane_min_corner=[domain_length, 0.0],
-                                          zone_plane_max_corner=[domain_length,
-                                              domain_width],
+                                          zone_plane_min_corner=[domain_size[1], 0.0],
+                                          zone_plane_max_corner=[domain_size[1],
+                                              domain_size[2]],
                                           buffer=n_buffer_particles)
 
 # ==========================================================================================

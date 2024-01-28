@@ -41,7 +41,7 @@
                         sphere_type=RoundSphere(),
                         n_layers=3, layer_outwards=true),
             SphereShape(particle_spacing, radius, (3.0, -4), 1000.0,
-                        sphere_type=RoundSphere(start_angle=π, end_angle=1.5π),
+                        sphere_type=RoundSphere(start_angle=pi, end_angle=1.5pi),
                         n_layers=3, layer_outwards=true),
         ]
 

@@ -142,7 +142,15 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function neighborhood_searches(system, neighbor_system, semi)
+@inline function get_neighborhood_search(system, semi)
+    (; neighborhood_searches) = semi
+
+    system_index = system_indices(system, semi)
+
+    return neighborhood_searches[system_index][system_index]
+end
+
+@inline function get_neighborhood_search(system, neighbor_system, semi)
     (; neighborhood_searches) = semi
 
     system_index = system_indices(system, semi)
@@ -164,7 +172,9 @@ end
 end
 
 # This is just for readability to loop over all systems without allocations
-@inline foreach_system(f, semi) = foreach_noalloc(f, semi.systems)
+@inline foreach_system(f, semi::Union{NamedTuple, Semidiscretization}) = foreach_noalloc(f,
+                                                                                         semi.systems)
+@inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
 """
     semidiscretize(semi, tspan)
@@ -174,8 +184,7 @@ Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 function semidiscretize(semi, tspan; reset_threads=true)
     (; systems) = semi
 
-    @assert all(system -> eltype(system) === eltype(systems[1]),
-                systems)
+    @assert all(system -> eltype(system) === eltype(systems[1]), systems)
     ELTYPE = eltype(systems[1])
 
     # Optionally reset Polyester.jl threads. See
@@ -189,17 +198,15 @@ function semidiscretize(semi, tspan; reset_threads=true)
     @trixi_timeit timer() "initialize particle systems" begin
         foreach_system(semi) do system
             # Get the neighborhood search for this system
-            neighborhood_search = neighborhood_searches(system, system, semi)
+            neighborhood_search = get_neighborhood_search(system, semi)
 
             # Initialize this system
             initialize!(system, neighborhood_search)
         end
     end
 
-    sizes_u = (u_nvariables(system) * n_moving_particles(system)
-               for system in systems)
-    sizes_v = (v_nvariables(system) * n_moving_particles(system)
-               for system in systems)
+    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
+    sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
@@ -235,8 +242,8 @@ function restart_with!(semi, sol; reset_threads=true)
     end
 
     foreach_system(semi) do system
-        v = wrap_v(sol[end].x[1], system, semi)
-        u = wrap_u(sol[end].x[2], system, semi)
+        v = wrap_v(sol.u[end].x[1], system, semi)
+        u = wrap_u(sol.u[end].x[2], system, semi)
 
         restart_with!(system, v, u)
     end
@@ -366,7 +373,7 @@ function update_nhs(u_ode, semi)
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
             u_neighbor = wrap_u(u_ode, neighbor, semi)
-            neighborhood_search = neighborhood_searches(system, neighbor, semi)
+            neighborhood_search = get_neighborhood_search(system, neighbor, semi)
 
             update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
         end
@@ -439,7 +446,7 @@ end
 
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
-# dv_ode, du_ode = copy(sol[end]).x; v_ode, u_ode = copy(sol[end]).x;
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
 @inline function interact!(dv_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
     dv = wrap_v(dv_ode, system, semi)
@@ -448,7 +455,7 @@ end
 
     v_neighbor = wrap_v(v_ode, neighbor, semi)
     u_neighbor = wrap_u(u_ode, neighbor, semi)
-    nhs = neighborhood_searches(system, neighbor, semi)
+    nhs = get_neighborhood_search(system, neighbor, semi)
 
     @trixi_timeit timer() timer_str begin
         interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)

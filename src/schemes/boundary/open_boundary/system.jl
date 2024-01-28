@@ -204,7 +204,7 @@ update_transport_velocity!(system::OpenBoundarySPHSystem, v_ode, semi) = system
     (; interior_system, volume, sound_speed, characteristics, velocity_function,
     previous_characteristics, flow_direction, boundary_zone) = system
 
-    system_interior_nhs = neighborhood_searches(system, interior_system, semi)
+    system_interior_nhs = get_neighborhood_search(system, interior_system, semi)
 
     u_interior = wrap_u(u_ode, interior_system, semi)
     v_interior = wrap_v(v_ode, interior_system, semi)
@@ -338,7 +338,7 @@ end
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone, interior_system) = system
 
-    neighborhood_search = neighborhood_searches(system, interior_system, semi)
+    neighborhood_search = get_neighborhood_search(system, interior_system, semi)
 
     u_interior = wrap_u(u_ode, interior_system, semi)
     v_interior = wrap_v(v_ode, interior_system, semi)
@@ -463,7 +463,7 @@ function write_v0!(v0, system::OpenBoundarySPHSystem)
 end
 
 function reference_velocity(system::OpenBoundarySPHSystem, velocity_function, position, t)
-    return SVector(ntuple(i -> velocity_function[i](position, t), Val(ndims(system))))
+    return SVector{ndims(system)}(velocity_function(position, t))
 end
 
 function reference_velocity(system::OpenBoundarySPHSystem, ::Nothing, position, t)

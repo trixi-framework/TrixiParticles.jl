@@ -1,5 +1,3 @@
-abstract type System{NDIMS} end
-
 initialize!(system, neighborhood_search) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
@@ -62,14 +60,6 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
-@inline function initial_velocity(system, particle)
-    initial_velocity(system, particle, system.initial_velocity_function)
-end
-
-@inline function initial_velocity(system, particle, ::Nothing)
-    return extract_svector(system.initial_condition.velocity, system, particle)
-end
-
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
 @inline function current_acceleration(system, particle)
@@ -89,6 +79,12 @@ end
 
 @inline function smoothing_kernel_grad(system, pos_diff, distance)
     return kernel_grad(system.smoothing_kernel, pos_diff, distance, system.smoothing_length)
+end
+
+@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance)
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    return kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
 end
 
 # This is dispatched for some system types

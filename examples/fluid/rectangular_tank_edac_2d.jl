@@ -19,10 +19,7 @@ initial_fluid_size = (2.0, 0.9)
 tank_size = (2.0, 1.0)
 
 fluid_density = 1000.0
-atmospheric_pressure = 100000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -33,7 +30,6 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
 alpha = 0.02
 viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
 
@@ -45,7 +41,6 @@ fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothi
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
 

@@ -31,6 +31,7 @@ allocate_buffer(initial_condition, buffer) = initial_condition
 
 function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
+    NDIMS = ndims(initial_condition)
 
     coordinates = inv(eps()) * ones(ndims(initial_condition), buffer_size)
     velocities = zeros(eltype(initial_condition), ndims(initial_condition), buffer_size)
@@ -39,8 +40,8 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     pressure = initial_condition.pressure[1] * ones(buffer_size)
     particle_spacing = initial_condition.particle_spacing
 
-    buffer_ic = InitialCondition(coordinates, velocities, masses, densities,
-                                 pressure=pressure, particle_spacing=particle_spacing)
+    buffer_ic = InitialCondition{NDIMS}(coordinates, velocities, masses, densities,
+                                        pressure, particle_spacing)
     return union(initial_condition, buffer_ic)
 end
 
