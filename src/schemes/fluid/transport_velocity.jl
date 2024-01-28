@@ -45,10 +45,6 @@ function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
     return v0
 end
 
-@inline function add_velocity!(du, v, particle, system::FluidSystem)
-    add_velocity!(du, v, particle, system, system.transport_velocity)
-end
-
 # Add momentum velocity.
 @inline function add_velocity!(du, v, particle, system, ::Nothing)
     for i in 1:ndims(system)
@@ -69,21 +65,6 @@ end
 
 @inline function advection_velocity(v, system, particle)
     return SVector(ntuple(@inline(dim->v[ndims(system) + dim, particle]), ndims(system)))
-end
-
-@inline function momentum_convection(system, neighbor_system,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
-end
-
-@inline function momentum_convection(system::FluidSystem,
-                                     neighbor_system::FluidSystem,
-                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
-                                     m_a, m_b, particle, neighbor, grad_kernel)
-    momentum_convection(system, neighbor_system, system.transport_velocity,
-                        v_particle_system, v_neighbor_system, rho_a, rho_b,
-                        m_a, m_b, particle, neighbor, grad_kernel)
 end
 
 @inline function momentum_convection(system, neighbor_system, ::Nothing,
@@ -155,7 +136,6 @@ set_transport_velocity!(system, particle, particle_old, v, v_old, ::Nothing) = s
 function set_transport_velocity!(system, particle, particle_old, v, v_old,
                                  ::TransportVelocityAdami)
     for i in 1:ndims(system)
-        system.cache.advection_velocity[i, particle] = v_old[i, particle_old]
         v[ndims(system) + i, particle] = v_old[i, particle_old]
     end
 end

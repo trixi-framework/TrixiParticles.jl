@@ -86,9 +86,10 @@ open_boundary_size = (pipe_size[1], open_boundary_length)
 zone_origin_in = (0.0, -open_boundary_length)
 zone_origin_out = (pipe_radius + pipe_radius_inner, 0.0)
 
+velocity_function_in(pos, t) = prescribed_velocity
+
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
-                         fluid_density; n_layers=boundary_layers,
-                         init_velocity=prescribed_velocity, pressure=pressure,
+                         fluid_density; n_layers=boundary_layers, pressure=pressure,
                          min_coordinates=(0.0, -open_boundary_length),
                          spacing_ratio=spacing_ratio, faces=(true, true, false, false))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
@@ -103,6 +104,7 @@ zone_plane_out = ([pipe_radius + pipe_radius_inner; -open_boundary_length],
 
 open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
                                          flow_direction=(0.0, 1.0),
+                                         velocity_function=velocity_function_in,
                                          zone_width=open_boundary_length,
                                          zone_plane_min_corner=[0.0, 0.0],
                                          zone_plane_max_corner=[pipe_size[1], 0.0],
@@ -110,12 +112,13 @@ open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
 
 zone_plane_min_corner = [pipe_radius + pipe_radius_inner, 0.0]
 zone_plane_max_corner = [pipe_radius + pipe_radius_inner + pipe_size[1], 0.0]
-v_x(position, t) = prescribed_velocity[1]
-v_y_out(position, t) = -prescribed_velocity[2]
+
+# Outflow is in the exact opposite direction
+velocity_function_out(pos, t) = prescribed_velocity .* [1.0, -1.0]
 
 open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
                                           flow_direction=(0.0, -1.0),
-                                          velocity_function=(v_x, v_y_out),
+                                          velocity_function=velocity_function_out,
                                           zone_width=open_boundary_length,
                                           zone_plane_min_corner=zone_plane_min_corner,
                                           zone_plane_max_corner=zone_plane_max_corner,

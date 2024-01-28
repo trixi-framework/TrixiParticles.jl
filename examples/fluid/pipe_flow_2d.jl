@@ -28,7 +28,7 @@ boundary_size = (domain_size[1] + particle_spacing * open_boundary_cols, domain_
 fluid_density = 1000.0
 pressure = wcsph ? 10_000.0 : 100_000.0
 
-prescribed_velocity = [4.0, 0.0]
+prescribed_velocity = [1.5, 0.0]
 
 sound_speed = 10 * maximum(prescribed_velocity)
 
@@ -69,8 +69,7 @@ open_boundary_length = particle_spacing * open_boundary_cols
 open_boundary_size = (open_boundary_length, domain_size[2])
 
 inflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
-                         fluid_density; n_layers=boundary_layers,
-                         velocity=prescribed_velocity, pressure=pressure,
+                         fluid_density; n_layers=boundary_layers, pressure=pressure,
                          min_coordinates=(-open_boundary_length, 0.0),
                          spacing_ratio=spacing_ratio, faces=(false, false, true, true))
 outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_size,
@@ -79,14 +78,19 @@ outflow = RectangularTank(particle_spacing, open_boundary_size, open_boundary_si
                           spacing_ratio=spacing_ratio,
                           faces=(false, false, true, true))
 
+#function velocity_function(pos, t)
+#    return 0.5 .* prescribed_velocity .* sin(2pi * t) .+ prescribed_velocity
+#end
+
+velocity_function(pos, t) = prescribed_velocity
+
 open_boundary_in = OpenBoundarySPHSystem(inflow.fluid, InFlow(), fluid_system,
                                          flow_direction=(1.0, 0.0),
+                                         velocity_function=velocity_function,
                                          zone_width=open_boundary_length,
                                          zone_plane_min_corner=[0.0, 0.0],
                                          zone_plane_max_corner=[0.0, domain_size[2]],
                                          buffer=n_buffer_particles)
-
-velocity_function(pos, t) = prescribed_velocity
 
 open_boundary_out = OpenBoundarySPHSystem(outflow.fluid, OutFlow(), fluid_system,
                                           flow_direction=(1.0, 0.0),
