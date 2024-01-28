@@ -135,7 +135,10 @@ struct InitialCondition{ELTYPE}
             pressures = pressure
         else
             pressure_fun = wrap_function(pressure, Val(NDIMS))
-            pressures = pressure_fun.(coordinates_svector)
+            pressures = stack((pressure_fun.(coordinates_svector)))
+            if !isa(pressures, Vector)
+                pressures = pressures[findfirst(p -> abs(p) > eps(), pressures)[1], :]
+            end
         end
 
         if mass isa AbstractVector

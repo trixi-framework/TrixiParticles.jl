@@ -25,9 +25,17 @@ sound_speed = 10U
 
 b = -8pi^2 / reynolds_number
 
-p(pos, t) = -U^2 * exp(2 * b * t) * (cos(4pi * pos[1]) + cos(4pi * pos[2])) / 4
-p0(pos) = p(pos, 0.0)
+# Pressure function
+function pressure_function(pos, t)
+    x = pos[1]
+    y = pos[2]
 
+    return -U^2 * exp(2 * b * t) * (cos(4pi * x) + cos(4pi * y)) / 4
+end
+
+initial_pressure_function(pos) = pressure_function(pos, 0.0)
+
+# Velocity function
 function velocity_function(pos, t)
     x = pos[1]
     y = pos[2]
@@ -37,7 +45,7 @@ function velocity_function(pos, t)
     return SVector{2}(vel)
 end
 
-v0(pos) = velocity_function(pos, 0.0)
+initial_velocity_function(pos) = velocity_function(pos, 0.0)
 
 n_particles_xy = round(Int, box_length / particle_spacing)
 
@@ -51,7 +59,8 @@ smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
-                         density=fluid_density, pressure=p0, velocity=v0)
+                         density=fluid_density, pressure=initial_pressure_function,
+                         velocity=initial_velocity_function)
 
 # Add small random displacement to the particles to avoid stagnant streamlines.
 #seed!(42);
@@ -104,7 +113,7 @@ function compute_L1p_error(v, u, t, system)
         position = TrixiParticles.current_coords(u, system, particle)
 
         # compute pressure error
-        p_analytical = p(position, t)
+        p_analytical = pressure_function(position, t)
         p_max_exact = max(p_max_exact, abs(p_analytical))
 
         # p_computed - p_average
