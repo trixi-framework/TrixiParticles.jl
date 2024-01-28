@@ -37,3 +37,25 @@ include("viscosity.jl")
 include("transport_velocity.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
+
+@inline function add_velocity!(du, v, particle,
+                               system::Union{EntropicallyDampedSPHSystem,
+                                             WeaklyCompressibleSPHSystem})
+    add_velocity!(du, v, particle, system, system.transport_velocity)
+end
+
+@inline function momentum_convection(system, neighbor_system,
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function momentum_convection(system,
+                                     neighbor_system::Union{EntropicallyDampedSPHSystem,
+                                                            WeaklyCompressibleSPHSystem},
+                                     v_particle_system, v_neighbor_system, rho_a, rho_b,
+                                     m_a, m_b, particle, neighbor, grad_kernel)
+    momentum_convection(system, neighbor_system, system.transport_velocity,
+                        v_particle_system, v_neighbor_system, rho_a, rho_b,
+                        m_a, m_b, particle, neighbor, grad_kernel)
+end
