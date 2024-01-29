@@ -36,17 +36,17 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
        FluidSystem{NDIMS}
-    initial_condition         :: InitialCondition{ELTYPE}
-    mass                      :: Array{ELTYPE, 1} # [particle]
-    density                   :: Array{ELTYPE, 1} # [particle]
-    density_calculator        :: DC
-    smoothing_kernel          :: K
-    smoothing_length          :: ELTYPE
-    sound_speed               :: ELTYPE
-    viscosity                 :: V
-    nu_edac                   :: ELTYPE
-    acceleration              :: SVector{NDIMS, ELTYPE}
-    source_terms              :: ST
+    initial_condition  :: InitialCondition{ELTYPE}
+    mass               :: Array{ELTYPE, 1} # [particle]
+    density            :: Array{ELTYPE, 1} # [particle]
+    density_calculator :: DC
+    smoothing_kernel   :: K
+    smoothing_length   :: ELTYPE
+    sound_speed        :: ELTYPE
+    viscosity          :: V
+    nu_edac            :: ELTYPE
+    acceleration       :: SVector{NDIMS, ELTYPE}
+    source_terms       :: ST
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
