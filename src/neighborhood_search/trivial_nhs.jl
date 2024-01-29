@@ -1,3 +1,8 @@
+@doc raw"""
+    TrivialNeighborhoodSearch{NDIMS}(search_radius, eachparticle)
+
+Trivial neighborhood search that simply loops over all particles.
+"""
 struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}
     search_radius :: ELTYPE
     eachparticle  :: EP
