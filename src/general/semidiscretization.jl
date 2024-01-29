@@ -425,6 +425,8 @@ end
 
     source = source_terms_(coords, velocity, density, pressure)
 
+    # Loop over `eachindex(source)`, so that users could also pass source terms for
+    # the density when using `ContinuityDensity`.
     for i in eachindex(source)
         dv[i, particle] += source[i]
     end
