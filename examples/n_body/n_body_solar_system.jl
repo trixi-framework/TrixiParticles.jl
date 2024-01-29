@@ -23,7 +23,7 @@ masses = [
     1.99e30, 3.30e23, 4.87e24, 5.97e24, 6.42e23, 1.90e27, 5.68e26, 8.68e25, 1.02e26,
 ]
 
-initial_condition = InitialCondition(; coordinates, velocity, density=0.0, mass=masses)
+initial_condition = InitialCondition(; coordinates, velocity, density=1.0, mass=masses)
 
 G = 6.6743e-11
 particle_system = NBodySystem(initial_condition, G)
@@ -31,7 +31,7 @@ particle_system = NBodySystem(initial_condition, G)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(particle_system)
+semi = Semidiscretization(particle_system, neighborhood_search=nothing)
 
 day = 24 * 3600.0
 year = 365day
