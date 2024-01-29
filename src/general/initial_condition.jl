@@ -126,6 +126,10 @@ struct InitialCondition{ELTYPE}
             densities = density_fun.(coordinates_svector)
         end
 
+        if any(densities .< eps())
+            throw(ArgumentError("density must be positive and larger than `eps()`"))
+        end
+
         if pressure isa AbstractVector
             if length(pressure) != n_particles
                 throw(ArgumentError("Expected: length(pressure) == size(coordinates, 2)\n" *

@@ -53,12 +53,13 @@ export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerr
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
        PressureMirroring, PressureZeroing
 export BoundaryMovement
-export GridNeighborhoodSearch
+export GridNeighborhoodSearch, TrivialNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export WindingNumberHorman, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!
+export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
