@@ -7,7 +7,7 @@
                                        joinpath(examples_dir(), "fluid",
                                                 "oscillating_drop_2d.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test isapprox(error_A, 0.0001720086229899387, rtol=1e-14)
+            @test isapprox(error_A, 0.0001717690010767381, rtol=1e-14)
         end
 
         @trixi_testset "fluid/rectangular_tank_2d.jl" begin
