@@ -10,7 +10,8 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+H = 0.6
+fluid_particle_spacing = H / 40
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -21,14 +22,14 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 5.7 / sqrt(gravity))
+tspan = (0.0, 5.7 / sqrt(gravity / H))
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 1.0)
-tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+initial_fluid_size = (2H, H)
+tank_size = (floor(5.366H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
 
 fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 40 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
@@ -38,13 +39,12 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.0 * fluid_particle_spacing
-smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_length = 1.32 * fluid_particle_spacing
+smoothing_kernel = GaussianKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -68,8 +68,13 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
+function time_scaled(v, u, t, system)
+    return t * sqrt(gravity / H)
+end
+
 info_callback = InfoCallback(interval=250)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
+                                         time_scaled=time_scaled)
 
 use_reinit = false
 density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
