@@ -21,9 +21,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0
-        distance < sqrt(eps()) && return
-
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = 0.5 * (rho_a + rho_b)
@@ -38,13 +35,20 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        p_a = particle_pressure(v_particle_system, particle_system, particle)
-        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        # The following call is equivalent to
+        #     `p_a = particle_pressure(v_particle_system, particle_system, particle)`
+        #     `p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)`
+        # Only when the neighbor system is a `BoundarySPHSystem` or a `TotalLagrangianSPHSystem`
+        # with the boundary model `PressureMirroring`, this will return `p_b = p_a`, which is
+        # the pressure of the fluid particle.
+        p_a, p_b = particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                              particle_system, neighbor_system,
+                                              particle, neighbor)
 
-        dv_pressure = pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                            rho_a, rho_b, pos_diff, grad_kernel,
-                                            particle_system, neighbor_system,
-                                            density_calculator)
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, pressure_correction,
+                                            correction)
 
         dv_viscosity = viscosity_correction *
                        viscosity(particle_system, neighbor_system,
@@ -58,6 +62,7 @@ function interact!(dv, v_particle_system, u_particle_system,
             # debug_array[i, particle] += dv_pressure[i]
         end
 
+        # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
         continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
@@ -72,36 +77,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     return dv
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, grad_kernel,
-                                       particle_system, neighbor_system,
-                                       density_calculator)
-
-    # By default, just call the pressure acceleration formulation corresponding to the density calculator
-    return pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                 grad_kernel, density_calculator)
-end
-
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with `ContinuityDensity` with the formulation `\rho_a * \sum m_b / \rho_b ...`.
-# This can also be seen in the tests for total energy conservation, which fail with the
-# other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                       grad_kernel, ::ContinuityDensity)
-    return (-m_b * (p_a + p_b) / (rho_a * rho_b) * grad_kernel) * pressure_correction
-end
-
-# As shown in "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic
-# formulations" by Bonet and Lok (1999), for a consistent formulation this form has to be
-# used with `SummationDensity`.
-# This can also be seen in the tests for total energy conservation, which fail with the
-# other `pressure_acceleration` form.
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b, rho_a, rho_b,
-                                       grad_kernel, ::SummationDensity)
-    return (-m_b * (p_a / rho_a^2 + p_b / rho_b^2) * grad_kernel) * pressure_correction
-end
-
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
 @inline function continuity_equation!(dv, density_calculator::SummationDensity,
                                       v_particle_system, v_neighbor_system,
@@ -111,6 +86,7 @@ end
     return dv
 end
 
+# This formulation was chosen to be consistent with the used pressure_acceleration formulations.
 @inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
@@ -136,6 +112,9 @@ end
                                     particle_system::WeaklyCompressibleSPHSystem,
                                     neighbor_system::WeaklyCompressibleSPHSystem,
                                     grad_kernel)
+    # Density diffusion terms are all zero for distance zero
+    distance < sqrt(eps()) && return
+
     (; delta) = density_diffusion
     (; smoothing_length, state_equation) = particle_system
     (; sound_speed) = state_equation
@@ -156,4 +135,22 @@ end
                                     m_b, rho_a, rho_b,
                                     particle_system, neighbor_system, grad_kernel)
     return dv
+end
+
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system, neighbor_system,
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+    p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+
+    return p_a, p_b
+end
+
+@inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
+                                            particle_system,
+                                            neighbor_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{PressureMirroring}},
+                                            particle, neighbor)
+    p_a = particle_pressure(v_particle_system, particle_system, particle)
+
+    return p_a, p_a
 end
