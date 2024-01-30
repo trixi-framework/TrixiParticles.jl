@@ -21,6 +21,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
+scaled_gravity = 9.81/0.6
 tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Boundary geometry and initial fluid particle positions
@@ -28,13 +29,13 @@ initial_fluid_size = (2.0, 1.0)
 tank_size = (floor(5.366 / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
 
 fluid_density = 1000.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 20 * sqrt(scaled_gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, clip_negative_pressure=false)
+                                   exponent=1, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       acceleration=(0.0, -scaled_gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
@@ -43,14 +44,14 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+#density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity), correction=nothing)
+                                           acceleration=(0.0, -scaled_gravity), correction=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -71,12 +72,13 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=250)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+pp_callback = nothing
 
 use_reinit = false
 density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
                     nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
+callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb, pp_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.
@@ -85,7 +87,7 @@ callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing

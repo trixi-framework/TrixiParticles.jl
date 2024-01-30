@@ -139,9 +139,6 @@ dy_data.displacement = dy_data.displacement .- 0.001
 # Get the list of JSON files
 json_files = glob("oscillating_beam_2d_positions_*.json", ".")
 
-# Create subplots
-fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
-
 # Regular expressions for matching keys
 key_pattern_x = r"pos_x_\d+_solid_\d+"
 key_pattern_y = r"pos_y_\d+_solid_\d+"
@@ -158,6 +155,7 @@ function calculate_mse(reference_data, simulation_data)
     return mse
 end
 
+fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
 
 for json_file in json_files
     json_data = JSON.parsefile(json_file)

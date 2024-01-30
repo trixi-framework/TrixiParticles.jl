@@ -380,7 +380,7 @@ end
                 particle_velocity = current_velocity(v, system, particle)
                 interpolated_velocity += particle_velocity * (volume * kernel_value)
 
-                pressure = particle_pressure(v, system, particle)
+                pressure = max(0.0, particle_pressure(v, system, particle))
                 interpolated_pressure += pressure * (volume * kernel_value)
                 shepard_coefficient += volume * kernel_value
             else
