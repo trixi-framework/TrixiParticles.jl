@@ -29,7 +29,7 @@ initial_fluid_size = (2H, H)
 tank_size = (floor(5.366H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
 
 fluid_density = 1000.0
-sound_speed = 40 * sqrt(gravity * H)
+sound_speed = 20 * sqrt(gravity * H)
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
