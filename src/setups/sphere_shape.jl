@@ -86,10 +86,6 @@ function SphereShape(particle_spacing, radius, center_position, density;
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
 
-    if density < eps()
-        throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
-    end
-
     NDIMS = length(center_position)
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
@@ -306,7 +302,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
         n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
     end
 
-    # With less than 5 particles, this doesn't work properly
+    # With fewer than 5 particles, this doesn't work properly
     if n_particles < 5
         if n_particles == 4
             # Return tetrahedron
@@ -342,7 +338,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     #   In: Electronic Transactions on Numerical Analysis 25 (2006), pages 309-327.
     #   [http://eudml.org/doc/129860](http://eudml.org/doc/129860).
 
-    # This is the Θ function, which is only defined by Leopardi as the inverse of V, without
+    # This is the Θ function, which is defined by Leopardi only as the inverse of V, without
     # giving a closed formula.
     theta(v) = acos(1 - v / 2pi)
 
