@@ -32,7 +32,7 @@
                     coordinates = zeros(2, 3)
                     velocity = zeros(2, 3)
                     mass = zeros(3)
-                    density = zeros(3)
+                    density = ones(3)
                     state_equation = Val(:state_equation)
                     smoothing_kernel = Val(:smoothing_kernel)
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
@@ -48,19 +48,17 @@
                     system.pressure .= [0.0, p_a, p_b]
 
                     # Compute accelerations a -> b and b -> a
-                    dv1 = TrixiParticles.pressure_acceleration(1.0, m_b, p_a, p_b,
+                    dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                               m_a, m_b, p_a, p_b,
                                                                rho_a, rho_b, pos_diff,
-                                                               distance,
-                                                               grad_kernel, system, -1,
-                                                               system,
-                                                               density_calculator, nothing)
+                                                               distance, grad_kernel, 1.0,
+                                                               nothing)
 
-                    dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, p_b, p_a,
+                    dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                               m_b, m_a, p_b, p_a,
                                                                rho_b, rho_a, -pos_diff,
-                                                               distance,
-                                                               -grad_kernel, system, -1,
-                                                               system,
-                                                               density_calculator, nothing)
+                                                               distance, -grad_kernel, 1.0,
+                                                               nothing)
 
                     # Test that both forces are identical but in opposite directions
                     @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
