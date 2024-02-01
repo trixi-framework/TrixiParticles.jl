@@ -58,7 +58,7 @@ mutable struct PostprocessCallback{I, F}
 end
 
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-    output_directory="values", overwrite=true)
+                             output_directory="values", overwrite=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
