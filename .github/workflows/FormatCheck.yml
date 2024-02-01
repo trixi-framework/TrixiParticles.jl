@@ -9,6 +9,7 @@ on:
 
 jobs:
   check-format:
+    name: Check format with JuliaFormatter.jl
     runs-on: ubuntu-latest
     steps:
       - name: Check out project

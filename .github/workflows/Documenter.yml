@@ -22,6 +22,7 @@ concurrency:
 
 jobs:
   build-docs:
+    name: Build and Deploy Documentation
     runs-on: ubuntu-latest
     steps:
       - name: Check out project
