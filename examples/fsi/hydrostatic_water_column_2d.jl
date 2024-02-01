@@ -124,4 +124,9 @@ saving_callback = SolutionSavingCallback(dt=0.0005, prefix="", y_deflection=y_de
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
+sol = nothing#solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
+
+# The pseudostatic midpoint deflection of a 2-D plate:
+D = E*plate_size[2]^3/(12*(1-nu^2))
+analytical_sol = 0.0026 * gravity *
+                 (fluid_density * initial_fluid_size[2] + solid_density * plate_size[2]) / D
