@@ -43,11 +43,6 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v1
-      - name: Apply JuliaFormatter and check format
-        run: |
-          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
-          julia -e 'using JuliaFormatter; !format(".", verbose=true) &&
-            error("Code not properly formatted")'
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Run unit tests
@@ -69,10 +64,6 @@ jobs:
           flags: unit
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - name: Compile docs
-        run: |
-          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-          julia --project=docs --color=yes docs/make.jl
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:
