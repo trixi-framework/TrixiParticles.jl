@@ -20,10 +20,9 @@ initial_fluid_size = (2.0, 0.9)
 tank_size = (2.0, 1.0)
 
 fluid_density = 1000.0
-atmospheric_pressure = 100000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -110,8 +109,7 @@ solid_system_2 = TotalLagrangianSPHSystem(sphere2,
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_system_2,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_system_2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)

@@ -7,7 +7,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
 ```
 
-## State Equations
+## Equation of State
 
 TODO: Explain how WCSPH uses the state equation.
 
