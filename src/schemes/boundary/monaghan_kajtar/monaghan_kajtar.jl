@@ -50,7 +50,7 @@ identical to the density of the fluid particle.
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V} <: BoundaryModel
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
