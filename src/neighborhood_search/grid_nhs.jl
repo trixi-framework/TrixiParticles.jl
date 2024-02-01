@@ -1,7 +1,9 @@
 @doc raw"""
-    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
+                                  periodic_box_min_corner=nothing,
+                                  periodic_box_max_corner=nothing)
 
-Simple grid-based neighborhood search with uniform search radius ``d``.
+Simple grid-based neighborhood search with uniform search radius.
 The domain is divided into a regular grid.
 For each (non-empty) grid cell, a list of particles in this cell is stored.
 Instead of representing a finite domain by an array of cells, a potentially infinite domain
@@ -11,15 +13,49 @@ indexed by the cell index tuple
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor \right) \quad \text{or} \quad
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor, \left\lfloor \frac{z}{d} \right\rfloor \right),
 ```
-where ``x, y, z`` are the space coordinates.
+where ``x, y, z`` are the space coordinates and ``d`` is the search radius.
 
-To find particles within a radius around a point, only particles in the neighboring cells
-are considered.
+To find particles within the search radius around a point, only particles in the neighboring
+cells are considered.
 
 See also (Chalela et al., 2021), (Ihmsen et al. 2011, Section 4.4).
 
 As opposed to (Ihmsen et al. 2011), we do not sort the particles in any way,
-since that makes our implementation a lot faster (although less parallelizable).
+since not sorting makes our implementation a lot faster (although less parallelizable).
+
+# Arguments
+- `NDIMS`:          Number of dimensions.
+- `search_radius`:  The uniform search radius.
+- `n_particles`:    Total number of particles.
+
+# Keywords
+- `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in negative coordinate
+                                directions.
+- `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in positive coordinate
+                                directions.
+
+!!! warning "Internal use only"
+    Please note that this constructor is intended for internal use only. It is *not* part of
+    the public API of TrixiParticles.jl, and it thus can altered (or be removed) at any time
+    without it being considered a breaking change.
+
+    To run a simulation with this neighborhood search, just pass the type to the constructor
+    of [`Semidiscretization`](@ref):
+    ```julia
+    semi = Semidiscretization(system1, system2, system3,
+                              neighborhood_search=GridNeighborhoodSearch)
+    ```
+    The keyword arguments `periodic_box_min_corner` and `periodic_box_max_corner` explained
+    above can also be passed to the [`Semidiscretization`](@ref) and will internally be
+    forwarded to the neighborhood search:
+    ```julia
+    semi = Semidiscretization(system1, system2,
+                              neighborhood_search=GridNeighborhoodSearch,
+                              periodic_box_min_corner=[0.0, -0.25],
+                              periodic_box_max_corner=[1.0, 0.75]))
+    ```
 
 ## References:
 - M. Chalela, E. Sillero, L. Pereyra, M.A. Garcia, J.B. Cabral, M. Lares, M. Merchán.
