@@ -68,6 +68,8 @@ jobs:
           files: lcov.info
           fail_ci_if_error: true
           flags: unit
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Compile docs
         run: |
           julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
