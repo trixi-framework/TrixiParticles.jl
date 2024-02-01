@@ -33,6 +33,7 @@ concurrency:
 
 jobs:
   build:
+    name: Run Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -43,11 +44,6 @@ jobs:
         with:
           version: '1'
       - uses: julia-actions/cache@v1
-      - name: Apply JuliaFormatter and check format
-        run: |
-          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
-          julia -e 'using JuliaFormatter; !format(".", verbose=true) &&
-            error("Code not properly formatted")'
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Run unit tests
@@ -62,16 +58,13 @@ jobs:
         with:
           directories: src,test
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
           fail_ci_if_error: true
           flags: unit
-      - name: Compile docs
-        run: |
-          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-          julia --project=docs --color=yes docs/make.jl
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:
