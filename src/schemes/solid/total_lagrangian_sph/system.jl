@@ -4,7 +4,7 @@
                              young_modulus, poisson_ratio, boundary_model;
                              n_fixed_particles=0,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
-                             penalty_force=nothing)
+                             penalty_force=nothing, source_terms=nothing)
 
 System for particles of an elastic solid.
 
@@ -75,7 +75,7 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
   In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
   [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem{NDIMS}
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
@@ -94,13 +94,15 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    source_terms        :: ST
+
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
                                       young_modulus, poisson_ratio, boundary_model;
                                       n_fixed_particles=0,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
-                                      penalty_force=nothing)
+                                      penalty_force=nothing, source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -131,13 +133,14 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: SolidSystem
 
         return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
-                   typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass, correction_matrix,
-                                          pk1_corrected, deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu, smoothing_kernel,
-                                          smoothing_length, acceleration_, boundary_model,
-                                          penalty_force)
+                   typeof(penalty_force),
+                   typeof(source_terms)}(initial_condition, initial_coordinates,
+                                         current_coordinates, mass, correction_matrix,
+                                         pk1_corrected, deformation_grad, material_density,
+                                         n_moving_particles, young_modulus, poisson_ratio,
+                                         lame_lambda, lame_mu, smoothing_kernel,
+                                         smoothing_length, acceleration_, boundary_model,
+                                         penalty_force, source_terms)
     end
 end
 

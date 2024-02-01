@@ -77,15 +77,27 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
 end
 
 @inline function pressure_acceleration(particle_system,
-                                       neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                              SolidSystem{<:BoundaryModelMonaghanKajtar}},
+                                       neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
                                        pos_diff, distance, grad_kernel,
                                        pressure_correction, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
+    # This is `distance - boundary_particle_spacing` in the paper. This factor makes
+    # the force grow infinitely close to the boundary, with a singularity where
+    # `distance` = `boundary_particle_spacing`. However, when the time step is large
+    # enough for a particle to end up behind the singularity in a time integration stage,
+    # the force will switch sign and become smaller again.
+    #
+    # In order to avoid this, we clip the force at a "large" value, large enough to prevent
+    # penetration when a reasonable `K` is used, but small enough to not cause instabilites
+    # or super small time steps.
+    distance_from_singularity = max(0.01 * boundary_particle_spacing,
+                                    distance - boundary_particle_spacing)
+
     return K / beta^(ndims(particle_system) - 1) * pos_diff /
-           (distance * (distance - boundary_particle_spacing)) *
+           (distance * distance_from_singularity) *
            boundary_kernel(distance, particle_system.smoothing_length)
 end
 
