@@ -8,18 +8,23 @@ end
 
 """
     PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                        filename="values", overwrite=true)
+                        output_directory="values", overwrite=true)
 
 Create a callback for post-processing simulation data at regular intervals.
-This callback allows for the execution of a user-defined function `func` at specified intervals during the simulation. The function is applied to the current state of the simulation, and its results can be saved or used for further analysis.
+This callback allows for the execution of a user-defined function `func` at specified
+intervals during the simulation. The function is applied to the current state of the simulation,
+and its results can be saved or used for further analysis.
 
-The callback can be triggered either by a fixed number of time steps (`interval`) or by a fixed interval of simulation time (`dt`).
+The callback can be triggered either by a fixed number of time steps (`interval`) or by
+a fixed interval of simulation time (`dt`).
 
 # Keywords
-- `interval=0`: Specifies the number of time steps between each invocation of the callback. If set to `0`, the callback will not be triggered based on time steps.
-- `dt=0.0`: Specifies the simulation time interval between each invocation of the callback. If set to `0.0`, the callback will not be triggered based on simulation time.
+- `interval=0`: Specifies the number of time steps between each invocation of the callback.
+                If set to `0`, the callback will not be triggered based on time steps.
+- `dt=0.0`: Specifies the simulation time interval between each invocation of the callback.
+            If set to `0.0`, the callback will not be triggered based on simulation time.
 - `exclude_bnd=true`: If set to `true`, boundary particles will be excluded from the post-processing.
-- `filename="values"`: The filename or path where the results of the post-processing will be saved.
+- `output_directory="values"`: The filename or path where the results of the post-processing will be saved.
 - `overwrite=true`: If set to `true`, existing files with the same name as `filename` will be overwritten.
 
 # Behavior
@@ -28,20 +33,19 @@ The callback can be triggered either by a fixed number of time steps (`interval`
 - If `interval` is specified and greater than `0`, the callback will be triggered every `interval` time steps.
 
 # Usage
-The callback is designed to be used with simulation frameworks. The user-defined function `func` should take the current state of the simulation as input and return data for post-processing.
+The callback is designed to be used with simulation frameworks. The user-defined function
+`func` should take the current state of the simulation as input and return data for post-processing.
 
 # Examples
 ```julia
-# Define a custom post-processing function
-function my_postprocess_function(simulation_state)
-    # Custom processing code here
-end
+example_function = function(pp, t, system, u, v, system_name) println("test_func ", t) end
 
 # Create a callback that is triggered every 100 time steps
-postprocess_callback = PostprocessCallback(my_postprocess_function, interval=100)
+postprocess_callback = PostprocessCallback(example_function, interval=100)
 
 # Create a callback that is triggered every 0.1 simulation time units
-postprocess_callback = PostprocessCallback(my_postprocess_function, dt=0.1)
+postprocess_callback = PostprocessCallback(example_function, dt=0.1)
+```
 """
 mutable struct PostprocessCallback{I, F}
     interval::I
@@ -54,7 +58,7 @@ mutable struct PostprocessCallback{I, F}
 end
 
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                             filename="values", overwrite=true)
+    output_directory="values", overwrite=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -64,7 +68,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     end
 
     post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
-                                        exclude_bnd, func, filename, overwrite)
+                                        exclude_bnd, func, output_directory, overwrite)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -177,7 +181,7 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
-        if system isa BoundarySystem
+        if system isa BoundarySystem && pp.exclude_bnd
             return
         end
 
@@ -206,7 +210,7 @@ function prepare_series_data!(data, post_callback)
         data_times = [data.time for data in sorted_data_array]
         data_values = [data.value for data in sorted_data_array]
 
-        # Assuming each DataEntry in sorted_data_array has a `system` field.
+        # Assuming each DataEntry in `sorted_data_array` has a `system` field.
         system_name = isempty(sorted_data_array) ? "" : sorted_data_array[1].system
 
         data[key] = create_series_dict(data_values, data_times, system_name)
