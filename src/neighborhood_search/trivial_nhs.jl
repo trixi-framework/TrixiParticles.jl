@@ -46,16 +46,18 @@ struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}
     periodic_box  :: PB
 
     function TrivialNeighborhoodSearch{NDIMS}(search_radius, eachparticle;
-                                              min_corner=nothing,
-                                              max_corner=nothing) where {NDIMS}
-        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
+                                              periodic_box_min_corner=nothing,
+                                              periodic_box_max_corner=nothing) where {NDIMS}
+        if search_radius < eps() ||
+           (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
+
             # No periodicity
             periodic_box = nothing
-        elseif min_corner !== nothing && max_corner !== nothing
-            periodic_box = PeriodicBox(min_corner, max_corner)
+        elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
+            periodic_box = PeriodicBox(periodic_box_min_corner, periodic_box_max_corner)
         else
-            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
-                                "both `nothing` or both an array or tuple"))
+            throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
+                                "must either be both `nothing` or both an array or tuple"))
         end
 
         new{NDIMS, typeof(search_radius),

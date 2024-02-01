@@ -78,8 +78,8 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     cell_size           :: NTuple{NDIMS, ELTYPE}
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
-                                           min_corner=nothing,
-                                           max_corner=nothing) where {NDIMS}
+                                           periodic_box_min_corner=nothing,
+                                           periodic_box_max_corner=nothing) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -87,13 +87,15 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
+        if search_radius < eps() ||
+           (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
+
             # No periodicity
             periodic_box = nothing
             n_cells = ntuple(_ -> -1, Val(NDIMS))
             cell_size = ntuple(_ -> search_radius, Val(NDIMS))
-        elseif min_corner !== nothing && max_corner !== nothing
-            periodic_box = PeriodicBox(min_corner, max_corner)
+        elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
+            periodic_box = PeriodicBox(periodic_box_min_corner, periodic_box_max_corner)
 
             # Round up search radius so that the grid fits exactly into the domain without
             # splitting any cells. This might impact performance slightly, since larger
@@ -109,8 +111,8 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
                                     "Please use no NHS for very small problems."))
             end
         else
-            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
-                                "both `nothing` or both an array or tuple"))
+            throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
+                                "must either be both `nothing` or both an array or tuple"))
         end
 
         new{NDIMS, ELTYPE,
@@ -369,8 +371,8 @@ function copy_neighborhood_search(nhs::GridNeighborhoodSearch, search_radius, u)
         search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs))
     else
         search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs),
-                                                    min_corner=nhs.periodic_box.min_corner,
-                                                    max_corner=nhs.periodic_box.max_corner)
+                                                    periodic_box_min_corner=nhs.periodic_box.min_corner,
+                                                    periodic_box_max_corner=nhs.periodic_box.max_corner)
     end
 
     # Initialize neighborhood search

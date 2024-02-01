@@ -97,18 +97,19 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{nothing},
-                                    min_corner, max_corner)
+                                    periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
-                                             min_corner=min_corner, max_corner=max_corner)
+                                             periodic_box_min_corner=periodic_box_min_corner,
+                                             periodic_box_max_corner=periodic_box_max_corner)
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
-                                    min_corner, max_corner)
+                                    periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
-                                                   min_corner=min_corner,
-                                                   max_corner=max_corner)
+                                                   periodic_box_min_corner=periodic_box_min_corner,
+                                                   periodic_box_max_corner=periodic_box_max_corner)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
