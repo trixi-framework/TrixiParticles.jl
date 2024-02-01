@@ -109,13 +109,14 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, spacing_ratio_solid,
 # With higher fluid resolutions, uncomment the code below for better results.
 #
 # boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses, state_equation,
+#                                                    hydrodynamic_masses,
+#                                                    state_equation=state_equation,
 #                                                    boundary_density_calculator,
 #                                                    smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model_solid,
+                                        E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
                                         acceleration=(0.0, -gravity),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
