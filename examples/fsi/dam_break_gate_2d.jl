@@ -32,10 +32,9 @@ initial_fluid_size = (0.2, 0.4)
 tank_size = (0.8, 0.8)
 
 fluid_density = 997.0
-atmospheric_pressure = 100000.0
 sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -47,7 +46,7 @@ gate_height = initial_fluid_size[2] + 4 * fluid_particle_spacing
 gate = RectangularShape(boundary_particle_spacing,
                         (boundary_layers,
                          round(Int, gate_height / boundary_particle_spacing)),
-                        (initial_fluid_size[1], 0.0), fluid_density)
+                        (initial_fluid_size[1], 0.0), density=fluid_density)
 
 # Movement of the gate according to the paper
 f_x(t) = 0.0
@@ -79,11 +78,11 @@ n_particles_y = round(Int, length_beam / solid_particle_spacing) + 1
 plate_position = 0.6 - n_particles_x * solid_particle_spacing
 plate = RectangularShape(solid_particle_spacing,
                          (n_particles_x, n_particles_y - 1),
-                         (plate_position, solid_particle_spacing), solid_density,
-                         tlsph=true)
+                         (plate_position, solid_particle_spacing),
+                         density=solid_density, tlsph=true)
 fixed_particles = RectangularShape(solid_particle_spacing,
                                    (n_particles_x, 1), (plate_position, 0.0),
-                                   solid_density, tlsph=true)
+                                   density=solid_density, tlsph=true)
 
 solid = union(plate, fixed_particles)
 
@@ -152,8 +151,7 @@ solid_system = TotalLagrangianSPHSystem(solid,
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system_tank,
-                          boundary_system_gate, solid_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+                          boundary_system_gate, solid_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

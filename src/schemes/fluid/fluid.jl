@@ -1,7 +1,3 @@
-abstract type FluidSystem{NDIMS} <: System{NDIMS} end
-
-timer_name(::FluidSystem) = "fluid"
-
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
@@ -19,6 +15,7 @@ end
 
 @inline viscosity_model(system::FluidSystem) = system.viscosity
 
+include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")

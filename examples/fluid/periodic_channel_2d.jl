@@ -19,14 +19,13 @@ initial_fluid_size = tank_size
 initial_velocity = (1.0, 0.0)
 
 fluid_density = 1000.0
-atmospheric_pressure = 100000.0
 sound_speed = initial_velocity[1]
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       faces=(false, false, true, true), init_velocity=initial_velocity)
+                       faces=(false, false, true, true), velocity=initial_velocity)
 
 # ==========================================================================================
 # ==== Fluid
@@ -53,7 +52,6 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch,
                           periodic_box_min_corner=[0.0, -0.25],
                           periodic_box_max_corner=[1.0, 0.75])
 ode = semidiscretize(semi, tspan)
