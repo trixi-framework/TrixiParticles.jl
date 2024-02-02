@@ -1,5 +1,6 @@
 using JSON
 using CSV
+using DataFrames
 
 struct DataEntry
     value::Float64
@@ -8,8 +9,8 @@ struct DataEntry
 end
 
 """
-    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                        output_directory="values", overwrite=true)
+    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true, filename="values",
+                        output_directory=".", overwrite=true, write_csv=true, write_json=true)
 
 Create a callback for post-processing simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -25,17 +26,16 @@ a fixed interval of simulation time (`dt`).
 - `dt=0.0`: Specifies the simulation time interval between each invocation of the callback.
             If set to `0.0`, the callback will not be triggered based on simulation time.
 - `exclude_bnd=true`: If set to `true`, boundary particles will be excluded from the post-processing.
-- `output_directory="values"`: The filename or path where the results of the post-processing will be saved.
+- `filename="values"`: The filename of the postprocessing files to be saved.
+- `output_directory="."`: The path where the results of the post-processing will be saved.
 - `overwrite=true`: If set to `true`, existing files with the same name as `filename` will be overwritten.
+- `write_csv=true`: If set to `true`, will write an csv file.
+- `write_json=true`: If set to `true`, will write a json file.
 
 # Behavior
 - If both `interval` and `dt` are specified, an `ArgumentError` is thrown as only one mode of time control is allowed.
 - If `dt` is specified and greater than `0`, the callback will be triggered at regular intervals of simulation time.
 - If `interval` is specified and greater than `0`, the callback will be triggered every `interval` time steps.
-
-# Usage
-The callback is designed to be used with simulation frameworks. The user-defined function
-`func` should take the current state of the simulation as input and return data for post-processing.
 
 # Examples
 ```julia
@@ -55,11 +55,14 @@ mutable struct PostprocessCallback{I, F}
     exclude_bnd::Bool
     func::F
     filename::String
+    output_directory::String
     overwrite::Bool
+    write_csv::Bool
+    write_json::Bool
 end
 
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                             output_directory="values", overwrite=true)
+                             output_directory=".", filename="values", overwrite=true, write_csv=true, write_json=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -69,7 +72,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     end
 
     post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
-                                        exclude_bnd, func, output_directory, overwrite)
+                                        exclude_bnd, func, filename, output_directory, overwrite, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -248,16 +251,46 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
     data = meta_data!(data)
     data = prepare_series_data!(data, pp)
 
-    filename = pp.filename * ".json"
+    filename_json = pp.filename * ".json"
+    filename_csv = pp.filename * ".csv"
     if !pp.overwrite
-        filename = get_unique_filename(pp.filename, ".json")
+        filename_json = get_unique_filename(pp.filename, ".json")
+        filename_csv = get_unique_filename(pp.filename, ".csv")
     end
 
-    println("writing a postproccessing results to ", filename)
 
-    open(filename, "w") do file
-        JSON.print(file, data, 4)
+    if pp.write_json
+        println("writing a postproccessing results to ", filename_json)
+        abs_file_path = abspath(normpath(pp.output_directory)) * filename_json
+
+
+        open(abs_file_path, "w") do file
+            JSON.print(file, data, 4)
+        end
     end
+    if pp.write_csv
+        println("writing a postproccessing results to ", filename_csv)
+        abs_file_path = abspath(normpath(pp.output_directory)) * filename_csv
+
+        write_csv(abs_file_path, data)
+    end
+end
+
+function write_csv(abs_file_path, data)
+    times = collect(values(data))[1]["time"]
+    df = DataFrame(time = times) # Initialize DataFrame with time column
+
+    for (key, series) in data
+        # Ensure we only process data entries, excluding any meta data or non-data entries
+        if occursin("_", key) # A simple check to ensure we're dealing with data series
+            values = series["values"]
+            # Add a new column to the DataFrame for each series of values
+            df[!, Symbol(key)] = values
+        end
+    end
+
+    # Write the DataFrame to a CSV file
+    CSV.write(abs_file_path, df)
 end
 
 function add_entry!(pp, entry_key, t, value, system_name)
