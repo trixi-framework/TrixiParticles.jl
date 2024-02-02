@@ -62,7 +62,8 @@ mutable struct PostprocessCallback{I, F}
 end
 
 function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                             output_directory=".", filename="values", overwrite=true, write_csv=true, write_json=true)
+                             output_directory=".", filename="values", overwrite=true,
+                             write_csv=true, write_json=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -72,7 +73,8 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     end
 
     post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
-                                        exclude_bnd, func, filename, output_directory, overwrite, write_csv, write_json)
+                                        exclude_bnd, func, filename, output_directory,
+                                        overwrite, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -258,11 +260,9 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
         filename_csv = get_unique_filename(pp.filename, ".csv")
     end
 
-
     if pp.write_json
         println("writing a postproccessing results to ", filename_json)
         abs_file_path = abspath(normpath(pp.output_directory)) * filename_json
-
 
         open(abs_file_path, "w") do file
             JSON.print(file, data, 4)
@@ -278,7 +278,7 @@ end
 
 function write_csv(abs_file_path, data)
     times = collect(values(data))[1]["time"]
-    df = DataFrame(time = times) # Initialize DataFrame with time column
+    df = DataFrame(time=times) # Initialize DataFrame with time column
 
     for (key, series) in data
         # Ensure we only process data entries, excluding any meta data or non-data entries
