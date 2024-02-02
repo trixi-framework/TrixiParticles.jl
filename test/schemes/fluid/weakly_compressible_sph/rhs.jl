@@ -32,7 +32,7 @@
                     coordinates = zeros(2, 3)
                     velocity = zeros(2, 3)
                     mass = zeros(3)
-                    density = zeros(3)
+                    density = ones(3)
                     state_equation = Val(:state_equation)
                     smoothing_kernel = Val(:smoothing_kernel)
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
