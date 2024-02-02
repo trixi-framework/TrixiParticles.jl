@@ -424,7 +424,7 @@ function von_mises_stress(system::TotalLagrangianSPHSystem)
         # Calculate deviatoric stress tensor
         s = sigma - (1.0 / 3.0) * tr(sigma) * I
 
-        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum(s.^2))
+        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum(s .^ 2))
     end
 
     return von_mises_stress
@@ -433,7 +433,8 @@ end
 function cauchy_stress(system::TotalLagrangianSPHSystem)
     NDIMS = ndims(system)
 
-    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS, nparticles(system))
+    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
+                                  nparticles(system))
 
     @threaded for particle in each_moving_particle(system)
         F = deformation_gradient(system, particle)

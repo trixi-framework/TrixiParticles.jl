@@ -362,7 +362,8 @@
         von_mises_stress = TrixiParticles.von_mises_stress(system)
         cauchy_stress = TrixiParticles.cauchy_stress(system)
 
-        reference_stress_tensor = [1.145833 0.729167; 0.729167 1.145833;;; 1.145833 0.729167; 0.729167 1.145833]
+        reference_stress_tensor = [1.145833 0.729167; 0.729167 1.145833;;;
+                                   1.145833 0.729167; 0.729167 1.145833]
 
         # Verify against calculation by hand
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)

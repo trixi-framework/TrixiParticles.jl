@@ -216,7 +216,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
                            zeros(ndims(system), n_fixed_particles))
-    vtk["jacobian"] = [det(deformation_gradient(system, particle)) for particle in eachparticle(system)]
+    vtk["jacobian"] = [det(deformation_gradient(system, particle))
+                       for particle in eachparticle(system)]
 
     vtk["von_mises_stress"] = von_mises_stress(system)
 
