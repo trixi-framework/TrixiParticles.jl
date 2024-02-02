@@ -62,6 +62,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
+# Track the position of the particle in the middle of the tip of the beam.
 particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) / 2)
 
 shift_x = beam.coordinates[1, particle_id]
