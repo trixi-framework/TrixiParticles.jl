@@ -1,4 +1,5 @@
 using JSON
+using CSV
 
 struct DataEntry
     value::Float64
