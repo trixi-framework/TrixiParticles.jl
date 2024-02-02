@@ -216,16 +216,16 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
                            zeros(ndims(system), n_fixed_particles))
-    vtk["jacobian"] = [det(system.deformation_grad[:, :, particle])
-                       for particle in 1:nparticles(system)]
-    vtk["von_mises_stress"] = compute_von_mises_stress(system)
+    vtk["jacobian"] = [det(deformation_gradient(system, particle)) for particle in eachparticle(system)]
 
-    cauchy_stress_tensor = compute_cauchy_stress(system)
-    vtk["sigma_11"] = [tensor[1, 1] for tensor in cauchy_stress_tensor]
-    vtk["sigma_22"] = [tensor[2, 2] for tensor in cauchy_stress_tensor]
-    if ndims(system) == 3
-        vtk["sigma_33"] = [tensor[3, 3] for tensor in cauchy_stress_tensor]
-    end
+    vtk["von_mises_stress"] = von_mises_stress(system)
+
+    vtk["sigma"] = cauchy_stress(system)
+    # vtk["sigma_11"] = [tensor[1, 1] for tensor in cauchy_stress_tensor]
+    # vtk["sigma_22"] = [tensor[2, 2] for tensor in cauchy_stress_tensor]
+    # if ndims(system) == 3
+    #     vtk["sigma_33"] = [tensor[3, 3] for tensor in cauchy_stress_tensor]
+    # end
 
     vtk["material_density"] = system.material_density
     vtk["young_modulus"] = system.young_modulus
