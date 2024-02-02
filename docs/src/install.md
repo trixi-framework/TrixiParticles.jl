@@ -50,6 +50,8 @@ If you followed the [installation instructions for developers](@ref for-develope
    julia> Pkg.update()
 
    julia> Pkg.instantiate()
+
+   julia> exit()
    ```
 2. Start Julia with the project in the `run` folder,
    ```bash
