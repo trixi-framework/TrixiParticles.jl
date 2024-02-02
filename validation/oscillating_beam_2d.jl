@@ -66,8 +66,8 @@ for res in resolution
     # ==========================================================================================
     # ==== Solid
 
-    smoothing_length = sqrt(2) * particle_spacing
-    smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+    smoothing_length = 2 * sqrt(2) * particle_spacing
+    smoothing_kernel = WendlandC2Kernel{2}()
 
     solid_system = TotalLagrangianSPHSystem(solid,
                                             smoothing_kernel, smoothing_length,
