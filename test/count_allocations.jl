@@ -30,7 +30,7 @@ end
 @inline TrixiParticles.update!(search::NoUpdateNeighborhoodSearch, coords_fun) = search
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
-function count_allocations(sol, semi)
+function count_rhs_allocations(sol, semi)
     t = sol.t[end]
     v_ode, u_ode = sol.u[end].x
     dv_ode = similar(v_ode)
@@ -48,7 +48,7 @@ function count_allocations(sol, semi)
             # We need `@invokelatest` here to ensure that the most recent method of
             # `TrixiParticles.timeit_debug_enabled()` is called, which is redefined in
             # `disable_debug_timings` above.
-            return @invokelatest count_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
+            return @invokelatest count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode,
                                                          semi_no_nhs_update, t)
         end
     finally
@@ -59,7 +59,7 @@ end
 
 # Function barrier to avoid type instabilites with `semi_no_nhs_update`, which will
 # cause extra allocations.
-@inline function count_allocations_inner(dv_ode, du_ode, v_ode, u_ode, semi_no_nhs_update,
+@inline function count_rhs_allocations_inner(dv_ode, du_ode, v_ode, u_ode, semi_no_nhs_update,
                                          t)
     # Run RHS once to avoid counting allocations from compilation
     TrixiParticles.kick!(dv_ode, v_ode, u_ode, semi_no_nhs_update, t)
