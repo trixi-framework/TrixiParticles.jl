@@ -2,8 +2,9 @@ using Test
 using TrixiParticles
 using LinearAlgebra
 using Printf
-using QuadGK: quadgk
-using Random: Random
+using QuadGK: quadgk # For integration in smoothing kernel tests
+using Random: Random # For rectangular patch
+using Polyester: disable_polyester_threads # For `count_allocations`
 
 """
     @trixi_testset "name of the testset" #= code to test #=
