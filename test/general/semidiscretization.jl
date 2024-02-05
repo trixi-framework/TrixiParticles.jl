@@ -7,9 +7,6 @@
     system1 = System1()
     system2 = System2()
 
-    TrixiParticles.timer_name(::System1) = "mock1"
-    TrixiParticles.timer_name(::System2) = "mock2"
-
     TrixiParticles.u_nvariables(::System1) = 3
     TrixiParticles.u_nvariables(::System2) = 4
     TrixiParticles.v_nvariables(::System1) = 3
