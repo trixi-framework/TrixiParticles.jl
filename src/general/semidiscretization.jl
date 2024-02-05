@@ -33,6 +33,15 @@ struct Semidiscretization{S, RU, RV, NS}
     ranges_u              :: RU
     ranges_v              :: RV
     neighborhood_searches :: NS
+
+    # Dispatch at `systems` to distinguish this constructor from the one below when
+    # 4 systems are passed.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches)
+        new{typeof(systems), typeof(ranges_u),
+            typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
+                                                             neighborhood_searches)
+    end
 end
 
 function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
