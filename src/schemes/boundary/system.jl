@@ -8,21 +8,22 @@ For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keywo
 argument `movement`.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    coordinates    :: Array{ELTYPE, 2}
-    boundary_model :: BM
-    movement       :: M
-    ismoving       :: Vector{Bool}
-    cache          :: C
+    initial_condition :: InitialCondition{ELTYPE}
+    coordinates       :: Array{ELTYPE, 2}
+    boundary_model    :: BM
+    movement          :: M
+    ismoving          :: Vector{Bool}
+    cache             :: C
 
-    function BoundarySPHSystem(inititial_condition, model; movement=nothing)
-        coordinates = inititial_condition.coordinates
+    function BoundarySPHSystem(initial_condition, model; movement=nothing)
+        coordinates = initial_condition.coordinates
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        cache = create_cache_boundary(movement, inititial_condition)
+        cache = create_cache_boundary(movement, initial_condition)
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
-                   typeof(cache)}(coordinates, model, movement,
+                   typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, cache)
     end
 end

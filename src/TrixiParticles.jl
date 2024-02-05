@@ -11,7 +11,7 @@ using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache
+                 get_tmp_cache, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -19,6 +19,7 @@ using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 using ForwardDiff
+using RecipesBase: RecipesBase, @series
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -32,6 +33,7 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
