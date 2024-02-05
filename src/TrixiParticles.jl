@@ -53,7 +53,7 @@ export BoundaryMovement
 export GridNeighborhoodSearch, TrivialNeighborhoodSearch
 export examples_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape
+export RectangularTank, RectangularShape, SphereShape, ExtrudeFace
 export VoxelSphere, RoundSphere, reset_wall!
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
