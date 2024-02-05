@@ -38,30 +38,20 @@ and always have a reproducible environment at hand to share with others.
 
 ## Common issues
 
-If you followed the [installation instructions for developers](@ref for-developers) and you run into any problems with packages when pulling the latest version of TrixiParticles.jl, execute the following from the TrixiParticles.jl root directory:
-1. Start Julia with the project in the `TrixiParticles.jl` folder,
-   ```bash
-   julia --project=.
-   ```
-   and update all packages in that project, and install all new dependencies:
-   ```julia
-   julia> using Pkg
-
-   julia> Pkg.update()
-
-   julia> Pkg.instantiate()
-
-   julia> exit()
-   ```
-2. Start Julia with the project in the `run` folder,
-   ```bash
+If you followed the [installation instructions for developers](@ref for-developers) and you
+run into any problems with packages when pulling the latest version of TrixiParticles.jl,
+start Julia with the project in the `run` folder,
+```bash
    julia --project=run
-   ```
-   and do the same as above:
-   ```julia
-   julia> using Pkg
+```
+update all packages in that project, resolve all conflicts in the project, and install all
+new dependencies:
+```julia
+julia> using Pkg
 
-   julia> Pkg.update()
+julia> Pkg.update()
 
-   julia> Pkg.instantiate()
-   ```
+julia> Pkg.resolve()
+
+julia> Pkg.instantiate()
+```
