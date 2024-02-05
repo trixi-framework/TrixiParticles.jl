@@ -221,11 +221,11 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 
     vtk["von_mises_stress"] = von_mises_stress(system)
 
-    cstress = cauchy_stress(system)
-    vtk["sigma_11"] = cstress[1,1, :]
-    vtk["sigma_22"] = cstress[2,2, :]
+    sigma = cauchy_stress(system)
+    vtk["sigma_11"] = sigma[1,1, :]
+    vtk["sigma_22"] = sigma[2,2, :]
     if ndims(system) == 3
-        vtk["sigma_33"] = cstress[3,3, :]
+        vtk["sigma_33"] = sigma[3,3, :]
     end
 
     vtk["material_density"] = system.material_density
