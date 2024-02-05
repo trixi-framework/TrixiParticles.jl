@@ -6,8 +6,6 @@ abstract type SolidSystem{NDIMS} <: System{NDIMS} end
 
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
 
-abstract type BoundaryModel end
-
 timer_name(::FluidSystem) = "fluid"
 
 @inline function set_zero!(du)

@@ -39,45 +39,46 @@
     @testset verbose=true "Check Configuration" begin
         @testset verbose=true "Solid-Fluid Interaction" begin
             # Mock boundary model
-            struct BoundaryModelMock <: TrixiParticles.BoundaryModel
-                density_calculator::Any
-            end
+            struct BoundaryModelMock end
 
-            TrixiParticles.compact_support(system, ::BoundaryModelMock, neighbor) = 0.2
+            # Mock fluid system
+            struct FluidSystemMock <: TrixiParticles.FluidSystem{2} end
 
-            kernel = SchoenbergCubicSplineKernel{2}()
+            kernel = Val(:smoothing_kernel)
+            Base.ndims(::Val{:smoothing_kernel}) = 2
 
             ic = InitialCondition(; particle_spacing=1.0, coordinates=ones(2, 2),
                                   density=[1.0, 1.0])
 
-            model_a = BoundaryModelMock(AdamiPressureExtrapolation())
+            fluid_system = FluidSystemMock()
+            model_a = BoundaryModelMock()
             model_b = BoundaryModelDummyParticles([1.0], [1.0], ContinuityDensity(), kernel,
                                                   1.0)
 
             # FSI without boundary model.
-            solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
-                                                     boundary_model=1)
+            solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
 
-            error_str = "Please specify a boundary model for `TotalLagrangianSPHSystem` " *
-                        "when simulating a $(TrixiParticles.timer_name(system1))-structure interaction."
-            @test_throws ArgumentError(error_str) Semidiscretization(system1, solid_system1,
+            error_str = "A boundary model for `TotalLagrangianSPHSystem` must be " *
+                        "specified when simulating a fluid-structure interaction."
+            @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
+                                                                     solid_system1,
                                                                      neighborhood_search=nothing)
 
-            # FSI with boundary model.
+            # FSI with boundary model
             solid_system2 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_a)
 
-            @test_nowarn Semidiscretization(solid_system2, system1,
-                                            neighborhood_search=nothing)
+            @test_nowarn TrixiParticles.check_configuration((solid_system2, fluid_system))
 
-            # FSI with wrong boundary model.
+            # FSI with wrong boundary model
             solid_system3 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0,
                                                      boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
                         "`ContinuityDensity` for `TotalLagrangianSPHSystem` " *
-                        "is not supported (yet)."
-            @test_throws ArgumentError(error_str) Semidiscretization(solid_system3, system1,
+                        "is not supported yet."
+            @test_throws ArgumentError(error_str) Semidiscretization(solid_system3,
+                                                                     fluid_system,
                                                                      neighborhood_search=nothing)
         end
 
