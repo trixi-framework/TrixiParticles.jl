@@ -1,86 +1,51 @@
-# Get Started
-
-If you have not installed TrixiParticles.jl follow the instructions given [here](install.md).
+# Geting started  
+If you have not installed TrixiParticles.jl, please follow the instructions given [here](install.md).
 
 In the following examples we will run through some easy first steps to get a more thorough discussion take a look at our [tutorial section](tutorial.md).
 
 ## Running an Example
-To run pick one of our examples [see also](examples.md) and execute as follows:
+The easiest way to run a simulation is to run one of our pre-defined example files.
+We will run the file `examples/fluid/rectangular_tank_2d.jl`, which simulates a fluid resting in a rectangular tank.
+Since TrixiParticles.jl uses multithreading, you should start Julia with the flag `--threads auto` or `--threads 4` (for 4 threads).
+In the Julia REPL, first load the package TrixiParticles.jl.
 
-```bash
-cd path/to/TrixiParticles.jl/
-julia --project=. examples/group/example.jl
+```julia
+julia> using TrixiParticles
 ```
 
-or in the REPL
-
-```bash
-cd path/to/TrixiParticles.jl/
-julia --project=. 
-include("examples/group/example.jl")
-```
-
-Per default the results will be written to a folder "out". Depending on the example you are trying to run you will find at least one "*.pvd", which can be opened using ParaView (see example below for pictures)
-
-### Running multithreaded
-To run an example with multithreading add the flag "-t n" with "n" being the number of threads.
-See also the example below:
-
-```bash
-cd path/to/TrixiParticles.jl/
-julia -t 4 --project=. examples/group/example.jl
-```
-
-or in the REPL
-
-```bash
-cd path/to/TrixiParticles.jl/
-julia -t 4 --project=. 
-include("examples/group/example.jl")
-```
-
-
-## Running fluid/dam\_break\_2d
-In the following we will run the example "fluid/dam\_break\_2d to provide some more consistent details
-
-```bash
-cd path/to/TrixiParticles.jl/
-julia -t 4 --project=. examples/fluid/dam_break_2d.jl
+Then start the simulation by executing
+```julia
+julia> trixi_include(joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))
 ```
 
 This will result in the following:
 ![image](https://github.com/svchb/TrixiParticles.jl/assets/10238714/f8d2c249-fd52-4958-bc8b-265bbadc49f2)
 
-Afterwards you will find the following files in the "out" directory:
-- fluid_1_x.vtu -- Solution files of the *first* fluid at output number 'x'
-- boundary_1_x.vtu -- Solution files of the *first* boundary at output number 'x'
-- fluid_1.pvd -- Collection of the first fluid's solution files
-- boundary_1.pvd -- Collection of the first boundaries solution files
 
-We can now view these files by opening them in ParaView:
+To visualize the results, see our [visualization](visualization.md) page.
 
-1. Click file open
-2. Navigate to the out directory
-3. Open both "boundary_1.pvd" and "fluid_1.pvd"
-4. Click "Apply" which by default is on the left pane below the "Pipeline Browser"
-5. To move the solution around **hold the left mouse button**
+## Running other Examples
+To run pick one of our examples [see also](examples.md) and execute them as follows from Julia REPL by replacing `folder` and `example_name`
 
-You will now see the following:
-![image](https://github.com/svchb/TrixiParticles.jl/assets/10238714/45c90fd2-984b-4eee-b130-e691cefb33ab)
+```julia
+julia> trixi_include(joinpath(examples_dir(), "folder", "example_name.jl"))
+```
 
-To now view the result variables **first** make sure you have "fluid_1.pvd" highlighted in the "Pipeline Browser" then select them in the variable selection combo box (see picture below).
-Lets, for example pick "density". To now view the time progression of the result hit the "play button" (see picture below).
-![image](https://github.com/svchb/TrixiParticles.jl/assets/10238714/7565a13f-9532-4a69-9f81-e79505400b1c)
+## Modifying an example
+You can pass keyword arguments to the function `trixi_include` to overwrite assignments in the file.
 
+With `trixi_include`, we can overwrite this variable to run a different simulation without modifying the example file.
+```julia
+julia> trixi_include(joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"), initial_fluid_size=(1.0, 0.5))
+```
+This for example, will change the fluid size from (1.0, 1.0) to (1.0, 0.5) and will show up as half the height.
 
-## Modifying an Example
-Open the "dam_break_2d.jl" in you favorite text editor and lets make some edits:
-- increase time span from `tspan = (0.0, 5.7 / sqrt(gravity))` to `tspan = (0.0, 3.0)` to simulate a longer time span
-- increase the height of the initial fluid from `initial_fluid_size = (2.0, 1.0)` to `initial_fluid_size = (2.0, 2.0)`
-
-
+To explore further you can take a look into the file `examples/fluid/rectangular_tank_2d.jl` that we executed earlier,
+you can see that the initial size of the fluid is defined in the variable `initial_fluid_size`. 
+A variable that also yields it self for experimentation is `fluid_particle_spacing`, which controls the resolution of the simulation in this case.
+A lower value will increase the resolution and the runtime.
 
 ## Setup you first simulation from scratch
-Please see the following [tutorial](tutorials/tut_setup.md). 
+Please see the following [Setup your first simulation](tutorials/tut_setup.md). 
 
-For more information follow the [tutorial series](tutorial.md)
+For an overview over the available [tutorials](tutorial.md).
