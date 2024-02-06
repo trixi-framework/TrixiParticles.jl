@@ -412,6 +412,11 @@ function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
 end
 
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here below Equation 5.3.21 for the equation for the equivalent stress.
+# The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
+# See pages 32 and 123.
 function von_mises_stress(system::TotalLagrangianSPHSystem)
     von_mises_stress = zeros(eltype(system.pk1_corrected), nparticles(system))
 
@@ -430,6 +435,10 @@ function von_mises_stress(system::TotalLagrangianSPHSystem)
     return von_mises_stress
 end
 
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
+# and the Cauchy stress.
 function cauchy_stress(system::TotalLagrangianSPHSystem)
     NDIMS = ndims(system)
 
