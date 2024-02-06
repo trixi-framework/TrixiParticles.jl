@@ -1,4 +1,6 @@
-using Documenter, TrixiParticles
+using Documenter
+using TrixiParticles
+using TrixiBase
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
