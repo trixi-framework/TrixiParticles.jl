@@ -3,22 +3,20 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.05
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
 spacing_ratio = 1
 
-boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
-
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 0.9)
-tank_size = (2.0, 1.0)
+initial_fluid_size = (1.0, 0.9)
+tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
@@ -34,10 +32,9 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-viscosity_wall = ViscosityAdami(nu=1.0)
 
+fluid_density_calculator = ContinuityDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
@@ -45,16 +42,16 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Boundary
-
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity_wall)
+                                             smoothing_kernel, smoothing_length)
 
 # Uncomment to use repulsive boundary particles by Monaghan & Kajtar.
 # Also change spacing ratio and boundary layers (see comment above).
+#
+# boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # K = gravity * initial_fluid_size[2]
 # boundary_model = BoundaryModelMonaghanKajtar(K, spacing_ratio, boundary_particle_spacing,
 #                                              tank.boundary.mass)
@@ -71,15 +68,6 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
+# Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
