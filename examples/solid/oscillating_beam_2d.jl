@@ -45,9 +45,10 @@ solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Solid
-
-smoothing_length = sqrt(2) * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# The kernel in the reference uses a differently scaled smoothing length,
+# so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
+smoothing_length = 2 * sqrt(2) * particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
                                         E, nu, nothing, #No boundary model
@@ -60,7 +61,28 @@ semi = Semidiscretization(solid_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+
+# Track the position of the particle in the middle of the tip of the beam.
+particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) / 2)
+
+shift_x = beam.coordinates[1, particle_id]
+shift_y = beam.coordinates[2, particle_id]
+
+function x_deflection(v, u, t, system)
+    particle_position = TrixiParticles.current_coords(u, system, particle_id)
+
+    return particle_position[1] - shift_x
+end
+
+function y_deflection(v, u, t, system)
+    particle_position = TrixiParticles.current_coords(u, system, particle_id)
+
+    return particle_position[2] - shift_y
+end
+
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
+                                         x_deflection=x_deflection,
+                                         y_deflection=y_deflection)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
