@@ -71,7 +71,7 @@ makedocs(sitename="TrixiParticles.jl",
                  ],
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
-                 "TrixiBase.jl API Reference" => "reference-trixibase.md"
+                 "TrixiBase.jl API Reference" => "reference-trixibase.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
