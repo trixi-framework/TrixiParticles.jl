@@ -45,6 +45,8 @@ solid = union(beam, fixed_particles)
 
 # ==========================================================================================
 # ==== Solid
+# The kernel in the reference uses a differently scaled smoothing length,
+# so this is equivalent to the smoothing length of `sqrt(2) * particle_spacing` used in the paper.
 smoothing_length = 2 * sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
