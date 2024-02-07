@@ -1,0 +1,147 @@
+"""
+    ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
+                    velocity=zeros(length(direction)),
+                    mass=nothing, density=nothing, pressure=0.0)
+Extrude either a line, a plane or a shape along a specific direction.
+
+# Arguments
+- `geometry`:           Either points defining a 3D plane (2D line)
+                        or particle coordinates defining a specific shape.
+
+# Keywords
+- `particle_spacing`:   Spacing between the particles.
+- `direction`:          Vector defining the extrusion direction.
+- `n_extrude=0`         Number of `geometry` layers in extrude direction.
+- `velocity`:           Either a function mapping each particle's coordinates to its velocity,
+                        or, for a constant fluid velocity, a vector holding this velocity.
+                        Velocity is constant zero by default.
+- `mass`:               Either `nothing` (default) to automatically compute particle mass from particle
+                        density and spacing, or a function mapping each particle's coordinates to its mass,
+                        or a scalar for a constant mass over all particles.
+- `density`:            Either a function mapping each particle's coordinates to its density,
+                        or a scalar for a constant density over all particles.
+                        Obligatory when not using a state equation. Cannot be used together with
+                        `state_equation`.
+- `pressure`:           Scalar to set the pressure of all particles to this value.
+                        This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
+                        will be overwritten when using an initial pressure function in the system.
+                        Cannot be used together with hydrostatic pressure gradient.
+
+# Examples
+```julia
+# 2D
+p1 = [0.0, 0.0]
+p2 = [1.0, 1.0]
+
+direction = [-1.0, 1.0]
+
+shape = ExtrudeGeometry((p1, p2); direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
+
+# 3D Plane
+p1 = [0.0, 0.0, 0.0]
+p2 = [0.5, 1.0, 0.0]
+p3 = [1.0, 0.2, 0.0]
+
+direction = [0.0, 0.0, 1.0]
+
+shape = ExtrudeGeometry((p1, p2, p3); direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
+
+# Extrude a 2D shape to a 3D shape
+shape = SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
+
+direction = [0.0, 0.0, 1.0]
+
+shape = ExtrudeGeometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
+```
+"""
+function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
+                         velocity=zeros(length(direction)),
+                         mass=nothing, density=nothing, pressure=0.0)
+    NDIMS = length(direction)
+    face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing)
+
+    if round(particle_spacing, digits=4) != round(particle_spacing_, digits=4)
+        @info "The desired size is not a multiple of the particle spacing $particle_spacing." *
+              "\nNew particle spacing is set to $particle_spacing_."
+    end
+
+    coords = (face_coords .+ i * particle_spacing * normalize(direction) for i in 0:n_extrude)
+
+    coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * (n_extrude + 1)))
+
+    return InitialCondition(; coordinates, velocity, density, mass, pressure,
+                            particle_spacing)
+end
+
+function sample_plane(geometry::AbstractMatrix, particle_spacing)
+
+    # `geometry` is already a sampled shape
+    return geometry, particle_spacing
+end
+
+function sample_plane(shape::InitialCondition, particle_spacing)
+    if ndims(shape) == 2
+        # Extruding a 2D shape results in a 3D shape
+        coords = vcat(shape.coordinates, zeros(1, size(shape.coordinates, 2)))
+
+        return coords, particle_spacing
+    end
+
+    return shape.coordinates, particle_spacing
+end
+
+function sample_plane(plane_points, particle_spacing)
+
+    # Convert to tuple
+    return sample_plane(tuple(plane_points...), particle_spacing)
+end
+
+function sample_plane(plane_points::NTuple{2}, particle_spacing)
+    # Verify that points are in 2D space
+    if any(length.(plane_points) .!= 2)
+        throw(ArgumentError("all points must be 2D coordinates"))
+    end
+
+    n_points = ceil(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing)
+
+    coords = stack(range(plane_points[1], plane_points[2], length=n_points))
+    particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
+
+    return coords, particle_spacing_new
+end
+
+function sample_plane(plane_points::NTuple{3}, particle_spacing)
+    # Verify that points are in 3D space
+    if any(length.(plane_points) .!= 3)
+        throw(ArgumentError("all points must be 3D coordinates"))
+    end
+
+    # Vectors defining the edges of the parallelogram
+    edge1 = plane_points[2] - plane_points[1]
+    edge2 = plane_points[3] - plane_points[1]
+
+    # Check if the points are collinear
+    if norm(cross(edge1, edge2)) == 0
+        throw(ArgumentError("the points must not be collinear"))
+    end
+
+    # Determine the number of points along each edge
+    num_points_edge1 = ceil(Int, norm(edge1) / particle_spacing)
+    num_points_edge2 = ceil(Int, norm(edge2) / particle_spacing)
+
+    coords = zeros(3, (num_points_edge1 + 1) * (num_points_edge2 + 1))
+
+    index = 1
+    for i in 0:num_points_edge1
+        for j in 0:num_points_edge2
+            point_on_plane = plane_points[1] + (i / num_points_edge1) * edge1 +
+                             (j / num_points_edge2) * edge2
+            coords[:, index] = point_on_plane
+            index += 1
+        end
+    end
+
+    particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
+
+    return coords, particle_spacing_new
+end

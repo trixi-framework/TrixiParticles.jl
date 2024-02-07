@@ -117,7 +117,7 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
-    coords, resolution_ = sample_face((point1, point2, point3), resolution)
+    coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
     if round(resolution, digits=3) != round(resolution_, digits=3)
         @info "The desired plane size is not a multiple of the resolution $resolution." *
