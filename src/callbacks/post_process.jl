@@ -50,7 +50,6 @@ postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 """
 mutable struct PostprocessCallback{I, F}
     interval::I
-    last_t::Float64
     values::Dict{String, Vector{DataEntry}}
     exclude_bnd::Bool
     func::F
@@ -125,7 +124,6 @@ function initialize_post_callback!(cb, u, t, integrator)
 end
 
 function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
-    cb.last_t = t
     # Write initial values.
     if t < eps()
         # Update systems to compute quantities like density and pressure.
@@ -157,7 +155,6 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
     t = integrator.t
-    pp.last_t = integrator.t
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
@@ -183,7 +180,6 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
     t = integrator.t
-    pp.last_t = integrator.t
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
