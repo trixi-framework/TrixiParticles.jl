@@ -261,6 +261,6 @@ function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{C
     return system
 end
 
-function viscosity_model(system::BoundarySPHSystem)
-    return system.boundary_model.viscosity
+function viscosity_model(system, neighbor_system::BoundarySPHSystem)
+    return neighbor_system.boundary_model.viscosity
 end

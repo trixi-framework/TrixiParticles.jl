@@ -13,7 +13,7 @@ function write_u0!(u0, system::FluidSystem)
     return u0
 end
 
-@inline viscosity_model(system::FluidSystem) = system.viscosity
+@inline viscosity_model(system, neighbor_system::FluidSystem) = neighbor_system.viscosity
 
 include("pressure_acceleration.jl")
 include("viscosity.jl")

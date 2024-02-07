@@ -4,7 +4,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
     (; sound_speed) = particle_system
-    viscosity = viscosity_model(neighbor_system)
+    viscosity = viscosity_model(particle_system, neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
