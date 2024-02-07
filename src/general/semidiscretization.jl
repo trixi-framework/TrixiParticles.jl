@@ -15,10 +15,12 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
                             By default, the [`GridNeighborhoodSearch`](@ref) is used.
                             Use [`TrivialNeighborhoodSearch`](@ref) to loop over all particles
                             (no neighborhood search).
-- `periodic_box_min_corner`:    In order to use a periodic domain, pass the coordinates
-                                of the domain corner in negative coordinate directions.
-- `periodic_box_max_corner`:    In order to use a periodic domain, pass the coordinates
-                                of the domain corner in positive coordinate directions.
+- `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in negative coordinate
+                                directions.
+- `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in positive coordinate
+                                directions.
 
 # Examples
 ```julia
@@ -37,6 +39,10 @@ struct Semidiscretization{S, RU, RV, NS}
     function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                                 periodic_box_min_corner=nothing,
                                 periodic_box_max_corner=nothing)
+        # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
+        # Other checks might be added here later.
+        check_configuration(systems)
+
         sizes_u = [u_nvariables(system) * n_moving_particles(system)
                    for system in systems]
         ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
@@ -45,10 +51,6 @@ struct Semidiscretization{S, RU, RV, NS}
                    for system in systems]
         ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
                          for i in eachindex(sizes_v))
-
-        # Check that the boundary systems are using a state equation if EDAC is not used.
-        # Other checks might be added here later.
-        check_configuration(systems)
 
         # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
         # We will need one neighborhood search for each pair of systems.
@@ -95,18 +97,19 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{nothing},
-                                    min_corner, max_corner)
+                                    periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
-                                             min_corner=min_corner, max_corner=max_corner)
+                                             periodic_box_min_corner=periodic_box_min_corner,
+                                             periodic_box_max_corner=periodic_box_max_corner)
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
-                                    min_corner, max_corner)
+                                    periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
-                                                   min_corner=min_corner,
-                                                   max_corner=max_corner)
+                                                   periodic_box_min_corner=periodic_box_min_corner,
+                                                   periodic_box_max_corner=periodic_box_max_corner)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
@@ -579,7 +582,7 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function check_configuration(systems)
-    foreach_noalloc(systems) do system
+    foreach_system(systems) do system
         check_configuration(system, systems)
     end
 end
@@ -589,11 +592,29 @@ check_configuration(system, systems) = nothing
 function check_configuration(boundary_system::BoundarySPHSystem, systems)
     (; boundary_model) = boundary_system
 
-    foreach_noalloc(systems) do neighbor
+    foreach_system(systems) do neighbor
         if neighbor isa WeaklyCompressibleSPHSystem &&
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
-            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without setting a `state_equation` for all boundary systems"))
+            throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
+                                "setting a `state_equation` for all boundary systems"))
         end
+    end
+end
+
+function check_configuration(system::TotalLagrangianSPHSystem, systems)
+    (; boundary_model) = system
+
+    foreach_system(systems) do neighbor
+        if neighbor isa FluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
+                                "specified when simulating a fluid-structure interaction."))
+        end
+    end
+
+    if boundary_model isa BoundaryModelDummyParticles &&
+       boundary_model.density_calculator isa ContinuityDensity
+        throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
+                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
