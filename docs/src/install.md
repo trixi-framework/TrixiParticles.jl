@@ -30,11 +30,28 @@ The advantage of using a separate `run` directory is that you can also add other
 related packages (e.g., OrdinaryDiffEq.jl, see above) to the project in the `run` folder
 and always have a reproducible environment at hand to share with others.
 
-## Optional Software/Packages
-- [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- a Julia package of ordinary differential equation solvers that is used in the examples
+## Optional software/packages
+- [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- A Julia package of ordinary differential equation solvers that is used in the examples
 - [Plots.jl](https://github.com/JuliaPlots/Plots.jl) -- Julia Plotting library that is used in some examples
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
 - [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results
 
 ## Common issues
 
+If you followed the [installation instructions for developers](@ref for-developers) and you
+run into any problems with packages when pulling the latest version of TrixiParticles.jl,
+start Julia with the project in the `run` folder,
+```bash
+   julia --project=run
+```
+update all packages in that project, resolve all conflicts in the project, and install all
+new dependencies:
+```julia
+julia> using Pkg
+
+julia> Pkg.update()
+
+julia> Pkg.resolve()
+
+julia> Pkg.instantiate()
+```
