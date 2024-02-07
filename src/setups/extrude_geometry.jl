@@ -47,12 +47,16 @@ direction = [0.0, 0.0, 1.0]
 shape = ExtrudeGeometry((p1, p2, p3); direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
 
 # Extrude a 2D shape to a 3D shape
-shape = SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3)
+shape = SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3,
+                    sphere_type=RoundSphere(end_angle=pi))
 
 direction = [0.0, 0.0, 1.0]
 
 shape = ExtrudeGeometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
 ```
+
+!!! warning
+    `particle_spacing` between extrusion layers may differ from shapes `particle_spacing`.
 """
 function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
                          velocity=zeros(length(direction)),
