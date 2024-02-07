@@ -135,7 +135,8 @@
 
             # 3 x 6 cells
             nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
-                                            min_corner=[-0.1, -0.2], max_corner=[0.2, 0.4])
+                                            periodic_box_min_corner=[-0.1, -0.2],
+                                            periodic_box_max_corner=[0.2, 0.4])
 
             TrixiParticles.initialize!(nhs, coords)
 
@@ -173,8 +174,8 @@
 
             # 3 x 6 cells
             nhs = GridNeighborhoodSearch{2}(0.1, size(coords, 2),
-                                            min_corner=[-0.1, -0.2],
-                                            max_corner=[0.205, 0.43])
+                                            periodic_box_min_corner=[-0.1, -0.2],
+                                            periodic_box_max_corner=[0.205, 0.43])
 
             TrixiParticles.initialize!(nhs, coords)
 
@@ -220,7 +221,8 @@
 
             # 5 x 1 cells
             nhs = GridNeighborhoodSearch{2}(1.0, size(coords, 2),
-                                            min_corner=[-1.5, 0.0], max_corner=[2.5, 3.0])
+                                            periodic_box_min_corner=[-1.5, 0.0],
+                                            periodic_box_max_corner=[2.5, 3.0])
 
             TrixiParticles.initialize!(nhs, coords)
 
@@ -239,8 +241,8 @@
 
         # 3 x 6 x 3 cells
         nhs = GridNeighborhoodSearch{3}(0.1, size(coords, 2),
-                                        min_corner=[-0.1, -0.2, 0.05],
-                                        max_corner=[0.2, 0.4, 0.35])
+                                        periodic_box_min_corner=[-0.1, -0.2, 0.05],
+                                        periodic_box_max_corner=[0.2, 0.4, 0.35])
 
         TrixiParticles.initialize!(nhs, coords)
 
