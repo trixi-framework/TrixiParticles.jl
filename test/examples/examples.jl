@@ -7,8 +7,8 @@
                                        joinpath(examples_dir(), "fluid",
                                                 "oscillating_drop_2d.jl"))
             @test sol.retcode == ReturnCode.Success
-            # This is the error on an Apple M2 Pro. We need this tolerance to make CI pass.
-            @test isapprox(error_A, 0.0001717690010767381, atol=1e-8)
+            # This error varies between serial and multithreaded runs
+            @test isapprox(error_A, 0.0001717690010767381, atol=5e-7)
         end
 
         @trixi_testset "fluid/rectangular_tank_2d.jl" begin
@@ -58,14 +58,6 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/dam_break_2d_corrections.jl" begin
-            @test_nowarn trixi_include(@__MODULE__,
-                                       joinpath(examples_dir(), "fluid",
-                                                "dam_break_2d_corrections.jl"),
-                                       tspan=(0.0, 0.1))
-            @test sol.retcode == ReturnCode.Success
-        end
-
         @trixi_testset "fluid/dam_break_3d.jl" begin
             @test_nowarn trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_3d.jl"),
@@ -88,6 +80,8 @@
                                        tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
         end
+
+        include("dam_break_2d_corrections.jl")
     end
 
     @testset verbose=true "Solid" begin
