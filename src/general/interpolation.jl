@@ -117,41 +117,14 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
-    # Verify that points are in 3D space
-    if length(point1) != 3 || length(point2) != 3 || length(point3) != 3
-        throw(ArgumentError("all points must be 3D coordinates"))
+    coords, resolution_ = sample_face((point1, point2, point3), resolution)
+
+    if round(resolution, digits=3) != round(resolution_, digits=3)
+        @info "The desired plane size is not a multiple of the resolution $resolution." *
+              "\nNew resolution is set to $resolution_."
     end
 
-    point1_ = SVector{3}(point1)
-    point2_ = SVector{3}(point2)
-    point3_ = SVector{3}(point3)
-
-    # Vectors defining the edges of the parallelogram
-    edge1 = point2_ - point1_
-    edge2 = point3_ - point1_
-
-    # Check if the points are collinear
-    if norm(cross(edge1, edge2)) == 0
-        throw(ArgumentError("the points must not be collinear"))
-    end
-
-    # Determine the number of points along each edge
-    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
-    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
-
-    # Create a set of points on the plane
-    points_coords = Vector{SVector{3, Float64}}(undef,
-                                                (num_points_edge1 + 1) *
-                                                (num_points_edge2 + 1))
-    index = 1
-    for i in 0:num_points_edge1
-        for j in 0:num_points_edge2
-            point_on_plane = point1 + (i / num_points_edge1) * edge1 +
-                             (j / num_points_edge2) * edge2
-            points_coords[index] = point_on_plane
-            index += 1
-        end
-    end
+    points_coords = reinterpret(reshape, SVector{3, Float64}, coords)
 
     # Interpolate using the generated points
     results = interpolate_point(points_coords, semi, ref_system, sol,
