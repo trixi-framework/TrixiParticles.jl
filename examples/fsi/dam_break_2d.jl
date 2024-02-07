@@ -88,8 +88,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
