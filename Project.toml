@@ -22,6 +22,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 StrideArrays = "d1fa6d79-ef01-42a6-86c9-f7c551f8593b"
 ThreadingUtilities = "8290d209-cae3-49c0-8002-c8c24d57dab5"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
@@ -37,4 +38,5 @@ StaticArrays = "1"
 StrideArrays = "0.1"
 ThreadingUtilities = "0.5"
 TimerOutputs = "0.5"
+TrixiBase = "0.1"
 WriteVTK = "1"
