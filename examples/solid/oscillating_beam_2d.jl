@@ -51,7 +51,7 @@ smoothing_length = 2 * sqrt(2) * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length,
-                                        E, nu, nothing, #No boundary model
+                                        E, nu,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 
