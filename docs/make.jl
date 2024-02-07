@@ -1,4 +1,6 @@
-using Documenter, TrixiParticles
+using Documenter
+using TrixiParticles
+using TrixiBase
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -67,8 +69,9 @@ makedocs(sitename="TrixiParticles.jl",
                                                                         "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md"),
                  ],
-                 "Time integration" => "time_integration.md",
+                 "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
+                 "TrixiBase.jl API Reference" => "reference-trixibase.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
