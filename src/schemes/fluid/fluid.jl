@@ -21,12 +21,8 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     # TODO Specific to artificial viscosity
     (; alpha) = viscosity
 
-    # TODO This is based on:
-    # M. Antuono, A. Colagrossi, S. Marrone.
-    # "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-    # In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
-    # https://doi.org/10.1016/j.cpc.2012.07.006
-    # But in the docs for the artificial viscosity, it says that we have to divide by rho.
+    # This is based on Antuono et al. (2012).
+    # See docstring of the callback for the reference.
     kinematic_viscosity = alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 
     dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity
@@ -41,15 +37,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     # Antuono et al. (2012) use h / (c + v_max + h * pi_max), where pi is the viscosity coefficient.
     # Antuono et al. (2015) use h / (c + h * pi_max).
     #
-    # P. N. Sun, A. Colagrossi, S. Marrone, A. M. Zhang.
-    # "The δplus-SPH Model: Simple Procedures for a Further Improvement of the SPH Scheme."
-    # In: Computer Methods in Applied Mechanics and Engineering 315 (2017), pages 25–49.
-    # https://doi.org/10.1016/j.cma.2016.10.028.
-    #
-    # M. Antuono, S. Marrone, A. Colagrossi, B. Bouscasse.
-    # "Energy Balance in the δ-SPH Scheme."
-    # In: Computer Methods in Applied Mechanics and Engineering 289 (2015), pages 209–26.
-    # https://doi.org/10.1016/j.cma.2015.02.004.
+    # See docstring of the callback for the references.
     dt_sound_speed = cfl_number * smoothing_length / sound_speed
 
     return min(dt_viscosity, dt_acceleration, dt_sound_speed)
