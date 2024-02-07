@@ -349,12 +349,11 @@
         smoothing_length = 0.362
         nu = 0.25  # Poisson's ratio
         E = 2.5    # Young's modulus
-        boundary_model = Val(:boundary_model)
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu)
 
         # Initialize deformation_grad and pk1_corrected with arbitrary values
         for particle in TrixiParticles.eachparticle(system)
