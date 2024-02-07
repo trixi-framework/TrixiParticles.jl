@@ -5,9 +5,8 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -19,12 +18,12 @@ initial_fluid_size = (1.0, 0.9)
 tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 10.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # ==========================================================================================
@@ -47,15 +46,6 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
-
-# Uncomment to use repulsive boundary particles by Monaghan & Kajtar.
-# Also change spacing ratio and boundary layers (see comment above).
-#
-# boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
-# K = gravity * initial_fluid_size[2]
-# boundary_model = BoundaryModelMonaghanKajtar(K, spacing_ratio, boundary_particle_spacing,
-#                                              tank.boundary.mass)
-
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
