@@ -68,10 +68,18 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-stepsize_callback = StepsizeCallback(cfl=0.8)
 
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+callbacks = CallbackSet(info_callback, saving_callback)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
-            dt=1.0, # This is overwritten by the stepsize callback
+# Use a Runge-Kutta method with automatic (error based) time step size control.
+# Limiting of the maximum stepsize is necessary to prevent crashing.
+# When particles are approaching a wall in a uniform way, they can be advanced
+# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
+# Sometimes, the method fails to do so because forces become extremely large when
+# fluid particles are very close to boundary particles, and the time integration method
+# interprets this as an instability.
+sol = solve(ode, RDPK3SpFSAL49(),
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
