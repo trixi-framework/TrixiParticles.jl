@@ -35,7 +35,7 @@ smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-viscosity_wall = ViscosityAdami(nu=1.0)
+viscosity_wall = ViscosityAdami(nu=0.5)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -77,7 +77,7 @@ callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing

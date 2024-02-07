@@ -71,7 +71,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, -Inf, Dict{String, Vector{DataEntry}}(),
+    post_callback = PostprocessCallback(interval, Dict{String, Vector{DataEntry}}(),
                                         exclude_bnd, func, filename, output_directory,
                                         overwrite, write_csv, write_json)
     if dt > 0
@@ -172,6 +172,9 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
     if isfinished(integrator)
         pp(integrator, true)
     end
+
+    # Tell OrdinaryDiffEq that u has not been modified
+    u_modified!(integrator, false)
 end
 
 # affect! function for an array of functions
@@ -199,6 +202,9 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
     if isfinished(integrator)
         pp(integrator, true)
     end
+
+    # Tell OrdinaryDiffEq that u has not been modified
+    u_modified!(integrator, false)
 end
 
 # This function prepares the data for writing to a JSON file by creating a dictionary
