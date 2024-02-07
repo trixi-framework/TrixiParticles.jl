@@ -47,27 +47,27 @@ end
 function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                             periodic_box_min_corner=nothing,
                             periodic_box_max_corner=nothing)
-        # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
-        # Other checks might be added here later.
-        check_configuration(systems)
+    # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
+    # Other checks might be added here later.
+    check_configuration(systems)
 
-        sizes_u = [u_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                         for i in eachindex(sizes_u))
-        sizes_v = [v_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                         for i in eachindex(sizes_v))
+    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
+    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
+                     for i in eachindex(sizes_v))
 
-        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
-        # We will need one neighborhood search for each pair of systems.
-        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search),
-                                                          periodic_box_min_corner,
-                                                          periodic_box_max_corner)
-                               for neighbor in systems)
-                         for system in systems)
+    # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
+    # We will need one neighborhood search for each pair of systems.
+    searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
+                                                      Val(neighborhood_search),
+                                                      periodic_box_min_corner,
+                                                      periodic_box_max_corner)
+                           for neighbor in systems)
+                     for system in systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches)
 end
