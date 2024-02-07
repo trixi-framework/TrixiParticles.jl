@@ -9,7 +9,7 @@ struct DataEntry
 end
 
 """
-    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true, filename="values",
+    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory=".", overwrite=true, write_csv=true, write_json=true)
 
 Create a callback for post-processing simulation data at regular intervals.
@@ -23,19 +23,16 @@ a fixed interval of simulation time (`dt`).
 # Keywords
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
+                Either interval or dt can be set to something larger than 0.
 - `dt=0.0`: Specifies the simulation time interval between each invocation of the callback.
             If set to `0.0`, the callback will not be triggered based on simulation time.
-- `exclude_bnd=true`: If set to `true`, boundary particles will be excluded from the post-processing.
+            Either interval or dt can be set to something larger than 0.
+- `exclude_boundary=true`: If set to `true`, boundary particles will be excluded from the post-processing.
 - `filename="values"`: The filename of the postprocessing files to be saved.
-- `output_directory="."`: The path where the results of the post-processing will be saved.
+- `output_directory="out"`: The path where the results of the post-processing will be saved.
 - `overwrite=true`: If set to `true`, existing files with the same name as `filename` will be overwritten.
-- `write_csv=true`: If set to `true`, will write an csv file.
-- `write_json=true`: If set to `true`, will write a json file.
-
-# Behavior
-- If both `interval` and `dt` are specified, an `ArgumentError` is thrown as only one mode of time control is allowed.
-- If `dt` is specified and greater than `0`, the callback will be triggered at regular intervals of simulation time.
-- If `interval` is specified and greater than `0`, the callback will be triggered every `interval` time steps.
+- `write_csv=true`: If set to `true`, write an csv file.
+- `write_json=true`: If set to `true`, write a json file.
 
 # Examples
 ```julia
@@ -49,19 +46,19 @@ postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 ```
 """
 mutable struct PostprocessCallback{I, F}
-    interval::I
-    values::Dict{String, Vector{DataEntry}}
-    exclude_bnd::Bool
-    func::F
-    filename::String
-    output_directory::String
-    overwrite::Bool
-    write_csv::Bool
-    write_json::Bool
+    interval         :: I
+    values           :: Dict{String, Vector{DataEntry}}
+    exclude_boundary :: Bool
+    func             :: F
+    filename         :: String
+    output_directory :: String
+    overwrite        :: Bool
+    write_csv        :: Bool
+    write_json       :: Bool
 end
 
-function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true,
-                             output_directory=".", filename="values", overwrite=true,
+function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_boundary=true,
+                             output_directory="out", filename="values", overwrite=true,
                              write_csv=true, write_json=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -72,7 +69,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_bnd=true
     end
 
     post_callback = PostprocessCallback(interval, Dict{String, Vector{DataEntry}}(),
-                                        exclude_bnd, func, filename, output_directory,
+                                        exclude_boundary, func, filename, output_directory,
                                         overwrite, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -90,16 +87,21 @@ end
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
-    print(io, "PostprocessCallback(interval=", callback.interval, ", functions=[")
+    print(io, "PostprocessCallback(interval=", callback.interval)
+    print(io, "functions=[")
+    print(io, join(callback.func, ", "))
+    print(io, "])")
+end
 
-    funcs = callback.func
-
-    for (i, func) in enumerate(funcs)
-        print(io, nameof(func))
-        if i < length(funcs)
-            print(io, ", ")
-        end
-    end
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+    @nospecialize cb # reduce precompilation time
+    callback = cb.affect!.affect!
+    print(io, "PostprocessCallback(interval=", callback.interval)
+    print(io, "functions=[")
+    print(io, join(callback.func, ", "))
+    print(io, "])")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -112,8 +114,24 @@ function Base.show(io::IO, ::MIME"text/plain",
         setup = ["interval" => string(callback.interval)]
 
         for (i, f) in enumerate(callback.func)
-            func_key = "function" * string(i)
-            setup = [setup..., func_key => string(nameof(f))]
+            push!(setup, "function$i" => string(nameof(f)))
+        end
+        summary_box(io, "PostprocessCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:PostprocessCallback}})
+    @nospecialize cb # reduce precompilation time
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        callback = cb.affect!.affect!
+        setup = ["interval" => string(callback.interval)]
+
+        for (i, f) in enumerate(callback.func)
+            push!(setup, "function$i" => string(nameof(f)))
         end
         summary_box(io, "PostprocessCallback", setup)
     end
@@ -124,14 +142,12 @@ function initialize_post_callback!(cb, u, t, integrator)
 end
 
 function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
-    # Write initial values.
-    if t < eps()
-        # Update systems to compute quantities like density and pressure.
-        semi = integrator.p
-        v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t)
-        cb(integrator)
-    end
+
+    # Update systems to compute quantities like density and pressure.
+    semi = integrator.p
+    v_ode, u_ode = u.x
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    cb(integrator)
     return nothing
 end
 
@@ -158,7 +174,7 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_bnd
+        if system isa BoundarySystem && pp.exclude_boundary
             return
         end
 
@@ -186,7 +202,7 @@ function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
     filenames = system_names(semi.systems)
 
     foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_bnd
+        if system isa BoundarySystem && pp.exclude_boundary
             return
         end
 
