@@ -55,7 +55,7 @@
             # FSI without boundary model.
             solid_system1 = TotalLagrangianSPHSystem(ic, kernel, 1.0, 1.0, 1.0)
 
-            error_str = "A boundary model for `TotalLagrangianSPHSystem` must be " *
+            error_str = "a boundary model for `TotalLagrangianSPHSystem` must be " *
                         "specified when simulating a fluid-structure interaction."
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      solid_system1,
@@ -72,8 +72,7 @@
                                                      boundary_model=model_b)
 
             error_str = "`BoundaryModelDummyParticles` with density calculator " *
-                        "`ContinuityDensity` for `TotalLagrangianSPHSystem` " *
-                        "is not supported yet."
+                        "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"
             @test_throws ArgumentError(error_str) Semidiscretization(solid_system3,
                                                                      fluid_system,
                                                                      neighborhood_search=nothing)

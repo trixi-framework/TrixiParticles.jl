@@ -597,8 +597,8 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
-        if neighbor isa FluidSystem && boundary_model isa Nothing
-            throw(ArgumentError("A boundary model for `TotalLagrangianSPHSystem` must be " *
+        if neighbor isa FluidSystem && boundary_model === nothing
+            throw(ArgumentError("a boundary model for `TotalLagrangianSPHSystem` must be " *
                                 "specified when simulating a fluid-structure interaction."))
         end
     end
@@ -606,7 +606,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
     if boundary_model isa BoundaryModelDummyParticles &&
        boundary_model.density_calculator isa ContinuityDensity
         throw(ArgumentError("`BoundaryModelDummyParticles` with density calculator " *
-                            "`ContinuityDensity` for `TotalLagrangianSPHSystem` " *
-                            "is not supported yet."))
+                            "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
