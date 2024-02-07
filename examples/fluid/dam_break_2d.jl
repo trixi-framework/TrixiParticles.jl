@@ -84,7 +84,7 @@ callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
