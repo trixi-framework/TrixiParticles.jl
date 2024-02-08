@@ -45,11 +45,10 @@
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/rectangular_tank_edac_2d.jl" begin
+        @trixi_testset "fluid/hydrostatic_water_column_edac_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "rectangular_tank_edac_2d.jl"),
-                                           tspan=(0.0, 0.1))
+                                                    "hydrostatic_water_column_edac_2d.jl"))
             @test sol.retcode == ReturnCode.Success
         end
 
