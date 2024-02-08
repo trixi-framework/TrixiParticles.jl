@@ -6,7 +6,7 @@ using OrdinaryDiffEq
 fluid_particle_spacing = 0.02
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 4
+boundary_layers = 3
 spacing_ratio = 1
 
 # ==========================================================================================
@@ -66,9 +66,10 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
-pp_callback = nothing
+# This is to easily add a new callback with `trixi_include`
+extra_callback = nothing
 
-callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Limiting of the maximum stepsize is necessary to prevent crashing.

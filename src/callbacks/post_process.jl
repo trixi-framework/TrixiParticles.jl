@@ -279,16 +279,16 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
     end
 
     if pp.write_json
-        println("writing a postproccessing results to ", filename_json)
-        abs_file_path = abspath(normpath(pp.output_directory)) * filename_json
+        abs_file_path = joinpath(abspath(normpath(pp.output_directory)), filename_json)
+        println("writing a postproccessing results to ", abs_file_path)
 
         open(abs_file_path, "w") do file
             JSON.print(file, data, 4)
         end
     end
     if pp.write_csv
-        println("writing a postproccessing results to ", filename_csv)
-        abs_file_path = abspath(normpath(pp.output_directory)) * filename_csv
+        abs_file_path = joinpath(abspath(normpath(pp.output_directory)), filename_csv)
+        println("writing a postproccessing results to ", abs_file_path)
 
         write_csv(abs_file_path, data)
     end
