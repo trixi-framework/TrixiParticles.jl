@@ -1,7 +1,3 @@
-using JSON
-using CSV
-using DataFrames
-
 struct DataEntry
     value::Float64
     time::Float64
@@ -206,15 +202,12 @@ end
 # that maps each key to separate arrays of times and values, sorted by time, and includes system name.
 function prepare_series_data!(data, post_callback)
     for (key, data_array) in post_callback.values
-        # Sort the data_array by time
-        sorted_data_array = sort(data_array, by=data -> data.time)
-
         # Extracting times and values into separate arrays
-        data_times = [data.time for data in sorted_data_array]
-        data_values = [data.value for data in sorted_data_array]
+        data_times = [data_.time for data_ in data_array]
+        data_values = [data_.value for data_ in data_array]
 
-        # Assuming each DataEntry in `sorted_data_array` has a `system` field.
-        system_name = isempty(sorted_data_array) ? "" : sorted_data_array[1].system
+        # Assuming each `DataEntry` in `data_array` has a `system` field
+        system_name = isempty(data_array) ? "" : data_array[1].system
 
         data[key] = create_series_dict(data_values, data_times, system_name)
     end
@@ -231,10 +224,10 @@ function create_series_dict(values, times, system_name="")
                 "time" => times)
 end
 
-function meta_data!(data)
+function write_meta_data!(data)
     meta_data = Dict("solver_name" => "TrixiParticles.jl",
                      "solver_version" => get_git_hash(),
-                     "julia_version" => get_julia_version())
+                     "julia_version" => string(VERSION))
 
     data["meta"] = meta_data
     return data
@@ -243,12 +236,12 @@ end
 # After the simulation has finished, this function is called to write the data to a JSON file.
 function (pp::PostprocessCallback)(integrator, finished::Bool)
     if isempty(pp.values)
-        return nothing
+        return
     end
 
     data = Dict()
-    data = meta_data!(data)
-    data = prepare_series_data!(data, pp)
+    write_meta_data!(data)
+    prepare_series_data!(data, pp)
 
     filename_json = pp.filename * ".json"
     filename_csv = pp.filename * ".csv"
@@ -258,16 +251,17 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
     end
 
     if pp.write_json
-        abs_file_path = joinpath(abspath(normpath(pp.output_directory)), filename_json)
-        println("writing a postproccessing results to ", abs_file_path)
+        abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
+        @info "Writing postproccessing results to $abs_file_path"
 
         open(abs_file_path, "w") do file
+            # indent by 4 spaces
             JSON.print(file, data, 4)
         end
     end
     if pp.write_csv
-        abs_file_path = joinpath(abspath(normpath(pp.output_directory)), filename_csv)
-        println("writing a postproccessing results to ", abs_file_path)
+        abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
+        @info "Writing postproccessing results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end
@@ -302,7 +296,7 @@ function calculate_ekin(pp, t, system, u, v, system_name)
     ekin = 0.0
     for particle in each_moving_particle(system)
         velocity = current_velocity(v, system, particle)
-        ekin += 0.5 * hydrodynamic_mass(system, particle) * dot(velocity, velocity)
+        ekin += 0.5 * system.mass[particle] * dot(velocity, velocity)
     end
     add_entry!(pp, "ekin", t, ekin, system_name)
 end
@@ -310,7 +304,7 @@ end
 function calculate_total_mass(pp, t, system, u, v, system_name)
     total_mass = 0.0
     for particle in each_moving_particle(system)
-        total_mass += hydrodynamic_mass(system, particle)
+        total_mass += system.mass[particle]
     end
     add_entry!(pp, "totalm", t, total_mass, system_name)
 end

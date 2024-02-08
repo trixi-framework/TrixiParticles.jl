@@ -92,7 +92,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
 
         if write_meta_data
             vtk["solver_version"] = get_git_hash()
-            vtk["julia_version"] = get_julia_version()
+            vtk["julia_version"] = string(VERSION)
         end
 
         # Extract custom quantities for this system
