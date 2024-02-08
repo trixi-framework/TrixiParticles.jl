@@ -184,5 +184,11 @@
                                                     "interpolation_point_line.jl"))
             @test sol.retcode == ReturnCode.Success
         end
+        @trixi_testset "postprocessing/postprocessing.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "postprocessing",
+                                                    "postprocessing.jl"))
+            @test sol.retcode == ReturnCode.Success
+        end
     end
 end
