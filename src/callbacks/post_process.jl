@@ -149,6 +149,8 @@ function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
     # Update systems to compute quantities like density and pressure.
     semi = integrator.p
     v_ode, u_ode = u.x
+
+    # Update systems to compute quantities like density and pressure
     update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # Apply the callback
