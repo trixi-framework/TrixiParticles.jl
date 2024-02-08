@@ -5,6 +5,7 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               fluid_particle_spacing=0.05, initial_fluid_size=(1.0, 0.9),
               tank_size=(1.0, 1.0), smoothing_kernel=SchoenbergQuinticSplineKernel{2}(),
+              state_equation=nothing, fluid_system=nothing, semi=nothing, ode=nothing,
               sol=nothing) # Overwrite `sol` assignment to skip time integration
 
 # ==========================================================================================
