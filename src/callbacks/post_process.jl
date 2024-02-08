@@ -9,7 +9,7 @@ struct DataEntry
 end
 
 """
-    PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
+    PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory=".", overwrite=true, write_csv=true, write_json=true)
 
 Create a callback for post-processing simulation data at regular intervals.
@@ -57,7 +57,7 @@ mutable struct PostprocessCallback{I, F}
     write_json       :: Bool
 end
 
-function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_boundary=true,
+function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values", overwrite=true,
                              write_csv=true, write_json=true)
     if dt > 0 && interval > 0
@@ -69,7 +69,7 @@ function PostprocessCallback(func; interval::Integer=0, dt=0.0, exclude_boundary
     end
 
     post_callback = PostprocessCallback(interval, Dict{String, Vector{DataEntry}}(),
-                                        exclude_boundary, func, filename, output_directory,
+                                        exclude_boundary, funcs, filename, output_directory,
                                         overwrite, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -138,6 +138,9 @@ function Base.show(io::IO, ::MIME"text/plain",
 end
 
 function initialize_post_callback!(cb, u, t, integrator)
+    # The `PostprocessCallback` is either `cb.affect!` (with `DiscreteCallback`)
+    # or `cb.affect!.affect!` (with `PeriodicCallback`).
+    # Let recursive dispatch handle this.
     initialize_post_callback!(cb.affect!, u, t, integrator)
 end
 
@@ -147,6 +150,8 @@ function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
     semi = integrator.p
     v_ode, u_ode = u.x
     update_systems_and_nhs(v_ode, u_ode, semi, t)
+
+    # Apply the callback
     cb(integrator)
     return nothing
 end
@@ -165,36 +170,8 @@ function (pp::PostprocessCallback)(u, t, integrator)
            isfinished(integrator)
 end
 
-# affect! function for a single function
-function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Function}
-    vu_ode = integrator.u
-    v_ode, u_ode = vu_ode.x
-    semi = integrator.p
-    t = integrator.t
-    filenames = system_names(semi.systems)
-
-    foreach_system(semi) do system
-        if system isa BoundarySystem && pp.exclude_boundary
-            return
-        end
-
-        system_index = system_indices(system, semi)
-
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-        pp.func(pp, t, system, u, v, filenames[system_index])
-    end
-
-    if isfinished(integrator)
-        pp(integrator, true)
-    end
-
-    # Tell OrdinaryDiffEq that u has not been modified
-    u_modified!(integrator, false)
-end
-
 # affect! function for an array of functions
-function (pp::PostprocessCallback{I, F})(integrator) where {I, F <: Array}
+function (pp::PostprocessCallback)(integrator)
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
