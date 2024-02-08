@@ -5,7 +5,7 @@ using GLM
 using DataFrames
 using Printf
 
-pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density; dt=0.05)
+pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density; dt=0.025)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               extra_callback=pp_cb, tspan=(0.0, 5.0));
