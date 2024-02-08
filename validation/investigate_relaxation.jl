@@ -1,6 +1,6 @@
 using TrixiParticles
 using JSON
-using PythonPlot
+using Plots
 using GLM
 using DataFrames
 using Printf
@@ -28,6 +28,7 @@ end
 
 file_path = TrixiParticles.get_latest_unique_filename(joinpath(pwd(), "out"), "values",
                                                       ".json")
+
 if file_path != ""
     json_string = read(file_path, String)
     json_data = JSON.parse(json_string)
@@ -36,43 +37,34 @@ if file_path != ""
     ekin = Vector{Float64}(json_data["ekin_fluid_1"]["values"])
     tl_ekin, grad_ekin = calculate_regression(ekin, time)
 
+    x_position_for_annotation = minimum(time) + (maximum(time) - minimum(time)) * 0.5
+
     p_max = Vector{Float64}(json_data["max_p_fluid_1"]["values"])
     tl_p_max, grad_p_max = calculate_regression(p_max, time)
 
     avg_rho = Vector{Float64}(json_data["avg_rho_fluid_1"]["values"])
     tl_avg_rho, grad_avg_rho = calculate_regression(avg_rho, time)
 
-    fig, (subplot1, subplot2, subplot3) = subplots(1, 3, figsize=(18, 5))
+    plot1 = plot(time, [ekin, tl_ekin], label=["sim" "trend"], color=[:blue :red],
+                 linewidth=[2 2],
+                 title="Kinetic Energy of the Fluid", xlabel="Time [s]",
+                 ylabel="kinetic energy [J]")
+    annotate!(x_position_for_annotation, ylims(plot1)[2]-0.0001,
+              @sprintf("gradient=%.5f", grad_ekin))
 
-    subplot1.plot(time, ekin, linestyle="-", label="sim")
-    subplot1.plot(time, tl_ekin, label="trend (gradient=$(@sprintf("%.5f", grad_ekin)))",
-                  color="red", linewidth=2)
-    subplot1.set_xlabel("Time [s]")
-    subplot1.set_ylabel("kinetic energy [J]")
-    subplot1.set_title("Kinetic Energy of the Fluid")
-    subplot1.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=2, fancybox=true,
-                    shadow=true)
+    plot2 = plot(time, [p_max, tl_p_max], label=["sim" "trend"], color=[:blue :red],
+                 linewidth=[2 2],
+                 title="Maximum Pressure of the Fluid", xlabel="Time [s]",
+                 ylabel="Max. Pressure [Pa]")
+    annotate!(x_position_for_annotation, ylims(plot2)[2]-5.5,
+              @sprintf("gradient=%.5f", grad_p_max))
 
-    subplot2.plot(time, p_max, linestyle="-", label="sim")
-    subplot2.plot(time, tl_p_max, label="trend (gradient=$(@sprintf("%.5f", grad_p_max)))",
-                  color="red", linewidth=2)
-    subplot2.set_xlabel("Time [s]")
-    subplot2.set_ylabel("Max. Pressure [Pa]")
-    subplot2.set_title("Maximum Pressure of the Fluid")
-    subplot2.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=2, fancybox=true,
-                    shadow=true)
+    plot3 = plot(time, [avg_rho, tl_avg_rho], label=["sim" "trend"], color=[:blue :red],
+                 linewidth=[2 2],
+                 title="Avg. Density of the Fluid", xlabel="Time [s]",
+                 ylabel="Avg. Density [kg/m^3]")
+    annotate!(x_position_for_annotation, ylims(plot3)[2]-0.003,
+              @sprintf("gradient=%.5f", grad_avg_rho))
 
-    subplot3.plot(time, avg_rho, linestyle="-", label="With Endpoint")
-    subplot3.plot(time, tl_avg_rho,
-                  label="trend (gradient=$(@sprintf("%.5f", grad_avg_rho)))",
-                  color="red", linewidth=2)
-    subplot3.set_xlabel("Time [s]")
-    subplot3.set_ylabel("Avg. Density [kg/m^3]")
-    subplot3.set_title("Avg. Density of the Fluid")
-    subplot3.legend(loc="lower center", bbox_to_anchor=(0.5, -0.25), ncol=2, fancybox=true,
-                    shadow=true)
-
-    fig.subplots_adjust(left=0.1, right=0.9, bottom=0.2, top=0.9, wspace=0.4, hspace=0.4)
-
-    plotshow()
+    plot(plot1, plot2, plot3, layout=(1, 3), legend=:bottom, size=(1800, 500))
 end
