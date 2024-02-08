@@ -154,7 +154,14 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing)
     return coords, particle_spacing_new
 end
 
-consider_particle_placement(geometry, direction, particle_spacing, tlsph) = geometry
+function consider_particle_placement(geometry::Union{AbstractMatrix, InitialCondition},
+                                     direction, particle_spacing, tlsph)
+    return geometry
+end
+
+function consider_particle_placement(plane_points, direction, particle_spacing, tlsph)
+    consider_particle_placement(tuple(plabe_points...), direction, particle_spacing, tlsph)
+end
 
 function consider_particle_placement(plane_points::NTuple{2}, direction, particle_spacing,
                                      tlsph)
