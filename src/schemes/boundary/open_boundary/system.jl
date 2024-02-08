@@ -1,3 +1,7 @@
+struct InFlow end
+
+struct OutFlow end
+
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
@@ -15,9 +19,9 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone, sound_speed;
                                    sample_geometry=plane_points,
-                                   particle_spacing, velocity=0.0, mass=nothing,
-                                   density=nothing, pressure=0.0, open_boundary_layers=0,
-                                   flow_direction=nothing, velocity_function=nothing)
+                                   particle_spacing, flow_direction, open_boundary_layers=0,
+                                   velocity=0.0, mass=nothing, density=nothing,
+                                   pressure=0.0, velocity_function=nothing)
         if flow_direction === nothing
             throw(ArgumentError("Please specify a flow direction."))
         end
