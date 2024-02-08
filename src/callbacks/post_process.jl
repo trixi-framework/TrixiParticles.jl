@@ -239,7 +239,7 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
         return
     end
 
-    data = Dict()
+    data = Dict{String, Any}()
     write_meta_data!(data)
     prepare_series_data!(data, pp)
 
