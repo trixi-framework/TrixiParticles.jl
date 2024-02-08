@@ -93,12 +93,6 @@ end
 
 timer_name(::BoundarySPHSystem) = "boundary"
 
-@inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
-
-# This does not account for moving boundaries, but it's only used to initialize the
-# neighborhood search, anyway.
-@inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
-
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
     (; movement_function, is_moving) = movement

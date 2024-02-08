@@ -1,3 +1,4 @@
+# Solution type when running a simulation with TrixiParticles.jl and OrdinaryDiffEq.jl
 const TrixiParticlesODESolution = ODESolution{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any,
                                               <:Any,
                                               <:ODEProblem{<:Any, <:Any, <:Any,
@@ -13,14 +14,15 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     systems_data = map(semi.systems) do system
         (; initial_condition) = system
 
-        v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-
         coordinates = current_coordinates(u, system)
         x = collect(coordinates[1, :])
         y = collect(coordinates[2, :])
 
         particle_spacing = system.initial_condition.particle_spacing
+        if particle_spacing < 0
+            particle_spacing = 0.0
+        end
 
         x_min, y_min = minimum(initial_condition.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(initial_condition.coordinates, dims=2) .+ 0.5particle_spacing
@@ -50,10 +52,15 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
 
     for system_data in systems_data
         @series begin
-            pixels_per_particle = system_data.particle_spacing / pixel_size
+            if system_data.particle_spacing < eps()
+                # Fall back to 1px marker radius
+                markersize --> 1
+            else
+                pixels_per_particle = system_data.particle_spacing / pixel_size
 
-            # Marker radius in pixels
-            markersize --> 0.5 * pixels_per_particle
+                # Marker radius in pixels
+                markersize --> 0.5 * pixels_per_particle
+            end
 
             label --> system_data.label
 
