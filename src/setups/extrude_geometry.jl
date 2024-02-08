@@ -11,7 +11,7 @@ Extrude either a line, a plane or a shape along a specific direction.
 # Keywords
 - `particle_spacing`:   Spacing between the particles.
 - `direction`:          Vector defining the extrusion direction.
-- `n_extrude=0`         Number of `geometry` layers in extrude direction.
+- `n_extrude=1`         Number of `geometry` layers in extrude direction.
 - `velocity`:           Either a function mapping each particle's coordinates to its velocity,
                         or, for a constant fluid velocity, a vector holding this velocity.
                         Velocity is constant zero by default.
@@ -26,6 +26,9 @@ Extrude either a line, a plane or a shape along a specific direction.
                         This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                         will be overwritten when using an initial pressure function in the system.
                         Cannot be used together with hydrostatic pressure gradient.
+- `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
+                        on the boundary of the shape and not one particle radius away, as for fluids.
+                        When `tlsph=true`, particles will be placed on the boundary of the shape.
 
 # Examples
 ```julia
@@ -58,8 +61,8 @@ shape = ExtrudeGeometry(shape; direction, particle_spacing=0.1, n_extrude=4, den
 !!! warning
     `particle_spacing` between extrusion layers may differ from shapes `particle_spacing`.
 """
-function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
-                         velocity=zeros(length(direction)), tlsph=true,
+function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=1,
+                         velocity=zeros(length(direction)), tlsph=false,
                          mass=nothing, density=nothing, pressure=0.0)
     direction_ = normalize(direction)
     NDIMS = length(direction_)
@@ -73,9 +76,9 @@ function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
               "\nNew particle spacing is set to $particle_spacing_."
     end
 
-    coords = (face_coords .+ i * particle_spacing_ * direction_ for i in 0:n_extrude)
+    coords = (face_coords .+ i * particle_spacing_ * direction_ for i in 0:(n_extrude - 1))
 
-    coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * (n_extrude + 1)))
+    coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * n_extrude))
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
                             particle_spacing=particle_spacing_)
@@ -110,7 +113,7 @@ function sample_plane(plane_points::NTuple{2}, particle_spacing)
         throw(ArgumentError("all points must be 2D coordinates"))
     end
 
-    n_points = floor(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing)+1
+    n_points = floor(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing) + 1
 
     coords = stack(range(plane_points[1], plane_points[2], length=n_points))
     particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
