@@ -37,12 +37,10 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF} <: FluidSystem{ND
 
         # Sample particles in boundary zone.
         initial_condition = ExtrudeGeometry(sample_geometry; particle_spacing, direction,
-                                            n_extrude=(open_boundary_layers - 1), velocity,
-                                            mass, density, pressure)
+                                            n_extrude=open_boundary_layers, velocity, mass,
+                                            density, pressure)
 
-        # Particles are sampled with `0.5particle_spacing` away from zone plane
-        zone_width = (open_boundary_layers + 1) * initial_condition.particle_spacing
-        initial_condition.coordinates .+= 0.5initial_condition.particle_spacing .* direction
+        zone_width = open_boundary_layers * initial_condition.particle_spacing
 
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
