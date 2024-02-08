@@ -59,9 +59,13 @@ shape = ExtrudeGeometry(shape; direction, particle_spacing=0.1, n_extrude=4, den
     `particle_spacing` between extrusion layers may differ from shapes `particle_spacing`.
 """
 function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
-                         velocity=zeros(length(direction)),
+                         velocity=zeros(length(direction)), tlsph=true,
                          mass=nothing, density=nothing, pressure=0.0)
-    NDIMS = length(direction)
+    direction_ = normalize(direction)
+    NDIMS = length(direction_)
+
+    geometry = consider_particle_placement(geometry, direction_, particle_spacing, tlsph)
+
     face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing)
 
     if round(particle_spacing, digits=4) != round(particle_spacing_, digits=4)
@@ -69,7 +73,7 @@ function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
               "\nNew particle spacing is set to $particle_spacing_."
     end
 
-    coords = (face_coords .+ i * particle_spacing * normalize(direction) for i in 0:n_extrude)
+    coords = (face_coords .+ i * particle_spacing_ * direction_ for i in 0:n_extrude)
 
     coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * (n_extrude + 1)))
 
@@ -148,4 +152,50 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing)
     particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
 
     return coords, particle_spacing_new
+end
+
+consider_particle_placement(geometry, direction, particle_spacing, tlsph) = geometry
+
+function consider_particle_placement(plane_points::NTuple{2}, direction, particle_spacing,
+                                     tlsph)
+    # With TLSPH, particles need to be AT the min coordinates and not half a particle
+    # spacing away from it.
+    (tlsph) && (return plane_points)
+
+    plane_point1 = copy(plane_points[1])
+    plane_point2 = copy(plane_points[2])
+
+    # Vectors shifting the points in the corresponding direction
+    dir1 = 0.5 * particle_spacing * direction
+    dir2 = 0.5 * particle_spacing * normalize(plane_point2 - plane_point1)
+
+    plane_point1 .+= dir1 + dir2
+    plane_point2 .+= dir1 - dir2
+
+    return (plane_point1, plane_point2)
+end
+
+function consider_particle_placement(plane_points::NTuple{3}, direction, particle_spacing,
+                                     tlsph)
+    # With TLSPH, particles need to be AT the min coordinates and not half a particle
+    # spacing away from it.
+    (tlsph) && (return plane_points)
+
+    plane_point1 = copy(plane_points[1])
+    plane_point2 = copy(plane_points[2])
+    plane_point3 = copy(plane_points[3])
+
+    edge1 = normalize(plane_point2 - plane_point1)
+    edge2 = normalize(plane_point3 - plane_point1)
+
+    # Vectors shifting the points in the corresponding direction
+    dir1 = 0.5 * particle_spacing * direction
+    dir2 = 0.5 * particle_spacing * edge1
+    dir3 = 0.5 * particle_spacing * edge2
+
+    plane_point1 .+= dir1 + dir2 + dir3
+    plane_point2 .+= dir1 - dir2 + dir3
+    plane_point3 .+= dir1 + dir2 - dir3
+
+    return (plane_point1, plane_point2, plane_point3)
 end
