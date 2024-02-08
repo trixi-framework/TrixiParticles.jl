@@ -50,28 +50,9 @@ function system_names(systems)
 end
 
 function get_git_hash()
-    cmd = `git rev-parse HEAD`
-    out = IOBuffer()
-    err = IOBuffer()
-
-    # Run the command and wait for it to complete
-    process = run(pipeline(cmd, stdout=out, stderr=err), wait=true)
-
-    # Rewind the IOBuffers to read from the start
-    seekstart(out)
-    seekstart(err)
-
-    git_hash = read(out, String)
-    git_error = read(err, String)
-
-    # Check the exit code of the process
-    if process.exitcode == 0
-        return string(chomp(git_hash))
-    else
-        if occursin("not a git repository", git_error)
-            return "Not a Git repository"
-        else
-            return "Git is not installed or not accessible"
-        end
+    try
+        return string(readchomp(Cmd(`git describe --tags --always --first-parent --dirty`, dir=pkgdir(@__MODULE__))))
+    catch e
+        return "Git is not installed or not accessible"
     end
 end
