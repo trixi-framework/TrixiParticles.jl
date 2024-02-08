@@ -2,7 +2,7 @@ struct InFlow end
 
 struct OutFlow end
 
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem{NDIMS}
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF} <: FluidSystem{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
     density                  :: Array{ELTYPE, 1} # [particle]
@@ -18,14 +18,10 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem
     velocity_function        :: VF
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone, sound_speed;
-                                   sample_geometry=plane_points,
-                                   particle_spacing, flow_direction, open_boundary_layers=0,
-                                   velocity=0.0, mass=nothing, density=nothing,
-                                   pressure=0.0, velocity_function=nothing)
-        if flow_direction === nothing
-            throw(ArgumentError("Please specify a flow direction."))
-        end
-
+                                   sample_geometry=plane_points, particle_spacing,
+                                   flow_direction, open_boundary_layers=0, density,
+                                   velocity=zeros(length(plane_points)),
+                                   pressure=0.0, velocity_function=nothing, mass=nothing)
         if !isa(open_boundary_layers, Int)
             throw(ArgumentError("`open_boundary_layers` must be of type Int"))
         elseif open_boundary_layers < sqrt(eps())
@@ -41,8 +37,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem
 
         # Sample particles in boundary zone.
         initial_condition = ExtrudeGeometry(sample_geometry; particle_spacing, direction,
-                                            n_extrude=open_boundary_layers, velocity, mass,
-                                            density, pressure)
+                                            n_extrude=(open_boundary_layers - 1), velocity,
+                                            mass, density, pressure)
 
         # Particles are sampled with `0.5particle_spacing` away from zone plane
         zone_width = (open_boundary_layers + 1) * initial_condition.particle_spacing
@@ -76,21 +72,20 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, B, VF} <: FluidSystem
 
         zone_origin = SVector(plane_points[1]...)
 
-        characteristics = zeros(ELTYPE, 3, length(mass))
-        previous_characteristics = zeros(ELTYPE, 4, length(mass))
-
         mass = copy(initial_condition.mass)
         pressure = copy(initial_condition.pressure)
         density = copy(initial_condition.density)
         volume = similar(initial_condition.density)
 
+        characteristics = zeros(ELTYPE, 3, length(mass))
+        previous_characteristics = zeros(ELTYPE, 4, length(mass))
+
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(spanning_set_),
-                   typeof(buffer),
                    typeof(velocity_function)}(initial_condition, mass, density, volume,
                                               pressure, characteristics,
                                               previous_characteristics, sound_speed,
                                               boundary_zone, flow_direction_, zone_origin,
-                                              spanning_set_, buffer, velocity_function)
+                                              spanning_set_, velocity_function)
     end
 end
 
