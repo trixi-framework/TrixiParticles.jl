@@ -55,7 +55,7 @@
 
         @testset "Direction $i" for i in eachindex(directions)
             shape = ExtrudeGeometry((point1, point2); direction=directions[i],
-                                    particle_spacing=0.1597, n_extrude=4, density=1.0)
+                                    particle_spacing=0.15, n_extrude=4, density=1.0)
 
             @test shape.coordinates ≈ expected_coords[i]
         end
