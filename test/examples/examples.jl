@@ -11,36 +11,34 @@
             @test isapprox(error_A, 0.0001717690010767381, atol=5e-7)
         end
 
-        @trixi_testset "fluid/rectangular_tank_2d.jl" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "rectangular_tank_2d.jl"),
-                                           tspan=(0.0, 0.1))
+                                                    "hydrostatic_water_column_2d.jl"))
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/rectangular_tank_2d.jl with SummationDensity" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with SummationDensity" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "rectangular_tank_2d.jl"),
-                                           tspan=(0.0, 0.1),
+                                                    "hydrostatic_water_column_2d.jl"),
                                            fluid_density_calculator=SummationDensity(),
                                            clip_negative_pressure=true)
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/rectangular_tank_3d.jl" begin
+        @trixi_testset "fluid/hydrostatic_water_column_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "rectangular_tank_3d.jl"),
+                                                    "hydrostatic_water_column_3d.jl"),
                                            tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
         end
 
-        @trixi_testset "fluid/rectangular_tank_3d.jl with SummationDensity" begin
+        @trixi_testset "fluid/hydrostatic_water_column_3d.jl with SummationDensity" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "rectangular_tank_3d.jl"),
+                                                    "hydrostatic_water_column_3d.jl"),
                                            tspan=(0.0, 0.1),
                                            fluid_density_calculator=SummationDensity(),
                                            clip_negative_pressure=true)

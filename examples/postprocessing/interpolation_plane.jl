@@ -4,7 +4,8 @@ using TrixiParticles
 using Plots
 using Plots.PlotMeasures
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               tspan=(0.0, 0.1))
 
 # Interpolation parameters
@@ -62,7 +63,7 @@ plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
              title="Density with 0.5x Smoothing Length", colorbar_title="Density",
              ylim=(0.0, 1.0), legend=false, clim=(1000, 1010), colorbar=true)
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_3d.jl"),
+trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_3d.jl"),
               tspan=(0.0, 0.01), initial_fluid_size=(2.0, 1.0, 0.9),
               tank_size=(2.0, 1.0, 1.2))
 
