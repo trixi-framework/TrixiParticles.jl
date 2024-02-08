@@ -95,7 +95,7 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:StepsizeCallback})
 
     stepsize_callback = cb.affect!
     print(io, "StepsizeCallback(is_constant=", is_constant(stepsize_callback),
-          "cfl_number=", stepsize_callback.cfl_number, ")")
+          ", cfl_number=", stepsize_callback.cfl_number, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -108,7 +108,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         stepsize_callback = cb.affect!
 
         setup = [
-            "is constant" => is_constant(stepsize_callback),
+            "is constant" => string(is_constant(stepsize_callback)),
             "CFL number" => stepsize_callback.cfl_number,
         ]
         summary_box(io, "StepsizeCallback", setup)
