@@ -51,7 +51,8 @@ end
 
 function get_git_hash()
     try
-        return string(readchomp(Cmd(`git describe --tags --always --first-parent --dirty`, dir=pkgdir(@__MODULE__))))
+        return string(readchomp(Cmd(`git describe --tags --always --first-parent --dirty`,
+                                    dir=pkgdir(@__MODULE__))))
     catch e
         return "Git is not installed or not accessible"
     end

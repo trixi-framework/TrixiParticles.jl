@@ -5,16 +5,10 @@ using GLM
 using DataFrames
 using Printf
 
-# Any function can be implemented and will be called after each timestep! See example below:
-# a = function(pp, t, system, u, v, system_name) println("test_func ", t) end
-# example_cb = PostprocessCallback([a,])
-
-# see also the implementation for the functions calculate_ekin, calculate_total_mass,...
-pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density, interval=10)
-# pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density; dt=0.05)
+pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density; dt=0.05)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
-extra_callback=pp_cb, tspan=(0.0, 5.0));
+              extra_callback=pp_cb, tspan=(0.0, 5.0));
 
 function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     @assert length(data)==length(t) "Data and time vectors must have the same length"
@@ -32,7 +26,8 @@ function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     return trend, gradient
 end
 
-file_path = TrixiParticles.get_latest_unique_filename(joinpath(pwd(), "out"), "values", ".json")
+file_path = TrixiParticles.get_latest_unique_filename(joinpath(pwd(), "out"), "values",
+                                                      ".json")
 if file_path != ""
     json_string = read(file_path, String)
     json_data = JSON.parse(json_string)
