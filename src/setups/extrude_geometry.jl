@@ -160,7 +160,7 @@ function consider_particle_placement(geometry::Union{AbstractMatrix, InitialCond
 end
 
 function consider_particle_placement(plane_points, direction, particle_spacing, tlsph)
-    consider_particle_placement(tuple(plabe_points...), direction, particle_spacing, tlsph)
+    consider_particle_placement(tuple(plane_points...), direction, particle_spacing, tlsph)
 end
 
 function consider_particle_placement(plane_points::NTuple{2}, direction, particle_spacing,
