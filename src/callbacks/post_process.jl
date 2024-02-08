@@ -41,7 +41,7 @@ postprocess_callback = PostprocessCallback(example_function, interval=100)
 postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 ```
 """
-mutable struct PostprocessCallback{I, F}
+struct PostprocessCallback{I, F}
     interval         :: I
     values           :: Dict{String, Vector{DataEntry}}
     exclude_boundary :: Bool
