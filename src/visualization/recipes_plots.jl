@@ -8,7 +8,8 @@ RecipesBase.@recipe function f(sol::TrixiParticlesODESolution)
     return sol.u[end].x..., sol.prob.p
 end
 
-RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization)
+RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
+                               size=(600, 400)) # Default size
     systems_data = map(semi.systems) do system
         (; initial_condition) = system
 
@@ -33,7 +34,11 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization)
     y_min = minimum(data.y_min for data in systems_data)
     y_max = maximum(data.y_max for data in systems_data)
 
-    pixel_size = max((x_max - x_min) / 600, (y_max - y_min) / 400)
+    # Note that this assumes the plot area to be ~10% smaller than `size`,
+    # which is the case when showing a single plot with the legend inside.
+    # With the legend outside, this is no longer the case, so the `markersize` has to be
+    # set manually.
+    pixel_size = max((x_max - x_min) / size[1], (y_max - y_min) / size[2])
 
     xlims --> (x_min, x_max)
     ylims --> (y_min, y_max)
