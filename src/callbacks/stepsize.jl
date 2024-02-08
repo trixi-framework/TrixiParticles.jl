@@ -23,7 +23,7 @@ where
     \Delta t_\eta = 0.125 \, h^2 / \eta, \quad \Delta t_a = 0.25 \sqrt{h / \lVert g \rVert},
     \quad \Delta t_c = \text{CFL} \, h / c,
 ```
-with ``\eta = \alpha h c / (2n + 4)``, where ``\alpha`` is the parameter of the viscosity
+with ``\nu = \alpha h c / (2n + 4)``, where ``\alpha`` is the parameter of the viscosity
 and ``n`` is the number of dimensions.
 
 !!! warning "Experimental implementation"
