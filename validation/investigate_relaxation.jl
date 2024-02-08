@@ -49,21 +49,21 @@ if file_path != ""
                  linewidth=[2 2],
                  title="Kinetic Energy of the Fluid", xlabel="Time [s]",
                  ylabel="kinetic energy [J]")
-    annotate!(x_position_for_annotation, ylims(plot1)[2]-0.0001,
+    annotate!(x_position_for_annotation, ylims(plot1)[2] - 0.0001,
               @sprintf("gradient=%.5f", grad_ekin))
 
     plot2 = plot(time, [p_max, tl_p_max], label=["sim" "trend"], color=[:blue :red],
                  linewidth=[2 2],
                  title="Maximum Pressure of the Fluid", xlabel="Time [s]",
                  ylabel="Max. Pressure [Pa]")
-    annotate!(x_position_for_annotation, ylims(plot2)[2]-5.5,
+    annotate!(x_position_for_annotation, ylims(plot2)[2] - 5.5,
               @sprintf("gradient=%.5f", grad_p_max))
 
     plot3 = plot(time, [avg_rho, tl_avg_rho], label=["sim" "trend"], color=[:blue :red],
                  linewidth=[2 2],
                  title="Avg. Density of the Fluid", xlabel="Time [s]",
                  ylabel="Avg. Density [kg/m^3]")
-    annotate!(x_position_for_annotation, ylims(plot3)[2]-0.003,
+    annotate!(x_position_for_annotation, ylims(plot3)[2] - 0.003,
               @sprintf("gradient=%.5f", grad_avg_rho))
 
     plot(plot1, plot2, plot3, layout=(1, 3), legend=:bottom, size=(1800, 500))
