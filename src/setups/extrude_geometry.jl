@@ -74,7 +74,7 @@ function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
     coordinates = reshape(stack(coords), (NDIMS, size(face_coords, 2) * (n_extrude + 1)))
 
     return InitialCondition(; coordinates, velocity, density, mass, pressure,
-                            particle_spacing_)
+                            particle_spacing=particle_spacing_)
 end
 
 function sample_plane(geometry::AbstractMatrix, particle_spacing)
