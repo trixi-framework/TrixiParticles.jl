@@ -26,7 +26,7 @@ This will result in the following:
 To visualize the results, see [Visualization](visualization.md).
 
 ## Running other Examples
-You can find a list of our other pre-defined examples under [Examples](examples.md).
+You can find a list of our other predefined examples under [Examples](examples.md).
 Execute them as follows from the Julia REPL by replacing `subfolder` and `example_name`
 ```julia
 julia> trixi_include(joinpath(examples_dir(), "subfolder", "example_name.jl"))
