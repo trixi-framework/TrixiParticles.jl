@@ -26,9 +26,9 @@ a fixed interval of simulation time (`dt`).
 - `exclude_boundary=true`: If set to `true`, boundary particles will be excluded from the post-processing.
 - `filename="values"`: The filename of the postprocessing files to be saved.
 - `output_directory="out"`: The path where the results of the post-processing will be saved.
-- `overwrite=true`: If set to `true`, existing files with the same name as `filename` will be overwritten.
 - `write_csv=true`: If set to `true`, write an csv file.
 - `write_json=true`: If set to `true`, write a json file.
+- `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
 
 # Examples
 ```julia
@@ -48,13 +48,13 @@ struct PostprocessCallback{I, F}
     func             :: F
     filename         :: String
     output_directory :: String
-    overwrite        :: Bool
+    append_timestamp :: Bool
     write_csv        :: Bool
     write_json       :: Bool
 end
 
 function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values", overwrite=true,
+                             output_directory="out", filename="values", append_timestamp=false,
                              write_csv=true, write_json=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -66,7 +66,7 @@ function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boun
 
     post_callback = PostprocessCallback(interval, Dict{String, Vector{DataEntry}}(),
                                         exclude_boundary, funcs, filename, output_directory,
-                                        overwrite, write_csv, write_json)
+                                        append_timestamp, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -107,7 +107,15 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
-        setup = ["interval" => string(callback.interval)]
+        setup = [
+            "interval" => string(callback.interval),
+            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
+            "filename" => callback.filename,
+            "output directory" => callback.output_directory,
+            "append timestamp" => callback.append_timestamp ? "yes" : "no",
+            "write json file" => callback.write_csv ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no",
+            ]
 
         for (i, f) in enumerate(callback.func)
             push!(setup, "function$i" => string(nameof(f)))
@@ -124,7 +132,15 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!.affect!
-        setup = ["interval" => string(callback.interval)]
+        setup = [
+            "interval" => string(callback.interval),
+            "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
+            "filename" => callback.filename,
+            "output directory" => callback.output_directory,
+            "append timestamp" => callback.append_timestamp ? "yes" : "no",
+            "write json file" => callback.write_csv ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no",
+            ]
 
         for (i, f) in enumerate(callback.func)
             push!(setup, "function$i" => string(nameof(f)))
@@ -236,12 +252,12 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
     write_meta_data!(data)
     prepare_series_data!(data, pp)
 
-    filename_json = pp.filename * ".json"
-    filename_csv = pp.filename * ".csv"
-    if !pp.overwrite
-        filename_json = get_unique_filename(pp.filename, ".json")
-        filename_csv = get_unique_filename(pp.filename, ".csv")
+    time_stamp = ""
+    if pp.append_timestamp
+        time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
+    filename_json = pp.filename * time_stamp * ".json"
+    filename_csv = pp.filename * time_stamp * ".csv"
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
