@@ -100,9 +100,6 @@ struct InitialCondition{ELTYPE}
 
         if velocity isa AbstractMatrix
             velocities = velocity
-            if size(coordinates) != size(velocities)
-                throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
-            end
         else
             # Assuming `velocity` is a scalar or a function
             velocity_fun = wrap_function(velocity, Val(NDIMS))
@@ -111,7 +108,10 @@ struct InitialCondition{ELTYPE}
                                     "for $NDIMS-dimensional `coordinates`"))
             end
             velocities_svector = velocity_fun.(coordinates_svector)
-            velocities = reinterpret(reshape, ELTYPE, velocities_svector)
+            velocities = stack(velocities_svector)
+        end
+        if size(coordinates) != size(velocities)
+            throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
 
         if density isa AbstractVector
@@ -124,6 +124,10 @@ struct InitialCondition{ELTYPE}
         else
             density_fun = wrap_function(density, Val(NDIMS))
             densities = density_fun.(coordinates_svector)
+        end
+
+        if any(densities .< eps())
+            throw(ArgumentError("density must be positive and larger than `eps()`"))
         end
 
         if pressure isa AbstractVector

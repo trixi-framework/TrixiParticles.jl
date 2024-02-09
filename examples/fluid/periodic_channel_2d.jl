@@ -52,7 +52,6 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch,
                           periodic_box_min_corner=[0.0, -0.25],
                           periodic_box_max_corner=[1.0, 0.75])
 ode = semidiscretize(semi, tspan)
@@ -69,7 +68,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-8, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
