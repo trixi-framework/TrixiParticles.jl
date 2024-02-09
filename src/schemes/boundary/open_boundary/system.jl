@@ -22,7 +22,11 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF} <: FluidSystem{ND
                                    flow_direction, open_boundary_layers=0, density,
                                    velocity=zeros(length(plane_points)),
                                    pressure=0.0, velocity_function=nothing, mass=nothing)
-        if !isa(open_boundary_layers, Int)
+        if !((boundary_zone isa InFlow) || (boundary_zone isa OutFlow))
+            throw(ArgumentError("`boundary_zone` must either be of type InFlow or OutFlow"))
+        end
+
+        if !(open_boundary_layers isa Int)
             throw(ArgumentError("`open_boundary_layers` must be of type Int"))
         elseif open_boundary_layers < sqrt(eps())
             throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
@@ -62,8 +66,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF} <: FluidSystem{ND
             # Flip the outflow vector in downstream direction
             (boundary_zone isa OutFlow) && (spanning_set[:, 1] .*= -1)
         else
-            throw(ArgumentError("Flow direction and normal vector of " *
-                                "$(typeof(boundary_zone))-plane do not correspond."))
+            throw(ArgumentError("flow direction and normal vector of " *
+                                "$(typeof(boundary_zone))-plane do not correspond"))
         end
 
         spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
@@ -84,6 +88,31 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF} <: FluidSystem{ND
                                               previous_characteristics, sound_speed,
                                               boundary_zone, flow_direction_, zone_origin,
                                               spanning_set_, velocity_function)
+    end
+end
+
+timer_name(::OpenBoundarySPHSystem) = "open_boundary"
+
+function Base.show(io::IO, system::OpenBoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "OpenBoundarySPHSystem{", ndims(system), "}(")
+    print(io, system.boundary_zone)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
+    @nospecialize system # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "OpenBoundarySPHSystem{$(ndims(system))}")
+        summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "boundary", system.boundary_zone)
+        summary_line(io, "flow direction", system.flow_direction)
+        summary_line(io, "width", round(norm(system.spanning_set[1]), digits=3))
+        summary_footer(io)
     end
 end
 
