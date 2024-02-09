@@ -152,7 +152,8 @@ function sample_plane(plane_points::NTuple{3}, particle_spacing)
         end
     end
 
-    particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
+    particle_spacing_new = min(norm(edge1 / num_points_edge1),
+                               norm(edge2 / num_points_edge2))
 
     return coords, particle_spacing_new
 end
