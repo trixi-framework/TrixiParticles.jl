@@ -85,11 +85,65 @@
             end
         end
     end
+
+    @testset verbose=true "Particle In Boundary Zone 3D" begin
+        point1 = [-0.2, -0.5, 0.0]
+        point2 = [0.3, 0.5, 0.0]
+        point3 = [0.13111173850909402, -0.665555869254547, 0.0]
+
+        flow_direction = normalize(cross(point2 - point1, point3 - point1))
+        system = OpenBoundarySPHSystem([point1, point2, point3], InFlow(), 1.0;
+                                       flow_direction,
+                                       density=1.0, particle_spacing=0.1,
+                                       open_boundary_layers=4)
+
+        query_points = Dict(
+            "Behind" => ([-1.0, -1.0, 1.2], false),
+            "Before" => ([2.0, 2.0, -1.2], false),
+            "On Point 1" => (plane_points[1], true),
+            "On Point 2" => (plane_points[2], true),
+            "On Point 3" => (plane_points[3], true),
+            "On Point 4" => (system.spanning_set[1] + system.zone_origin, true),
+            "Closely On Point 1" => (plane_points[1] .+ eps() * flow_direction, false))
+
+        @testset "$key" for key in keys(query_points)
+            (particle_position, evaluation) = query_points[key]
+
+            @test evaluation ==
+                  TrixiParticles.within_boundary_zone(particle_position, system)
+        end
+    end
+
+    @testset verbose=true "Particle In Boundary Zone 2D" begin
+        plane_points = [[-0.2, -0.5], [0.3, 0.5]]
+        plane_size = plane_points[2] - plane_points[1]
+
+        flow_direction = normalize([-plane_size[2], plane_size[1]])
+        system = OpenBoundarySPHSystem(plane_points, InFlow(), 1.0; flow_direction,
+                                       density=1.0,
+                                       particle_spacing=0.1, open_boundary_layers=4)
+
+        query_points = Dict(
+            "Behind" => ([-1.0, -1.0], false),
+            "Before" => ([2.0, 2.0], false),
+            "On Point 1" => (plane_points[1], true),
+            "On Point 2" => (plane_points[2], true),
+            "On Point 3" => (system.spanning_set[1] + system.zone_origin, true),
+            "Closely On Point 1" => (plane_points[1] .+ eps() * flow_direction, false))
+
+        @testset "$key" for key in keys(query_points)
+            (particle_position, evaluation) = query_points[key]
+
+            @test evaluation ==
+                  TrixiParticles.within_boundary_zone(particle_position, system)
+        end
+    end
+
     @testset verbose=true "Illegal Inputs" begin
         no_rectangular_plane = [[0.2, 0.3, -0.5], [-1.0, 1.5, 0.2], [-0.2, 2.0, -0.5]]
         flow_direction = [0.0, 0.0, 1.0]
         error_str = "the provided points do not span a rectangular plane"
-        @test_throws ArgumentError(error_str) system=OpenBoundarySPHSystem(no_rectangular,
+        @test_throws ArgumentError(error_str) system=OpenBoundarySPHSystem(no_rectangular_plane,
                                                                            InFlow(),
                                                                            1.0;
                                                                            flow_direction,

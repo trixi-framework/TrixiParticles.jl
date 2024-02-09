@@ -118,6 +118,20 @@ end
 
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 
+@inline source_terms(system::OpenBoundarySPHSystem) = nothing
+
+@inline function particle_density(v, system::OpenBoundarySPHSystem, particle)
+    return system.density[particle]
+end
+
+@inline function particle_pressure(v, system::OpenBoundarySPHSystem, particle)
+    return system.pressure[particle]
+end
+
+@inline set_particle_density(particle, v, system::OpenBoundarySPHSystem, density) = system
+
+@inline set_particle_pressure(particle, v, system, pressure) = system
+
 function spanning_vectors(plane_points, zone_width)
 
     # Convert to tuple
@@ -146,4 +160,23 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
     c = Vector(normalize(cross(edge2, edge1)) * zone_width)
 
     return hcat(c, edge1, edge2)
+end
+
+@inline function within_boundary_zone(particle_coords, system)
+    (; zone_origin, spanning_set) = system
+    particle_positon = particle_coords - zone_origin
+
+    for dim in 1:ndims(system)
+        span_dim = spanning_set[dim]
+        # Checks whether the projection of the particle position
+        # falls within the range of the zone.
+        if !(0 <= dot(particle_positon, span_dim) <= dot(span_dim, span_dim))
+
+            # Particle is not in boundary zone.
+            return false
+        end
+    end
+
+    # Particle is in boundary zone.
+    return true
 end
