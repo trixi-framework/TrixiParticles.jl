@@ -95,10 +95,9 @@ function spanning_vectors(plane_points, zone_width)
     return spanning_vectors(tuple(plane_points...), zone_width)
 end
 
-spanning_vectors(plane_points::NTuple{1}, zone_width) = [-zone_width]
-
 function spanning_vectors(plane_points::NTuple{2}, zone_width)
     plane_size = plane_points[2] - plane_points[1]
+
     # Calculate normal vector of plane
     b = Vector(normalize([-plane_size[2]; plane_size[1]]) * zone_width)
 
