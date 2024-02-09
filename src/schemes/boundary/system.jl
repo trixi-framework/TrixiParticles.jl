@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(inititial_condition, model; movement=nothing)
+    BoundarySPHSystem(initial_condition, model; movement=nothing)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -59,12 +59,12 @@ struct BoundaryMovement{MF, IM}
     end
 end
 
-create_cache_boundary(::Nothing, inititial_condition) = (;)
+create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::BoundaryMovement, inititial_condition)
-    initial_coordinates = copy(inititial_condition.coordinates)
-    velocity = similar(inititial_condition.velocity)
-    acceleration = similar(inititial_condition.velocity)
+function create_cache_boundary(::BoundaryMovement, initial_condition)
+    initial_coordinates = copy(initial_condition.coordinates)
+    velocity = similar(initial_condition.velocity)
+    acceleration = similar(initial_condition.velocity)
     return (; initial_coordinates, velocity, acceleration)
 end
 
