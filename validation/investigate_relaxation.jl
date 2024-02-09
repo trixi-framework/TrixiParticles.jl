@@ -5,7 +5,7 @@ using GLM
 using DataFrames
 using Printf
 
-pp_cb = PostprocessCallback(calculate_ekin, max_pressure, avg_density; dt=0.025)
+pp_cb = PostprocessCallback(ekin, max_pressure, avg_density; dt=0.025, filename="relaxation")
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"),
               extra_callback=pp_cb, tspan=(0.0, 5.0));
@@ -26,26 +26,25 @@ function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     return trend, gradient
 end
 
-file_path = TrixiParticles.get_latest_unique_filename(joinpath(pwd(), "out"), "values",
-                                                      ".json")
+file_path = joinpath(pwd(), "out", "relaxation.json")
 
 if file_path != ""
     json_string = read(file_path, String)
     json_data = JSON.parse(json_string)
 
     time = Vector{Float64}(json_data["ekin_fluid_1"]["time"])
-    ekin = Vector{Float64}(json_data["ekin_fluid_1"]["values"])
-    tl_ekin, grad_ekin = calculate_regression(ekin, time)
+    e_kin = Vector{Float64}(json_data["ekin_fluid_1"]["values"])
+    tl_ekin, grad_ekin = calculate_regression(e_kin, time)
 
     x_position_for_annotation = minimum(time) + (maximum(time) - minimum(time)) * 0.5
 
-    p_max = Vector{Float64}(json_data["max_p_fluid_1"]["values"])
+    p_max = Vector{Float64}(json_data["max_pressure_fluid_1"]["values"])
     tl_p_max, grad_p_max = calculate_regression(p_max, time)
 
-    avg_rho = Vector{Float64}(json_data["avg_rho_fluid_1"]["values"])
+    avg_rho = Vector{Float64}(json_data["avg_density_fluid_1"]["values"])
     tl_avg_rho, grad_avg_rho = calculate_regression(avg_rho, time)
 
-    plot1 = plot(time, [ekin, tl_ekin], label=["sim" "trend"], color=[:blue :red],
+    plot1 = plot(time, [e_kin, tl_ekin], label=["sim" "trend"], color=[:blue :red],
                  linewidth=[2 2],
                  title="Kinetic Energy of the Fluid", xlabel="Time [s]",
                  ylabel="kinetic energy [J]")

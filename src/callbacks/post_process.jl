@@ -195,7 +195,9 @@ function (pp::PostprocessCallback)(integrator)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         for f in pp.func
-            f(pp, t, system, u, v, filenames[system_index])
+            # f(pp, t, system, u, v, filenames[system_index])
+            result = f(t, v, u, system)
+            add_entry!(pp, string(nameof(f)), t, result, filenames[system_index])
         end
     end
 
@@ -277,7 +279,14 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
 end
 
 function write_csv(abs_file_path, data)
-    times = collect(values(data))[1]["time"]
+    times = Float64[]
+
+    for val in values(data)
+        if haskey(val, "time")
+            times = val["time"]
+            break
+        end
+    end
     df = DataFrame(time=times) # Initialize DataFrame with time column
 
     for (key, series) in data
@@ -301,24 +310,24 @@ function add_entry!(pp, entry_key, t, value, system_name)
     push!(entries, DataEntry(value, t, system_name))
 end
 
-function calculate_ekin(pp, t, system, u, v, system_name)
-    ekin = 0.0
+function ekin(t, v, u, system)
+    e_kin = 0.0
     for particle in each_moving_particle(system)
         velocity = current_velocity(v, system, particle)
-        ekin += 0.5 * system.mass[particle] * dot(velocity, velocity)
+        e_kin += 0.5 * system.mass[particle] * dot(velocity, velocity)
     end
-    add_entry!(pp, "ekin", t, ekin, system_name)
+    return e_kin
 end
 
-function calculate_total_mass(pp, t, system, u, v, system_name)
-    total_mass = 0.0
+function total_mass(t, v, u, system)
+    tm = 0.0
     for particle in each_moving_particle(system)
-        total_mass += system.mass[particle]
+        tm += system.mass[particle]
     end
-    add_entry!(pp, "totalm", t, total_mass, system_name)
+    return tm
 end
 
-function max_pressure(pp, t, system, u, v, system_name)
+function max_pressure(t, v, u, system)
     max_p = 0.0
     for particle in each_moving_particle(system)
         pressure = particle_pressure(v, system, particle)
@@ -326,10 +335,10 @@ function max_pressure(pp, t, system, u, v, system_name)
             max_p = pressure
         end
     end
-    add_entry!(pp, "max_p", t, max_p, system_name)
+    return max_p
 end
 
-function min_pressure(pp, t, system, u, v, system_name)
+function min_pressure(t, v, u, system)
     min_p = typemax(Int64)
     for particle in each_moving_particle(system)
         pressure = particle_pressure(v, system, particle)
@@ -337,10 +346,10 @@ function min_pressure(pp, t, system, u, v, system_name)
             min_p = pressure
         end
     end
-    add_entry!(pp, "min_p", t, min_p, system_name)
+    return min_p
 end
 
-function avg_pressure(pp, t, system, u, v, system_name)
+function avg_pressure(t, v, u, system)
     total_pressure = 0.0
     count = 0
 
@@ -350,10 +359,10 @@ function avg_pressure(pp, t, system, u, v, system_name)
     end
 
     avg_p = count > 0 ? total_pressure / count : 0.0
-    add_entry!(pp, "avg_p", t, avg_p, system_name)
+    return avg_p
 end
 
-function max_density(pp, t, system, u, v, system_name)
+function max_density(t, v, u, system)
     max_rho = 0.0
     for particle in each_moving_particle(system)
         rho = particle_density(v, system, particle)
@@ -361,10 +370,10 @@ function max_density(pp, t, system, u, v, system_name)
             max_rho = rho
         end
     end
-    add_entry!(pp, "max_rho", t, max_rho, system_name)
+    return max_rho
 end
 
-function min_density(pp, t, system, u, v, system_name)
+function min_density(t, v, u, system)
     min_rho = typemax(Int64)
     for particle in each_moving_particle(system)
         rho = particle_density(v, system, particle)
@@ -372,10 +381,10 @@ function min_density(pp, t, system, u, v, system_name)
             min_rho = rho
         end
     end
-    add_entry!(pp, "min_rho", t, min_rho, system_name)
+    return min_rho
 end
 
-function avg_density(pp, t, system, u, v, system_name)
+function avg_density(t, v, u, system)
     total_density = 0.0
     count = 0
 
@@ -385,5 +394,5 @@ function avg_density(pp, t, system, u, v, system_name)
     end
 
     avg_rho = count > 0 ? total_density / count : 0.0
-    add_entry!(pp, "avg_rho", t, avg_rho, system_name)
+    return avg_rho
 end
