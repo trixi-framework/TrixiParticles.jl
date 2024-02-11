@@ -19,8 +19,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     (; smoothing_length, state_equation, viscosity, acceleration) = system
     (; sound_speed) = state_equation
 
-    kinematic_viscosity = kinematic_viscosity(system, viscosity)
-    dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity
+    dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
 
     # TODO Adami et al. (2012) just use the gravity here, but Antuono et al. (2012)
     # are using a per-particle acceleration. Is that supposed to be the previous RHS?
