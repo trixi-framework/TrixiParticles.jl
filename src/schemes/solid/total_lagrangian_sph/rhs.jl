@@ -33,7 +33,7 @@ end
         rho_b = neighbor_system.material_density[neighbor]
 
         grad_kernel = smoothing_kernel_grad(particle_system, initial_pos_diff,
-                                            initial_distance, particle)
+                                            initial_distance)
 
         m_b = neighbor_system.mass[neighbor]
 

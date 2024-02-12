@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "TotalLagrangianSPHSystem" begin
     # Use `@trixi_testset` to isolate the mock functions in a separate namespace
     @trixi_testset "Constructor" begin
@@ -68,7 +67,7 @@ include("../test_util.jl")
                                           boundary_model=boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
-                       "[0.0, 0.0], Val{:boundary_model}(), nothing, nothing) with 2 particles"
+                       "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -83,7 +82,6 @@ include("../test_util.jl")
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ boundary model: ……………………………………… Val{:boundary_model}()                                           │
         │ penalty force: ………………………………………… Nothing                                                          │
-        │ correction: ………………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end

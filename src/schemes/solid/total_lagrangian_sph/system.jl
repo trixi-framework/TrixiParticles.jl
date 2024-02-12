@@ -131,8 +131,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
                       ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
-        cache = create_cache_tlsph(correction, mass, NDIMS, n_particles)
-
         return new{typeof(boundary_model), NDIMS, ELTYPE,
                    typeof(smoothing_kernel),
                    typeof(penalty_force),
@@ -146,15 +144,6 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
     end
 end
 
-function create_cache_tlsph(::Nothing, mass, NDIMS, n_particles)
-    return (;)
-end
-
-function create_cache_tlsph(::KernelCorrection, mass, NDIMS, n_particles)
-    dw_gamma = Array{Float64}(undef, NDIMS, n_particles)
-    return (; kernel_correction_coefficient=similar(mass), dw_gamma)
-end
-
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     @nospecialize system # reduce precompilation time
 
@@ -165,7 +154,6 @@ function Base.show(io::IO, system::TotalLagrangianSPHSystem)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.boundary_model)
     print(io, ", ", system.penalty_force)
-    print(io, ", ", system.correction)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -186,7 +174,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "boundary model", system.boundary_model)
         summary_line(io, "penalty force", system.penalty_force |> typeof |> nameof)
-        summary_line(io, "correction", system.correction |> typeof |> nameof)
         summary_footer(io)
     end
 end
@@ -257,7 +244,7 @@ end
 
 function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_ode, u_ode,
                      semi)
-    (; correction_matrix, correction) = system
+    (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)
 
@@ -266,11 +253,6 @@ function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_od
     # Calculate correction matrix
     compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
                                         initial_coords, density_fun)
-    if correction !== nothing
-        compute_correction_values!(system, correction, initial_coords, v_ode, u_ode, semi,
-                                   system.cache.kernel_correction_coefficient,
-                                   system.cache.dw_gamma)
-    end
 end
 
 function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -335,7 +317,7 @@ end
         pos_diff = current_coords(system, particle) - current_coords(system, neighbor)
 
         grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance, particle)
+                                            initial_distance)
 
         result = volume * pos_diff * grad_kernel'
 

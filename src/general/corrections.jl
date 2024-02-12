@@ -153,7 +153,7 @@ which results in a 1st-order-accurate SPH method.
 """
 struct MixedKernelGradientCorrection end
 
-function kernel_correction_coefficient(system::Union{FluidSystem, SolidSystem}, particle)
+function kernel_correction_coefficient(system::FluidSystem, particle)
     return system.cache.kernel_correction_coefficient[particle]
 end
 
@@ -209,7 +209,7 @@ function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
     return kernel_correction_coefficient
 end
 
-function dw_gamma(system::Union{FluidSystem, SolidSystem}, particle)
+function dw_gamma(system::FluidSystem, particle)
     return extract_svector(system.cache.dw_gamma, system, particle)
 end
 
