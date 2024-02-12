@@ -1,28 +1,30 @@
+include("../test_util.jl")
+
 @trixi_testset "dam_break_2d.jl with corrections" begin
     fluid_density = 1000.0
     particle_spacing = 0.05
-    tspan = (0.0, 0.1)
+    tspan = (0.0, 5.7 / sqrt(9.81))
 
     correction_dict = Dict(
         "no_correction" => nothing,
         "shepard_kernel_correction" => ShepardKernelCorrection(),
         "akinci_free_surf_correction" => AkinciFreeSurfaceCorrection(fluid_density),
-        "kernel_gradient_summation_correction" => KernelCorrection(),
-        "kernel_gradient_continuity_correction" => KernelCorrection(),
+        "kernel_correction_summation_correction" => KernelCorrection(),
+        "kernel_correction_continuity_correction" => KernelCorrection(),
         "blended_gradient_summation_correction" => BlendedGradientCorrection(0.5),
         "blended_gradient_continuity_correction" => BlendedGradientCorrection(0.2),
         "gradient_summation_correction" => GradientCorrection(),
         "mixed_kernel_gradient_summation_correction" => MixedKernelGradientCorrection(),
-        # "gradient_continuity_correction" => GradientCorrection(),
-        # "mixed_kernel_gradient_continuity_correction" => MixedKernelGradientCorrection(),
+        "gradient_continuity_correction" => GradientCorrection(),
+        "mixed_kernel_gradient_continuity_correction" => MixedKernelGradientCorrection(),
     )
 
     smoothing_length_dict = Dict(
         "no_correction" => 3.0 * particle_spacing,
         "shepard_kernel_correction" => 3.0 * particle_spacing,
         "akinci_free_surf_correction" => 3.0 * particle_spacing,
-        "kernel_gradient_summation_correction" => 4.0 * particle_spacing,
-        "kernel_gradient_continuity_correction" => 3.5 * particle_spacing,
+        "kernel_correction_summation_correction" => 4.0 * particle_spacing,
+        "kernel_correction_continuity_correction" => 3.5 * particle_spacing,
         "blended_gradient_summation_correction" => 3.0 * particle_spacing,
         "blended_gradient_continuity_correction" => 4.0 * particle_spacing,
         "gradient_summation_correction" => 3.5 * particle_spacing,
@@ -35,8 +37,8 @@
         "no_correction" => SummationDensity(),
         "shepard_kernel_correction" => SummationDensity(),
         "akinci_free_surf_correction" => SummationDensity(),
-        "kernel_gradient_summation_correction" => SummationDensity(),
-        "kernel_gradient_continuity_correction" => ContinuityDensity(),
+        "kernel_correction_summation_correction" => SummationDensity(),
+        "kernel_correction_continuity_correction" => ContinuityDensity(),
         "blended_gradient_summation_correction" => SummationDensity(),
         "blended_gradient_continuity_correction" => ContinuityDensity(),
         "gradient_summation_correction" => SummationDensity(),
@@ -49,8 +51,8 @@
         "no_correction" => WendlandC2Kernel{2}(),
         "shepard_kernel_correction" => WendlandC2Kernel{2}(),
         "akinci_free_surf_correction" => WendlandC2Kernel{2}(),
-        "kernel_gradient_summation_correction" => WendlandC6Kernel{2}(),
-        "kernel_gradient_continuity_correction" => WendlandC6Kernel{2}(),
+        "kernel_correction_summation_correction" => WendlandC6Kernel{2}(),
+        "kernel_correction_continuity_correction" => WendlandC6Kernel{2}(),
         "blended_gradient_summation_correction" => WendlandC2Kernel{2}(),
         "blended_gradient_continuity_correction" => WendlandC6Kernel{2}(),
         "gradient_summation_correction" => WendlandC6Kernel{2}(),
