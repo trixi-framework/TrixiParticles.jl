@@ -113,7 +113,7 @@ function sample_plane(plane_points::NTuple{2}, particle_spacing)
         throw(ArgumentError("all points must be 2D coordinates"))
     end
 
-    n_points = floor(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing) + 1
+    n_points = ceil(Int, norm(plane_points[2] - plane_points[1]) / particle_spacing) + 1
 
     coords = stack(range(plane_points[1], plane_points[2], length=n_points))
     particle_spacing_new = norm(coords[:, 1] - coords[:, 2])
