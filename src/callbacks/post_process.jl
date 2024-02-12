@@ -1,9 +1,3 @@
-struct DataEntry
-    value::Float64
-    time::Float64
-    system::String
-end
-
 """
     PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory=".", overwrite=true, write_csv=true, write_json=true)
@@ -43,7 +37,8 @@ postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 """
 struct PostprocessCallback{I, F}
     interval         :: I
-    values           :: Dict{String, Vector{DataEntry}}
+    data             :: Dict{String, Vector{Any}}
+    times            :: Array{Float64, 1}
     exclude_boundary :: Bool
     func             :: F
     filename         :: String
@@ -54,7 +49,8 @@ struct PostprocessCallback{I, F}
 end
 
 function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true,
-                             output_directory="out", filename="values", append_timestamp=false,
+                             output_directory="out", filename="values",
+                             append_timestamp=false,
                              write_csv=true, write_json=true)
     if dt > 0 && interval > 0
         throw(ArgumentError("Setting both interval and dt is not supported!"))
@@ -64,7 +60,7 @@ function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boun
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, Dict{String, Vector{DataEntry}}(),
+    post_callback = PostprocessCallback(interval, Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
                                         append_timestamp, write_csv, write_json)
     if dt > 0
@@ -115,7 +111,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
             "write csv file" => callback.write_json ? "yes" : "no",
-            ]
+        ]
 
         for (i, f) in enumerate(callback.func)
             push!(setup, "function$i" => string(nameof(f)))
@@ -140,7 +136,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
             "write csv file" => callback.write_json ? "yes" : "no",
-            ]
+        ]
 
         for (i, f) in enumerate(callback.func)
             push!(setup, "function$i" => string(nameof(f)))
@@ -184,6 +180,7 @@ function (pp::PostprocessCallback)(integrator)
     semi = integrator.p
     t = integrator.t
     filenames = system_names(semi.systems)
+    new_data = false
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary
@@ -195,10 +192,14 @@ function (pp::PostprocessCallback)(integrator)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         for f in pp.func
-            # f(pp, t, system, u, v, filenames[system_index])
             result = f(t, v, u, system)
             add_entry!(pp, string(nameof(f)), t, result, filenames[system_index])
+            new_data = true
         end
+    end
+
+    if new_data
+        push!(pp.times, t)
     end
 
     if isfinished(integrator)
@@ -212,15 +213,15 @@ end
 # This function prepares the data for writing to a JSON file by creating a dictionary
 # that maps each key to separate arrays of times and values, sorted by time, and includes system name.
 function prepare_series_data!(data, post_callback)
-    for (key, data_array) in post_callback.values
+    for (key, data_array) in post_callback.data
         # Extracting times and values into separate arrays
-        data_times = [data_.time for data_ in data_array]
-        data_values = [data_.value for data_ in data_array]
+        # data_times = [data_.time for data_ in data_array]
+        data_values = [value for value in data_array]
 
-        # Assuming each `DataEntry` in `data_array` has a `system` field
-        system_name = isempty(data_array) ? "" : data_array[1].system
+        # the penultimate string in the key is the system_name
+        system_name = split(key, '_')[end - 1]
 
-        data[key] = create_series_dict(data_values, data_times, system_name)
+        data[key] = create_series_dict(data_values, post_callback.times, system_name)
     end
 
     return data
@@ -246,7 +247,7 @@ end
 
 # After the simulation has finished, this function is called to write the data to a JSON file.
 function (pp::PostprocessCallback)(integrator, finished::Bool)
-    if isempty(pp.values)
+    if isempty(pp.data)
         return
     end
 
@@ -303,11 +304,11 @@ function write_csv(abs_file_path, data)
 end
 
 function add_entry!(pp, entry_key, t, value, system_name)
-    # Get the list of DataEntry for the system, or initialize it if it doesn't exist
-    entries = get!(pp.values, entry_key * "_" * system_name, DataEntry[])
+    # Get the list of data entries for the system, or initialize it if it doesn't exist
+    entries = get!(pp.data, entry_key * "_" * system_name, Any[])
 
     # Add the new entry to the list
-    push!(entries, DataEntry(value, t, system_name))
+    push!(entries, value)
 end
 
 function ekin(t, v, u, system)
