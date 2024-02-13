@@ -49,6 +49,9 @@ end
 # are stored in u, for others in the system itself. By default, try to extract them from u.
 @inline current_coordinates(u, system) = u
 
+# This can be dispatched when using a `SystemBuffer`.
+@inline active_coordinates(u, system) = current_coordinates(u, system)
+
 # Specifically get the initial coordinates of a particle for all system types.
 @inline function initial_coords(system, particle)
     return extract_svector(initial_coordinates(system), system, particle)

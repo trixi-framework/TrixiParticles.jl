@@ -76,7 +76,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     # Reset the collection when the iteration is 0
     pvd = paraview_collection(collection_file; append=iter > 0)
 
-    points = periodic_coords(current_coordinates(u, system), periodic_box)
+    points = periodic_coords(active_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
@@ -161,13 +161,15 @@ end
 vtkname(system::FluidSystem) = "fluid"
 vtkname(system::TotalLagrangianSPHSystem) = "solid"
 vtkname(system::BoundarySPHSystem) = "boundary"
+vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
-    vtk["velocity"] = view(v, 1:ndims(system), :)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in each_moving_particle(system)]
     vtk["density"] = [particle_density(v, system, particle)
-                      for particle in eachparticle(system)]
+                      for particle in each_moving_particle(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in eachparticle(system)]
+                       for particle in each_moving_particle(system)]
 
     if write_meta_data
         vtk["acceleration"] = system.acceleration
@@ -237,6 +239,24 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     vtk["smoothing_length"] = system.smoothing_length
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
+end
+
+function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
+    vtk["velocity"] = [current_velocity(v, system, particle)
+                       for particle in each_moving_particle(system)]
+    vtk["density"] = [particle_density(v, system, particle)
+                      for particle in each_moving_particle(system)]
+    vtk["pressure"] = [particle_pressure(v, system, particle)
+                       for particle in each_moving_particle(system)]
+
+    if write_meta_data
+        vtk["boundary_zone"] = type2string(system.boundary_zone)
+        vtk["sound_speed"] = system.sound_speed
+        vtk["open_boundary_layers"] = system.open_boundary_layers
+        vtk["flow_direction"] = system.flow_direction
+    end
+
+    return vtk
 end
 
 function write2vtk!(vtk, v, u, t, system::BoundarySPHSystem; write_meta_data=true)

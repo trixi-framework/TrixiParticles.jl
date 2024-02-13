@@ -34,7 +34,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST, B} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
@@ -47,13 +47,17 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
     nu_edac            :: ELTYPE
     acceleration       :: SVector{NDIMS, ELTYPE}
     source_terms       :: ST
+    buffer             :: B
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         source_terms=nothing)
+                                         source_terms=nothing, buffer=nothing)
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -74,10 +78,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
         density_calculator = SummationDensity()
 
         new{NDIMS, ELTYPE, typeof(density_calculator),
-            typeof(smoothing_kernel), typeof(viscosity),
-            typeof(source_terms)}(initial_condition, mass, density, density_calculator,
-                                  smoothing_kernel, smoothing_length, sound_speed,
-                                  viscosity, nu_edac, acceleration_, source_terms)
+            typeof(smoothing_kernel), typeof(viscosity), typeof(source_terms),
+            typeof(buffer)}(initial_condition, mass, density, density_calculator,
+                            smoothing_kernel, smoothing_length, sound_speed,
+                            viscosity, nu_edac, acceleration_, source_terms, buffer)
     end
 end
 

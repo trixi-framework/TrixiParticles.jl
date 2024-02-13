@@ -2,7 +2,7 @@ struct InFlow end
 
 struct OutFlow end
 
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD} <: System{NDIMS}
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: System{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
     density                  :: Array{ELTYPE, 1} # [particle]
@@ -18,13 +18,15 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD} <: System
     reference_velocity       :: RV
     reference_pressure       :: RP
     reference_density        :: RD
+    buffer                   :: B
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone, sound_speed;
                                    sample_geometry=plane_points, particle_spacing,
                                    flow_direction, open_boundary_layers=0, density,
                                    velocity=zeros(length(flow_direction)), mass=nothing,
-                                   pressure=0.0, reference_velocity=velocity,
-                                   reference_pressure=pressure, reference_density=density)
+                                   pressure=0.0, buffer=nothing,
+                                   reference_velocity=velocity, reference_pressure=pressure,
+                                   reference_density=density)
         if !((boundary_zone isa InFlow) || (boundary_zone isa OutFlow))
             throw(ArgumentError("`boundary_zone` must either be of type InFlow or OutFlow"))
         end
@@ -46,6 +48,9 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD} <: System
         initial_condition = ExtrudeGeometry(sample_geometry; particle_spacing, direction,
                                             n_extrude=open_boundary_layers, velocity, mass,
                                             density, pressure)
+
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
 
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
@@ -110,12 +115,12 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD} <: System
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(spanning_set_),
                    typeof(reference_velocity_), typeof(reference_pressure_),
-                   typeof(reference_density_)}(initial_condition, mass, density, volume,
-                                               pressure, characteristics,
-                                               previous_characteristics, sound_speed,
-                                               boundary_zone, flow_direction_, zone_origin,
-                                               spanning_set_, reference_velocity_,
-                                               reference_pressure_, reference_density_)
+                   typeof(reference_density_),
+                   typeof(buffer)}(initial_condition, mass, density, volume, pressure,
+                                   characteristics, previous_characteristics, sound_speed,
+                                   boundary_zone, flow_direction_, zone_origin,
+                                   spanning_set_, reference_velocity_, reference_pressure_,
+                                   reference_density_, buffer)
     end
 end
 
@@ -143,6 +148,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_footer(io)
     end
 end
+
+@inline eachparticle(system::OpenBoundarySPHSystem) = eachparticle(system, system.buffer)
+
+@inline function each_moving_particle(system::OpenBoundarySPHSystem)
+    return each_moving_particle(system, system.buffer)
+end
+
+@inline active_coordinates(u, system) = active_coordinates(system, system.buffer)
 
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 

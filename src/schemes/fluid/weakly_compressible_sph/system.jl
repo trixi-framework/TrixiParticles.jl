@@ -44,7 +44,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
-                                   V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
+                                   V, DD, COR, PF, ST, B, C} <: FluidSystem{NDIMS}
     initial_condition                 :: InitialCondition{ELTYPE}
     mass                              :: Array{ELTYPE, 1} # [particle]
     pressure                          :: Array{ELTYPE, 1} # [particle]
@@ -58,16 +58,20 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
     correction                        :: COR
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
+    buffer                            :: B
     cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
-                                         pressure_acceleration=nothing,
+                                         pressure_acceleration=nothing, buffer=nothing,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing, source_terms=nothing)
+        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -103,14 +107,14 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
         return new{NDIMS, ELTYPE, typeof(density_calculator),
                    typeof(state_equation), typeof(smoothing_kernel),
                    typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
-                                                        density_calculator, state_equation,
-                                                        smoothing_kernel, smoothing_length,
-                                                        acceleration_, viscosity,
-                                                        density_diffusion, correction,
-                                                        pressure_acceleration,
-                                                        source_terms, cache)
+                   typeof(correction), typeof(pressure_acceleration), typeof(source_terms),
+                   typeof(buffer), typeof(cache)}(initial_condition, mass, pressure,
+                                                  density_calculator, state_equation,
+                                                  smoothing_kernel, smoothing_length,
+                                                  acceleration_, viscosity,
+                                                  density_diffusion, correction,
+                                                  pressure_acceleration, source_terms,
+                                                  buffer, cache)
     end
 end
 

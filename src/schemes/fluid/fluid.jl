@@ -1,3 +1,11 @@
+@inline eachparticle(system::FluidSystem) = eachparticle(system, system.buffer)
+
+@inline function each_moving_particle(system::FluidSystem)
+    return each_moving_particle(system, system.buffer)
+end
+
+@inline active_coordinates(u, system) = active_coordinates(system, system.buffer)
+
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
