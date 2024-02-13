@@ -72,6 +72,7 @@ include("../test_util.jl")
                       fluid_density=fluid_density, density_diffusion=nothing)
 
         @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
     end
 
     @testset verbose=true "$correction_name" for correction_name in keys(correction_dict)
@@ -96,5 +97,6 @@ include("../test_util.jl")
                       boundary_layers=5)
 
         @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
     end
 end
