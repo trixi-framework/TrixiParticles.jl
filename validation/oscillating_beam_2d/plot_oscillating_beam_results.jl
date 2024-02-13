@@ -7,9 +7,16 @@ using Interpolations
 using Statistics
 using Printf
 
+elastic_plate_length = 0.35
+elastic_plate_thickness = 0.02
+
+cylinder_radius = 0.05
+cylinder_diameter = 2 * cylinder_radius
+material_density = 1000.0
+
 # Load the reference simulation data
-dx_data = CSV.read("validation/Turek_dx_T.csv", DataFrame)
-dy_data = CSV.read("validation/Turek_dy_T.csv", DataFrame)
+dx_data = CSV.read("validation/oscillating_beam_2d/Turek_dx_T.csv", DataFrame)
+dy_data = CSV.read("validation/oscillating_beam_2d/Turek_dy_T.csv", DataFrame)
 
 # fix slight misalignment
 dx_data.time = dx_data.time .+ 0.015
@@ -17,7 +24,7 @@ dx_data.displacement = dx_data.displacement .+ 0.00005
 dy_data.displacement = dy_data.displacement .- 0.001
 
 # Get the list of JSON files
-json_files = glob("oscillating_beam_2d_positions_*.json", ".")
+json_files = glob("validation_reference_oscillating_beam_2d_*.json", "validation/oscillating_beam_2d/")
 
 # Create subplots
 fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))

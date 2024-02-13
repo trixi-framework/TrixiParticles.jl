@@ -113,8 +113,16 @@ for res in resolution
         return system.current_coordinates[2, particle_id]
     end
 
-    mid_point_x = (t, v, u, system) -> particle_position_x(middle_particle_id, t, v, u, system)
-    mid_point_y = (t, v, u, system) -> particle_position_y(middle_particle_id, t, v, u, system)
+    # mid_point_x = (t, v, u, system) -> particle_position_x(middle_particle_id, t, v, u, system)
+    # mid_point_y = (t, v, u, system) -> particle_position_y(middle_particle_id, t, v, u, system)
+
+    function mid_point_x(t, v, u, system)
+        particle_position_x(middle_particle_id, t, v, u, system)
+    end
+
+    function mid_point_y(t, v, u, system)
+        particle_position_y(middle_particle_id, t, v, u, system)
+    end
 
     pp_callback = PostprocessCallback(mid_point_x, mid_point_y; dt=0.025, output_directory="validation/oscillating_beam_2d",
                                       filename="validation_reference_oscillating_beam_2d_" * string(res), write_csv=false)
