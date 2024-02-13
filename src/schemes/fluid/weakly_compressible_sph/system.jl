@@ -174,7 +174,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         show(io, system)
     else
         summary_header(io, "WeaklyCompressibleSPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
+        if system.buffer isa SystemBuffer
+            summary_line(io, "#particles", nparticles(system))
+            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        else
+            summary_line(io, "#particles", nparticles(system))
+        end
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
         summary_line(io, "correction method",

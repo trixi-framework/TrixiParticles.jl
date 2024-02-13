@@ -141,7 +141,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         show(io, system)
     else
         summary_header(io, "OpenBoundarySPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
+        if system.buffer isa SystemBuffer
+            summary_line(io, "#particles", nparticles(system))
+            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        else
+            summary_line(io, "#particles", nparticles(system))
+        end
         summary_line(io, "boundary", system.boundary_zone)
         summary_line(io, "flow direction", system.flow_direction)
         summary_line(io, "width", round(norm(system.spanning_set[1]), digits=3))
@@ -155,7 +160,9 @@ end
     return each_moving_particle(system, system.buffer)
 end
 
-@inline active_coordinates(u, system) = active_coordinates(system, system.buffer)
+@inline function active_coordinates(u, system::OpenBoundarySPHSystem)
+    return active_coordinates(u, system, system.buffer)
+end
 
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 

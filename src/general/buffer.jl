@@ -24,7 +24,7 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     # Initialize particles far away from simulation domain
     coordinates = inv(eps()) * ones(ndims(initial_condition), buffer_size)
 
-    if all(rho -> rho ≈ density[1], density)
+    if all(rho -> rho ≈ initial_condition.density[1], initial_condition.density)
         density = initial_condition.density[1]
     else
         throw(ArgumentError("`density` needs to be constant when using a `SystemBuffer`"))
@@ -32,7 +32,7 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
 
     particle_spacing = initial_condition.particle_spacing
 
-    buffer_ic = InitialCondition{NDIMS}(coordinates, density, particle_spacing)
+    buffer_ic = InitialCondition(; coordinates, density, particle_spacing)
 
     return union(initial_condition, buffer_ic)
 end
@@ -67,3 +67,31 @@ end
 @inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
 
 @inline active_coordinates(u, system, buffer) = view(u, :, buffer.active_particle)
+
+@inline function available_particle(system)
+    (; active_particle) = system.buffer
+
+    for particle in eachindex(active_particle)
+        if !active_particle[particle]
+            active_particle[particle] = true
+
+            return particle
+        end
+    end
+
+    error("0 out of $(system.buffer.buffer_size) buffer particles available")
+end
+
+@inline function deactivate_particle!(system, particle, u)
+    (; active_particle) = system.buffer
+
+    active_particle[particle] = false
+
+    # Set particle far away from simulation domain
+    for dim in 1:ndims(system)
+        # Inf or NaN causes instability outcome.
+        u[dim, particle] = inv(eps())
+    end
+
+    return system
+end

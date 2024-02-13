@@ -4,7 +4,9 @@
     return each_moving_particle(system, system.buffer)
 end
 
-@inline active_coordinates(u, system) = active_coordinates(system, system.buffer)
+@inline function active_coordinates(u, system::FluidSystem)
+    return active_coordinates(u, system, system.buffer)
+end
 
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
