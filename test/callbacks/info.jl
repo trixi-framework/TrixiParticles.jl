@@ -92,15 +92,16 @@
 
         # Build a mock `integrator`, which is a `NamedTuple` holding the fields that are
         # accessed in `initialize_info_callback`.
-        integrator = (; t=23.0,
+        integrator = (; t=23.42,
                       stats=(; naccept=453),
                       iter=472,
-                      dt=1e-3)
+                      dt=1.4548e-3,
+                      sol=(; prob=(; tspan=(0.0, 30.0))))
 
         TrixiParticles.isfinished(::NamedTuple) = false
         TrixiParticles.u_modified!(::NamedTuple, _) = nothing
 
-        expected = "#timesteps:    453 │ Δt: 1.0000e-03 │ sim. time: 2.3000e+01 │ run time: 1.0000e+100 s\n"
+        expected = "#timesteps:    453 │ Δt: 1.4548e-03 │ sim. time: 2.3420e+01 (78.067%)  │ run time: 1.0000e+100 s\n"
 
         # Redirect `stdout` to a string
         pipe = Pipe()

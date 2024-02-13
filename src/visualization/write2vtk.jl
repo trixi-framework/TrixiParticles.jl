@@ -15,6 +15,7 @@ Convert Trixi simulation data to VTK format.
 - `prefix`:               Prefix for output files. Defaults to an empty string.
 - `write_meta_data`:      Write meta data.
 - `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
+- `max_coordinates=Inf`   The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 
 # Example
@@ -24,9 +25,13 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solu
 TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   write_meta_data=true, custom_quantities...)
+                   write_meta_data=true, max_coordinates=Inf, custom_quantities...)
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
+
+    # Update quantities that are stored in the systems. These quantities (e.g. pressure)
+    # still have the values from the last stage of the previous step if not updated here.
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # Add `_i` to each system name, where `i` is the index of the corresponding
     # system type.
@@ -40,18 +45,20 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        periodic_box = neighborhood_searches(system, system, semi).periodic_box
+        periodic_box = get_neighborhood_search(system, semi).periodic_box
 
         trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
-                  write_meta_data=write_meta_data, custom_quantities...)
+                  write_meta_data=write_meta_data, max_coordinates=max_coordinates,
+                  custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
                    iter=nothing, system_name=vtkname(system), write_meta_data=true,
+                   max_coordinates=Inf,
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -71,6 +78,15 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
 
     points = periodic_coords(current_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
+
+    if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
+        println("Warning: At least one particle's absolute coordinates exceed `max_coordinates`"
+                *
+                " and have been clipped")
+        for i in eachindex(points)
+            points[i] = clamp(points[i], -max_coordinates, max_coordinates)
+        end
+    end
 
     vtk_grid(file, points, cells) do vtk
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
@@ -108,10 +124,12 @@ end
 Convert coordinate data to VTK format.
 
 # Arguments
-- `coordinates`:                 Coordinates to be saved.
-- `output_directory` (optional): Output directory path. Defaults to `"out"`.
-- `prefix` (optional):           Prefix for the output file. Defaults to an empty string.
-- `filename` (optional):         Name of the output file. Defaults to `"coordinates"`.
+- `coordinates`: Coordinates to be saved.
+
+# Keywords
+- `output_directory="out"`: Output directory path.
+- `prefix=""`:              Prefix for the output file.
+- `filename="coordinates"`: Name of the output file.
 
 # Returns
 - `file::AbstractString`: Path to the generated VTK file.
@@ -166,12 +184,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
             end
             vtk["state_equation"] = type2string(system.state_equation)
             vtk["state_equation_rho0"] = system.state_equation.reference_density
-            vtk["state_equation_p0"] = system.state_equation.reference_pressure
             vtk["state_equation_pa"] = system.state_equation.background_pressure
             vtk["state_equation_c"] = system.state_equation.sound_speed
-            if system.state_equation isa StateEquationCole
-                vtk["state_equation_gamma"] = system.state_equation.gamma
-            end
+            vtk["state_equation_exponent"] = system.state_equation.exponent
 
             vtk["solver"] = "WCSPH"
         else
@@ -201,11 +216,25 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 
     vtk["velocity"] = hcat(view(v, 1:ndims(system), :),
                            zeros(ndims(system), n_fixed_particles))
+    vtk["jacobian"] = [det(deformation_gradient(system, particle))
+                       for particle in eachparticle(system)]
+
+    vtk["von_mises_stress"] = von_mises_stress(system)
+
+    sigma = cauchy_stress(system)
+    vtk["sigma_11"] = sigma[1, 1, :]
+    vtk["sigma_22"] = sigma[2, 2, :]
+    if ndims(system) == 3
+        vtk["sigma_33"] = sigma[3, 3, :]
+    end
+
     vtk["material_density"] = system.material_density
     vtk["young_modulus"] = system.young_modulus
     vtk["poisson_ratio"] = system.poisson_ratio
     vtk["lame_lambda"] = system.lame_lambda
     vtk["lame_mu"] = system.lame_mu
+    vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
+    vtk["smoothing_length"] = system.smoothing_length
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end

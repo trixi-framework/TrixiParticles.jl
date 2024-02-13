@@ -46,7 +46,7 @@ function summation_density!(system, semi, u, u_ode, density;
         system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        nhs = neighborhood_searches(system, neighbor_system, semi)
+        nhs = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,

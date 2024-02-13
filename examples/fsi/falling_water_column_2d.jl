@@ -23,14 +23,13 @@ initial_fluid_size = (0.525, 1.0125)
 tank_size = (2.0, 4.0)
 
 fluid_density = 1000.0
-atmospheric_pressure = 100000.0
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(sound_speed, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7)
 
 fluid = RectangularShape(fluid_particle_spacing,
                          round.(Int, (initial_fluid_size ./ fluid_particle_spacing)),
-                         (0.1, 0.2), fluid_density)
+                         (0.1, 0.2), density=fluid_density)
 
 # ==========================================================================================
 # ==== Fluid
@@ -59,14 +58,13 @@ boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         smoothing_kernel, smoothing_length,
-                                        E, nu,
+                                        E, nu, boundary_model=boundary_model,
                                         n_fixed_particles=nparticles(fixed_particles),
-                                        acceleration=(0.0, -gravity), boundary_model)
+                                        acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, solid_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, solid_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

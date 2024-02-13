@@ -2,8 +2,9 @@
     WeaklyCompressibleSPHSystem(initial_condition,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
-                                viscosity=NoViscosity(),
-                                acceleration=ntuple(_ -> 0.0, NDIMS))
+                                viscosity=NoViscosity(), density_diffusion=nothing,
+                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                correction=nothing, source_terms=nothing)
 
 Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
 equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
@@ -12,41 +13,61 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
-- `density_calculator`: Density calculator for the SPH system. See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
-- `state_equation`:     Equation of state for the SPH system. See [`StateEquationCole`](@ref) and [`StateEquationIdealGas`](@ref).
+- `density_calculator`: Density calculator for the system.
+                        See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+- `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [`SmoothingKernel`](@ref).
 
 # Keyword Arguments
-- `viscosity`:    Viscosity model for the SPH system (default: no viscosity). See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
-- `acceleration`: Acceleration vector for the SPH system. (default: zero vector)
-- `correction`:   Correction method used for this SPH system. (default: no correction)
+- `viscosity`:      Viscosity model for this system (default: no viscosity).
+                    See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
+- `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `correction`:     Correction method used for this system. (default: no correction)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+                    Note that these source terms will not be used in the calculation of the
+                    boundary pressure when using a boundary with
+                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    The keyword argument `acceleration` should be used instead for
+                    gravity-like source terms.
 
 ## References:
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
   In: Journal of Computational Physics 110 (1994), pages 399-406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR, C} <:
-       FluidSystem{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    pressure           :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    state_equation     :: SE
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    viscosity          :: V
-    density_diffusion  :: DD
-    correction         :: COR
-    cache              :: C
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
+                                   V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
+    initial_condition                 :: InitialCondition{ELTYPE}
+    mass                              :: Array{ELTYPE, 1} # [particle]
+    pressure                          :: Array{ELTYPE, 1} # [particle]
+    density_calculator                :: DC
+    state_equation                    :: SE
+    smoothing_kernel                  :: K
+    smoothing_length                  :: ELTYPE
+    acceleration                      :: SVector{NDIMS, ELTYPE}
+    viscosity                         :: V
+    density_diffusion                 :: DD
+    correction                        :: COR
+    pressure_acceleration_formulation :: PF
+    source_terms                      :: ST
+    cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
+                                         pressure_acceleration=nothing,
                                          viscosity=NoViscosity(), density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing)
+                                         correction=nothing, source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -69,18 +90,27 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K, V, DD, COR,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
+        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                         density_calculator,
+                                                                         NDIMS, ELTYPE,
+                                                                         correction)
+
         cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(cache)}(initial_condition, mass, pressure,
-                                                      density_calculator, state_equation,
-                                                      smoothing_kernel, smoothing_length,
-                                                      acceleration_, viscosity,
-                                                      density_diffusion, correction, cache)
+        return new{NDIMS, ELTYPE, typeof(density_calculator),
+                   typeof(state_equation), typeof(smoothing_kernel),
+                   typeof(viscosity), typeof(density_diffusion),
+                   typeof(correction), typeof(pressure_acceleration),
+                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
+                                                        density_calculator, state_equation,
+                                                        smoothing_kernel, smoothing_length,
+                                                        acceleration_, viscosity,
+                                                        density_diffusion, correction,
+                                                        pressure_acceleration,
+                                                        source_terms, cache)
     end
 end
 
@@ -179,7 +209,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 
     compute_density!(system, u, u_ode, semi, density_calculator)
 
-    nhs = neighborhood_searches(system, system, semi)
+    nhs = get_neighborhood_search(system, semi)
     @trixi_timeit timer() "update density diffusion" update!(density_diffusion, nhs, v, u,
                                                              system, semi)
 

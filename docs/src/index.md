@@ -1,6 +1,6 @@
 # TrixiParticles.jl
 
-TrixiParticles.jl is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in Julia. A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing. It features include:
+TrixiParticles.jl is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in Julia. A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing. Its features include:
 
 ## Features
 - Incompressible Navier-Stokes
@@ -18,7 +18,7 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
 To get started look at the following pages:
 
 1. [Installation](@ref)
-2. [Get Started](@ref)
+2. [Getting started](@ref)
 
 If you have **any** questions concerning **TrixiParticles.jl** you can also reach us on [this public slack channel](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) also feel free to open an issue with your question.
 
@@ -26,7 +26,8 @@ If you have **any** questions concerning **TrixiParticles.jl** you can also reac
 To get started with development look at these pages:
 
 1. [Installation](@ref)
-2. [Get Started](@ref)
+2. [Getting Started](@ref)
 3. [Development](@ref)
 4. [Contributing](@ref)
+
 

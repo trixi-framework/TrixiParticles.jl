@@ -1,4 +1,6 @@
-using Documenter, TrixiParticles
+using Documenter
+using TrixiParticles
+using TrixiBase
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -8,7 +10,7 @@ function copy_file(filename, replaces...)
     source_path = joinpath(trixiparticles_root_dir, filename)
 
     if !isfile(source_path)
-        error("File $filename not found. Ensure that you are running make.jl from the TrixiParticles.jl root directory.")
+        error("File $filename not found. Ensure that you provide a path relative to the TrixiParticles.jl root directory.")
         return
     end
 
@@ -92,8 +94,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Home" => "index.md",
              "News" => "news.md",
              "Installation" => "install.md",
-             "Get Started" => "get_started.md",
-             "Development" => "development.md",
+             "Getting started" => "getting_started.md",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Components" => [
@@ -102,6 +103,7 @@ makedocs(sitename="TrixiParticles.jl",
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
                      "Initial Condition and Setups" => joinpath("general",
                                                                 "initial_condition.md"),
+                     "Interpolation" => joinpath("general", "interpolation.md"),
                      "Density Calculators" => joinpath("general", "density_calculators.md"),
                      "Smoothing Kernels" => joinpath("general", "smoothing_kernels.md"),
                      "Neighborhood Search" => joinpath("general", "neighborhood_search.md"),
@@ -116,8 +118,9 @@ makedocs(sitename="TrixiParticles.jl",
                                                                         "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md"),
                  ],
-                 "Time integration" => "time_integration.md",
+                 "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
+                 "TrixiBase.jl API Reference" => "reference-trixibase.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
