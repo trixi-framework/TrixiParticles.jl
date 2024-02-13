@@ -2,7 +2,8 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
-# ==== Resolutionfluid_particle_spacing = 0.05
+# ==== Resolution
+fluid_particle_spacing = 0.05
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
