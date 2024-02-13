@@ -251,7 +251,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
 end
 
-function initialize_ode(tspan, systems...; neighborhood_search=nothing,
+function initialize_ode(tspan, systems...; neighborhood_search=GridNeighborhoodSearch,
                         periodic_box_min_corner=nothing,
                         periodic_box_max_corner=nothing,
                         damping_coefficient=nothing)

@@ -62,8 +62,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-ode = initialize_ode(tspan, fluid_system, boundary_system,
-                     neighborhood_search=GridNeighborhoodSearch)
+ode = initialize_ode(tspan, fluid_system, boundary_system)
 
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
