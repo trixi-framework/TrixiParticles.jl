@@ -71,7 +71,7 @@ function ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=1,
 
     face_coords, particle_spacing_ = sample_plane(geometry, particle_spacing)
 
-    if round(particle_spacing, digits=4) != round(particle_spacing_, digits=4)
+    if !isapprox(particle_spacing, particle_spacing_, rtol=5e-2)
         @info "The desired size is not a multiple of the particle spacing $particle_spacing." *
               "\nNew particle spacing is set to $particle_spacing_."
     end
