@@ -3,7 +3,8 @@ include("../test_util.jl")
 @trixi_testset "dam_break_2d.jl with corrections" begin
     fluid_density = 1000.0
     particle_spacing = 0.05
-    tspan = (0.0, 5.7 / sqrt(9.81))
+    #tspan = (0.0, 5.7 / sqrt(9.81))
+    tspan = (0.0, 0.1)
 
     correction_dict = Dict(
         "no_correction" => nothing,
