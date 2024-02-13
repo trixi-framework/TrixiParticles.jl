@@ -340,6 +340,35 @@ end
     return characteristics
 end
 
+@inline function update_quantities!(system::OpenBoundarySPHSystem, v, u, t)
+    (; density, pressure, characteristics, flow_direction, sound_speed,
+    reference_velocity, reference_pressure, reference_density) = system
+
+    @threaded for particle in each_moving_particle(system)
+        particle_position = current_coords(u, system, particle)
+
+        J1 = characteristics[1, particle]
+        J2 = characteristics[2, particle]
+        J3 = characteristics[3, particle]
+
+        rho_ref = reference_density(particle_position, t)
+        density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
+
+        p_ref = reference_pressure(particle_position, t)
+        pressure[particle] = p_ref + 0.5 * (J2 + J3)
+
+        v_ref = reference_velocity(particle_position, t)
+        rho = density[particle]
+        v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
+
+        for dim in 1:ndims(system)
+            v[dim, particle] = v_[dim]
+        end
+    end
+
+    return system
+end
+
 function write_v0!(v0, system::OpenBoundarySPHSystem)
     (; initial_condition) = system
 
