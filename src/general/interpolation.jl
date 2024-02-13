@@ -119,7 +119,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
                               cut_off_bnd=true)
     coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
-    if round(resolution, digits=3) != round(resolution_, digits=3)
+    if !isapprox(resolution, resolution_, rtol=5e-2)
         @info "The desired plane size is not a multiple of the resolution $resolution." *
               "\nNew resolution is set to $resolution_."
     end

@@ -27,7 +27,7 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     if all(rho -> rho ≈ initial_condition.density[1], initial_condition.density)
         density = initial_condition.density[1]
     else
-        throw(ArgumentError("`density` needs to be constant when using a `SystemBuffer`"))
+        throw(ArgumentError("`density` needs to be constant when using `SystemBuffer`"))
     end
 
     particle_spacing = initial_condition.particle_spacing

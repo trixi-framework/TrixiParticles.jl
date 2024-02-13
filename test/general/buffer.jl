@@ -43,7 +43,7 @@
               TrixiParticles.each_moving_particle(system_buffer)
     end
 
-    @trixi_testset "Allocate Buffer" begin
+    @testset "Allocate Buffer" begin
         initial_condition = rectangular_patch(0.1, (3, 3), perturbation_factor=0.0)
         buffer = TrixiParticles.SystemBuffer(nparticles(initial_condition), 7)
 
@@ -60,7 +60,7 @@
         pressures = initial_condition.pressure[1] .* ones(nparticles(ic_with_buffer))
         @test pressures == ic_with_buffer.pressure
 
-        @trixi_testset "Illegal Input" begin
+        @testset "Illegal Input" begin
             ic = rectangular_patch(0.1, (3, 3))
             buffer = TrixiParticles.SystemBuffer(9, 7)
             error_str = "`density` needs to be constant when using `SystemBuffer`"
