@@ -410,44 +410,45 @@ function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
 end
 
-function compute_von_mises_stress(system::TotalLagrangianSPHSystem)
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here below Equation 5.3.21 for the equation for the equivalent stress.
+# The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
+# See pages 32 and 123.
+function von_mises_stress(system::TotalLagrangianSPHSystem)
     von_mises_stress = zeros(eltype(system.pk1_corrected), nparticles(system))
 
     @threaded for particle in each_moving_particle(system)
-        F = system.deformation_grad[:, :, particle]
+        F = deformation_gradient(system, particle)
         J = det(F)
-        P = system.pk1_corrected[:, :, particle]
+        P = pk1_corrected(system, particle)
         sigma = (1.0 / J) * P * F'
 
         # Calculate deviatoric stress tensor
         s = sigma - (1.0 / 3.0) * tr(sigma) * I
 
-        sum_s = 0.0
-        @inbounds for i in 1:ndims(system)
-            for j in 1:ndims(system)
-                sum_s += s[i, j] * s[i, j]
-            end
-        end
-
-        # Von Mises stress
-        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum_s)
+        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum(s .^ 2))
     end
 
     return von_mises_stress
 end
 
-function compute_cauchy_stress(system::TotalLagrangianSPHSystem)
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
+# and the Cauchy stress.
+function cauchy_stress(system::TotalLagrangianSPHSystem)
     NDIMS = ndims(system)
 
-    cauchy_stress_tensors = [zeros(eltype(system.pk1_corrected), NDIMS, NDIMS)
-                             for _ in 1:nparticles(system)]
+    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
+                                  nparticles(system))
 
     @threaded for particle in each_moving_particle(system)
-        F = system.deformation_grad[:, :, particle]
+        F = deformation_gradient(system, particle)
         J = det(F)
-        P = system.pk1_corrected[:, :, particle]
+        P = pk1_corrected(system, particle)
         sigma = (1.0 / J) * P * F'
-        cauchy_stress_tensors[particle] = sigma
+        cauchy_stress_tensors[:, :, particle] = sigma
     end
 
     return cauchy_stress_tensors

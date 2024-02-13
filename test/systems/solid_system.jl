@@ -354,15 +354,19 @@
                                           smoothing_length, E, nu, boundary_model)
 
         # Initialize deformation_grad and pk1_corrected with arbitrary values
-        n_particles = nparticles(system)
-        for particle in 1:n_particles
+        for particle in TrixiParticles.eachparticle(system)
             system.deformation_grad[:, :, particle] = [1.0 0.2; 0.2 1.0]
             system.pk1_corrected[:, :, particle] = [1.0 0.5; 0.5 1.0]
         end
 
-        von_mises_stress = TrixiParticles.compute_von_mises_stress(system)
+        von_mises_stress = TrixiParticles.von_mises_stress(system)
+        cauchy_stress = TrixiParticles.cauchy_stress(system)
 
-        # manual calculation
+        reference_stress_tensor = [1.145833 0.729167; 0.729167 1.145833;;;
+                                   1.145833 0.729167; 0.729167 1.145833]
+
+        # Verify against calculation by hand
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
+        @test isapprox(reference_stress_tensor, cauchy_stress, atol=1e-6)
     end
 end

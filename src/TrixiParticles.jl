@@ -2,9 +2,13 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using CSV
 using Dates
+using DataFrames
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
+using ForwardDiff: ForwardDiff
+using JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
@@ -17,8 +21,8 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
+using TrixiBase: trixi_include
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
-using ForwardDiff
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
@@ -60,8 +64,8 @@ export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
-export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
-export calculate_ekin, calculate_total_mass, max_pressure, min_pressure, avg_pressure,
+export ekin, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
+export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
 
 end # module
