@@ -257,8 +257,7 @@ function initialize_ode(tspan, systems...; neighborhood_search=GridNeighborhoodS
                         damping_coefficient=nothing)
     semi = Semidiscretization(systems..., neighborhood_search=neighborhood_search,
                               periodic_box_min_corner=periodic_box_min_corner,
-                              periodic_box_max_corner=periodic_box_max_corner,
-                              damping_coefficient=damping_coefficient)
+                              periodic_box_max_corner=periodic_box_max_corner)
     ode = semidiscretize(semi, tspan)
 
     return ode
