@@ -1,8 +1,8 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio, boundary_model;
-                             n_fixed_particles=0,
+                             young_modulus, poisson_ratio;
+                             n_fixed_particles=0, boundary_model=boundary_model,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
@@ -98,8 +98,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
-                                      young_modulus, poisson_ratio, boundary_model;
-                                      n_fixed_particles=0,
+                                      young_modulus, poisson_ratio;
+                                      n_fixed_particles=0, boundary_model=nothing,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
                                       penalty_force=nothing, source_terms=nothing)

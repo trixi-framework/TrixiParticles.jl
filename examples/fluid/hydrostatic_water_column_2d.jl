@@ -3,48 +3,49 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 0.9)
-tank_size = (2.0, 1.0)
+initial_fluid_size = (1.0, 0.9)
+tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 10.0
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity))
+                       n_layers=boundary_layers,
+                       acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
 smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
+smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
-alpha = 0.02
-viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
-
-fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity=viscosity,
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length)
-
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
@@ -57,15 +58,6 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
+# Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
