@@ -1,0 +1,122 @@
+@testset verbose=true "Characteristic Variables" begin
+    particle_spacing = 0.1
+    boundary_zones = [InFlow(), OutFlow()]
+
+    # Number of boundary particles in the influence of fluid particles
+    influenced_particles = [20, 52, 26]
+
+    open_boundary_layers = 8
+    sound_speed = 20.0
+    density = 1000.0
+    pressure = 5.0
+
+    smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+    smoothing_length = 1.2particle_spacing
+
+    # Prescribed quantities
+    velocity_function = (pos, t) -> [1.0, 0.0] * t
+    pressure_function = (pos, t) -> 50_000.0 * t
+    density_function = (pos, t) -> 1000.0 * t
+
+    # Plane points of open boundary
+    point1s = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
+    point2s = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
+
+    @testset "$boundary_zone" for boundary_zone in boundary_zones
+        @testset "Points $(i)" for i in eachindex(point1s)
+            n_influenced = influenced_particles[i]
+
+            plane_points = [point1s[i], point2s[i]]
+
+            plane_size = plane_points[2] - plane_points[1]
+            flow_directions = [
+                normalize([-plane_size[2], plane_size[1]]),
+                -normalize([-plane_size[2], plane_size[1]]),
+            ]
+
+            @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
+                flow_direction = flow_directions[j]
+
+                inlet_system = OpenBoundarySPHSystem(plane_points, boundary_zone,
+                                                     sound_speed; flow_direction,
+                                                     particle_spacing, open_boundary_layers,
+                                                     density, velocity_function,
+                                                     pressure_function, density_function)
+
+                sign_ = (boundary_zone isa InFlow) ? 1 : -1
+                fluid = ExtrudeGeometry(plane_points; particle_spacing, n_extrude=4,
+                                        density, pressure,
+                                        direction=(sign_ * flow_direction))
+
+                fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                                                           smoothing_length, sound_speed)
+
+                semi = Semidiscretization(fluid_system, inlet_system)
+
+                ode = semidiscretize(semi, (0.0, 5.0))
+
+                v0_ode, u0_ode = ode.u0.x
+                v = TrixiParticles.wrap_v(v0_ode, inlet_system, semi)
+                u = TrixiParticles.wrap_u(u0_ode, inlet_system, semi)
+
+                # ==== Characteristic Variables
+                # `J1 = -sound_speed^2 * (rho - rho_ref) + (p - p_ref)`
+                # `J2 = rho * sound_speed * (v - v_ref) + (p - p_ref)`
+                # `J3 = - rho * sound_speed * (v - v_ref) + (p - p_ref)`
+                function J1(t)
+                    return -sound_speed^2 * (density - density_function(0, t)) +
+                           (pressure - pressure_function(0, t))
+                end
+                function J2(t)
+                    return density * sound_speed *
+                           dot(-velocity_function(0, t), flow_direction) +
+                           (pressure - pressure_function(0, t))
+                end
+                function J3(t)
+                    return -density * sound_speed *
+                           dot(-velocity_function(0, t), flow_direction) +
+                           (pressure - pressure_function(0, t))
+                end
+
+                # First evaluation
+                t1 = 2.0
+                TrixiParticles.evaluate_characteristics!(inlet_system,
+                                                         v, u, v0_ode, u0_ode, semi, t1)
+                evaluated_vars1 = inlet_system.characteristics
+
+                if boundary_zone isa InFlow
+                    @test all(isapprox.(evaluated_vars1[1, :], 0.0))
+                    @test all(isapprox.(evaluated_vars1[2, :], 0.0))
+                    @test all(isapprox.(evaluated_vars1[3, 1:n_influenced], J3(t1)))
+                    @test all(isapprox.(evaluated_vars1[3, (n_influenced + 1):end], 0.0))
+
+                elseif boundary_zone isa OutFlow
+                    @test all(isapprox.(evaluated_vars1[1, 1:n_influenced], J1(t1)))
+                    @test all(isapprox.(evaluated_vars1[2, 1:n_influenced], J2(t1)))
+                    @test all(isapprox.(evaluated_vars1[1:2, (n_influenced + 1):end], 0.0))
+                    @test all(isapprox.(evaluated_vars1[3, :], 0.0))
+                end
+
+                # Second evaluation
+                t2 = 3.0
+                TrixiParticles.evaluate_characteristics!(inlet_system,
+                                                         v, u, v0_ode, u0_ode, semi, t2)
+                evaluated_vars2 = inlet_system.characteristics
+
+                if boundary_zone isa InFlow
+                    @test all(isapprox.(evaluated_vars2[1, :], 0.0))
+                    @test all(isapprox.(evaluated_vars2[2, :], 0.0))
+                    @test all(isapprox.(evaluated_vars2[3, 1:n_influenced], J3(t2)))
+                    @test all(isapprox.(evaluated_vars2[3, (n_influenced + 1):end], J3(t1)))
+
+                elseif boundary_zone isa OutFlow
+                    @test all(isapprox.(evaluated_vars2[1, 1:n_influenced], J1(t2)))
+                    @test all(isapprox.(evaluated_vars2[2, 1:n_influenced], J2(t2)))
+                    @test all(isapprox.(evaluated_vars2[1, (n_influenced + 1):end], J1(t1)))
+                    @test all(isapprox.(evaluated_vars2[2, (n_influenced + 1):end], J2(t1)))
+                    @test all(isapprox.(evaluated_vars2[3, :], 0.0))
+                end
+            end
+        end
+    end
+end
