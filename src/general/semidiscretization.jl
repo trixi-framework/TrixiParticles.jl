@@ -130,6 +130,17 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem, neighbor)
+    # Use the compact support of the fluid
+    return compact_support(neighbor, system)
+end
+
+@inline function compact_support(system::OpenBoundarySPHSystem,
+                                 neighbor::OpenBoundarySPHSystem)
+    # This NHS is never used
+    return 0.0
+end
+
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
     (; smoothing_kernel, smoothing_length) = system
