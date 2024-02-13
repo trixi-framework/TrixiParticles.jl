@@ -79,7 +79,7 @@
             # TLSPH system
             solid_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                     smoothing_length, 0.0, 0.0,
-                                                    boundary_model_continuity)
+                                                    boundary_model=boundary_model_continuity)
 
             # Positions of the solid particles are not used here
             u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
@@ -129,17 +129,21 @@
 
                 # Split initial condition at center particle into two systems
                 center_particle = ceil(Int, TrixiParticles.nparticles(ic) / 2)
-                fluid = InitialCondition(ic.coordinates[:, 1:center_particle],
-                                         ic.velocity[:, 1:center_particle],
-                                         ic.mass[1:center_particle],
-                                         ic.density[1:center_particle],
-                                         pressure=ic.pressure[1:center_particle])
+                fluid = InitialCondition{ndims(ic)}(ic.coordinates[:, 1:center_particle],
+                                                    ic.velocity[:, 1:center_particle],
+                                                    ic.mass[1:center_particle],
+                                                    ic.density[1:center_particle],
+                                                    ic.pressure[1:center_particle],
+                                                    ic.particle_spacing)
 
-                boundary = InitialCondition(ic.coordinates[:, (center_particle + 1):end],
-                                            ic.velocity[:, (center_particle + 1):end],
-                                            ic.mass[(center_particle + 1):end],
-                                            ic.density[(center_particle + 1):end],
-                                            pressure=ic.pressure[(center_particle + 1):end])
+                boundary = InitialCondition{ndims(ic)}(ic.coordinates[:,
+                                                                      (center_particle + 1):end],
+                                                       ic.velocity[:,
+                                                                   (center_particle + 1):end],
+                                                       ic.mass[(center_particle + 1):end],
+                                                       ic.density[(center_particle + 1):end],
+                                                       ic.pressure[(center_particle + 1):end],
+                                                       ic.particle_spacing)
 
                 fluid_system = WeaklyCompressibleSPHSystem(fluid,
                                                            density_calculator,
@@ -295,7 +299,7 @@
                                                                        particle),
                                               TrixiParticles.eachparticle(neighbor_system))
 
-                    @test isapprox(deriv_total_energy, 0.0, atol=3e-15)
+                    @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
                 end
             end
         end

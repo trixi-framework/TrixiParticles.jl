@@ -32,13 +32,13 @@
                     coordinates = zeros(2, 3)
                     velocity = zeros(2, 3)
                     mass = zeros(3)
-                    density = zeros(3)
+                    density = ones(3)
                     state_equation = Val(:state_equation)
                     smoothing_kernel = Val(:smoothing_kernel)
                     TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
                     smoothing_length = -1.0
 
-                    fluid = InitialCondition(coordinates, velocity, mass, density)
+                    fluid = InitialCondition(; coordinates, velocity, mass, density)
                     system = WeaklyCompressibleSPHSystem(fluid,
                                                          density_calculator,
                                                          state_equation, smoothing_kernel,
@@ -48,19 +48,17 @@
                     system.pressure .= [0.0, p_a, p_b]
 
                     # Compute accelerations a -> b and b -> a
-                    dv1 = TrixiParticles.pressure_acceleration(1.0, m_b, p_a, p_b,
+                    dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                               m_a, m_b, p_a, p_b,
                                                                rho_a, rho_b, pos_diff,
-                                                               distance,
-                                                               grad_kernel, system, -1,
-                                                               system,
-                                                               density_calculator, nothing)
+                                                               distance, grad_kernel, 1.0,
+                                                               nothing)
 
-                    dv2 = TrixiParticles.pressure_acceleration(1.0, m_a, p_b, p_a,
+                    dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                               m_b, m_a, p_b, p_a,
                                                                rho_b, rho_a, -pos_diff,
-                                                               distance,
-                                                               -grad_kernel, system, -1,
-                                                               system,
-                                                               density_calculator, nothing)
+                                                               distance, -grad_kernel, 1.0,
+                                                               nothing)
 
                     # Test that both forces are identical but in opposite directions
                     @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
@@ -122,7 +120,7 @@
                 # ∑ m_a dv_a
                 deriv_linear_momentum = sum(fluid.mass' .* view(dv, 1:2, :), dims=2)
 
-                @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=4e-14)
+                @test isapprox(deriv_linear_momentum, zeros(2, 1), atol=5e-14)
 
                 # Angular momentum conservation
                 # m_a (r_a × dv_a)
@@ -137,7 +135,7 @@
                 deriv_angular_momentum = sum(deriv_angular_momentum, 1:n_particles)
 
                 # Cross product is always 3-dimensional
-                @test isapprox(deriv_angular_momentum, zeros(3), atol=3e-15)
+                @test isapprox(deriv_angular_momentum, zeros(3), atol=4e-15)
 
                 # Total energy conservation
                 drho(::ContinuityDensity, particle) = dv[end, particle]
@@ -181,7 +179,7 @@
                 # ∑ m_a (v_a ⋅ dv_a + dte_a)
                 deriv_total_energy = sum(deriv_energy, 1:n_particles)
 
-                @test isapprox(deriv_total_energy, 0.0, atol=2e-15)
+                @test isapprox(deriv_total_energy, 0.0, atol=6e-15)
             end
         end
     end

@@ -2,7 +2,7 @@
     SphereShape(particle_spacing, radius, center_position, density;
                 sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                 cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                init_velocity=zeros(length(center_position)))
+                velocity=zeros(length(center_position)), mass=nothing, pressure=0.0)
 
 Generate a sphere that is either completely filled (by default)
 or hollow (by passing `n_layers`).
@@ -20,24 +20,33 @@ coordinate directions as `cutout_min` and `cutout_max`.
 - `particle_spacing`:   Spacing between the particles.
 - `radius`:             Radius of the sphere.
 - `center_position`:    The coordinates of the center of the sphere.
-- `density`:            Density of the sphere.
+- `density`:            Either a function mapping each particle's coordinates to its density,
+                        or a scalar for a constant density over all particles.
 
 # Keywords
-- `sphere_type`:        Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
-                        explanation above).
-- `n_layers`:           Set to an integer greater than zero to generate a hollow sphere,
-                        where the shell consists of `n_layers` layers.
-- `layer_outwards`:     When set to `false` (by default), `radius` is the outer radius
-                        of the sphere. When set to `true`, `radius` is the inner radius
-                        of the sphere. This is only used when `n_layers > 0`.
-- `cutout_min`:         Corner in negative coordinate directions of a cuboid that is to be
-                        cut out of the sphere.
-- `cutout_max`:         Corner in positive coordinate directions of a cuboid that is to be
-                        cut out of the sphere.
-- `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
-                        on the boundary of the shape and not one particle radius away, as for fluids.
-                        When `tlsph=true`, particles will be placed on the boundary of the shape.
-- `init_velocity`:      Initial velocity vector to be assigned to each particle.
+- `sphere_type`:    Either [`VoxelSphere`](@ref) or [`RoundSphere`](@ref) (see
+                    explanation above).
+- `n_layers`:       Set to an integer greater than zero to generate a hollow sphere,
+                    where the shell consists of `n_layers` layers.
+- `layer_outwards`: When set to `false` (by default), `radius` is the outer radius
+                    of the sphere. When set to `true`, `radius` is the inner radius
+                    of the sphere. This is only used when `n_layers > 0`.
+- `cutout_min`:     Corner in negative coordinate directions of a cuboid that is to be
+                    cut out of the sphere.
+- `cutout_max`:     Corner in positive coordinate directions of a cuboid that is to be
+                    cut out of the sphere.
+- `tlsph`:          With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
+                    on the boundary of the shape and not one particle radius away, as for fluids.
+                    When `tlsph=true`, particles will be placed on the boundary of the shape.
+- `velocity`:   Either a function mapping each particle's coordinates to its velocity,
+                or, for a constant fluid velocity, a vector holding this velocity.
+                Velocity is constant zero by default.
+- `mass`:       Either `nothing` (default) to automatically compute particle mass from particle
+                density and spacing, or a function mapping each particle's coordinates to its mass,
+                or a scalar for a constant mass over all particles.
+- `pressure`:   Either a function mapping each particle's coordinates to its pressure,
+                or a scalar for a constant pressure over all particles. This is optional and
+                only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
 
 # Examples
 ```julia
@@ -72,17 +81,12 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
 function SphereShape(particle_spacing, radius, center_position, density;
                      sphere_type=VoxelSphere(), n_layers=-1, layer_outwards=false,
                      cutout_min=(0.0, 0.0), cutout_max=(0.0, 0.0), tlsph=false,
-                     init_velocity=zeros(length(center_position)), pressure=0.0)
+                     velocity=zeros(length(center_position)), mass=nothing, pressure=0.0)
     if particle_spacing < eps()
         throw(ArgumentError("`particle_spacing` needs to be positive and larger than $(eps())"))
     end
 
-    if density < eps()
-        throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
-    end
-
     NDIMS = length(center_position)
-    ELTYPE = eltype(particle_spacing)
 
     coordinates = sphere_shape_coords(sphere_type, particle_spacing, radius,
                                       SVector{NDIMS}(center_position),
@@ -103,13 +107,8 @@ function SphereShape(particle_spacing, radius, center_position, density;
     particles_not_in_cutout = map(!in_cutout, axes(coordinates, 2))
     coordinates = coordinates[:, particles_not_in_cutout]
 
-    n_particles = size(coordinates, 2)
-    densities = density * ones(ELTYPE, n_particles)
-    masses = density * particle_spacing^NDIMS * ones(ELTYPE, n_particles)
-    velocities = init_velocity .* ones(ELTYPE, size(coordinates))
-
-    return InitialCondition(coordinates, velocities, masses, densities, pressure=pressure,
-                            particle_spacing=particle_spacing)
+    return InitialCondition(; coordinates, velocity, mass, density, pressure,
+                            particle_spacing)
 end
 
 """
@@ -303,7 +302,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
         n_particles = round(Int, 4pi * radius^2 / particle_spacing^2)
     end
 
-    # With less than 5 particles, this doesn't work properly
+    # With fewer than 5 particles, this doesn't work properly
     if n_particles < 5
         if n_particles == 4
             # Return tetrahedron
@@ -339,7 +338,7 @@ function round_sphere(sphere, particle_spacing, radius, center::SVector{3})
     #   In: Electronic Transactions on Numerical Analysis 25 (2006), pages 309-327.
     #   [http://eudml.org/doc/129860](http://eudml.org/doc/129860).
 
-    # This is the Θ function, which is only defined by Leopardi as the inverse of V, without
+    # This is the Θ function, which is defined by Leopardi only as the inverse of V, without
     # giving a closed formula.
     theta(v) = acos(1 - v / 2pi)
 
