@@ -14,9 +14,9 @@
     smoothing_length = 1.2particle_spacing
 
     # Prescribed quantities
-    velocity_function = (pos, t) -> [1.0, 0.0] * t
-    pressure_function = (pos, t) -> 50_000.0 * t
-    density_function = (pos, t) -> 1000.0 * t
+    reference_velocity = (pos, t) -> [1.0, 0.0] * t
+    reference_pressure = (pos, t) -> 50_000.0 * t
+    reference_density = (pos, t) -> 1000.0 * t
 
     # Plane points of open boundary
     point1s = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
@@ -40,8 +40,8 @@
                 inlet_system = OpenBoundarySPHSystem(plane_points, boundary_zone,
                                                      sound_speed; flow_direction,
                                                      particle_spacing, open_boundary_layers,
-                                                     density, velocity_function,
-                                                     pressure_function, density_function)
+                                                     density, reference_velocity,
+                                                     reference_pressure, reference_density)
 
                 sign_ = (boundary_zone isa InFlow) ? 1 : -1
                 fluid = ExtrudeGeometry(plane_points; particle_spacing, n_extrude=4,
@@ -64,18 +64,18 @@
                 # `J2 = rho * sound_speed * (v - v_ref) + (p - p_ref)`
                 # `J3 = - rho * sound_speed * (v - v_ref) + (p - p_ref)`
                 function J1(t)
-                    return -sound_speed^2 * (density - density_function(0, t)) +
-                           (pressure - pressure_function(0, t))
+                    return -sound_speed^2 * (density - reference_density(0, t)) +
+                           (pressure - reference_pressure(0, t))
                 end
                 function J2(t)
                     return density * sound_speed *
-                           dot(-velocity_function(0, t), flow_direction) +
-                           (pressure - pressure_function(0, t))
+                           dot(-reference_velocity(0, t), flow_direction) +
+                           (pressure - reference_pressure(0, t))
                 end
                 function J3(t)
                     return -density * sound_speed *
-                           dot(-velocity_function(0, t), flow_direction) +
-                           (pressure - pressure_function(0, t))
+                           dot(-reference_velocity(0, t), flow_direction) +
+                           (pressure - reference_pressure(0, t))
                 end
 
                 # First evaluation

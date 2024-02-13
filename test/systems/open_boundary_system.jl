@@ -162,6 +162,46 @@
                                                                            particle_spacing=0.1,
                                                                            open_boundary_layers=2,
                                                                            density=1.0)
+
+        error_str = "`reference_velocity` must be either a function mapping " *
+                    "each particle's coordinates and time to its velocity or a " *
+                    "vector of length 2 for a 2D problem"
+        reference_velocity = 1.0
+        @test_throws ArgumentError(error_str) system=OpenBoundarySPHSystem(([0.0, 0.0],
+                                                                            [0.0, 1.0]),
+                                                                           InFlow(), 1.0;
+                                                                           flow_direction=(1.0,
+                                                                                           0.0),
+                                                                           particle_spacing=0.1,
+                                                                           reference_velocity,
+                                                                           open_boundary_layers=2,
+                                                                           density=1.0)
+
+        error_str = "`reference_pressure` must be either a function mapping " *
+                    "each particle's coordinates and time to its pressure or a scalar"
+        reference_pressure = [1.0, 1.0]
+        @test_throws ArgumentError(error_str) system=OpenBoundarySPHSystem(([0.0, 0.0],
+                                                                            [0.0, 1.0]),
+                                                                           InFlow(), 1.0;
+                                                                           flow_direction=(1.0,
+                                                                                           0.0),
+                                                                           particle_spacing=0.1,
+                                                                           reference_pressure,
+                                                                           open_boundary_layers=2,
+                                                                           density=1.0)
+
+        error_str = "`reference_density` must be either a function mapping " *
+                    "each particle's coordinates and time to its density or a scalar"
+        reference_density = [1.0, 1.0]
+        @test_throws ArgumentError(error_str) system=OpenBoundarySPHSystem(([0.0, 0.0],
+                                                                            [0.0, 1.0]),
+                                                                           InFlow(), 1.0;
+                                                                           flow_direction=(1.0,
+                                                                                           0.0),
+                                                                           particle_spacing=0.1,
+                                                                           reference_density,
+                                                                           open_boundary_layers=2,
+                                                                           density=1.0)
     end
     @testset "show" begin
         system = OpenBoundarySPHSystem(([0.0, 0.0], [0.0, 1.0]), InFlow(), 1.0;

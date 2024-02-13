@@ -2,7 +2,7 @@ struct InFlow end
 
 struct OutFlow end
 
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF, PF, DF} <: System{NDIMS}
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD} <: System{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
     density                  :: Array{ELTYPE, 1} # [particle]
@@ -15,16 +15,16 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF, PF, DF} <: System
     flow_direction           :: SVector{NDIMS, ELTYPE}
     zone_origin              :: SVector{NDIMS, ELTYPE}
     spanning_set             :: S
-    velocity_function        :: VF
-    pressure_function        :: PF
-    density_function         :: DF
+    reference_velocity       :: RV
+    reference_pressure       :: RP
+    reference_density        :: RD
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone, sound_speed;
                                    sample_geometry=plane_points, particle_spacing,
                                    flow_direction, open_boundary_layers=0, density,
-                                   velocity=zeros(length(plane_points)), mass=nothing,
-                                   pressure=0.0, velocity_function=nothing,
-                                   pressure_function=nothing, density_function=nothing)
+                                   velocity=zeros(length(flow_direction)), mass=nothing,
+                                   pressure=0.0, reference_velocity=velocity,
+                                   reference_pressure=pressure, reference_density=density)
         if !((boundary_zone isa InFlow) || (boundary_zone isa OutFlow))
             throw(ArgumentError("`boundary_zone` must either be of type InFlow or OutFlow"))
         end
@@ -47,10 +47,33 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF, PF, DF} <: System
                                             n_extrude=open_boundary_layers, velocity, mass,
                                             density, pressure)
 
-        zone_width = open_boundary_layers * initial_condition.particle_spacing
-
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
+
+        if !(reference_velocity isa Function ||
+             (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
+            throw(ArgumentError("`reference_velocity` must be either a function mapping " *
+                                "each particle's coordinates and time to its velocity or a " *
+                                "vector of length $NDIMS for a $(NDIMS)D problem"))
+        else
+            reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
+        end
+
+        if !(reference_pressure isa Function || reference_pressure isa Real)
+            throw(ArgumentError("`reference_pressure` must be either a function mapping " *
+                                "each particle's coordinates and time to its pressure or a scalar"))
+        else
+            reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
+        end
+
+        if !(reference_density isa Function || reference_density isa Real)
+            throw(ArgumentError("`reference_density` must be either a function mapping " *
+                                "each particle's coordinates and time to its density or a scalar"))
+        else
+            reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
+        end
+
+        zone_width = open_boundary_layers * initial_condition.particle_spacing
 
         # Vectors spanning the boundary zone/box.
         spanning_set = spanning_vectors(plane_points, zone_width)
@@ -86,13 +109,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, VF, PF, DF} <: System
         previous_characteristics = zeros(ELTYPE, 3, length(mass))
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(spanning_set_),
-                   typeof(velocity_function), typeof(pressure_function),
-                   typeof(density_function)}(initial_condition, mass, density, volume,
-                                             pressure, characteristics,
-                                             previous_characteristics, sound_speed,
-                                             boundary_zone, flow_direction_, zone_origin,
-                                             spanning_set_, velocity_function,
-                                             pressure_function, density_function)
+                   typeof(reference_velocity_), typeof(reference_pressure_),
+                   typeof(reference_density_)}(initial_condition, mass, density, volume,
+                                               pressure, characteristics,
+                                               previous_characteristics, sound_speed,
+                                               boundary_zone, flow_direction_, zone_origin,
+                                               spanning_set_, reference_velocity_,
+                                               reference_pressure_, reference_density_)
     end
 end
 
@@ -257,8 +280,8 @@ evaluate_characteristics!(system, neighbor_system, v, u, v_ode, u_ode, semi, t) 
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, sound_speed, characteristics,
-    velocity_function, density_function, pressure_function, flow_direction) = system
+    (; volume, sound_speed, characteristics, flow_direction,
+    reference_velocity, reference_pressure, reference_density) = system
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -271,18 +294,17 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     # Loop over all interior neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                           nhs) do particle, neighbor, pos_diff, distance
+        neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
+
         # Determine current and prescribed quantities
         rho = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_density(system, density_function,
-                                    neighbor, u_neighbor_system, t)
+        rho_ref = reference_density(neighbor_position, t)
 
         p = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_pressure(system, pressure_function,
-                                   neighbor, u_neighbor_system, t)
+        p_ref = reference_pressure(neighbor_position, t)
 
         v_neighbor = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_neighbor_ref = reference_velocity(system, velocity_function,
-                                            neighbor, u_neighbor_system, t)
+        v_neighbor_ref = reference_velocity(neighbor_position, t)
 
         # Determine characteristic variables
         density_term = -sound_speed^2 * (rho - rho_ref)
@@ -344,29 +366,16 @@ function write_u0!(u0, system::OpenBoundarySPHSystem)
     return u0
 end
 
-function reference_velocity(system, velocity_function, particle, u, t)
-    position = current_coords(u, system, particle)
-    return SVector{ndims(system)}(velocity_function(position, t))
+function wrap_reference_function(function_::Function, ::Val)
+    # Already a function
+    return function_
 end
 
-function reference_velocity(system, ::Nothing, particle, u, t)
-    return extract_svector(system.initial_condition.velocity, system, particle)
+function wrap_reference_function(constant_scalar::Number, ::Val)
+    return (coords, t) -> constant_scalar
 end
 
-function reference_pressure(system, pressure_function, particle, u, t)
-    position = current_coords(u, system, particle)
-    return pressure_function(position, t)
-end
-
-function reference_pressure(system, ::Nothing, particle, u, t)
-    return system.initial_condition.pressure[particle]
-end
-
-function reference_density(system, density_function, particle, u, t)
-    position = current_coords(u, system, particle)
-    return density_function(position, t)
-end
-
-function reference_density(system, ::Nothing, particle, u, t)
-    return system.initial_condition.density[particle]
+# For vectors and tuples
+function wrap_reference_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
+    return (coords, t) -> SVector{NDIMS}(constant_vector)
 end
