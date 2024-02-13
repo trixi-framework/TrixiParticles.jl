@@ -347,7 +347,8 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, m_a, m_b, rho_a, rho_b, ::Nothing)
+                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
+                                     ::Nothing)
     return dv
 end
 
