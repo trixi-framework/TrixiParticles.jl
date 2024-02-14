@@ -233,7 +233,7 @@ end
 function create_series_dict(values, times, system_name="")
     return Dict("type" => "series",
                 "datatype" => eltype(values),
-                "novalues" => length(values),
+                "n_values" => length(values),
                 "system_name" => system_name,
                 "values" => values,
                 "time" => times)
