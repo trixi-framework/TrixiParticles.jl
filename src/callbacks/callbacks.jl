@@ -8,6 +8,7 @@ end
 include("info.jl")
 include("solution_saving.jl")
 include("density_reinit.jl")
+include("stepsize.jl")
 
 # helper function to reduce lines in tutorials
 function default_callback(; save_dt=0.02, info_interval=100)

@@ -7,12 +7,12 @@
              1.0 2.0
              1.0 2.0],
         ]
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
-
-            # Mock initial condition with a `NamedTuple` (we only need the `coordinates` field)
-            initial_condition = (; coordinates)
+            initial_condition = InitialCondition(; coordinates, mass, density)
             model = Val(:boundary_model)
 
             system = BoundarySPHSystem(initial_condition, model)
@@ -30,8 +30,9 @@
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
-        # Mock initial condition with a `NamedTuple` (we only need the `coordinates` field)
-        initial_condition = (; coordinates)
+        mass = [1.0, 1.0]
+        density = [1000.0, 1000.0]
+        initial_condition = InitialCondition(; coordinates, mass, density)
         model = (; hydrodynamic_mass=3)
 
         system = BoundarySPHSystem(initial_condition, model)
