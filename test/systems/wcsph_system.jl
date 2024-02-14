@@ -204,7 +204,7 @@
         │ correction method: ……………………………… Nothing                                                          │
         │ state equation: ……………………………………… Val                                                              │
         │ smoothing kernel: ………………………………… Val                                                              │
-        │ viscosity: …………………………………………………… NoViscosity()                                     │
+        │ viscosity: …………………………………………………… NoViscosity()                                                    │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
