@@ -11,8 +11,9 @@ using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using RecipesBase: RecipesBase, @series
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -33,13 +34,14 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, initialize_ode, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       default_callback
+       StepsizeCallback, default_callback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,

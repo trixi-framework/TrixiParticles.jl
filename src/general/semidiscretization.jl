@@ -36,34 +36,42 @@ struct Semidiscretization{S, RU, RV, NS}
     ranges_v              :: RV
     neighborhood_searches :: NS
 
-    function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
-                                periodic_box_min_corner=nothing,
-                                periodic_box_max_corner=nothing)
-        # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
-        # Other checks might be added here later.
-        check_configuration(systems)
-
-        sizes_u = [u_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                         for i in eachindex(sizes_u))
-        sizes_v = [v_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                         for i in eachindex(sizes_v))
-
-        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
-        # We will need one neighborhood search for each pair of systems.
-        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search),
-                                                          periodic_box_min_corner,
-                                                          periodic_box_max_corner)
-                               for neighbor in systems)
-                         for system in systems)
-
+    # Dispatch at `systems` to distinguish this constructor from the one below when
+    # 4 systems are passed.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches)
         new{typeof(systems), typeof(ranges_u),
-            typeof(ranges_v), typeof(searches)}(systems, ranges_u, ranges_v, searches)
+            typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
+                                                             neighborhood_searches)
     end
+end
+
+function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
+                            periodic_box_min_corner=nothing,
+                            periodic_box_max_corner=nothing)
+    # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
+    # Other checks might be added here later.
+    check_configuration(systems)
+
+    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
+    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
+                     for i in eachindex(sizes_v))
+
+    # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
+    # We will need one neighborhood search for each pair of systems.
+    searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
+                                                      Val(neighborhood_search),
+                                                      periodic_box_min_corner,
+                                                      periodic_box_max_corner)
+                           for neighbor in systems)
+                     for system in systems)
+
+    return Semidiscretization(systems, ranges_u, ranges_v, searches)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -318,6 +326,12 @@ end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
+    (; systems) = semi
+
+    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
