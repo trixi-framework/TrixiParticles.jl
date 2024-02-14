@@ -79,7 +79,7 @@
             # TLSPH system
             solid_system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                     smoothing_length, 0.0, 0.0,
-                                                    boundary_model_continuity)
+                                                    boundary_model=boundary_model_continuity)
 
             # Positions of the solid particles are not used here
             u_solid = zeros(0, TrixiParticles.nparticles(solid_system))
