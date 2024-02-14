@@ -2,11 +2,35 @@
     EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 smoothing_length, sound_speed;
                                 alpha=0.5, viscosity=NoViscosity(),
-                                initial_pressure_function=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
 
 Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
+See below for more information.
+
+# Arguments
+- `initial_condition`:  Initial condition representing the system's particles.
+- `sound_speed`:        Speed of sound.
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+
+# Keyword Arguments
+- `viscosity`:      Viscosity model for this system (default: no viscosity).
+                    Recommended: [`ViscosityAdami`](@ref).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+                    Note that these source terms will not be used in the calculation of the
+                    boundary pressure when using a boundary with
+                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    The keyword argument `acceleration` should be used instead for
+                    gravity-like source terms.
+
 As opposed to the weakly compressible SPH scheme, which uses an equation of state
 (see [`WeaklyCompressibleSPHSystem`](@ref)), this scheme uses a pressure evolution equation
 (PEE) to calculate the pressure. This equation is similar to the continuity equation (see
