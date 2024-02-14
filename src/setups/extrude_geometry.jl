@@ -1,5 +1,5 @@
 """
-    ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=0,
+    ExtrudeGeometry(geometry; particle_spacing, direction, n_extrude=1,
                     velocity=zeros(length(direction)),
                     mass=nothing, density=nothing, pressure=0.0)
 Extrude either a line, a plane or a shape along a specific direction.
