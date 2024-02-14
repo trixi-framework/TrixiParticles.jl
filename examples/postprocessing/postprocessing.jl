@@ -1,7 +1,4 @@
 using TrixiParticles
-using JSON
-using CSV
-using DataFrames
 using Plots
 
 # Any function can be implemented and will be called every 10th timestep! See example below:
