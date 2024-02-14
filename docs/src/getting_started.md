@@ -5,7 +5,7 @@ In the following sections, we will give a short introduction. For a more thoroug
 
 ## Running an Example
 The easiest way to run a simulation is to run one of our predefined example files.
-We will run the file `examples/fluid/rectangular_tank_2d.jl`, which simulates a fluid resting in a rectangular tank.
+We will run the file `examples/fluid/hydrostatic_water_column_2d.jl`, which simulates a fluid resting in a rectangular tank.
 Since TrixiParticles.jl uses multithreading, you should start Julia with the flag `--threads auto` (or, e.g. `--threads 4` for 4 threads).
 
 In the Julia REPL, first load the package TrixiParticles.jl.
@@ -16,7 +16,7 @@ julia> using TrixiParticles
 
 Then start the simulation by executing
 ```julia
-julia> trixi_include(joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"))
+julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
 This will result in the following:
@@ -37,11 +37,11 @@ You can pass keyword arguments to the function `trixi_include` to overwrite assi
 
 With `trixi_include`, we can overwrite this variable to run a different simulation without modifying the example file.
 ```julia
-julia> trixi_include(joinpath(examples_dir(), "fluid", "rectangular_tank_2d.jl"), initial_fluid_size=(1.0, 0.5))
+julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), initial_fluid_size=(1.0, 0.5))
 ```
 This for example, will change the fluid size from ``(1.0, 1.0)`` to ``(1.0, 0.5)``.
 
-To explore further you can take a look into the file `examples/fluid/rectangular_tank_2d.jl` that we executed earlier,
+To explore further you can take a look into the file `examples/fluid/hydrostatic_water_column_2d.jl` that we executed earlier,
 you can see that the initial size of the fluid is defined in the variable `initial_fluid_size`. 
 Another variable that is worth experimenting with is `fluid_particle_spacing`,
 which controls the resolution of the simulation in this case.
