@@ -1,11 +1,20 @@
-using Documenter, TrixiParticles
+using Documenter
+using TrixiParticles
+using TrixiBase
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
 function copy_file(filename, replaces...)
-    content = read(joinpath(trixiparticles_root_dir, filename), String)
+    source_path = joinpath(trixiparticles_root_dir, filename)
+
+    if !isfile(source_path)
+        error("File $filename not found. Ensure that you provide a path relative to the TrixiParticles.jl root directory.")
+        return
+    end
+
+    content = read(source_path, String)
     content = replace(content, replaces...)
 
     header = """
@@ -38,6 +47,8 @@ makedocs(sitename="TrixiParticles.jl",
          pages=[
              "Home" => "index.md",
              "News" => "news.md",
+             "Installation" => "install.md",
+             "Getting started" => "getting_started.md",
              "Components" => [
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
@@ -58,8 +69,9 @@ makedocs(sitename="TrixiParticles.jl",
                                                                         "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md"),
                  ],
-                 "Time integration" => "time_integration.md",
+                 "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
+                 "TrixiBase.jl API Reference" => "reference-trixibase.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",

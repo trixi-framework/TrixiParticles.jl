@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(inititial_condition, model; movement=nothing)
+    BoundarySPHSystem(initial_condition, model; movement=nothing)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -8,21 +8,22 @@ For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keywo
 argument `movement`.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    coordinates    :: Array{ELTYPE, 2}
-    boundary_model :: BM
-    movement       :: M
-    ismoving       :: Vector{Bool}
-    cache          :: C
+    initial_condition :: InitialCondition{ELTYPE}
+    coordinates       :: Array{ELTYPE, 2}
+    boundary_model    :: BM
+    movement          :: M
+    ismoving          :: Vector{Bool}
+    cache             :: C
 
-    function BoundarySPHSystem(inititial_condition, model; movement=nothing)
-        coordinates = inititial_condition.coordinates
+    function BoundarySPHSystem(initial_condition, model; movement=nothing)
+        coordinates = initial_condition.coordinates
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
 
-        cache = create_cache_boundary(movement, inititial_condition)
+        cache = create_cache_boundary(movement, initial_condition)
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
-                   typeof(cache)}(coordinates, model, movement,
+                   typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, cache)
     end
 end
@@ -58,12 +59,12 @@ struct BoundaryMovement{MF, IM}
     end
 end
 
-create_cache_boundary(::Nothing, inititial_condition) = (;)
+create_cache_boundary(::Nothing, initial_condition) = (;)
 
-function create_cache_boundary(::BoundaryMovement, inititial_condition)
-    initial_coordinates = copy(inititial_condition.coordinates)
-    velocity = similar(inititial_condition.velocity)
-    acceleration = similar(inititial_condition.velocity)
+function create_cache_boundary(::BoundaryMovement, initial_condition)
+    initial_coordinates = copy(initial_condition.coordinates)
+    velocity = similar(initial_condition.velocity)
+    acceleration = similar(initial_condition.velocity)
     return (; initial_coordinates, velocity, acceleration)
 end
 
@@ -91,12 +92,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
 end
 
 timer_name(::BoundarySPHSystem) = "boundary"
-
-@inline Base.eltype(system::BoundarySPHSystem) = eltype(system.coordinates)
-
-# This does not account for moving boundaries, but it's only used to initialize the
-# neighborhood search, anyway.
-@inline initial_coordinates(system::BoundarySPHSystem) = system.coordinates
 
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
@@ -265,18 +260,6 @@ function viscosity_model(system::BoundarySPHSystem)
     return system.boundary_model.viscosity
 end
 
-@inline function pressure_acceleration(pressure_correction, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance, grad_kernel,
-                                       particle_system, neighbor,
-                                       neighbor_system::BoundarySPHSystem,
-                                       density_calculator, correction)
-    (; boundary_model) = neighbor_system
-    (; smoothing_length) = particle_system
-
-    return pressure_acceleration_bnd(pressure_correction, m_b, p_a, p_b,
-                                     rho_a, rho_b, pos_diff, distance,
-                                     smoothing_length, grad_kernel,
-                                     particle_system, neighbor, neighbor_system,
-                                     boundary_model,
-                                     density_calculator, correction)
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+    return Inf
 end

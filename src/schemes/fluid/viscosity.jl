@@ -102,6 +102,19 @@ end
     return 0.0
 end
 
+# See, e.g.,
+# M. Antuono, A. Colagrossi, S. Marrone.
+# "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
+# In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
+# https://doi.org/10.1016/j.cpc.2012.07.006
+function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
+    (; smoothing_length, state_equation) = system
+    (; sound_speed) = state_equation
+    (; alpha) = viscosity
+
+    return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
+end
+
 @doc raw"""
     ViscosityAdami(; nu, epsilon=0.01)
 
@@ -170,6 +183,10 @@ end
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
 
     return visc .* v_diff
+end
+
+function kinematic_viscosity(system, viscosity::ViscosityAdami)
+    return viscosity.nu
 end
 
 @inline viscous_velocity(v, system, particle) = current_velocity(v, system, particle)
