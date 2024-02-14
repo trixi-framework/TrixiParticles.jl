@@ -91,7 +91,7 @@ if file_path != ""
           color=[:green :orange], linewidth=[2 2])
 
     plot!(title="Maximum Pressure of the Fluid", xlabel="Time [s]",
-    ylabel="Max. Pressure [Pa]")
+          ylabel="Max. Pressure [Pa]")
 
     annotate!(x_position_for_annotation, ylims(plot2)[2] - 5.5,
               @sprintf("gradient=%.5f", grad_p_max))
@@ -103,7 +103,7 @@ if file_path != ""
           color=[:green :orange], linewidth=[2 2])
 
     plot!(title="Avg. Density of the Fluid", xlabel="Time [s]",
-    ylabel="Avg. Density [kg/m^3]")
+          ylabel="Avg. Density [kg/m^3]")
 
     annotate!(x_position_for_annotation, ylims(plot3)[2] - 0.003,
               @sprintf("gradient=%.5f", grad_avg_rho))
