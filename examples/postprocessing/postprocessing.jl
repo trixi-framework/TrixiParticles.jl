@@ -5,7 +5,7 @@ using DataFrames
 using Plots
 
 # Any function can be implemented and will be called every 10th timestep! See example below:
-function hello(t, v, u, system)
+function hello(v, u, t, system)
     # will write "hello" and the current simulation time
     println("hello at ", t)
 

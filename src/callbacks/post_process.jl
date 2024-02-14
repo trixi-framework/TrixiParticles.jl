@@ -1,11 +1,12 @@
 """
     PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
-                        output_directory=".", overwrite=true, write_csv=true, write_json=true)
+                        output_directory="out", overwrite=true, write_csv=true, write_json=true)
 
 Create a callback for post-processing simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
 intervals during the simulation. The function is applied to the current state of the simulation,
-and its results can be saved or used for further analysis.
+and its results can be saved or used for further analysis. The provided function cannot be
+anonymous as the function name will be used as part of the name of the value.
 
 The callback can be triggered either by a fixed number of time steps (`interval`) or by
 a fixed interval of simulation time (`dt`).
@@ -26,7 +27,9 @@ a fixed interval of simulation time (`dt`).
 
 # Examples
 ```julia
-example_function = function(pp, t, system, u, v, system_name) println("test_func ", t) end
+function example_function(v, u, t, system)
+ println("test_func ", t)
+end
 
 # Create a callback that is triggered every 100 time steps
 postprocess_callback = PostprocessCallback(example_function, interval=100)
@@ -192,7 +195,7 @@ function (pp::PostprocessCallback)(integrator)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         for f in pp.func
-            result = f(t, v, u, system)
+            result = f(v, u, t, system)
             add_entry!(pp, string(nameof(f)), t, result, filenames[system_index])
             new_data = true
         end
@@ -311,7 +314,7 @@ function add_entry!(pp, entry_key, t, value, system_name)
     push!(entries, value)
 end
 
-function ekin(t, v, u, system)
+function ekin(v, u, t, system)
     e_kin = 0.0
     for particle in each_moving_particle(system)
         velocity = current_velocity(v, system, particle)
@@ -320,7 +323,7 @@ function ekin(t, v, u, system)
     return e_kin
 end
 
-function total_mass(t, v, u, system)
+function total_mass(v, u, t, system)
     tm = 0.0
     for particle in each_moving_particle(system)
         tm += system.mass[particle]
@@ -328,7 +331,7 @@ function total_mass(t, v, u, system)
     return tm
 end
 
-function max_pressure(t, v, u, system)
+function max_pressure(v, u, t, system)
     max_p = 0.0
     for particle in each_moving_particle(system)
         pressure = particle_pressure(v, system, particle)
@@ -339,7 +342,7 @@ function max_pressure(t, v, u, system)
     return max_p
 end
 
-function min_pressure(t, v, u, system)
+function min_pressure(v, u, t, system)
     min_p = typemax(Int64)
     for particle in each_moving_particle(system)
         pressure = particle_pressure(v, system, particle)
@@ -350,7 +353,7 @@ function min_pressure(t, v, u, system)
     return min_p
 end
 
-function avg_pressure(t, v, u, system)
+function avg_pressure(v, u, t, system)
     total_pressure = 0.0
     count = 0
 
@@ -363,7 +366,7 @@ function avg_pressure(t, v, u, system)
     return avg_p
 end
 
-function max_density(t, v, u, system)
+function max_density(v, u, t, system)
     max_rho = 0.0
     for particle in each_moving_particle(system)
         rho = particle_density(v, system, particle)
@@ -374,7 +377,7 @@ function max_density(t, v, u, system)
     return max_rho
 end
 
-function min_density(t, v, u, system)
+function min_density(v, u, t, system)
     min_rho = typemax(Int64)
     for particle in each_moving_particle(system)
         rho = particle_density(v, system, particle)
@@ -385,7 +388,7 @@ function min_density(t, v, u, system)
     return min_rho
 end
 
-function avg_density(t, v, u, system)
+function avg_density(v, u, t, system)
     total_density = 0.0
     count = 0
 
