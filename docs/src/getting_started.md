@@ -35,16 +35,15 @@ julia> trixi_include(joinpath(examples_dir(), "subfolder", "example_name.jl"))
 ## Modifying an example
 You can pass keyword arguments to the function `trixi_include` to overwrite assignments in the file.
 
-With `trixi_include`, we can overwrite this variable to run a different simulation without modifying the example file.
+With `trixi_include`, we can overwrite variables defined in the example file to run a different simulation without modifying the example file.
 ```julia
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), initial_fluid_size=(1.0, 0.5))
 ```
-This for example, will change the fluid size from ``(1.0, 1.0)`` to ``(1.0, 0.5)``.
+This for example, will change the fluid size from ``(0.9, 1.0)`` to ``(1.0, 0.5)``.
 
-To explore further you can take a look into the file `examples/fluid/hydrostatic_water_column_2d.jl` that we executed earlier,
-you can see that the initial size of the fluid is defined in the variable `initial_fluid_size`. 
-Another variable that is worth experimenting with is `fluid_particle_spacing`,
-which controls the resolution of the simulation in this case.
+To understand why, take a look into the file `hydrostatic_water_column_2d.jl` in the subfolder `fluid` inside the examples directory, which is the file that we executed earlier.
+You can see that the initial size of the fluid is defined in the variable `initial_fluid_size`, which we could overwrite with the `trixi_include` call above.
+Another variable that is worth experimenting with is `fluid_particle_spacing`, which controls the resolution of the simulation in this case.
 A lower value will increase the resolution and the runtime.
 
 ## Set up you first simulation from scratch
