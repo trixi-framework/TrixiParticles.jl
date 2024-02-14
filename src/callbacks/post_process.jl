@@ -59,6 +59,10 @@ function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boun
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
 
+    if any(f -> occursin(r"^#(\d+)", string(f)) || occursin("->", string(f)), funcs)
+        throw(ArgumentError("Anonymous functions are not allowed!"))
+    end
+
     if dt > 0
         interval = Float64(dt)
     end
