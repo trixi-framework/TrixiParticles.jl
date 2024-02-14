@@ -20,6 +20,16 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with source term damping" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "hydrostatic_water_column_2d.jl"),
+                                           source_terms=SourceTermDamping(;
+                                                                          damping_coefficient=1e-4))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         @trixi_testset "fluid/hydrostatic_water_column_2d.jl with SummationDensity" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
