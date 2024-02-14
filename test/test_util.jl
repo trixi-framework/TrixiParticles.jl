@@ -2,6 +2,9 @@ using Test
 using TrixiParticles
 using LinearAlgebra
 using Printf
+using CSV: CSV
+using DataFrames
+using JSON: JSON
 using QuadGK: quadgk # For integration in smoothing kernel tests
 using Random: Random # For rectangular patch
 using Polyester: disable_polyester_threads # For `count_rhs_allocations`
