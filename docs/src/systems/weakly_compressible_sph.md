@@ -97,7 +97,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffusion.jl")]
 ```
 
-## Corrections
+## [Corrections](@id corrections)
 
 ```@autodocs
 Modules = [TrixiParticles]

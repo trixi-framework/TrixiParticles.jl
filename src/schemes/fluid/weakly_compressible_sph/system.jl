@@ -26,7 +26,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
                     See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `correction`:     Correction method used for this system. (default: no correction)
+- `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`

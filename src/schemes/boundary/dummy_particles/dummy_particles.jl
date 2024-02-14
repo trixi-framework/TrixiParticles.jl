@@ -15,7 +15,7 @@
 # Keywords
 - `state_equation`: This should be the same as for the adjacent fluid system
                     (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:     Correction method of the adjacent fluid system (see TODO)
+- `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
 - `viscosity`:      Slip (default) or no-slip condition. See description below for further
                     information
 
