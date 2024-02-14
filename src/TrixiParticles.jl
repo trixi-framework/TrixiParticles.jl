@@ -2,13 +2,13 @@ module TrixiParticles
 
 using Reexport: @reexport
 
-using CSV
+using CSV: CSV
 using Dates
 using DataFrames
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
-using JSON
+using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using Morton: cartesian2morton
 using MuladdMacro: @muladd

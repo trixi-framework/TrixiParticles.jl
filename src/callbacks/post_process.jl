@@ -87,7 +87,7 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!
     print(io, "PostprocessCallback(interval=", callback.interval)
-    print(io, "functions=[")
+    print(io, ", functions=[")
     print(io, join(callback.func, ", "))
     print(io, "])")
 end
@@ -97,8 +97,8 @@ function Base.show(io::IO,
                                         <:PeriodicCallbackAffect{<:PostprocessCallback}})
     @nospecialize cb # reduce precompilation time
     callback = cb.affect!.affect!
-    print(io, "PostprocessCallback(interval=", callback.interval)
-    print(io, "functions=[")
+    print(io, "PostprocessCallback(dt=", callback.interval)
+    print(io, ", functions=[")
     print(io, join(callback.func, ", "))
     print(io, "])")
 end
