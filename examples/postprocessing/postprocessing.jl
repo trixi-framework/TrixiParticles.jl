@@ -2,7 +2,7 @@ using TrixiParticles
 using Plots
 using CSV
 using DataFrames
-#using JSON
+using JSON
 
 # Any function can be implemented and will be called every 10th timestep! See example below:
 function hello(v, u, t, system)
@@ -28,11 +28,11 @@ trixi_include(@__MODULE__,
 data = CSV.read("out/example_pressure_ekin.csv", DataFrame)
 
 # or alternatively using JSON
-# file_content = read("out/example_pressure_ekin.csv", String)
-# data = JSON.parse(file_content)
-# time = data["ekin_fluid_1"]["time"]
-# values_ekin = data["ekin_fluid_1"]["values"]
-# values_avg_p = data["avg_p_fluid_1"]["values"]
+file_content = read("out/example_pressure_ekin.json", String)
+data_json = JSON.parse(file_content)
+time = data_json["ekin_fluid_1"]["time"]
+values_ekin = data_json["ekin_fluid_1"]["values"]
+values_avg_p = data_json["avg_pressure_fluid_1"]["values"]
 
 # Create side-by-side subplots
 p1 = plot(data.time, data.ekin_fluid_1, label="kinetic energy", color=:blue,
