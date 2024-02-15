@@ -209,6 +209,11 @@ end
     return system.pressure[particle]
 end
 
+@inline function set_particle_density(particle, v, system::WeaklyCompressibleSPHSystem,
+                                      density)
+    set_particle_density(particle, v, system.density_calculator, system, density)
+end
+
 # Nothing to initialize for this system
 initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 

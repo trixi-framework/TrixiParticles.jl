@@ -67,6 +67,10 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
+@inline set_particle_density(particle, v, system, density) = system
+
+@inline set_particle_pressure(particle, v, system, pressure) = system
+
 @inline function smoothing_kernel(system, distance)
     (; smoothing_kernel, smoothing_length) = system
     return kernel(smoothing_kernel, distance, smoothing_length)
@@ -108,3 +112,5 @@ end
 function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
+
+update_system_buffer!(system) = system

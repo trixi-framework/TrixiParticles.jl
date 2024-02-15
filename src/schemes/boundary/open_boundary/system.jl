@@ -178,10 +178,6 @@ end
     return system.pressure[particle]
 end
 
-@inline set_particle_density(particle, v, system::OpenBoundarySPHSystem, density) = system
-
-@inline set_particle_pressure(particle, v, system, pressure) = system
-
 function spanning_vectors(plane_points, zone_width)
 
     # Convert to tuple
@@ -235,6 +231,24 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
     evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 end
 
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
+
+function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
+                                        semi, t)
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
+
+    update_quantities!(system, v, u, t)
+
+    check_domain!(system, v, u, v_ode, u_ode, semi)
+
+    foreach_system(semi) do system
+        update_system_buffer!(system)
+    end
+end
+
+update_system_buffer!(system::OpenBoundarySPHSystem) = update!(system.buffer)
+
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.
 # J2: Propagates downstream to the local flow
@@ -256,16 +270,16 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         evaluate_characteristics!(system, neighbor_system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Only some of the in-/outlet particles are in the influence of the interior particles.
+    # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we find the characteristics for the particle which are outside the influence
     # using the average of the values of the previous time step.
     @threaded for particle in each_moving_particle(system)
 
-        # Particle is outside of the influence of interior particles
+        # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0.0)
 
             # Using the average of the values at the previous time step for particles which
-            # are outside of the influence of interior particles.
+            # are outside of the influence of fluid particles.
             avg_J1 = 0.0
             avg_J2 = 0.0
             avg_J3 = 0.0
@@ -273,7 +287,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 
             for neighbor in each_moving_particle(system)
                 # Make sure that only neighbors in the influence of
-                # the interior particles are used.
+                # the fluid particles are used.
                 if volume[neighbor] > sqrt(eps())
                     avg_J1 += previous_characteristics[1, neighbor]
                     avg_J2 += previous_characteristics[2, neighbor]
@@ -311,7 +325,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Loop over all interior neighbors within the kernel cutoff.
+    # Loop over all flud neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                           nhs) do particle, neighbor, pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
@@ -389,6 +403,109 @@ end
     return system
 end
 
+function check_domain!(system, v, u, v_ode, u_ode, semi)
+    @threaded for particle in each_moving_particle(system)
+        foreach_system(semi) do fluid_system
+            check_fluid_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
+        end
+    end
+end
+
+function check_fluid_domain!(system, neighbor_system::OpenBoundarySPHSystem, particle,
+                             v, u, v_ode, u_ode, semi)
+    return system
+end
+
+function check_fluid_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
+    (; boundary_zone) = system
+
+    particle_coords = current_coords(u, system, particle)
+
+    u_fluid = wrap_u(u_ode, fluid_system, semi)
+    v_fluid = wrap_v(v_ode, fluid_system, semi)
+
+    neighborhood_search = get_neighborhood_search(system, fluid_system, semi)
+
+    # Check if the particle position is outside the boundary zone.
+    if !within_boundary_zone(particle_coords, system)
+        transform_particle!(system, fluid_system, boundary_zone, particle,
+                            v, u, v_fluid, u_fluid)
+    end
+
+    # Check fluid neighbors
+    for neighbor in eachneighbor(particle_coords, neighborhood_search)
+        fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
+
+        # Check if neighbor position is in boundary zone
+        if within_boundary_zone(fluid_coords, system)
+            transform_particle!(fluid_system, system, boundary_zone, neighbor,
+                                v, u, v_fluid, u_fluid)
+        end
+    end
+
+    return system
+end
+
+# Outflow particle is outside the boundary zone
+@inline function transform_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                     ::OutFlow, particle, v, u, v_fluid, u_fluid)
+    deactivate_particle!(system, particle, u)
+
+    return system
+end
+
+# Inflow particle is outside the boundary zone
+@inline function transform_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                     ::InFlow, particle, v, u, v_fluid, u_fluid)
+    (; spanning_set) = system
+
+    # Activate a new particle in simulation domain
+    activate_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+
+    # Reset position of boundary particle
+    for dim in 1:ndims(system)
+        u[dim, particle] += spanning_set[1][dim]
+    end
+
+    return system
+end
+
+# Flud particle is in boundary zone
+@inline function transform_particle!(fluid_system::FluidSystem, system,
+                                     boundary_zone, particle, v, u, v_fluid, u_fluid)
+    # Activate particle in boundary zone
+    activate_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
+
+    # Deactivate particle in interior domain
+    deactivate_particle!(fluid_system, particle, u_flud)
+
+    return fluid_system
+end
+
+@inline function activate_particle!(system_new, system_old, particle_old,
+                                    v_new, u_new, v_old, u_old)
+    particle_new = available_particle(system_new)
+
+    # Exchange densities
+    density = particle_density(v_old, system_old, particle_old)
+    set_particle_density(particle_new, v_new, system_new, density)
+
+    # Exchange pressure
+    pressure = particle_pressure(v_old, system_old, particle_old)
+    set_particle_pressure(particle_new, v_new, system_new, pressure)
+
+    # Exchange position and velocity
+    for dim in 1:ndims(system_new)
+        u_new[dim, particle_new] = u_old[dim, particle_old]
+        v_new[dim, particle_new] = v_old[dim, particle_old]
+    end
+
+    # Only when using TVF
+    set_transport_velocity!(system_new, particle_new, particle_old, v_new, v_old)
+
+    return system_new
+end
+
 function write_v0!(v0, system::OpenBoundarySPHSystem)
     (; initial_condition) = system
 
@@ -427,4 +544,9 @@ end
 # For vectors and tuples
 function wrap_reference_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
     return (coords, t) -> SVector{NDIMS}(constant_vector)
+end
+
+function set_transport_velocity!(system::OpenBoundarySPHSystem,
+                                 particle, particle_old, v, v_old)
+    return system
 end

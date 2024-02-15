@@ -8,6 +8,8 @@ end
     return active_coordinates(u, system, system.buffer)
 end
 
+update_system_buffer!(system::FluidSystem) = update!(system.buffer)
+
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
