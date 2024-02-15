@@ -40,7 +40,7 @@ export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
-export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback
+export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback, UpdateCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
