@@ -53,5 +53,4 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 ode = initialize_ode(tspan, fluid_system, boundary_system)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL35(),
-            save_everystep=false, callback=default_callback());
+sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=default_callback());

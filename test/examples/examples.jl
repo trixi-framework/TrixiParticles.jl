@@ -9,7 +9,7 @@
             @test sol.retcode == ReturnCode.Success
             # This error varies between serial and multithreaded runs
             @test isapprox(error_A, 0.0001717690010767381, atol=5e-7)
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/hydrostatic_water_column_2d.jl" begin
@@ -17,7 +17,7 @@
                                            joinpath(examples_dir(), "fluid",
                                                     "hydrostatic_water_column_2d.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/hydrostatic_water_column_2d.jl with SummationDensity" begin
@@ -27,7 +27,7 @@
                                            fluid_density_calculator=SummationDensity(),
                                            clip_negative_pressure=true)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/hydrostatic_water_column_3d.jl" begin
@@ -36,7 +36,7 @@
                                                     "hydrostatic_water_column_3d.jl"),
                                            tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/hydrostatic_water_column_3d.jl with SummationDensity" begin
@@ -47,7 +47,7 @@
                                            fluid_density_calculator=SummationDensity(),
                                            clip_negative_pressure=true)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/hydrostatic_water_column_edac_2d.jl" begin
@@ -55,7 +55,7 @@
                                            joinpath(examples_dir(), "fluid",
                                                     "hydrostatic_water_column_edac_2d.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/dam_break_2d.jl" begin
@@ -64,7 +64,7 @@
                                                     "dam_break_2d.jl"),
                                            tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/dam_break_3d.jl" begin
@@ -73,7 +73,7 @@
                                                     "dam_break_3d.jl"),
                                            tspan=(0.0, 0.1), fluid_particle_spacing=0.1)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/falling_water_column_2d.jl" begin
@@ -82,7 +82,7 @@
                                                     "falling_water_column_2d.jl"),
                                            tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fluid/periodic_channel_2d.jl" begin
@@ -91,7 +91,7 @@
                                                     "periodic_channel_2d.jl"),
                                            tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         include("dam_break_2d_corrections.jl")
@@ -104,7 +104,7 @@
                                                     "oscillating_beam_2d.jl"),
                                            tspan=(0.0, 0.1))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
     end
 
@@ -115,7 +115,7 @@
                                                     "falling_water_column_2d.jl"),
                                            tspan=(0.0, 0.4))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fsi/dam_break_2d.jl" begin
@@ -127,7 +127,7 @@
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fsi/dam_break_gate_2d.jl" begin
@@ -137,7 +137,7 @@
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "fsi/falling_spheres_2d.jl" begin
@@ -146,7 +146,7 @@
                                                     "falling_spheres_2d.jl"),
                                            tspan=(0.0, 1.0))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
     end
 
@@ -156,7 +156,7 @@
                                            joinpath(examples_dir(), "n_body",
                                                     "n_body_solar_system.jl"))
             @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            @test count_rhs_allocations(sol, ode) == 0
         end
 
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
