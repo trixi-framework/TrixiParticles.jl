@@ -229,7 +229,9 @@ end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "Evaluate Characteristics" evaluate_characteristics!(system, v, u,
+                                                                               v_ode, u_ode,
+                                                                               semi, t)
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
@@ -239,11 +241,11 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
-    update_quantities!(system, v, u, t)
+    @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, t)
 
-    check_domain!(system, v, u, v_ode, u_ode, semi)
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    foreach_system(semi) do system
+    @trixi_timeit timer() "update buffer" foreach_system(semi) do system
         update_system_buffer!(system)
     end
 end
@@ -267,7 +269,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     set_zero!(volume)
 
     # Use all other systems for the characteristics
-    @trixi_timeit timer() "Evaluate Characteristics" foreach_system(semi) do neighbor_system
+    foreach_system(semi) do neighbor_system
         evaluate_characteristics!(system, neighbor_system, v, u, v_ode, u_ode, semi, t)
     end
 

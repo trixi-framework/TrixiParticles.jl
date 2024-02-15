@@ -66,7 +66,7 @@ function (update_callback!::UpdateCallback)(integrator)
     update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     # Other updates might be added here later (e.g. Transport Velocity Formulation).
-    foreach_system(semi) do system
+    @trixi_timeit timer() "update open boundary" foreach_system(semi) do system
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     end
 
