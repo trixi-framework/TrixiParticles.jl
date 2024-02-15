@@ -210,7 +210,7 @@ function (pp::PostprocessCallback)(integrator)
     end
 
     if isfinished(integrator)
-        pp(integrator, true)
+        write_postprocess_callback(pp)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
@@ -221,11 +221,9 @@ end
 # that maps each key to separate arrays of times and values, sorted by time, and includes system name.
 function prepare_series_data!(data, post_callback)
     for (key, data_array) in post_callback.data
-        # Extracting times and values into separate arrays
-        # data_times = [data_.time for data_ in data_array]
         data_values = [value for value in data_array]
 
-        # the penultimate string in the key is the system_name
+        # The penultimate string in the key is the system_name
         system_name = split(key, '_')[end - 1]
 
         data[key] = create_series_dict(data_values, post_callback.times, system_name)
@@ -252,8 +250,8 @@ function write_meta_data!(data)
     return data
 end
 
-# After the simulation has finished, this function is called to write the data to a JSON file.
-function (pp::PostprocessCallback)(integrator, finished::Bool)
+# After the simulation has finished, this function is called to write the data to a JSON file
+function write_postprocess_callback(pp::PostprocessCallback)
     if isempty(pp.data)
         return
     end
@@ -271,16 +269,16 @@ function (pp::PostprocessCallback)(integrator, finished::Bool)
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-        @info "Writing postproccessing results to $abs_file_path"
+        @info "Writing postprocessing  results to $abs_file_path"
 
         open(abs_file_path, "w") do file
-            # indent by 4 spaces
+            # Indent by 4 spaces
             JSON.print(file, data, 4)
         end
     end
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-        @info "Writing postproccessing results to $abs_file_path"
+        @info "Writing postprocessing  results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end
@@ -295,11 +293,14 @@ function write_csv(abs_file_path, data)
             break
         end
     end
-    df = DataFrame(time=times) # Initialize DataFrame with time column
+
+     # Initialize DataFrame with time column
+    df = DataFrame(time=times)
 
     for (key, series) in data
-        # Ensure we only process data entries, excluding any meta data or non-data entries
-        if occursin("_", key) # A simple check to ensure we're dealing with data series
+        # Ensure we only process data entries, excluding any meta data or non-data entries.
+        # Metadata is stored as `data["meta"]`, while data entries contain `_$(system_name)`
+        if occursin("_", key)
             values = series["values"]
             # Add a new column to the DataFrame for each series of values
             df[!, Symbol(key)] = values
@@ -318,21 +319,17 @@ function add_entry!(pp, entry_key, t, value, system_name)
     push!(entries, value)
 end
 
-function ekin(v, u, t, system)
-    e_kin = 0.0
-    for particle in each_moving_particle(system)
+function kinetic_energy(v, u, t, system)
+    return sum(each_moving_particle(system)) do particle
         velocity = current_velocity(v, system, particle)
-        e_kin += 0.5 * system.mass[particle] * dot(velocity, velocity)
+        return 0.5 * system.mass[particle] * dot(velocity, velocity)
     end
-    return e_kin
 end
 
 function total_mass(v, u, t, system)
-    tm = 0.0
-    for particle in each_moving_particle(system)
-        tm += system.mass[particle]
+    return sum(each_moving_particle(system)) do particle
+        return system.mass[particle]
     end
-    return tm
 end
 
 function max_pressure(v, u, t, system)

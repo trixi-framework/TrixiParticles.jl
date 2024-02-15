@@ -23,5 +23,25 @@
         │ function1: …………………………………………………… example_function                                                 │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
+
+        callback = PostprocessCallback(example_function, dt=0.1)
+
+        show_compact = "PostprocessCallback(dt=0.1, functions=[example_function])"
+        @test repr(callback) == show_compact
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ PostprocessCallback                                                                              │
+        │ ═══════════════════                                                                              │
+        │ dt: ……………………………………………………………………… 0.1                                                              │
+        │ exclude boundary: ………………………………… yes                                                              │
+        │ filename: ……………………………………………………… values                                                           │
+        │ output directory: ………………………………… out                                                              │
+        │ append timestamp: ………………………………… no                                                               │
+        │ write json file: …………………………………… yes                                                              │
+        │ write csv file: ……………………………………… yes                                                              │
+        │ function1: …………………………………………………… example_function                                                 │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
     end
 end

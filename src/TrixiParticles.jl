@@ -4,7 +4,7 @@ using Reexport: @reexport
 
 using CSV: CSV
 using Dates
-using DataFrames
+using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
@@ -66,7 +66,7 @@ export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
-export ekin, total_mass, max_pressure, min_pressure, avg_pressure,
+export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
 

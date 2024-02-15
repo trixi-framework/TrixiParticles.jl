@@ -19,7 +19,7 @@ trixi_include(@__MODULE__,
               extra_callback=example_cb, tspan=(0.0, 0.1));
 
 # Lets write the average pressure and kinetic energy every 0.01s
-pp = PostprocessCallback(avg_pressure, ekin; dt=0.005, filename="example_pressure_ekin")
+pp = PostprocessCallback(avg_pressure, kinetic_energy; dt=0.005, filename="example_pressure_ekin")
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
@@ -27,15 +27,15 @@ trixi_include(@__MODULE__,
 
 data = CSV.read("out/example_pressure_ekin.csv", DataFrame)
 
-# or alternatively using JSON
+# or alternatively using JSON (data is not used in the plot)
 file_content = read("out/example_pressure_ekin.json", String)
 data_json = JSON.parse(file_content)
-time = data_json["ekin_fluid_1"]["time"]
-values_ekin = data_json["ekin_fluid_1"]["values"]
+time = data_json["kinetic_energy_fluid_1"]["time"]
+values_ekin = data_json["kinetic_energy_fluid_1"]["values"]
 values_avg_p = data_json["avg_pressure_fluid_1"]["values"]
 
 # Create side-by-side subplots
-p1 = plot(data.time, data.ekin_fluid_1, label="kinetic energy", color=:blue,
+p1 = plot(data.time, data.kinetic_energy_fluid_1, label="kinetic energy", color=:blue,
           title="Kin. Energy over Time", xlabel="Time", ylabel="Kin. E")
 p2 = plot(data.time, data.avg_pressure_fluid_1, label="average pressure", color=:red,
           title="avg P over Time", xlabel="Time", ylabel="Pressure")
