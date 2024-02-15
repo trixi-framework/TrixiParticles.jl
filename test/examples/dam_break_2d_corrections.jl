@@ -1,5 +1,3 @@
-include("../test_util.jl")
-
 @trixi_testset "dam_break_2d.jl with corrections" begin
     fluid_density = 1000.0
     particle_spacing = 0.05
@@ -87,13 +85,6 @@ include("../test_util.jl")
         println("="^100)
         println("fluid/dam_break_2d.jl with ", correction_name)
 
-        if correction_name == "blended_gradient_continuity_correction"
-            # This simulation requires smaller time steps for some reason
-            cfl_ = 0.7
-        else
-            cfl_ = 1.1
-        end
-
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
                                        fluid_particle_spacing=particle_spacing,
@@ -107,7 +98,9 @@ include("../test_util.jl")
                                        prefix="$(correction_name)", tspan=tspan,
                                        fluid_density=fluid_density,
                                        density_diffusion=nothing,
-                                       boundary_layers=5, cfl=cfl_)
+                                       boundary_layers=5, sol = nothing)
+
+        sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
 
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
