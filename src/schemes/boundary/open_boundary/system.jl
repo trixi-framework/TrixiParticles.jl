@@ -154,8 +154,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-@inline eachparticle(system::OpenBoundarySPHSystem) = eachparticle(system, system.buffer)
-
 @inline function each_moving_particle(system::OpenBoundarySPHSystem)
     return each_moving_particle(system, system.buffer)
 end
@@ -163,6 +161,9 @@ end
 @inline function active_coordinates(u, system::OpenBoundarySPHSystem)
     return active_coordinates(u, system, system.buffer)
 end
+
+@inline active_particles(system::OpenBoundarySPHSystem) = active_particles(system,
+                                                                           system.buffer)
 
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
 
@@ -404,7 +405,8 @@ end
 end
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    @threaded for particle in each_moving_particle(system)
+    # TODO: Is a thread supported version possible?
+    for particle in each_moving_particle(system)
         foreach_system(semi) do fluid_system
             check_fluid_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
         end
@@ -477,7 +479,7 @@ end
     activate_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
-    deactivate_particle!(fluid_system, particle, u_flud)
+    deactivate_particle!(fluid_system, particle, u_fluid)
 
     return fluid_system
 end
@@ -500,8 +502,7 @@ end
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
-    # Only when using TVF
-    set_transport_velocity!(system_new, particle_new, particle_old, v_new, v_old)
+    # TODO: Only when using TVF: set tvf
 
     return system_new
 end
@@ -544,9 +545,4 @@ end
 # For vectors and tuples
 function wrap_reference_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
     return (coords, t) -> SVector{NDIMS}(constant_vector)
-end
-
-function set_transport_velocity!(system::OpenBoundarySPHSystem,
-                                 particle, particle_old, v, v_old)
-    return system
 end

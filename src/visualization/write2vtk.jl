@@ -92,7 +92,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
         # Store particle index
-        vtk["index"] = eachparticle(system)
+        vtk["index"] = active_particles(system)
         vtk["time"] = t
 
         # Extract custom quantities for this system
@@ -252,7 +252,7 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
         vtk["sound_speed"] = system.sound_speed
-        vtk["open_boundary_layers"] = system.open_boundary_layers
+        vtk["width"] = round(norm(system.spanning_set[1]), digits=3)
         vtk["flow_direction"] = system.flow_direction
     end
 

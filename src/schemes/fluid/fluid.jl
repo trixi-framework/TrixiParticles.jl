@@ -1,5 +1,3 @@
-@inline eachparticle(system::FluidSystem) = eachparticle(system, system.buffer)
-
 @inline function each_moving_particle(system::FluidSystem)
     return each_moving_particle(system, system.buffer)
 end
@@ -7,6 +5,8 @@ end
 @inline function active_coordinates(u, system::FluidSystem)
     return active_coordinates(u, system, system.buffer)
 end
+
+@inline active_particles(system::FluidSystem)  = active_particles(system, system.buffer)
 
 update_system_buffer!(system::FluidSystem) = update!(system.buffer)
 

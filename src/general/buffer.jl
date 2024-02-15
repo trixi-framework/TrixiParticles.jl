@@ -56,10 +56,6 @@ end
     return buffer
 end
 
-@inline eachparticle(system, ::Nothing) = Base.OneTo(nparticles(system))
-
-@inline eachparticle(system, buffer) = buffer.eachparticle
-
 @inline each_moving_particle(system, ::Nothing) = Base.OneTo(n_moving_particles(system))
 
 @inline each_moving_particle(system, buffer) = buffer.eachparticle
@@ -67,6 +63,8 @@ end
 @inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
 
 @inline active_coordinates(u, system, buffer) = view(u, :, buffer.active_particle)
+
+@inline active_particles(system, buffer) = buffer.eachparticle
 
 @inline function available_particle(system)
     (; active_particle) = system.buffer

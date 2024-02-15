@@ -536,6 +536,16 @@ function nhs_coords(system::FluidSystem,
 end
 
 function nhs_coords(system::FluidSystem,
+                    neighbor::OpenBoundarySPHSystem, u)
+    return current_coordinates(u, neighbor)
+end
+
+function nhs_coords(system::OpenBoundarySPHSystem,
+                    neighbor::FluidSystem, u)
+    return current_coordinates(u, neighbor)
+end
+
+function nhs_coords(system::FluidSystem,
                     neighbor::TotalLagrangianSPHSystem, u)
     return current_coordinates(u, neighbor)
 end
@@ -589,6 +599,24 @@ function nhs_coords(system::BoundarySPHSystem,
 end
 
 function nhs_coords(system::BoundarySPHSystem,
+                    neighbor::BoundarySPHSystem, u)
+    # Don't update
+    return nothing
+end
+
+function nhs_coords(system::BoundarySPHSystem,
+                    neighbor::OpenBoundarySPHSystem, u)
+    # Don't update
+    return nothing
+end
+
+function nhs_coords(system::OpenBoundarySPHSystem,
+                    neighbor::OpenBoundarySPHSystem, u)
+    # Don't update
+    return nothing
+end
+
+function nhs_coords(system::OpenBoundarySPHSystem,
                     neighbor::BoundarySPHSystem, u)
     # Don't update
     return nothing
