@@ -9,17 +9,14 @@
     n_particles = nparticles(system)
 
     @testset "Iterators" begin
-        @test Base.OneTo(n_particles) == TrixiParticles.eachparticle(system)
         @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system)
 
-        @test Base.OneTo(n_particles) == TrixiParticles.eachparticle(system_buffer)
         @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
 
         particle_ID = TrixiParticles.available_particle(system_buffer)
 
         TrixiParticles.update!(system_buffer.buffer)
 
-        @test Base.OneTo(n_particles + 1) == TrixiParticles.eachparticle(system_buffer)
         @test Base.OneTo(n_particles + 1) ==
               TrixiParticles.each_moving_particle(system_buffer)
 
@@ -28,7 +25,6 @@
 
         TrixiParticles.update!(system_buffer.buffer)
 
-        @test Base.OneTo(n_particles) == TrixiParticles.eachparticle(system_buffer)
         @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
 
         particle_ID = 5
@@ -37,8 +33,6 @@
 
         TrixiParticles.update!(system_buffer.buffer)
 
-        @test setdiff(Base.OneTo(n_particles), particle_ID) ==
-              TrixiParticles.eachparticle(system_buffer)
         @test setdiff(Base.OneTo(n_particles), particle_ID) ==
               TrixiParticles.each_moving_particle(system_buffer)
     end

@@ -242,6 +242,8 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
+    (; reference_velocity, reference_pressure, reference_density) = system
+
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in each_moving_particle(system)]
     vtk["density"] = [particle_density(v, system, particle)
@@ -249,11 +251,22 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in each_moving_particle(system)]
 
+    NDIMS = ndims(system)
+    ELTYPE = eltype(system)
+    coords = reinterpret(reshape, SVector{NDIMS, ELTYPE}, active_coordinates(u, system))
+
+    vtk["prescribed_velocity"] = stack(reference_velocity.(coords, t))
+    vtk["prescribed_density"] = reference_density.(coords, t)
+    vtk["prescribed_pressure"] = reference_pressure.(coords, t)
+
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
         vtk["sound_speed"] = system.sound_speed
         vtk["width"] = round(norm(system.spanning_set[1]), digits=3)
         vtk["flow_direction"] = system.flow_direction
+        vtk["velocity_function"] = string(nameof(system.reference_velocity))
+        vtk["pressure_function"] = string(nameof(system.reference_pressure))
+        vtk["density_function"] = string(nameof(system.reference_density))
     end
 
     return vtk

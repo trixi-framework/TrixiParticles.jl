@@ -208,6 +208,9 @@
         │ #particles: ………………………………………………… 80                                                               │
         │ boundary: ……………………………………………………… InFlow()                                                         │
         │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
+        │ prescribed velocity: ………………………… constant_vector                                                  │
+        │ prescribed pressure: ………………………… constant_scalar                                                  │
+        │ prescribed density: …………………………… constant_scalar                                                  │
         │ width: ……………………………………………………………… 0.2                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box

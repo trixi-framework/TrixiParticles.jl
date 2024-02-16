@@ -149,6 +149,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         end
         summary_line(io, "boundary", system.boundary_zone)
         summary_line(io, "flow direction", system.flow_direction)
+        summary_line(io, "prescribed velocity", string(nameof(system.reference_velocity)))
+        summary_line(io, "prescribed pressure", string(nameof(system.reference_pressure)))
+        summary_line(io, "prescribed density", string(nameof(system.reference_density)))
         summary_line(io, "width", round(norm(system.spanning_set[1]), digits=3))
         summary_footer(io)
     end
@@ -229,7 +232,7 @@ end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "Evaluate Characteristics" evaluate_characteristics!(system, v, u,
+    @trixi_timeit timer() "evaluate characteristics" evaluate_characteristics!(system, v, u,
                                                                                v_ode, u_ode,
                                                                                semi, t)
 end
@@ -540,11 +543,13 @@ function wrap_reference_function(function_::Function, ::Val)
     return function_
 end
 
-function wrap_reference_function(constant_scalar::Number, ::Val)
-    return (coords, t) -> constant_scalar
+# Name the function so that the summary box does know which kind of function this is
+function wrap_reference_function(constant_scalar_::Number, ::Val)
+    return constant_scalar(coords, t) = constant_scalar_
 end
 
 # For vectors and tuples
-function wrap_reference_function(constant_vector, ::Val{NDIMS}) where {NDIMS}
-    return (coords, t) -> SVector{NDIMS}(constant_vector)
+# Name the function so that the summary box does know which kind of function this is
+function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
+    return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
