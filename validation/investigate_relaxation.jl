@@ -8,7 +8,8 @@ using Printf
 pp_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_density, dt=0.025,
                             filename="relaxation", write_csv=false)
 
-pp_damped_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_density, dt=0.025,
+pp_damped_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_density,
+                                   dt=0.025,
                                    filename="relaxation_damped", write_csv=false)
 
 # trixi_include(@__MODULE__,
