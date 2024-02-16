@@ -11,11 +11,10 @@ anonymous as the function name will be used as part of the name of the value.
 The callback can be triggered either by a fixed number of time steps (`interval`) or by
 a fixed interval of simulation time (`dt`).
 
-# Arguments
-- `funcs...`: Functions to be executed at specified intervals during the simulation.
- The functions must have the arguments `(v, u, t, system)`.
 
 # Keywords
+- `funcs...`: Functions to be executed at specified intervals during the simulation.
+              The functions must have the arguments `(v, u, t, system)`.
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
                 Either `interval` or `dt` must be set to something larger than 0.
