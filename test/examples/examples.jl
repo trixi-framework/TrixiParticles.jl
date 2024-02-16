@@ -202,11 +202,11 @@
             @test sol.retcode == ReturnCode.Success
         end
         @trixi_testset "postprocessing/postprocessing.jl" begin
-            ignore_stderr = "*Writing postproccessing results to*"
-            @test_nowarn_mod additional_ignore_content=ignore_stderr trixi_include(@__MODULE__,
-                                                                                   joinpath(examples_dir(),
-                                                                                            "postprocessing",
-                                                                                            "postprocessing.jl"))
+            ignore_stderr = [r"\[ Info: Writing postprocessing results to .*\n"]
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(),
+                                                    "postprocessing",
+                                                    "postprocessing.jl")) ignore_stderr
             @test sol.retcode == ReturnCode.Success
         end
     end
