@@ -96,7 +96,12 @@ function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:PostprocessCallback})
     callback = cb.affect!
     print(io, "PostprocessCallback(interval=", callback.interval)
     print(io, ", functions=[")
-    print(io, join(callback.func, ", "))
+    print(io, keys(callback.func)[1])
+    if length(callback.func) > 1
+        for (key, f) in callback.func[2]
+            print(io, ", " * string(key))
+        end
+    end
     print(io, "])")
 end
 
@@ -107,7 +112,12 @@ function Base.show(io::IO,
     callback = cb.affect!.affect!
     print(io, "PostprocessCallback(dt=", callback.interval)
     print(io, ", functions=[")
-    print(io, join(callback.func, ", "))
+    print(io, keys(callback.func)[1])
+    if length(callback.func) > 1
+        for (key, f) in callback.func[2]
+            print(io, ", " * string(key))
+        end
+    end
     print(io, "])")
 end
 
@@ -128,7 +138,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
-        i = 0
+        i = 1
         for (key, f) in callback.func
             push!(setup, "function$i" => string(key))
             i += 1
@@ -155,7 +165,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
-        i = 0
+        i = 1
         for (key, f) in callback.func
             push!(setup, "function$i" => string(key))
             i += 1

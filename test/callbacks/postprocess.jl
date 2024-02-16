@@ -1,10 +1,11 @@
+include("../test_util.jl")
 @testset verbose=true "PostprocessCallback" begin
     @testset verbose=true "show" begin
         function example_function(v, u, t, system)
             return 0
         end
 
-        callback = PostprocessCallback(example_function, interval=10)
+        callback = PostprocessCallback(; interval=10, example_function)
 
         show_compact = "PostprocessCallback(interval=10, functions=[example_function])"
         @test repr(callback) == show_compact
@@ -24,7 +25,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(example_function, dt=0.1)
+        callback = PostprocessCallback(; dt=0.1, example_function)
 
         show_compact = "PostprocessCallback(dt=0.1, functions=[example_function])"
         @test repr(callback) == show_compact
