@@ -51,7 +51,7 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 
-## References:
+# References:
 - Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)

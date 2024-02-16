@@ -76,7 +76,8 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 
 # Keyword Arguments
 - `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
-                        particles.
+                        particles. Note that the fixed particles must be the **last**
+                        particles in the `InitialCondition`. See the info box below.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `penalty_force`:  Penalty force to ensure regular particle position under large deformations
@@ -87,17 +88,12 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
-                    Note that these source terms will not be used in the calculation of the
-                    boundary pressure when using a boundary with
-                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
-                    The keyword argument `acceleration` should be used instead for
-                    gravity-like source terms.
 
 !!! note
-    The coordinates of the fixed particles must be the first entries in the `InitialCondition`s.
+    The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
     ```julia
-        solid = union(beam, fixed_particles)
+    solid = union(beam, fixed_particles)
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 
