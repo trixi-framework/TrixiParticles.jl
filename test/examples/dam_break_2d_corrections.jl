@@ -98,9 +98,11 @@
                                        prefix="$(correction_name)", tspan=tspan,
                                        fluid_density=fluid_density,
                                        density_diffusion=nothing,
-                                       boundary_layers=5, sol = nothing)
+                                       boundary_layers=5, sol=nothing)
 
-        sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
+        # Some correction methods require very small time steps at the beginning of the simulation.
+        # An adaptive time integrator makes this easier and faster.
+        sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks)
 
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0

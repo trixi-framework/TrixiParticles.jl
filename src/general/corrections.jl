@@ -217,7 +217,7 @@ function dw_gamma(system::BoundarySystem, particle)
     return extract_svector(system.boundary_model.cache.dw_gamma, system, particle)
 end
 
-function compute_correction_values!(system::Union{FluidSystem, SolidSystem},
+function compute_correction_values!(system::FluidSystem,
                                     correction::Union{KernelCorrection,
                                                       MixedKernelGradientCorrection}, u,
                                     v_ode, u_ode, semi)
