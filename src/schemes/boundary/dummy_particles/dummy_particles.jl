@@ -4,21 +4,6 @@
                                 smoothing_length; viscosity=NoViscosity(),
                                 state_equation=nothing, correction=nothing)
 
-## Arguments
-- `initial_density`: Vector holding the initial density of each boundary particles
-- `hydrodynamic_mass`: Vector holding the "hydrodynamic mass" of each boundary particles
-- `density_calculator`: Option to compute the hydrodynamic boundary density. For more
-                        information see description below.
-- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system
-- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system
-
-# Keywords
-- `state_equation`: This should be the same as for the adjacent fluid system
-                    (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
-- `viscosity`:      Slip (default) or no-slip condition. See description below for further
-                    information
-
 Boundaries modeled as dummy particles, which are treated like fluid particles,
 but their positions and velocities are not evolved in time. Since the force towards the fluid
 should not change with the material density when used with a [`TotalLagrangianSPHSystem`](@ref), the
@@ -77,8 +62,8 @@ We provide five options to compute the boundary density and pressure, determined
 
 ## No-slip conditions
 
-For the interaction of dummy particles and fluid particles, Adami (Adami et al. 2012)
-imposes a no-slip boundary condition by assigning a wall velocity ``v_w`` to the dummy particle.
+For the interaction of dummy particles and fluid particles, Adami et al. (2012)
+impose a no-slip boundary condition by assigning a wall velocity ``v_w`` to the dummy particle.
 
 The wall velocity of particle ``a`` is calculated from the prescribed boundary particle
 velocity ``v_a`` and the smoothed velocity field
@@ -87,9 +72,28 @@ v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
 ```
 where the sum is over all fluid particles.
 
-By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a non-slip
-condition is imposed. When omitting the viscous interaction
-(default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
+By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
+condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
+viscosity parameter of the adjacent fluid or the equivalent from the artificial parameter
+`alpha` of the adjacent fluid (``\nu = \frac{\alpha h c }{2d + 4}``). When omitting the
+viscous interaction (default `viscosity=NoViscosity()`), a free-slip wall boundary
+condition is applied.
+
+# Arguments
+- `initial_density`: Vector holding the initial density of each boundary particle
+- `hydrodynamic_mass`: Vector holding the "hydrodynamic mass" of each boundary particle.
+                       See description above for more information.
+- `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
+                        See description above for more information.
+- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system
+- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system
+
+# Keywords
+- `state_equation`: This should be the same as for the adjacent fluid system
+                    (see e.g. [`StateEquationCole`](@ref)).
+- `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+- `viscosity`:      Slip (default) or no-slip condition. See description above for further
+                    information.
 
 # Examples
 
@@ -98,7 +102,7 @@ condition is imposed. When omitting the viscous interaction
 boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length))
 
-# No slip condition
+# No-slip condition
 boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length),
                                              viscosity=ViscosityAdami(nu))

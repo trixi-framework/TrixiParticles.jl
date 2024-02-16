@@ -38,8 +38,9 @@ and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
 To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
-\nu = \frac{\alpha h c }{\rho_{ab}}.
+    \nu = \frac{\alpha h c }{2d + 4},
 ```
+where ``d`` ist the dimension.
 
 ## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
