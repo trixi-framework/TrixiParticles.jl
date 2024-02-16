@@ -418,12 +418,12 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     end
 end
 
-function check_fluid_domain!(system, neighbor_system::OpenBoundarySPHSystem, particle,
-                             v, u, v_ode, u_ode, semi)
+function check_fluid_domain!(system, neighbor_system, particle, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function check_fluid_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
+function check_fluid_domain!(system, fluid_system::FluidSystem, particle,
+                             v, u, v_ode, u_ode, semi)
     (; boundary_zone) = system
 
     particle_coords = current_coords(u, system, particle)

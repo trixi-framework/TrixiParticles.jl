@@ -6,7 +6,7 @@ end
     return active_coordinates(u, system, system.buffer)
 end
 
-@inline active_particles(system::FluidSystem)  = active_particles(system, system.buffer)
+@inline active_particles(system::FluidSystem) = active_particles(system, system.buffer)
 
 update_system_buffer!(system::FluidSystem) = update!(system.buffer)
 

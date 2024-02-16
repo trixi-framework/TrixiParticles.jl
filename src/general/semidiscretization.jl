@@ -604,26 +604,8 @@ function nhs_coords(system::BoundarySPHSystem,
     return nothing
 end
 
-function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::BoundarySPHSystem, u)
-    # Don't update
-    return nothing
-end
-
-function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::OpenBoundarySPHSystem, u)
-    # Don't update
-    return nothing
-end
-
-function nhs_coords(system::OpenBoundarySPHSystem,
-                    neighbor::OpenBoundarySPHSystem, u)
-    # Don't update
-    return nothing
-end
-
-function nhs_coords(system::OpenBoundarySPHSystem,
-                    neighbor::BoundarySPHSystem, u)
+function nhs_coords(system::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
+                    neighbor::Union{BoundarySPHSystem, OpenBoundarySPHSystem}, u)
     # Don't update
     return nothing
 end
