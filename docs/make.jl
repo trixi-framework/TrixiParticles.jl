@@ -25,7 +25,7 @@ function copy_file(filename, replaces...; new_filename="")
     content = header * content
 
     write(new_filename == "" ? joinpath(@__DIR__, "src",
-    lowercase(filename)) : new_filename, content)
+                                        lowercase(filename)) : new_filename, content)
 end
 
 function replace_with_code(filename)
