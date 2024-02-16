@@ -211,8 +211,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     end
 end
 
-timer_name(::TotalLagrangianSPHSystem) = "solid"
-
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end
