@@ -8,8 +8,7 @@
 
 Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
 equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
-for small density variations. For the choice of the appropriate `density_calculator`
-see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+for small density variations.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
@@ -26,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
                     See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `correction`:     Correction method used for this system. (default: no correction)
+- `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
