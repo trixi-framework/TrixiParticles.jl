@@ -206,7 +206,7 @@ for time integration of the coupled systems within the semidiscretization.
 - `semi`: The `Semidiscretization` object representing the coupled simulation environment.
 - `tspan`: The time span over which the simulation will be run.
 
-# Keyword Arguments
+# Keywords
 - `reset_threads`: A boolean flag to reset Polyester.jl threads before simulation (default: `true`). This is relevant for managing parallel computations and is typically needed to avoid issues in thread management.
 
 # Returns
