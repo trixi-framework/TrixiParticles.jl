@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "PostprocessCallback" begin
     @testset verbose=true "show" begin
         function example_function(v, u, t, system)
