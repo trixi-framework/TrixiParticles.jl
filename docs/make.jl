@@ -6,7 +6,7 @@ using TrixiBase
 trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
-function copy_file(filename, replaces...)
+function copy_file(filename, replaces...; new_filename="")
     source_path = joinpath(trixiparticles_root_dir, filename)
 
     if !isfile(source_path)
@@ -24,7 +24,7 @@ function copy_file(filename, replaces...)
     """
     content = header * content
 
-    write(joinpath(@__DIR__, "src", lowercase(filename)), content)
+    write(joinpath(@__DIR__, "src", lowercase(new_filename=="" ? filename: new_filename)), content)
 end
 
 function replace_with_code(filepath)
@@ -43,29 +43,27 @@ function replace_with_code(filepath)
         # Extract the filename using regex
         m = match(pattern, match_)
         if m === nothing
-            return "Error: Invalid include format in: $match"
+            error("Invalid include format in: $match")
         end
         file_to_include = joinpath(trixiparticles_root_dir, m.captures[1])
 
         try
             # Check if the Julia file exists
             if !isfile(file_to_include)
-                return "Error: File to include not found: $(file_to_include)"
+                error("File to include not found: $(file_to_include)")
             end
 
             # Read the content of the file to include
             return read(file_to_include, String)
         catch e
             # In case of any error
-            return "Error: Unable to include file $(file_to_include): $(e)"
+            error("Unable to include file $(file_to_include): $(e)")
         end
     end
 
     # Replace all occurrences in the markdown content
-    new_md_content = replace(md_content, pattern => replace_include)
-
-    # Write the new content back to the file or to a new file
-    write(filepath, new_md_content)
+    filename_noext, extension = splitext(filename)
+    copy_file(filename, new_filename="$(filename_noext)_replaced$extension", pattern => replace_include)
 end
 
 replace_with_code("docs/src/tutorials/tut_setup.md")
