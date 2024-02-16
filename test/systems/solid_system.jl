@@ -222,7 +222,7 @@
                 semi = Semidiscretization(system, neighborhood_search=nothing)
                 v_ode = vcat(density')
                 u_ode = coordinates
-                TrixiParticles.initialize!(system, nhs, v_ode, u_ode, semi)
+                TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
                 for particle in TrixiParticles.eachparticle(system)

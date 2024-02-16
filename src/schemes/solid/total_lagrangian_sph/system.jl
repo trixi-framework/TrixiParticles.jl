@@ -242,8 +242,7 @@ end
     extract_smatrix(system.pk1_corrected, system, particle)
 end
 
-function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search, v_ode, u_ode,
-                     semi)
+function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
     (; correction_matrix) = system
 
     initial_coords = initial_coordinates(system)

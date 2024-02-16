@@ -1,4 +1,4 @@
-initialize!(system, neighborhood_search, v0_ode, u0_ode, semi) = system
+initialize!(system, neighborhood_search) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(system::System) = eltype(system.initial_condition)

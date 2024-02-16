@@ -212,6 +212,17 @@ function semidiscretize(semi, tspan; reset_threads=true)
         Polyester.reset_threads!()
     end
 
+    # Initialize all particle systems
+    @trixi_timeit timer() "initialize particle systems" begin
+        foreach_system(semi) do system
+            # Get the neighborhood search for this system
+            neighborhood_search = get_neighborhood_search(system, semi)
+
+            # Initialize this system
+            initialize!(system, neighborhood_search)
+        end
+    end
+
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
@@ -224,17 +235,6 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
         write_u0!(u0_system, system)
         write_v0!(v0_system, system)
-    end
-
-    # Initialize all particle systems
-    @trixi_timeit timer() "initialize particle systems" begin
-        foreach_system(semi) do system
-            # Get the neighborhood search for this system
-            neighborhood_search = get_neighborhood_search(system, semi)
-
-            # Initialize this system
-            initialize!(system, neighborhood_search, v0_ode, u0_ode, semi)
-        end
     end
 
     return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
