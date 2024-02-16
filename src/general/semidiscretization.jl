@@ -200,7 +200,8 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-- `semi`: The `Semidiscretization` object representing the coupled simulation environment.
+Suggested change
+- `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
