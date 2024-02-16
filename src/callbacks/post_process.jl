@@ -340,11 +340,13 @@ function total_mass(v, u, t, system)
 end
 
 function max_pressure(v, u, t, system)
-    return maximum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
+    return maximum(particle -> particle_pressure(v, system, particle),
+                   each_moving_particle(system))
 end
 
 function min_pressure(v, u, t, system)
-    return minimum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
+    return minimum(particle -> particle_pressure(v, system, particle),
+                   each_moving_particle(system))
 end
 
 function avg_pressure(v, u, t, system)
@@ -352,16 +354,19 @@ function avg_pressure(v, u, t, system)
         return 0.0
     end
 
-    sum_ = sum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
+    sum_ = sum(particle -> particle_pressure(v, system, particle),
+               each_moving_particle(system))
     return sum_ / n_moving_particles(system)
 end
 
 function max_density(v, u, t, system)
-    return maximum(particle -> particle_density(v, system, particle), each_moving_particle(system))
+    return maximum(particle -> particle_density(v, system, particle),
+                   each_moving_particle(system))
 end
 
 function min_density(v, u, t, system)
-    return minimum(particle -> particle_density(v, system, particle), each_moving_particle(system))
+    return minimum(particle -> particle_density(v, system, particle),
+                   each_moving_particle(system))
 end
 
 function avg_density(v, u, t, system)
@@ -369,6 +374,7 @@ function avg_density(v, u, t, system)
         return 0.0
     end
 
-    sum_ = sum(particle -> particle_density(v, system, particle), each_moving_particle(system))
+    sum_ = sum(particle -> particle_density(v, system, particle),
+               each_moving_particle(system))
     return sum_ / n_moving_particles(system)
 end
