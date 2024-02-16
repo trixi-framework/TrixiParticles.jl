@@ -40,7 +40,7 @@ values_avg_p = data_json["avg_pressure_fluid_1"]["values"]
 p1 = plot(data.time, data.kinetic_energy_fluid_1, color=:blue,
           title="Kinetic Energy", xlabel="Time", ylabel="Kinetic Energy")
 p2 = plot(data.time, data.avg_pressure_fluid_1, color=:red,
-          title="average Pressure", xlabel="Time", ylabel="Pressure")
+          title="Average Pressure", xlabel="Time", ylabel="Pressure")
 
 # Combine plots into a single figure
 plot(p1, p2, legend=false)

@@ -1,6 +1,7 @@
 """
     PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
-                        output_directory="out", write_csv=true, write_json=true, funcs...)
+                        output_directory="out", append_timestamp=false, write_csv=true,
+                        write_json=true, funcs...)
 
 Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -145,7 +146,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         callback = cb.affect!.affect!
         setup = [
-            "interval" => string(callback.interval),
+            "dt" => string(callback.interval),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -242,7 +243,7 @@ function write_postprocess_callback(pp::PostprocessCallback)
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-        @info "Writing postprocessing  results to $abs_file_path"
+        @info "Writing postprocessing results to $abs_file_path"
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
@@ -251,7 +252,7 @@ function write_postprocess_callback(pp::PostprocessCallback)
     end
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-        @info "Writing postprocessing  results to $abs_file_path"
+        @info "Writing postprocessing results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end
@@ -339,71 +340,35 @@ function total_mass(v, u, t, system)
 end
 
 function max_pressure(v, u, t, system)
-    max_p = 0.0
-    for particle in each_moving_particle(system)
-        pressure = particle_pressure(v, system, particle)
-        if max_p < pressure
-            max_p = pressure
-        end
-    end
-    return max_p
+    return maximum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
 end
 
 function min_pressure(v, u, t, system)
-    min_p = typemax(Int64)
-    for particle in each_moving_particle(system)
-        pressure = particle_pressure(v, system, particle)
-        if min_p > pressure
-            min_p = pressure
-        end
-    end
-    return min_p
+    return minimum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
 end
 
 function avg_pressure(v, u, t, system)
-    total_pressure = 0.0
-    count = 0
-
-    for particle in each_moving_particle(system)
-        total_pressure += particle_pressure(v, system, particle)
-        count += 1
+    if n_moving_particles(system) == 0
+        return 0.0
     end
 
-    avg_p = count > 0 ? total_pressure / count : 0.0
-    return avg_p
+    sum_ = sum(particle -> particle_pressure(v, system, particle), each_moving_particle(system))
+    return sum_ / n_moving_particles(system)
 end
 
 function max_density(v, u, t, system)
-    max_rho = 0.0
-    for particle in each_moving_particle(system)
-        rho = particle_density(v, system, particle)
-        if max_rho < rho
-            max_rho = rho
-        end
-    end
-    return max_rho
+    return maximum(particle -> particle_density(v, system, particle), each_moving_particle(system))
 end
 
 function min_density(v, u, t, system)
-    min_rho = typemax(Int64)
-    for particle in each_moving_particle(system)
-        rho = particle_density(v, system, particle)
-        if min_rho > rho
-            min_rho = rho
-        end
-    end
-    return min_rho
+    return minimum(particle -> particle_density(v, system, particle), each_moving_particle(system))
 end
 
 function avg_density(v, u, t, system)
-    total_density = 0.0
-    count = 0
-
-    for particle in each_moving_particle(system)
-        total_density += particle_density(v, system, particle)
-        count += 1
+    if n_moving_particles(system) == 0
+        return 0.0
     end
 
-    avg_rho = count > 0 ? total_density / count : 0.0
-    return avg_rho
+    sum_ = sum(particle -> particle_density(v, system, particle), each_moving_particle(system))
+    return sum_ / n_moving_particles(system)
 end
