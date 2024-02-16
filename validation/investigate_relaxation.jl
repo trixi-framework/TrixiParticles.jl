@@ -5,25 +5,25 @@ using GLM
 using DataFrames
 using Printf
 
-pp_cb = PostprocessCallback(ekin, max_pressure, avg_density; dt=0.025,
+pp_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_density, dt=0.025,
                             filename="relaxation", write_csv=false)
 
-pp_damped_cb = PostprocessCallback(ekin, max_pressure, avg_density; dt=0.025,
+pp_damped_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_density, dt=0.025,
                                    filename="relaxation_damped", write_csv=false)
 
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              extra_callback=pp_cb, tspan=(0.0, 5.0), saving_callback=nothing,
-              fluid_particle_spacing=0.02,
-              viscosity_wall=ViscosityAdami(nu=0.5));
+# trixi_include(@__MODULE__,
+#               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+#               extra_callback=pp_cb, tspan=(0.0, 5.0), saving_callback=nothing,
+#               fluid_particle_spacing=0.02,
+#               viscosity_wall=ViscosityAdami(nu=0.5));
 
-trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              extra_callback=pp_damped_cb, tspan=(0.0, 5.0),
-              source_terms=SourceTermDamping(;
-                                             damping_coefficient=2.0),
-              saving_callback=nothing, fluid_particle_spacing=0.02,
-              viscosity_wall=ViscosityAdami(nu=0.5));
+# trixi_include(@__MODULE__,
+#               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+#               extra_callback=pp_damped_cb, tspan=(0.0, 5.0),
+#               source_terms=SourceTermDamping(;
+#                                              damping_coefficient=2.0),
+#               saving_callback=nothing, fluid_particle_spacing=0.02,
+#               viscosity_wall=ViscosityAdami(nu=0.5));
 
 function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     @assert length(data)==length(t) "Data and time vectors must have the same length"
@@ -108,5 +108,5 @@ if file_path != ""
     annotate!(x_position_for_annotation, ylims(plot3)[2] - 0.003,
               @sprintf("gradient=%.5f", grad_avg_rho))
 
-    plot(plot1, plot2, plot3, layout=(2, 2), legend=:bottom, size=(1200, 1200))
+    plot(plot1, plot2, plot3, layout=(2, 2), size=(1200, 1200))
 end

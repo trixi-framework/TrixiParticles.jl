@@ -1,3 +1,4 @@
+include("../test_util.jl")
 @testset verbose=true "PostprocessCallback" begin
     @testset verbose=true "show" begin
         function example_function(v, u, t, system)
@@ -22,7 +23,7 @@
         │ write json file: …………………………………… yes                                                              │
         │ write csv file: ……………………………………… yes                                                              │
         │ function1: …………………………………………………… another_function                                                 │
-        | function2: …………………………………………………… example_function                                                 │
+        │ function2: …………………………………………………… example_function                                                 │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
