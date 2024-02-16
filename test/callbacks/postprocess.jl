@@ -1,13 +1,12 @@
-include("../test_util.jl")
 @testset verbose=true "PostprocessCallback" begin
     @testset verbose=true "show" begin
         function example_function(v, u, t, system)
             return 0
         end
 
-        callback = PostprocessCallback(; interval=10, example_function)
+        callback = PostprocessCallback(another_function=(v, u, t, system) -> 1; interval=10, example_function)
 
-        show_compact = "PostprocessCallback(interval=10, functions=[example_function])"
+        show_compact = "PostprocessCallback(interval=10, functions=[another_function, example_function])"
         @test repr(callback) == show_compact
 
         show_box = """
@@ -21,7 +20,8 @@ include("../test_util.jl")
         │ append timestamp: ………………………………… no                                                               │
         │ write json file: …………………………………… yes                                                              │
         │ write csv file: ……………………………………… yes                                                              │
-        │ function1: …………………………………………………… example_function                                                 │
+        │ function1: …………………………………………………… another_function                                                 │
+        | function2: …………………………………………………… example_function                                                 │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 

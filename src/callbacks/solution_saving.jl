@@ -127,7 +127,7 @@ end
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
 
-    condition_integrator_interval(integrator, interval,
+    return condition_integrator_interval(integrator, interval,
                                   save_final_solution=save_final_solution)
 end
 
