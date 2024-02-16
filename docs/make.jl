@@ -24,7 +24,8 @@ function copy_file(filename, replaces...; new_filename="")
     """
     content = header * content
 
-    write(joinpath(@__DIR__, "src", lowercase(new_filename=="" ? filename: new_filename)), content)
+    write(joinpath(@__DIR__, "src",
+                   lowercase(new_filename == "" ? filename : new_filename)), content)
 end
 
 function replace_with_code(filepath)
@@ -63,7 +64,8 @@ function replace_with_code(filepath)
 
     # Replace all occurrences in the markdown content
     filename_noext, extension = splitext(filename)
-    copy_file(filename, new_filename="$(filename_noext)_replaced$extension", pattern => replace_include)
+    copy_file(filename, new_filename="$(filename_noext)_replaced$extension",
+              pattern => replace_include)
 end
 
 replace_with_code("docs/src/tutorials/tut_setup.md")
