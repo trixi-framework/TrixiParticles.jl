@@ -3,13 +3,13 @@ using OrdinaryDiffEq
 
 fluid_density = 1000.0
 atmospheric_pressure = 100000.0
-state_equation = StateEquationCole(30, 7, fluid_density, atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+sound_speed = 30
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=false)
 
 fluid_particle_spacing = 0.02
 initial_condition = RectangularShape(fluid_particle_spacing, (10, 10), (0, 0),
-                                     fluid_density,
-                                     pressure=0.0)
+                                     density=fluid_density, pressure=0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(),
                                            state_equation, SchoenbergCubicSplineKernel{2}(),
@@ -18,6 +18,11 @@ fluid_system = WeaklyCompressibleSPHSystem(initial_condition, ContinuityDensity(
                                                                                  beta=0.0))
 
 tspan = (0.0, 2.0)
-ode = initialize_ode(tspan, fluid_system, neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system)
+ode = semidiscretize(semi, tspan)
 
-sol = solve(ode, RDPK3SpFSAL49(), callback=default_callback());
+info_callback = InfoCallback(interval=50)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+
+callbacks = CallbackSet(info_callback, saving_callback)
+sol = solve(ode, RDPK3SpFSAL49(), callback=callbacks);
