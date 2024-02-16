@@ -32,7 +32,7 @@ initial_fluid_size = (0.2, 0.4)
 tank_size = (0.8, 0.8)
 
 fluid_density = 997.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 10 * sqrt(2 * gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -88,11 +88,11 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(alpha=0.1, beta=0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
