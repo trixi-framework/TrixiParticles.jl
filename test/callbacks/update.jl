@@ -45,14 +45,14 @@
 
         callback3 = UpdateCallback(update=false)
 
-        show_compact = "UpdateCallback(interval=0)"
+        show_compact = "UpdateCallback(interval=-)"
         @test repr(callback3) == show_compact
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ UpdateCallback                                                                                   │
         │ ══════════════                                                                                   │
-        │ interval: ……………………………………………………… 0                                                                │
+        │ interval: ……………………………………………………… -                                                                │
         │ update: …………………………………………………………… no                                                               │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback3) == show_box

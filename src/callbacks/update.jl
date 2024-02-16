@@ -3,8 +3,19 @@ struct UpdateCallback{I}
     update   :: Bool
 end
 
-function UpdateCallback(; update=true, interval::Integer=0, dt=0.0)
-    if dt > 0 && interval > 0
+"""
+    UpdateCallback(; update=true, interval::Integer, dt=0.0)
+
+Callback to update quantities either at the end of every `interval` integration step or at
+regular intervals at `dt` in terms of integration time.
+
+# Keywords
+- `update`: Callback is only applied when `true` (default)
+- `interval`: Update quantities at the end of every `interval` time steps (default `inverval=1`)
+- `dt`: Update quantitiesat in regular intervals of `dt` in terms of integration time
+"""
+function UpdateCallback(; update=true, interval::Integer=-1, dt=0.0)
+    if dt > 0 && interval !== -1
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
 
@@ -13,7 +24,7 @@ function UpdateCallback(; update=true, interval::Integer=0, dt=0.0)
         interval = Float64(dt)
 
         # Update every time step (default)
-    elseif update && interval == 0
+    elseif update && interval == -1
         interval = 1
     end
 
@@ -78,7 +89,7 @@ end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:UpdateCallback})
     @nospecialize cb # reduce precompilation time
-    print(io, "UpdateCallback(interval=", cb.affect!.interval, ")")
+    print(io, "UpdateCallback(interval=", (cb.affect!.update ? cb.affect!.interval : "-"), ")")
 end
 
 function Base.show(io::IO,
@@ -97,7 +108,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.interval,
+            "interval" => update_cb.update ? update_cb.interval : "-",
             "update" => update_cb.update ? "yes" : "no",
         ]
         summary_box(io, "UpdateCallback", setup)
