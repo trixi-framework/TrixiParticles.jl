@@ -12,19 +12,19 @@ pp_damped_cb = PostprocessCallback(; ekin=kinetic_energy, max_pressure, avg_dens
                                    dt=0.025,
                                    filename="relaxation_damped", write_csv=false)
 
-# trixi_include(@__MODULE__,
-#               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-#               extra_callback=pp_cb, tspan=(0.0, 5.0), saving_callback=nothing,
-#               fluid_particle_spacing=0.02,
-#               viscosity_wall=ViscosityAdami(nu=0.5));
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              extra_callback=pp_cb, tspan=(0.0, 5.0), saving_callback=nothing,
+              fluid_particle_spacing=0.02,
+              viscosity_wall=ViscosityAdami(nu=0.5));
 
-# trixi_include(@__MODULE__,
-#               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-#               extra_callback=pp_damped_cb, tspan=(0.0, 5.0),
-#               source_terms=SourceTermDamping(;
-#                                              damping_coefficient=2.0),
-#               saving_callback=nothing, fluid_particle_spacing=0.02,
-#               viscosity_wall=ViscosityAdami(nu=0.5));
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              extra_callback=pp_damped_cb, tspan=(0.0, 5.0),
+              source_terms=SourceTermDamping(;
+                                             damping_coefficient=2.0),
+              saving_callback=nothing, fluid_particle_spacing=0.02,
+              viscosity_wall=ViscosityAdami(nu=0.5));
 
 function calculate_regression(data::Vector{Float64}, t::Vector{Float64})
     @assert length(data)==length(t) "Data and time vectors must have the same length"
@@ -71,8 +71,6 @@ if file_path != ""
     tl_avg_rho_damped, grad_avg_rho_damped = calculate_regression(avg_rho_damped,
                                                                   time_damped)
 
-    x_position_for_annotation = minimum(time) + (maximum(time) - minimum(time)) * 0.5
-
     plot1 = plot(time, [e_kin, tl_ekin], label=["undamped" "trend"],
                  color=[:blue :red], linewidth=[2 2])
 
@@ -81,9 +79,6 @@ if file_path != ""
 
     plot!(title="Kinetic Energy of the Fluid", xlabel="Time [s]",
           ylabel="kinetic energy [J]")
-
-    annotate!(x_position_for_annotation, ylims(plot1)[2] - 0.0001,
-              @sprintf("gradient=%.5f", grad_ekin))
 
     plot2 = plot(time, [p_max, tl_p_max], label=["sim" "trend"], color=[:blue :red],
                  linewidth=[2 2])
@@ -94,9 +89,6 @@ if file_path != ""
     plot!(title="Maximum Pressure of the Fluid", xlabel="Time [s]",
           ylabel="Max. Pressure [Pa]")
 
-    annotate!(x_position_for_annotation, ylims(plot2)[2] - 5.5,
-              @sprintf("gradient=%.5f", grad_p_max))
-
     plot3 = plot(time, [avg_rho, tl_avg_rho], label=["sim" "trend"], color=[:blue :red],
                  linewidth=[2 2])
 
@@ -105,9 +97,6 @@ if file_path != ""
 
     plot!(title="Avg. Density of the Fluid", xlabel="Time [s]",
           ylabel="Avg. Density [kg/m^3]")
-
-    annotate!(x_position_for_annotation, ylims(plot3)[2] - 0.003,
-              @sprintf("gradient=%.5f", grad_avg_rho))
 
     plot(plot1, plot2, plot3, layout=(2, 2), size=(1200, 1200))
 end
