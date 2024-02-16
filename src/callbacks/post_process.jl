@@ -293,7 +293,7 @@ function write_csv(abs_file_path, data)
         end
     end
 
-     # Initialize DataFrame with time column
+    # Initialize DataFrame with time column
     df = DataFrame(time=times)
 
     for (key, series) in data

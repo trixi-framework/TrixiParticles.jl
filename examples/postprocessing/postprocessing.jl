@@ -20,7 +20,8 @@ trixi_include(@__MODULE__,
               extra_callback=example_cb, tspan=(0.0, 0.1));
 
 # Lets write the average pressure and kinetic energy every 0.01s
-pp = PostprocessCallback(avg_pressure, kinetic_energy; dt=0.005, filename="example_pressure_ekin")
+pp = PostprocessCallback(avg_pressure, kinetic_energy; dt=0.005,
+                         filename="example_pressure_ekin")
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
