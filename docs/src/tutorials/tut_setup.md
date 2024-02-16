@@ -1,12 +1,6 @@
 # Setting up your simulation from scratch
 
-## Fluid system
-```julia
-!!include:examples/fluid/minimal.jl!!
-
-```
-
-## Rectangular Tank
+## Hydrostatic tank
 
 
 
