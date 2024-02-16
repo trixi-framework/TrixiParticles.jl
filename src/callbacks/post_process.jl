@@ -1,8 +1,8 @@
 """
     PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
-                        output_directory="out", overwrite=true, write_csv=true, write_json=true)
+                        output_directory="out", write_csv=true, write_json=true)
 
-Create a callback for post-processing simulation data at regular intervals.
+Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
 intervals during the simulation. The function is applied to the current state of the simulation,
 and its results can be saved or used for further analysis. The provided function cannot be
@@ -11,24 +11,28 @@ anonymous as the function name will be used as part of the name of the value.
 The callback can be triggered either by a fixed number of time steps (`interval`) or by
 a fixed interval of simulation time (`dt`).
 
+# Arguments
+- `func...`: Functions to be executed at specified intervals during the simulation.
+ The functions must have the arguments `(v, u, t, system)`.
+
 # Keywords
 - `interval=0`: Specifies the number of time steps between each invocation of the callback.
                 If set to `0`, the callback will not be triggered based on time steps.
-                Either interval or dt can be set to something larger than 0.
+                Either `interval` or `dt` must be set to something larger than 0.
 - `dt=0.0`: Specifies the simulation time interval between each invocation of the callback.
             If set to `0.0`, the callback will not be triggered based on simulation time.
-            Either interval or dt can be set to something larger than 0.
+            Either `interval` or `dt` must be set to something larger than 0.
 - `exclude_boundary=true`: If set to `true`, boundary particles will be excluded from the post-processing.
 - `filename="values"`: The filename of the postprocessing files to be saved.
 - `output_directory="out"`: The path where the results of the post-processing will be saved.
-- `write_csv=true`: If set to `true`, write an csv file.
+- `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
 
 # Examples
 ```julia
 function example_function(v, u, t, system)
- println("test_func ", t)
+    println("test_func ", t)
 end
 
 # Create a callback that is triggered every 100 time steps
@@ -56,7 +60,7 @@ function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boun
                              append_timestamp=false,
                              write_csv=true, write_json=true)
     if dt > 0 && interval > 0
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
+        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
     end
 
     if any(f -> occursin(r"^#(\d+)", string(f)) || occursin("->", string(f)), funcs)
@@ -73,13 +77,13 @@ function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boun
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
-                                initialize=initialize_post_callback!,
+                                initialize=initialize_postprocess_callback!,
                                 save_positions=(false, false), final_affect=true)
     else
         # The first one is the condition, the second the affect!
         return DiscreteCallback(post_callback, post_callback,
                                 save_positions=(false, false),
-                                initialize=initialize_post_callback!)
+                                initialize=initialize_postprocess_callback!)
     end
 end
 
@@ -152,22 +156,14 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-function initialize_post_callback!(cb, u, t, integrator)
+function initialize_postprocess_callback!(cb, u, t, integrator)
     # The `PostprocessCallback` is either `cb.affect!` (with `DiscreteCallback`)
     # or `cb.affect!.affect!` (with `PeriodicCallback`).
     # Let recursive dispatch handle this.
-    initialize_post_callback!(cb.affect!, u, t, integrator)
+    initialize_postprocess_callback!(cb.affect!, u, t, integrator)
 end
 
-function initialize_post_callback!(cb::PostprocessCallback, u, t, integrator)
-
-    # Update systems to compute quantities like density and pressure.
-    semi = integrator.p
-    v_ode, u_ode = u.x
-
-    # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
-
+function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
     # Apply the callback
     cb(integrator)
     return nothing
@@ -180,7 +176,7 @@ function (pp::PostprocessCallback)(u, t, integrator)
     condition_integrator_interval(integrator, interval)
 end
 
-# affect! function for an array of functions
+# `affect!`
 function (pp::PostprocessCallback)(integrator)
     vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
@@ -188,6 +184,9 @@ function (pp::PostprocessCallback)(integrator)
     t = integrator.t
     filenames = system_names(semi.systems)
     new_data = false
+
+    # Update systems to compute quantities like density and pressure
+    update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary
@@ -215,39 +214,6 @@ function (pp::PostprocessCallback)(integrator)
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
-end
-
-# This function prepares the data for writing to a JSON file by creating a dictionary
-# that maps each key to separate arrays of times and values, sorted by time, and includes system name.
-function prepare_series_data!(data, post_callback)
-    for (key, data_array) in post_callback.data
-        data_values = [value for value in data_array]
-
-        # The penultimate string in the key is the system_name
-        system_name = split(key, '_')[end - 1]
-
-        data[key] = create_series_dict(data_values, post_callback.times, system_name)
-    end
-
-    return data
-end
-
-function create_series_dict(values, times, system_name="")
-    return Dict("type" => "series",
-                "datatype" => eltype(values),
-                "n_values" => length(values),
-                "system_name" => system_name,
-                "values" => values,
-                "time" => times)
-end
-
-function write_meta_data!(data)
-    meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => get_git_hash(),
-                     "julia_version" => string(VERSION))
-
-    data["meta"] = meta_data
-    return data
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
@@ -282,6 +248,39 @@ function write_postprocess_callback(pp::PostprocessCallback)
 
         write_csv(abs_file_path, data)
     end
+end
+
+# This function prepares the data for writing to a JSON file by creating a dictionary
+# that maps each key to separate arrays of times and values, sorted by time, and includes system name.
+function prepare_series_data!(data, post_callback)
+    for (key, data_array) in post_callback.data
+        data_values = [value for value in data_array]
+
+        # The penultimate string in the key is the system_name
+        system_name = split(key, '_')[end - 1]
+
+        data[key] = create_series_dict(data_values, post_callback.times, system_name)
+    end
+
+    return data
+end
+
+function create_series_dict(values, times, system_name="")
+    return Dict("type" => "series",
+                "datatype" => eltype(values),
+                "n_values" => length(values),
+                "system_name" => system_name,
+                "values" => values,
+                "time" => times)
+end
+
+function write_meta_data!(data)
+    meta_data = Dict("solver_name" => "TrixiParticles.jl",
+                     "solver_version" => get_git_hash(),
+                     "julia_version" => string(VERSION))
+
+    data["meta"] = meta_data
+    return data
 end
 
 function write_csv(abs_file_path, data)
