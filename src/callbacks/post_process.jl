@@ -1,6 +1,6 @@
 """
-    PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
-                        output_directory="out", write_csv=true, write_json=true)
+    PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
+                        output_directory="out", write_csv=true, write_json=true, funcs...)
 
 Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -12,7 +12,7 @@ The callback can be triggered either by a fixed number of time steps (`interval`
 a fixed interval of simulation time (`dt`).
 
 # Arguments
-- `func...`: Functions to be executed at specified intervals during the simulation.
+- `funcs...`: Functions to be executed at specified intervals during the simulation.
  The functions must have the arguments `(v, u, t, system)`.
 
 # Keywords
@@ -55,10 +55,13 @@ struct PostprocessCallback{I, F}
     write_json       :: Bool
 end
 
-function PostprocessCallback(funcs...; interval::Integer=0, dt=0.0, exclude_boundary=true,
+function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
-                             append_timestamp=false,
-                             write_csv=true, write_json=true)
+                             append_timestamp=false, write_csv=true, write_json=true, funcs...)
+    if isempty(funcs)
+        throw(ArgumentError("`funcs` cannot be empty"))
+    end
+
     if dt > 0 && interval > 0
         throw(ArgumentError("setting both `interval` and `dt` is not supported"))
     end
@@ -124,8 +127,10 @@ function Base.show(io::IO, ::MIME"text/plain",
             "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
-        for (i, f) in enumerate(callback.func)
-            push!(setup, "function$i" => string(nameof(f)))
+        i = 0
+        for (key, f) in callback.func
+            push!(setup, "function$i" => string(key))
+            i+=1
         end
         summary_box(io, "PostprocessCallback", setup)
     end
@@ -149,8 +154,10 @@ function Base.show(io::IO, ::MIME"text/plain",
             "write csv file" => callback.write_json ? "yes" : "no",
         ]
 
-        for (i, f) in enumerate(callback.func)
-            push!(setup, "function$i" => string(nameof(f)))
+        i = 0
+        for (key, f) in callback.func
+            push!(setup, "function$i" => string(key))
+            i+=1
         end
         summary_box(io, "PostprocessCallback", setup)
     end
@@ -197,9 +204,9 @@ function (pp::PostprocessCallback)(integrator)
 
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        for f in pp.func
+        for (key, f) in pp.func
             result = f(v, u, t, system)
-            add_entry!(pp, string(nameof(f)), t, result, filenames[system_index])
+            add_entry!(pp, string(key), t, result, filenames[system_index])
             new_data = true
         end
     end
