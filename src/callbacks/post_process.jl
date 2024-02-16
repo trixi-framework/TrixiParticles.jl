@@ -56,7 +56,8 @@ end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
-                             append_timestamp=false, write_csv=true, write_json=true, funcs...)
+                             append_timestamp=false, write_csv=true, write_json=true,
+                             funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -129,7 +130,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         i = 0
         for (key, f) in callback.func
             push!(setup, "function$i" => string(key))
-            i+=1
+            i += 1
         end
         summary_box(io, "PostprocessCallback", setup)
     end
@@ -156,7 +157,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         i = 0
         for (key, f) in callback.func
             push!(setup, "function$i" => string(key))
-            i+=1
+            i += 1
         end
         summary_box(io, "PostprocessCallback", setup)
     end
