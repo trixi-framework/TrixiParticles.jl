@@ -4,7 +4,8 @@
             return 0
         end
 
-        callback = PostprocessCallback(another_function=(v, u, t, system) -> 1; interval=10, example_function)
+        callback = PostprocessCallback(another_function=(v, u, t, system) -> 1; interval=10,
+                                       example_function)
 
         show_compact = "PostprocessCallback(interval=10, functions=[another_function, example_function])"
         @test repr(callback) == show_compact
