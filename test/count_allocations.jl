@@ -30,12 +30,11 @@ end
 @inline TrixiParticles.update!(search::NoUpdateNeighborhoodSearch, coords_fun) = search
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
-function count_rhs_allocations(sol, ode)
+function count_rhs_allocations(sol, semi)
     t = sol.t[end]
     v_ode, u_ode = sol.u[end].x
     dv_ode = similar(v_ode)
     du_ode = similar(u_ode)
-    semi = ode.p
 
     # Wrap neighborhood searches to avoid counting alloctations in the NHS update
     semi_no_nhs_update = copy_semi_with_no_update_nhs(semi)

@@ -8,8 +8,6 @@ trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               tspan=(0.0, 0.1))
 
-semi = ode.p
-
 # Interpolation parameters
 interpolation_start = [0.0, 0.0]
 interpolation_end = [1.0, 1.0]
