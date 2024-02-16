@@ -364,10 +364,9 @@ end
 
 @inline function update_pressure!(boundary_model::BoundaryModelDummyParticles,
                                   system, v, u, v_ode, u_ode, semi)
-    (; density_calculator, correction) = boundary_model
+    (; correction, density_calculator) = boundary_model
 
-    compute_correction_values!(system,
-                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
     compute_gradient_correction_matrix!(correction, boundary_model, system, u, v_ode, u_ode,
                                         semi)

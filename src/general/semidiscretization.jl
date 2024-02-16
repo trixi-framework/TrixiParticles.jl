@@ -228,6 +228,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
+    # Set initial condition
     foreach_system(semi) do system
         u0_system = wrap_u(u0_ode, system, semi)
         v0_system = wrap_v(v0_ode, system, semi)
