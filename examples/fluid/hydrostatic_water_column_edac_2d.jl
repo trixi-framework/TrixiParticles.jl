@@ -32,5 +32,4 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL35(),
-            save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
