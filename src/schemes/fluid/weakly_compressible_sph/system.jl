@@ -159,6 +159,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -179,6 +180,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
     end
 end
@@ -198,9 +200,6 @@ end
 @inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
     return system.pressure[particle]
 end
-
-# Nothing to initialize for this system
-initialize!(system::WeaklyCompressibleSPHSystem, neighborhood_search) = system
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
@@ -230,8 +229,7 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system,
-                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
     compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
 
@@ -295,7 +293,8 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)
@@ -370,13 +369,6 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     end
 
     return system
-end
-
-@inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff,
-                                       distance, particle)
-    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
-                                 system.smoothing_length,
-                                 system.correction, system, particle)
 end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
