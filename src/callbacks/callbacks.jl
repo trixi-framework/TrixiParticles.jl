@@ -8,4 +8,5 @@ end
 include("info.jl")
 include("solution_saving.jl")
 include("density_reinit.jl")
+include("stepsize.jl")
 include("update.jl")

@@ -259,3 +259,7 @@ end
 function viscosity_model(system, neighbor_system::BoundarySPHSystem)
     return neighbor_system.boundary_model.viscosity
 end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
+    return Inf
+end
