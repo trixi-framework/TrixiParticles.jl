@@ -13,7 +13,7 @@
 
 # Example file
 ```julia
-!!include:examples/fluid/rectangular_tank_2d.jl!!
+!!include:examples/fluid/hydrostatic_water_column_2d.jl!!
 
 ```
 
