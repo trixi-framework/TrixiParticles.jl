@@ -28,10 +28,10 @@ function copy_file(filename, replaces...; new_filename="")
                    lowercase(new_filename == "" ? filename : new_filename)), content)
 end
 
-function replace_with_code(filepath)
-    if !isfile(filepath)
+function replace_with_code(filename)
+    if !isfile(filename)
         cwd = pwd()
-        error("Markdown file not found: $filepath in directory: $cwd")
+        error("Markdown file not found: $filename in directory: $cwd")
         return
     end
 
