@@ -6,7 +6,8 @@ using TrixiBase
 trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
-function copy_file(filename, replaces...; new_file=joinpath(@__DIR__, "src", lowercase(filename)))
+function copy_file(filename, replaces...;
+                   new_file=joinpath(@__DIR__, "src", lowercase(filename)))
     source_path = joinpath(trixiparticles_root_dir, filename)
 
     if !isfile(source_path)
@@ -24,7 +25,7 @@ function copy_file(filename, replaces...; new_file=joinpath(@__DIR__, "src", low
     """
     content = header * content
 
-    write( new_file, content)
+    write(new_file, content)
 end
 
 function replace_with_code(filename)
