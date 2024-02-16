@@ -40,7 +40,7 @@ To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kine
 ```math
     \nu = \frac{\alpha h c }{2d + 4},
 ```
-where ``d`` ist the dimension.
+where ``d`` is the dimension.
 
 ## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
