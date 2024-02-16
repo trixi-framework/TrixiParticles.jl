@@ -35,8 +35,6 @@ function replace_with_code(filepath)
         return
     end
 
-    md_content = read(filepath, String)
-
     # Define a regex pattern to match the include markers
     pattern = r"!!include:([^\s!]+\.jl)!!"
 
