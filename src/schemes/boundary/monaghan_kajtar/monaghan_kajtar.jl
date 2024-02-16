@@ -80,8 +80,7 @@ end
                                        neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel,
-                                       pressure_correction, correction)
+                                       pos_diff, distance, grad_kernel, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes

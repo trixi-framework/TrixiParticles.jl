@@ -6,6 +6,35 @@ struct NoViscosity end
     return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
 end
 
+function dv_viscosity(particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    viscosity = viscosity_model(neighbor_system)
+
+    return dv_viscosity(viscosity, particle_system, neighbor_system,
+                        v_particle_system, v_neighbor_system,
+                        particle, neighbor, pos_diff, distance,
+                        sound_speed, m_a, m_b, rho_mean)
+end
+
+function dv_viscosity(viscosity, particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    return viscosity(particle_system, neighbor_system,
+                     v_particle_system, v_neighbor_system,
+                     particle, neighbor, pos_diff, distance,
+                     sound_speed, m_a, m_b, rho_mean)
+end
+
+function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+end
+
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
 
