@@ -6,7 +6,7 @@ using TrixiBase
 trixiparticles_root_dir = dirname(@__DIR__)
 
 # Copy files to not need to synchronize them manually
-function copy_file(filename, replaces...; new_filename="")
+function copy_file(filename, replaces...; new_file=joinpath(@__DIR__, "src", lowercase(filename)))
     source_path = joinpath(trixiparticles_root_dir, filename)
 
     if !isfile(source_path)
@@ -24,8 +24,7 @@ function copy_file(filename, replaces...; new_filename="")
     """
     content = header * content
 
-    write(new_filename == "" ? joinpath(@__DIR__, "src",
-                                        lowercase(filename)) : new_filename, content)
+    write( new_file, content)
 end
 
 function replace_with_code(filename)
@@ -62,7 +61,7 @@ function replace_with_code(filename)
 
     # Replace all occurrences in the markdown content
     filename_noext, extension = splitext(filename)
-    copy_file(filename, new_filename="$(filename_noext)_replaced$extension",
+    copy_file(filename, new_file="$(filename_noext)_replaced$extension",
               pattern => replace_include)
 end
 

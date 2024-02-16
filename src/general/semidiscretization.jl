@@ -200,15 +200,14 @@ end
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-Suggested change
 - `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
 # Keywords
 - `reset_threads`: - `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
-After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
-ensures that threading is enabled again for the simulation.
-See also [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
+ After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
+ ensures that threading is enabled again for the simulation.
+ See also [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 
 # Returns
 A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
