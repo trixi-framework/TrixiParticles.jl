@@ -80,13 +80,13 @@ viscous interaction (default `viscosity=NoViscosity()`), a free-slip wall bounda
 condition is applied.
 
 # Arguments
-- `initial_density`: Vector holding the initial density of each boundary particle
+- `initial_density`: Vector holding the initial density of each boundary particle.
 - `hydrodynamic_mass`: Vector holding the "hydrodynamic mass" of each boundary particle.
                        See description above for more information.
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
                         See description above for more information.
-- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system
-- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system
+- `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
+- `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
 - `state_equation`: This should be the same as for the adjacent fluid system
