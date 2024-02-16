@@ -219,9 +219,6 @@
                 nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
                                                                   TrixiParticles.eachparticle(system))
 
-                semi = Semidiscretization(system, neighborhood_search=nothing)
-                v_ode = vcat(density')
-                u_ode = coordinates
                 TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
