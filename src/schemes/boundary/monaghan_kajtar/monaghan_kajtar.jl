@@ -1,5 +1,6 @@
 @doc raw"""
-    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing)
+    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
+                                viscosity=NoViscosity())
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` due to boundary particle ``b`` is given by
@@ -42,6 +43,25 @@ The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
 simulation, where the density of the boundary particle if needed is assumed to be
 identical to the density of the fluid particle.
 
+# No-slip condition
+
+By choosing the viscosity model [`ArtificialViscosityMonaghan`](@ref) for `viscosity`,
+a no-slip condition is imposed. When omitting the viscous interaction
+(default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
+
+# Arguments
+- `K`: Scaling factor for repulsive force.
+- `beta`: Ratio of fluid particle spacing to boundary particle spacing.
+- `boundary_particle_spacing`: Boundary particle spacing.
+- `mass`: Vector holding the mass of each boundary particle.
+
+# Keywords
+- `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
+                information.
+
+!!! warning
+    The no-slip conditions for `BoundaryModelMonaghanKajtar` have not been verified yet.
+
 ## References:
 - Joseph J. Monaghan, Jules B. Kajtar. "SPH particle boundary forces for arbitrary boundaries".
   In: Computer Physics Communications 180.10 (2009), pages 1811–1820.
@@ -76,16 +96,28 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, ")")
 end
 
-@inline function pressure_acceleration(pressure_correction, m_a, m_b, p_a, p_b,
-                                       rho_a, rho_b, pos_diff, distance,
-                                       W_a, particle_system, neighbor,
-                                       neighbor_system::Union{BoundarySystem{<:BoundaryModelMonaghanKajtar},
-                                                              SolidSystem{<:BoundaryModelMonaghanKajtar}},
-                                       correction)
+@inline function pressure_acceleration(particle_system,
+                                       neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                                                              TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
+                                       neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
+                                       pos_diff, distance, grad_kernel,
+                                       pressure_correction, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
-    return K / beta^(NDIMS - 1) * pos_diff /
-           (distance * (distance - boundary_particle_spacing)) *
+    # This is `distance - boundary_particle_spacing` in the paper. This factor makes
+    # the force grow infinitely close to the boundary, with a singularity where
+    # `distance` = `boundary_particle_spacing`. However, when the time step is large
+    # enough for a particle to end up behind the singularity in a time integration stage,
+    # the force will switch sign and become smaller again.
+    #
+    # In order to avoid this, we clip the force at a "large" value, large enough to prevent
+    # penetration when a reasonable `K` is used, but small enough to not cause instabilites
+    # or super small time steps.
+    distance_from_singularity = max(0.01 * boundary_particle_spacing,
+                                    distance - boundary_particle_spacing)
+
+    return K / beta^(ndims(particle_system) - 1) * pos_diff /
+           (distance * distance_from_singularity) *
            boundary_kernel(distance, particle_system.smoothing_length)
 end
 

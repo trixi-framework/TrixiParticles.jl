@@ -88,8 +88,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -100,7 +100,6 @@ hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^ndims(solid
 # However, `BoundaryModelDummyParticles` can only be used when the plate thickness is
 # at least two fluid particle spacings, so that the compact support is fully sampled,
 # or fluid particles can penetrate the solid.
-# With higher fluid resolutions, uncomment the code below for better results.
 #
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses,
@@ -110,15 +109,14 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model_solid,
+                                        E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity),
                                         penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, solid_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, boundary_system, solid_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
