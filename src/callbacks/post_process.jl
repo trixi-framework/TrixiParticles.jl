@@ -28,6 +28,7 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
+- `backup_period=0`: Write a backup for each multiple of `interval` or `dt`.
 
 # Examples
 ```julia
@@ -44,6 +45,7 @@ postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 """
 struct PostprocessCallback{I, F}
     interval         :: I
+    backup_period    :: Int
     data             :: Dict{String, Vector{Any}}
     times            :: Array{Float64, 1}
     exclude_boundary :: Bool
@@ -53,12 +55,13 @@ struct PostprocessCallback{I, F}
     append_timestamp :: Bool
     write_csv        :: Bool
     write_json       :: Bool
+    write_backup     :: Bool
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
                              append_timestamp=false, write_csv=true, write_json=true,
-                             funcs...)
+                             backup_period::Integer=0, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -71,9 +74,13 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, Dict{String, Vector{Any}}(), Float64[],
+    write_backup =  backup_period > 0 ? true : false
+
+    post_callback = PostprocessCallback(interval, backup_period,
+                                        Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json)
+                                        append_timestamp, write_csv, write_json,
+                                        write_backup)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -208,16 +215,26 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
-    if isfinished(integrator)
-        write_postprocess_callback(pp)
+    if isfinished(integrator) || (pp.write_backup && backup_condition(pp, integrator))
+        write_postprocess_callback(pp, integrator)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
 end
 
+@inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
+    @autoinfiltrate
+
+    return integrator.stats.naccept % cb.backup_period == 0
+end
+
+@inline function backup_condition(cb::PostprocessCallback, integrator)
+    return round(Int, integrator.t / cb.interval) % cb.backup_period == 0
+end
+
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback)
+function write_postprocess_callback(pp::PostprocessCallback, integrator)
     if isempty(pp.data)
         return
     end
@@ -230,8 +247,11 @@ function write_postprocess_callback(pp::PostprocessCallback)
     if pp.append_timestamp
         time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
-    filename_json = pp.filename * time_stamp * ".json"
-    filename_csv = pp.filename * time_stamp * ".csv"
+
+    backup_suffix = isfinished(integrator) ? "" : "_backup"
+
+    filename_json = pp.filename * time_stamp * backup_suffix * ".json"
+    filename_csv = pp.filename * time_stamp * backup_suffix * ".csv"
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
