@@ -1,5 +1,5 @@
-# This setup is identical to `rectangular_tank_2d.jl`, except that now there is no gravity, and
-# the tank is accelerated upwards instead.
+# This setup is identical to `hydrostatic_water_column_2d.jl`, except that now there is
+# no gravity, and the tank is accelerated upwards instead.
 # Note that the two setups are physically identical, but produce different numerical errors.
 using TrixiParticles
 using OrdinaryDiffEq
@@ -77,7 +77,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 # Sometimes, the method fails to do so because forces become extremely large when
 # fluid particles are very close to boundary particles, and the time integration method
 # interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
