@@ -1,7 +1,7 @@
 """
     PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory="out", append_timestamp=false, write_csv=true,
-                        write_json=true, funcs...)
+                        write_json=true, backup_period=0, funcs...)
 
 Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -28,7 +28,9 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
-- `backup_period=0`: Write a backup for each multiple of `interval` or `dt`.
+- `backup_period=0`: Specifies that a backup should be created after every `backup_period`
+                     number of postprocessing execution steps. A value of 0 indicates that
+                     backups should not be automatically generated during postprocessing.
 
 # Examples
 ```julia
@@ -55,7 +57,6 @@ struct PostprocessCallback{I, F}
     append_timestamp :: Bool
     write_csv        :: Bool
     write_json       :: Bool
-    write_backup     :: Bool
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
@@ -74,13 +75,10 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    write_backup = backup_period > 0 ? true : false
-
     post_callback = PostprocessCallback(interval, backup_period,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json,
-                                        write_backup)
+                                        append_timestamp, write_csv, write_json)
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(post_callback, dt,
@@ -123,6 +121,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!
         setup = [
             "interval" => string(callback.interval),
+            "write backup" => callback.backup_period > 0 ?
+                              "every $(callback.backup_period) * interval" : "no",
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -148,6 +148,8 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!.affect!
         setup = [
             "dt" => string(callback.interval),
+            "write backup" => callback.backup_period > 0 ?
+                              "every $(callback.backup_period) * dt" : "no",
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -217,7 +219,7 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
-    if isfinished(integrator) || (pp.write_backup && backup_condition(pp, integrator))
+    if isfinished(integrator) || (pp.backup_period > 0 && backup_condition(pp, integrator))
         write_postprocess_callback(pp, integrator)
     end
 
