@@ -224,7 +224,7 @@ function (pp::PostprocessCallback)(integrator)
 end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
-    return integrator.stats.naccept % cb.backup_period == 0
+    return round(integrator.stats.naccept / cb.interval) % cb.backup_period == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
