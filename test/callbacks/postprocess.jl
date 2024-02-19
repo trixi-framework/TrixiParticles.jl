@@ -15,6 +15,7 @@
         │ PostprocessCallback                                                                              │
         │ ═══════════════════                                                                              │
         │ interval: ……………………………………………………… 10                                                               │
+        │ write backup: …………………………………………… no                                                               │
         │ exclude boundary: ………………………………… yes                                                              │
         │ filename: ……………………………………………………… values                                                           │
         │ output directory: ………………………………… out                                                              │
@@ -36,6 +37,42 @@
         │ PostprocessCallback                                                                              │
         │ ═══════════════════                                                                              │
         │ dt: ……………………………………………………………………… 0.1                                                              │
+        │ write backup: …………………………………………… no                                                               │
+        │ exclude boundary: ………………………………… yes                                                              │
+        │ filename: ……………………………………………………… values                                                           │
+        │ output directory: ………………………………… out                                                              │
+        │ append timestamp: ………………………………… no                                                               │
+        │ write json file: …………………………………… yes                                                              │
+        │ write csv file: ……………………………………… yes                                                              │
+        │ function1: …………………………………………………… example_function                                                 │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
+
+        callback = PostprocessCallback(; dt=0.1, example_function, backup_period=3)
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ PostprocessCallback                                                                              │
+        │ ═══════════════════                                                                              │
+        │ dt: ……………………………………………………………………… 0.1                                                              │
+        │ write backup: …………………………………………… every 3 * dt                                                     │
+        │ exclude boundary: ………………………………… yes                                                              │
+        │ filename: ……………………………………………………… values                                                           │
+        │ output directory: ………………………………… out                                                              │
+        │ append timestamp: ………………………………… no                                                               │
+        │ write json file: …………………………………… yes                                                              │
+        │ write csv file: ……………………………………… yes                                                              │
+        │ function1: …………………………………………………… example_function                                                 │
+        └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
+        @test repr("text/plain", callback) == show_box
+
+        callback = PostprocessCallback(; interval=23, example_function, backup_period=4)
+
+        show_box = """
+        ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+        │ PostprocessCallback                                                                              │
+        │ ═══════════════════                                                                              │
+        │ interval: ……………………………………………………… 23                                                               │
+        │ write backup: …………………………………………… every 4 * interval                                               │
         │ exclude boundary: ………………………………… yes                                                              │
         │ filename: ……………………………………………………… values                                                           │
         │ output directory: ………………………………… out                                                              │
