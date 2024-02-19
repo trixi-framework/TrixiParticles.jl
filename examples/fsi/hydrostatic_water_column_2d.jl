@@ -1,16 +1,15 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+ddt = false
+
 # ==========================================================================================
 # ==== Resolution
-solid_particle_spacing = 0.01
-fluid_particle_spacing = solid_particle_spacing
+n_particles_plate_y = 5
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
 spacing_ratio = 1
-
-boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -32,7 +31,9 @@ sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
-boundary_density_calculator = AdamiPressureExtrapolation()
+solid_particle_spacing = plate_size[2] / (n_particles_plate_y - 1)
+fluid_particle_spacing = solid_particle_spacing
+boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, initial_fluid_size,
                        min_coordinates=(0.0, fluid_particle_spacing / 2),
@@ -42,7 +43,6 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, initial_fluid
 
 # Beam and clamped particles
 n_particles_plate_x = round(Int, plate_size[1] / solid_particle_spacing + 1)
-n_particles_plate_y = round(Int, plate_size[2] / solid_particle_spacing + 1)
 n_particles_per_dimension = (n_particles_plate_x, n_particles_plate_y)
 
 plate = RectangularShape(solid_particle_spacing, n_particles_per_dimension,
@@ -60,28 +60,15 @@ fixed_particles = union(fixed_particles_1, fixed_particles_2)
 solid = union(plate, fixed_particles)
 
 # ==========================================================================================
-# ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
-
-fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
-density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity))
-
-# ==========================================================================================
 # ==== Solid
-smoothing_length_solid = sqrt(2) * solid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
+smoothing_length_solid = 2 * sqrt(2) * solid_particle_spacing
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
 hydrodynamic_masses = hydrodynamic_densites * solid_particle_spacing^ndims(solid)
 
+boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    hydrodynamic_masses,
                                                    state_equation=state_equation,
@@ -89,9 +76,23 @@ boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
                                                    smoothing_kernel, smoothing_length_solid)
 
 solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_length_solid,
-                                        E, nu, boundary_model_solid,
+                                        E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
+
+# ==========================================================================================
+# ==== Fluid
+smoothing_length_fluid = 2 * sqrt(2) * fluid_particle_spacing
+
+fluid_density_calculator = ContinuityDensity()
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+
+density_diffusion = ddt ? DensityDiffusionMolteniColagrossi(delta=0.1) : nothing
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length_fluid, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
+                                           acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -110,23 +111,31 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-const PARTICLE_ID = Int(prod(n_particles_per_dimension) -
-                        (n_particles_per_dimension[1] - 1) / 2)
-
-y_deflection(v, u, t, system) = nothing
+# Track the position of the particle in the center of the of the beam.
+particle_id = Int(n_particles_per_dimension[1] * (n_particles_plate_y + 1) / 2 -
+                  (n_particles_per_dimension[1] + 1) / 2 + 1)
 
 function y_deflection(v, u, t, system::TotalLagrangianSPHSystem)
-    return TrixiParticles.current_coords(u, system, PARTICLE_ID)[2]
+    return TrixiParticles.current_coords(u, system, particle_id)[2] + plate_size[2] / 2
 end
+y_deflection(v, u, t, system) = nothing
 
-saving_callback = SolutionSavingCallback(dt=0.0005, prefix="", y_deflection=y_deflection)
+# The pseudostatic midpoint deflection of a 2-D plate
+function analytical_sol(v, u, t, system::TotalLagrangianSPHSystem)
+    # Flexural rigidity of the plate
+    D = E * plate_size[2]^3 / (12 * (1 - nu^2))
 
-callbacks = CallbackSet(info_callback, saving_callback)
+    return -0.0026 * gravity *
+           (fluid_density * initial_fluid_size[2] + solid_density * plate_size[2]) / D
+end
+analytical_sol(v, u, t, system) = nothing
+
+saving_callback = SolutionSavingCallback(dt=0.005, prefix="")
+
+pp = PostprocessCallback(; interval=100, filename="hydrostatic_water_column_2d",
+                         y_deflection, analytical_sol, kinetic_energy, backup_period=10)
+
+callbacks = CallbackSet(info_callback, saving_callback, pp)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = nothing#solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
-
-# The pseudostatic midpoint deflection of a 2-D plate:
-D = E*plate_size[2]^3/(12*(1-nu^2))
-analytical_sol = 0.0026 * gravity *
-                 (fluid_density * initial_fluid_size[2] + solid_density * plate_size[2]) / D
+sol = solve(ode, RDPK3SpFSAL49(), save_everystep=false, callback=callbacks);
