@@ -206,8 +206,10 @@ function (pp::PostprocessCallback)(integrator)
         u = wrap_u(u_ode, system, semi)
         for (key, f) in pp.func
             result = f(v, u, t, system)
-            add_entry!(pp, string(key), t, result, filenames[system_index])
-            new_data = true
+            if result !== nothing
+                add_entry!(pp, string(key), t, result, filenames[system_index])
+                new_data = true
+            end
         end
     end
 
@@ -224,11 +226,13 @@ function (pp::PostprocessCallback)(integrator)
 end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
-    return round(integrator.stats.naccept / cb.interval) % cb.backup_period == 0
+    return integrator.stats.naccept > 0 &&
+           round(integrator.stats.naccept / cb.interval) % cb.backup_period == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
-    return round(Int, integrator.t / cb.interval) % cb.backup_period == 0
+    return integrator.stats.naccept > 0 &&
+           round(Int, integrator.t / cb.interval) % cb.backup_period == 0
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
