@@ -201,6 +201,8 @@ end
     return system.pressure[particle]
 end
 
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
+
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     (; density_calculator, density_diffusion, correction) = system

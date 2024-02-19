@@ -59,8 +59,8 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::WeaklyCompressibleSPHSystem)
-    (; sound_speed) = neighbor_system.state_equation
+                   neighbor_system::FluidSystem)
+    sound_speed = system_sound_speed(neighbor_system)
     viscosity = viscosity_model(particle_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -133,7 +133,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::WeaklyCompressibleSPHSystem,
+                                      neighbor_system::FluidSystem,
                                       grad_kernel)
     return dv
 end

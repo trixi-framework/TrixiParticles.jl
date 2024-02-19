@@ -80,3 +80,17 @@ end
 
     return dv
 end
+
+@inline function pressure_acceleration(particle_system::EntropicallyDampedSPHSystem,
+                                       neighbor_system, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, pressure_correction, correction)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    # Inter-particle averaged pressure
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    return -volume_term * pressure_tilde * W_a
+end
