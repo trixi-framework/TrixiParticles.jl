@@ -2,6 +2,7 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 ddt = false
+edac = true
 
 # ==========================================================================================
 # ==== Resolution
@@ -28,7 +29,8 @@ E = 67.5e9
 nu = 0.34
 
 sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+state_equation = edac ? nothing :
+                 StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=false)
 
 solid_particle_spacing = plate_size[2] / (n_particles_plate_y - 1)
@@ -84,15 +86,21 @@ solid_system = TotalLagrangianSPHSystem(solid, smoothing_kernel, smoothing_lengt
 # ==== Fluid
 smoothing_length_fluid = 2 * sqrt(2) * fluid_particle_spacing
 
-fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+if edac
+    fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
+                                               smoothing_length_fluid,
+                                               sound_speed,
+                                               acceleration=(0.0, -gravity))
+else
+    fluid_density_calculator = ContinuityDensity()
 
-density_diffusion = ddt ? DensityDiffusionMolteniColagrossi(delta=0.1) : nothing
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length_fluid, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity))
+    density_diffusion = ddt ? DensityDiffusionMolteniColagrossi(delta=0.1) : nothing
+    fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                               state_equation, smoothing_kernel,
+                                               smoothing_length_fluid,
+                                               density_diffusion=density_diffusion,
+                                               acceleration=(0.0, -gravity))
+end
 
 # ==========================================================================================
 # ==== Boundary
@@ -100,7 +108,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
+                                             smoothing_kernel, smoothing_length_fluid)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
