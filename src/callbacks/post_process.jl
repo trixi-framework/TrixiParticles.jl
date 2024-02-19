@@ -74,7 +74,7 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    write_backup =  backup_period > 0 ? true : false
+    write_backup = backup_period > 0 ? true : false
 
     post_callback = PostprocessCallback(interval, backup_period,
                                         Dict{String, Vector{Any}}(), Float64[],
@@ -224,8 +224,6 @@ function (pp::PostprocessCallback)(integrator)
 end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
-    @autoinfiltrate
-
     return integrator.stats.naccept % cb.backup_period == 0
 end
 
