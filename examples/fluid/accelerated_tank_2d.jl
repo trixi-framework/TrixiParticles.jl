@@ -10,32 +10,31 @@ fluid_particle_spacing = 0.02
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
-spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-acceleration = 0.0
+gravity = 9.81
 tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 0.9)
-tank_size = (2.0, 1.0)
+initial_fluid_size = (1.0, 0.9)
+tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(acceleration * initial_fluid_size[2])
+sound_speed = 10.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
+                                   exponent=7, clip_negative_pressure=true)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio)
+                       n_layers=boundary_layers, spacing_ratio=1.0)
 
 # Function for moving boundaries
-f_y(t) = 0.5 * 9.81 * t^2
+f_y(t) = 0.5 * gravity * t^2
 f_x(t) = 0.0
 
 is_moving(t) = true
 
-movement = BoundaryMovement((f_x, f_y), is_moving)
+boundary_movement = BoundaryMovement((f_x, f_y), is_moving)
 
 # ==========================================================================================
 # ==== Fluid
