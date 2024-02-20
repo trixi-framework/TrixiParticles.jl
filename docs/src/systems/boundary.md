@@ -5,6 +5,8 @@ Modules = [TrixiParticles]
 Pages = map(file -> joinpath("boundary", file), readdir(joinpath("..", "src", "schemes", "boundary")))
 ```
 
+# [Boundary Models](@id boundary_models)
+
 ## Dummy Particles
 
 TODO: Explain what that is.

@@ -2,20 +2,21 @@ module TrixiParticles
 
 using Reexport: @reexport
 
-using CSV
+using CSV: CSV
 using Dates
-using DataFrames
+using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
-using JSON
+using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
+using RecipesBase: RecipesBase, @series
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -36,20 +37,21 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
+include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       PostprocessCallback
+       PostprocessCallback, StepsizeCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole
-export ArtificialViscosityMonaghan, ViscosityAdami
+export ArtificialViscosityMonaghan, ViscosityAdami, NoViscosity
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
@@ -64,7 +66,7 @@ export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
-export ekin, total_mass, max_pressure, min_pressure, avg_pressure,
+export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
 
