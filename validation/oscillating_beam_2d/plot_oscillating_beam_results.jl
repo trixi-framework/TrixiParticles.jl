@@ -1,9 +1,10 @@
+include("../validation_util.jl")
+
 using PythonPlot
 using JSON
 using Glob
 using CSV
 using DataFrames
-using Interpolations
 using Statistics
 using Printf
 
@@ -26,29 +27,25 @@ dy_data.displacement = dy_data.displacement .- 0.001
 # Get the list of JSON files
 json_files = glob("validation_reference_oscillating_beam_2d_*.json", "validation/oscillating_beam_2d/")
 
+println(json_files)
+
+if length(json_files)==0
+    error("No files found")
+end
+
 # Create subplots
 fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
 
 # Regular expressions for matching keys
-key_pattern_x = r"pos_x_\d+_solid_\d+"
-key_pattern_y = r"pos_y_\d+_solid_\d+"
+key_pattern_x = r"mid_point_x_solid_\d+"
+key_pattern_y = r"mid_point_y_solid_\d+"
 
-function calculate_mse(reference_data, simulation_data)
-    # Interpolate simulation data
-    interp_func = LinearInterpolation(simulation_data["time"], simulation_data["values"])
-
-    # Align with reference data time points
-    interpolated_values = interp_func(reference_data.time)
-
-    # Calculate MSE
-    mse = mean((interpolated_values .- reference_data.displacement) .^ 2)
-    return mse
-end
 
 for json_file in json_files
     json_data = JSON.parsefile(json_file)
 
     local resolution = parse(Int, split(split(json_file, "_")[end], ".")[1])
+    particle_spacing = cylinder_diameter / resolution
 
     # Find matching keys and plot data for each key
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
@@ -56,7 +53,9 @@ for json_file in json_files
     matching_keys_y = sort(collect(filter(key -> occursin(key_pattern_y, key),
                                           keys(json_data))))
 
-    particle_spacing = cylinder_diameter / resolution
+    if length(matching_keys_x)!= 1
+        error("Not matching keys found in: " * json_file)
+    end
 
     # calculate error compared to reference
     mse_results_x = 0

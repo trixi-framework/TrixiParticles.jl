@@ -58,7 +58,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    movement=boundary_movement)
+                                    movement=movement)
 
 # ==========================================================================================
 # ==== Simulation
