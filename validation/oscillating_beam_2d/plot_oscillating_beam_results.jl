@@ -27,8 +27,6 @@ dy_data.displacement = dy_data.displacement .- 0.001
 # Get the list of JSON files
 json_files = glob("validation_reference_oscillating_beam_2d_*.json", "validation/oscillating_beam_2d/")
 
-println(json_files)
-
 if length(json_files)==0
     error("No files found")
 end

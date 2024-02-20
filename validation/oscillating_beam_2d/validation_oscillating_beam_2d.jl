@@ -45,7 +45,7 @@ for res in resolution
 
     # Beam and clamped particles
     n_particles_per_dimension = (round(Int, elastic_plate_length / particle_spacing) +
-                                 n_particles_clamp_x + 1,
+                                 n_particles_clamp_x + 2,
                                  round(Int, elastic_plate_thickness / particle_spacing) + 1)
 
     # Note that the `RectangularShape` puts the first particle half a particle spacing away
@@ -64,7 +64,7 @@ for res in resolution
 
     solid_system = TotalLagrangianSPHSystem(solid,
                                             smoothing_kernel, smoothing_length,
-                                            E, nu, nothing,
+                                            E, nu,
                                             n_fixed_particles=nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
@@ -124,7 +124,7 @@ for res in resolution
         particle_position_y(middle_particle_id, t, v, u, system)
     end
 
-    pp_callback = PostprocessCallback(mid_point_x, mid_point_y; dt=0.025, output_directory="validation/oscillating_beam_2d",
+    pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.025, output_directory="validation/oscillating_beam_2d",
                                       filename="validation_reference_oscillating_beam_2d_" * string(res), write_csv=false)
     info_callback = InfoCallback(interval=2500)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_" * string(res))
