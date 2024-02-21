@@ -43,7 +43,7 @@ the time is lower than `1.5`.
 
 # Examples
 ```julia
-movement_function(t) = TrixiParticles.SVector{2}(cos(2pi*t), sin(2pi*t))
+movement_function(t) = SVector{2}(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
 movement = BoundaryMovement(movement_function, is_moving)
@@ -131,7 +131,9 @@ end
     length(system.boundary_model.hydrodynamic_mass)
 end
 
-@inline initial_coordinates(system::BoundarySPHSystem) = system.cache.initial_coordinates
+@inline initial_coordinates(system::BoundarySPHSystem) = initial_coordinates(system, system.movement)
+@inline initial_coordinates(system::BoundarySPHSystem, movement) = system.coordinates
+@inline initial_coordinates(system::BoundarySPHSystem, ::BoundaryMovement) = system.cache.initial_coordinates
 
 # No particle positions are advanced for boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
