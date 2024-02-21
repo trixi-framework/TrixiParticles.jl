@@ -29,7 +29,30 @@ The viscosity parameter ``\eta_a`` for a particle ``a`` is given as
 where it is found in the numerical experiments of (Ramachandran 2019) that ``\alpha = 0.5``
 is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 
-## References:
+# Arguments
+- `initial_condition`:  Initial condition representing the system's particles.
+- `sound_speed`:        Speed of sound.
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+
+# Keyword Arguments
+- `viscosity`:      Viscosity model for this system (default: no viscosity).
+                    Recommended: [`ViscosityAdami`](@ref).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+                    Note that these source terms will not be used in the calculation of the
+                    boundary pressure when using a boundary with
+                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    The keyword argument `acceleration` should be used instead for
+                    gravity-like source terms.
+
+# References:
 - Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)

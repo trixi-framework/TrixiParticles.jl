@@ -100,9 +100,6 @@ struct InitialCondition{ELTYPE}
 
         if velocity isa AbstractMatrix
             velocities = velocity
-            if size(coordinates) != size(velocities)
-                throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
-            end
         else
             # Assuming `velocity` is a scalar or a function
             velocity_fun = wrap_function(velocity, Val(NDIMS))
@@ -112,6 +109,9 @@ struct InitialCondition{ELTYPE}
             end
             velocities_svector = velocity_fun.(coordinates_svector)
             velocities = stack(velocities_svector)
+        end
+        if size(coordinates) != size(velocities)
+            throw(ArgumentError("`coordinates` and `velocities` must be of the same size"))
         end
 
         if density isa AbstractVector
@@ -139,10 +139,7 @@ struct InitialCondition{ELTYPE}
             pressures = pressure
         else
             pressure_fun = wrap_function(pressure, Val(NDIMS))
-            pressures = stack((pressure_fun.(coordinates_svector)))
-            if !isa(pressures, Vector)
-                pressures = pressures[findfirst(p -> abs(p) > eps(), pressures)[1], :]
-            end
+            pressures = pressure_fun.(coordinates_svector)
         end
 
         if mass isa AbstractVector

@@ -32,7 +32,7 @@ initial_fluid_size = (0.2, 0.4)
 tank_size = (0.8, 0.8)
 
 fluid_density = 997.0
-sound_speed = 20 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 10 * sqrt(2 * gravity * initial_fluid_size[2])
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -88,11 +88,11 @@ solid = union(plate, fixed_particles)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ArtificialViscosityMonaghan(alpha=0.1, beta=0.0)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -117,8 +117,8 @@ boundary_system_gate = BoundarySPHSystem(gate, boundary_model_gate, movement=gat
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
+solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites = fluid_density * ones(size(solid.density))
@@ -138,13 +138,14 @@ boundary_model_solid = BoundaryModelMonaghanKajtar(k_solid, beta_solid,
 # For higher fluid resolutions, uncomment the code below for better results.
 #
 # boundary_model_solid = BoundaryModelDummyParticles(hydrodynamic_densites,
-#                                                    hydrodynamic_masses, state_equation,
+#                                                    hydrodynamic_masses,
+#                                                    state_equation=state_equation,
 #                                                    AdamiPressureExtrapolation(),
 #                                                    smoothing_kernel, smoothing_length)
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         solid_smoothing_kernel, solid_smoothing_length,
-                                        E, nu, boundary_model_solid,
+                                        E, nu, boundary_model=boundary_model_solid,
                                         n_fixed_particles=n_particles_x,
                                         acceleration=(0.0, -gravity))
 

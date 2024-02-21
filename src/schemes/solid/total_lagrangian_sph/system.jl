@@ -1,8 +1,8 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio, boundary_model;
-                             n_fixed_particles=0,
+                             young_modulus, poisson_ratio;
+                             n_fixed_particles=0, boundary_model=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
@@ -11,6 +11,7 @@ System for particles of an elastic solid.
 A Total Lagrangian framework is used wherein the governing equations are forumlated such that
 all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
+
 The governing equations with respect to the initial configuration are given by:
 ```math
 \frac{\mathrm{D}\bm{v}}{\mathrm{D}t} = \frac{1}{\rho_0} \nabla_0 \cdot \bm{P} + \bm{g},
@@ -33,15 +34,15 @@ The zero subscript on quantities denotes that the quantity is to be measured in 
 The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
 the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
 
-For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
+For the computation of the PK1 stress tensor, the deformation gradient $\bm{F}$ is computed per particle as
 ```math
-\bm{J}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
+\bm{F}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
     \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
 ```
 with $1 \leq i,j \leq d$.
 From the deformation gradient, the Green-Lagrange strain
 ```math
-\bm{E} = \frac{1}{2}(\bm{J}^T\bm{J} - \bm{I})
+\bm{E} = \frac{1}{2}(\bm{F}^T\bm{F} - \bm{I})
 ```
 and the second Piola-Kirchhoff stress tensor
 ```math
@@ -49,7 +50,7 @@ and the second Piola-Kirchhoff stress tensor
 ```
 are computed to obtain the PK1 stress tensor as
 ```math
-\bm{P} = \bm{J}\bm{S}.
+\bm{P} = \bm{F}\bm{S}.
 ```
 
 Here,
@@ -63,6 +64,38 @@ and
 are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
 
 The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
+
+# Arguments
+- `initial_condition`:  Initial condition representing the system's particles.
+- `young_modulus`:      Young's modulus.
+- `poisson_ratio`:      Poisson ratio.
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [`SmoothingKernel`](@ref).
+
+# Keyword Arguments
+- `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
+                        particles. Note that the fixed particles must be the **last**
+                        particles in the `InitialCondition`. See the info box below.
+- `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
+                    fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
+- `penalty_force`:  Penalty force to ensure regular particle position under large deformations
+                    (see [`PenaltyForceGanzenmueller`](@ref)).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+
+!!! note
+    The fixed particles must be the **last** particles in the `InitialCondition`.
+    To do so, e.g. use the `union` function:
+    ```julia
+    solid = union(beam, fixed_particles)
+    ```
+    where `beam` and `fixed_particles` are of type `InitialCondition`.
 
 ## References:
 - Joseph O’Connor, Benedict D. Rogers.
@@ -98,8 +131,8 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
-                                      young_modulus, poisson_ratio, boundary_model;
-                                      n_fixed_particles=0,
+                                      young_modulus, poisson_ratio;
+                                      n_fixed_particles=0, boundary_model=nothing,
                                       acceleration=ntuple(_ -> 0.0,
                                                           ndims(smoothing_kernel)),
                                       penalty_force=nothing, source_terms=nothing)
@@ -177,8 +210,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
         summary_footer(io)
     end
 end
-
-timer_name(::TotalLagrangianSPHSystem) = "solid"
 
 @inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
@@ -285,8 +316,8 @@ end
     calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
     @threaded for particle in eachparticle(system)
-        J_particle = deformation_gradient(system, particle)
-        pk1_particle = pk1_stress_tensor(J_particle, system)
+        F_particle = deformation_gradient(system, particle)
+        pk1_particle = pk1_stress_tensor(F_particle, system)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -332,18 +363,18 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(J, system)
-    S = pk2_stress_tensor(J, system)
+@inline function pk1_stress_tensor(F, system)
+    S = pk2_stress_tensor(F, system)
 
-    return J * S
+    return F * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(J, system)
+@inline function pk2_stress_tensor(F, system)
     (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
-    E = 0.5 * (transpose(J) * J - I)
+    E = 0.5 * (transpose(F) * F - I)
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
@@ -410,4 +441,48 @@ end
 
 function viscosity_model(system::TotalLagrangianSPHSystem)
     return system.boundary_model.viscosity
+end
+
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here below Equation 5.3.21 for the equation for the equivalent stress.
+# The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
+# See pages 32 and 123.
+function von_mises_stress(system::TotalLagrangianSPHSystem)
+    von_mises_stress = zeros(eltype(system.pk1_corrected), nparticles(system))
+
+    @threaded for particle in each_moving_particle(system)
+        F = deformation_gradient(system, particle)
+        J = det(F)
+        P = pk1_corrected(system, particle)
+        sigma = (1.0 / J) * P * F'
+
+        # Calculate deviatoric stress tensor
+        s = sigma - (1.0 / 3.0) * tr(sigma) * I
+
+        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum(s .^ 2))
+    end
+
+    return von_mises_stress
+end
+
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
+# and the Cauchy stress.
+function cauchy_stress(system::TotalLagrangianSPHSystem)
+    NDIMS = ndims(system)
+
+    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
+                                  nparticles(system))
+
+    @threaded for particle in each_moving_particle(system)
+        F = deformation_gradient(system, particle)
+        J = det(F)
+        P = pk1_corrected(system, particle)
+        sigma = (1.0 / J) * P * F'
+        cauchy_stress_tensors[:, :, particle] = sigma
+    end
+
+    return cauchy_stress_tensors
 end
