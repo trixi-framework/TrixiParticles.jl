@@ -24,7 +24,8 @@
             initial_condition = InitialCondition(; coordinates, mass,
                                                  density=material_densities)
             system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                              smoothing_length, E, nu, boundary_model)
+                                              smoothing_length, E, nu,
+                                              boundary_model=boundary_model)
 
             @test system isa TotalLagrangianSPHSystem
             @test ndims(system) == NDIMS
@@ -62,7 +63,8 @@
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu,
+                                          boundary_model=boundary_model)
 
         show_compact = "TotalLagrangianSPHSystem{2}(2.5, 0.25, Val{:smoothing_kernel}(), " *
                        "[0.0, 0.0], Val{:boundary_model}(), nothing) with 2 particles"
@@ -212,11 +214,11 @@
                                                                smoothing_length)
 
                 initial_condition = InitialCondition(; coordinates, mass, density)
-                system = TotalLagrangianSPHSystem(initial_condition,
-                                                  smoothing_kernel, smoothing_length,
-                                                  1.0, 1.0, nothing)
+                system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
+                                                  smoothing_length, 1.0, 1.0)
                 nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
                                                                   TrixiParticles.eachparticle(system))
+
                 TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix
@@ -302,7 +304,8 @@
         initial_condition = InitialCondition(; coordinates, mass,
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu,
+                                          boundary_model=boundary_model)
 
         u0 = zeros(TrixiParticles.u_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -327,7 +330,8 @@
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu,
+                                          boundary_model=boundary_model)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
@@ -346,23 +350,26 @@
         smoothing_length = 0.362
         nu = 0.25  # Poisson's ratio
         E = 2.5    # Young's modulus
-        boundary_model = Val(:boundary_model)
 
         initial_condition = InitialCondition(; coordinates, velocity, mass,
                                              density=material_densities)
         system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
-                                          smoothing_length, E, nu, boundary_model)
+                                          smoothing_length, E, nu)
 
         # Initialize deformation_grad and pk1_corrected with arbitrary values
-        n_particles = nparticles(system)
-        for particle in 1:n_particles
+        for particle in TrixiParticles.eachparticle(system)
             system.deformation_grad[:, :, particle] = [1.0 0.2; 0.2 1.0]
             system.pk1_corrected[:, :, particle] = [1.0 0.5; 0.5 1.0]
         end
 
-        von_mises_stress = TrixiParticles.compute_von_mises_stress(system)
+        von_mises_stress = TrixiParticles.von_mises_stress(system)
+        cauchy_stress = TrixiParticles.cauchy_stress(system)
 
-        # manual calculation
+        reference_stress_tensor = [1.145833 0.729167; 0.729167 1.145833;;;
+                                   1.145833 0.729167; 0.729167 1.145833]
+
+        # Verify against calculation by hand
         @test isapprox(von_mises_stress[1], 1.4257267477533202, atol=1e-14)
+        @test isapprox(reference_stress_tensor, cauchy_stress, atol=1e-6)
     end
 end

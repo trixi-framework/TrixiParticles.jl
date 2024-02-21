@@ -48,7 +48,8 @@ end
         end
 
         calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                            initial_distance, particle_system, m_a, m_b, rho_a, rho_b, penalty_force)
+                            initial_distance, particle_system, m_a, m_b, rho_a, rho_b,
+                            penalty_force)
 
         # TODO continuity equation?
     end
@@ -89,7 +90,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = (rho_a + rho_b) / 2
 
-        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+        # Use kernel from the fluid system in order to get the same force here in
+        # solid-fluid interaction as for fluid-solid interaction.
+        grad_kernel = smoothing_kernel_grad(neighbor_system, pos_diff, distance)
 
         # use `m_a` to get the same viscosity as for the fluid-solid direction.
         dv_viscosity = viscosity(neighbor_system, particle_system, v_neighbor_system,
@@ -108,8 +111,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # `pressure_correction` is set to `1.0` (no correction).
         dv_boundary = pressure_acceleration(neighbor_system, particle_system, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
-                                            distance, grad_kernel, 1.0,
-                                            correction)
+                                            distance, grad_kernel, 1.0, correction)
         dv_particle = dv_boundary + dv_viscosity
 
         for i in 1:ndims(particle_system)

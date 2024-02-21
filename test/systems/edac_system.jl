@@ -126,7 +126,7 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(TrixiParticles.NoViscosity(), Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(NoViscosity(), Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -188,9 +188,11 @@
 
         @test v0 == vcat(velocity, pressure')
 
+        initial_condition = InitialCondition(; coordinates, velocity, mass, density,
+                                             pressure=pressure_function)
+
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
-                                             smoothing_length, sound_speed,
-                                             initial_pressure_function=pressure_function)
+                                             smoothing_length, sound_speed)
 
         v0 = zeros(TrixiParticles.v_nvariables(system),
                    TrixiParticles.n_moving_particles(system))
