@@ -32,8 +32,8 @@ end
     BoundaryMovement(movement_function, is_moving)
 
 # Arguments
-- `movement_function`: Time dependent function in each dimension.
-                       It is recommended to use `SVector`s as return value.
+- `movement_function`: Time dependent function in each dimension. It is recommended to use
+                       `SVector`s as return value to avoid unnecessary allocations and performance overhead.
 - `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
     boolean return value is mandatory to determine if the neighborhood search will be updated.
 
@@ -106,12 +106,12 @@ function (movement::BoundaryMovement)(system, t)
 
     is_moving(t) || return system
 
-    for particle in eachparticle(system)
+    @threaded for particle in eachparticle(system)
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
 
-        for i in 1:ndims(system)
+        @inbounds for i in 1:ndims(system)
             coordinates[i, particle] = pos_new[i]
             velocity[i, particle] = vel[i]
             acceleration[i, particle] = acc[i]
