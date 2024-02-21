@@ -96,7 +96,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
-        summary_line(io, "movement function", system.movement)
+        summary_line(io, "movement function",
+                     isnothing(system.movement) ? "nothing" :
+                     string(system.movement.movement_function))
         summary_footer(io)
     end
 end

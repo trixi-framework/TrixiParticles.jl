@@ -1,14 +1,15 @@
 @testset verbose=true "BoundarySystem" begin
+    coordinates_ = [
+        [1.0 2.0
+         1.0 2.0],
+        [1.0 2.0
+         1.0 2.0
+         1.0 2.0],
+    ]
+    mass = [1.0, 1.0]
+    density = [1000.0, 1000.0]
+
     @testset verbose=true "Constructor" begin
-        coordinates_ = [
-            [1.0 2.0
-             1.0 2.0],
-            [1.0 2.0
-             1.0 2.0
-             1.0 2.0],
-        ]
-        mass = [1.0, 1.0]
-        density = [1000.0, 1000.0]
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
@@ -23,6 +24,67 @@
             @test system.boundary_model == model
             @test system.movement === nothing
             @test system.ismoving == [false]
+        end
+    end
+
+    @testset verbose=true "Moving Boundaries" begin
+        @testset "$(i+1)D" for i in 1:2
+            NDIMS = i + 1
+            coordinates = copy(coordinates_[i])
+            new_coordinates = copy(coordinates_[i])
+
+            initial_condition = InitialCondition(; coordinates, mass, density)
+            model = (; hydrodynamic_mass=3)
+
+            function movement_function(t)
+                if NDIMS == 2
+                    return SVector{2}(0.5 * t, 0.3 * t^2)
+                end
+
+                return SVector{3}(0.5 * t, 0.3 * t^2, 0.1 * t^3)
+            end
+
+            is_moving(t) = t < 1.0
+            bm = BoundaryMovement(movement_function, is_moving)
+            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+
+            # Moving
+            t = 0.6
+            system.movement(system, t)
+
+            if NDIMS == 2
+                new_coordinates .+= [0.5 * t, 0.3 * t^2]
+            else
+                new_coordinates .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
+            end
+
+            @test isapprox(new_coordinates, system.coordinates)
+
+            # Stop moving
+            t = 1.0
+            system.movement(system, t)
+
+            @test isapprox(new_coordinates, system.coordinates)
+
+            # Move only a single particle
+            coordinates = copy(coordinates_[i])
+            new_coordinates = copy(coordinates_[i])
+
+            initial_condition = InitialCondition(; coordinates, mass, density)
+
+            bm = BoundaryMovement(movement_function, is_moving, moving_particles=[2])
+            system = BoundarySPHSystem(initial_condition, model, movement=bm)
+
+            t = 0.1
+            system.movement(system, t)
+
+            if NDIMS == 2
+                new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
+            else
+                new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
+            end
+
+            @test isapprox(new_coordinates, system.coordinates)
         end
     end
 
