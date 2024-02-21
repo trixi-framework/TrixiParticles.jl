@@ -25,14 +25,12 @@ cylinder_radius = 0.05
 cylinder_diameter = 2 * cylinder_radius
 material_density = 1000.0
 
-# Young's modulus and Poisson ratio
 E = 1.4e6
 nu = 0.4
 
 #resolution = [9, 21, 35]
-resolution = [35]
+resolution = [9]
 for res in resolution
-    #particle_spacing = cylinder_diameter / res
     n_particles_y = res
     particle_spacing = elastic_plate_thickness / (n_particles_y - 1)
 
@@ -70,6 +68,9 @@ for res in resolution
                                             acceleration=(0.0, -gravity),
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
+    # ==========================================================================================
+    # ==== Postprocessing Setup
+
     # find points at the end of elastic plate
     plate_end_x = elastic_plate_length + cylinder_radius
     point_ids = []
@@ -83,7 +84,7 @@ for res in resolution
 
     # of those find the particle in the middle
     y_coords_at_plate_end = [solid_system.current_coordinates[2, particle]
-                             for particle in point_ids]
+                                for particle in point_ids]
     if isempty(y_coords_at_plate_end)
         error("No particles found at the specified beam_end_x coordinate.")
     end
@@ -101,22 +102,6 @@ for res in resolution
     closest_to_median_index = argmin(abs.(y_coords_at_plate_end .- median_y))
     middle_particle_id = point_ids[closest_to_median_index]
 
-    # ==========================================================================================
-    # ==== Simulation
-    semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
-    ode = semidiscretize(semi, tspan)
-
-    # function particle_position_x(particle_id, t, v, u, system)
-    #     return system.current_coordinates[1, particle_id]
-    # end
-
-    # function particle_position_y(particle_id, t, v, u, system)
-    #     return system.current_coordinates[2, particle_id]
-    # end
-
-    # mid_point_x = (t, v, u, system) -> particle_position_x(middle_particle_id, t, v, u, system)
-    # mid_point_y = (t, v, u, system) -> particle_position_y(middle_particle_id, t, v, u, system)
-
     function mid_point_x(t, v, u, system)
         return system.current_coordinates[1, middle_particle_id]
     end
@@ -126,13 +111,19 @@ for res in resolution
     end
 
     pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.01,
-                                      output_directory="validation/oscillating_beam_2d",
-                                      filename="validation_reference_oscillating_beam_2d_" *
+                                      output_directory="out",
+                                      filename="validation_run_oscillating_beam_2d_" *
                                                string(res), write_csv=false)
     info_callback = InfoCallback(interval=2500)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_" * string(res))
 
     callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
+
+    # ==========================================================================================
+    # ==== Simulation
+
+    semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
+    ode = semidiscretize(semi, tspan)
 
     sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dtmax=1e-3,
                 save_everystep=false, callback=callbacks)
