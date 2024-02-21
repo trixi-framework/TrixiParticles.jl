@@ -40,64 +40,38 @@ key_pattern_x = r"mid_point_x_solid_\d+"
 key_pattern_y = r"mid_point_y_solid_\d+"
 
 for file_name in input_files
-    println("Loading the input file: " * file_name)
+    println("Loading the input file: $file_name")
     json_data = JSON.parsefile(file_name)
 
-    local resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
+    resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
     particle_spacing = elastic_plate.thickness / resolution
 
-    # Find matching keys and plot data for each key
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
                                           keys(json_data))))
     matching_keys_y = sort(collect(filter(key -> occursin(key_pattern_y, key),
                                           keys(json_data))))
 
-    if length(matching_keys_x) == 0
-        error("No matching keys found in: " * file_name)
-    end
-
-    # calculate error compared to reference
-    mse_results_x = 0
-    mse_results_y = 0
-
-    for key in matching_keys_x
-        data = json_data[key]
-        values = data["values"]
-        initial_position = values[1]
-        displacements = [value - initial_position for value in values]
-        mse_results_x = calculate_mse(dx_data, data["time"], displacements)
-    end
-
-    for key in matching_keys_y
-        data = json_data[key]
-        values = data["values"]
-        initial_position = values[1]
-        displacements = [value - initial_position for value in values]
-        mse_results_y = calculate_mse(dy_data, data["time"], displacements)
-    end
+    isempty(matching_keys_x) && error("No matching keys found in: $file_name")
 
     label_prefix = occursin("reference", file_name) ? "Reference" : ""
 
-    # Plot x-axis displacements
-    for key in matching_keys_x
-        data = json_data[key]
-        times = data["time"]
-        values = data["values"]
-        initial_position = values[1]
-        displacements = [value - initial_position for value in values]
-        ax1.plot(times, displacements,
-                 label="$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_x))")
-    end
+    # Calculate MSE results and plot for both X and Y displacements
+    for (matching_keys, ax) in ((matching_keys_x, ax1), (matching_keys_y, ax2))
+        mse_results = 0
+        for key in matching_keys
+            data = json_data[key]
+            values = data["values"]
+            initial_position = values[1]
+            displacements = [value - initial_position for value in values]
+            times = data["time"]
 
-    # Plot y-axis displacements
-    for key in matching_keys_y
-        data = json_data[key]
-        times = data["time"]
-        values = data["values"]
-        initial_position = values[1]
-        displacements = [value - initial_position for value in values]
-        ax2.plot(times, displacements,
-                 label="$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_y))")
+            mse_results = occursin(key_pattern_x, key) ?
+                          calculate_mse(dx_data, times, displacements) :
+                          calculate_mse(dy_data, times, displacements)
+
+            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
+            ax.plot(times, displacements, label=label)
+        end
     end
 end
 
