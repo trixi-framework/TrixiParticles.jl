@@ -4,7 +4,8 @@ using TrixiParticles
 using JSON
 
 trixi_include(@__MODULE__,
-              joinpath(validation_dir(), "oscillating_beam_2d", "validation_oscillating_beam_2d.jl"),
+              joinpath(validation_dir(), "oscillating_beam_2d",
+                       "validation_oscillating_beam_2d.jl"),
               resolution=[9])
 
 reference_file_name = "validation/oscillating_beam_2d/validation_reference_oscillating_beam_2d_9.json"

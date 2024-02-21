@@ -40,7 +40,7 @@ function extract_number(filename)
     end
 end
 
-function find_and_compare_values(ref_data, run_data, errors = [])
+function find_and_compare_values(ref_data, run_data, errors=[])
     if isa(ref_data, Dict) && isa(run_data, Dict)
         for key in keys(ref_data)
             if key == "values" && haskey(run_data, key)
