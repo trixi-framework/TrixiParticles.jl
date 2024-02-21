@@ -25,9 +25,11 @@ dx_data.displacement = dx_data.displacement .+ 0.00005
 dy_data.displacement = dy_data.displacement .- 0.001
 
 # Get the list of JSON files
-json_files = glob("validation_reference_oscillating_beam_2d_*.json", "validation/oscillating_beam_2d/")
+json_files = glob("validation_reference_oscillating_beam_2d_*.json",
+                  "validation/oscillating_beam_2d/")
+json_files = sort(json_files, by=extract_number)
 
-if length(json_files)==0
+if length(json_files) == 0
     error("No files found")
 end
 
@@ -38,12 +40,13 @@ fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
 key_pattern_x = r"mid_point_x_solid_\d+"
 key_pattern_y = r"mid_point_y_solid_\d+"
 
-
 for json_file in json_files
+    println(json_file)
     json_data = JSON.parsefile(json_file)
 
     local resolution = parse(Int, split(split(json_file, "_")[end], ".")[1])
-    particle_spacing = cylinder_diameter / resolution
+    #particle_spacing = cylinder_diameter / resolution
+    particle_spacing = elastic_plate_thickness / resolution
 
     # Find matching keys and plot data for each key
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
@@ -51,8 +54,8 @@ for json_file in json_files
     matching_keys_y = sort(collect(filter(key -> occursin(key_pattern_y, key),
                                           keys(json_data))))
 
-    if length(matching_keys_x)!= 1
-        error("Not matching keys found in: " * json_file)
+    if length(matching_keys_x) == 0
+        error("No matching keys found in: " * json_file)
     end
 
     # calculate error compared to reference
@@ -61,12 +64,18 @@ for json_file in json_files
 
     for key in matching_keys_x
         data = json_data[key]
-        mse_results_x = calculate_mse(dx_data, data)
+        values = data["values"]
+        initial_position = values[1]
+        displacements = [value - initial_position for value in values]
+        mse_results_x = calculate_mse(dx_data, data["time"], displacements)
     end
 
     for key in matching_keys_y
         data = json_data[key]
-        mse_results_y = calculate_mse(dy_data, data)
+        values = data["values"]
+        initial_position = values[1]
+        displacements = [value - initial_position for value in values]
+        mse_results_y = calculate_mse(dy_data, data["time"], displacements)
     end
 
     # Plot x-axis displacements
@@ -77,7 +86,7 @@ for json_file in json_files
         initial_position = values[1]
         displacements = [value - initial_position for value in values]
         ax1.plot(times, displacements,
-                 label="dp = $(particle_spacing) mse=$(@sprintf("%.5f", mse_results_x))")
+                 label="dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_x))")
     end
 
     # Plot y-axis displacements
@@ -88,7 +97,7 @@ for json_file in json_files
         initial_position = values[1]
         displacements = [value - initial_position for value in values]
         ax2.plot(times, displacements,
-                 label="dp = $(particle_spacing) mse=$(@sprintf("%.5f", mse_results_y))")
+                 label="dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_y))")
     end
 end
 
@@ -100,14 +109,14 @@ ax2.plot(dy_data.time, dy_data.displacement, label="Turek and Hron 2006", color=
 ax1.set_xlabel("Time [s]")
 ax1.set_ylabel("X Displacement")
 ax1.set_title("X-Axis Displacement")
-ax1.legend(loc="upper left", bbox_to_anchor=(1, 1))
+ax1.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1))
 
 ax2.set_xlabel("Time [s]")
 ax2.set_ylabel("Y Displacement")
 ax2.set_title("Y-Axis Displacement")
-ax2.legend(loc="upper left", bbox_to_anchor=(1, 1))
+ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.1))
 
-fig.subplots_adjust(right=0.7)
+#fig.subplots_adjust(right=0.5)
 fig.tight_layout()
 
 plotshow()

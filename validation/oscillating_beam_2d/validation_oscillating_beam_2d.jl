@@ -29,10 +29,12 @@ material_density = 1000.0
 E = 1.4e6
 nu = 0.4
 
-#resolution = [20, 50, 100]
-resolution = [20]
+#resolution = [9, 21, 35]
+resolution = [35]
 for res in resolution
-    particle_spacing = cylinder_diameter / res
+    #particle_spacing = cylinder_diameter / res
+    n_particles_y = res
+    particle_spacing = elastic_plate_thickness / (n_particles_y - 1)
 
     # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
     fixed_particles = SphereShape(particle_spacing, cylinder_radius + particle_spacing / 2,
@@ -45,8 +47,7 @@ for res in resolution
 
     # Beam and clamped particles
     n_particles_per_dimension = (round(Int, elastic_plate_length / particle_spacing) +
-                                 n_particles_clamp_x + 2,
-                                 round(Int, elastic_plate_thickness / particle_spacing) + 1)
+                                 n_particles_clamp_x + 1, n_particles_y)
 
     # Note that the `RectangularShape` puts the first particle half a particle spacing away
     # from the boundary, which is correct for fluids, but not for solids.
@@ -105,27 +106,29 @@ for res in resolution
     semi = Semidiscretization(solid_system, neighborhood_search=GridNeighborhoodSearch)
     ode = semidiscretize(semi, tspan)
 
-    function particle_position_x(particle_id, t, v, u, system)
-        return system.current_coordinates[1, particle_id]
-    end
+    # function particle_position_x(particle_id, t, v, u, system)
+    #     return system.current_coordinates[1, particle_id]
+    # end
 
-    function particle_position_y(particle_id, t, v, u, system)
-        return system.current_coordinates[2, particle_id]
-    end
+    # function particle_position_y(particle_id, t, v, u, system)
+    #     return system.current_coordinates[2, particle_id]
+    # end
 
     # mid_point_x = (t, v, u, system) -> particle_position_x(middle_particle_id, t, v, u, system)
     # mid_point_y = (t, v, u, system) -> particle_position_y(middle_particle_id, t, v, u, system)
 
     function mid_point_x(t, v, u, system)
-        particle_position_x(middle_particle_id, t, v, u, system)
+        return system.current_coordinates[1, middle_particle_id]
     end
 
     function mid_point_y(t, v, u, system)
-        particle_position_y(middle_particle_id, t, v, u, system)
+        return system.current_coordinates[2, middle_particle_id]
     end
 
-    pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.025, output_directory="validation/oscillating_beam_2d",
-                                      filename="validation_reference_oscillating_beam_2d_" * string(res), write_csv=false)
+    pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.01,
+                                      output_directory="validation/oscillating_beam_2d",
+                                      filename="validation_reference_oscillating_beam_2d_" *
+                                               string(res), write_csv=false)
     info_callback = InfoCallback(interval=2500)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_" * string(res))
 
