@@ -49,11 +49,10 @@ gate = RectangularShape(boundary_particle_spacing,
                         (initial_fluid_size[1], 0.0), density=fluid_density)
 
 # Movement of the gate according to the paper
-f_x(t) = 0.0
-f_y(t) = -285.115t^3 + 72.305t^2 + 0.1463t
+movement_function(t) = SVector{2}(0.0, -285.115t^3 + 72.305t^2 + 0.1463t)
 is_moving(t) = t < 0.1
 
-gate_movement = BoundaryMovement((f_x, f_y), is_moving)
+gate_movement = BoundaryMovement(movement_function, is_moving)
 
 # Elastic plate/beam
 length_beam = 0.09
