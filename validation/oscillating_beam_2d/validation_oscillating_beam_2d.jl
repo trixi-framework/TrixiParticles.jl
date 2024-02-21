@@ -18,42 +18,37 @@ using OrdinaryDiffEq
 gravity = 2.0
 tspan = (0.0, 10.0)
 
-elastic_plate_length = 0.35
-elastic_plate_thickness = 0.02
-
+elastic_plate = (length=0.35, thickness=0.02)
 cylinder_radius = 0.05
-cylinder_diameter = 2 * cylinder_radius
-material_density = 1000.0
 
-E = 1.4e6
-nu = 0.4
+material = (density=1000.0, E=1.4e6, nu=0.4)
 
 #resolution = [9, 21, 35]
 resolution = [9]
 for res in resolution
-    n_particles_y = res
-    particle_spacing = elastic_plate_thickness / (n_particles_y - 1)
+    particle_spacing = elastic_plate.thickness / (res - 1)
 
     # Add particle_spacing/2 to the clamp_radius to ensure that particles are also placed on the radius
     fixed_particles = SphereShape(particle_spacing, cylinder_radius + particle_spacing / 2,
-                                  (0.0, elastic_plate_thickness / 2), material_density,
+                                  (0.0, elastic_plate.thickness / 2), material.density,
                                   cutout_min=(0.0, 0.0),
-                                  cutout_max=(cylinder_radius, elastic_plate_thickness),
+                                  cutout_max=(cylinder_radius, elastic_plate.thickness),
                                   tlsph=true)
 
     n_particles_clamp_x = round(Int, cylinder_radius / particle_spacing)
 
-    # Beam and clamped particles
-    n_particles_per_dimension = (round(Int, elastic_plate_length / particle_spacing) +
-                                 n_particles_clamp_x + 1, n_particles_y)
+    # Plate and clamped particles
+    n_particles_per_dimension = (round(Int, elastic_plate.length / particle_spacing) +
+                                 n_particles_clamp_x + 1, res)
 
     # Note that the `RectangularShape` puts the first particle half a particle spacing away
     # from the boundary, which is correct for fluids, but not for solids.
     # We therefore need to pass `tlsph=true`.
-    elastic_plate = RectangularShape(particle_spacing, n_particles_per_dimension,
-                                     (0.0, 0.0), density=material_density, tlsph=true)
+    elastic_plate_particles = RectangularShape(particle_spacing, n_particles_per_dimension,
+                                               (0.0, 0.0), density=material.density,
+                                               tlsph=true)
 
-    solid = union(elastic_plate, fixed_particles)
+    solid = union(elastic_plate_particles, fixed_particles)
 
     # ==========================================================================================
     # ==== Solid
@@ -63,7 +58,7 @@ for res in resolution
 
     solid_system = TotalLagrangianSPHSystem(solid,
                                             smoothing_kernel, smoothing_length,
-                                            E, nu,
+                                            material.E, material.nu,
                                             n_fixed_particles=nparticles(fixed_particles),
                                             acceleration=(0.0, -gravity),
                                             penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
@@ -72,7 +67,7 @@ for res in resolution
     # ==== Postprocessing Setup
 
     # find points at the end of elastic plate
-    plate_end_x = elastic_plate_length + cylinder_radius
+    plate_end_x = elastic_plate.length + cylinder_radius
     point_ids = []
     for particle in TrixiParticles.eachparticle(solid_system)
         particle_coord = solid_system.current_coordinates[:, particle]
