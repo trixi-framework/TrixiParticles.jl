@@ -32,7 +32,8 @@ end
     BoundaryMovement(movement_function, is_moving)
 
 # Arguments
-- `movement_function`: Tuple containing a time dependent function in each dimension
+- `movement_function`: Time dependent function in each dimension.
+                       It is recommended to use `SVector`s as return value.
 - `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
     boolean return value is mandatory to determine if the neighborhood search will be updated.
 
@@ -42,11 +43,10 @@ the time is lower than `1.5`.
 
 # Examples
 ```julia
-f_x(t) = cos(2pi*t)
-f_y(t) = sin(2pi*t)
+movement_function(t) = TrixiParticles.SVector{2}(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
-movement = BoundaryMovement((f_x, f_y), is_moving)
+movement = BoundaryMovement(movement_function, is_moving)
 ```
 """
 struct BoundaryMovement{MF, IM}
@@ -54,6 +54,10 @@ struct BoundaryMovement{MF, IM}
     is_moving         :: IM
 
     function BoundaryMovement(movement_function, is_moving)
+        if !(typeof(movement_function(0.0)) <: SVector)
+            @warn "return value of `movement_function` is not of type SVector"
+        end
+
         return new{typeof(movement_function), typeof(is_moving)}(movement_function,
                                                                  is_moving)
     end

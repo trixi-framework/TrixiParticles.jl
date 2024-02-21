@@ -13,7 +13,7 @@ boundary_layers = 3
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (1.0, 0.9)
@@ -62,7 +62,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
+info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)
