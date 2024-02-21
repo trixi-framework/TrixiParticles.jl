@@ -13,7 +13,6 @@ boundary_layers = 3
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 9.81
 tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
@@ -29,12 +28,11 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        n_layers=boundary_layers, spacing_ratio=1.0)
 
 # Function for moving boundaries
-f_y(t) = 0.5 * gravity * t^2
-f_x(t) = 0.0
+movement_function(t) = TrixiParticles.SVector{2}(0.0, 0.5 * 9.81 * t^2)
 
 is_moving(t) = true
 
-boundary_movement = BoundaryMovement((f_x, f_y), is_moving)
+boundary_movement = BoundaryMovement(movement_function, is_moving)
 
 # ==========================================================================================
 # ==== Fluid

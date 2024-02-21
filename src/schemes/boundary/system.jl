@@ -96,21 +96,21 @@ timer_name(::BoundarySPHSystem) = "boundary"
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
     (; movement_function, is_moving) = movement
-    (; acceleration, velocity, initial_coordinates) = cache
+    (; acceleration, velocity) = cache
 
     system.ismoving[1] = is_moving(t)
 
     is_moving(t) || return system
 
     for particle in eachparticle(system)
-        for i in 1:ndims(system)
-            coordinates[i, particle] = movement_function[i](t) +
-                                       initial_coordinates[i, particle]
+        pos_new = initial_coords(system, particle) + movement_function(t)
+        vel = ForwardDiff.derivative(movement_function, t)
+        acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
 
-            velocity[i, particle] = ForwardDiff.derivative(movement_function[i], t)
-            acceleration[i, particle] = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function[i],
-                                                                                            t_),
-                                                               t)
+        for i in 1:ndims(system)
+            coordinates[i, particle] = pos_new[i]
+            velocity[i, particle] = vel[i]
+            acceleration[i, particle] = acc[i]
         end
     end
 
@@ -126,6 +126,8 @@ end
 @inline function nparticles(system::BoundarySPHSystem)
     length(system.boundary_model.hydrodynamic_mass)
 end
+
+@inline initial_coordinates(system::BoundarySPHSystem) = system.cache.initial_coordinates
 
 # No particle positions are advanced for boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
