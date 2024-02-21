@@ -16,8 +16,8 @@ end
 @inline viscosity_model(system::FluidSystem) = system.viscosity
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
-    (; smoothing_length, state_equation, viscosity, acceleration) = system
-    (; sound_speed) = state_equation
+    (; smoothing_length, viscosity, acceleration) = system
+    sound_speed = system_sound_speed(system)
 
     dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
 

@@ -6,8 +6,8 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction) = particle_system
-    (; sound_speed) = state_equation
+    (; density_calculator, correction) = particle_system
+    sound_speed = system_sound_speed(particle_system)
 
     viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -116,8 +116,8 @@ end
     distance < sqrt(eps()) && return
 
     (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
-    (; sound_speed) = state_equation
+    (; smoothing_length) = particle_system
+    sound_speed = system_sound_speed(particle_system)
 
     volume_b = m_b / rho_b
 

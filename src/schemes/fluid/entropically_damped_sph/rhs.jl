@@ -26,16 +26,12 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        volume_a = m_a / rho_a
-        volume_b = m_b / rho_b
-        volume_term = (volume_a^2 + volume_b^2) / m_a
-
-        # Inter-particle averaged pressure
-        pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
-
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-        dv_pressure = -volume_term * pressure_tilde * grad_kernel
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, 1.0,
+                                            particle_system.correction)
 
         dv_viscosity = viscosity(particle_system, neighbor_system,
                                  v_particle_system, v_neighbor_system,
@@ -79,4 +75,18 @@ end
     dv[end, particle] += artificial_eos + damping_term
 
     return dv
+end
+
+@inline function pressure_acceleration(particle_system::EntropicallyDampedSPHSystem,
+                                       neighbor_system, neighbor,
+                                       m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                       distance, W_a, pressure_correction, correction)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    # Inter-particle averaged pressure
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    return -volume_term * pressure_tilde * W_a
 end

@@ -59,11 +59,10 @@ end
 function interact!(dv, v_solid_system, u_solid_system,
                    v_fluid_system, u_fluid_system, neighborhood_search,
                    solid_system_a::TotalLagrangianSPHSystem,
-                   fluid_system_b::WeaklyCompressibleSPHSystem)
-    (; state_equation, correction) = fluid_system_b
-    (; sound_speed) = state_equation
+                   fluid_system_b::FluidSystem)
+    sound_speed = system_sound_speed(fluid_system_b)
 
-    # For viscous interaction with `WeaklyCompressibleSPHSystem`, use the viscosity model
+    # For viscous interaction with a `FluidSystem`, use the viscosity model
     # for the corresponding boundary model.
     viscosity = viscosity_model(solid_system_a)
 
@@ -132,7 +131,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::WeaklyCompressibleSPHSystem,
+                                      neighbor_system::FluidSystem,
                                       grad_kernel)
     return dv
 end

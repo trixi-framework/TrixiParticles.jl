@@ -68,6 +68,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
     viscosity          :: V
     nu_edac            :: ELTYPE
     acceleration       :: SVector{NDIMS, ELTYPE}
+    correction         :: Nothing
     source_terms       :: ST
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
@@ -138,6 +139,8 @@ end
 end
 
 @inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
+
+@inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
