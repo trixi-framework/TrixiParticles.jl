@@ -1,4 +1,5 @@
 using Interpolations
+using Statistics
 
 function calculate_mse(reference_data, simulation_time, simulation_values)
     interp_func = LinearInterpolation(simulation_time, simulation_values,
