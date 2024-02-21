@@ -46,7 +46,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
-                            particle, pos_diff, distance, sound_speed, volume_term, m_b,
+                            particle, pos_diff, distance, sound_speed, m_a, m_b,
                             p_a, p_b, rho_a, rho_b)
     end
 
@@ -54,9 +54,13 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 @inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
-                                     pos_diff, distance, sound_speed, volume_term, m_b,
+                                     pos_diff, distance, sound_speed, m_a, m_b,
                                      p_a, p_b, rho_a, rho_b)
     (; smoothing_length) = particle_system
+
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
 
     # EDAC pressure evolution
     pressure_diff = p_a - p_b
