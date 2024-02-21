@@ -131,7 +131,8 @@ end
     length(system.boundary_model.hydrodynamic_mass)
 end
 
-@inline initial_coordinates(system::BoundarySPHSystem) = initial_coordinates(system, system.movement)
+@inline initial_coordinates(system::BoundarySPHSystem) = initial_coordinates(system,
+                                                                             system.movement)
 @inline initial_coordinates(system::BoundarySPHSystem, movement) = system.coordinates
 @inline initial_coordinates(system::BoundarySPHSystem, ::BoundaryMovement) = system.cache.initial_coordinates
 
