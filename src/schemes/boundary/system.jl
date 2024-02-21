@@ -34,7 +34,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 end
 
 """
-    BoundaryMovement(movement_function, is_moving)
+    BoundaryMovement(movement_function, is_moving; moving_particles=[])
 
 # Arguments
 - `movement_function`: Time dependent function in each dimension. It is recommended to use
@@ -42,6 +42,8 @@ end
 - `is_moving`: Function to determine in each timestep if the particles are moving or not. Its
     boolean return value is mandatory to determine if the neighborhood search will be updated.
 
+# Keyword Arguments
+- `moving_particles`: Indices of moving particles. Default is each particle in `BoundarySPHSystem`.
 
 In the example below, `movement` describes particles moving in a circle as long as
 the time is lower than `1.5`.
