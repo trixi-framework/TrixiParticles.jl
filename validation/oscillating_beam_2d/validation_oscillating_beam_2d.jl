@@ -23,8 +23,8 @@ cylinder_radius = 0.05
 
 material = (density=1000.0, E=1.4e6, nu=0.4)
 
-#resolution = [9, 21, 35]
-resolution = [9]
+# for the brave add 35
+resolution = [9, 21]
 for res in resolution
     particle_spacing = elastic_plate.thickness / (res - 1)
 

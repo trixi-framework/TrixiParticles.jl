@@ -39,3 +39,31 @@ function extract_number(filename)
         return -1
     end
 end
+
+function find_and_compare_values(ref_data, run_data, errors = [])
+    if isa(ref_data, Dict) && isa(run_data, Dict)
+        for key in keys(ref_data)
+            if key == "values" && haskey(run_data, key)
+                ref_values = ref_data[key]
+                run_values = run_data[key]
+                if isa(ref_values, Array) && isa(run_values, Array)
+                    for (ref_value, run_value) in zip(ref_values, run_values)
+                        if isa(ref_value, Number) && isa(run_value, Number)
+                            push!(errors, (ref_value - run_value)^2)
+                        else
+                            println("Non-numeric data encountered under 'values' key.")
+                        end
+                    end
+                end
+            elseif haskey(run_data, key)
+                # Recursively search for "values" keys in nested dictionaries
+                find_and_compare_values(ref_data[key], run_data[key], errors)
+            end
+        end
+    end
+    return errors
+end
+
+function calculate_error(ref_data, run_data)
+    return sum(find_and_compare_values(ref_data, run_data))
+end
