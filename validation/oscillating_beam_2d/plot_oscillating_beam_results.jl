@@ -8,12 +8,7 @@ using DataFrames
 using Statistics
 using Printf
 
-elastic_plate_length = 0.35
-elastic_plate_thickness = 0.02
-
-cylinder_radius = 0.05
-cylinder_diameter = 2 * cylinder_radius
-material_density = 1000.0
+elastic_plate = (length=0.35, thickness=0.02)
 
 # Load the reference simulation data
 dx_data = CSV.read("validation/oscillating_beam_2d/Turek_dx_T.csv", DataFrame)
@@ -25,13 +20,17 @@ dx_data.displacement = dx_data.displacement .+ 0.00005
 dy_data.displacement = dy_data.displacement .- 0.001
 
 # Get the list of JSON files
-json_files = glob("validation_reference_oscillating_beam_2d_*.json",
-                  "validation/oscillating_beam_2d/")
-json_files = sort(json_files, by=extract_number)
+reference_files = glob("validation_reference_oscillating_beam_2d_*.json",
+                       "validation/oscillating_beam_2d/")
 
-if length(json_files) == 0
+if length(reference_files) == 0
     error("No files found")
 end
+
+simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
+merged_files = vcat(reference_files, simulation_files)
+
+input_files = sort(merged_files, by=extract_number)
 
 # Create subplots
 fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
@@ -40,13 +39,12 @@ fig, (ax1, ax2) = subplots(1, 2, figsize=(12, 5))
 key_pattern_x = r"mid_point_x_solid_\d+"
 key_pattern_y = r"mid_point_y_solid_\d+"
 
-for json_file in json_files
-    println(json_file)
-    json_data = JSON.parsefile(json_file)
+for file_name in input_files
+    println("Loading the input file: " * file_name)
+    json_data = JSON.parsefile(file_name)
 
-    local resolution = parse(Int, split(split(json_file, "_")[end], ".")[1])
-    #particle_spacing = cylinder_diameter / resolution
-    particle_spacing = elastic_plate_thickness / resolution
+    local resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
+    particle_spacing = elastic_plate.thickness / resolution
 
     # Find matching keys and plot data for each key
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
@@ -55,7 +53,7 @@ for json_file in json_files
                                           keys(json_data))))
 
     if length(matching_keys_x) == 0
-        error("No matching keys found in: " * json_file)
+        error("No matching keys found in: " * file_name)
     end
 
     # calculate error compared to reference
@@ -78,6 +76,8 @@ for json_file in json_files
         mse_results_y = calculate_mse(dy_data, data["time"], displacements)
     end
 
+    label_prefix = occursin("reference", file_name) ? "Reference" : ""
+
     # Plot x-axis displacements
     for key in matching_keys_x
         data = json_data[key]
@@ -86,7 +86,7 @@ for json_file in json_files
         initial_position = values[1]
         displacements = [value - initial_position for value in values]
         ax1.plot(times, displacements,
-                 label="dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_x))")
+                 label="$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_x))")
     end
 
     # Plot y-axis displacements
@@ -97,7 +97,7 @@ for json_file in json_files
         initial_position = values[1]
         displacements = [value - initial_position for value in values]
         ax2.plot(times, displacements,
-                 label="dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_y))")
+                 label="$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results_y))")
     end
 end
 
