@@ -22,6 +22,11 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 
         cache = create_cache_boundary(movement, initial_condition)
 
+        if movement !== nothing && isempty(movement.each_moving_particles)
+            resize!(movement.each_moving_particles, nparticles(initial_condition))
+            movement.each_moving_particles .= collect(1:nparticles(initial_condition))
+        end
+
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, cache)
@@ -50,16 +55,17 @@ movement = BoundaryMovement(movement_function, is_moving)
 ```
 """
 struct BoundaryMovement{MF, IM}
-    movement_function :: MF
-    is_moving         :: IM
+    movement_function     :: MF
+    is_moving             :: IM
+    each_moving_particles :: Vector{Int}
 
-    function BoundaryMovement(movement_function, is_moving)
+    function BoundaryMovement(movement_function, is_moving; moving_particles=[])
         if !(typeof(movement_function(0.0)) <: SVector)
             @warn "return value of `movement_function` is not of type SVector"
         end
 
-        return new{typeof(movement_function), typeof(is_moving)}(movement_function,
-                                                                 is_moving)
+        return new{typeof(movement_function),
+                   typeof(is_moving)}(movement_function, is_moving, vec(moving_particles))
     end
 end
 
@@ -67,8 +73,8 @@ create_cache_boundary(::Nothing, initial_condition) = (;)
 
 function create_cache_boundary(::BoundaryMovement, initial_condition)
     initial_coordinates = copy(initial_condition.coordinates)
-    velocity = similar(initial_condition.velocity)
-    acceleration = similar(initial_condition.velocity)
+    velocity = zero(initial_condition.velocity)
+    acceleration = zero(initial_condition.velocity)
     return (; initial_coordinates, velocity, acceleration)
 end
 
@@ -99,14 +105,14 @@ timer_name(::BoundarySPHSystem) = "boundary"
 
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
-    (; movement_function, is_moving) = movement
+    (; movement_function, is_moving, each_moving_particles) = movement
     (; acceleration, velocity) = cache
 
     system.ismoving[1] = is_moving(t)
 
     is_moving(t) || return system
 
-    @threaded for particle in eachparticle(system)
+    @threaded for particle in each_moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
