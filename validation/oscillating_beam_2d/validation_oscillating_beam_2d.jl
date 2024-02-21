@@ -84,7 +84,7 @@ for res in resolution
 
     # of those find the particle in the middle
     y_coords_at_plate_end = [solid_system.current_coordinates[2, particle]
-                                for particle in point_ids]
+                             for particle in point_ids]
     if isempty(y_coords_at_plate_end)
         error("No particles found at the specified beam_end_x coordinate.")
     end
