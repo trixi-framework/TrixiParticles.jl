@@ -7,16 +7,19 @@ using Glob
 #using GLMakie
 using CairoMakie
 
+# Initial width of the fluid
+W=2.0
+
 normalization_factor_time = sqrt(9.81 / 0.6)
 normalization_factor_pressure = 1000 * 9.81
 
 sensor_data = Dict("P1" => [], "P2" => [], "P3" => [])
 
-json_files = glob("dam_break_*.json", "validation/dam_break_2d/")
+json_files = glob("validation_reference_dam_break_*.json", "validation/dam_break_2d/")
 
 fig = Figure(size=(1200, 800))
 axs = [Axis(fig[1, i], title="Sensor P$i") for i in 1:3]
-ax_max_x = Axis(fig[3, 1], title = "Fluid Progress")
+ax_max_x = Axis(fig[3, 1], title = "Surge Front")
 
 # Set common axis labels and limits
 for ax in axs
@@ -27,9 +30,9 @@ for ax in axs
 end
 
 ax_max_x.xlabel = "Time"
-ax_max_x.ylabel = "Fluid Progress"
+ax_max_x.ylabel = "Surge Front"
 xlims!(ax_max_x, 0.0, 3.0)
-ylims!(ax_max_x, 2, 6)
+ylims!(ax_max_x, 1, 3.5)
 
 # Define a regex to extract the sensor number from the key names
 sensor_number_regex = r"pressure_P(\d+)_fluid_\d+"
@@ -56,7 +59,7 @@ for json_file in json_files
     if haskey(json_data, "max_x_coord_fluid_1")
         value = json_data["max_x_coord_fluid_1"]
         time = value["time"] .* normalization_factor_time
-        values = Float64.(value["values"])
+        values = Float64.(value["values"]) ./ W
         lines!(ax_max_x, time, values,
         label="dp="*convert_to_float(split(replace(basename(json_file),
                                              ".json" => ""), "_")[end]))
