@@ -29,6 +29,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
+- `save_times=[]`               List of times at which to save a solution
 
 # Examples
 ```julia
@@ -61,6 +62,7 @@ struct SolutionSavingCallback{I, CQ}
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Vector{Int}
+    save_times            :: Array{Float64, 1}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -68,9 +70,11 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=Float64(2^15), custom_quantities...)
-    if dt > 0 && interval > 0
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
+                                max_coordinates=Float64(2^15),
+                                save_times=Array{Float64, 1}([]),
+                                custom_quantities...)
+    if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
+        throw(ArgumentError("Setting multiple save times for the same solution callback is not possible. Set either `dt`, `interval` or `save_times`."))
     end
 
     if dt > 0
@@ -85,9 +89,11 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               [-1])
+                                               [-1], save_times)
 
-    if dt > 0
+    if length(save_times) > 0
+        return PresetTimeCallback(save_times, solution_callback)
+    elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(solution_callback, dt,
                                 initialize=initialize_save_cb!,

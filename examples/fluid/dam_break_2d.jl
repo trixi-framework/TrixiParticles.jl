@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.025
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 3
@@ -21,7 +21,9 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-scaled_gravity = 9.81/0.6
+
+# the height in the orginal paper is 0.6 so to scale to height of 1.0 we need to divide by 0.6
+scaled_gravity = 9.81 / 0.6
 tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Boundary geometry and initial fluid particle positions
@@ -44,14 +46,14 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-#density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -scaled_gravity), correction=nothing)
+                                           acceleration=(0.0, -scaled_gravity),
+                                           correction=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -70,15 +72,27 @@ semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+
+solution_prefix = ""
+saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+
+# save at certain timepoints which allows comparison to the results to the Marrone et al. paper
+# i.e. (1.5, 2.36, 3.0, 5.7, 6.45)
+# Please note that the images in Marrone et al. are obtained at a particle_spacing = 0.003125
+# which takes between 4 and 6 hours
+saving_paper = SolutionSavingCallback(save_times=[0.371, 0.584, 0.743, 1.411, 1.597],
+                                      prefix="marrone_times")
+
 pp_callback = nothing
 
 use_reinit = false
-density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
+density_reinit_cb = use_reinit ?
+                    DensityReinitializationCallback(semi.systems[1], interval=10) :
                     nothing
-stepsize_callback = StepsizeCallback(cfl=1.1)
+stepsize_callback = use_reinit ? StepsizeCallback(cfl=0.9) : StepsizeCallback(cfl=1.1)
 
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, pp_callback)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, pp_callback,
+                        density_reinit_cb, saving_paper)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback

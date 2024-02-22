@@ -67,3 +67,22 @@ end
 function calculate_error(ref_data, run_data)
     return sum(find_and_compare_values(ref_data, run_data))
 end
+
+function convert_to_float(str)
+    # Remove leading zeros and count them
+    leading_zeros = length(match(r"^0*", str).match)
+    str_non_zero = replace(str, r"^0*" => "")
+
+    if isempty(str_non_zero)
+        return 0.0
+    end
+
+    # Adjust string to have a decimal point at the correct position
+    if leading_zeros > 0
+        decimal_str = "0." * "0"^(leading_zeros - 1) * str_non_zero
+    else
+        decimal_str = str_non_zero
+    end
+
+    return string(parse(Float64, decimal_str))
+end
