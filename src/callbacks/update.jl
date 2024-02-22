@@ -11,7 +11,7 @@ regular intervals at `dt` in terms of integration time.
 
 # Keywords
 - `update`: Callback is only applied when `true` (default)
-- `interval`: Update quantities at the end of every `interval` time steps (default `inverval=1`)
+- `interval`: Update quantities at the end of every `interval` time steps (default `interval=1`)
 - `dt`: Update quantities in regular intervals of `dt` in terms of integration time
 """
 function UpdateCallback(; update=true, interval::Integer=-1, dt=0.0)
