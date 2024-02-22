@@ -94,7 +94,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                                                          NDIMS, ELTYPE,
                                                                          correction)
 
-        cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
+        cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
@@ -135,17 +135,6 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
 
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
-end
-
-function create_cache_wcsph(n_particles, ELTYPE, ::SummationDensity)
-    density = Vector{ELTYPE}(undef, n_particles)
-
-    return (; density)
-end
-
-function create_cache_wcsph(n_particles, ELTYPE, ::ContinuityDensity)
-    # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
-    return (;)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -212,18 +201,6 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                                                              system, semi)
 
     return system
-end
-
-function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
-    # No density update with `ContinuityDensity`
-    return system
-end
-
-function compute_density!(system, u, u_ode, semi, ::SummationDensity)
-    (; cache) = system
-    (; density) = cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, semi, u, u_ode, density)
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -320,31 +297,10 @@ end
     system.pressure[particle] = system.state_equation(density)
 end
 
-function write_v0!(v0, system::WeaklyCompressibleSPHSystem)
-    (; initial_condition, density_calculator) = system
-
-    for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
-        end
-    end
-
-    write_v0!(v0, density_calculator, system)
-
-    return v0
-end
-
-function write_v0!(v0, ::SummationDensity, system::WeaklyCompressibleSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::WeaklyCompressibleSPHSystem)
-    (; initial_condition) = system
-
+function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
     for particle in eachparticle(system)
         # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_condition.density[particle]
+        v0[end, particle] = system.initial_condition.density[particle]
     end
 
     return v0

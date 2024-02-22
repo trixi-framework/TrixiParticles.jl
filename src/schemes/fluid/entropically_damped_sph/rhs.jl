@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
-    (; sound_speed) = particle_system
+    (; sound_speed, density_calculator) = particle_system
     viscosity = viscosity_model(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
@@ -52,6 +52,10 @@ function interact!(dv, v_particle_system, u_particle_system,
         pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
                             particle, pos_diff, distance, sound_speed, volume_term, m_b,
                             p_a, p_b, rho_a, rho_b)
+
+        continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
+                             particle, neighbor, m_b, rho_a, rho_b,
+                             particle_system, neighbor_system, grad_kernel)
     end
 
     return dv
@@ -77,6 +81,28 @@ end
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
+
+    return dv
+end
+
+# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
+@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, m_b, rho_a, rho_b,
+                                      particle_system::EntropicallyDampedSPHSystem,
+                                      neighbor_system, grad_kernel)
+    vdiff = current_velocity(v_particle_system, particle_system, particle) -
+            current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    dv[end - 1, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+
+    return dv
+end
+@inline function continuity_equation!(dv, density_calculator,
+                                      v_particle_system, v_neighbor_system,
+                                      particle, neighbor, m_b, rho_a, rho_b,
+                                      particle_system::EntropicallyDampedSPHSystem,
+                                      neighbor_system, grad_kernel)
 
     return dv
 end

@@ -56,11 +56,10 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST, C} <:
        FluidSystem{NDIMS}
     initial_condition  :: InitialCondition{ELTYPE}
     mass               :: Array{ELTYPE, 1} # [particle]
-    density            :: Array{ELTYPE, 1} # [particle]
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
@@ -69,10 +68,12 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
     nu_edac            :: ELTYPE
     acceleration       :: SVector{NDIMS, ELTYPE}
     source_terms       :: ST
+    cache              :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
                                          alpha=0.5, viscosity=NoViscosity(),
+                                         density_calculator=SummationDensity(),
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing)
@@ -80,7 +81,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
-        density = copy(initial_condition.density)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -93,13 +93,13 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
 
         nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
-        density_calculator = SummationDensity()
+        cache = create_cache_density(initial_condition, density_calculator)
 
         new{NDIMS, ELTYPE, typeof(density_calculator),
-            typeof(smoothing_kernel), typeof(viscosity),
-            typeof(source_terms)}(initial_condition, mass, density, density_calculator,
-                                  smoothing_kernel, smoothing_length, sound_speed,
-                                  viscosity, nu_edac, acceleration_, source_terms)
+            typeof(smoothing_kernel), typeof(viscosity), typeof(source_terms),
+            typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
+                           smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
+                           source_terms, cache)
     end
 end
 
@@ -129,29 +129,43 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
     end
 end
 
-@inline function particle_density(v, system::EntropicallyDampedSPHSystem, particle)
-    return system.density[particle]
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem)
+    return v_nvariables(system, system.density_calculator)
+end
+
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem, density_calculator)
+    return ndims(system) + 1
+end
+
+@inline function v_nvariables(system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
+    return ndims(system) + 2
+end
+
+@inline function particle_density(v, ::ContinuityDensity,
+                                  system::EntropicallyDampedSPHSystem, particle)
+    return v[end - 1, particle]
 end
 
 @inline function particle_pressure(v, system::EntropicallyDampedSPHSystem, particle)
     return v[end, particle]
 end
 
-@inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
-
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
-    summation_density!(system, semi, u, u_ode, system.density)
+    compute_density!(system, u, u_ode, semi, system.density_calculator)
 end
 
-function write_v0!(v0, system::EntropicallyDampedSPHSystem)
-    (; initial_condition) = system
-
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, density_calculator)
     for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
-        end
+        v0[end, particle] = system.initial_condition.pressure[particle]
+    end
+
+    return v0
+end
+
+function write_v0!(v0, system::EntropicallyDampedSPHSystem, ::ContinuityDensity)
+    for particle in eachparticle(system)
+        v0[end - 1, particle] = system.initial_condition.density[particle]
         v0[end, particle] = system.initial_condition.pressure[particle]
     end
 

@@ -78,7 +78,9 @@ function interact!(dv, v_particle_system, u_particle_system,
 end
 
 # With 'SummationDensity', density is calculated in wcsph/system.jl:compute_density!
-@inline function continuity_equation!(dv, density_calculator::SummationDensity,
+@inline function continuity_equation!(dv,
+                                      density_calculator::Union{SummationDensity,
+                                                                ConstantDensity},
                                       v_particle_system, v_neighbor_system,
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
