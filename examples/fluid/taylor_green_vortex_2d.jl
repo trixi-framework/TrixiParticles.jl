@@ -142,7 +142,7 @@ saving_callback = SolutionSavingCallback(dt=0.02,
                                          p_avg=average_pressure,
                                          t=time_vector)
 
-callbacks = CallbackSet(info_callback, saving_callback, UpdateEachTimeStep())
+callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 # Enable threading of the RK method for better performance on multiple threads.
