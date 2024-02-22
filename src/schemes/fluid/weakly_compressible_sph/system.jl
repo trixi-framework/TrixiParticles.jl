@@ -8,8 +8,7 @@
 
 Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
 equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
-for small density variations. For the choice of the appropriate `density_calculator`
-see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
+for small density variations.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
@@ -26,7 +25,7 @@ see [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
                     See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
-- `correction`:     Correction method used for this system. (default: no correction)
+- `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
@@ -164,6 +163,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.acceleration)
+    print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -189,6 +189,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "density diffusion", system.density_diffusion)
         summary_line(io, "acceleration", system.acceleration)
+        summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
     end
 end
@@ -245,8 +246,7 @@ end
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
     (; density_calculator, correction) = system
 
-    compute_correction_values!(system,
-                               correction, v, u, v_ode, u_ode, semi, density_calculator)
+    compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
     compute_gradient_correction_matrix!(correction, system, u, v_ode, u_ode, semi)
 
@@ -310,7 +310,8 @@ function reinit_density!(system::WeaklyCompressibleSPHSystem, v, u,
 
     # Apply `ShepardKernelCorrection`
     kernel_correction_coefficient = zeros(size(v[end, :]))
-    compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi, kernel_correction_coefficient)
+    compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode, semi,
+                           kernel_correction_coefficient)
     v[end, :] ./= kernel_correction_coefficient
 
     compute_pressure!(system, v)
@@ -385,13 +386,6 @@ function restart_with!(system, ::ContinuityDensity, v, u)
     end
 
     return system
-end
-
-@inline function smoothing_kernel_grad(system::WeaklyCompressibleSPHSystem, pos_diff,
-                                       distance, particle)
-    return corrected_kernel_grad(system.smoothing_kernel, pos_diff, distance,
-                                 system.smoothing_length,
-                                 system.correction, system, particle)
 end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)

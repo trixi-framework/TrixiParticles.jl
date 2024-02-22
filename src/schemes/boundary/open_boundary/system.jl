@@ -125,6 +125,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
+vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function Base.show(io::IO, system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time

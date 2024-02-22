@@ -127,14 +127,8 @@ end
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
 
-    # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.stats.naccept`
-    #    (total #steps)       (#accepted steps)
-    # We need to check the number of accepted steps since callbacks are not
-    # activated after a rejected step.
-    return interval > 0 && (((integrator.stats.naccept % interval == 0) &&
-             !(integrator.stats.naccept == 0 && integrator.iter > 0)) ||
-            (save_final_solution && isfinished(integrator)))
+    return condition_integrator_interval(integrator, interval,
+                                         save_final_solution=save_final_solution)
 end
 
 # affect!
@@ -207,7 +201,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
-            "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
@@ -232,7 +226,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
-            "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)

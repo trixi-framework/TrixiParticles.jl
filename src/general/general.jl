@@ -1,12 +1,13 @@
 abstract type System{NDIMS} end
 
 abstract type FluidSystem{NDIMS} <: System{NDIMS} end
+timer_name(::FluidSystem) = "fluid"
 
 abstract type SolidSystem{NDIMS} <: System{NDIMS} end
+timer_name(::SolidSystem) = "solid"
 
 abstract type BoundarySystem{NDIMS} <: System{NDIMS} end
-
-timer_name(::FluidSystem) = "fluid"
+timer_name(::BoundarySystem) = "boundary"
 
 @inline function set_zero!(du)
     du .= zero(eltype(du))
@@ -24,3 +25,4 @@ include("initial_condition.jl")
 include("system.jl")
 include("interpolation.jl")
 include("buffer.jl")
+include("file_system.jl")

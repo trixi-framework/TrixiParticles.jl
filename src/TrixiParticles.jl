@@ -2,10 +2,13 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using CSV: CSV
 using Dates
+using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
+using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
@@ -41,14 +44,14 @@ export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
        BoundarySPHSystem, OpenBoundarySPHSystem, InFlow, OutFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
-       StepsizeCallback, UpdateCallback
+       PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity
 export PenaltyForceGanzenmueller
 export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole
-export ArtificialViscosityMonaghan, ViscosityAdami
+export ArtificialViscosityMonaghan, ViscosityAdami, NoViscosity
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
@@ -63,6 +66,8 @@ export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
 export nparticles
+export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
+       max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
 
 end # module

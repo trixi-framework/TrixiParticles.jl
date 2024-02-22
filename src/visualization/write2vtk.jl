@@ -33,12 +33,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     # still have the values from the last stage of the previous step if not updated here.
     update_systems_and_nhs(v_ode, u_ode, semi, t)
 
-    # Add `_i` to each system name, where `i` is the index of the corresponding
-    # system type.
-    # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
-    cnames = systems .|> vtkname
-    filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
-                 for i in eachindex(cnames)]
+    filenames = system_names(systems)
 
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
@@ -94,6 +89,11 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         # Store particle index
         vtk["index"] = active_particles(system)
         vtk["time"] = t
+
+        if write_meta_data
+            vtk["solver_version"] = get_git_hash()
+            vtk["julia_version"] = string(VERSION)
+        end
 
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities
@@ -157,11 +157,6 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
 
     return file
 end
-
-vtkname(system::FluidSystem) = "fluid"
-vtkname(system::TotalLagrangianSPHSystem) = "solid"
-vtkname(system::BoundarySPHSystem) = "boundary"
-vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
