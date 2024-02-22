@@ -1,8 +1,8 @@
 include("../validation_util.jl")
 
 # activate for interactive plot
-using GLMakie
-#using CairoMakie
+#using GLMakie
+using CairoMakie
 using CSV
 using DataFrames
 using JSON
