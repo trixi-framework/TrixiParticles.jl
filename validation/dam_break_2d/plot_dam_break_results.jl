@@ -2,6 +2,8 @@ include("../validation_util.jl")
 
 using Printf
 using JSON
+using CSV
+using DataFrames
 using Glob
 # activate for interactive plot
 #using GLMakie
@@ -16,6 +18,14 @@ normalization_factor_pressure = 1000 * 9.81
 sensor_data = Dict("P1" => [], "P2" => [], "P3" => [])
 
 json_files = glob("validation_reference_dam_break_*.json", "validation/dam_break_2d/")
+
+surge_front = CSV.read("validation/dam_break_2d/exp_surge_front.csv", DataFrame)
+
+exp_P1 = CSV.read("validation/dam_break_2d/exp_pressure_sensor_P1.csv", DataFrame)
+exp_P2 = CSV.read("validation/dam_break_2d/exp_pressure_sensor_P2.csv", DataFrame)
+
+sim_P1 = CSV.read("validation/dam_break_2d/sim_pressure_sensor_P1.csv", DataFrame)
+sim_P2 = CSV.read("validation/dam_break_2d/sim_pressure_sensor_P2.csv", DataFrame)
 
 fig = Figure(size=(1200, 800))
 axs = [Axis(fig[1, i], title="Sensor P$i") for i in 1:3]
@@ -32,7 +42,7 @@ end
 ax_max_x.xlabel = "Time"
 ax_max_x.ylabel = "Surge Front"
 xlims!(ax_max_x, 0.0, 3.0)
-ylims!(ax_max_x, 1, 3.5)
+ylims!(ax_max_x, 1, 3.0)
 
 # Define a regex to extract the sensor number from the key names
 sensor_number_regex = r"pressure_P(\d+)_fluid_\d+"
@@ -58,7 +68,7 @@ for json_file in json_files
     end
     if haskey(json_data, "max_x_coord_fluid_1")
         value = json_data["max_x_coord_fluid_1"]
-        time = value["time"] .* normalization_factor_time
+        time = value["time"] .* sqrt(9.81)
         values = Float64.(value["values"]) ./ W
         lines!(ax_max_x, time, values,
         label="dp="*convert_to_float(split(replace(basename(json_file),
@@ -67,9 +77,23 @@ for json_file in json_files
     global file_number += 1
 end
 
-for (i, ax) in enumerate(axs)
-    Legend(fig[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top)
-end
-Legend(fig[4, 1], ax_max_x, tellwidth = false, orientation=:horizontal, valign=:top)
+# Plot reference values
+scatter!(axs[1], exp_P1.time, exp_P1.P1, color=:black, marker=:utriangle, markersize=6,
+         label="Buchner 2002 (exp)")
+lines!(axs[1], sim_P1.time, sim_P1.h320, color=:red, linestyle=:dash, linewidth=3,
+         label="Marrone et al. 2011 (sim)")
+scatter!(axs[2], exp_P2.time, exp_P2.P2, color=:black, marker=:utriangle, markersize=6,
+         label="Buchner 2002 (exp)")
+lines!(axs[2], sim_P2.time, sim_P2.h320, color=:red, linestyle=:dash, linewidth=3,
+         label="Marrone et al. 2011 (sim)")
+scatter!(ax_max_x, surge_front.time, surge_front.surge_front, color=:black, marker=:utriangle, markersize=6,
+       label="Martin and Moyce 1952 (exp)")
 
-fig
+
+for (i, ax) in enumerate(axs)
+    Legend(fig[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
+end
+Legend(fig[4, 1], ax_max_x, tellwidth = false, orientation=:horizontal, valign=:top, nbanks=2)
+
+#fig
+save("dam_break_validation.svg", fig)

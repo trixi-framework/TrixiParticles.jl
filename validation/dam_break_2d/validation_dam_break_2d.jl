@@ -4,7 +4,7 @@ using TrixiParticles
 tspan = (0.0, 8.0 / sqrt(9.81))
 
 #resolutions = [0.025, 0.0125, 0.005, 0.003125]
-resolutions = [0.0125]
+resolutions = [0.005]
 
 H = 1.0
 sensor_size = 0.009 / 0.6
