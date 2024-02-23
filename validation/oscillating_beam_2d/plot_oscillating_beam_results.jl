@@ -12,13 +12,7 @@ using Printf
 elastic_plate = (length=0.35, thickness=0.02)
 
 # Load the reference simulation data
-dx_data = CSV.read("validation/oscillating_beam_2d/Turek_dx_T.csv", DataFrame)
-dy_data = CSV.read("validation/oscillating_beam_2d/Turek_dy_T.csv", DataFrame)
-
-# Adjustments to data
-dx_data.time .+= 0.015
-dx_data.displacement .+= 0.00005
-dy_data.displacement .-= 0.001
+ref = CSV.read("validation/oscillating_beam_2d/oscillating_beam_l5_dt_005.csv", DataFrame)
 
 # Get the list of JSON files
 reference_files = glob("validation_reference_oscillating_beam_2d_*.json",
@@ -65,8 +59,8 @@ for file_name in input_files
             displacements = [v - initial_position for v in positions]
 
             mse_results = occursin(key_pattern_x, key) ?
-                          calculate_mse(dx_data, data["time"], displacements) :
-                          calculate_mse(dy_data, data["time"], displacements)
+                          calculate_mse(ref.time, ref.Ux, data["time"], displacements) :
+                          calculate_mse(ref.time, ref.Uy, data["time"], displacements)
 
             label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements, label=label)
@@ -75,9 +69,9 @@ for file_name in input_files
 end
 
 # Plot reference data
-lines!(ax1, dx_data.time, dx_data.displacement, color=:black, linestyle=:dash,
+lines!(ax1, ref.time, ref.Ux, color=:black, linestyle=:dash,
        label="Turek and Hron 2006")
-lines!(ax2, dy_data.time, dy_data.displacement, color=:black, linestyle=:dash,
+lines!(ax2, ref.time, ref.Uy, color=:black, linestyle=:dash,
        label="Turek and Hron 2006")
 
 legend_ax1 = Legend(fig[1, 2], ax1)
