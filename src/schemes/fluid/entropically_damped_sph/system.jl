@@ -122,7 +122,7 @@ function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
 
     print(io, "EntropicallyDampedSPHSystem{", ndims(system), "}(")
     print(io, system.density_calculator)
-    print(io,  ", ", system.viscosity)
+    print(io, ", ", system.viscosity)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.acceleration)
     print(io, ") with ", nparticles(system), " particles")
