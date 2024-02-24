@@ -183,7 +183,7 @@ end
 
     # This formulation was introduced by Hu and Adams (https://doi.org/10.1016/j.jcp.2005.09.001)
     # they argued that the formulation is more flexible because of the possibility to formulate
-    # different inter-particle averages or to assume different inter-particle distibutions.
+    # different inter-particle averages or to assume different inter-particle distributions.
     # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
     #
     # TODO: Is there a better formulation to discretize the Laplace operator?
