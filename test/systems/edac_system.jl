@@ -126,13 +126,14 @@
         system = EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                              smoothing_length, sound_speed)
 
-        show_compact = "EntropicallyDampedSPHSystem{2}(NoViscosity(), Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
+        show_compact = "EntropicallyDampedSPHSystem{2}(SummationDensity(), NoViscosity(), Val{:smoothing_kernel}(), [0.0, 0.0]) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ EntropicallyDampedSPHSystem{2}                                                                   │
         │ ══════════════════════════════                                                                   │
         │ #particles: ………………………………………………… 2                                                                │
+        │ density calculator: …………………………… SummationDensity                                                 │
         │ viscosity: …………………………………………………… NoViscosity                                                      │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
