@@ -56,22 +56,25 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
   In: Computers and Fluids 179 (2019), pages 579-594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST, C} <:
-       FluidSystem{NDIMS}
-    initial_condition  :: InitialCondition{ELTYPE}
-    mass               :: Array{ELTYPE, 1} # [particle]
-    density_calculator :: DC
-    smoothing_kernel   :: K
-    smoothing_length   :: ELTYPE
-    sound_speed        :: ELTYPE
-    viscosity          :: V
-    nu_edac            :: ELTYPE
-    acceleration       :: SVector{NDIMS, ELTYPE}
-    source_terms       :: ST
-    cache              :: C
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
+                                   PF, ST, C} <: FluidSystem{NDIMS}
+    initial_condition                 :: InitialCondition{ELTYPE}
+    mass                              :: Array{ELTYPE, 1} # [particle]
+    density_calculator                :: DC
+    smoothing_kernel                  :: K
+    smoothing_length                  :: ELTYPE
+    sound_speed                       :: ELTYPE
+    viscosity                         :: V
+    nu_edac                           :: ELTYPE
+    acceleration                      :: SVector{NDIMS, ELTYPE}
+    correction                        :: Nothing
+    pressure_acceleration_formulation :: PF
+    source_terms                      :: ST
+    cache                             :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
+                                         pressure_acceleration=inter_particle_averaged_pressure,
                                          alpha=0.5, viscosity=NoViscosity(),
                                          density_calculator=SummationDensity(),
                                          acceleration=ntuple(_ -> 0.0,
@@ -91,15 +94,20 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST, C} <:
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
+        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                         density_calculator,
+                                                                         NDIMS, ELTYPE,
+                                                                         nothing)
+
         nu_edac = (alpha * smoothing_length * sound_speed) / 8
 
         cache = create_cache_density(initial_condition, density_calculator)
 
-        new{NDIMS, ELTYPE, typeof(density_calculator),
-            typeof(smoothing_kernel), typeof(viscosity), typeof(source_terms),
+        new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
+            typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                            smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           source_terms, cache)
+                           nothing, pressure_acceleration, source_terms, cache)
     end
 end
 

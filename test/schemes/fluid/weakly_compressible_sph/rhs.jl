@@ -39,13 +39,9 @@
                     smoothing_length = -1.0
 
                     fluid = InitialCondition(; coordinates, velocity, mass, density)
-                    system = WeaklyCompressibleSPHSystem(fluid,
-                                                         density_calculator,
+                    system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
                                                          state_equation, smoothing_kernel,
                                                          smoothing_length)
-
-                    # `system` is only used for the pressure
-                    system.pressure .= [0.0, p_a, p_b]
 
                     # Compute accelerations a -> b and b -> a
                     dv1 = TrixiParticles.pressure_acceleration(system, system, -1,

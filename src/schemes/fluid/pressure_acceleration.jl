@@ -36,6 +36,28 @@ end
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 
+# This formulation was introduced by Hu and Adams (https://doi.org/10.1016/j.jcp.2005.09.001)
+# they argued that the formulation is more flexible because of the possibility to formulate
+# different inter-particle averages or to assume different inter-particle distibutions.
+# Ramachandran (2019) is using this formulation for the EDAC scheme (and also Adami 2012)
+#
+# However, the tests show that the formulation is only linear and angular momentum conserving
+# but not energy conserving.
+#
+# Note, that the authors also used this formulation for an ISPH method in (https://doi.org/10.1016/j.jcp.2007.07.013)
+#
+# TODO: Further investigations on enery conservation.
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    # Inter-particle averaged pressure
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    return -volume_term * pressure_tilde * W_a
+end
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
