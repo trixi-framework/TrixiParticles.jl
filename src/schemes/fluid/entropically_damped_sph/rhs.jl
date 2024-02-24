@@ -77,6 +77,14 @@ end
     # TODO For variable smoothing length use average smoothing length
     tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length^2)
 
+    # This formulation was introduced by Hu and Adams (https://doi.org/10.1016/j.jcp.2005.09.001)
+    # they argued that the formulation is more flexible because of the possibility to formulate
+    # different inter-particle averages or to assume different inter-particle distibutions.
+    # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
+    #
+    # TODO: Is there a better formulation to discretize the Laplace operator?
+    # Because when using this formulation for the pressure acceleration, it is not
+    # energy conserving.
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term

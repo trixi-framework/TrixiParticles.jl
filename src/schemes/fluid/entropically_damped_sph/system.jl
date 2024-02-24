@@ -1,6 +1,8 @@
 @doc raw"""
     EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 smoothing_length, sound_speed;
+                                pressure_acceleration=inter_particle_averaged_pressure,
+                                density_calculator=SummationDensity(),
                                 alpha=0.5, viscosity=NoViscosity(),
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
@@ -40,6 +42,10 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
 - `viscosity`:      Viscosity model for this system (default: no viscosity).
                     Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `pressure_acceleration`: Pressure acceleration formulation (default: inter-particle averaged pressure).
+                        When set to `nothing` the pressure acceleration formulation for the
+                        corresponding [density calculator](@ref density_calculator) is chosen.
+- `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
