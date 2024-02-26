@@ -1,7 +1,7 @@
 """
     PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory="out", append_timestamp=false, write_csv=true,
-                        write_json=true, backup_period=0, funcs...)
+                        write_json=true, write_file_interval=1, funcs...)
 
 Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -28,7 +28,7 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
-- `write_file_interval=0`: Specifies that a backup should be created after every `write_file_interval`
+- `write_file_interval=1`: Specifies that a backup should be created after every `write_file_interval`
                            number of postprocessing execution steps. A value of 0 indicates that
                            backups should not be automatically generated during postprocessing.
 
