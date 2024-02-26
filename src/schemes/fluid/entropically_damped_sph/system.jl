@@ -5,7 +5,7 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
 
-Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
+Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by Ramachandran (2019).
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
