@@ -30,8 +30,10 @@
     @testset verbose=true "Moving Boundaries" begin
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
-            coordinates = copy(coordinates_[i])
-            new_coordinates = copy(coordinates_[i])
+            coordinates = coordinates_[i]
+            new_coordinates = coordinates_[i]
+            new_velocity = zero(new_coordinates)
+            new_acceleration = zero(new_coordinates)
 
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = (; hydrodynamic_mass=3)
@@ -54,11 +56,17 @@
 
             if NDIMS == 2
                 new_coordinates .+= [0.5 * t, 0.3 * t^2]
+                new_velocity .+= [0.5, 0.6 * t]
+                new_acceleration .+= [0.0, 0.6]
             else
                 new_coordinates .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
+                new_velocity .+= [0.5, 0.6 * t, 0.3 * t^2]
+                new_acceleration .+= [0.0, 0.6, 0.6 * t]
             end
 
             @test isapprox(new_coordinates, system.coordinates)
+            @test isapprox(new_velocity, system.cache.velocity)
+            @test isapprox(new_acceleration, system.cache.acceleration)
 
             # Stop moving
             t = 1.0
@@ -67,8 +75,10 @@
             @test isapprox(new_coordinates, system.coordinates)
 
             # Move only a single particle
-            coordinates = copy(coordinates_[i])
-            new_coordinates = copy(coordinates_[i])
+            coordinates = coordinates_[i]
+            new_coordinates = coordinates_[i]
+            new_velocity = zero(new_coordinates)
+            new_acceleration = zero(new_coordinates)
 
             initial_condition = InitialCondition(; coordinates, mass, density)
 
@@ -80,11 +90,17 @@
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
+                new_velocity[:, 2] .+= [0.5, 0.6 * t]
+                new_acceleration[:, 2] .+= [0.0, 0.6]
             else
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
+                new_velocity[:, 2] .+= [0.5, 0.6 * t, 0.3 * t^2]
+                new_acceleration[:, 2] .+= [0.0, 0.6, 0.6 * t]
             end
 
             @test isapprox(new_coordinates, system.coordinates)
+            @test isapprox(new_velocity, system.cache.velocity)
+            @test isapprox(new_acceleration, system.cache.acceleration)
         end
     end
 
