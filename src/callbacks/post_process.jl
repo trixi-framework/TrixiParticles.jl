@@ -62,7 +62,7 @@ end
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
                              append_timestamp=false, write_csv=true, write_json=true,
-                             backup_period::Integer=0, funcs...)
+                             backup_period::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -119,10 +119,20 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
+
+        function write_file_interval(interval)
+            if interval  > 1
+                return "every $(interval) * interval"
+            elseif interval == 1
+                return "every interval"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
         setup = [
             "interval" => string(callback.interval),
-            "write backup" => callback.backup_period > 0 ?
-                              "every $(callback.backup_period) * interval" : "no",
+            "write backup" => write_file_interval(callback.backup_period),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -146,10 +156,20 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!.affect!
+
+        function write_file_interval(interval)
+            if interval  > 1
+                return "every $(interval) * dt"
+            elseif interval == 1
+                return "every dt"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
         setup = [
             "dt" => string(callback.interval),
-            "write backup" => callback.backup_period > 0 ?
-                              "every $(callback.backup_period) * dt" : "no",
+            "write backup" => write_file_interval(callback.backup_period),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
