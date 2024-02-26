@@ -5,6 +5,13 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
+# ==== Resolution
+fluid_particle_spacing = 0.05
+
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 3
+
+# ==========================================================================================
 # ==== Experiment Setup
 tspan = (0.0, 1.0)
 
@@ -28,7 +35,7 @@ boundary_movement = BoundaryMovement(movement_function, is_moving)
 # Import the setup from `hydrostatic_water_column_2d.jl`
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
-              fluid_particle_spacing=0.05, movement=boundary_movement,
+              fluid_particle_spacing=fluid_particle_spacing, movement=boundary_movement,
               acceleration=(0.0, 0.0), tank=tank, semi=nothing, ode=nothing,
               sol=nothing) # Overwrite `sol` assignment to skip time integration
 
