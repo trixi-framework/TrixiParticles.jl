@@ -8,7 +8,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
 
 # ==========================================================================================

@@ -24,7 +24,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 
         if movement !== nothing && isempty(movement.moving_particles)
             # Default is an empty vector, since the number of particles is not known when
-            # instantiating `BoundaryMovement`
+            # instantiating `BoundaryMovement`.
             resize!(movement.moving_particles, nparticles(initial_condition))
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
@@ -69,7 +69,7 @@ struct BoundaryMovement{MF, IM}
                   "Returning regular `Vector`s causes allocations and significant performance overhead."
         end
 
-        # Default value is an empty vector which will be resized in the `BoundarySPHSystem`
+        # Default value is an empty vector, which will be resized in the `BoundarySPHSystem`
         # constructor to move all particles.
         moving_particles = isnothing(moving_particles) ? [] : vec(moving_particles)
 

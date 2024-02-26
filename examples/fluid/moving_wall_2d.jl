@@ -5,11 +5,8 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
-
-boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -26,7 +23,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers, spacing_ratio=1.0,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
 reset_wall!(tank, (false, true, false, false), (0.0, tank.fluid_size[1], 0.0, 0.0))

@@ -31,9 +31,6 @@
         @testset "$(i+1)D" for i in 1:2
             NDIMS = i + 1
             coordinates = coordinates_[i]
-            new_coordinates = coordinates_[i]
-            new_velocity = zero(new_coordinates)
-            new_acceleration = zero(new_coordinates)
 
             initial_condition = InitialCondition(; coordinates, mass, density)
             model = (; hydrodynamic_mass=3)
@@ -53,15 +50,14 @@
             # Moving
             t = 0.6
             system.movement(system, t)
-
             if NDIMS == 2
-                new_coordinates .+= [0.5 * t, 0.3 * t^2]
-                new_velocity .+= [0.5, 0.6 * t]
-                new_acceleration .+= [0.0, 0.6]
+                new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2]
+                new_velocity = [0.5, 0.6 * t] .* ones(size(new_coordinates))
+                new_acceleration =  [0.0, 0.6] .* ones(size(new_coordinates))
             else
-                new_coordinates .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
-                new_velocity .+= [0.5, 0.6 * t, 0.3 * t^2]
-                new_acceleration .+= [0.0, 0.6, 0.6 * t]
+                new_coordinates = coordinates .+ [0.5 * t, 0.3 * t^2, 0.1 * t^3]
+                new_velocity =  [0.5, 0.6 * t, 0.3 * t^2] .* ones(size(new_coordinates))
+                new_acceleration = [0.0, 0.6, 0.6 * t] .* ones(size(new_coordinates))
             end
 
             @test isapprox(new_coordinates, system.coordinates)
@@ -75,7 +71,6 @@
             @test isapprox(new_coordinates, system.coordinates)
 
             # Move only a single particle
-            coordinates = coordinates_[i]
             new_coordinates = coordinates_[i]
             new_velocity = zero(new_coordinates)
             new_acceleration = zero(new_coordinates)
