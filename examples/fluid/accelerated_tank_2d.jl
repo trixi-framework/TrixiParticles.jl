@@ -5,13 +5,6 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
-# ==== Resolution
-fluid_particle_spacing = 0.02
-
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 3
-
-# ==========================================================================================
 # ==== Experiment Setup
 tspan = (0.0, 1.0)
 
@@ -21,8 +14,6 @@ tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
 sound_speed = 10.0
-state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7, clip_negative_pressure=true)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=1.0)
@@ -34,28 +25,12 @@ is_moving(t) = true
 
 boundary_movement = BoundaryMovement(movement_function, is_moving)
 
-# ==========================================================================================
-# ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-fluid_density_calculator = SummationDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity)
-
-# ==========================================================================================
-# ==== Boundary
-boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
-
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    movement=boundary_movement)
+# Import the setup from `hydrostatic_water_column_2d.jl`
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              fluid_particle_spacing=0.05, movement=boundary_movement,
+              acceleration=(0.0, 0.0), tank=tank, semi=nothing, ode=nothing,
+              sol=nothing) # Overwrite `sol` assignment to skip time integration
 
 # ==========================================================================================
 # ==== Simulation
