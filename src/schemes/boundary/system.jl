@@ -50,7 +50,7 @@ the time is lower than `1.5`.
 
 # Examples
 ```julia
-movement_function(t) = SVector{2}(cos(2pi*t), sin(2pi*t))
+movement_function(t) = SVector(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
 movement = BoundaryMovement(movement_function, is_moving)

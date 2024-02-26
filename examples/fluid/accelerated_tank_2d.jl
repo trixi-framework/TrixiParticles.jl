@@ -28,7 +28,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        n_layers=boundary_layers, spacing_ratio=1.0)
 
 # Function for moving boundaries
-movement_function(t) = SVector{2}(0.0, 0.5 * 9.81 * t^2)
+movement_function(t) = SVector(0.0, 0.5 * 9.81 * t^2)
 
 is_moving(t) = true
 

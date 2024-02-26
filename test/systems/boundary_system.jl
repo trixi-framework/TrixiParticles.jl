@@ -38,10 +38,10 @@
 
             function movement_function(t)
                 if NDIMS == 2
-                    return SVector{2}(0.5 * t, 0.3 * t^2)
+                    return SVector(0.5 * t, 0.3 * t^2)
                 end
 
-                return SVector{3}(0.5 * t, 0.3 * t^2, 0.1 * t^3)
+                return SVector(0.5 * t, 0.3 * t^2, 0.1 * t^3)
             end
 
             is_moving(t) = t < 1.0
