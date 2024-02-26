@@ -28,9 +28,9 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
-- `backup_period=0`: Specifies that a backup should be created after every `backup_period`
-                     number of postprocessing execution steps. A value of 0 indicates that
-                     backups should not be automatically generated during postprocessing.
+- `write_file_interval=0`: Specifies that a backup should be created after every `write_file_interval`
+                           number of postprocessing execution steps. A value of 0 indicates that
+                           backups should not be automatically generated during postprocessing.
 
 # Examples
 ```julia
@@ -62,7 +62,7 @@ end
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
                              append_timestamp=false, write_csv=true, write_json=true,
-                             backup_period::Integer=1, funcs...)
+                             write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -75,7 +75,7 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, backup_period,
+    post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
                                         append_timestamp, write_csv, write_json)

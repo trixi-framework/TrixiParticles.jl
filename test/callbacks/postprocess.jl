@@ -5,7 +5,7 @@
         end
 
         callback = PostprocessCallback(another_function=(v, u, t, system) -> 1; interval=10,
-                                       example_function, backup_period=0)
+                                       example_function, write_file_interval=0)
 
         show_compact = "PostprocessCallback(interval=10, functions=[another_function, example_function])"
         @test repr(callback) == show_compact
@@ -27,7 +27,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; dt=0.1, example_function, backup_period=0)
+        callback = PostprocessCallback(; dt=0.1, example_function, write_file_interval=0)
 
         show_compact = "PostprocessCallback(dt=0.1, functions=[example_function])"
         @test repr(callback) == show_compact
@@ -48,7 +48,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; dt=0.1, example_function, backup_period=3)
+        callback = PostprocessCallback(; dt=0.1, example_function, write_file_interval=3)
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
         │ PostprocessCallback                                                                              │
@@ -65,7 +65,7 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; interval=23, example_function, backup_period=4)
+        callback = PostprocessCallback(; interval=23, example_function, write_file_interval=4)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
