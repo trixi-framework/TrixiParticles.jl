@@ -65,7 +65,8 @@
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", callback) == show_box
 
-        callback = PostprocessCallback(; interval=23, example_function, write_file_interval=4)
+        callback = PostprocessCallback(; interval=23, example_function,
+                                       write_file_interval=4)
 
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐

@@ -121,7 +121,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!
 
         function write_file_interval(interval)
-            if interval  > 1
+            if interval > 1
                 return "every $(interval) * interval"
             elseif interval == 1
                 return "every interval"
@@ -158,7 +158,7 @@ function Base.show(io::IO, ::MIME"text/plain",
         callback = cb.affect!.affect!
 
         function write_file_interval(interval)
-            if interval  > 1
+            if interval > 1
                 return "every $(interval) * dt"
             elseif interval == 1
                 return "every dt"
