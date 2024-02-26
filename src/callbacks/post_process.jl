@@ -240,7 +240,7 @@ function (pp::PostprocessCallback)(integrator)
     end
 
     if isfinished(integrator) || (pp.backup_period > 0 && backup_condition(pp, integrator))
-        write_postprocess_callback(pp, integrator)
+        write_postprocess_callback(pp)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
@@ -258,7 +258,7 @@ end
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback, integrator)
+function write_postprocess_callback(pp::PostprocessCallback)
     if isempty(pp.data)
         return
     end
@@ -272,10 +272,8 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
         time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    backup_suffix = isfinished(integrator) ? "" : "_backup"
-
-    filename_json = pp.filename * time_stamp * backup_suffix * ".json"
-    filename_csv = pp.filename * time_stamp * backup_suffix * ".csv"
+    filename_json = pp.filename * time_stamp * ".json"
+    filename_csv = pp.filename * time_stamp * ".csv"
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
