@@ -42,6 +42,34 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
+    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                         semi, ref_system, sol, true, smoothing_length,
+                                         cut_off_bnd)
+
+    return results
+end
+
+function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
+                                  smoothing_length=ref_system.smoothing_length,
+                                  cut_off_bnd=true,
+                                  output_directory="out", filename="plane")
+    results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                                     semi, ref_system, sol, false,
+                                                     smoothing_length, cut_off_bnd)
+
+    density = reshape(results.density, length(x_range), length(y_range))
+    velocity = reshape(results.velocity, length(x_range), length(y_range))
+    pressure = reshape(results.pressure, length(x_range), length(y_range))
+
+    vtk_grid(joinpath(output_directory, filename), x_range, y_range) do vtk
+        vtk["density"] = density
+        vtk["velocity"] = velocity
+        vtk["pressure"] = pressure
+    end
+end
+
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol,
+                              filter_no_neighbors, smoothing_length, cut_off_bnd)
     dims = length(min_corner)
     if dims != 2 || length(max_corner) != 2
         throw(ArgumentError("function is intended for 2D coordinates only"))
@@ -65,13 +93,15 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
                                 smoothing_length=smoothing_length,
                                 cut_off_bnd=cut_off_bnd)
 
-    # Find indices where neighbor_count > 0
-    indices = findall(x -> x > 0, results.neighbor_count)
+    if filter_no_neighbors
+        # Find indices where neighbor_count > 0
+        indices = findall(x -> x > 0, results.neighbor_count)
 
-    # Filter all arrays in the named tuple using these indices
-    filtered_results = map(x -> x[indices], results)
+        # Filter all arrays in the named tuple using these indices
+        results = map(x -> x[indices], results)
+    end
 
-    return filtered_results
+    return results, x_range, y_range
 end
 
 @doc raw"""
@@ -393,8 +423,9 @@ end
 
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
-        return (density=0.0, neighbor_count=0, coord=point_coords,
-                velocity=zero(SVector{ndims(ref_system)}), pressure=0.0)
+        # Return NaN values that can be filtered out in ParaView
+        return (density=NaN, neighbor_count=0, coord=point_coords,
+                velocity=NaN * zero(SVector{ndims(ref_system)}), pressure=NaN)
     end
 
     return (density=interpolated_density / shepard_coefficient,
