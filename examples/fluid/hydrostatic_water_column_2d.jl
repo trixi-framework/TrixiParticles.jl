@@ -47,7 +47,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 boundary_density_calculator = AdamiPressureExtrapolation()
 
 # This is to set wall viscosity with `trixi_include`
-viscosity_wall = NoViscosity()
+viscosity_wall = nothing
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,

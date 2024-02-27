@@ -1,7 +1,7 @@
 @doc raw"""
     EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 smoothing_length, sound_speed;
-                                alpha=0.5, viscosity=NoViscosity(),
+                                alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
 
@@ -46,7 +46,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
-                                         alpha=0.5, viscosity=NoViscosity(),
+                                         alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing)

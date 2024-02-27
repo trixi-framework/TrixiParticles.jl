@@ -1,6 +1,6 @@
 @doc raw"""
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                viscosity=NoViscosity())
+                                viscosity=nothing)
 
 Boundaries modeled as boundary particles which exert forces on the fluid particles (Monaghan, Kajtar, 2009).
 The force on fluid particle ``a`` due to boundary particle ``b`` is given by
@@ -47,7 +47,7 @@ identical to the density of the fluid particle.
 
 By choosing the viscosity model [`ArtificialViscosityMonaghan`](@ref) for `viscosity`,
 a no-slip condition is imposed. When omitting the viscous interaction
-(default `viscosity=NoViscosity()`), a free-slip wall boundary condition is applied.
+(default `viscosity=nothing`), a free-slip wall boundary condition is applied.
 
 # Arguments
 - `K`: Scaling factor for repulsive force.
@@ -78,7 +78,7 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
     viscosity                 :: V
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                         viscosity=NoViscosity())
+                                         viscosity=nothing)
         return new{typeof(K), typeof(viscosity)}(K, beta, boundary_particle_spacing, mass,
                                                  viscosity)
     end
@@ -100,8 +100,7 @@ end
                                        neighbor_system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
                                                               TotalLagrangianSPHSystem{<:BoundaryModelMonaghanKajtar}},
                                        neighbor, m_a, m_b, p_a, p_b, rho_a, rho_b,
-                                       pos_diff, distance, grad_kernel,
-                                       pressure_correction, correction)
+                                       pos_diff, distance, grad_kernel, correction)
     (; K, beta, boundary_particle_spacing) = neighbor_system.boundary_model
 
     # This is `distance - boundary_particle_spacing` in the paper. This factor makes
