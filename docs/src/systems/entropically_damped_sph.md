@@ -12,7 +12,7 @@ see [`DensityDiffusion`](@ref)), which reduces acoustic pressure waves through a
 The pressure evolution is discretized with the SPH method by Ramachandran (2019) as following:
 
 The first term is equivalent to the classical artificial compressible methods, which are commonly
-motivated by assuming the artificial equation of state (see [`StateEquationCole`](@ref) with `exponent=1`)
+motivated by assuming the artificial equation of state ([`StateEquationCole`](@ref) with `exponent=1`)
 and is discretized as
 ```math
 - \rho c_s^2 \nabla \cdot v = \sum_{b} m_b \frac{\rho_a}{\rho_b} c_s^2 v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h),
