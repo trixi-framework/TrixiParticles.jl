@@ -21,8 +21,6 @@ edac_reference_files = glob("validation_reference_dam_break_edac*.json",
 wcsph_reference_files = glob("validation_reference_dam_break_wcsph*.json",
                              "validation/dam_break_2d/")
 
-# json_files = glob("dam_break_*.json", "validation/dam_break_2d/")
-
 surge_front = CSV.read("validation/dam_break_2d/exp_surge_front.csv", DataFrame)
 
 exp_P1 = CSV.read("validation/dam_break_2d/exp_pressure_sensor_P1.csv", DataFrame)
@@ -48,35 +46,26 @@ function plot_results(axs, files)
     # Define a regex to extract the sensor number from the key names
     sensor_number_regex = r"pressure_P(\d+)_fluid_\d+"
 
-    file_number = 1
-    for json_file in files
+    for (file_number, json_file) in enumerate(files)
         json_data = JSON.parsefile(json_file)
         for (key, value) in json_data
             if occursin(sensor_number_regex, key)
-                matches = match(sensor_number_regex, key)
-                sensor_index = parse(Int, matches[1])
-                if sensor_index >= 1 && sensor_index <= length(axs)
+                sensor_index = parse(Int, match(sensor_number_regex, key)[1])
+                if sensor_index in 1:length(axs)
                     time = value["time"] .* normalization_factor_time
-                    values = value["values"] ./ normalization_factor_pressure
-                    lines!(axs[sensor_index], time, values, color=file_number,
-                           label="dp=" *
-                                 convert_to_float(split(replace(basename(json_file),
-                                                                ".json" => ""), "_")[end]),
-                           colormap=:tab10, colorrange=(1, 10))
-                else
-                    println("Sensor index $sensor_index was not plotted.")
+                    pressure = value["values"] ./ normalization_factor_pressure
+                    lines!(axs[sensor_index], time, pressure,
+                           label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+                           color=file_number, colormap=:tab10, colorrange=(1, 10))
                 end
             end
         end
+
         if haskey(json_data, "max_x_coord_fluid_1")
             value = json_data["max_x_coord_fluid_1"]
-            time = value["time"] .* sqrt(9.81)
-            values = Float64.(value["values"]) ./ W
-            lines!(ax_max_x, time, values,
-                   label="dp=" * convert_to_float(split(replace(basename(json_file),
-                                                        ".json" => ""), "_")[end]))
+            lines!(ax_max_x, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
+                   label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))")
         end
-        file_number += 1
     end
 end
 
@@ -89,29 +78,31 @@ xlims!(ax_max_x, 0.0, 3.0)
 ylims!(ax_max_x, 1, 3.0)
 
 # Plot reference values
-scatter!(axs_edac[1], exp_P1.time, exp_P1.P1, color=:black, marker=:utriangle, markersize=6,
-         label="Buchner 2002 (exp)")
-lines!(axs_edac[1], sim_P1.time, sim_P1.h320, color=:red, linestyle=:dash, linewidth=3,
-       label="Marrone et al. 2011 (sim)")
-scatter!(axs_wcsph[1], exp_P1.time, exp_P1.P1, color=:black, marker=:utriangle,
-         markersize=6,
-         label="Buchner 2002 (exp)")
-lines!(axs_wcsph[1], sim_P1.time, sim_P1.h320, color=:red, linestyle=:dash, linewidth=3,
-       label="Marrone et al. 2011 (sim)")
+function plot_experiment(ax, time, data, label, color=:black, marker=:utriangle,
+                         markersize=6)
+    scatter!(ax, time, data, color=color, marker=marker, markersize=markersize, label=label)
+end
 
-scatter!(axs_edac[2], exp_P2.time, exp_P2.P2, color=:black, marker=:utriangle, markersize=6,
-         label="Buchner 2002 (exp)")
-lines!(axs_edac[2], sim_P2.time, sim_P2.h320, color=:red, linestyle=:dash, linewidth=3,
-       label="Marrone et al. 2011 (sim)")
-scatter!(axs_wcsph[2], exp_P2.time, exp_P2.P2, color=:black, marker=:utriangle,
-         markersize=6,
-         label="Buchner 2002 (exp)")
-lines!(axs_wcsph[2], sim_P2.time, sim_P2.h320, color=:red, linestyle=:dash, linewidth=3,
-       label="Marrone et al. 2011 (sim)")
+function plot_simulation(ax, time, data, label, color=:red, linestyle=:dash, linewidth=3)
+    lines!(ax, time, data, color=color, linestyle=linestyle, linewidth=linewidth,
+           label=label)
+end
 
-scatter!(ax_max_x, surge_front.time, surge_front.surge_front, color=:black,
-         marker=:utriangle, markersize=6,
-         label="Martin and Moyce 1952 (exp)")
+# Plot for Pressure Sensor P1
+plot_experiment(axs_edac[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
+plot_simulation(axs_edac[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 (sim)")
+plot_experiment(axs_wcsph[1], exp_P1.time, exp_P1.P1, "Buchner 2002 (exp)")
+plot_simulation(axs_wcsph[1], sim_P1.time, sim_P1.h320, "Marrone et al. 2011 (sim)")
+
+# Plot for Pressure Sensor P2
+plot_experiment(axs_edac[2], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
+plot_simulation(axs_edac[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim)")
+plot_experiment(axs_wcsph[2], exp_P2.time, exp_P2.P2, "Buchner 2002 (exp)")
+plot_simulation(axs_wcsph[2], sim_P2.time, sim_P2.h320, "Marrone et al. 2011 (sim)")
+
+# Plot for Surge Front
+plot_experiment(ax_max_x, surge_front.time, surge_front.surge_front,
+                "Martin and Moyce 1952 (exp)")
 
 for (i, ax) in enumerate(axs_edac)
     Legend(fig[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
