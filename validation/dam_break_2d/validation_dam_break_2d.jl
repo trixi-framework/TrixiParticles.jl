@@ -31,16 +31,10 @@ for particle_spacing in resolutions
     ]
 
     function max_x_coord(v, u, t, system)
-        system_coords = TrixiParticles.current_coordinates(u, system)
-        max_x = 0.0
-        for particle in TrixiParticles.eachparticle(system)
-            p_x = TrixiParticles.extract_svector(system_coords, Val(ndims(system)),
-                                                 particle)[1]
-            if max_x < p_x
-                max_x = p_x
-            end
-        end
-        return max_x
+        maximum(TrixiParticles.extract_svector(TrixiParticles.current_coordinates(u,
+                                                                                  system),
+                                               Val(ndims(system)), p)[1]
+                for p in TrixiParticles.eachparticle(system))
     end
 
     function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
@@ -60,15 +54,14 @@ for particle_spacing in resolutions
                                                                    pressure_sensor_bottom,
                                                                    sensor_names)]
     named_sensors = (; (Symbol("$(name)") => func for (name, func) in pressure_sensors)...)
-
-    method = "edac"
     formatted_string = lpad(string(Int(particle_spacing *
                                        10^length(split(string(particle_spacing), ".")[2]))),
                             length(split(string(particle_spacing), ".")[2]) + 1, '0')
+
+    method = "edac"
     postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                             filename="validation_result_dam_break_" *
-                                                     method * "_" *
-                                                     formatted_string,
+                                                     method * "_" * formatted_string,
                                             write_csv=false, max_x_coord, named_sensors...)
 
     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
@@ -79,13 +72,9 @@ for particle_spacing in resolutions
                   cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan)
 
     method = "wcsph"
-    formatted_string = lpad(string(Int(particle_spacing *
-                                       10^length(split(string(particle_spacing), ".")[2]))),
-                            length(split(string(particle_spacing), ".")[2]) + 1, '0')
     postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                             filename="validation_result_dam_break_" *
-                                                     method * "_" *
-                                                     formatted_string,
+                                                     method * "_" * formatted_string,
                                             write_csv=false, max_x_coord, named_sensors...)
 
     state_equation_wcsph = StateEquationCole(; sound_speed, reference_density=fluid_density,
