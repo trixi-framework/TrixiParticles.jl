@@ -194,7 +194,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     return vtk
 end
 
-write2vtk!(vtk, viscosity::NoViscosity) = vtk
+write2vtk!(vtk, viscosity::Nothing) = vtk
 
 function write2vtk!(vtk, viscosity::ViscosityAdami)
     vtk["viscosity_nu"] = viscosity.nu

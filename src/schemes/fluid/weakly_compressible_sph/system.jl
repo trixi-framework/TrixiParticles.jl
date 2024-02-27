@@ -2,7 +2,7 @@
     WeaklyCompressibleSPHSystem(initial_condition,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
-                                viscosity=NoViscosity(), density_diffusion=nothing,
+                                viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 correction=nothing, source_terms=nothing)
 
@@ -63,7 +63,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          pressure_acceleration=nothing,
-                                         viscosity=NoViscosity(), density_diffusion=nothing,
+                                         viscosity=nothing, density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing, source_terms=nothing)

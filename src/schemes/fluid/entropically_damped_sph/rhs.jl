@@ -3,8 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
-    (; sound_speed, density_calculator) = particle_system
-    viscosity = viscosity_model(neighbor_system)
+    (; sound_speed, density_calculator, correction) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -30,16 +29,15 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, 1.0,
-                                            particle_system.correction)
+                                            distance, grad_kernel, correction)
 
-        dv_viscosity = viscosity(particle_system, neighbor_system,
-                                 v_particle_system, v_neighbor_system,
-                                 particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b, rho_mean)
+        dv_viscosity_ = dv_viscosity(particle_system, neighbor_system,
+                                     v_particle_system, v_neighbor_system,
+                                     particle, neighbor, pos_diff, distance,
+                                     sound_speed, m_a, m_b, rho_mean)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -
