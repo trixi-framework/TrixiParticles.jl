@@ -5,8 +5,9 @@ using JSON
 
 H = 0.6
 
-trixi_include(@__MODULE__, joinpath(validation_dir(), "dam_break_2d",
-                       "validation_dam_break_2d.jl"), resolutions=[H/40])
+trixi_include(@__MODULE__,
+              joinpath(validation_dir(), "dam_break_2d",
+                       "validation_dam_break_2d.jl"), resolutions=[H / 40])
 
 reference_file_edac_name = "validation/dam_break_2d/validation_reference_dam_break_edac_0015.json"
 run_file_edac_name = "out/validation_result_dam_break_edac_0015.json"

@@ -73,8 +73,6 @@ end
 plot_results(axs_edac, ax_max_x_edac, edac_reference_files)
 plot_results(axs_wcsph, ax_max_x_wcsph, wcsph_reference_files)
 
-
-
 # Plot reference values
 function plot_experiment(ax, time, data, label, color=:black, marker=:utriangle,
                          markersize=6)
@@ -105,9 +103,8 @@ for ax_max in [ax_max_x_edac, ax_max_x_wcsph]
     xlims!(ax_max, 0.0, 3.0)
     ylims!(ax_max, 1, 3.0)
     plot_experiment(ax_max, surge_front.time, surge_front.surge_front,
-                "Martin and Moyce 1952 (exp)")
+                    "Martin and Moyce 1952 (exp)")
 end
-
 
 for (i, ax) in enumerate(axs_edac)
     Legend(fig[2, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
@@ -115,8 +112,10 @@ end
 for (i, ax) in enumerate(axs_wcsph)
     Legend(fig[4, i], ax; tellwidth=false, orientation=:horizontal, valign=:top, nbanks=3)
 end
-Legend(fig[6, 1], ax_max_x_edac, tellwidth=false, orientation=:horizontal, valign=:top, nbanks=2)
-Legend(fig[6, 2], ax_max_x_wcsph, tellwidth=false, orientation=:horizontal, valign=:top, nbanks=2)
+Legend(fig[6, 1], ax_max_x_edac, tellwidth=false, orientation=:horizontal, valign=:top,
+       nbanks=2)
+Legend(fig[6, 2], ax_max_x_wcsph, tellwidth=false, orientation=:horizontal, valign=:top,
+       nbanks=2)
 
 fig
 # uncomment to save the figure
