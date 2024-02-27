@@ -1,10 +1,15 @@
-using Interpolations
-using Statistics
+function linear_interpolation(t, xp, yp)
+    for i in 1:length(xp)-1
+        if xp[i] <= t && t <= xp[i+1]
+            # Calculate the slope and interpolate
+            slope = (yp[i+1] - yp[i]) / (xp[i+1] - xp[i])
+            return yp[i] + slope * (t - xp[i])
+        end
+    end
+    error("t $t is outside the interpolation range")
+end
 
 function calculate_mse(reference_time, reference_values, simulation_time, simulation_values)
-    interp_func = LinearInterpolation(simulation_time, simulation_values,
-                                      extrapolation_bc=Flat())
-
     # Find the common time range
     common_time_range = filter(t -> t >= maximum([
                                                 minimum(simulation_time),
@@ -16,7 +21,7 @@ function calculate_mse(reference_time, reference_values, simulation_time, simula
                                            ]), reference_time)
 
     # Interpolate simulation data at the common time points
-    interpolated_values = [interp_func(t) for t in common_time_range]
+    interpolated_values = [linear_interpolation(t, simulation_time, simulation_values) for t in common_time_range]
 
     # Extract the corresponding reference displacement values
     filtered_values = [reference_values[findfirst(==(t),
@@ -24,7 +29,7 @@ function calculate_mse(reference_time, reference_values, simulation_time, simula
                        for t in common_time_range]
 
     # Calculate MSE only over the common time range
-    mse = mean((interpolated_values .- filtered_values) .^ 2)
+    mse = sum((interpolated_values .- filtered_values) .^ 2) / length(common_time_range)
     return mse
 end
 
