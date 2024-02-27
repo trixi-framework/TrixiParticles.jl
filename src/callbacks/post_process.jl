@@ -28,9 +28,9 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
-- `write_file_interval=1`: Specifies that a backup should be created after every `write_file_interval`
-                           number of postprocessing execution steps. A value of 0 indicates that
-                           backups should not be automatically generated during postprocessing.
+- `write_file_interval=1`: Files will be written after every `write_file_interval` number of
+                           postprocessing execution steps. A value of 0 indicates that files
+                           are only written at the end of the simulation, eliminating I/O overhead.
 
 # Examples
 ```julia
@@ -46,17 +46,17 @@ postprocess_callback = PostprocessCallback(example_function, dt=0.1)
 ```
 """
 struct PostprocessCallback{I, F}
-    interval         :: I
-    backup_period    :: Int
-    data             :: Dict{String, Vector{Any}}
-    times            :: Array{Float64, 1}
-    exclude_boundary :: Bool
-    func             :: F
-    filename         :: String
-    output_directory :: String
-    append_timestamp :: Bool
-    write_csv        :: Bool
-    write_json       :: Bool
+    interval            :: I
+    write_file_interval :: Int
+    data                :: Dict{String, Vector{Any}}
+    times               :: Array{Float64, 1}
+    exclude_boundary    :: Bool
+    func                :: F
+    filename            :: String
+    output_directory    :: String
+    append_timestamp    :: Bool
+    write_csv           :: Bool
+    write_json          :: Bool
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
@@ -124,7 +124,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             if interval > 1
                 return "every $(interval) * interval"
             elseif interval == 1
-                return "every interval"
+                return "always"
             elseif interval == 0
                 return "no"
             end
@@ -132,7 +132,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "interval" => string(callback.interval),
-            "write backup" => write_file_interval(callback.backup_period),
+            "write file" => write_file_interval(callback.write_file_interval),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -161,7 +161,7 @@ function Base.show(io::IO, ::MIME"text/plain",
             if interval > 1
                 return "every $(interval) * dt"
             elseif interval == 1
-                return "every dt"
+                return "always"
             elseif interval == 0
                 return "no"
             end
@@ -169,7 +169,7 @@ function Base.show(io::IO, ::MIME"text/plain",
 
         setup = [
             "dt" => string(callback.interval),
-            "write backup" => write_file_interval(callback.backup_period),
+            "write file" => write_file_interval(callback.write_file_interval),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -239,7 +239,8 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
-    if isfinished(integrator) || (pp.backup_period > 0 && backup_condition(pp, integrator))
+    if isfinished(integrator) ||
+       (pp.write_file_interval > 0 && backup_condition(pp, integrator))
         write_postprocess_callback(pp)
     end
 
@@ -249,12 +250,12 @@ end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) % cb.backup_period == 0
+           round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
     return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) % cb.backup_period == 0
+           round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
