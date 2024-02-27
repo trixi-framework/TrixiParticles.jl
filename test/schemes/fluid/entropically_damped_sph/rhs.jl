@@ -46,13 +46,13 @@
                     dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
                                                                m_a, m_b, p_a, p_b,
                                                                rho_a, rho_b, pos_diff,
-                                                               distance, grad_kernel, 1.0,
+                                                               distance, grad_kernel,
                                                                nothing)
 
                     dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
                                                                m_b, m_a, p_b, p_a,
                                                                rho_b, rho_a, -pos_diff,
-                                                               distance, -grad_kernel, 1.0,
+                                                               distance, -grad_kernel,
                                                                nothing)
 
                     # Test that both forces are identical but in opposite directions
