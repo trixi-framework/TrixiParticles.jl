@@ -71,7 +71,7 @@
             @test isapprox(new_coordinates, system.coordinates)
 
             # Move only a single particle
-            new_coordinates = coordinates_[i]
+            new_coordinates = copy(coordinates_[i])
             new_velocity = zero(new_coordinates)
             new_acceleration = zero(new_coordinates)
 
@@ -85,12 +85,12 @@
 
             if NDIMS == 2
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2]
-                new_velocity[:, 2] .+= [0.5, 0.6 * t]
-                new_acceleration[:, 2] .+= [0.0, 0.6]
+                new_velocity[:, 2] .= [0.5, 0.6 * t]
+                new_acceleration[:, 2] .= [0.0, 0.6]
             else
                 new_coordinates[:, 2] .+= [0.5 * t, 0.3 * t^2, 0.1 * t^3]
-                new_velocity[:, 2] .+= [0.5, 0.6 * t, 0.3 * t^2]
-                new_acceleration[:, 2] .+= [0.0, 0.6, 0.6 * t]
+                new_velocity[:, 2] .= [0.5, 0.6 * t, 0.3 * t^2]
+                new_acceleration[:, 2] = [0.0, 0.6, 0.6 * t]
             end
 
             @test isapprox(new_coordinates, system.coordinates)

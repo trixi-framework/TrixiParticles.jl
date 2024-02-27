@@ -21,8 +21,11 @@ tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
 sound_speed = 10.0
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       acceleration=(0.0, -9.81), state_equation=state_equation,
                        n_layers=boundary_layers, spacing_ratio=1.0)
 
 # Function for moving boundaries
