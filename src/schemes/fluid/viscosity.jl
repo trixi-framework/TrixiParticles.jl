@@ -38,6 +38,15 @@ end
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
 
+# Keywords
+- `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
+           kinematic viscosity, see description below.
+- `beta`: A value of `0.0` works well for simulations with shocks of moderate strength.
+          In simulations where the Mach number can be very high, eg. astrophysical calculation,
+          good results can be obtained by choosing a value of `beta=2` and `alpha=1`.
+- `epsilon=0.01`: Parameter to prevent singularities.
+
+
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
 \Pi_{ab} =
@@ -55,18 +64,12 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 ``v_{ab} = v_a - v_b`` is the difference of their velocities,
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
-TODO: Check the following statement, since in Monaghan 2005 p. 1741 (10.1088/0034-4885/68/8/r01) this was meant for "interstellar cloud collisions"
-The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their values should usually be near
-``\alpha = 1, \beta = 2`` (Monaghan 1992, p. 551).
-The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
-
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
 To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
-\nu = \frac{\alpha h c }{\rho_{ab}}.
+    \nu = \frac{\alpha h c }{2d + 4},
 ```
-
-TODO: Check the following statement: [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
+where ``d`` is the dimension.
 
 ## References:
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
@@ -143,7 +146,7 @@ function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
 end
 
 @doc raw"""
-    ViscosityAdami(; nu)
+    ViscosityAdami(; nu, epsilon=0.01)
 
 Viscosity by Adami (Adami et al. 2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
@@ -158,16 +161,6 @@ The inter-particle-averaged shear stress  is
     \bar{\eta}_{ab} =\frac{2 \eta_a \eta_b}{\eta_a + \eta_b},
 ```
 where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
-
-For the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles,
-Adami (Adami et al. 2012) imposes a no-slip boundary condition by assigning a wall velocity ``v_w``
-to the boundary particle.
-
-The wall velocity of particle ``a`` is calculated from the prescribed boundary particle velocity ``v_a`` and the smoothed velocity field
-```math
-v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
-```
-where the sum is over all fluid particles.
 
 # Keywords
 - `nu`: Kinematic viscosity
