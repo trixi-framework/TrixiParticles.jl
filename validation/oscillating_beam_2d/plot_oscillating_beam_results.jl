@@ -12,7 +12,7 @@ using Printf
 elastic_plate = (length=0.35, thickness=0.02)
 
 # Load the reference simulation data
-ref = CSV.read("validation/oscillating_beam_2d/oscillating_beam_l5_dt_005.csv", DataFrame)
+ref = CSV.read("validation/oscillating_beam_2d/reference_turek.csv", DataFrame)
 
 # Get the list of JSON files
 reference_files = glob("validation_reference_oscillating_beam_2d_*.json",
