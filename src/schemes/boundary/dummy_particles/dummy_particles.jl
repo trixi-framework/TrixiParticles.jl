@@ -1,7 +1,7 @@
 @doc raw"""
     BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                 density_calculator, smoothing_kernel,
-                                smoothing_length; viscosity=NoViscosity(),
+                                smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing)
 
 Boundaries modeled as dummy particles, which are treated like fluid particles,
@@ -76,7 +76,7 @@ By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-s
 condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
 viscosity parameter of the adjacent fluid or the equivalent from the artificial parameter
 `alpha` of the adjacent fluid (``\nu = \frac{\alpha h c }{2d + 4}``). When omitting the
-viscous interaction (default `viscosity=NoViscosity()`), a free-slip wall boundary
+viscous interaction (default `viscosity=nothing`), a free-slip wall boundary
 condition is applied.
 
 # Arguments
@@ -139,7 +139,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=NoViscosity(),
+                                         smoothing_length; viscosity=nothing,
                                          state_equation=nothing, correction=nothing)
         pressure = initial_boundary_pressure(initial_density, density_calculator,
                                              state_equation)
@@ -278,7 +278,7 @@ function create_cache_model(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-function create_cache_model(viscosity::NoViscosity, n_particles, n_dims)
+function create_cache_model(viscosity::Nothing, n_particles, n_dims)
     return (;)
 end
 

@@ -1,10 +1,3 @@
-struct NoViscosity end
-
-@inline function (::NoViscosity)(particle_system, neighbor_system, v_particle_system,
-                                 v_neighbor_system, particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b, rho_mean)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
-end
 
 function dv_viscosity(particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
