@@ -139,6 +139,8 @@ end
 
 @inline v_nvariables(system::EntropicallyDampedSPHSystem) = ndims(system) + 1
 
+@inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
+
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     summation_density!(system, semi, u, u_ode, system.density)
