@@ -20,8 +20,8 @@ function calculate_mse(reference_time, reference_values, simulation_time, simula
 
     # Extract the corresponding reference displacement values
     filtered_values = [reference_values[findfirst(==(t),
-    reference_time)]
-                              for t in common_time_range]
+                                                  reference_time)]
+                       for t in common_time_range]
 
     # Calculate MSE only over the common time range
     mse = mean((interpolated_values .- filtered_values) .^ 2)
