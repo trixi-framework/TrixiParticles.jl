@@ -16,14 +16,16 @@ using OrdinaryDiffEq
 # for the brave add 35
 resolution = [9, 21]
 for res in resolution
-
     trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"), n_particles_y=res, sol=nothing, tspan=tspan, penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+                  joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
+                  n_particles_y=res, sol=nothing, tspan=tspan,
+                  penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
     pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.01,
                                       output_directory="out",
                                       filename="validation_run_oscillating_beam_2d_" *
-                                               string(res), write_csv=false,  write_file_interval=0)
+                                               string(res), write_csv=false,
+                                      write_file_interval=0)
     info_callback = InfoCallback(interval=2500)
     saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_" * string(res))
 

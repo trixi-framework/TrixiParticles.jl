@@ -35,7 +35,6 @@ is_moving(t) = true
 
 boundary_movement = BoundaryMovement(movement_function, is_moving)
 
-
 # Import the setup from `hydrostatic_water_column_2d.jl`
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
