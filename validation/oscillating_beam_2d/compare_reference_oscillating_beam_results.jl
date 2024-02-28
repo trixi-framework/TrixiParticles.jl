@@ -9,7 +9,7 @@ trixi_include(@__MODULE__,
               resolution=[5], tspan=(0, 2))
 
 reference_file_name = joinpath(validation_dir(),
-                               "oscillating_beam_2d/validation_reference_oscillating_beam_2d_5.json")
+                               "oscillating_beam_2d/validation_reference_5.json")
 run_file_name = joinpath(pkgdir(TrixiParticles),
                          "out/validation_run_oscillating_beam_2d_5.json")
 

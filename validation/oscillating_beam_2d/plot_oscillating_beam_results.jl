@@ -16,7 +16,7 @@ ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.c
                DataFrame)
 
 # Get the list of JSON files
-reference_files = glob("validation_reference_oscillating_beam_2d_*.json",
+reference_files = glob("validation_reference_*.json",
                        joinpath(validation_dir(), "oscillating_beam_2d/"))
 simulation_files = glob("validation_run_oscillating_beam_2d_*.json",
                         joinpath(pkgdir(TrixiParticles), "out/"))
