@@ -18,6 +18,7 @@ tspan = (0, 10)
 # for the brave add 35
 resolution = [9, 21]
 for res in resolution
+    # Overwrite `sol` assignment to skip time integration
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
                   n_particles_y=res, sol=nothing, tspan=tspan,
@@ -25,11 +26,10 @@ for res in resolution
 
     pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
                                       output_directory="out",
-                                      filename="validation_run_oscillating_beam_2d_" *
-                                               string(res), write_csv=false,
-                                      write_file_interval=0)
+                                      filename="validation_run_oscillating_beam_2d_$res",
+                                      write_csv=false, write_file_interval=0)
     info_callback = InfoCallback(interval=2500)
-    saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_" * string(res))
+    saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_$res")
 
     callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
 
