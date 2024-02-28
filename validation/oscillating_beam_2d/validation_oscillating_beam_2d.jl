@@ -23,7 +23,7 @@ for res in resolution
                   n_particles_y=res, sol=nothing, tspan=tspan,
                   penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
-    pp_callback = PostprocessCallback(; mid_point_x, mid_point_y, dt=0.01,
+    pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
                                       output_directory="out",
                                       filename="validation_run_oscillating_beam_2d_" *
                                                string(res), write_csv=false,

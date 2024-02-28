@@ -24,8 +24,8 @@ merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number)
 
 # Regular expressions for matching keys
-key_pattern_x = r"mid_point_x_solid_\d+"
-key_pattern_y = r"mid_point_y_solid_\d+"
+key_pattern_x = r"deflection_x_solid_\d+"
+key_pattern_y = r"deflection_y_solid_\d+"
 
 # Setup for Makie plotting
 fig = Figure(size=(1200, 800))
@@ -56,9 +56,7 @@ for file_name in input_files
         for key in matching_keys
             data = json_data[key]
             times = Float64.(data["time"])
-            positions = Float64.(data["values"])
-            initial_position = positions[1]
-            displacements = [v - initial_position for v in positions]
+            displacements = Float64.(data["values"])
 
             mse_results = occursin(key_pattern_x, key) ?
                           calculate_mse(ref.time, ref.Ux, data["time"], displacements) :

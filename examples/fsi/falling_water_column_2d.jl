@@ -58,7 +58,8 @@ boundary_model = BoundaryModelMonaghanKajtar(k, spacing_ratio, particle_spacing,
 
 solid_system = TotalLagrangianSPHSystem(solid,
                                         smoothing_kernel, smoothing_length,
-                                        material.E, material.nu, boundary_model=boundary_model,
+                                        material.E, material.nu,
+                                        boundary_model=boundary_model,
                                         n_fixed_particles=nparticles(fixed_particles),
                                         acceleration=(0.0, -gravity))
 

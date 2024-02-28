@@ -62,17 +62,20 @@ info_callback = InfoCallback(interval=100)
 # Track the position of the particle in the middle of the tip of the beam.
 middle_particle_id = Int(n_particles_per_dimension[1] * (n_particles_per_dimension[2] + 1) /
                          2)
+startposition_x = beam.coordinates[1, middle_particle_id]
+startposition_y = beam.coordinates[2, middle_particle_id]
 
-function mid_point_x(v, u, t, system)
-    return system.current_coordinates[1, middle_particle_id]
+function deflection_x(v, u, t, system)
+    return system.current_coordinates[1, middle_particle_id] - startposition_x
 end
 
-function mid_point_y(v, u, t, system)
-    return system.current_coordinates[2, middle_particle_id]
+function deflection_y(v, u, t, system)
+    return system.current_coordinates[2, middle_particle_id] - startposition_y
 end
 
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="",
-                                         mid_point_x=mid_point_x, mid_point_y=mid_point_y)
+                                         deflection_x=deflection_x,
+                                         deflection_y=deflection_y)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
