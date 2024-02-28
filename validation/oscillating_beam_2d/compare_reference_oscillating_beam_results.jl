@@ -6,7 +6,7 @@ using JSON
 trixi_include(@__MODULE__,
               joinpath(validation_dir(), "oscillating_beam_2d",
                        "validation_oscillating_beam_2d.jl"),
-              resolution=[5], tspan=(0, 2))
+              resolution=[5], tspan=(0, 2), saving_callback=nothing)
 
 reference_file_name = joinpath(validation_dir(),
                                "oscillating_beam_2d/validation_reference_5.json")
