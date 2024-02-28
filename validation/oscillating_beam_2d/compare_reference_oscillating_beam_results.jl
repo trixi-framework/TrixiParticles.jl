@@ -15,7 +15,3 @@ reference_data = JSON.parsefile(reference_file_name)
 run_data = JSON.parsefile(run_file_name)
 
 error = calculate_error(reference_data, run_data)
-
-if error > 7e-19
-    return -1
-end

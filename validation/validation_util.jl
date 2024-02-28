@@ -69,6 +69,7 @@ function find_and_compare_values(ref_data, run_data, errors=[])
     return errors
 end
 
+# sum of squared errors between two json based dicts
 function calculate_error(ref_data, run_data)
     return sum(find_and_compare_values(ref_data, run_data))
 end
