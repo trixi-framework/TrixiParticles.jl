@@ -1,8 +1,8 @@
 function linear_interpolation(t, xp, yp)
-    for i in 1:length(xp)-1
-        if xp[i] <= t && t <= xp[i+1]
+    for i in 1:(length(xp) - 1)
+        if xp[i] <= t && t <= xp[i + 1]
             # Calculate the slope and interpolate
-            slope = (yp[i+1] - yp[i]) / (xp[i+1] - xp[i])
+            slope = (yp[i + 1] - yp[i]) / (xp[i + 1] - xp[i])
             return yp[i] + slope * (t - xp[i])
         end
     end
@@ -21,7 +21,8 @@ function calculate_mse(reference_time, reference_values, simulation_time, simula
                                            ]), reference_time)
 
     # Interpolate simulation data at the common time points
-    interpolated_values = [linear_interpolation(t, simulation_time, simulation_values) for t in common_time_range]
+    interpolated_values = [linear_interpolation(t, simulation_time, simulation_values)
+                           for t in common_time_range]
 
     # Extract the corresponding reference displacement values
     filtered_values = [reference_values[findfirst(==(t),
@@ -69,7 +70,8 @@ function find_and_compare_values(ref_data, run_data, errors=[])
     return errors
 end
 
-# sum of squared errors between two json based dicts
+# Returns the MSE of json-based dicts
 function calculate_error(ref_data, run_data)
-    return sum(find_and_compare_values(ref_data, run_data))
+    errors = find_and_compare_values(ref_data, run_data)
+    return sum(errors) / length(errors)
 end
