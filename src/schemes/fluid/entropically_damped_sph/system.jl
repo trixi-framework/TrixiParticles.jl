@@ -1,32 +1,11 @@
 @doc raw"""
     EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                 smoothing_length, sound_speed;
-                                alpha=0.5, viscosity=NoViscosity(),
+                                alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
 
-Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by (Ramachandran 2019).
-As opposed to the weakly compressible SPH scheme, which uses an equation of state
-(see [`WeaklyCompressibleSPHSystem`](@ref)), this scheme uses a pressure evolution equation
-(PEE) to calculate the pressure. This equation is similar to the continuity equation (see
-[`ContinuityDensity`](@ref)), but also contains a pressure damping term, which reduces
-oscillations and is discretized as
-```math
-\frac{\mathrm{d} p_a}{\mathrm{d}t} = \sum_{b} m_b \frac{\rho_a}{\rho_b} c_s^2 v_{ab} \cdot \nabla_{r_a} W(\Vert r_a - r_b \Vert, h) +
-\frac{V_a^2 + V_b^2}{m_a} \tilde{\eta}_{ab} \frac{p_{ab}}{\Vert r_{ab}^2 \Vert + \eta h_{ab}^2} \nabla_{r_a}
-W(\Vert r_a - r_b \Vert, h) \cdot r_{ab},
-```
-where ``\rho_a``, ``\rho_b``,  ``r_a``, ``r_b``, ``V_a`` and
-``V_b`` denote the density, coordinates and volume of particles ``a`` and ``b`` respectively, ``c_s``
-is the speed of sound and ``v_{ab} = v_a - v_b`` and ``p_{ab}= p_a -p_b`` is the difference
-in the velocity and pressure between particles ``a`` and ``b`` respectively.
-
-The viscosity parameter ``\eta_a`` for a particle ``a`` is given as
-```math
-\eta_a = \rho_a \frac{\alpha h c_s}{8}
-```
-where it is found in the numerical experiments of (Ramachandran 2019) that ``\alpha = 0.5``
-is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
+Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by Ramachandran (2019).
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
@@ -50,11 +29,6 @@ is a good choice for a wide range of Reynolds numbers (0.0125 to 10000).
                     [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
-
-# References:
-- Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
-  In: Computers and Fluids 179 (2019), pages 579-594.
-  [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
        FluidSystem{NDIMS}
@@ -72,7 +46,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V, ST} <:
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                          smoothing_length, sound_speed;
-                                         alpha=0.5, viscosity=NoViscosity(),
+                                         alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing)

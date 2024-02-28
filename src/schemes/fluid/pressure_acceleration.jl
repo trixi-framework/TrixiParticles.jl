@@ -87,20 +87,18 @@ end
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a, pressure_correction,
-                                       correction)
+                                       distance, W_a, correction)
     (; pressure_acceleration_formulation) = particle_system
 
     # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
     # symmetric, so call the symmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a) *
-           pressure_correction
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
 # Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a, pressure_correction,
+                                       distance, W_a,
                                        correction::Union{KernelCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
@@ -111,6 +109,5 @@ end
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b) *
-           pressure_correction
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end
