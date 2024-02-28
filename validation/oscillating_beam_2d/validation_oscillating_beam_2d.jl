@@ -13,6 +13,8 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
+tspan = (0, 10)
+
 # for the brave add 35
 resolution = [9, 21]
 for res in resolution
