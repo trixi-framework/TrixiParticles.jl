@@ -11,19 +11,22 @@ with a specified resolution determining the density of the interpolation points.
 The function generates a grid of points within the defined region,
 spaced uniformly according to the given resolution.
 
+See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+
 # Arguments
 - `min_corner`: The lower left corner of the interpolation region.
 - `max_corner`: The top right corner of the interpolation region.
 - `resolution`: The distance between adjacent interpolation points in the grid.
-- `semi`: The semidiscretization used for the simulation.
+- `semi`:       The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
-- `sol`: The solution state from which the properties are interpolated.
+- `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
-                  point is "closer" to a boundary than to the fluid system
-                  (see an explanation for "closer" below). Defaults to `true`.
-- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
+                      point is "closer" to a boundary than to the fluid system
+                      (see an explanation for "closer" below).
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -49,6 +52,49 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     return results
 end
 
+@doc raw"""
+    interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
+                             smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                             output_directory="out", filename="plane")
+
+Interpolates properties along a plane in a TrixiParticles simulation and exports the result
+as a VTI file.
+The region for interpolation is defined by its lower left and top right corners,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points within the defined region,
+spaced uniformly according to the given resolution.
+
+See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+
+# Arguments
+- `min_corner`: The lower left corner of the interpolation region.
+- `max_corner`: The top right corner of the interpolation region.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`:       The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`:        The solution state from which the properties are interpolated.
+
+# Keywords
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
+                      point is "closer" to a boundary than to the fluid system
+                      (see an explanation for "closer" below).
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `output_directory="out"`: Directory to save the VTI file.
+- `filename="plane"`:       Name of the VTI file.
+
+!!! note
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```julia
+# Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
+results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+```
+"""
 function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
                                   smoothing_length=ref_system.smoothing_length,
                                   cut_off_bnd=true,
@@ -112,22 +158,26 @@ Interpolates properties along a plane in a 3D space in a TrixiParticles simulati
 The plane for interpolation is defined by three points in 3D space,
 with a specified resolution determining the density of the interpolation points.
 
-The function generates a grid of points on a parallelogram within the plane defined by the three points, spaced uniformly according to the given resolution.
+The function generates a grid of points on a parallelogram within the plane defined by the
+three points, spaced uniformly according to the given resolution.
+
+See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
 
 # Arguments
-- `point1`: The first point defining the plane.
-- `point2`: The second point defining the plane.
-- `point3`: The third point defining the plane. The points must not be collinear.
+- `point1`:     The first point defining the plane.
+- `point2`:     The second point defining the plane.
+- `point3`:     The third point defining the plane. The points must not be collinear.
 - `resolution`: The distance between adjacent interpolation points in the grid.
-- `semi`: The semidiscretization used for the simulation.
+- `semi`:       The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
-- `sol`: The solution state from which the properties are interpolated.
+- `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
-                  point is "closer" to a boundary than to the fluid system
-                  (see an explanation for "closer" below). Defaults to `true`.
-- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
+                      point is "closer" to a boundary than to the fluid system
+                      (see an explanation for "closer" below).
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -197,7 +247,7 @@ end
 
 @doc raw"""
     interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
-                     smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+                     smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
 Interpolates properties along a line in a TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
@@ -205,20 +255,23 @@ evenly spaced points between `start` and `end_`.
 If `endpoint` is `false`, the line is interpolated between the start and end points,
 but does not include these points.
 
+See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
+          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref).
+
 # Arguments
-- `start`: The starting point of the line.
-- `end_`: The ending point of the line.
-- `n_points`: The number of points to interpolate along the line.
-- `semi`: The semidiscretization used for the simulation.
+- `start`:      The starting point of the line.
+- `end_`:       The ending point of the line.
+- `n_points`:   The number of points to interpolate along the line.
+- `semi`:       The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
-- `sol`: The solution state from which the properties are interpolated.
+- `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
-                  point is "closer" to a boundary than to the fluid system
-                  (see an explanation for "closer" below). Defaults to `true`.
-- `endpoint`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation. Default is `true`.
-- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+- `endpoint=true`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
+                      point is "closer" to a boundary than to the fluid system
+                      (see an explanation for "closer" below).
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -254,10 +307,10 @@ end
 
 @doc raw"""
     interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
     interpolate_point(point_coords, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
 Performs interpolation of properties at specified points or an array of points in a TrixiParticles simulation.
 
@@ -265,16 +318,21 @@ When given an array of points (`points_coords`), it iterates over each point and
 For a single point (`point_coords`), it performs the interpolation at that specific location.
 The interpolation utilizes the same kernel function of the SPH simulation to weigh contributions from nearby particles.
 
+See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
+          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref), .
+
 # Arguments
-- `points_coords`: An array of point coordinates, for which to interpolate properties.
-- `point_coords`: The coordinates of a single point for interpolation.
-- `semi`: The semidiscretization used in the SPH simulation.
-- `ref_system`: The reference system defining the properties of the SPH particles.
-- `sol`: The current solution state from which properties are interpolated.
+- `points_coords`:  An array of point coordinates, for which to interpolate properties.
+- `point_coords`:   The coordinates of a single point for interpolation.
+- `semi`:           The semidiscretization used in the SPH simulation.
+- `ref_system`:     The reference system defining the properties of the SPH particles.
+- `sol`:            The current solution state from which properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: Cut-off at the boundary.
-- `smoothing_length`: The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
+                      point is "closer" to a boundary than to the fluid system
+                      (see an explanation for "closer" below).
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
 
 # Returns:
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
@@ -425,7 +483,7 @@ end
     if other_density > interpolated_density || shepard_coefficient < eps()
         # Return NaN values that can be filtered out in ParaView
         return (density=NaN, neighbor_count=0, coord=point_coords,
-                velocity=NaN * zero(SVector{ndims(ref_system)}), pressure=NaN)
+                velocity=fill(NaN, SVector{ndims(ref_system)}), pressure=NaN)
     end
 
     return (density=interpolated_density / shepard_coefficient,
