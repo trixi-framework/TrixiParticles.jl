@@ -131,9 +131,9 @@ end
 # In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
 # https://doi.org/10.1016/j.cpc.2012.07.006
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
-    (; smoothing_length, state_equation) = system
-    (; sound_speed) = state_equation
+    (; smoothing_length) = system
     (; alpha) = viscosity
+    sound_speed = system_sound_speed(system)
 
     return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end

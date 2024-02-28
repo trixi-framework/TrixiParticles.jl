@@ -141,6 +141,8 @@ end
     return v[end, particle]
 end
 
+@inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
+
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
