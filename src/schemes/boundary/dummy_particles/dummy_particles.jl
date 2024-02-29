@@ -96,16 +96,7 @@ condition is applied.
                     information.
 
 # Examples
-```@meta
-DocTestSetup = quote
-    using TrixiParticles
-    densities = [1.0, 2.0, 3.0]
-    masses = [0.1, 0.2, 0.3]
-    smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-    smoothing_length = 0.1
-end
-```
-```jldoctest; output = false
+```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
 boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExtrapolation(),
                                              smoothing_kernel, smoothing_length)

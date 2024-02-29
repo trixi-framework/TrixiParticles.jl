@@ -23,15 +23,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
                                 directions.
 
 # Examples
-```@meta
-DocTestSetup = quote
-    using TrixiParticles
-    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing)
-    ref_system = fluid_system
-end
-```
-
-```jldoctest; output = false
+```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
@@ -236,15 +228,7 @@ Therefore, not all integrators designed for `DynamicalODEProblems` will work pro
 However, all integrators designed for `ODEProblems` can be used.
 
 # Examples
-```@meta
-DocTestSetup = quote
-    using TrixiParticles
-    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing)
-    ref_system = fluid_system
-end
-```
-
-```jldoctest; output = false, filter = r"u0: .*"
+```jldoctest; output = false, filter = r"u0: .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 tspan = (0.0, 1.0)
 ode_problem = semidiscretize(semi, tspan)

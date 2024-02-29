@@ -57,16 +57,7 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `tank_size::Tuple`:           Tuple containing the size of the tank in each dimension after rounding.
 
 # Examples
-```@meta
-DocTestSetup = quote
-    using TrixiParticles
-    particle_spacing = 0.1
-    water_width = water_depth = container_width = container_height = container_depth = 1.0
-    water_height = 0.5
-    fluid_density = 1000.0
-end
-```
-```jldoctest; output = false, filter = r"RectangularTank.*"
+```jldoctest; output = false, filter = r"RectangularTank.*", setup = :(particle_spacing = 0.1; water_width = water_depth = container_width = container_height = container_depth = 1.0; water_height = 0.5; fluid_density = 1000.0)
 # 2D
 setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (container_width, container_height), fluid_density,
