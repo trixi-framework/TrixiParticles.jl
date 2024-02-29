@@ -33,6 +33,6 @@ for res in resolution
 
     callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
 
-    sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dtmax=1e-3,
+    sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
                 save_everystep=false, callback=callbacks)
 end
