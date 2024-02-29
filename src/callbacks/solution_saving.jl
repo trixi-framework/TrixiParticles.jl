@@ -31,7 +31,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 # Examples
-```jldoctest; output = false
+```jldoctest; output = false, filter = r"output directory:.*│"
 # Save every 100 time steps.
 saving_callback = SolutionSavingCallback(interval=100)
 
@@ -57,7 +57,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 │ custom quantities: ……………………………… [:v_mag => v_mag]                            │
 │ save initial solution: …………………… yes                                                              │
 │ save final solution: ………………………… yes                                                              │
-│ output directory: ………………………………… /Users/erik/git/TrixiParticles.jl/docs/out                       │
+│ output directory: ………………………………… *path ignored with filter regex above*                           │
 │ prefix: ……………………………………………………………                                                                  │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```

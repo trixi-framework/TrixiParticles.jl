@@ -34,9 +34,19 @@ spaced uniformly according to the given resolution.
       accurate as a real surface reconstruction.
 
 # Examples
-```julia
+```@meta
+DocTestSetup = quote
+    using TrixiParticles
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+    ref_system = fluid_system
+end
+```
+
+```jldoctest; output = false
 # Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
 results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+
+# output
 ```
 """
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
@@ -108,10 +118,24 @@ The function generates a grid of points on a parallelogram within the plane defi
       accurate as a real surface reconstruction.
 
 # Examples
-```julia
+```@meta
+DocTestSetup = quote
+    using TrixiParticles
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_3d.jl"), tspan=(0.0, 0.01))
+    ref_system = fluid_system
+end
+```
+
+```jldoctest; output = false
 # Interpolating across a plane defined by points [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], and [0.0, 1.0, 0.0]
 # with a resolution of 0.1
 results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 0.1, semi, ref_system, sol)
+
+# output
+```
+
+```@meta
+DocTestSetup = nothing
 ```
 """
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
@@ -201,9 +225,19 @@ but does not include these points.
       accurate as a real surface reconstruction.
 
 # Examples
-```julia
+```@meta
+DocTestSetup = quote
+    using TrixiParticles
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+    ref_system = fluid_system
+end
+```
+
+```jldoctest
 # Interpolating along a line from [1.0, 0.0] to [1.0, 1.0] with 5 points
 results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
+
+# output
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
@@ -246,18 +280,28 @@ The interpolation utilizes the same kernel function of the SPH simulation to wei
 - `cut_off_bnd`: Cut-off at the boundary.
 - `smoothing_length`: The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
 
-# Returns:
+# Returns
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
 - For a single point: A `NamedTuple` of interpolated properties at the point.
 
-# Examples:
-```julia
+# Examples
+```@meta
+DocTestSetup = quote
+    using TrixiParticles
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+    ref_system = fluid_system
+end
+```
+
+```jldoctest
 # For a single point
 result = interpolate_point([1.0, 0.5], semi, ref_system, sol)
 
 # For multiple points
 points = [[1.0, 0.5], [1.0, 0.6], [1.0, 0.7]]
 results = interpolate_point(points, semi, ref_system, sol)
+
+# output
 ```
 !!! note
     - This function is particularly useful for analyzing gradients or creating visualizations

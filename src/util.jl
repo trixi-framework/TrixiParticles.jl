@@ -130,8 +130,10 @@ modified. To find out which files are available, use, e.g., `readdir`.
 Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 
 # Examples
-```@example
+```jldoctest; output = false, filter = r".*"s
 readdir(examples_dir())
+
+# output
 ```
 """
 examples_dir() = pkgdir(TrixiParticles, "examples")
