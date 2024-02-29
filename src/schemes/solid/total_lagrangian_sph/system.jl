@@ -70,9 +70,9 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
