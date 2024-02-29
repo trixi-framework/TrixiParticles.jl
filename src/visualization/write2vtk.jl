@@ -22,7 +22,7 @@ Convert Trixi simulation data to VTK format.
 ```@meta
 DocTestSetup = quote
     using TrixiParticles
-    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing)
 end
 ```
 ```jldoctest

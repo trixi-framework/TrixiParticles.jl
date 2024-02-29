@@ -29,7 +29,7 @@ internal function `eachneighbor`.
     ```@meta
     DocTestSetup = quote
         using TrixiParticles
-        trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+        trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing)
         system1 = fluid_system
         system2 = boundary_system
     end
