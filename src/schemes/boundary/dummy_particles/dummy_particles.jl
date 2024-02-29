@@ -4,87 +4,14 @@
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing)
 
-Boundaries modeled as dummy particles, which are treated like fluid particles,
-but their positions and velocities are not evolved in time. Since the force towards the fluid
-should not change with the material density when used with a [`TotalLagrangianSPHSystem`](@ref), the
-dummy particles need to have a mass corresponding to the fluid's rest density, which we call
-"hydrodynamic mass", as opposed to mass corresponding to the material density of a
-[`TotalLagrangianSPHSystem`](@ref).
-
-Here, `initial_density` and `hydrodynamic_mass` are vectors that contains the initial density
-and the hydrodynamic mass respectively for each boundary particle.
-Note that when used with [`SummationDensity`](@ref) (see below), this is only used to determine
-the element type and the number of boundary particles.
-
-To establish a relationship between density and pressure, a `state_equation` has to be passed,
-which should be the same as for the adjacent fluid systems.
-To sum over neighboring particles, a `smoothing_kernel` and `smoothing_length` needs to be passed.
-This should be the same as for the adjacent fluid system with the largest smoothing length.
-
-In the literature, this kind of boundary particles is referred to as
-"dummy particles" (Adami et al., 2012 and Valizadeh & Monaghan, 2015),
-"frozen fluid particles" (Akinci et al., 2012) or "dynamic boundaries (Crespo et al., 2007).
-The key detail of this boundary condition and the only difference between the boundary models
-in these references is the way the density and pressure of boundary particles is computed.
-
-Since boundary particles are treated like fluid particles, the force
-on fluid particle ``a`` due to boundary particle ``b`` is given by
-```math
-f_{ab} = m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_{r_a} W(\Vert r_a - r_b \Vert, h).
-```
-The quantities to be defined here are the density ``\rho_b`` and pressure ``p_b``
-of the boundary particle ``b``.
-
-## Hydrodynamic density of dummy particles
-
-We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
-1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
-   fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
-   This option usually yields the best results of the options listed here.
-2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
-   and the pressure is computed from the density with the state equation.
-3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
-   and the pressure is computed from the density with the state equation.
-   Note that this causes a gap between fluid and boundary where the boundary is initialized
-   without any contact to the fluid. This is due to overestimation of the boundary density
-   as soon as the fluid comes in contact with boundary particles that initially did not have
-   contact to the fluid.
-   Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
-   See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
-   is computed from the density with the state equation.
-   This option is not recommended. The other options yield significantly better results.
-5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
-   is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
-   momentum equation.
-   This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
-   for more details.
-
-## No-slip conditions
-
-For the interaction of dummy particles and fluid particles, Adami et al. (2012)
-impose a no-slip boundary condition by assigning a wall velocity ``v_w`` to the dummy particle.
-
-The wall velocity of particle ``a`` is calculated from the prescribed boundary particle
-velocity ``v_a`` and the smoothed velocity field
-```math
-v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
-```
-where the sum is over all fluid particles.
-
-By choosing the viscosity model [`ViscosityAdami`](@ref) for `viscosity`, a no-slip
-condition is imposed. It is recommended to choose `nu` in the order of either the kinematic
-viscosity parameter of the adjacent fluid or the equivalent from the artificial parameter
-`alpha` of the adjacent fluid (``\nu = \frac{\alpha h c }{2d + 4}``). When omitting the
-viscous interaction (default `viscosity=nothing`), a free-slip wall boundary
-condition is applied.
+`boundary_model` for `BoundarySPHSystem`.
 
 # Arguments
 - `initial_density`: Vector holding the initial density of each boundary particle.
 - `hydrodynamic_mass`: Vector holding the "hydrodynamic mass" of each boundary particle.
                        See description above for more information.
 - `density_calculator`: Strategy to compute the hydrodynamic density of the boundary particles.
-                        See description above for more information.
+                        See description below for more information.
 - `smoothing_kernel`: Smoothing kernel should be the same as for the adjacent fluid system.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
@@ -92,7 +19,7 @@ condition is applied.
 - `state_equation`: This should be the same as for the adjacent fluid system
                     (see e.g. [`StateEquationCole`](@ref)).
 - `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
-- `viscosity`:      Slip (default) or no-slip condition. See description above for further
+- `viscosity`:      Slip (default) or no-slip condition. See description below for further
                     information.
 
 # Examples
@@ -108,23 +35,6 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
                                              viscosity=ViscosityAdami(nu))
 
 ```
-## References:
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
-  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
-- Alireza Valizadeh, Joseph J. Monaghan.
-  "A study of solid wall models for weakly compressible SPH".
-  In: Journal of Computational Physics 300 (2015), pages 5–19.
-  [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
-- Nadir Akinci, Markus Ihmsen, Gizem Akinci, Barbara Solenthaler, Matthias Teschner.
-  "Versatile rigid-fluid coupling for incompressible SPH".
-  ACM Transactions on Graphics 31, 4 (2012), pages 1–8.
-  [doi: 10.1145/2185520.2185558](https://doi.org/10.1145/2185520.2185558)
-- A. J. C. Crespo, M. Gómez-Gesteira, R. A. Dalrymple.
-  "Boundary conditions generated by dynamic particles in SPH methods"
-  In: Computers, Materials and Continua 5 (2007), pages 173-184.
-  [doi: 10.3970/cmc.2007.005.173](https://doi.org/10.3970/cmc.2007.005.173)
 """
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     pressure           :: Vector{ELTYPE}
@@ -165,44 +75,14 @@ end
 @doc raw"""
     AdamiPressureExtrapolation()
 
-The pressure of the boundary particles is obtained by extrapolating the pressure of the fluid
-according to (Adami et al., 2012).
-The pressure of a boundary particle ``b`` is given by
-```math
-p_b = \frac{\sum_f (p_f + \rho_f (\bm{g} - \bm{a}_b) \cdot \bm{r}_{bf}) W(\Vert r_{bf} \Vert, h)}{\sum_f W(\Vert r_{bf} \Vert, h)},
-```
-where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the density and pressure of fluid particle ``f``, respectively,
-``r_{bf} = r_b - r_f`` denotes the difference of the coordinates of particles ``b`` and ``f``,
-``\bm{g}`` denotes the gravitational acceleration acting on the fluid, and ``\bm{a}_b`` denotes the acceleration of the boundary particle ``b``.
-
-## References:
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
-  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
+`density_calculator` for `BoundaryModelDummyParticles`.
 """
 struct AdamiPressureExtrapolation end
 
 @doc raw"""
     PressureMirroring()
 
-Instead of calculating density and pressure for each boundary particle, we modify the
-momentum equation,
-```math
-\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab}
-```
-to replace the unknown density $\rho_b$ if $b$ is a boundary particle by the reference density
-and the unknown pressure $p_b$ if $b$ is a boundary particle by the pressure $p_a$ of the
-interacting fluid particle.
-The momentum equation therefore becomes
-```math
-\frac{\mathrm{d}v_a}{\mathrm{d}t} = -\sum_f m_f \left( \frac{p_a}{\rho_a^2} + \frac{p_f}{\rho_f^2} \right) \nabla_a W_{af}
--\sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_a}{\rho_0^2} \right) \nabla_a W_{ab},
-```
-where the first sum is over all fluid particles and the second over all boundary particles.
-
-This approach was first mentioned by Akinci et al. (2012) and written down in this form
-by Band et al. (2018).
+`density_calculator` for `BoundaryModelDummyParticles`.
 
 !!! note
     This boundary model requires high viscosity for stability with WCSPH.
@@ -211,25 +91,13 @@ by Band et al. (2018).
     in the pressure.
     We added this model only for research purposes and for comparison with
     [SPlisHSPlasH](https://github.com/InteractiveComputerGraphics/SPlisHSPlasH).
-
-## References:
-- Nadir Akinci, Markus Ihmsen, Gizem Akinci, Barbara Solenthaler, and Matthias Teschner.
-  "Versatile Rigid-Fluid Coupling for Incompressible SPH."
-  In: ACM Transactions on Graphics 31, 4 (2012), pages 1–8.
-  [doi: 10.1145/2185520.2185558](https://doi.org/10.1145/2185520.2185558)
-- Stefan Band, Christoph Gissler, Andreas Peer, and Matthias Teschner.
-  "MLS Pressure Boundaries for Divergence-Free and Viscous SPH Fluids."
-  In: Computers & Graphics 76 (2018), pages 37–46.
-  [doi: 10.1016/j.cag.2018.08.001](https://doi.org/10.1016/j.cag.2018.08.001)
 """
 struct PressureMirroring end
 
 @doc raw"""
     PressureZeroing()
 
-This is the simplest way to implement dummy boundary particles.
-The density of each particle is set to the reference density and the pressure to the
-reference pressure (the corresponding pressure to the reference density by the state equation).
+`density_calculator` for `BoundaryModelDummyParticles`.
 
 !!! note
     This boundary model produces significantly worse results than all other models and
