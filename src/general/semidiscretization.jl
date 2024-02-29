@@ -492,8 +492,11 @@ particle ``a``.
                             damping a fluid at rest.
 
 # Examples
-```julia
+```jldoctest; output = false
 source_terms = SourceTermDamping(; damping_coefficient=1e-4)
+
+# output
+1
 ```
 """
 struct SourceTermDamping{ELTYPE}

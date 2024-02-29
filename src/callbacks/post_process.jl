@@ -33,16 +33,19 @@ a fixed interval of simulation time (`dt`).
                            are only written at the end of the simulation, eliminating I/O overhead.
 
 # Examples
-```julia
+```jldoctest; output = false
 function example_function(v, u, t, system)
     println("test_func ", t)
 end
 
 # Create a callback that is triggered every 100 time steps
-postprocess_callback = PostprocessCallback(example_function, interval=100)
+postprocess_callback = PostprocessCallback(interval=100, example_quantity=example_function)
 
 # Create a callback that is triggered every 0.1 simulation time units
-postprocess_callback = PostprocessCallback(example_function, dt=0.1)
+postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=example_function)
+
+# output
+1
 ```
 """
 struct PostprocessCallback{I, F}

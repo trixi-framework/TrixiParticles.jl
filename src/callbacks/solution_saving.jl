@@ -31,7 +31,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 # Examples
-```julia
+```jldoctest; output = false
 # Save every 100 time steps.
 saving_callback = SolutionSavingCallback(interval=100)
 
@@ -48,6 +48,9 @@ function v_mag(v, u, t, system::WeaklyCompressibleSPHSystem)
     return [norm(v[1:ndims(system), i]) for i in axes(v, 2)]
 end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
+
+# output
+1
 ```
 """
 struct SolutionSavingCallback{I, CQ}

@@ -49,7 +49,7 @@ coordinate directions as `cutout_min` and `cutout_max`.
                 only needed when using the [`EntropicallyDampedSPHSystem`](@ref).
 
 # Examples
-```julia
+```jldoctest; output = false
 # Filled circle with radius 0.5, center in (0.2, 0.4) and a particle spacing of 0.1
 SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0)
 
@@ -76,6 +76,9 @@ SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0)
 
 # Same as before, but perfectly round
 SphereShape(0.1, 0.5, (0.2, 0.4, 0.3), 1000.0, sphere_type=RoundSphere())
+
+# output
+1
 ```
 """
 function SphereShape(particle_spacing, radius, center_position, density;
