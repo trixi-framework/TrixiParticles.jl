@@ -92,8 +92,18 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 !!! note
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```julia
+    ```@meta
+    DocTestSetup = quote
+        using TrixiParticles
+        fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0)
+        beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0)
+    end
+    ```
+    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*"
     solid = union(beam, fixed_particles)
+
+    # output
+    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 

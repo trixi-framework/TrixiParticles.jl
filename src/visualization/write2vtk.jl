@@ -19,8 +19,17 @@ Convert Trixi simulation data to VTK format.
 
 
 # Example
-```julia
+```@meta
+DocTestSetup = quote
+    using TrixiParticles
+    trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01))
+end
+```
+```jldoctest
 trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+
+# output
+```
 
 TODO: example for custom_quantities
 """
