@@ -5,7 +5,8 @@ using TrixiParticles
 using Plots
 
 trixi_include(@__MODULE__,
-              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              initial_fluid_size=(2.0, 0.9), tank_size=(2.0, 1.0))
 
 # `interpolate_point` can be used to interpolate the properties of the `fluid_system` with the original kernel and `smoothing_length`
 println(interpolate_point([1.0, 0.01], semi, fluid_system, sol))
