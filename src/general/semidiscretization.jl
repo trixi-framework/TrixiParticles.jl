@@ -104,7 +104,8 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{nothing},
+function create_neighborhood_search(system, neighbor,
+                                    ::Union{Val{nothing}, Val{TrivialNeighborhoodSearch}},
                                     periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
