@@ -205,7 +205,7 @@ end
                                                                                          semi.systems)
 @inline foreach_system(f, systems) = foreach_noalloc(f, systems)
 
-@doc raw"""
+"""
     semidiscretize(semi, tspan; reset_threads=true)
 
 Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
