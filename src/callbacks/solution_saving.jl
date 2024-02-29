@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                            save_initial_solution=true,
                            save_final_solution=true,
@@ -54,7 +54,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 │ SolutionSavingCallback                                                                           │
 │ ══════════════════════                                                                           │
 │ dt: ……………………………………………………………………… 0.1                                                              │
-│ custom quantities: ……………………………… [:v_mag => v_mag]                            │
+│ custom quantities: ……………………………… [:v_mag => v_mag]                           │
 │ save initial solution: …………………… yes                                                              │
 │ save final solution: ………………………… yes                                                              │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
