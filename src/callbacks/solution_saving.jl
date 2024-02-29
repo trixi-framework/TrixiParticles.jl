@@ -50,7 +50,16 @@ end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 
 # output
-1
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SolutionSavingCallback                                                                           │
+│ ══════════════════════                                                                           │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ custom quantities: ……………………………… [:v_mag => v_mag]                            │
+│ save initial solution: …………………… yes                                                              │
+│ save final solution: ………………………… yes                                                              │
+│ output directory: ………………………………… /Users/erik/git/TrixiParticles.jl/docs/out                       │
+│ prefix: ……………………………………………………………                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct SolutionSavingCallback{I, CQ}

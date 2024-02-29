@@ -496,7 +496,7 @@ particle ``a``.
 source_terms = SourceTermDamping(; damping_coefficient=1e-4)
 
 # output
-1
+SourceTermDamping{Float64}(0.0001)
 ```
 """
 struct SourceTermDamping{ELTYPE}

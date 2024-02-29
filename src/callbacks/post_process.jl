@@ -45,7 +45,19 @@ postprocess_callback = PostprocessCallback(interval=100, example_quantity=exampl
 postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=example_function)
 
 # output
-1
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ PostprocessCallback                                                                              │
+│ ═══════════════════                                                                              │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ write file: ………………………………………………… always                                                           │
+│ exclude boundary: ………………………………… yes                                                              │
+│ filename: ……………………………………………………… values                                                           │
+│ output directory: ………………………………… out                                                              │
+│ append timestamp: ………………………………… no                                                               │
+│ write json file: …………………………………… yes                                                              │
+│ write csv file: ……………………………………… yes                                                              │
+│ function1: …………………………………………………… example_quantity                                                 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct PostprocessCallback{I, F}
