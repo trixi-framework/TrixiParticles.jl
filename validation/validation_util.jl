@@ -1,6 +1,6 @@
 function linear_interpolation(x, y, interpolation_point)
     if !(first(x) <= interpolation_point <= last(x))
-        throw(ArgumentError("`interpolation_point` with $interpolation_point is outside the interpolation range"))
+        throw(ArgumentError("`interpolation_point` at $interpolation_point is outside the interpolation range"))
     end
 
     i = searchsortedlast(x, interpolation_point)
@@ -14,6 +14,10 @@ end
 
 function interpolated_mse(reference_time, reference_values, simulation_time,
                           simulation_values)
+    if last(simulation_time) > last(reference_time)
+        @warn "simulation time range is larger than reference time range. " *
+              "Only checking values within reference time range."
+    end
     # Remove reference time points outside the simulation time
     start = searchsortedfirst(reference_time, first(simulation_time))
     end_ = searchsortedlast(reference_time, last(simulation_time))

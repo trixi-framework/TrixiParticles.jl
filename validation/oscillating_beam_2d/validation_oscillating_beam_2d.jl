@@ -10,13 +10,17 @@
 # In: Fluid-structure interaction. Springer; 2006. p. 371–85 .
 # https://doi.org/10.1007/3-540-34596-5_15
 
+include("../validation_util.jl")
 using TrixiParticles
 using OrdinaryDiffEq
+using JSON
 
 tspan = (0, 10)
 
-# Can be used to set the width wise resolution of beam, which needs to be odd,
-# use 9, 21, 35 for validation
+# `n_particles_beam_y = 5` means that the beam is 5 particles thick.
+# This number is used to set the resolution of the simulation.
+# It has to be odd, so that a particle is exactly in the middle of the tip of the beam.
+# Use 5, 9, 21, 35 for validation.
 # Note: 35 takes a very long time!
 n_particles_beam_y = 5
 
@@ -45,14 +49,12 @@ run_file_name = joinpath("out", "validation_run_oscillating_beam_2d_5.json")
 reference_data = JSON.parsefile(reference_file_name)
 run_data = JSON.parsefile(run_file_name)
 
-# error_ = calculate_error(reference_data, run_data)
+error_deflection_x = interpolated_mse(reference_data["deflection_x_solid_1"]["time"],
+                                      reference_data["deflection_x_solid_1"]["values"],
+                                      run_data["deflection_x_solid_1"]["time"],
+                                      run_data["deflection_x_solid_1"]["values"])
 
-error_deflection_x = calculate_mse(reference_data["deflection_x_solid_1"]["time"],
-                                   reference_data["deflection_x_solid_1"]["values"],
-                                   run_data["deflection_x_solid_1"]["time"],
-                                   run_data["deflection_x_solid_1"]["values"])
-
-error_deflection_y = calculate_mse(reference_data["deflection_y_solid_1"]["time"],
-                                   reference_data["deflection_y_solid_1"]["values"],
-                                   run_data["deflection_y_solid_1"]["time"],
-                                   run_data["deflection_y_solid_1"]["values"])
+error_deflection_y = interpolated_mse(reference_data["deflection_y_solid_1"]["time"],
+                                      reference_data["deflection_y_solid_1"]["values"],
+                                      run_data["deflection_y_solid_1"]["time"],
+                                      run_data["deflection_y_solid_1"]["values"])
