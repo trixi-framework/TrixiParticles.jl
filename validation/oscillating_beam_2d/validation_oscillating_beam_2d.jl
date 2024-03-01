@@ -15,8 +15,9 @@ using OrdinaryDiffEq
 
 tspan = (0, 10)
 
-# for the brave add 35
-resolution = [9, 21]
+# Note: 35 takes a very long time!
+# resolution = [5, 9, 21, 35]
+resolution = [5]
 for res in resolution
     # Overwrite `sol` assignment to skip time integration
     trixi_include(@__MODULE__,
