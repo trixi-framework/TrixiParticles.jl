@@ -1,12 +1,15 @@
-function linear_interpolation(t, xp, yp)
-    for i in 1:(length(xp) - 1)
-        if xp[i] <= t && t <= xp[i + 1]
-            # Calculate the slope and interpolate
-            slope = (yp[i + 1] - yp[i]) / (xp[i + 1] - xp[i])
-            return yp[i] + slope * (t - xp[i])
-        end
+function linear_interpolation(x, y, interpolation_point)
+    if !(first(x) <= interpolation_point <= last(x))
+        throw(ArgumentError("`interpolation_point` with $interpolation_point is outside the interpolation range"))
     end
-    error("t $t is outside the interpolation range")
+
+    i = searchsortedlast(x, interpolation_point)
+    # Handle right boundary
+    i == lastindex(x) && return last(y)
+
+    # Linear interpolation
+    slope = (y[i + 1] - y[i]) / (x[i + 1] - x[i])
+    return y[i] + slope * (interpolation_point - x[i])
 end
 
 function calculate_mse(reference_time, reference_values, simulation_time, simulation_values)
@@ -21,7 +24,7 @@ function calculate_mse(reference_time, reference_values, simulation_time, simula
                                            ]), reference_time)
 
     # Interpolate simulation data at the common time points
-    interpolated_values = [linear_interpolation(t, simulation_time, simulation_values)
+    interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
                            for t in common_time_range]
 
     # Extract the corresponding reference displacement values
