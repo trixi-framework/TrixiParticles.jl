@@ -15,25 +15,44 @@ using OrdinaryDiffEq
 
 tspan = (0, 10)
 
+# Can be used to set the width wise resolution of beam, which needs to be odd,
+# use 9, 21, 35 for validation
 # Note: 35 takes a very long time!
-# resolution = [5, 9, 21, 35]
-resolution = [5]
-for res in resolution
-    # Overwrite `sol` assignment to skip time integration
-    trixi_include(@__MODULE__,
-                  joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
-                  n_particles_y=res, sol=nothing, tspan=tspan,
-                  penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
+n_particles_beam_y = 5
 
-    pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
-                                      output_directory="out",
-                                      filename="validation_run_oscillating_beam_2d_$res",
-                                      write_csv=false, write_file_interval=0)
-    info_callback = InfoCallback(interval=2500)
-    saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_$res")
+# Overwrite `sol` assignment to skip time integration
+trixi_include(@__MODULE__,
+                joinpath(examples_dir(), "solid", "oscillating_beam_2d.jl"),
+                n_particles_y=n_particles_beam_y, sol=nothing, tspan=tspan,
+                penalty_force=PenaltyForceGanzenmueller(alpha=0.01))
 
-    callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
+pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
+                                    output_directory="out",
+                                    filename="validation_run_oscillating_beam_2d_$n_particles_beam_y",
+                                    write_csv=false, write_file_interval=0)
+info_callback = InfoCallback(interval=2500)
+saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_$n_particles_beam_y")
 
-    sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
-                save_everystep=false, callback=callbacks)
-end
+callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
+
+sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
+            save_everystep=false, callback=callbacks)
+
+reference_file_name = joinpath(validation_dir(), "oscillating_beam_2d",
+            "validation_reference_5.json")
+run_file_name = joinpath("out", "validation_run_oscillating_beam_2d_5.json")
+
+reference_data = JSON.parsefile(reference_file_name)
+run_data = JSON.parsefile(run_file_name)
+
+# error_ = calculate_error(reference_data, run_data)
+
+error_deflection_x = calculate_mse(reference_data["deflection_x_solid_1"]["time"],
+                                   reference_data["deflection_x_solid_1"]["values"],
+                                   run_data["deflection_x_solid_1"]["time"],
+                                   run_data["deflection_x_solid_1"]["values"])
+
+error_deflection_y = calculate_mse(reference_data["deflection_y_solid_1"]["time"],
+                                   reference_data["deflection_y_solid_1"]["values"],
+                                   run_data["deflection_y_solid_1"]["time"],
+                                   run_data["deflection_y_solid_1"]["values"])
