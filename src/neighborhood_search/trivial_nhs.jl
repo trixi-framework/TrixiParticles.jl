@@ -26,18 +26,38 @@ internal function `eachneighbor`.
 
     To run a simulation with this neighborhood search, just pass the type to the constructor
     of [`Semidiscretization`](@ref):
-    ```julia
-    semi = Semidiscretization(system1, system2, system3,
+    ```jldoctest semi_example; output=false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+    semi = Semidiscretization(system1, system2,
                               neighborhood_search=TrivialNeighborhoodSearch)
+
+    # output
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ Semidiscretization                                                                               │
+    │ ══════════════════                                                                               │
+    │ #spatial dimensions: ………………………… 2                                                                │
+    │ #systems: ……………………………………………………… 2                                                                │
+    │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+    │ total #particles: ………………………………… 636                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     The keyword arguments `periodic_box_min_corner` and `periodic_box_max_corner` explained
     above can also be passed to the [`Semidiscretization`](@ref) and will internally be
     forwarded to the neighborhood search:
-    ```julia
+    ```jldoctest semi_example; output = false
     semi = Semidiscretization(system1, system2,
                               neighborhood_search=TrivialNeighborhoodSearch,
                               periodic_box_min_corner=[0.0, -0.25],
-                              periodic_box_max_corner=[1.0, 0.75]))
+                              periodic_box_max_corner=[1.0, 0.75])
+
+    # output
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ Semidiscretization                                                                               │
+    │ ══════════════════                                                                               │
+    │ #spatial dimensions: ………………………… 2                                                                │
+    │ #systems: ……………………………………………………… 2                                                                │
+    │ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+    │ total #particles: ………………………………… 636                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
 """
 struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}

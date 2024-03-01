@@ -51,11 +51,14 @@ In the example below, `movement` describes particles moving in a circle as long 
 the time is lower than `1.5`.
 
 # Examples
-```julia
+```jldoctest; output = false
 movement_function(t) = SVector(cos(2pi*t), sin(2pi*t))
 is_moving(t) = t < 1.5
 
 movement = BoundaryMovement(movement_function, is_moving)
+
+# output
+BoundaryMovement{typeof(movement_function), typeof(is_moving)}(movement_function, is_moving, Int64[])
 ```
 """
 struct BoundaryMovement{MF, IM}
