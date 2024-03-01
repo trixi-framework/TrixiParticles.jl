@@ -23,19 +23,8 @@ difference of the coordinates, ``v_{ab} = v_a - v_b`` of the velocities of parti
 """
 struct ContinuityDensity end
 
-"""
-    ConstantDensity()
-
-Density calculator to use constant density from the `InitialCondition`.
-"""
-struct ConstantDensity end
-
 @inline function particle_density(v, system, particle)
     particle_density(v, system.density_calculator, system, particle)
-end
-
-@inline function particle_density(v, ::ConstantDensity, system, particle)
-    return system.initial_condition.density[particle]
 end
 
 @inline function particle_density(v, ::SummationDensity, system, particle)
