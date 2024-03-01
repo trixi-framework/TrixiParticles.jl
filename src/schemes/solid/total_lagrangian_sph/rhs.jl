@@ -35,6 +35,7 @@ end
         grad_kernel = smoothing_kernel_grad(particle_system, initial_pos_diff,
                                             initial_distance)
 
+        m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_particle = m_b *
@@ -42,12 +43,13 @@ end
                        pk1_corrected(neighbor_system, neighbor) / rho_b^2) *
                       grad_kernel
 
-        for i in 1:ndims(particle_system)
+        @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += dv_particle[i]
         end
 
         calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                            initial_distance, particle_system, penalty_force)
+                            initial_distance, particle_system, m_a, m_b, rho_a, rho_b,
+                            penalty_force)
 
         # TODO continuity equation?
     end
