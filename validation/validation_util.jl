@@ -12,7 +12,7 @@ function linear_interpolation(x, y, interpolation_point)
     return y[i] + slope * (interpolation_point - x[i])
 end
 
-function calculate_mse(reference_time, reference_values, simulation_time, simulation_values)
+function interpolated_mse(reference_time, reference_values, simulation_time, simulation_values)
     # Find the common time range
     common_time_range = filter(t -> t >= maximum([
                                                 minimum(simulation_time),

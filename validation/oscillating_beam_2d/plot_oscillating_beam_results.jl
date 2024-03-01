@@ -60,8 +60,8 @@ for file_name in input_files
             displacements = Float64.(data["values"])
 
             mse_results = occursin(key_pattern_x, key) ?
-                          calculate_mse(ref.time, ref.Ux, data["time"], displacements) :
-                          calculate_mse(ref.time, ref.Uy, data["time"], displacements)
+                          interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
+                          interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
             label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements, label=label)
