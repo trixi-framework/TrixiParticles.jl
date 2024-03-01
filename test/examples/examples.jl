@@ -221,9 +221,7 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(),
                                                     "postprocessing",
-                                                    "postprocessing.jl")) [
-                r"\[ Info: Writing postprocessing results to .*\n",
-            ]
+                                                    "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
         end
     end

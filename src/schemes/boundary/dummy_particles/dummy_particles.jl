@@ -96,17 +96,18 @@ condition is applied.
                     information.
 
 # Examples
-
-```julia
+```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
 boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length))
+                                             smoothing_kernel, smoothing_length)
 
 # No-slip condition
 boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExtrapolation(),
-                                             smoothing_kernel, smoothing_length),
-                                             viscosity=ViscosityAdami(nu))
+                                             smoothing_kernel, smoothing_length,
+                                             viscosity=ViscosityAdami(nu=1e-6))
 
+# output
+BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 ## References:
 - S. Adami, X. Y. Hu, N. A. Adams.

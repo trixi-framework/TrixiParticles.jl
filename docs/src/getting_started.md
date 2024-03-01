@@ -1,4 +1,4 @@
-# Getting started  
+# Getting started
 If you have not installed TrixiParticles.jl, please follow the instructions given [here](install.md).
 
 In the following sections, we will give a short introduction. For a more thorough discussion, take a look at our [Tutorials](tutorial.md).
@@ -10,12 +10,12 @@ Since TrixiParticles.jl uses multithreading, you should start Julia with the fla
 
 In the Julia REPL, first load the package TrixiParticles.jl.
 
-```julia
+```jldoctest getting_started
 julia> using TrixiParticles
 ```
 
 Then start the simulation by executing
-```julia
+```jldoctest getting_started; filter = r".*"s
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
@@ -36,7 +36,7 @@ julia> trixi_include(joinpath(examples_dir(), "subfolder", "example_name.jl"))
 You can pass keyword arguments to the function `trixi_include` to overwrite assignments in the file.
 
 With `trixi_include`, we can overwrite variables defined in the example file to run a different simulation without modifying the example file.
-```julia
+```jldoctest getting_started; filter = r".*"s
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), initial_fluid_size=(1.0, 0.5))
 ```
 This for example, will change the fluid size from ``(0.9, 1.0)`` to ``(1.0, 0.5)``.
@@ -47,6 +47,6 @@ Another variable that is worth experimenting with is `fluid_particle_spacing`, w
 A lower value will increase the resolution and the runtime.
 
 ## Set up you first simulation from scratch
-See [Set up your first simulation](tutorials/tut_setup.md). 
+See [Set up your first simulation](tutorials/tut_setup.md).
 
 Find an overview over the available tutorials under [Tutorials](tutorial.md).
