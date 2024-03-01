@@ -5,7 +5,7 @@ function create_cache_density(initial_condition, ::SummationDensity)
 end
 
 function create_cache_density(ic, ::ContinuityDensity)
-    # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
+    # Density in this case is added to the end of `v` and allocated by modifying `v_nvariables`.
     return (;)
 end
 

@@ -203,14 +203,15 @@ end
 
     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-    # This formulation was introduced by Hu and Adams (https://doi.org/10.1016/j.jcp.2005.09.001)
-    # they argued that the formulation is more flexible because of the possibility to formulate
+    # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
+    # They argued that the formulation is more flexible because of the possibility to formulate
     # different inter-particle averages or to assume different inter-particle distributions.
     # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
     #
     # TODO: Is there a better formulation to discretize the Laplace operator?
     # Because when using this formulation for the pressure acceleration, it is not
     # energy conserving.
+    # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
 
     return visc .* v_diff

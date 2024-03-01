@@ -22,7 +22,7 @@ Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by Ram
                     Recommended: [`ViscosityAdami`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
 - `pressure_acceleration`: Pressure acceleration formulation (default: inter-particle averaged pressure).
-                        When set to `nothing` the pressure acceleration formulation for the
+                        When set to `nothing`, the pressure acceleration formulation for the
                         corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
