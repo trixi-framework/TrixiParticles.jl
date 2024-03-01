@@ -13,15 +13,10 @@ function linear_interpolation(x, y, interpolation_point)
 end
 
 function interpolated_mse(reference_time, reference_values, simulation_time, simulation_values)
-    # Find the common time range
-    common_time_range = filter(t -> t >= maximum([
-                                                minimum(simulation_time),
-                                                minimum(reference_time),
-                                            ]) &&
-                                   t <= minimum([
-                                               maximum(simulation_time),
-                                               maximum(reference_time),
-                                           ]), reference_time)
+     # Remove reference time points outside the simulation time
+     start = searchsortedfirst(reference_time, first(simulation_time))
+     end_ = searchsortedlast(reference_time, last(simulation_time))
+     common_time_range = reference_time[start:end_]
 
     # Interpolate simulation data at the common time points
     interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
