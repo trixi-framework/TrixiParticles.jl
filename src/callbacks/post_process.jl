@@ -293,7 +293,6 @@ function write_postprocess_callback(pp::PostprocessCallback)
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-        @info "Writing postprocessing results to $abs_file_path"
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
@@ -302,7 +301,6 @@ function write_postprocess_callback(pp::PostprocessCallback)
     end
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-        @info "Writing postprocessing results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end

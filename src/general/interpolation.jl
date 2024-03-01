@@ -128,6 +128,10 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
         throw(ArgumentError("all points must be 3D coordinates"))
     end
 
+    if ndims(ref_system) != 3
+        throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
+    end
+
     point1_ = SVector{3}(point1)
     point2_ = SVector{3}(point2)
     point3_ = SVector{3}(point3)
