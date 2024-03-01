@@ -8,6 +8,7 @@ using DataFrames
 using JSON
 using Glob
 using Printf
+using TrixiParticles
 
 elastic_plate = (length=0.35, thickness=0.02)
 
