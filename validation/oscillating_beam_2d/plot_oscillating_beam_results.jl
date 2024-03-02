@@ -22,7 +22,7 @@ reference_files = glob("validation_reference_*.json",
 simulation_files = glob("validation_run_oscillating_beam_2d_*.json",
                         joinpath(pkgdir(TrixiParticles), "out"))
 merged_files = vcat(reference_files, simulation_files)
-input_files = sort(merged_files, by=extract_number)
+input_files = sort(merged_files, by=extract_number_from_filename)
 
 # Regular expressions for matching keys
 key_pattern_x = r"deflection_x_solid_\d+"
