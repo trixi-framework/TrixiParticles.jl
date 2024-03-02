@@ -9,7 +9,6 @@ function interact!(dv, v_particle_system, u_particle_system,
     (; density_calculator, state_equation, correction) = particle_system
     (; sound_speed) = state_equation
 
-    viscosity = viscosity_model(neighbor_system)
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -45,19 +44,19 @@ function interact!(dv, v_particle_system, u_particle_system,
                                               particle_system, neighbor_system,
                                               particle, neighbor)
 
-        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+        dv_pressure = pressure_correction *
+                      pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                            distance, grad_kernel, pressure_correction,
-                                            correction)
+                                            distance, grad_kernel, correction)
 
-        dv_viscosity = viscosity_correction *
-                       viscosity(particle_system, neighbor_system,
-                                 v_particle_system, v_neighbor_system,
-                                 particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b, rho_mean)
+        dv_viscosity_ = viscosity_correction *
+                        dv_viscosity(particle_system, neighbor_system,
+                                     v_particle_system, v_neighbor_system,
+                                     particle, neighbor, pos_diff, distance,
+                                     sound_speed, m_a, m_b, rho_mean)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end

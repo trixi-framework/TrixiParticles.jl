@@ -1,29 +1,32 @@
 include("../validation_util.jl")
 
-# activate for interactive plot
-#using GLMakie
+# Activate for interactive plot
+# using GLMakie
 using CairoMakie
 using CSV
 using DataFrames
 using JSON
 using Glob
 using Printf
+using TrixiParticles
 
 elastic_plate = (length=0.35, thickness=0.02)
 
 # Load the reference simulation data
-ref = CSV.read("validation/oscillating_beam_2d/oscillating_beam_l5_dt_005.csv", DataFrame)
+ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.csv"),
+               DataFrame)
 
 # Get the list of JSON files
-reference_files = glob("validation_reference_oscillating_beam_2d_*.json",
-                       "validation/oscillating_beam_2d/")
-simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
+reference_files = glob("validation_reference_*.json",
+                       joinpath(validation_dir(), "oscillating_beam_2d"))
+simulation_files = glob("validation_run_oscillating_beam_2d_*.json",
+                        joinpath(pkgdir(TrixiParticles), "out"))
 merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number)
 
 # Regular expressions for matching keys
-key_pattern_x = r"mid_point_x_solid_\d+"
-key_pattern_y = r"mid_point_y_solid_\d+"
+key_pattern_x = r"deflection_x_solid_\d+"
+key_pattern_y = r"deflection_y_solid_\d+"
 
 # Setup for Makie plotting
 fig = Figure(size=(1200, 800))
@@ -37,7 +40,7 @@ for file_name in input_files
     json_data = JSON.parsefile(file_name)
 
     resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
-    particle_spacing = elastic_plate.thickness / resolution
+    particle_spacing = elastic_plate.thickness / (resolution - 1)
 
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
                                           keys(json_data))))
@@ -54,13 +57,11 @@ for file_name in input_files
         for key in matching_keys
             data = json_data[key]
             times = Float64.(data["time"])
-            positions = Float64.(data["values"])
-            initial_position = positions[1]
-            displacements = [v - initial_position for v in positions]
+            displacements = Float64.(data["values"])
 
             mse_results = occursin(key_pattern_x, key) ?
-                          calculate_mse(ref.time, ref.Ux, data["time"], displacements) :
-                          calculate_mse(ref.time, ref.Uy, data["time"], displacements)
+                          interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
+                          interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
             label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements, label=label)
