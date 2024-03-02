@@ -40,7 +40,7 @@ for file_name in input_files
     json_data = JSON.parsefile(file_name)
 
     resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
-    particle_spacing = elastic_plate.thickness / (resolution - 1)
+    particle_spacing_ = elastic_plate.thickness / (resolution - 1)
 
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
                                           keys(json_data))))
@@ -63,7 +63,7 @@ for file_name in input_files
                           interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
                           interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
-            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
+            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements, label=label)
         end
     end

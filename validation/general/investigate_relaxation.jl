@@ -22,8 +22,7 @@ trixi_include(@__MODULE__,
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               extra_callback=pp_damped_cb, tspan=(0.0, 5.0),
-              source_terms=SourceTermDamping(;
-                                             damping_coefficient=2.0),
+              source_terms=SourceTermDamping(damping_coefficient=2.0),
               saving_callback=nothing, fluid_particle_spacing=0.02,
               viscosity_wall=ViscosityAdami(nu=0.5));
 
