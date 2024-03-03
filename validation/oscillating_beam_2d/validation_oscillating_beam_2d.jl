@@ -44,7 +44,8 @@ sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
 
 reference_file_name = joinpath(validation_dir(), "oscillating_beam_2d",
                                "validation_reference_$n_particles_beam_y.json")
-run_file_name = joinpath("out", "validation_run_oscillating_beam_2d_$n_particles_beam_y.json")
+run_file_name = joinpath("out",
+                         "validation_run_oscillating_beam_2d_$n_particles_beam_y.json")
 
 reference_data = JSON.parsefile(reference_file_name)
 run_data = JSON.parsefile(run_file_name)

@@ -1,5 +1,8 @@
 
+include("../validation_util.jl")
+
 using TrixiParticles
+using JSON
 
 H = 0.6
 tspan = (0.0, 8.0 / sqrt(9.81 / H))
@@ -75,6 +78,22 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               solution_prefix="validation_" * method * "_" * formatted_string,
               cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan)
 
+reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_0015.json"
+run_file_edac_name = "out/validation_result_dam_break_edac_0015.json"
+
+reference_data = JSON.parsefile(reference_file_edac_name)
+run_data = JSON.parsefile(run_file_edac_name)
+
+error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
+                                 reference_data["pressure_P1_fluid_1"]["values"],
+                                 run_data["pressure_P1_fluid_1"]["time"],
+                                 run_data["pressure_P1_fluid_1"]["values"])
+
+error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
+                                 reference_data["pressure_P2_fluid_1"]["values"],
+                                 run_data["pressure_P2_fluid_1"]["time"],
+                                 run_data["pressure_P2_fluid_1"]["values"])
+
 # WCSPH simulation
 ############################################################################################
 method = "wcsph"
@@ -105,3 +124,19 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan,
               state_equation=state_equation_wcsph,
               fluid_system=fluid_system)
+
+reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_0015.json"
+run_file_wcsph_name = "out/validation_result_dam_break_wcsph_0015.json"
+
+reference_data = JSON.parsefile(reference_file_wcsph_name)
+run_data = JSON.parsefile(run_file_wcsph_name)
+
+error_wcsph_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
+                                  reference_data["pressure_P1_fluid_1"]["values"],
+                                  run_data["pressure_P1_fluid_1"]["time"],
+                                  run_data["pressure_P1_fluid_1"]["values"])
+
+error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
+                                  reference_data["pressure_P2_fluid_1"]["values"],
+                                  run_data["pressure_P2_fluid_1"]["time"],
+                                  run_data["pressure_P2_fluid_1"]["values"])
