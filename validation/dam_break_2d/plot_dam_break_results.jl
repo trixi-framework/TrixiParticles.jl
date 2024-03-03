@@ -16,9 +16,9 @@ W = 2 * H
 normalization_factor_time = sqrt(9.81 / H)
 normalization_factor_pressure = 1000 * 9.81 * H
 
-edac_reference_files = glob("validation_reference_dam_break_edac*.json",
+edac_reference_files = glob("validation_reference_edac*.json",
                             "validation/dam_break_2d/")
-wcsph_reference_files = glob("validation_reference_dam_break_wcsph*.json",
+wcsph_reference_files = glob("validation_reference_wcsph*.json",
                              "validation/dam_break_2d/")
 
 surge_front = CSV.read("validation/dam_break_2d/exp_surge_front.csv", DataFrame)
