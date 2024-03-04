@@ -31,9 +31,10 @@ println(interpolate_point([
                           ], semi, fluid_system, sol))
 
 # It is also possible to interpolate along a line
-result = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi, fluid_system, sol)
-result_endpoint = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi, fluid_system, sol,
-                                   endpoint=false)
+result = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi, fluid_system,
+                          sol)
+result_endpoint = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi,
+                                   fluid_system, sol, endpoint=false)
 
 # Extracting wall distance for the standard and endpoint cases
 walldistance = [coord[2] for coord in result.coord]
@@ -55,7 +56,7 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 # plotshow()
 
 # Replace NaNs with zeros for visualization
-replace!(result.density, NaN=>0.0)
+replace!(result.density, NaN => 0.0)
 
 p = plot(walldistance, result.density, marker=:circle, color=:blue, markerstrokecolor=:blue,
          linewidth=2, label="With Endpoint")
