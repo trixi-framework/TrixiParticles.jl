@@ -33,10 +33,10 @@ println(interpolate_point([
 # It is also possible to interpolate along a line
 n_interpolation_points = 10
 result = interpolate_line([position_x, -fluid_particle_spacing],
-                          [position_x, initial_fluid_size[1]],
+                          [position_x, tank_siz[2]],
                           n_interpolation_points, semi, fluid_system, sol)
 result_endpoint = interpolate_line([position_x, -fluid_particle_spacing],
-                                   [position_x, initial_fluid_size[1]],
+                                   [position_x, tank_siz[2]],
                                    n_interpolation_points, semi, fluid_system, sol,
                                    endpoint=false)
 
