@@ -1,11 +1,15 @@
 """
-    BoundarySPHSystem(initial_condition, model; movement=nothing)
+    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
-For moving boundaries, a [`BoundaryMovement`](@ref) can be passed with the keyword
-argument `movement`.
+# Arguments
+- `initial_condition`: Initial condition (see [`InitialCondition`](@ref))
+- `boundary_model`: Boundary model (see [Boundary Models](@ref boundary_models))
+
+# Keyword Arguments
+- `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
     initial_condition :: InitialCondition{ELTYPE}
@@ -45,7 +49,7 @@ end
     boolean return value is mandatory to determine if the neighborhood search will be updated.
 
 # Keyword Arguments
-- `moving_particles`: Indices of moving particles. Default is each particle in `BoundarySPHSystem`.
+- `moving_particles`: Indices of moving particles. Default is each particle in [`BoundarySPHSystem`](@ref).
 
 In the example below, `movement` describes particles moving in a circle as long as
 the time is lower than `1.5`.
