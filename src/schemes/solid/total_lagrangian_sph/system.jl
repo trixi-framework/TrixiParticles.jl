@@ -8,6 +8,11 @@
 
 System for particles of an elastic structure.
 
+A Total Lagrangian framework is used wherein the governing equations are formulated such that
+all relevant quantities and operators are measured with respect to the
+initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
+See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
+
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `young_modulus`:      Young's modulus.
@@ -33,15 +38,15 @@ System for particles of an elastic structure.
                     See, for example, [`SourceTermDamping`](@ref).
 
 !!! note
-The fixed particles must be the **last** particles in the `InitialCondition`.
-To do so, e.g. use the `union` function:
-```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
-solid = union(beam, fixed_particles)
+    The fixed particles must be the **last** particles in the `InitialCondition`.
+    To do so, e.g. use the `union` function:
+    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    solid = union(beam, fixed_particles)
 
-# output
-InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
-```
-where `beam` and `fixed_particles` are of type `InitialCondition`.
+    # output
+    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
+    ```
+    where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}

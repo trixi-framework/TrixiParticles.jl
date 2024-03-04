@@ -3,7 +3,7 @@
 
 Penalty force to ensure regular particle positions under large deformations.
 
-# Keyword Arguments
+# Keywords
 - `alpha`: Coefficient to control the amplitude of hourglass correction.
 
 """

@@ -1,6 +1,6 @@
-# Total Lagrangian SPH
+# [Total Lagrangian SPH](@id tlsph)
 
-A Total Lagrangian framework is used wherein the governing equations are forumlated such that
+A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
 
@@ -62,17 +62,9 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
 ```
 
-!!! note
-    The fixed particles must be the **last** particles in the `InitialCondition`.
-    To do so, e.g. use the `union` function:
-    ```julia
-    solid = union(beam, fixed_particles)
-    ```
-    where `beam` and `fixed_particles` are of type `InitialCondition`.
-
-### References:
+### References
 - Joseph O’Connor, Benedict D. Rogers.
-  "A fluid–structure interaction model for free-surface flows and flexible structures using
+  "A fluid-structure interaction model for free-surface flows and flexible structures using
   smoothed particle hydrodynamics on a GPU".
   In: Journal of Fluids and Structures 104 (2021).
   [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
@@ -122,7 +114,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
 ```
 
-### References:
+### References
 - Georg C. Ganzenmüller.
   "An hourglass control algorithm for Lagrangian Smooth Particle Hydrodynamics".
   In: Computer Methods in Applied Mechanics and Engineering 286 (2015).
