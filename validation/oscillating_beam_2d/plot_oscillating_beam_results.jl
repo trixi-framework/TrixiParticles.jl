@@ -19,8 +19,7 @@ ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.c
 # Get the list of JSON files
 reference_files = glob("validation_reference_*.json",
                        joinpath(validation_dir(), "oscillating_beam_2d"))
-simulation_files = glob("validation_run_oscillating_beam_2d_*.json",
-                        joinpath(pkgdir(TrixiParticles), "out"))
+simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
 merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number_from_filename)
 
