@@ -14,6 +14,7 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     systems_data = map(semi.systems) do system
         (; initial_condition) = system
 
+        v = wrap_u(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         coordinates = current_coordinates(u, system)
         x = collect(coordinates[1, :])
@@ -27,7 +28,9 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
         x_min, y_min = minimum(initial_condition.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(initial_condition.coordinates, dims=2) .+ 0.5particle_spacing
 
-        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
+        pressure = [particle_pressure(v, system, particle) for particle in eachparticle(system)]
+
+        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing, pressure,
                 label=timer_name(system))
     end
 
@@ -63,6 +66,12 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
             end
 
             label --> system_data.label
+            if startswith(system_data.label, "boundary")
+                color --> :black
+            else
+                color --> :coolwarm
+                zcolor --> system_data.pressure
+            end
 
             # Return data for plotting
             system_data.x, system_data.y
