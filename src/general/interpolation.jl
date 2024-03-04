@@ -48,9 +48,11 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true)
+    # Filter out particles without neighbors
+    filter_no_neighbors = true
     results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, sol, true, smoothing_length,
-                                         cut_off_bnd)
+                                         semi, ref_system, sol, filter_no_neighbors,
+                                         smoothing_length, cut_off_bnd)
 
     return results
 end
@@ -102,8 +104,11 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   smoothing_length=ref_system.smoothing_length,
                                   cut_off_bnd=true,
                                   output_directory="out", filename="plane")
+    # Don't filter out particles without neighbors to keep 2D grid structure
+    filter_no_neighbors = false
     results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                                     semi, ref_system, sol, false,
+                                                     semi, ref_system, sol,
+                                                     filter_no_neighbors,
                                                      smoothing_length, cut_off_bnd)
 
     density = reshape(results.density, length(x_range), length(y_range))
@@ -256,7 +261,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
 end
 
 @doc raw"""
-    interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
+    interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true)
 
 Interpolates properties along a line in a TrixiParticles simulation.
