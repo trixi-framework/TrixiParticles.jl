@@ -3,7 +3,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::EntropicallyDampedSPHSystem,
                    neighbor_system)
-    (; sound_speed) = particle_system
+    (; sound_speed, density_calculator, correction) = particle_system
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -25,16 +25,11 @@ function interact!(dv, v_particle_system, u_particle_system,
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-        volume_a = m_a / rho_a
-        volume_b = m_b / rho_b
-        volume_term = (volume_a^2 + volume_b^2) / m_a
-
-        # Inter-particle averaged pressure
-        pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
-
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-        dv_pressure = -volume_term * pressure_tilde * grad_kernel
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
+                                            m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
+                                            distance, grad_kernel, correction)
 
         dv_viscosity_ = dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
@@ -49,17 +44,24 @@ function interact!(dv, v_particle_system, u_particle_system,
                  current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
         pressure_evolution!(dv, particle_system, v_diff, grad_kernel,
-                            particle, pos_diff, distance, sound_speed, volume_term, m_b,
+                            particle, pos_diff, distance, sound_speed, m_a, m_b,
                             p_a, p_b, rho_a, rho_b)
+
+        continuity_equation!(dv, density_calculator, v_diff, particle, m_b, rho_a, rho_b,
+                             particle_system, grad_kernel)
     end
 
     return dv
 end
 
 @inline function pressure_evolution!(dv, particle_system, v_diff, grad_kernel, particle,
-                                     pos_diff, distance, sound_speed, volume_term, m_b,
+                                     pos_diff, distance, sound_speed, m_a, m_b,
                                      p_a, p_b, rho_a, rho_b)
     (; smoothing_length) = particle_system
+
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
 
     # EDAC pressure evolution
     pressure_diff = p_a - p_b
@@ -74,10 +76,37 @@ end
     # TODO For variable smoothing length use average smoothing length
     tmp = eta_tilde / (distance^2 + 0.01 * smoothing_length^2)
 
+    # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
+    # They argued that the formulation is more flexible because of the possibility to formulate
+    # different inter-particle averages or to assume different inter-particle distributions.
+    # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
+    #
+    # TODO: Is there a better formulation to discretize the Laplace operator?
+    # Because when using this formulation for the pressure acceleration, it is not
+    # energy conserving.
+    # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
+    #
     # This is similar to density diffusion in WCSPH
     damping_term = volume_term * tmp * pressure_diff * dot(grad_kernel, pos_diff)
 
     dv[end, particle] += artificial_eos + damping_term
 
+    return dv
+end
+
+# We need a separate method for EDAC since the density is stored in `v[end-1,:]`.
+@inline function continuity_equation!(dv, density_calculator::ContinuityDensity,
+                                      vdiff, particle, m_b, rho_a, rho_b,
+                                      particle_system::EntropicallyDampedSPHSystem,
+                                      grad_kernel)
+    dv[end - 1, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
+
+    return dv
+end
+
+@inline function continuity_equation!(dv, density_calculator,
+                                      vdiff, particle, m_b, rho_a, rho_b,
+                                      particle_system::EntropicallyDampedSPHSystem,
+                                      grad_kernel)
     return dv
 end
