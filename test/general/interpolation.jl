@@ -4,9 +4,12 @@
         for i in 1:length(expected.density)
             @test actual.neighbor_count[i] == expected.neighbor_count[i]
             @test actual.coord[i] == expected.coord[i]
-            @test isapprox(actual.density[i], expected.density[i], atol=tolerance)
-            @test isapprox(actual.velocity[i], expected.velocity[i], atol=tolerance)
-            @test isapprox(actual.pressure[i], expected.pressure[i], atol=tolerance)
+            @test isapprox(actual.density[i], expected.density[i], atol=tolerance) ||
+                  isnan(actual.density[i]) && isnan(expected.density[i])
+            @test isapprox(actual.velocity[i], expected.velocity[i], atol=tolerance) ||
+                  all(isnan.(actual.velocity[i])) && all(isnan.(expected.velocity[i]))
+            @test isapprox(actual.pressure[i], expected.pressure[i], atol=tolerance) ||
+                  isnan(actual.pressure[i]) && isnan(expected.pressure[i])
         end
     end
 
@@ -128,9 +131,8 @@
                                            neighborhood_search=GridNeighborhoodSearch)
 
         # some simple results
-        expected_zero(y) = (density=0.0, neighbor_count=0, coord=[0.0, y],
-                            velocity=[0.0, 0.0],
-                            pressure=0.0)
+        expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y],
+                            velocity=[NaN, NaN], pressure=NaN)
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point no boundary - cut_off_bnd = $(cut_off_bnd)" begin
@@ -642,7 +644,7 @@
                                         1.4000000000000001,
                                     ])
                     expected_res_end = (density=[
-                                            0.0,
+                                            NaN,
                                             666.0,
                                             665.9999999999999,
                                             666.0,
@@ -654,7 +656,7 @@
                                                                   [1.0, 0.475],
                                                                   [1.0, 0.7375],
                                                                   [1.0, 1.0]],
-                                        velocity=SVector{2, Float64}[[0.0, 0.0],
+                                        velocity=SVector{2, Float64}[[NaN, NaN],
                                                                      [
                                                                          7.699999999999999,
                                                                          0.10605429538320173,
@@ -672,7 +674,7 @@
                                                                          0.22100000000000006,
                                                                      ]],
                                         pressure=[
-                                            0.0,
+                                            NaN,
                                             0.4527147691600855,
                                             0.9912738969258663,
                                             1.4000000000000001,
@@ -837,8 +839,8 @@
                                            neighborhood_search=GridNeighborhoodSearch)
 
         # some simple results
-        expected_zero(y) = (density=0.0, neighbor_count=0, coord=[0.0, y, 0.0],
-                            velocity=[0.0, 0.0, 0.0], pressure=0.0)
+        expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y, 0.0],
+                            velocity=[NaN, NaN, NaN], pressure=NaN)
 
         for cut_off_bnd in [true, false]
             @testset verbose=true "Interpolation Point no boundary - cut_off_bnd = $(cut_off_bnd)" begin
