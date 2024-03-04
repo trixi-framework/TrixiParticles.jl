@@ -14,7 +14,7 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     systems_data = map(semi.systems) do system
         (; initial_condition) = system
 
-        v = wrap_u(v_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
         coordinates = current_coordinates(u, system)
         x = collect(coordinates[1, :])
