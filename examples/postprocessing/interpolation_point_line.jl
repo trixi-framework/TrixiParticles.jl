@@ -32,13 +32,12 @@ println(interpolate_point([
 
 # It is also possible to interpolate along a line
 n_interpolation_points = 10
-result = interpolate_line([position_x, -fluid_particle_spacing],
-                          [position_x, tank_size[2]],
-                          n_interpolation_points, semi, fluid_system, sol)
-result_endpoint = interpolate_line([position_x, -fluid_particle_spacing],
-                                   [position_x, tank_size[2]],
-                                   n_interpolation_points, semi, fluid_system, sol,
-                                   endpoint=false)
+start_point = [position_x, -fluid_particle_spacing]
+end_point = [position_x, tank_size[2]]
+result = interpolate_line(start_point, end_point, n_interpolation_points,
+                          semi, fluid_system, sol)
+result_endpoint = interpolate_line(start_point, end_point, n_interpolation_points,
+                                   semi, fluid_system, sol, endpoint=false)
 
 # Extracting wall distance for the standard and endpoint cases
 walldistance = [coord[2] for coord in result.coord]
