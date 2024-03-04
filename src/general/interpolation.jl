@@ -23,10 +23,12 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -82,12 +84,14 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
 - `output_directory="out"`: Directory to save the VTI file.
 - `filename="plane"`:       Name of the VTI file.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
@@ -182,10 +186,12 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
 - `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -283,10 +289,12 @@ See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
 
 # Keywords
 - `endpoint=true`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation.
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -347,10 +355,12 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 - `sol`:            The current solution state from which properties are interpolated.
 
 # Keywords
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 # Returns
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
