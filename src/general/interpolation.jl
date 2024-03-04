@@ -347,10 +347,12 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
 - `sol`:            The current solution state from which properties are interpolated.
 
 # Keywords
-- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when a
-                      point is "closer" to a boundary than to the fluid system
-                      (see an explanation for "closer" below).
 - `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to zero when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
 
 # Returns
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
