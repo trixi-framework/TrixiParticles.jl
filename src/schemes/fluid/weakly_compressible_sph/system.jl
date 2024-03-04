@@ -16,9 +16,9 @@ for small density variations.
                         See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `viscosity`:      Viscosity model for this system (default: no viscosity).
