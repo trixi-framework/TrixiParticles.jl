@@ -1,4 +1,4 @@
-# Entropically Damped Artificial Compressibility (EDAC) for SPH
+# [Entropically Damped Artificial Compressibility (EDAC) for SPH](@id edac)
 
 As opposed to the [weakly compressible SPH scheme](weakly_compressible_sph.md), which uses an equation of state,
 this scheme uses a pressure evolution equation to calculate the pressure

@@ -1,6 +1,6 @@
-# Weakly Compressible SPH
+# [Weakly Compressible SPH](@id wcsph)
 
-Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
+Weakly compressible SPH as introduced by Monaghan (1994). This formulation relies on a stiff
 [equation of state](@ref equation_of_state) that generates large pressure changes
 for small density variations.
 
@@ -9,14 +9,14 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
 ```
 
-### References:
+### References
 - Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
-  In: Journal of Computational Physics 110 (1994), pages 399-406.
+  In: Journal of Computational Physics 110 (1994), pages 399--406.
   [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 
 ## [Equation of State](@id equation_of_state)
 
-The equation of state is used to relate liquid density to hydrostatic pressure and thus allow
+The equation of state is used to relate fluid density to pressure and thus allow
 an explicit simulation of the [WCSPH system](@ref WeaklyCompressibleSPHSystem).
 The equation in the following formulation was introduced by Cole (Cole 1948, pp. 39 and 43).
 The pressure ``p`` is calculated as
@@ -49,11 +49,11 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
 ```
 
-## References:
+## References
 - Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
 - J. P. Morris, P. J. Fox, Y. Zhu
   "Modeling Low Reynolds Number Incompressible Flows Using SPH ".
-  In: Journal of Computational Physics , Vol. 136, No. 1, pages 214-226.
+  In: Journal of Computational Physics , Vol. 136, No. 1, pages 214--226.
   [doi: 10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
 - S. Adami, X. Y. Hu, N. A. Adams.
   "A generalized wall boundary condition for smoothed particle hydrodynamics".
