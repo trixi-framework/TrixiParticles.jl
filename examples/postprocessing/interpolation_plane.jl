@@ -21,6 +21,12 @@ original_x = [point[1] for point in original_plane.coord]
 original_y = [point[2] for point in original_plane.coord]
 original_pressure = original_plane.pressure
 
+# To export the interpolated plane as a VTI file, which can be read by tools like ParaView,
+# run `interpolate_plane_2d_vtk` with the same arguments as above. When no other filename
+# is specified with the kwarg `filename`, it will be exported to `out/plane.vti`.
+interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
+                         semi, fluid_system, sol)
+
 # Plane with double smoothing length.
 # Utilizing a higher `smoothing_length` in SPH interpolation increases the amount of smoothing,
 # thereby reducing the visibility of disturbances. It also increases the distance
