@@ -86,7 +86,12 @@ copy_file("CODE_OF_CONDUCT.md",
           "\n" => "\n> ", r"^" => "# Code of Conduct\n\n> ")
 copy_file("NEWS.md")
 
+# Define module-wide setups such that the respective modules are available in doctests
+DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
+
 makedocs(sitename="TrixiParticles.jl",
+         # Run doctests and check docs for the following modules
+         modules=[TrixiParticles],
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",

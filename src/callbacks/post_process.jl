@@ -33,16 +33,31 @@ a fixed interval of simulation time (`dt`).
                            are only written at the end of the simulation, eliminating I/O overhead.
 
 # Examples
-```julia
+```jldoctest; output = false
 function example_function(v, u, t, system)
     println("test_func ", t)
 end
 
 # Create a callback that is triggered every 100 time steps
-postprocess_callback = PostprocessCallback(example_function, interval=100)
+postprocess_callback = PostprocessCallback(interval=100, example_quantity=example_function)
 
 # Create a callback that is triggered every 0.1 simulation time units
-postprocess_callback = PostprocessCallback(example_function, dt=0.1)
+postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=example_function)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ PostprocessCallback                                                                              │
+│ ═══════════════════                                                                              │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ write file: ………………………………………………… always                                                           │
+│ exclude boundary: ………………………………… yes                                                              │
+│ filename: ……………………………………………………… values                                                           │
+│ output directory: ………………………………… out                                                              │
+│ append timestamp: ………………………………… no                                                               │
+│ write json file: …………………………………… yes                                                              │
+│ write csv file: ……………………………………… yes                                                              │
+│ function1: …………………………………………………… example_quantity                                                 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct PostprocessCallback{I, F}
@@ -278,7 +293,6 @@ function write_postprocess_callback(pp::PostprocessCallback)
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-        @info "Writing postprocessing results to $abs_file_path"
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
@@ -287,7 +301,6 @@ function write_postprocess_callback(pp::PostprocessCallback)
     end
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-        @info "Writing postprocessing results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end

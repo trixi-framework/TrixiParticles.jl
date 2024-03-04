@@ -13,9 +13,9 @@ System for particles of an elastic structure.
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
@@ -31,6 +31,17 @@ System for particles of an elastic structure.
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
+
+!!! note
+The fixed particles must be the **last** particles in the `InitialCondition`.
+To do so, e.g. use the `union` function:
+```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+solid = union(beam, fixed_particles)
+
+# output
+InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
+```
+where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
@@ -304,7 +315,8 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, ::Nothing)
+                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
+                                     ::Nothing)
     return dv
 end
 
