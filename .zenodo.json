@@ -1,0 +1,34 @@
+{
+    "description": "Accessible and extensible particle-based multiphysics in Julia",
+    "license": "MIT",
+    "title": "TrixiParticles.jl",
+    "upload_type": "software",
+    "creators": [
+        {
+            "affiliation": "Department of Mathematics and Computer Science, University of Cologne, Germany",
+            "name": "Faulhaber, Erik",
+            "orcid": "0000-0001-9788-5949"
+        },
+        {
+            "affiliation": "High-Performance Computing Center Stuttgart, University of Stuttgart, Germany",
+            "name": "Neher, Niklas",
+            "orcid": ""
+        },
+        {
+            "affiliation": "Institute of Surface Science, Helmholtz-Zentrum hereon, Germany",
+            "name": "Berger, Sven",
+            "orcid": ""
+        },
+        {
+            "affiliation": "Applied and Computational Mathematics, RWTH Aachen University, Germany",
+            "name": "Schlottke-Lakemper, Michael",
+            "orcid": "0000-0002-3195-2536"
+        },
+        {
+            "affiliation": "Department of Mathematics and Computer Science, University of Cologne, Germany",
+            "name": "Gassner, Gregor J.",
+            "orcid": "0000-0002-1752-1158"
+        }
+    ],
+    "access_right": "open"
+}
