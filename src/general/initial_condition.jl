@@ -36,7 +36,7 @@ to build more complex geometries.
                       set operations on the `InitialCondition` or for automatic mass calculation.
 
 # Examples
-```julia
+```jldoctest; output = false
 # Rectangle filled with particles
 initial_condition = RectangularShape(0.1, (3, 4), (-1.0, 1.0), density=1.0)
 
@@ -65,7 +65,10 @@ density = 1000 * ones(3)
 initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 
 # With functions
-initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, density=1000.0)
+initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
+
+# output
+InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
 ```
 """
 struct InitialCondition{ELTYPE}

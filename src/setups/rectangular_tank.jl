@@ -57,7 +57,7 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `tank_size::Tuple`:           Tuple containing the size of the tank in each dimension after rounding.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = r"RectangularTank.*", setup = :(particle_spacing = 0.1; water_width = water_depth = container_width = container_height = container_depth = 1.0; water_height = 0.5; fluid_density = 1000.0)
 # 2D
 setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (container_width, container_height), fluid_density,
@@ -65,7 +65,7 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 
 # 2D with hydrostatic pressure gradient.
 # `state_equation` has to be the same as for the WCSPH system.
-state_equation = StateEquationCole(20.0, 7, 1000.0, 100000.0, background_pressure=100000.0)
+state_equation = StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0)
 setup = RectangularTank(particle_spacing, (water_width, water_height),
                         (container_width, container_height), fluid_density,
                         acceleration=(0.0, -9.81), state_equation=state_equation)
@@ -74,6 +74,9 @@ setup = RectangularTank(particle_spacing, (water_width, water_height),
 setup = RectangularTank(particle_spacing, (water_width, water_height, water_depth),
                         (container_width, container_height, container_depth), fluid_density,
                         n_layers=2)
+
+# output
+RectangularTank{3, 6, Float64}(...) *the rest of this line is ignored by filter*
 ```
 
 See also: [`reset_wall!`](@ref).
