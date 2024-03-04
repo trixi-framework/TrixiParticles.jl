@@ -37,10 +37,10 @@ values_ekin = data_json["kinetic_energy_fluid_1"]["values"]
 values_avg_p = data_json["avg_pressure_fluid_1"]["values"]
 
 # Create side-by-side subplots
-p1 = plot(data.time, data.kinetic_energy_fluid_1, color=:blue,
-          title="Kinetic Energy", xlabel="Time", ylabel="Kinetic Energy")
-p2 = plot(data.time, data.avg_pressure_fluid_1, color=:red,
-          title="Average Pressure", xlabel="Time", ylabel="Pressure")
+p1 = Plots.plot(data.time, data.kinetic_energy_fluid_1, color=:blue,
+                title="Kinetic Energy", xlabel="Time", ylabel="Kinetic Energy")
+p2 = Plots.plot(data.time, data.avg_pressure_fluid_1, color=:red,
+                title="Average Pressure", xlabel="Time", ylabel="Pressure")
 
 # Combine plots into a single figure
-plot(p1, p2, legend=false)
+Plots.plot(p1, p2, legend=false)
