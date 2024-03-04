@@ -1,5 +1,5 @@
 {
-    "description": "Accessible and extensible particle-based multiphysics in Julia",
+    "description": "Particle-based multiphysics simulations in Julia",
     "license": "MIT",
     "title": "TrixiParticles.jl",
     "upload_type": "software",
