@@ -1,8 +1,10 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
 TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
 TrixiParticles = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 
 [compat]
 Documenter = "1"
+OrdinaryDiffEq = "6"
 TrixiBase = "0.1"

@@ -35,6 +35,7 @@ end
         grad_kernel = smoothing_kernel_grad(particle_system, initial_pos_diff,
                                             initial_distance)
 
+        m_a = particle_system.mass[particle]
         m_b = neighbor_system.mass[neighbor]
 
         dv_particle = m_b *
@@ -42,12 +43,13 @@ end
                        pk1_corrected(neighbor_system, neighbor) / rho_b^2) *
                       grad_kernel
 
-        for i in 1:ndims(particle_system)
+        @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += dv_particle[i]
         end
 
         calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                            initial_distance, particle_system, penalty_force)
+                            initial_distance, particle_system, m_a, m_b, rho_a, rho_b,
+                            penalty_force)
 
         # TODO continuity equation?
     end
@@ -59,9 +61,8 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::TotalLagrangianSPHSystem,
-                   neighbor_system::WeaklyCompressibleSPHSystem)
-    (; state_equation, correction) = neighbor_system
-    (; sound_speed) = state_equation
+                   neighbor_system::FluidSystem)
+    sound_speed = system_sound_speed(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -102,7 +103,8 @@ function interact!(dv, v_particle_system, u_particle_system,
         # but with a flipped sign (because `pos_diff` is flipped compared to fluid-solid).
         dv_boundary = pressure_acceleration(neighbor_system, particle_system, particle,
                                             m_b, m_a, p_b, p_a, rho_b, rho_a, pos_diff,
-                                            distance, grad_kernel, correction)
+                                            distance, grad_kernel,
+                                            neighbor_system.correction)
 
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
@@ -132,7 +134,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem,
-                                      neighbor_system::WeaklyCompressibleSPHSystem,
+                                      neighbor_system::FluidSystem,
                                       grad_kernel)
     return dv
 end
@@ -141,7 +143,7 @@ end
                                       particle, neighbor, pos_diff, distance,
                                       m_b, rho_a, rho_b,
                                       particle_system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                      neighbor_system::WeaklyCompressibleSPHSystem,
+                                      neighbor_system::FluidSystem,
                                       grad_kernel)
     fluid_density_calculator = neighbor_system.density_calculator
 

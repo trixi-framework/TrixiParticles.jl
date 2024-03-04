@@ -6,73 +6,21 @@
                              acceleration=ntuple(_ -> 0.0, NDIMS),
                              penalty_force=nothing, source_terms=nothing)
 
-System for particles of an elastic solid.
+System for particles of an elastic structure.
 
-A Total Lagrangian framework is used wherein the governing equations are forumlated such that
+A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
-
-The governing equations with respect to the initial configuration are given by:
-```math
-\frac{\mathrm{D}\bm{v}}{\mathrm{D}t} = \frac{1}{\rho_0} \nabla_0 \cdot \bm{P} + \bm{g},
-```
-where the zero subscript denotes a derivative with respect to the initial configuration
-and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
-
-The discretized version of this equation is given by (O’Connor & Rogers 2021):
-```math
-\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
-    \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
-    \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{PF}}{m_{0a}} + \bm{g},
-```
-with the correction matrix (see also [`GradientCorrection`](@ref))
-```math
-\bm{L}_{0a} := \left( -\sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
-```
-The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
-The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
-The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
-the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
-
-For the computation of the PK1 stress tensor, the deformation gradient $\bm{F}$ is computed per particle as
-```math
-\bm{F}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
-    \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
-```
-with $1 \leq i,j \leq d$.
-From the deformation gradient, the Green-Lagrange strain
-```math
-\bm{E} = \frac{1}{2}(\bm{F}^T\bm{F} - \bm{I})
-```
-and the second Piola-Kirchhoff stress tensor
-```math
-\bm{S} = \lambda \operatorname{tr}(\bm{E}) \bm{I} + 2\mu \bm{E}
-```
-are computed to obtain the PK1 stress tensor as
-```math
-\bm{P} = \bm{F}\bm{S}.
-```
-
-Here,
-```math
-\mu = \frac{E}{2(1 + \nu)}
-```
-and
-```math
-\lambda = \frac{E\nu}{(1 + \nu)(1 - 2\nu)}
-```
-are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
-
-The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
+See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
@@ -92,21 +40,13 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 !!! note
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```julia
+    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
     solid = union(beam, fixed_particles)
+
+    # output
+    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
-
-## References:
-- Joseph O’Connor, Benedict D. Rogers.
-  "A fluid–structure interaction model for free-surface flows and flexible structures using
-  smoothed particle hydrodynamics on a GPU".
-  In: Journal of Fluids and Structures 104 (2021).
-  [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
-- Ted Belytschko, Yong Guo, Wing Kam Liu, Shao Ping Xiao.
-  "A unified stability analysis of meshless particle methods".
-  In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
-  [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
@@ -380,7 +320,8 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, ::Nothing)
+                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
+                                     ::Nothing)
     return dv
 end
 
