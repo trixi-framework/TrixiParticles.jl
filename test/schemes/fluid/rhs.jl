@@ -1,31 +1,38 @@
 @testset verbose=true "RHS" begin
-    @testset verbose=true "WCSPH" begin
-        @testset verbose=true "`pressure_acceleration`" begin
-            # Use `@trixi_testset` to isolate the mock functions in a separate namespace
-            @trixi_testset "Symmetry" begin
-                density_calculators = [ContinuityDensity(), SummationDensity()]
-                masses = [[0.01, 0.01], [0.73, 0.31]]
-                densities = [
-                    [1000.0, 1000.0],
-                    [1000.0, 1000.0],
-                    [900.0, 1201.0],
-                    [1003.0, 353.4],
-                ]
-                pressures = [
-                    [0.0, 0.0],
-                    [10_000.0, 10_000.0],
-                    [10.0, 10_000.0],
-                    [1000.0, -1000.0],
-                ]
-                grad_kernels = [0.3, 104.0]
-                particle = 2
-                neighbor = 3
+    @testset verbose=true "`pressure_acceleration`" begin
+        # Use `@trixi_testset` to isolate the mock functions in a separate namespace
+        @trixi_testset "Symmetry" begin
+            masses = [[0.01, 0.01], [0.73, 0.31]]
+            densities = [
+                [1000.0, 1000.0],
+                [1000.0, 1000.0],
+                [900.0, 1201.0],
+                [1003.0, 353.4],
+            ]
+            pressures = [
+                [0.0, 0.0],
+                [10_000.0, 10_000.0],
+                [10.0, 10_000.0],
+                [1000.0, -1000.0],
+            ]
+            grad_kernels = [0.3, 104.0]
+            particle = 2
+            neighbor = 3
 
-                # Not used for fluid-fluid interaction
-                pos_diff = 0
-                distance = 0
+            # Not used for fluid-fluid interaction
+            pos_diff = 0
+            distance = 0
 
-                @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+            density_calculators = [ContinuityDensity(), SummationDensity()]
+
+            pressure_accelerations = [
+                TrixiParticles.inter_particle_averaged_pressure,
+                TrixiParticles.pressure_acceleration_continuity_density,
+                TrixiParticles.pressure_acceleration_summation_density,
+            ]
+
+            @testset "`$(nameof(typeof(density_calculator)))`" for density_calculator in density_calculators
+                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in pressure_accelerations
                     for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
                         (p_a, p_b) in pressures, grad_kernel in grad_kernels
 
@@ -40,100 +47,52 @@
                         smoothing_length = -1.0
 
                         fluid = InitialCondition(; coordinates, velocity, mass, density)
-                        system = WeaklyCompressibleSPHSystem(fluid, density_calculator,
-                                                             state_equation,
-                                                             smoothing_kernel,
-                                                             smoothing_length)
 
-                        # Compute accelerations a -> b and b -> a
-                        dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
-                                                                   m_a, m_b, p_a, p_b,
-                                                                   rho_a, rho_b, pos_diff,
-                                                                   distance, grad_kernel,
-                                                                   nothing)
+                        @testset verbose=true "$system_name" for system_name in [
+                            "WCSPH",
+                            "EDAC",
+                        ]
+                            if system_name == "WCSPH"
+                                system = WeaklyCompressibleSPHSystem(fluid,
+                                                                     density_calculator,
+                                                                     state_equation,
+                                                                     smoothing_kernel,
+                                                                     smoothing_length;
+                                                                     pressure_acceleration)
+                            elseif system_name == "EDAC"
+                                system = EntropicallyDampedSPHSystem(fluid,
+                                                                     smoothing_kernel,
+                                                                     smoothing_length, 0.0;
+                                                                     density_calculator,
+                                                                     pressure_acceleration)
+                            end
 
-                        dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
-                                                                   m_b, m_a, p_b, p_a,
-                                                                   rho_b, rho_a, -pos_diff,
-                                                                   distance, -grad_kernel,
-                                                                   nothing)
+                            # Compute accelerations a -> b and b -> a
+                            dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                                       m_a, m_b, p_a, p_b,
+                                                                       rho_a, rho_b,
+                                                                       pos_diff,
+                                                                       distance,
+                                                                       grad_kernel,
+                                                                       nothing)
 
-                        # Test that both forces are identical but in opposite directions
-                        @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
+                            dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
+                                                                       m_b, m_a, p_b, p_a,
+                                                                       rho_b, rho_a,
+                                                                       -pos_diff,
+                                                                       distance,
+                                                                       -grad_kernel,
+                                                                       nothing)
+
+                            # Test that both forces are identical but in opposite directions
+                            @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
+                        end
                     end
                 end
             end
         end
     end
 
-    @testset verbose=true "EDAC" begin
-        @testset verbose=true "`pressure_acceleration`" begin
-            # Use `@trixi_testset` to isolate the mock functions in a separate namespace
-            @trixi_testset "Symmetry" begin
-                pressure_accelerations = [
-                    TrixiParticles.inter_particle_averaged_pressure,
-                    TrixiParticles.pressure_acceleration_continuity_density,
-                    TrixiParticles.pressure_acceleration_summation_density,
-                ]
-                masses = [[0.01, 0.01], [0.73, 0.31]]
-                densities = [
-                    [1000.0, 1000.0],
-                    [1000.0, 1000.0],
-                    [900.0, 1201.0],
-                    [1003.0, 353.4],
-                ]
-                pressures = [
-                    [0.0, 0.0],
-                    [10_000.0, 10_000.0],
-                    [10.0, 10_000.0],
-                    [1000.0, -1000.0],
-                ]
-                grad_kernels = [0.3, 104.0]
-                particle = 2
-                neighbor = 3
-
-                # Not used for fluid-fluid interaction
-                pos_diff = 0
-                distance = 0
-
-                @testset "`$(nameof(typeof(pressure_acceleration)))`" for pressure_acceleration in pressure_accelerations
-                    for (m_a, m_b) in masses, (rho_a, rho_b) in densities,
-                        (p_a, p_b) in pressures, grad_kernel in grad_kernels
-
-                        # Partly copied from constructor test, just to create a WCSPH system
-                        coordinates = zeros(2, 3)
-                        velocity = zeros(2, 3)
-                        mass = zeros(3)
-                        density = ones(3)
-                        smoothing_kernel = Val(:smoothing_kernel)
-                        TrixiParticles.ndims(::Val{:smoothing_kernel}) = 2
-                        smoothing_length = -1.0
-
-                        fluid = InitialCondition(; coordinates, velocity, mass, density)
-                        system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
-                                                             smoothing_length, 0.0;
-                                                             pressure_acceleration)
-
-                        # Compute accelerations a -> b and b -> a
-                        dv1 = TrixiParticles.pressure_acceleration(system, system, -1,
-                                                                   m_a, m_b, p_a, p_b,
-                                                                   rho_a, rho_b, pos_diff,
-                                                                   distance, grad_kernel,
-                                                                   nothing)
-
-                        dv2 = TrixiParticles.pressure_acceleration(system, system, -1,
-                                                                   m_b, m_a, p_b, p_a,
-                                                                   rho_b, rho_a, -pos_diff,
-                                                                   distance, -grad_kernel,
-                                                                   nothing)
-
-                        # Test that both forces are identical but in opposite directions
-                        @test isapprox(m_a * dv1, -m_b * dv2, rtol=2eps())
-                    end
-                end
-            end
-        end
-    end
     # The following tests for linear and angular momentum and total energy conservation
     # are based on Sections 3.3.4 and 3.4.2 of
     # Daniel J. Price. "Smoothed Particle Hydrodynamics and Magnetohydrodynamics."
