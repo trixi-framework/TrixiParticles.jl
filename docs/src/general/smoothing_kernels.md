@@ -1,5 +1,5 @@
 # [Smoothing Kernels](@id smoothing_kernel)
-Currently the following smoothing kernels are available:
+The following smoothing kernels are currently available:
 
 | Smoothing Kernel                          | Compact Support   | Typ. Smoothing Length | Recommended Application | Stability |
 | :---------------------------------------- | :---------------- | :-------------------- | :---------------------- | :-------- |
@@ -19,15 +19,12 @@ If less smoothing is needed, try [`SchoenbergCubicSplineKernel`](@ref), for more
 !!! note "Usage"
     The kernel can be called as
     ```
-    TrixiParticles.kernel(::SmoothingKernel{NDIMS}, r, h)
+    TrixiParticles.kernel(smoothing_kernel, r, h)
     ```
     The length of the compact support can be obtained as
     ```
-    TrixiParticles.compact_support(::SmoothingKernel{NDIMS}, h)
+    TrixiParticles.compact_support(smoothing_kernel, h)
     ```
-
-    where `SmoothingKernel{NDIMS}` is an abstract supertype of all smoothing kernels.
-    The type parameter `NDIMS` encodes the number of dimensions.
 
     Note that ``r`` has to be a scalar, so in the context of SPH, the kernel
     should be used as
@@ -41,7 +38,7 @@ If less smoothing is needed, try [`SchoenbergCubicSplineKernel`](@ref), for more
     ```
     can be called as
     ```
-    TrixiParticles.kernel_grad(kernel, pos_diff, distance, h)
+    TrixiParticles.kernel_grad(smoothing_kernel, pos_diff, distance, h)
     ```
     where `pos_diff` is $r_a - r_b$ and `distance` is $\Vert r_a - r_b \Vert$.
 
