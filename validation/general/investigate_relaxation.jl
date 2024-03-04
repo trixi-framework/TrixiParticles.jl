@@ -71,32 +71,34 @@ if file_path != ""
     tl_avg_rho_damped, grad_avg_rho_damped = calculate_regression(avg_rho_damped,
                                                                   time_damped)
 
-    plot1 = plot(time, [e_kin, tl_ekin], label=["undamped" "trend"],
-                 color=[:blue :red], linewidth=[2 2])
+    plot1 = Plots.plot(time, [e_kin, tl_ekin], label=["undamped" "trend"],
+                       color=[:blue :red], linewidth=[2 2])
 
-    plot!(time_damped, [e_kin_damped, tl_ekin_damped],
-          label=["damped" "damped trend"], color=[:green :orange], linewidth=[2 2])
+    Plots.plot!(time_damped, [e_kin_damped, tl_ekin_damped],
+                label=["damped" "damped trend"], color=[:green :orange], linewidth=[2 2])
 
-    plot!(title="Kinetic Energy of the Fluid", xlabel="Time [s]",
-          ylabel="kinetic energy [J]")
+    Plots.plot!(title="Kinetic Energy of the Fluid", xlabel="Time [s]",
+                ylabel="kinetic energy [J]")
 
-    plot2 = plot(time, [p_max, tl_p_max], label=["sim" "trend"], color=[:blue :red],
-                 linewidth=[2 2])
+    plot2 = Plots.plot(time, [p_max, tl_p_max], label=["sim" "trend"], color=[:blue :red],
+                       linewidth=[2 2])
 
-    plot!(time_damped, [p_max_damped, tl_p_max_damped], label=["damped" "damped trend"],
-          color=[:green :orange], linewidth=[2 2])
+    Plots.plot!(time_damped, [p_max_damped, tl_p_max_damped],
+                label=["damped" "damped trend"],
+                color=[:green :orange], linewidth=[2 2])
 
-    plot!(title="Maximum Pressure of the Fluid", xlabel="Time [s]",
-          ylabel="Max. Pressure [Pa]")
+    Plots.plot!(title="Maximum Pressure of the Fluid", xlabel="Time [s]",
+                ylabel="Max. Pressure [Pa]")
 
-    plot3 = plot(time, [avg_rho, tl_avg_rho], label=["sim" "trend"], color=[:blue :red],
-                 linewidth=[2 2])
+    plot3 = Plots.plot(time, [avg_rho, tl_avg_rho], label=["sim" "trend"],
+                       color=[:blue :red], linewidth=[2 2])
 
-    plot!(time_damped, [avg_rho_damped, tl_avg_rho_damped], label=["damped" "damped trend"],
-          color=[:green :orange], linewidth=[2 2])
+    Plots.plot!(time_damped, [avg_rho_damped, tl_avg_rho_damped],
+                label=["damped" "damped trend"],
+                color=[:green :orange], linewidth=[2 2])
 
-    plot!(title="Avg. Density of the Fluid", xlabel="Time [s]",
-          ylabel="Avg. Density [kg/m^3]")
+    Plots.plot!(title="Avg. Density of the Fluid", xlabel="Time [s]",
+                ylabel="Avg. Density [kg/m^3]")
 
-    plot(plot1, plot2, plot3, layout=(2, 2), size=(1200, 1200))
+    Plots.plot(plot1, plot2, plot3, layout=(2, 2), size=(1200, 1200))
 end
