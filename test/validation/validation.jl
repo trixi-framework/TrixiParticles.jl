@@ -20,9 +20,14 @@
         @test isapprox(error_deflection_x, 0, atol=eps())
         @test isapprox(error_deflection_y, 0, atol=eps())
 
+        # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(validation_dir(), "oscillating_beam_2d",
-                                                "plot_oscillating_beam_results.jl"))
+                                                "plot_oscillating_beam_results.jl")) [
+            r"WARNING: Method definition linear_interpolation.*\n",
+            r"WARNING: Method definition interpolated_mse.*\n",
+            r"WARNING: Method definition extract_number_from_filename.*\n",
+        ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
     end
