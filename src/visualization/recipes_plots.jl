@@ -28,7 +28,8 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
         x_min, y_min = minimum(initial_condition.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(initial_condition.coordinates, dims=2) .+ 0.5particle_spacing
 
-        pressure = [particle_pressure(v, system, particle) for particle in eachparticle(system)]
+        pressure = [particle_pressure(v, system, particle)
+                    for particle in eachparticle(system)]
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing, pressure,
                 label=timer_name(system))
