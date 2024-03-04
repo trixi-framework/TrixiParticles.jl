@@ -7,7 +7,7 @@ using Plots
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 
-position_x = 0.5
+position_x = tank_size[1] / 2
 
 # `interpolate_point` can be used to interpolate the properties of the `fluid_system` with the original kernel and `smoothing_length`
 println(interpolate_point([position_x, 0.01], semi, fluid_system, sol))
@@ -31,10 +31,14 @@ println(interpolate_point([
                           ], semi, fluid_system, sol))
 
 # It is also possible to interpolate along a line
-result = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi, fluid_system,
-                          sol)
-result_endpoint = interpolate_line([position_x, -0.05], [position_x, 1.0], 10, semi,
-                                   fluid_system, sol, endpoint=false)
+n_interpolation_points = 10
+result = interpolate_line([position_x, -fluid_particle_spacing],
+                          [position_x, initial_fluid_size[1]],
+                          n_interpolation_points, semi, fluid_system, sol)
+result_endpoint = interpolate_line([position_x, -fluid_particle_spacing],
+                                   [position_x, initial_fluid_size[1]],
+                                   n_interpolation_points, semi, fluid_system, sol,
+                                   endpoint=false)
 
 # Extracting wall distance for the standard and endpoint cases
 walldistance = [coord[2] for coord in result.coord]
