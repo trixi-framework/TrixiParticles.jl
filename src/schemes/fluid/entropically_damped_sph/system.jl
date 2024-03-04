@@ -11,9 +11,9 @@ Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by Ram
 - `initial_condition`:  Initial condition representing the system's particles.
 - `sound_speed`:        Speed of sound.
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `viscosity`:      Viscosity model for this system (default: no viscosity).

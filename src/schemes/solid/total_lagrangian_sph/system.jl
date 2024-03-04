@@ -70,9 +70,9 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 - `young_modulus`:      Young's modulus.
 - `poisson_ratio`:      Poisson ratio.
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
@@ -92,14 +92,17 @@ The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGa
 !!! note
     The fixed particles must be the **last** particles in the `InitialCondition`.
     To do so, e.g. use the `union` function:
-    ```julia
+    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
     solid = union(beam, fixed_particles)
+
+    # output
+    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 
 ## References:
-- Joseph O’Connor, Benedict D. Rogers.
-  "A fluid–structure interaction model for free-surface flows and flexible structures using
+- Joseph O'Connor, Benedict D. Rogers.
+  "A fluid-structure interaction model for free-surface flows and flexible structures using
   smoothed particle hydrodynamics on a GPU".
   In: Journal of Fluids and Structures 104 (2021).
   [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
@@ -380,7 +383,8 @@ end
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, ::Nothing)
+                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
+                                     ::Nothing)
     return dv
 end
 
