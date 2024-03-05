@@ -36,6 +36,28 @@ end
     return -m_b / (rho_a * rho_b) * (p_a * W_a - p_b * W_b)
 end
 
+# This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
+# They argued that the formulation is more flexible because of the possibility to formulate
+# different inter-particle averages or to assume different inter-particle distributions.
+# Ramachandran (2019) and Adami (2012) use this formulation for the pressure acceleration.
+#
+# However, the tests show that the formulation is only linear and angular momentum conserving
+# but not energy conserving.
+#
+# Note that the authors also used this formulation for an ISPH method in (https://doi.org/10.1016/j.jcp.2007.07.013)
+#
+# TODO: Further investigations on energy conservation.
+@inline function inter_particle_averaged_pressure(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
+    volume_a = m_a / rho_a
+    volume_b = m_b / rho_b
+    volume_term = (volume_a^2 + volume_b^2) / m_a
+
+    # Inter-particle averaged pressure
+    pressure_tilde = (rho_b * p_a + rho_a * p_b) / (rho_a + rho_b)
+
+    return -volume_term * pressure_tilde * W_a
+end
+
 function choose_pressure_acceleration_formulation(pressure_acceleration,
                                                   density_calculator, NDIMS, ELTYPE,
                                                   correction)
@@ -87,20 +109,18 @@ end
 # Formulation using symmetric gradient formulation for corrections not depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a, pressure_correction,
-                                       correction)
+                                       distance, W_a, correction)
     (; pressure_acceleration_formulation) = particle_system
 
     # Without correction or with `AkinciFreeSurfaceCorrection`, the kernel gradient is
     # symmetric, so call the symmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a) *
-           pressure_correction
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a)
 end
 
 # Formulation using asymmetric gradient formulation for corrections depending on local neighborhood.
 @inline function pressure_acceleration(particle_system, neighbor_system, neighbor,
                                        m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
-                                       distance, W_a, pressure_correction,
+                                       distance, W_a,
                                        correction::Union{KernelCorrection,
                                                          GradientCorrection,
                                                          BlendedGradientCorrection,
@@ -111,6 +131,5 @@ end
 
     # With correction, the kernel gradient is not necessarily symmetric, so call the
     # asymmetric version of the pressure acceleration formulation.
-    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b) *
-           pressure_correction
+    return pressure_acceleration_formulation(m_a, m_b, rho_a, rho_b, p_a, p_b, W_a, W_b)
 end

@@ -9,9 +9,11 @@ docs/src/contributing.md
 docs/src/license.md
 docs/src/code_of_conduct.md
 docs/src/news.md
+*_replaced.md
 run
 *.json
 *.png
+*.jpg
 *.gif
 *.svg
 *.vtu
@@ -25,3 +27,4 @@ run
 # FreeCAD models
 *.FCStd
 *.FCStd1
+*.csv

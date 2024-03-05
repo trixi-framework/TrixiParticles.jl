@@ -71,24 +71,16 @@ boundary_system = BoundarySPHSystem(boundary, boundary_model)
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=250)
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 use_reinit = false
 density_reinit_cb = use_reinit ? DensityReinitializationCallback(semi.systems[1], dt=0.01) :
                     nothing
+stepsize_callback = StepsizeCallback(cfl=1.1)
 
-callbacks = CallbackSet(info_callback, saving_callback, density_reinit_cb)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so because forces become extremely large when
-# fluid particles are very close to boundary particles, and the time integration method
-# interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-            dtmax=1e-3, # Limit stepsize to prevent crashing
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);
