@@ -53,13 +53,20 @@ jobs:
         with:
           annotate: true
           coverage: true
+        env:
+          TRIXIPARTICLES_TEST: unit
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: src,test
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: lcov.info
           fail_ci_if_error: true
+          flags: unit
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   run_example_tests:
     needs: run_unit_tests
@@ -81,3 +88,5 @@ jobs:
         with:
           annotate: true
           coverage: false
+        env:
+          TRIXIPARTICLES_TEST: examples
