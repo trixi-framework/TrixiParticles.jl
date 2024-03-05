@@ -4,13 +4,28 @@ include("../validation_util.jl")
 using TrixiParticles
 using JSON
 
+gravity = 9.81
+
 H = 0.6
-tspan = (0.0, 8.0 / sqrt(9.81 / H))
+W = 2 * H
+tspan = (0.0, 8.0 / sqrt(gravity / H))
 
 # particle_spacing in this case is set comparatively to `H` the initial height of the fluid.
 # Use H / 80, H / 320 for validation.
 # Note: H / 320 takes a few hours!
 particle_spacing = H / 40
+smoothing_length = 3.5 * particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
+
+fluid_density = 1000.0
+sound_speed = 20 * sqrt(gravity * H)
+
+boundary_layers = 4
+spacing_ratio = 1
+boundary_particle_spacing = particle_spacing / spacing_ratio
+
+initial_fluid_size = (W, H)
+tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
 
 sensor_size = 0.009
 P1_y_top = 160 / 600 * H
@@ -71,12 +86,24 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                                  method * "_" * formatted_string,
                                         write_csv=false, max_x_coord, named_sensors...)
 
+tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                            n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                            acceleration=(0.0, -gravity), state_equation=nothing)
+
+alpha = 0.02
+viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
+fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
+                                                smoothing_length,
+                                                sound_speed, viscosity=viscosity_edac,
+                                                acceleration=(0.0, -gravity))
+
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=3.5 * particle_spacing,
-              boundary_layers=4,
+              boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
-              cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan)
+              cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan,
+              fluid_system=fluid_system_edac, tank=tank_edac)
 
 reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_0015.json"
 run_file_edac_name = "out/validation_result_dam_break_edac_0015.json"
@@ -102,31 +129,15 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                                  method * "_" * formatted_string,
                                         write_csv=false, max_x_coord, named_sensors...)
 
-state_equation_wcsph = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                         exponent=1, clip_negative_pressure=false)
-
-fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
-
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation_wcsph, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity),
-                                           correction=nothing)
-
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=3.5 * particle_spacing,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
-              cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan,
-              state_equation=state_equation_wcsph,
-              fluid_system=fluid_system)
+              pp_callback=postprocessing_cb, tspan=tspan)
 
-reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_0015.json"
-run_file_wcsph_name = "out/validation_result_dam_break_wcsph_0015.json"
+reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_00075.json"
+run_file_wcsph_name = "out/validation_result_dam_break_wcsph_00075.json"
 
 reference_data = JSON.parsefile(reference_file_wcsph_name)
 run_data = JSON.parsefile(run_file_wcsph_name)

@@ -17,7 +17,7 @@ W = 2 * H
 fluid_particle_spacing = H / 40
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
-boundary_layers = 3
+boundary_layers = 4
 spacing_ratio = 1
 
 boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
@@ -34,27 +34,34 @@ tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_sp
 
 fluid_density = 1000.0
 sound_speed = 20 * sqrt(gravity * H)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=1, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
-                       acceleration=(0.0, -gravity), state_equation=nothing)
+                       acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 3.0 * fluid_particle_spacing
+smoothing_length = 3.5 * fluid_particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-alpha = 0.02
-viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
-fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+fluid_density_calculator = ContinuityDensity()
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
+                                           acceleration=(0.0, -gravity),
+                                           correction=nothing)
 
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=nothing,
+                                             state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
