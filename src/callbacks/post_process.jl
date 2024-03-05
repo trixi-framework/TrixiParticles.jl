@@ -14,7 +14,7 @@ a fixed interval of simulation time (`dt`).
 
 # Keywords
 - `funcs...`:   Functions to be executed at specified intervals during the simulation.
-                Each functin must have the arguments `(v, u, t, system)`,
+                Each function must have the arguments `(v, u, t, system)`,
                 and will be called for every system, where `v` and `u` are the
                 wrapped solution arrays for the corresponding system and `t` is
                 the current simulation time. Note that working with these `v`
