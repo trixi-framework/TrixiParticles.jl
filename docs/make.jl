@@ -130,3 +130,9 @@ makedocs(sitename="TrixiParticles.jl",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
          ])
+
+deploydocs(
+    repo = "github.com/trixi-framework/TrixiParticles.jl",
+    devbranch = "main",
+    push_preview = true
+)
