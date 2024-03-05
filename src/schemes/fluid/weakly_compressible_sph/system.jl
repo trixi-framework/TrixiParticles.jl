@@ -6,12 +6,13 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 correction=nothing, source_terms=nothing)
 
-Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
-equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
-for small density variations.
+System for particles of a fluid.
+The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
+generates large pressure changes for small density variations.
+See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 # Arguments
-- `initial_condition`:  Initial condition representing the system's particles.
+- `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
 - `density_calculator`: Density calculator for the system.
                         See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
@@ -37,10 +38,6 @@ for small density variations.
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 
-## References:
-- Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
-  In: Journal of Computational Physics 110 (1994), pages 399-406.
-  [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                    V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
