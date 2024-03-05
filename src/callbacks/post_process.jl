@@ -1,7 +1,7 @@
 """
     PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true, filename="values",
                         output_directory="out", append_timestamp=false, write_csv=true,
-                        write_json=true, backup_period=0, funcs...)
+                        write_json=true, write_file_interval=1, funcs...)
 
 Create a callback to post-process simulation data at regular intervals.
 This callback allows for the execution of a user-defined function `func` at specified
@@ -28,41 +28,56 @@ a fixed interval of simulation time (`dt`).
 - `write_csv=true`: If set to `true`, write a csv file.
 - `write_json=true`: If set to `true`, write a json file.
 - `append_timestep=false`: If set to `true`, the current timestamp will be added to the filename.
-- `backup_period=0`: Specifies that a backup should be created after every `backup_period`
-                     number of postprocessing execution steps. A value of 0 indicates that
-                     backups should not be automatically generated during postprocessing.
+- `write_file_interval=1`: Files will be written after every `write_file_interval` number of
+                           postprocessing execution steps. A value of 0 indicates that files
+                           are only written at the end of the simulation, eliminating I/O overhead.
 
 # Examples
-```julia
+```jldoctest; output = false
 function example_function(v, u, t, system)
     println("test_func ", t)
 end
 
 # Create a callback that is triggered every 100 time steps
-postprocess_callback = PostprocessCallback(example_function, interval=100)
+postprocess_callback = PostprocessCallback(interval=100, example_quantity=example_function)
 
 # Create a callback that is triggered every 0.1 simulation time units
-postprocess_callback = PostprocessCallback(example_function, dt=0.1)
+postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=example_function)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ PostprocessCallback                                                                              │
+│ ═══════════════════                                                                              │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ write file: ………………………………………………… always                                                           │
+│ exclude boundary: ………………………………… yes                                                              │
+│ filename: ……………………………………………………… values                                                           │
+│ output directory: ………………………………… out                                                              │
+│ append timestamp: ………………………………… no                                                               │
+│ write json file: …………………………………… yes                                                              │
+│ write csv file: ……………………………………… yes                                                              │
+│ function1: …………………………………………………… example_quantity                                                 │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct PostprocessCallback{I, F}
-    interval         :: I
-    backup_period    :: Int
-    data             :: Dict{String, Vector{Any}}
-    times            :: Array{Float64, 1}
-    exclude_boundary :: Bool
-    func             :: F
-    filename         :: String
-    output_directory :: String
-    append_timestamp :: Bool
-    write_csv        :: Bool
-    write_json       :: Bool
+    interval            :: I
+    write_file_interval :: Int
+    data                :: Dict{String, Vector{Any}}
+    times               :: Array{Float64, 1}
+    exclude_boundary    :: Bool
+    func                :: F
+    filename            :: String
+    output_directory    :: String
+    append_timestamp    :: Bool
+    write_csv           :: Bool
+    write_json          :: Bool
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
                              append_timestamp=false, write_csv=true, write_json=true,
-                             backup_period::Integer=0, funcs...)
+                             write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
     end
@@ -75,7 +90,7 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, backup_period,
+    post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
                                         append_timestamp, write_csv, write_json)
@@ -119,10 +134,20 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!
+
+        function write_file_interval(interval)
+            if interval > 1
+                return "every $(interval) * interval"
+            elseif interval == 1
+                return "always"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
         setup = [
             "interval" => string(callback.interval),
-            "write backup" => callback.backup_period > 0 ?
-                              "every $(callback.backup_period) * interval" : "no",
+            "write file" => write_file_interval(callback.write_file_interval),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -146,10 +171,20 @@ function Base.show(io::IO, ::MIME"text/plain",
         show(io, cb)
     else
         callback = cb.affect!.affect!
+
+        function write_file_interval(interval)
+            if interval > 1
+                return "every $(interval) * dt"
+            elseif interval == 1
+                return "always"
+            elseif interval == 0
+                return "no"
+            end
+        end
+
         setup = [
             "dt" => string(callback.interval),
-            "write backup" => callback.backup_period > 0 ?
-                              "every $(callback.backup_period) * dt" : "no",
+            "write file" => write_file_interval(callback.write_file_interval),
             "exclude boundary" => callback.exclude_boundary ? "yes" : "no",
             "filename" => callback.filename,
             "output directory" => callback.output_directory,
@@ -219,8 +254,9 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
-    if isfinished(integrator) || (pp.backup_period > 0 && backup_condition(pp, integrator))
-        write_postprocess_callback(pp, integrator)
+    if isfinished(integrator) ||
+       (pp.write_file_interval > 0 && backup_condition(pp, integrator))
+        write_postprocess_callback(pp)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
@@ -229,16 +265,16 @@ end
 
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) % cb.backup_period == 0
+           round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
 end
 
 @inline function backup_condition(cb::PostprocessCallback, integrator)
     return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) % cb.backup_period == 0
+           round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
-function write_postprocess_callback(pp::PostprocessCallback, integrator)
+function write_postprocess_callback(pp::PostprocessCallback)
     if isempty(pp.data)
         return
     end
@@ -252,14 +288,11 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
         time_stamp = string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    backup_suffix = isfinished(integrator) ? "" : "_backup"
-
-    filename_json = pp.filename * time_stamp * backup_suffix * ".json"
-    filename_csv = pp.filename * time_stamp * backup_suffix * ".csv"
+    filename_json = pp.filename * time_stamp * ".json"
+    filename_csv = pp.filename * time_stamp * ".csv"
 
     if pp.write_json
         abs_file_path = joinpath(abspath(pp.output_directory), filename_json)
-        @info "Writing postprocessing results to $abs_file_path"
 
         open(abs_file_path, "w") do file
             # Indent by 4 spaces
@@ -268,7 +301,6 @@ function write_postprocess_callback(pp::PostprocessCallback, integrator)
     end
     if pp.write_csv
         abs_file_path = joinpath(abspath(pp.output_directory), filename_csv)
-        @info "Writing postprocessing results to $abs_file_path"
 
         write_csv(abs_file_path, data)
     end

@@ -2,23 +2,24 @@
     WeaklyCompressibleSPHSystem(initial_condition,
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
-                                viscosity=NoViscosity(), density_diffusion=nothing,
+                                viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 correction=nothing, source_terms=nothing)
 
-Weakly compressible SPH introduced by (Monaghan, 1994). This formulation relies on a stiff
-equation of state (see  [`StateEquationCole`](@ref)) that generates large pressure changes
-for small density variations.
+System for particles of a fluid.
+The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
+generates large pressure changes for small density variations.
+See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 # Arguments
-- `initial_condition`:  Initial condition representing the system's particles.
+- `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
 - `density_calculator`: Density calculator for the system.
                         See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).
 - `smoothing_kernel`:   Smoothing kernel to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 - `smoothing_length`:   Smoothing length to be used for this system.
-                        See [`SmoothingKernel`](@ref).
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
 # Keyword Arguments
 - `viscosity`:      Viscosity model for this system (default: no viscosity).
@@ -37,10 +38,6 @@ for small density variations.
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 
-## References:
-- Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
-  In: Journal of Computational Physics 110 (1994), pages 399-406.
-  [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                    V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
@@ -63,7 +60,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          pressure_acceleration=nothing,
-                                         viscosity=NoViscosity(), density_diffusion=nothing,
+                                         viscosity=nothing, density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          correction=nothing, source_terms=nothing)
@@ -94,7 +91,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                                                          NDIMS, ELTYPE,
                                                                          correction)
 
-        cache = create_cache_wcsph(n_particles, ELTYPE, density_calculator)
+        cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
@@ -135,17 +132,6 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
 
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
-end
-
-function create_cache_wcsph(n_particles, ELTYPE, ::SummationDensity)
-    density = Vector{ELTYPE}(undef, n_particles)
-
-    return (; density)
-end
-
-function create_cache_wcsph(n_particles, ELTYPE, ::ContinuityDensity)
-    # Density in this case is added to the end of 'v' and allocated by modifying 'v_nvariables'.
-    return (;)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -214,18 +200,6 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                                                              system, semi)
 
     return system
-end
-
-function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
-    # No density update with `ContinuityDensity`
-    return system
-end
-
-function compute_density!(system, u, u_ode, semi, ::SummationDensity)
-    (; cache) = system
-    (; density) = cache # Density is in the cache for SummationDensity
-
-    summation_density!(system, semi, u, u_ode, density)
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
@@ -322,31 +296,10 @@ end
     system.pressure[particle] = system.state_equation(density)
 end
 
-function write_v0!(v0, system::WeaklyCompressibleSPHSystem)
-    (; initial_condition, density_calculator) = system
-
-    for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
-        end
-    end
-
-    write_v0!(v0, density_calculator, system)
-
-    return v0
-end
-
-function write_v0!(v0, ::SummationDensity, system::WeaklyCompressibleSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::WeaklyCompressibleSPHSystem)
-    (; initial_condition) = system
-
+function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
     for particle in eachparticle(system)
         # Set particle densities
-        v0[ndims(system) + 1, particle] = initial_condition.density[particle]
+        v0[end, particle] = system.initial_condition.density[particle]
     end
 
     return v0

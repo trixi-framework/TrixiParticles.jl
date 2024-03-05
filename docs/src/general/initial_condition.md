@@ -1,4 +1,4 @@
-# Initial Condition
+# [Initial Condition](@id initial_condition)
 
 ```@autodocs
 Modules = [TrixiParticles]

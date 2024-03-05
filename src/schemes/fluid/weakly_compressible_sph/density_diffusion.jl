@@ -36,7 +36,7 @@ and ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 
-## References:
+## References
 - Diego Molteni, Andrea Colagrossi.
   "A Simple Procedure to Improve the Pressure Evaluation in Hydrodynamic Context Using the SPH."
   In: Computer Physics Communications 180.6 (2009), pages 861--872.
@@ -72,7 +72,7 @@ where ``\rho_a`` and ``\rho_b`` denote the densities of particles ``a`` and ``b`
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 
-## References:
+## References
 - Angela Ferrari, Michael Dumbser, Eleuterio F. Toro, Aronne Armanini.
   "A New 3D Parallel SPH Scheme for Free Surface Flows."
   In: Computers & Fluids 38.6 (2009), pages 1203--1217.
@@ -120,7 +120,7 @@ where ``d`` is the number of dimensions.
 See [`DensityDiffusion`](@ref) for an overview and comparison of implemented density
 diffusion terms.
 
-## References:
+## References
 - M. Antuono, A. Colagrossi, S. Marrone, D. Molteni.
   "Free-Surface Flows Solved by Means of SPH Schemes with Numerical Diffusive Terms."
   In: Computer Physics Communications 181.3 (2010), pages 532--549.
