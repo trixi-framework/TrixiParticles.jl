@@ -53,6 +53,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    transport_velocity                :: Nothing # TODO
     source_terms                      :: ST
     cache                             :: C
 
@@ -96,17 +97,13 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator),
-                   typeof(state_equation), typeof(smoothing_kernel),
-                   typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
-                                                        density_calculator, state_equation,
-                                                        smoothing_kernel, smoothing_length,
-                                                        acceleration_, viscosity,
-                                                        density_diffusion, correction,
-                                                        pressure_acceleration,
-                                                        source_terms, cache)
+        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
+                   typeof(correction), typeof(pressure_acceleration), typeof(source_terms),
+                   typeof(cache)}(initial_condition, mass, pressure, density_calculator,
+                                  state_equation, smoothing_kernel, smoothing_length,
+                                  acceleration_, viscosity, density_diffusion, correction,
+                                  pressure_acceleration, nothing, source_terms, cache)
     end
 end
 
