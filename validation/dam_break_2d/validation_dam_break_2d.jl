@@ -99,14 +99,14 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
-              smoothing_length=3.5 * particle_spacing,
+              smoothing_length=smoothing_length, smoothing_kernel = smoothing_kernel,
               boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
-              cfl=0.9, extra_callback=postprocessing_cb, tspan=tspan,
+              extra_callback=postprocessing_cb, tspan=tspan,
               fluid_system=fluid_system_edac, tank=tank_edac)
 
-reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_0015.json"
-run_file_edac_name = "out/validation_result_dam_break_edac_0015.json"
+reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_$formatted_string.json"
+run_file_edac_name = "out/validation_result_dam_break_edac_$formatted_string.json"
 
 reference_data = JSON.parsefile(reference_file_edac_name)
 run_data = JSON.parsefile(run_file_edac_name)
@@ -132,13 +132,13 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
-              smoothing_length=3.5 * particle_spacing,
+              smoothing_length=smoothing_length,smoothing_kernel = smoothing_kernel,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan)
 
-reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_00075.json"
-run_file_wcsph_name = "out/validation_result_dam_break_wcsph_00075.json"
+reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_$formatted_string.json"
+run_file_wcsph_name = "out/validation_result_dam_break_wcsph_$formatted_string.json"
 
 reference_data = JSON.parsefile(reference_file_wcsph_name)
 run_data = JSON.parsefile(run_file_wcsph_name)

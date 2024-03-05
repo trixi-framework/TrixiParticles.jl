@@ -8,7 +8,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-# size parameters
+# Size parameters
 H = 0.6
 W = 2 * H
 
