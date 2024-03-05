@@ -46,18 +46,18 @@ P3_y_bottom = P3_y_top - sensor_size
 
 sensor_names = ["P1", "P2", "P3"]
 
-tank_size_x = floor(5.366 * H / particle_spacing) * particle_spacing -
+tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
               0.5 * particle_spacing
-pressure_sensor_top = [
-    [tank_size_x, P1_y_top],
-    [tank_size_x, P2_y_top],
-    [tank_size_x, P3_y_top],
-]
-pressure_sensor_bottom = [
-    [tank_size_x, P1_y_bottom],
-    [tank_size_x, P2_y_bottom],
-    [tank_size_x, P3_y_bottom],
-]
+
+pressure_P1 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
+                                                      [tank_right_wall_x, P1_y_bottom],
+                                                      v, u, t, sys)
+pressure_P2 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P2_y_top],
+                                                      [tank_right_wall_x, P2_y_bottom],
+                                                      v, u, t, sys)
+pressure_P3 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P3_y_top],
+                                                      [tank_right_wall_x, P3_y_bottom],
+                                                      v, u, t, sys)
 
 function max_x_coord(v, u, t, system)
     return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],
@@ -74,16 +74,8 @@ function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
     return sum(interpolated_values.pressure) / n_interpolation_points
 end
 
-pressure_sensors = [("pressure_$(name)",
-                     (v, u, t, sys) -> interpolated_pressure(coord_top, coord_bottom, v,
-                                                             u, t, sys))
-                    for (coord_top, coord_bottom, name) in zip(pressure_sensor_top,
-                                                               pressure_sensor_bottom,
-                                                               sensor_names)]
-named_sensors = (; (Symbol("$(name)") => func for (name, func) in pressure_sensors)...)
-formatted_string = lpad(string(Int(particle_spacing *
-                                   10^length(split(string(particle_spacing), ".")[2]))),
-                        length(split(string(particle_spacing), ".")[2]) + 1, '0')
+formatted_string = replace(string(particle_spacing), "." => "")
+
 
 # EDAC simulation
 ############################################################################################
@@ -91,7 +83,8 @@ method = "edac"
 postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                         filename="validation_result_dam_break_" *
                                                  method * "_" * formatted_string,
-                                        write_csv=false, max_x_coord, named_sensors...)
+                                        write_csv=false, max_x_coord, pressure_P1,
+                                        pressure_P2, pressure_P3)
 
 tank_edac = RectangularTank(particle_spacing, initial_fluid_size, tank_size, fluid_density,
                             n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -134,7 +127,8 @@ method = "wcsph"
 postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
                                         filename="validation_result_dam_break_" *
                                                  method * "_" * formatted_string,
-                                        write_csv=false, max_x_coord, named_sensors...)
+                                        write_csv=false, max_x_coord, pressure_P1,
+                                        pressure_P2, pressure_P3)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
