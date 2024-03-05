@@ -14,7 +14,7 @@ on:
       - '.github/workflows/CompatHelper.yml'
       - 'docs/**'
   pull_request:
-      paths-ignore:
+    paths-ignore:
       - 'AUTHORS.md'
       - 'CITATION.bib'
       - 'CONTRIBUTING.md'
@@ -25,24 +25,25 @@ on:
       - 'docs/**'
   workflow_dispatch:
 
-
 # Cancel redundant CI tests automatically
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Run Tests
-    runs-on: ubuntu-latest
-
+  build_and_unit_tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        julia-version: ['1.0', '~1.9']
     steps:
       - name: Check out project
         uses: actions/checkout@v4
       - name: Set up Julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: '1'
+          version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v1
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
@@ -51,24 +52,31 @@ jobs:
         with:
           annotate: true
           coverage: true
-        env:
-          TRIXIPARTICLES_TEST: unit
       - name: Process coverage results
         uses: julia-actions/julia-processcoverage@v1
-        with:
-          directories: src,test
       - name: Upload coverage report to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: lcov.info
           fail_ci_if_error: true
-          flags: unit
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  run_example_tests:
+    needs: build_and_unit_tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        julia-version: ['1.0', '~1.9']
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v1
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
           coverage: false
-        env:
-          TRIXIPARTICLES_TEST: examples
