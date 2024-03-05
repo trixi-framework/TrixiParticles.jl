@@ -140,7 +140,7 @@ viscosity parameter of the adjacent fluid or the equivalent from the artificial 
 viscous interaction (default `viscosity=nothing`), a free-slip wall boundary
 condition is applied.
 
-### References:
+### References
 - S. Adami, X. Y. Hu, N. A. Adams.
   "A generalized wall boundary condition for smoothed particle hydrodynamics".
   In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
@@ -219,7 +219,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
 ```
 
-### References:
+### References
 - Joseph J. Monaghan, Jules B. Kajtar. "SPH particle boundary forces for arbitrary boundaries".
   In: Computer Physics Communications 180.10 (2009), pages 1811–1820.
   [doi: 10.1016/j.cpc.2009.05.008](https://doi.org/10.1016/j.cpc.2009.05.008)

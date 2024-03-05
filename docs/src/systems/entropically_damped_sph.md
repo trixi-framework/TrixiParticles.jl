@@ -1,4 +1,4 @@
-# Entropically Damped Artificial Compressibility (EDAC) for SPH
+# [Entropically Damped Artificial Compressibility (EDAC) for SPH](@id edac)
 
 As opposed to the [weakly compressible SPH scheme](weakly_compressible_sph.md), which uses an equation of state,
 this scheme uses a pressure evolution equation to calculate the pressure
@@ -47,7 +47,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "entropically_damped_sph", "system.jl")]
 ```
 
-## References:
+### References
 - Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
   In: Computers and Fluids 179 (2019), pages 579--594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)

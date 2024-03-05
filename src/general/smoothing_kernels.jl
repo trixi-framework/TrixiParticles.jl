@@ -131,7 +131,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
@@ -214,7 +214,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
@@ -311,7 +311,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Daniel J. Price. "Smoothed particle hydrodynamics and magnetohydrodynamics".
   In: Journal of Computational Physics 231.3 (2012), pages 759-794.
   [doi: 10.1016/j.jcp.2010.12.011](https://doi.org/10.1016/j.jcp.2010.12.011)
@@ -405,7 +405,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Walter Dehnen & Hassan Aly.
   "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
   In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
@@ -481,7 +481,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Walter Dehnen & Hassan Aly.
   "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
   In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
@@ -552,7 +552,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Walter Dehnen & Hassan Aly.
   "Improving convergence in smoothed particle hydrodynamics simulations without pairing instability".
   In: Monthly Notices of the Royal Astronomical Society 425.2 (2012), pages 1068-1082.
@@ -626,7 +626,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
   In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
   [doi: 10.5555/846276.846298](https://doi.org/10.5555/846276.846298)
@@ -694,7 +694,7 @@ where ``\delta`` is the typical particle spacing.
 
 For general information and usage see [Smoothing Kernels](@ref smoothing_kernel).
 
-## References:
+## References
 - Matthias Müller, David Charypar, and Markus Gross. "Particle-based fluid simulation for interactive applications".
   In: Proceedings of the 2003 ACM SIGGRAPH/Eurographics symposium on Computer animation. Eurographics Association. 2003, pages 154-159.
   [doi: 10.5555/846276.846298](https://doi.org/10.5555/846276.846298)

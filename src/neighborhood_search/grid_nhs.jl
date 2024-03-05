@@ -77,7 +77,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
 
-## References:
+## References
 - M. Chalela, E. Sillero, L. Pereyra, M.A. Garcia, J.B. Cabral, M. Lares, M. Merchán.
   "GriSPy: A Python package for fixed-radius nearest neighbors search".
   In: Astronomy and Computing 34 (2021).
