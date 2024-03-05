@@ -57,7 +57,7 @@ function plot_results(axs, ax_max, files)
                     time = value["time"] .* normalization_factor_time
                     pressure = value["values"] ./ normalization_factor_pressure
                     lines!(axs[sensor_index], time, pressure,
-                           label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+                           label="dp=$(convert_to_float(json_file))",
                            color=file_number, colormap=:tab10, colorrange=(1, 10))
                 end
             end
@@ -66,7 +66,7 @@ function plot_results(axs, ax_max, files)
         if haskey(json_data, "max_x_coord_fluid_1")
             value = json_data["max_x_coord_fluid_1"]
             lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
-                   label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))")
+                   label="dp=$(convert_to_float(json_file))")
         end
     end
 end
@@ -119,5 +119,5 @@ Legend(fig[6, 2], ax_max_x_wcsph, tellwidth=false, orientation=:horizontal, vali
        nbanks=2)
 
 fig
-# uncomment to save the figure
-#save("dam_break_validation.svg", fig)
+# Uncomment to save the figure
+# save("dam_break_validation.svg", fig)

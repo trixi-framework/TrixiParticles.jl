@@ -44,12 +44,14 @@ function extract_number_from_filename(filename)
 end
 
 function convert_to_float(str)
+    str = match(r"\d+(?!.*\d)", str).match
+
     # Remove leading zeros and count them
     leading_zeros = length(match(r"^0*", str).match)
     str_non_zero = replace(str, r"^0*" => "")
 
     if isempty(str_non_zero)
-        return 0.0
+        return string("0.0")
     end
 
     # Adjust string to have a decimal point at the correct position

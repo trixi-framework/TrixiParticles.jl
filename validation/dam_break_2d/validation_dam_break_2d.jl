@@ -10,7 +10,7 @@ H = 0.6
 W = 2 * H
 tspan = (0.0, 8.0 / sqrt(gravity / H))
 
-# particle_spacing in this case is set comparatively to `H` the initial height of the fluid.
+# `particle_spacing` in this case is set relative to `H`, the initial height of the fluid.
 # Use H / 80, H / 320 for validation.
 # Note: H / 320 takes a few hours!
 particle_spacing = H / 40
@@ -27,6 +27,15 @@ boundary_particle_spacing = particle_spacing / spacing_ratio
 initial_fluid_size = (W, H)
 tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
 
+# The top of the sensors is at the position where the middle of the sensors is in the experiment.
+#
+# > Note, the probe position in the numerical setup does not exactly match the position in the experiment, but
+# > Greco [36] showed that this shift gives better agreement and reported several uncertainties in the
+# > measurements motivating this adjustment.
+# S. Adami, X. Y. Hu, N. A. Adams.
+# "A generalized wall boundary condition for smoothed particle hydrodynamics".
+# In: Journal of Computational Physics 231, 21 (2012), pages 7057--7075.
+# https://doi.org/10.1016/J.JCP.2012.05.005
 sensor_size = 0.009
 P1_y_top = 160 / 600 * H
 P1_y_bottom = P1_y_top - sensor_size
@@ -51,10 +60,8 @@ pressure_sensor_bottom = [
 ]
 
 function max_x_coord(v, u, t, system)
-    maximum(TrixiParticles.extract_svector(TrixiParticles.current_coordinates(u,
-                                                                              system),
-                                           Val(ndims(system)), p)[1]
-            for p in TrixiParticles.eachparticle(system))
+    return maximum(particle -> TrixiParticles.current_coords(u, system, particle)[1],
+                   TrixiParticles.eachparticle(system))
 end
 
 function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
