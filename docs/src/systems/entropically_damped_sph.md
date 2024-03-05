@@ -47,7 +47,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "entropically_damped_sph", "system.jl")]
 ```
 
-## References:
+### References
 - Prabhu Ramachandran. "Entropically damped artiﬁcial compressibility for SPH".
   In: Computers and Fluids 179 (2019), pages 579--594.
   [doi: 10.1016/j.compfluid.2018.11.023](https://doi.org/10.1016/j.compfluid.2018.11.023)

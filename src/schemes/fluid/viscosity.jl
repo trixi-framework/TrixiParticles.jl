@@ -64,7 +64,7 @@ To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kine
 ```
 where ``d`` is the dimension.
 
-## References:
+## References
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
   In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
   [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)
@@ -159,7 +159,7 @@ where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
 - `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
-## References:
+## References
 - S. Adami et al. "A generalized wall boundary condition for smoothed particle hydrodynamics".
   In: Journal of Computational Physics 231 (2012), pages 7057-7075.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
