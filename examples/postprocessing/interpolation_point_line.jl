@@ -61,12 +61,11 @@ walldistance_endpoint = [coord[2] for coord in result_endpoint.coord]
 # Replace NaNs with zeros for visualization
 replace!(result.density, NaN => 0.0)
 
-p = plot(walldistance, result.density, marker=:circle, color=:blue, markerstrokecolor=:blue,
-         linewidth=2, label="With Endpoint")
+p = Plots.plot(walldistance, result.density, marker=:circle, color=:blue,
+               markerstrokecolor=:blue, linewidth=2, label="With Endpoint")
 
-plot!(p, walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
-      linestyle=:dash, label="Without Endpoint", color=:orange)
+Plots.plot!(p, walldistance_endpoint, result_endpoint.density, marker=:xcross, linewidth=2,
+            linestyle=:dash, label="Without Endpoint", color=:orange)
 
-plot!(p, framestyle=:box, legend=:best, xlabel="Wall distance",
-      ylabel="Density", title="Density Interpolation Along a Line", size=(800, 600),
-      dpi=300)
+Plots.plot!(p, framestyle=:box, legend=:best, xlabel="Wall distance", ylabel="Density",
+            title="Density Interpolation Along a Line", size=(800, 600), dpi=300)

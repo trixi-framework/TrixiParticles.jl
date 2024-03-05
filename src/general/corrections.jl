@@ -73,7 +73,7 @@ to an improvement, especially at free surfaces.
     - In 2D, we can expect an increase of about 5--6% in computation time.
 
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
@@ -115,7 +115,7 @@ This correction can be applied with [`SummationDensity`](@ref) and
     - In 2D, we can expect an increase of about 10--15% in computation time.
 
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
@@ -141,7 +141,7 @@ which results in a 1st-order-accurate SPH method.
 - Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
@@ -319,7 +319,7 @@ the correction matrix $\bm{L}_a$ is evaluated explicitly as
 - Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
 - Set `dt_max =< 1e-3` for stability.
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.

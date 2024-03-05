@@ -51,22 +51,22 @@ half_x = [point[1] for point in half_smoothing_plane.coord]
 half_y = [point[2] for point in half_smoothing_plane.coord]
 half_pressure = half_smoothing_plane.pressure
 
-scatter1 = scatter(original_x, original_y, zcolor=original_pressure, marker=:circle,
-                   markersize=2, markercolor=:viridis, markerstrokewidth=0)
-scatter2 = scatter(double_x, double_y, zcolor=double_pressure, marker=:circle, markersize=2,
-                   markercolor=:viridis, markerstrokewidth=0)
-scatter3 = scatter(half_x, half_y, zcolor=half_pressure, marker=:circle, markersize=2,
-                   markercolor=:viridis, markerstrokewidth=0)
+scatter1 = Plots.scatter(original_x, original_y, zcolor=original_pressure, marker=:circle,
+                         markersize=2, markercolor=:viridis, markerstrokewidth=0)
+scatter2 = Plots.scatter(double_x, double_y, zcolor=double_pressure, marker=:circle,
+                         markersize=2, markercolor=:viridis, markerstrokewidth=0)
+scatter3 = Plots.scatter(half_x, half_y, zcolor=half_pressure, marker=:circle, markersize=2,
+                         markercolor=:viridis, markerstrokewidth=0)
 
-plot1 = plot(scatter1, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Pressure Distribution", colorbar_title="Pressure", ylim=(0.0, 1.0),
-             legend=false, clim=(0, 9000), colorbar=true)
-plot2 = plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Pressure with 2x Smoothing Length", colorbar_title="Pressure",
-             ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
-plot3 = plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
-             title="Pressure with 0.5x Smoothing Length", colorbar_title="Pressure",
-             ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
+plot1 = Plots.plot(scatter1, xlabel="X Coordinate", ylabel="Y Coordinate",
+                   title="Pressure Distribution", colorbar_title="Pressure",
+                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
+plot2 = Plots.plot(scatter2, xlabel="X Coordinate", ylabel="Y Coordinate",
+                   title="Pressure with 2x Smoothing Length", colorbar_title="Pressure",
+                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
+plot3 = Plots.plot(scatter3, xlabel="X Coordinate", ylabel="Y Coordinate",
+                   title="Pressure with 0.5x Smoothing Length", colorbar_title="Pressure",
+                   ylim=(0.0, 1.0), legend=false, clim=(0, 9000), colorbar=true)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_3d.jl"),
@@ -87,12 +87,12 @@ original_y = [point[2] for point in original_plane.coord]
 original_z = [point[3] for point in original_plane.coord]
 original_pressure = original_plane.pressure
 
-scatter_3d = scatter3d(original_x, original_y, original_z, marker_z=original_pressure,
-                       color=:viridis, markerstrokewidth=0)
+scatter_3d = Plots.scatter3d(original_x, original_y, original_z, marker_z=original_pressure,
+                             color=:viridis, markerstrokewidth=0)
 
-plot_3d = plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
-               title="3D Scatter Plot with Pressure Coloring", legend=false,
-               clim=(0, 9000), colorbar=false)
+plot_3d = Plots.plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
+                     title="3D Scatter Plot with Pressure Coloring", legend=false,
+                     clim=(0, 9000), colorbar=false)
 
-combined_plot = plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
-                     size=(1000, 1500), margin=3mm)
+combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
+                           size=(1000, 1500), margin=3mm)

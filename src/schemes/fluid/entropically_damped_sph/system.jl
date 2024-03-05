@@ -7,7 +7,10 @@
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
 
-Entropically damped artiﬁcial compressibility (EDAC) for SPH introduced by Ramachandran (2019).
+System for particles of a fluid.
+As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
+this scheme uses a pressure evolution equation to calculate the pressure.
+See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more details on the method.
 
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
