@@ -1,13 +1,14 @@
 include("../validation_util.jl")
 
-using Printf
-using JSON
+# Activate for interactive plot
+# using GLMakie
+using CairoMakie
 using CSV
 using DataFrames
+using JSON
 using Glob
-# activate for interactive plot
-#using GLMakie
-using CairoMakie
+using Printf
+using TrixiParticles
 
 # Initial width of the fluid
 H = 0.6

@@ -1,7 +1,6 @@
 @doc raw"""
-    SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                           save_initial_solution=true,
-                           save_final_solution=true,
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
+                           save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, max_coordinates=2^15,
                            custom_quantities...)
 
@@ -20,6 +19,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
                                 of integration time by adding additional `tstops`
                                 (note that this may change the solution).
+- `save_times=[]`               List of times at which to save a solution.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
@@ -29,7 +29,6 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
-- `save_times=[]`               List of times at which to save a solution
 
 # Examples
 ```jldoctest; output = false, filter = [r"output directory:.*", r"\s+│"]
@@ -65,6 +64,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 """
 struct SolutionSavingCallback{I, CQ}
     interval              :: I
+    save_times            :: Array{Float64, 1}
     save_initial_solution :: Bool
     save_final_solution   :: Bool
     write_meta_data       :: Bool
@@ -74,19 +74,17 @@ struct SolutionSavingCallback{I, CQ}
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Vector{Int}
-    save_times            :: Array{Float64, 1}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                                save_initial_solution=true,
-                                save_final_solution=true,
+                                save_times=Array{Float64, 1}([]),
+                                save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
-                                max_coordinates=Float64(2^15),
-                                save_times=Array{Float64, 1}([]),
-                                custom_quantities...)
+                                max_coordinates=Float64(2^15), custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
-        throw(ArgumentError("Setting multiple save times for the same solution callback is not possible. Set either `dt`, `interval` or `save_times`."))
+        throw(ArgumentError("Setting multiple save times for the same solution
+        callback is not possible. Use either `dt`, `interval` or `save_times`."))
     end
 
     if dt > 0
@@ -97,11 +95,11 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    solution_callback = SolutionSavingCallback(interval,
+    solution_callback = SolutionSavingCallback(interval, save_times,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               [-1], save_times)
+                                               [-1])
 
     if length(save_times) > 0
         return PresetTimeCallback(save_times, solution_callback)
