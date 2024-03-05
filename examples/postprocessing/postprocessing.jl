@@ -13,7 +13,7 @@ function hello(v, u, t, system)
     # Value stored for output in the postprocessing output file
     return 2 * t
 end
-example_cb = PostprocessCallback(; interval=10, hello)
+example_cb = PostprocessCallback(; interval=10, hello, write_file_interval=0)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
@@ -21,7 +21,7 @@ trixi_include(@__MODULE__,
 
 # Lets write the average pressure and kinetic energy every 0.01s
 pp = PostprocessCallback(; dt=0.005, filename="example_pressure_ekin", avg_pressure,
-                         kinetic_energy)
+                         kinetic_energy, write_file_interval=0)
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
@@ -37,10 +37,10 @@ values_ekin = data_json["kinetic_energy_fluid_1"]["values"]
 values_avg_p = data_json["avg_pressure_fluid_1"]["values"]
 
 # Create side-by-side subplots
-p1 = plot(data.time, data.kinetic_energy_fluid_1, color=:blue,
-          title="Kinetic Energy", xlabel="Time", ylabel="Kinetic Energy")
-p2 = plot(data.time, data.avg_pressure_fluid_1, color=:red,
-          title="Average Pressure", xlabel="Time", ylabel="Pressure")
+p1 = Plots.plot(data.time, data.kinetic_energy_fluid_1, color=:blue,
+                title="Kinetic Energy", xlabel="Time", ylabel="Kinetic Energy")
+p2 = Plots.plot(data.time, data.avg_pressure_fluid_1, color=:red,
+                title="Average Pressure", xlabel="Time", ylabel="Pressure")
 
 # Combine plots into a single figure
-plot(p1, p2, legend=false)
+Plots.plot(p1, p2, legend=false)

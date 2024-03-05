@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                            save_initial_solution=true,
                            save_final_solution=true,
@@ -31,7 +31,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = [r"output directory:.*", r"\s+│"]
 # Save every 100 time steps.
 saving_callback = SolutionSavingCallback(interval=100)
 
@@ -48,6 +48,18 @@ function v_mag(v, u, t, system::WeaklyCompressibleSPHSystem)
     return [norm(v[1:ndims(system), i]) for i in axes(v, 2)]
 end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SolutionSavingCallback                                                                           │
+│ ══════════════════════                                                                           │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ custom quantities: ……………………………… [:v_mag => v_mag]                                                │
+│ save initial solution: …………………… yes                                                              │
+│ save final solution: ………………………… yes                                                              │
+│ output directory: ………………………………… *path ignored with filter regex above*                           │
+│ prefix: ……………………………………………………………                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct SolutionSavingCallback{I, CQ}

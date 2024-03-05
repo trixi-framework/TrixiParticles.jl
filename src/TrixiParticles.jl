@@ -58,7 +58,7 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
        PressureMirroring, PressureZeroing
 export BoundaryMovement
 export GridNeighborhoodSearch, TrivialNeighborhoodSearch
-export examples_dir, trixi_include
+export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
 export VoxelSphere, RoundSphere, reset_wall!
@@ -68,6 +68,7 @@ export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
 export nparticles
 export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
-export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d
+export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
+       interpolate_plane_2d_vtk
 
 end # module
