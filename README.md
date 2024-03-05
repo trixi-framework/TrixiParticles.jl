@@ -20,7 +20,7 @@ Its features include:
 - Fluid-Structure Interaction
 - Output formats:
   - VTK
- 
+
 ## Examples
 
 ## Installation
@@ -79,8 +79,8 @@ or [create an issue](https://github.com/trixi-framework/TrixiParticles.jl/issues
 
 ## Acknowledgments
 <p align="center">
-  <img align="middle" src="https://github.com/svchb/TrixiParticles.jl/assets/10238714/e6c56282-b905-4499-8b88-e3b2c8f54545.jpg" width=20%/>&nbsp;&nbsp;&nbsp;
-  <img align="middle" src="https://github.com/svchb/TrixiParticles.jl/assets/10238714/06aac9fa-a446-4e7b-91e7-4faeeacb9813.jpg" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img align="middle" src="https://private-user-images.githubusercontent.com/10238714/278250248-50843ea0-6ce7-4849-b59c-5be0c55ea6f6.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MDk2NDExMzQsIm5iZiI6MTcwOTY0MDgzNCwicGF0aCI6Ii8xMDIzODcxNC8yNzgyNTAyNDgtNTA4NDNlYTAtNmNlNy00ODQ5LWI1OWMtNWJlMGM1NWVhNmY2LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDAzMDUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwMzA1VDEyMTM1NFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPTA4NGQ1NDAxYTViNjcxZTAxYWE3OGQxMDcwYmY1MzBiZDg2ZjY3MzdkYTkxOWEyN2Y2YzhlMmRlMWE4ZDNjOWUmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.QIm_e6lzanFgC_KSx8a6Iu5w0mZomqBgZuz_uZ57lNw" width=20%/>&nbsp;&nbsp;&nbsp;
+  <img align="middle" src="https://private-user-images.githubusercontent.com/10238714/278250497-a9791026-75a6-48fd-9fef-633e58b80725.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MDk2NDExMzQsIm5iZiI6MTcwOTY0MDgzNCwicGF0aCI6Ii8xMDIzODcxNC8yNzgyNTA0OTctYTk3OTEwMjYtNzVhNi00OGZkLTlmZWYtNjMzZTU4YjgwNzI1LnBuZz9YLUFtei1BbGdvcml0aG09QVdTNC1ITUFDLVNIQTI1NiZYLUFtei1DcmVkZW50aWFsPUFLSUFWQ09EWUxTQTUzUFFLNFpBJTJGMjAyNDAzMDUlMkZ1cy1lYXN0LTElMkZzMyUyRmF3czRfcmVxdWVzdCZYLUFtei1EYXRlPTIwMjQwMzA1VDEyMTM1NFomWC1BbXotRXhwaXJlcz0zMDAmWC1BbXotU2lnbmF0dXJlPWZkY2I3NWI0OGE3MzMzMTJhMjlmYmE3NTZhNThkMjU2MDRjMTI3MzQ3NTIxZWQxMTVhMzhiYmM3ZTRlMTU2ODcmWC1BbXotU2lnbmVkSGVhZGVycz1ob3N0JmFjdG9yX2lkPTAma2V5X2lkPTAmcmVwb19pZD0wIn0.9wG_a378-DBm6sbxfU_jd7YksMlU9QkMhqOjkekekmA" width=20%/>&nbsp;&nbsp;&nbsp;
 </p>
 
 The project has benefited from funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
