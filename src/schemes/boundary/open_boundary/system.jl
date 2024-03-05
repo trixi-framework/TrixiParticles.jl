@@ -169,8 +169,6 @@ end
 @inline active_particles(system::OpenBoundarySPHSystem) = active_particles(system,
                                                                            system.buffer)
 
-@inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
-
 @inline source_terms(system::OpenBoundarySPHSystem) = nothing
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]

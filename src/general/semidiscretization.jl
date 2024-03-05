@@ -13,8 +13,8 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 # Keywords
 - `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
                             By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use [`TrivialNeighborhoodSearch`](@ref) to loop over all particles
-                            (no neighborhood search).
+                            Use [`TrivialNeighborhoodSearch`](@ref) or `nothing` to loop
+                            over all particles (no neighborhood search).
 - `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in negative coordinate
                                 directions.
@@ -23,11 +23,21 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
                                 directions.
 
 # Examples
-```julia
+```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=TrivialNeighborhoodSearch)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+│ total #particles: ………………………………… 636                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct Semidiscretization{S, RU, RV, NS}
@@ -104,7 +114,8 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{nothing},
+function create_neighborhood_search(system, neighbor,
+                                    ::Union{Val{nothing}, Val{TrivialNeighborhoodSearch}},
                                     periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
@@ -228,10 +239,15 @@ Therefore, not all integrators designed for `DynamicalODEProblems` will work pro
 However, all integrators designed for `ODEProblems` can be used.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = r"u0: .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 tspan = (0.0, 1.0)
 ode_problem = semidiscretize(semi, tspan)
+
+# output
+ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+timespan: (0.0, 1.0)
+u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
 function semidiscretize(semi, tspan; reset_threads=true)
@@ -503,8 +519,11 @@ particle ``a``.
                             damping a fluid at rest.
 
 # Examples
-```julia
+```jldoctest; output = false
 source_terms = SourceTermDamping(; damping_coefficient=1e-4)
+
+# output
+SourceTermDamping{Float64}(0.0001)
 ```
 """
 struct SourceTermDamping{ELTYPE}

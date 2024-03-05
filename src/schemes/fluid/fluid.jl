@@ -10,6 +10,22 @@ end
 
 update_system_buffer!(system::FluidSystem) = update!(system.buffer)
 
+@inline function set_particle_density(particle, v, system::FluidSystem,
+                                      density)
+    set_particle_density(particle, v, system.density_calculator, system, density)
+end
+
+function create_cache_density(initial_condition, ::SummationDensity)
+    density = similar(initial_condition.density)
+
+    return (; density)
+end
+
+function create_cache_density(ic, ::ContinuityDensity)
+    # Density in this case is added to the end of `v` and allocated by modifying `v_nvariables`.
+    return (;)
+end
+
 @inline hydrodynamic_mass(system::FluidSystem, particle) = system.mass[particle]
 
 function write_u0!(u0, system::FluidSystem)
@@ -25,7 +41,34 @@ function write_u0!(u0, system::FluidSystem)
     return u0
 end
 
-@inline viscosity_model(system, neighbor_system::FluidSystem) = neighbor_system.viscosity
+function write_v0!(v0, system::FluidSystem)
+    for particle in eachparticle(system)
+        # Write particle velocities
+        for dim in 1:ndims(system)
+            v0[dim, particle] = system.initial_condition.velocity[dim, particle]
+        end
+    end
+
+    write_v0!(v0, system, system.density_calculator)
+
+    return v0
+end
+
+write_v0!(v0, system, density_calculator) = v0
+
+@inline viscosity_model(system::FluidSystem) = system.viscosity
+
+function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
+    # No density update with `ContinuityDensity`
+    return system
+end
+
+function compute_density!(system, u, u_ode, semi, ::SummationDensity)
+    (; cache) = system
+    (; density) = cache # Density is in the cache for SummationDensity
+
+    summation_density!(system, semi, u, u_ode, density)
+end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     (; smoothing_length, state_equation, viscosity, acceleration) = system
