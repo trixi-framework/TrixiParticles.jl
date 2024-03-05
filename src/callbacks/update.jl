@@ -85,7 +85,6 @@ function (update_callback!::UpdateCallback)(integrator)
     #     update_transport_velocity_eachstep!(system, v_ode, u_ode, semi, t)
     # end
 
-
     # Tell OrdinaryDiffEq that u has been modified
     u_modified!(integrator, true)
 

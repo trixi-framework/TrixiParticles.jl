@@ -40,8 +40,6 @@ function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
         end
     end
 
-    write_v0!(v0, system.density_calculator, system)
-
     return v0
 end
 

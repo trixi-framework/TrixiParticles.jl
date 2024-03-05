@@ -4,7 +4,7 @@
                                                      SummationDensity(),
                                                      SchoenbergCubicSplineKernel{2}(), 0.1)
 
-        show_compact = "BoundaryModelDummyParticles(SummationDensity, NoViscosity)"
+        show_compact = "BoundaryModelDummyParticles(SummationDensity, Nothing)"
         @test repr(boundary_model) == show_compact
     end
 
