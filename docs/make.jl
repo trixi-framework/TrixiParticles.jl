@@ -131,8 +131,6 @@ makedocs(sitename="TrixiParticles.jl",
              "License" => "license.md",
          ])
 
-deploydocs(
-    repo = "github.com/trixi-framework/TrixiParticles.jl",
-    devbranch = "main",
-    push_preview = true
-)
+deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
+           devbranch="main",
+           push_preview=true)
