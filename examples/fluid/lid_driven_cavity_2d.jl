@@ -39,7 +39,7 @@ lid_position = 0.0 - particle_spacing * boundary_layers
 lid_length = cavity.n_particles_per_dimension[1] + 2boundary_layers
 
 lid = RectangularShape(particle_spacing, (lid_length, 3),
-                       (lid_position, cavity_size[2]), fluid_density)
+                       (lid_position, cavity_size[2]), density=fluid_density)
 
 # ==========================================================================================
 # ==== Fluid
@@ -54,12 +54,11 @@ fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoot
 # ==========================================================================================
 # ==== Boundary
 
-f_y(t) = 0.0
-f_x(t) = velocity_lid * t
+movement_function(t) = SVector(velocity_lid * t, 0.0)
 
 is_moving(t) = true
 
-movement = BoundaryMovement((f_x, f_y), is_moving)
+movement = BoundaryMovement(movement_function, is_moving)
 
 boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,
