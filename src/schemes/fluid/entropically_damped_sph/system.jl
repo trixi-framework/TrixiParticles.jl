@@ -9,8 +9,6 @@ As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an eq
 this scheme uses a pressure evolution equation to calculate the pressure.
 See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more details on the method.
 
-Fluid system: Entropically damped artiﬁcial compressibility (EDAC) SPH.
-
 # Arguments
 - `initial_condition`:  Initial condition representing the system's particles.
 - `sound_speed`:        Speed of sound.
