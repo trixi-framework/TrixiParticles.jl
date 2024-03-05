@@ -8,6 +8,7 @@ Callback to reinitialize the density field when using [`ContinuityDensity`](@ref
 - `dt`:                      Reinitialize the density in regular intervals of `dt` in terms
                              of integration time.
 - `reinit_initial_solution`: Reinitialize the initial solution (default=false)
+
 ## References
 - Panizzo, Andrea, Giovanni Cuomo, and Robert A. Dalrymple. "3D-SPH simulation of landslide generated waves."
   In: Coastal Engineering 2006 (2007), pages 1503-1515.

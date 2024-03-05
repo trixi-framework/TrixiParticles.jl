@@ -5,13 +5,14 @@
                                 viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 correction=nothing, source_terms=nothing)
+
 System for particles of a fluid.
 The weakly compressible SPH (WCSPH) scheme is used, wherein a stiff equation of state
 generates large pressure changes for small density variations.
 See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 # Arguments
-- `initial_condition`:  [`InitialCondition`](@ref initial_condition) representing the system's particles.
+- `initial_condition`:  [`InitialCondition`](@ref) representing the system's particles.
 - `density_calculator`: Density calculator for the system.
                         See [`ContinuityDensity`](@ref) and [`SummationDensity`](@ref).
 - `state_equation`:     Equation of state for the system. See [`StateEquationCole`](@ref).

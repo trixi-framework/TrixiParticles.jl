@@ -6,6 +6,7 @@
                                 alpha=0.5, viscosity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 source_terms=nothing)
+
 System for particles of a fluid.
 As opposed to the [weakly compressible SPH scheme](@ref wcsph), which uses an equation of state,
 this scheme uses a pressure evolution equation to calculate the pressure.
