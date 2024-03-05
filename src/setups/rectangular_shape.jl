@@ -45,7 +45,7 @@ Rectangular shape filled with particles. Returns an [`InitialCondition`](@ref).
                     When `tlsph=true`, particles will be placed on the boundary of the shape.
 
 # Examples
-```julia
+```jldoctest; output = false, setup = :(particle_spacing = 0.1)
 # 2D
 rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0), density=1000.0)
 
@@ -57,6 +57,9 @@ rectangular = RectangularShape(particle_spacing, (5, 4), (1.0, 2.0),
 
 # 3D
 rectangular = RectangularShape(particle_spacing, (5, 4, 7), (1.0, 2.0, 3.0), density=1000.0)
+
+# output
+InitialCondition{Float64}(0.1, [1.05 1.15 … 1.35 1.45; 2.05 2.05 … 2.35 2.35; 3.05 3.05 … 3.65 3.65], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 ```
 """
 function RectangularShape(particle_spacing, n_particles_per_dimension, min_coordinates;
