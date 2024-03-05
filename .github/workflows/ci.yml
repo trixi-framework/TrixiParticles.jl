@@ -31,12 +31,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # reduced to one version that runs the codecov upload since it fails alot
   run_unit_tests:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest]
-        julia-version: ['1', '1.9']
+        julia-version: ['1']
 
     steps:
       - name: Check out project
