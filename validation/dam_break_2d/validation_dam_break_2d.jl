@@ -102,7 +102,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               smoothing_length=3.5 * particle_spacing,
               boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
-              cfl=0.9, pp_callback=postprocessing_cb, tspan=tspan,
+              cfl=0.9, extra_callback=postprocessing_cb, tspan=tspan,
               fluid_system=fluid_system_edac, tank=tank_edac)
 
 reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_0015.json"
@@ -134,7 +134,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               smoothing_length=3.5 * particle_spacing,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
-              pp_callback=postprocessing_cb, tspan=tspan)
+              extra_callback=postprocessing_cb, tspan=tspan)
 
 reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_00075.json"
 run_file_wcsph_name = "out/validation_result_dam_break_wcsph_00075.json"
