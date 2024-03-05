@@ -37,16 +37,23 @@ fluid_density_calculator = ContinuityDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity))
+                                           acceleration=(0.0, -gravity),
+                                           source_terms=nothing)
 
 # ==========================================================================================
 # ==== Boundary
+
+# This is to set another boundary density calculation with `trixi_include`
 boundary_density_calculator = AdamiPressureExtrapolation()
+
+# This is to set wall viscosity with `trixi_include`
+viscosity_wall = nothing
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+                                             smoothing_kernel, smoothing_length,
+                                             viscosity=viscosity_wall)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
 
 # ==========================================================================================
 # ==== Simulation
@@ -56,8 +63,10 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback)
+# This is to easily add a new callback with `trixi_include`
+extra_callback = nothing
+
+callbacks = CallbackSet(info_callback, saving_callback, extra_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL35(),
-            save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);

@@ -20,6 +20,16 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with source term damping" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "hydrostatic_water_column_2d.jl"),
+                                           source_terms=SourceTermDamping(;
+                                                                          damping_coefficient=1e-4))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         @trixi_testset "fluid/hydrostatic_water_column_2d.jl with SummationDensity" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
@@ -54,6 +64,22 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "hydrostatic_water_column_edac_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/accelerated_tank_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "accelerated_tank_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/moving_wall_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "moving_wall_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -189,6 +215,13 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "postprocessing",
                                                     "interpolation_point_line.jl"))
+            @test sol.retcode == ReturnCode.Success
+        end
+        @trixi_testset "postprocessing/postprocessing.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(),
+                                                    "postprocessing",
+                                                    "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
         end
     end

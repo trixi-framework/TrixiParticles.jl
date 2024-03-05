@@ -4,9 +4,8 @@ using TrixiParticles
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
               fluid_particle_spacing=0.05, initial_fluid_size=(1.0, 0.9),
-              tank_size=(1.0, 1.0), smoothing_kernel=SchoenbergQuinticSplineKernel{2}(),
-              state_equation=nothing, fluid_system=nothing, semi=nothing, ode=nothing,
-              sol=nothing) # Overwrite `sol` assignment to skip time integration
+              tank_size=(1.0, 1.0), state_equation=nothing, fluid_system=nothing,
+              semi=nothing, ode=nothing, sol=nothing) # Overwrite `sol` assignment to skip time integration
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -19,6 +18,7 @@ viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
 
 fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel, smoothing_length,
                                            sound_speed, viscosity=viscosity,
+                                           density_calculator=ContinuityDensity(),
                                            acceleration=(0.0, -gravity))
 
 # ==========================================================================================
@@ -32,5 +32,4 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
-sol = solve(ode, RDPK3SpFSAL35(),
-            save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);

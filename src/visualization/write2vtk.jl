@@ -19,8 +19,12 @@ Convert Trixi simulation data to VTK format.
 
 
 # Example
-```julia
+```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing))
 trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
+
+# output
+
+```
 
 TODO: example for custom_quantities
 """
@@ -33,12 +37,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     # still have the values from the last stage of the previous step if not updated here.
     update_systems_and_nhs(v_ode, u_ode, semi, t)
 
-    # Add `_i` to each system name, where `i` is the index of the corresponding
-    # system type.
-    # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
-    cnames = systems .|> vtkname
-    filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
-                 for i in eachindex(cnames)]
+    filenames = system_names(systems)
 
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
@@ -94,6 +93,11 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         # Store particle index
         vtk["index"] = eachparticle(system)
         vtk["time"] = t
+
+        if write_meta_data
+            vtk["solver_version"] = get_git_hash()
+            vtk["julia_version"] = string(VERSION)
+        end
 
         # Extract custom quantities for this system
         for (key, quantity) in custom_quantities
@@ -158,10 +162,6 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     return file
 end
 
-vtkname(system::FluidSystem) = "fluid"
-vtkname(system::TotalLagrangianSPHSystem) = "solid"
-vtkname(system::BoundarySPHSystem) = "boundary"
-
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
@@ -198,7 +198,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     return vtk
 end
 
-write2vtk!(vtk, viscosity::NoViscosity) = vtk
+write2vtk!(vtk, viscosity::Nothing) = vtk
 
 function write2vtk!(vtk, viscosity::ViscosityAdami)
     vtk["viscosity_nu"] = viscosity.nu

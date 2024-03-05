@@ -15,7 +15,7 @@ code from the cloned directory:
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
-julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path=".."))' # Install locally
+julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Install locally
 julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq")' # Add TrixiParticles.jl to `run` project
 ```
 

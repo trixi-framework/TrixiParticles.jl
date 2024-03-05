@@ -3,13 +3,10 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.03
+fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
-
-boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -26,24 +23,18 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       n_layers=boundary_layers, spacing_ratio=1.0,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-# Moving right boundary
-wall_position = tank.fluid_size[1]
-n_wall_particles_y = size(tank.face_indices[2], 2)
-
-wall = RectangularShape(boundary_particle_spacing,
-                        (boundary_layers, n_wall_particles_y),
-                        (wall_position, 0.0), density=fluid_density)
+reset_wall!(tank, (false, true, false, false), (0.0, tank.fluid_size[1], 0.0, 0.0))
 
 # Movement function
-f_y(t) = 0.0
-f_x(t) = 0.5t^2
+movement_function(t) = SVector(0.5t^2, 0.0)
 
 is_moving(t) = t < 1.5
 
-boundary_movement = BoundaryMovement((f_x, f_y), is_moving)
+boundary_movement = BoundaryMovement(movement_function, is_moving,
+                                     moving_particles=tank.face_indices[2])
 
 # ==========================================================================================
 # ==== Fluid
@@ -61,23 +52,17 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model_tank = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                                  state_equation=state_equation,
-                                                  boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length)
 
-boundary_model_wall = BoundaryModelDummyParticles(wall.density, wall.mass,
-                                                  state_equation=state_equation,
-                                                  boundary_density_calculator,
-                                                  smoothing_kernel, smoothing_length)
-
-boundary_system_tank = BoundarySPHSystem(tank.boundary, boundary_model_tank)
-boundary_system_wall = BoundarySPHSystem(wall, boundary_model_wall,
-                                         movement=boundary_movement)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    movement=boundary_movement)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system_tank, boundary_system_wall)
+semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

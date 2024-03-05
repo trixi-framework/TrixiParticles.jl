@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                            save_initial_solution=true,
                            save_final_solution=true,
@@ -31,7 +31,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = [r"output directory:.*", r"\s+│"]
 # Save every 100 time steps.
 saving_callback = SolutionSavingCallback(interval=100)
 
@@ -48,6 +48,18 @@ function v_mag(v, u, t, system::WeaklyCompressibleSPHSystem)
     return [norm(v[1:ndims(system), i]) for i in axes(v, 2)]
 end
 saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ SolutionSavingCallback                                                                           │
+│ ══════════════════════                                                                           │
+│ dt: ……………………………………………………………………… 0.1                                                              │
+│ custom quantities: ……………………………… [:v_mag => v_mag]                                                │
+│ save initial solution: …………………… yes                                                              │
+│ save final solution: ………………………… yes                                                              │
+│ output directory: ………………………………… *path ignored with filter regex above*                           │
+│ prefix: ……………………………………………………………                                                                  │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct SolutionSavingCallback{I, CQ}
@@ -127,14 +139,8 @@ end
 function (solution_callback::SolutionSavingCallback)(u, t, integrator)
     (; interval, save_final_solution) = solution_callback
 
-    # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.stats.naccept`
-    #    (total #steps)       (#accepted steps)
-    # We need to check the number of accepted steps since callbacks are not
-    # activated after a rejected step.
-    return interval > 0 && (((integrator.stats.naccept % interval == 0) &&
-             !(integrator.stats.naccept == 0 && integrator.iter > 0)) ||
-            (save_final_solution && isfinished(integrator)))
+    return condition_integrator_interval(integrator, interval,
+                                         save_final_solution=save_final_solution)
 end
 
 # affect!
@@ -207,7 +213,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
-            "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
@@ -232,7 +238,7 @@ function Base.show(io::IO, ::MIME"text/plain",
                                        "yes" : "no",
             "save final solution" => solution_saving.save_final_solution ? "yes" :
                                      "no",
-            "output directory" => abspath(normpath(solution_saving.output_directory)),
+            "output directory" => abspath(solution_saving.output_directory),
             "prefix" => solution_saving.prefix,
         ]
         summary_box(io, "SolutionSavingCallback", setup)
