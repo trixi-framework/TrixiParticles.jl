@@ -50,24 +50,20 @@ function plot_results(axs, ax_max, files)
 
     for (file_number, json_file) in enumerate(files)
         json_data = JSON.parsefile(json_file)
-        for (key, value) in json_data
-            if occursin(sensor_number_regex, key)
-                sensor_index = parse(Int, match(sensor_number_regex, key)[1])
-                if sensor_index in 1:length(axs)
-                    time = value["time"] .* normalization_factor_time
-                    pressure = value["values"] ./ normalization_factor_pressure
-                    lines!(axs[sensor_index], time, pressure,
-                           label="dp=$(convert_to_float(json_file))",
-                           color=file_number, colormap=:tab10, colorrange=(1, 10))
-                end
-            end
-        end
-
-        if haskey(json_data, "max_x_coord_fluid_1")
-            value = json_data["max_x_coord_fluid_1"]
-            lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
-                   label="dp=$(convert_to_float(json_file))")
-        end
+        time = json_data["pressure_P1_fluid_1"]["time"] .* normalization_factor_time
+        pressure_P1 = json_data["pressure_P1_fluid_1"]["values"] ./
+                      normalization_factor_pressure
+        pressure_P2 = json_data["pressure_P2_fluid_1"]["values"] ./
+                      normalization_factor_pressure
+        lines!(axs[1], time, pressure_P1,
+               label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+               color=file_number, colormap=:tab10, colorrange=(1, 10))
+        lines!(axs[2], time, pressure_P2,
+               label="dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+               color=file_number, colormap=:tab10, colorrange=(1, 10))
+        value = json_data["max_x_coord_fluid_1"]
+        lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
+               label="dp=$(convert_to_float(json_file))")
     end
 end
 
@@ -77,12 +73,11 @@ plot_results(axs_wcsph, ax_max_x_wcsph, wcsph_reference_files)
 # Plot reference values
 function plot_experiment(ax, time, data, label, color=:black, marker=:utriangle,
                          markersize=6)
-    scatter!(ax, time, data, color=color, marker=marker, markersize=markersize, label=label)
+    scatter!(ax, time, data; color, marker, markersize, label)
 end
 
 function plot_simulation(ax, time, data, label, color=:red, linestyle=:dash, linewidth=3)
-    lines!(ax, time, data, color=color, linestyle=linestyle, linewidth=linewidth,
-           label=label)
+    lines!(ax, time, data; color, linestyle, linewidth, label)
 end
 
 # Plot for Pressure Sensor P1
