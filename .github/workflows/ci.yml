@@ -35,6 +35,11 @@ jobs:
   build:
     name: Run Tests
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version:
+          - '1.9'
+          - '1'
 
     steps:
       - name: Check out project
@@ -42,7 +47,7 @@ jobs:
       - name: Set up Julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: '1'
+          version: ${{ matrix.version }}
       - uses: julia-actions/cache@v1
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
