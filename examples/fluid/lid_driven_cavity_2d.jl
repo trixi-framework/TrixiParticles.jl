@@ -24,7 +24,7 @@ cavity_size = (1.0, 1.0)
 
 fluid_density = 1.0
 
-velocity_lid = 1.0
+const velocity_lid = 1.0
 sound_speed = 10 * velocity_lid
 
 pressure = sound_speed^2 * fluid_density
