@@ -47,7 +47,7 @@ P3_y_bottom = P3_y_top - sensor_size
 sensor_names = ["P1", "P2", "P3"]
 
 tank_right_wall_x = floor(5.366 * H / particle_spacing) * particle_spacing -
-              0.5 * particle_spacing
+                    0.5 * particle_spacing
 
 pressure_P1 = (v, u, t, sys) -> interpolated_pressure([tank_right_wall_x, P1_y_top],
                                                       [tank_right_wall_x, P1_y_bottom],
@@ -76,7 +76,6 @@ end
 
 formatted_string = replace(string(particle_spacing), "." => "")
 
-
 # EDAC simulation
 ############################################################################################
 method = "edac"
@@ -99,7 +98,7 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length, smoothing_kernel = smoothing_kernel,
+              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
               boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
@@ -132,7 +131,7 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length,smoothing_kernel = smoothing_kernel,
+              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan)

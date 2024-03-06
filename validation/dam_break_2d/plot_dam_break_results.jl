@@ -20,7 +20,7 @@ normalization_factor_pressure = 1000 * 9.81 * H
 edac_reference_files = glob("validation_reference_edac*.json",
                             "validation/dam_break_2d/")
 edac_sim_files = glob("validation_result_dam_break_edac*.json",
-                            "out/")
+                      "out/")
 
 merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
@@ -28,10 +28,10 @@ edac_files = sort(merged_files, by=extract_number_from_filename)
 wcsph_reference_files = glob("validation_reference_wcsph*.json",
                              "validation/dam_break_2d/")
 wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
-                             "out/")
+                       "out/")
 
- merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
- wcsph_files = sort(merged_files, by=extract_number_from_filename)
+merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
+wcsph_files = sort(merged_files, by=extract_number_from_filename)
 
 surge_front = CSV.read("validation/dam_break_2d/exp_surge_front.csv", DataFrame)
 
@@ -70,10 +70,10 @@ function plot_results(axs, ax_max, files)
         label_prefix = occursin("reference", json_file) ? "Reference" : ""
 
         lines!(axs[1], time, pressure_P1,
-               label="$label_prefix dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+               label="$label_prefix dp=$(convert_to_float(json_file))",
                color=file_number, colormap=:tab10, colorrange=(1, 10))
         lines!(axs[2], time, pressure_P2,
-               label="$label_prefix dp=$(convert_to_float(split(replace(basename(json_file), ".json" => ""), "_")[end]))",
+               label="$label_prefix dp=$(convert_to_float(json_file))",
                color=file_number, colormap=:tab10, colorrange=(1, 10))
         value = json_data["max_x_coord_fluid_1"]
         lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,

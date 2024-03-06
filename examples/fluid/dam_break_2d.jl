@@ -48,6 +48,9 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+# Alternatively the density diffusion model by Molteni & Colagrossi can be used,
+# which will run faster.
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
@@ -78,8 +81,8 @@ info_callback = InfoCallback(interval=100)
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
-# Save at certain timepoints which allows comparison to the results to the Marrone et al.,
-# paper i.e. (1.5, 2.36, 3.0, 5.7, 6.45)
+# Save at certain timepoints which allows comparison to the results of Marrone et al.,
+# i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
 # Please note that the images in Marrone et al. are obtained at a particle_spacing = H/320,
 # which takes between 2 and 4 hours.
 saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],

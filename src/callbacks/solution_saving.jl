@@ -83,8 +83,8 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                 prefix="", verbose=false, write_meta_data=true,
                                 max_coordinates=Float64(2^15), custom_quantities...)
     if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
-        throw(ArgumentError("Setting multiple save times for the same solution
-        callback is not possible. Use either `dt`, `interval` or `save_times`."))
+        throw(ArgumentError("Setting multiple save times for the same solution " *
+                            "callback is not possible. Use either `dt`, `interval` or `save_times`."))
     end
 
     if dt > 0
