@@ -3,6 +3,7 @@
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
                                 viscosity=nothing, density_diffusion=nothing,
+                                transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 correction=nothing, source_terms=nothing)
 
@@ -40,7 +41,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
-                                   V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
+                                   V, DD, COR, PF, TV, ST, C} <: FluidSystem{NDIMS}
     initial_condition                 :: InitialCondition{ELTYPE}
     mass                              :: Array{ELTYPE, 1} # [particle]
     pressure                          :: Array{ELTYPE, 1} # [particle]
@@ -53,7 +54,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
-    transport_velocity                :: Nothing # TODO
+    transport_velocity                :: TV
     source_terms                      :: ST
     cache                             :: C
 
@@ -61,6 +62,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          pressure_acceleration=nothing,
+                                         transport_velocity=nothing,
                                          viscosity=nothing, density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
@@ -99,11 +101,13 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
 
         return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
                    typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(pressure_acceleration), typeof(source_terms),
+                   typeof(correction), typeof(pressure_acceleration),
+                   typeof(transport_velocity), typeof(source_terms),
                    typeof(cache)}(initial_condition, mass, pressure, density_calculator,
                                   state_equation, smoothing_kernel, smoothing_length,
                                   acceleration_, viscosity, density_diffusion, correction,
-                                  pressure_acceleration, nothing, source_terms, cache)
+                                  pressure_acceleration, transport_velocity, source_terms,
+                                  cache)
     end
 end
 
@@ -173,11 +177,11 @@ end
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator)
-    return ndims(system)
+    return ndims(system) * factor_tvf(system)
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    return ndims(system) + 1
+    return ndims(system) * factor_tvf(system) + 1
 end
 
 @inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
