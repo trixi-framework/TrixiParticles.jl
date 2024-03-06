@@ -57,7 +57,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
-          coverage: matrix.version == '1'
+          coverage: ${{ matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
       - name: Process coverage results
