@@ -187,7 +187,7 @@ function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
 end
 
 # This technique is for a more robust `pressure_acceleration` but only with TVF.
-# It results only in signifcant improvement for EDAC and not for WCSPH.
+# It results only in significant improvement for EDAC and not for WCSPH.
 # See Ramachandran (2019) p. 582
 function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode, semi)
     (; cache) = system
