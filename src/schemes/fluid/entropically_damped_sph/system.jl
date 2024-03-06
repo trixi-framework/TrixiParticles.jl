@@ -29,6 +29,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         When set to `nothing`, the pressure acceleration formulation for the
                         corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
+- `transport_velocity`: [Transport Velocity Formulation (TVF)](@ref transport_velocity_formulation). Default is no TVF.
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
@@ -185,6 +186,9 @@ function update_average_pressure!(system, ::Nothing, v_ode, u_ode, semi)
     return system
 end
 
+# This technique is for a more robust `pressure_acceleration` but only with TVF.
+# It results only in signifcant improvement for EDAC and not for WCSPH.
+# See Ramachandran (2019) p. 582
 function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode, semi)
     (; cache) = system
     (; pressure_average, neighbor_counter) = cache

@@ -21,7 +21,11 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_avg = average_pressure(particle_system, particle) # Only used with EDAC-TVF
+
+        # This technique is for a more robust `pressure_acceleration` but only with TVF.
+        # It results only in signifcant improvement for EDAC and not for WCSPH.
+        # See Ramachandran (2019) p. 582
+        p_avg = average_pressure(particle_system, particle)
 
         m_a = hydrodynamic_mass(particle_system, particle)
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
