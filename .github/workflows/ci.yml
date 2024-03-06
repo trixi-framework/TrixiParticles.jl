@@ -12,6 +12,7 @@ on:
       - 'NEWS.md'
       - 'README.md'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
       - 'docs/**'
   pull_request:
       paths-ignore:
@@ -22,6 +23,7 @@ on:
       - 'NEWS.md'
       - 'README.md'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
       - 'docs/**'
   workflow_dispatch:
 
