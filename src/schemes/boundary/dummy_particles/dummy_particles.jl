@@ -151,18 +151,8 @@ function create_cache_model(viscosity::Nothing, n_particles, n_dims)
     return (;)
 end
 
-function create_cache_model(viscosity::ArtificialViscosityMonaghan, n_particles, n_dims)
-    ELTYPE = eltype(viscosity.alpha)
-
-    wall_velocity = zeros(ELTYPE, n_dims, n_particles)
-
-    @warn "`ArtificialViscosityMonaghan` for `BoundaryModelDummyParticles` has not been verified yet."
-
-    return (; wall_velocity)
-end
-
-function create_cache_model(viscosity::ViscosityAdami, n_particles, n_dims)
-    ELTYPE = eltype(viscosity.nu)
+function create_cache_model(viscosity, n_particles, n_dims)
+    ELTYPE = eltype(viscosity.epsilon)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
 
