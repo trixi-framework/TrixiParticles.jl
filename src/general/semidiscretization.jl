@@ -670,3 +670,11 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
+
+function check_configuration(system::WeaklyCompressibleSPHSystem, systems)
+    (; viscosity) = system
+
+    if viscosity isa ArtificialViscosityMonaghan && system.transport_velocity isa TransportVelocityAdami
+        throw(ArgumentError("Please use `ViscosityAdami` when simulating with `TransportVelocityAdami`"))
+    end
+end
