@@ -71,7 +71,8 @@ function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
                                            n_interpolation_points, semi, system, sol,
                                            smoothing_length=2.0 * system.smoothing_length,
                                            clip_negative_pressure=true)
-    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) / n_interpolation_points
+    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
+           n_interpolation_points
 end
 
 formatted_string = replace(string(particle_spacing), "." => "")
