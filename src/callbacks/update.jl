@@ -81,9 +81,10 @@ function (update_callback!::UpdateCallback)(integrator)
     #     update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     # end
     #
-    # @trixi_timeit timer() "update TVF" foreach_system(semi) do system
-    #     update_transport_velocity_eachstep!(system, v_ode, u_ode, semi, t)
-    # end
+
+    @trixi_timeit timer() "update TVF" foreach_system(semi) do system
+        update_transport_velocity!(system, v_ode, semi)
+    end
 
     # Tell OrdinaryDiffEq that u has been modified
     u_modified!(integrator, true)
