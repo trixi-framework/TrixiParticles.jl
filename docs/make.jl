@@ -117,8 +117,8 @@ makedocs(sitename="TrixiParticles.jl",
                                                                    "weakly_compressible_sph.md"),
                      "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
                                                                                                   "entropically_damped_sph.md"),
-                     "Total Lagrangian SPH (Elastic Solid)" => joinpath("systems",
-                                                                        "total_lagrangian_sph.md"),
+                     "Total Lagrangian SPH (Elastic Structure)" => joinpath("systems",
+                                                                            "total_lagrangian_sph.md"),
                      "Boundary" => joinpath("systems", "boundary.md"),
                  ],
                  "Time Integration" => "time_integration.md",
@@ -130,3 +130,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
          ])
+
+deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
+           devbranch="main",
+           push_preview=true)

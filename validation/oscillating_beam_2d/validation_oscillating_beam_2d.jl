@@ -35,9 +35,8 @@ pp_callback = PostprocessCallback(; deflection_x, deflection_y, dt=0.01,
                                   filename="validation_run_oscillating_beam_2d_$n_particles_beam_y",
                                   write_csv=false, write_file_interval=0)
 info_callback = InfoCallback(interval=2500)
-saving_callback = SolutionSavingCallback(dt=0.5, prefix="validation_$n_particles_beam_y")
 
-callbacks = CallbackSet(info_callback, saving_callback, pp_callback)
+callbacks = CallbackSet(info_callback, pp_callback)
 
 sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
             save_everystep=false, callback=callbacks)

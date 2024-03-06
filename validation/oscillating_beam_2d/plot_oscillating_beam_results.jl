@@ -19,8 +19,7 @@ ref = CSV.read(joinpath(validation_dir(), "oscillating_beam_2d/reference_turek.c
 # Get the list of JSON files
 reference_files = glob("validation_reference_*.json",
                        joinpath(validation_dir(), "oscillating_beam_2d"))
-simulation_files = glob("validation_run_oscillating_beam_2d_*.json",
-                        joinpath(pkgdir(TrixiParticles), "out"))
+simulation_files = glob("validation_run_oscillating_beam_2d_*.json", "out")
 merged_files = vcat(reference_files, simulation_files)
 input_files = sort(merged_files, by=extract_number_from_filename)
 
@@ -40,7 +39,7 @@ for file_name in input_files
     json_data = JSON.parsefile(file_name)
 
     resolution = parse(Int, split(split(file_name, "_")[end], ".")[1])
-    particle_spacing = elastic_plate.thickness / (resolution - 1)
+    particle_spacing_ = elastic_plate.thickness / (resolution - 1)
 
     matching_keys_x = sort(collect(filter(key -> occursin(key_pattern_x, key),
                                           keys(json_data))))
@@ -63,7 +62,7 @@ for file_name in input_files
                           interpolated_mse(ref.time, ref.Ux, data["time"], displacements) :
                           interpolated_mse(ref.time, ref.Uy, data["time"], displacements)
 
-            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing)) mse=$(@sprintf("%.8f", mse_results))"
+            label = "$label_prefix dp = $(@sprintf("%.8f", particle_spacing_)) mse=$(@sprintf("%.8f", mse_results))"
             lines!(ax, times, displacements, label=label)
         end
     end

@@ -64,7 +64,7 @@ To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kine
 ```
 where ``d`` is the dimension.
 
-## References:
+## References
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
   In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
   [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)
@@ -131,9 +131,9 @@ end
 # In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
 # https://doi.org/10.1016/j.cpc.2012.07.006
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
-    (; smoothing_length, state_equation) = system
-    (; sound_speed) = state_equation
+    (; smoothing_length) = system
     (; alpha) = viscosity
+    sound_speed = system_sound_speed(system)
 
     return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
 end
@@ -159,7 +159,7 @@ where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
 - `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
-## References:
+## References
 - S. Adami et al. "A generalized wall boundary condition for smoothed particle hydrodynamics".
   In: Journal of Computational Physics 231 (2012), pages 7057-7075.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
@@ -203,6 +203,15 @@ end
 
     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
+    # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
+    # They argued that the formulation is more flexible because of the possibility to formulate
+    # different inter-particle averages or to assume different inter-particle distributions.
+    # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
+    #
+    # TODO: Is there a better formulation to discretize the Laplace operator?
+    # Because when using this formulation for the pressure acceleration, it is not
+    # energy conserving.
+    # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
 
     return visc .* v_diff
