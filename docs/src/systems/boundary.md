@@ -141,8 +141,8 @@ viscous interaction (default `viscosity=nothing`), a free-slip wall boundary
 condition is applied.
 
 !!! warning
-  The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
-  has not been verified yet.
+    The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
+    has not been verified yet.
 
 ### References
 - S. Adami, X. Y. Hu, N. A. Adams.
