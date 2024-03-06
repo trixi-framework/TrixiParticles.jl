@@ -7,6 +7,9 @@
 
 using TrixiParticles
 using OrdinaryDiffEq
+
+wcsph = true
+
 # ==========================================================================================
 # ==== Resolution
 particle_spacing = 0.02
@@ -27,9 +30,9 @@ fluid_density = 1.0
 const velocity_lid = 1.0
 sound_speed = 10 * velocity_lid
 
-pressure = sound_speed^2 * fluid_density
+viscosity = ViscosityAdami(; nu= velocity_lid / reynolds_number)
 
-viscosity = ViscosityAdami(; nu=velocity_lid / reynolds_number)
+pressure = sound_speed^2 * fluid_density
 
 cavity = RectangularTank(particle_spacing, cavity_size, cavity_size, fluid_density,
                          n_layers=boundary_layers, spacing_ratio=spacing_ratio,
@@ -47,10 +50,20 @@ lid = RectangularShape(particle_spacing, (lid_length, 3),
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
-fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoothing_length,
-                                           sound_speed, viscosity=viscosity,
-                                           transport_velocity=TransportVelocityAdami(pressure))
-
+if wcsph
+    state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                       exponent=1)
+    fluid_system = WeaklyCompressibleSPHSystem(cavity.fluid, ContinuityDensity(),
+                                               state_equation, smoothing_kernel,
+                                               smoothing_length, viscosity=viscosity,
+                                               transport_velocity=TransportVelocityAdami(pressure))
+else
+    state_equation = nothing
+    fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel,
+                                               smoothing_length,
+                                               sound_speed, viscosity=viscosity,
+                                               transport_velocity=TransportVelocityAdami(pressure))
+end
 # ==========================================================================================
 # ==== Boundary
 
@@ -64,11 +77,13 @@ boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,
                                                     AdamiPressureExtrapolation(),
                                                     viscosity=viscosity,
+                                                    state_equation=state_equation,
                                                     smoothing_kernel, smoothing_length)
 
 boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
                                                  AdamiPressureExtrapolation(),
                                                  viscosity=viscosity,
+                                                 state_equation=state_equation,
                                                  smoothing_kernel, smoothing_length)
 
 boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
