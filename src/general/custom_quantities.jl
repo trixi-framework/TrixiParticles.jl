@@ -4,14 +4,14 @@
 Returns the total kinetic energy of all particles in a system.
 """
 function kinetic_energy(v, u, t, system)
+    if n_moving_particles(system) == 0
+        return 0.0
+    end
+
     return sum(each_moving_particle(system)) do particle
         velocity = current_velocity(v, system, particle)
         return 0.5 * system.mass[particle] * dot(velocity, velocity)
     end
-end
-
-function kinetic_energy(v, u, t, system::BoundarySystem)
-    return 0.0
 end
 
 """
