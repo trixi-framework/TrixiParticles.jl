@@ -31,9 +31,8 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
                       on the density summation in this point, i.e., when the boundary particles
                       add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
-                                  values, but this leads to unphysical behavior of particles at
-                                  walls. Instead we clip here during interpolation thus only
-                                  impacting the local interpolated value.
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -99,9 +98,8 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
                       on the density summation in this point, i.e., when the boundary particles
                       add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
-                      values, but this leads to unphysical behavior of particles at
-                      walls. Instead we clip here during interpolation thus only
-                      impacting the local interpolated value.
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 !!! note
     - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
@@ -207,9 +205,8 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
                       on the density summation in this point, i.e., when the boundary particles
                       add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
-                      values, but this leads to unphysical behavior of particles at
-                      walls. Instead we clip here during interpolation thus only
-                      impacting the local interpolated value.
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
@@ -316,9 +313,8 @@ See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
                       on the density summation in this point, i.e., when the boundary particles
                       add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
-                      values, but this leads to unphysical behavior of particles at
-                      walls. Instead we clip here during interpolation thus only
-                      impacting the local interpolated value.
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -389,9 +385,8 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
                       on the density summation in this point, i.e., when the boundary particles
                       add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
-                      values, but this leads to unphysical behavior of particles at
-                      walls. Instead we clip here during interpolation thus only
-                      impacting the local interpolated value.
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 # Returns
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.

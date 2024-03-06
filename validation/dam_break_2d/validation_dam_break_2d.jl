@@ -112,9 +112,6 @@ run_file_edac_name = "out/validation_result_dam_break_edac_$formatted_string.jso
 reference_data = JSON.parsefile(reference_file_edac_name)
 run_data = JSON.parsefile(run_file_edac_name)
 
-println("error1", reference_data["pressure_P1_fluid_1"]["values"])
-println("error1", run_data["pressure_P1_fluid_1"]["values"])
-
 error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
                                  reference_data["pressure_P1_fluid_1"]["values"],
                                  run_data["pressure_P1_fluid_1"]["time"],
