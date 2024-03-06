@@ -20,7 +20,7 @@ spacing_ratio = 1
 # ==== Experiment Setup
 tspan = (0.0, 5.0)
 
-acceleration_x = 2.5e-4
+const acceleration_x = 2.5e-4
 
 # Boundary geometry and initial fluid particle positions
 cylinder_radius = 0.02
