@@ -69,9 +69,9 @@ function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
                                            n_interpolation_points, semi, system, sol,
-                                           smoothing_length=2.0 *
-                                                            system.smoothing_length)
-    return sum(interpolated_values.pressure) / n_interpolation_points
+                                           smoothing_length=2.0 * system.smoothing_length,
+                                           clip_negative_pressure=true)
+    return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) / n_interpolation_points
 end
 
 formatted_string = replace(string(particle_spacing), "." => "")
@@ -94,6 +94,7 @@ viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
 fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
                                                 smoothing_length,
                                                 sound_speed, viscosity=viscosity_edac,
+                                                density_calculator=SummationDensity(),
                                                 acceleration=(0.0, -gravity))
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
@@ -109,6 +110,9 @@ run_file_edac_name = "out/validation_result_dam_break_edac_$formatted_string.jso
 
 reference_data = JSON.parsefile(reference_file_edac_name)
 run_data = JSON.parsefile(run_file_edac_name)
+
+println("error1", reference_data["pressure_P1_fluid_1"]["values"])
+println("error1", run_data["pressure_P1_fluid_1"]["values"])
 
 error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
                                  reference_data["pressure_P1_fluid_1"]["values"],
