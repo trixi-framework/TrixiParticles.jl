@@ -139,6 +139,7 @@
         │ viscosity: …………………………………………………… Nothing                                                          │
         │ ν₍EDAC₎: ………………………………………………………… ≈ 0.226                                                          │
         │ smoothing kernel: ………………………………… Val                                                              │
+        │ tansport velocity formulation:  Nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box

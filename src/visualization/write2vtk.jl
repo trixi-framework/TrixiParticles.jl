@@ -202,6 +202,9 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         else
             vtk["solver"] = "EDAC"
             vtk["sound_speed"] = system.sound_speed
+            vtk["background_pressure_TVF"] = system.transport_velocity isa Nothing ?
+                                             "-" :
+                                             system.transport_velocity.background_pressure
         end
     end
 
