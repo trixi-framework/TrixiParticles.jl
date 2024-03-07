@@ -202,7 +202,7 @@ end
     return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
 end
 
-@inline function viscous_velocity(v, ::Nothing, system, particle)
+@inline function viscous_velocity(v, viscosity::Nothing, system, particle)
     return current_velocity(v, system, particle)
 end
 
