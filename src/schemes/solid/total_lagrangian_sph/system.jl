@@ -68,6 +68,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
     boundary_model      :: BM
     penalty_force       :: PF
     source_terms        :: ST
+    buffer              :: Nothing
 
     function TotalLagrangianSPHSystem(initial_condition,
                                       smoothing_kernel, smoothing_length,
@@ -113,7 +114,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
                                          n_moving_particles, young_modulus, poisson_ratio,
                                          lame_lambda, lame_mu, smoothing_kernel,
                                          smoothing_length, acceleration_, boundary_model,
-                                         penalty_force, source_terms)
+                                         penalty_force, source_terms, nothing)
     end
 end
 

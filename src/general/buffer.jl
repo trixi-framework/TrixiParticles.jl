@@ -19,7 +19,6 @@ allocate_buffer(initial_condition, buffer) = initial_condition
 
 function allocate_buffer(initial_condition, buffer::SystemBuffer)
     (; buffer_size) = buffer
-    NDIMS = ndims(initial_condition)
 
     # Initialize particles far away from simulation domain
     coordinates = inv(eps()) * ones(ndims(initial_condition), buffer_size)
@@ -37,7 +36,7 @@ function allocate_buffer(initial_condition, buffer::SystemBuffer)
     return union(initial_condition, buffer_ic)
 end
 
-@inline update!(buffer::Nothing) = buffer
+@inline update_system_buffer!(buffer::Nothing) = buffer
 
 # `view(eachindex(buffer.active_particle), buffer.active_particle)` is a allocation
 # (but thread supporting) version of:
@@ -45,7 +44,7 @@ end
 # TODO: Find a non-allocation version
 
 # This is also a allocation version but only in every `update!(buffer)` call
-@inline function update!(buffer::SystemBuffer)
+@inline function update_system_buffer!(buffer::SystemBuffer)
     (; active_particle) = buffer
 
     new_eachparticle = [i for i in eachindex(active_particle) if active_particle[i]]
@@ -56,11 +55,7 @@ end
     return buffer
 end
 
-@inline each_moving_particle(system, ::Nothing) = Base.OneTo(n_moving_particles(system))
-
 @inline each_moving_particle(system, buffer) = buffer.eachparticle
-
-@inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
 
 @inline active_coordinates(u, system, buffer) = view(u, :, buffer.active_particle)
 

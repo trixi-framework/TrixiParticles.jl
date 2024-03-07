@@ -18,6 +18,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
     movement          :: M
     ismoving          :: Vector{Bool}
     cache             :: C
+    buffer            :: Nothing
 
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
         coordinates = copy(initial_condition.coordinates)
@@ -35,7 +36,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, cache)
+                                  ismoving, cache, nothing)
     end
 end
 

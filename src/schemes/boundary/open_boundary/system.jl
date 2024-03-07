@@ -158,17 +158,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-@inline function each_moving_particle(system::OpenBoundarySPHSystem)
-    return each_moving_particle(system, system.buffer)
-end
-
-@inline function active_coordinates(u, system::OpenBoundarySPHSystem)
-    return active_coordinates(u, system, system.buffer)
-end
-
-@inline active_particles(system::OpenBoundarySPHSystem) = active_particles(system,
-                                                                           system.buffer)
-
 @inline source_terms(system::OpenBoundarySPHSystem) = nothing
 
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
@@ -248,11 +237,10 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
     @trixi_timeit timer() "update buffer" foreach_system(semi) do system
-        update_system_buffer!(system)
+        update_system_buffer!(system.buffer)
     end
 end
 
-update_system_buffer!(system::OpenBoundarySPHSystem) = update!(system.buffer)
 
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.

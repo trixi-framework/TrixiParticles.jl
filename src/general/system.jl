@@ -17,9 +17,16 @@ initialize!(system, neighborhood_search) = system
 @inline n_moving_particles(system) = nparticles(system)
 
 @inline eachparticle(system) = Base.OneTo(nparticles(system))
-@inline each_moving_particle(system) = Base.OneTo(n_moving_particles(system))
 
-@inline active_particles(system) = eachparticle(system)
+# Wrapper for systems with `SystemBuffer`
+@inline each_moving_particle(system) = each_moving_particle(system, system.buffer)
+@inline each_moving_particle(system, ::Nothing) = Base.OneTo(n_moving_particles(system))
+
+@inline active_coordinates(u, system) = active_coordinates(u, system, system.buffer)
+@inline active_coordinates(u, system, ::Nothing) = current_coordinates(u, system)
+
+@inline active_particles(system) = active_particles(system, system.buffer)
+@inline active_particles(system, ::Nothing) = eachparticle(system)
 
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @inline function extract_svector(A, system, i)
@@ -50,9 +57,6 @@ end
 # This can be dispatched by system type, since for some systems, the current coordinates
 # are stored in u, for others in the system itself. By default, try to extract them from u.
 @inline current_coordinates(u, system) = u
-
-# This can be dispatched when using a `SystemBuffer`.
-@inline active_coordinates(u, system) = current_coordinates(u, system)
 
 # Specifically get the initial coordinates of a particle for all system types.
 @inline function initial_coords(system, particle)
@@ -115,5 +119,3 @@ end
 function update_final!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
-
-update_system_buffer!(system) = system

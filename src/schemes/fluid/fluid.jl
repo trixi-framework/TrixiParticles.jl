@@ -1,15 +1,3 @@
-@inline function each_moving_particle(system::FluidSystem)
-    return each_moving_particle(system, system.buffer)
-end
-
-@inline function active_coordinates(u, system::FluidSystem)
-    return active_coordinates(u, system, system.buffer)
-end
-
-@inline active_particles(system::FluidSystem) = active_particles(system, system.buffer)
-
-update_system_buffer!(system::FluidSystem) = update!(system.buffer)
-
 @inline function set_particle_density(particle, v, system::FluidSystem,
                                       density)
     set_particle_density(particle, v, system.density_calculator, system, density)
