@@ -1,7 +1,84 @@
+"""
+    InFlow
+
+Inflow boundary zone for [`OpenBoundarySPHSystem`](@ref)
+"""
 struct InFlow end
 
+"""
+    OutFlow
+
+Outflow boundary zone for [`OpenBoundarySPHSystem`](@ref)
+"""
 struct OutFlow end
 
+"""
+    OpenBoundarySPHSystem(plane_points, boundary_zone::Union{InFlow, OutFlow},
+                          sound_speed;
+                          sample_geometry=plane_points, particle_spacing,
+                          flow_direction, open_boundary_layers::Integer=0, density,
+                          buffer=nothing, reference_velocity=zero(flow_direction),
+                          reference_pressure=0.0, reference_density=density)
+Open boundary system for in- and outflow particles.
+These open boundaries use the characteristic variables to propagate the appropiate values
+to the outlet or inlet and has been proposed by Lastiwka et al (2009). For more information
+about the method see [Open Boundary System](@ref open_boundary).
+
+# Arguments
+- `plane_points`: Points defining the boundary zones front plane.
+                  The points must either span a rectangular plane in 3D or a line in 2D.
+                  See description above for more information.
+- `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
+- `sound_speed`: Speed of sound.
+
+# Keywords
+- `sample_plane`: For customized particle sampling in the boundary zone, this can be either
+                  points defining a 3D plane (2D line), particle coordinates defining a specific
+                  shape or a specific [`InitialCondition`](@ref) type.
+                  The geometry will be extruded in upstream direction with [`ExtrudeGeometry`](@ref).
+                  Default is `plane_points` which fully samples the boundary zone with particles.
+- `particle_spacing`: The spacing between the particles in the boundary zone.
+- `flow_direction`: Vector defining the flow direction.
+- `open_boundary_layers`: Number of particle layers in upstream direction.
+- `density`: Density of each particle to define the mass of each particle (see [`InitialCondition`](@ref)).
+- `buffer`: Number of buffer particles.
+- `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
+                        and time to its velocity, an array where the ``i``-th column holds
+                        the velocity of particle ``i`` or, for a constant fluid velocity,
+                        a vector holding this velocity. Velocity is constant zero by default.
+- `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
+                        and time to its pressure, a vector holding the pressure of each particle,
+                        or a scalar for a constant pressure over all particles.
+                        Pressure is constant zero by default.
+- `reference_density`: Reference density is either a function mapping each particle's coordinates
+                       and time to its density, a vector holding the density of each particle,
+                       or a scalar for a constant density over all particles.
+                       Density is constant zero by default.
+
+# Examples
+```jldoctest; output = false
+# 2D inflow
+plane_points = ([0.0, 0.0], [0.0, 1.0])
+flow_direction=[1.0, 0.0]
+
+system = OpenBoundarySPHSystem(plane_points, InFlow(), 10.0; particle_spacing=0.1,
+                               open_boundary_layers=4, density=1.0, flow_direction)
+
+# 3D outflow
+plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+flow_direction=[0.0, 0.0, 1.0]
+
+system = OpenBoundarySPHSystem(plane_points, OutFlow(), 10.0; particle_spacing=0.1,
+                               open_boundary_layers=4, density=1.0, flow_direction)
+
+# 3D particles sampled as cylinder
+circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
+
+system = OpenBoundarySPHSystem(plane_points, InFlow(), 10.0; particle_spacing=0.1,
+                               sample_geometry=circle,
+                               open_boundary_layers=4, density=1.0, flow_direction)
+```
+"""
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: System{NDIMS}
     initial_condition        :: InitialCondition{ELTYPE}
     mass                     :: Array{ELTYPE, 1} # [particle]
@@ -20,20 +97,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
     reference_density        :: RD
     buffer                   :: B
 
-    function OpenBoundarySPHSystem(plane_points, boundary_zone, sound_speed;
+    function OpenBoundarySPHSystem(plane_points, boundary_zone::Union{InFlow, OutFlow},
+                                   sound_speed;
                                    sample_geometry=plane_points, particle_spacing,
-                                   flow_direction, open_boundary_layers=0, density,
-                                   velocity=zeros(length(flow_direction)), mass=nothing,
-                                   pressure=0.0, buffer=nothing,
-                                   reference_velocity=velocity, reference_pressure=pressure,
-                                   reference_density=density)
-        if !((boundary_zone isa InFlow) || (boundary_zone isa OutFlow))
-            throw(ArgumentError("`boundary_zone` must either be of type InFlow or OutFlow"))
-        end
-
-        if !(open_boundary_layers isa Int)
-            throw(ArgumentError("`open_boundary_layers` must be of type Int"))
-        elseif open_boundary_layers < sqrt(eps())
+                                   flow_direction, open_boundary_layers::Integer=0, density,
+                                   buffer=nothing, reference_velocity=zero(flow_direction),
+                                   reference_pressure=0.0, reference_density=density)
+        if open_boundary_layers < sqrt(eps())
             throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
         end
 
@@ -46,8 +116,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
 
         # Sample particles in boundary zone.
         initial_condition = ExtrudeGeometry(sample_geometry; particle_spacing, direction,
-                                            n_extrude=open_boundary_layers, velocity, mass,
-                                            density, pressure)
+                                            n_extrude=open_boundary_layers, density)
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)
@@ -106,7 +175,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
         zone_origin = SVector(plane_points[1]...)
 
         mass = copy(initial_condition.mass)
-        pressure = copy(initial_condition.pressure)
+        pressure = [reference_pressure_(initial_condition.coordinates[:, i], 0.0)
+                    for i in eachparticle(initial_condition)]
         density = copy(initial_condition.density)
         volume = similar(initial_condition.density)
 
@@ -240,7 +310,6 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
         update_system_buffer!(system.buffer)
     end
 end
-
 
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.
