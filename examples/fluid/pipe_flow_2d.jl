@@ -21,7 +21,7 @@ domain_size = (1.0, 0.4)
 
 flow_direction = [1.0, 0.0]
 reynolds_number = 100
-prescribed_velocity = 2.0
+const prescribed_velocity = 2.0
 
 particle_spacing = domain_length_factor * domain_size[1]
 
@@ -63,7 +63,9 @@ fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
 
 # ==========================================================================================
 # ==== Open Boundary
-velocity_function(pos, t) = [0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0]
+function velocity_function(pos, t)
+    return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
+end
 
 open_boundary_in = OpenBoundarySPHSystem(([0.0, 0.0], [0.0, domain_size[2]]), InFlow(),
                                          sound_speed; particle_spacing,

@@ -120,6 +120,14 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/pipe_flow_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         include("dam_break_2d_corrections.jl")
     end
 

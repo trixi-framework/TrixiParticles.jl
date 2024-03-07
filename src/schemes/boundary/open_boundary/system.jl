@@ -101,7 +101,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
                                    sound_speed;
                                    sample_geometry=plane_points, particle_spacing,
                                    flow_direction, open_boundary_layers::Integer=0, density,
-                                   buffer=nothing, reference_velocity=zero(flow_direction),
+                                   buffer=nothing,
+                                   reference_velocity=zeros(length(flow_direction)),
                                    reference_pressure=0.0, reference_density=density)
         if open_boundary_layers < sqrt(eps())
             throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))

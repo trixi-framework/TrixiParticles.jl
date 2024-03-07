@@ -92,8 +92,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
-            typeof(cache),
-            typeof(buffer)}(initial_condition, mass, density_calculator, smoothing_kernel,
+            typeof(buffer),
+            typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                             smoothing_length, sound_speed, viscosity, nu_edac,
                             acceleration_, nothing, pressure_acceleration, source_terms,
                             buffer, cache)
