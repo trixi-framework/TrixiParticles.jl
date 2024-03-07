@@ -127,19 +127,19 @@ function compute_L1p_error(v, u, t, system)
     return L1p /= p_max_exact
 end
 
-function average_pressure(v, u, t, system)
-    return [TrixiParticles.average_pressure(system, i) for i in axes(v, 2)]
-end
+# The pressure plotted in the paper is the difference of the local pressure minus
+# the average of the pressure of all particles.
+function diff_p_loc_p_avg(v, u, t, system)
+    p_avg_tot = avg_pressure(v, u, t, system)
 
-function time_vector(v, u, t, system)
-    return t
+    return v[end, :] .- p_avg_tot
 end
 
 info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02,
                                          L1v=compute_L1v_error,
                                          L1p=compute_L1p_error,
-                                         p_avg=average_pressure,
+                                         diff_p_loc_p_avg=diff_p_loc_p_avg,
                                          t=time_vector)
 
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
