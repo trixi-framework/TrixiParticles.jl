@@ -80,6 +80,7 @@
                 end
 
                 # First evaluation
+                # Particles not influenced by the fluid have zero values
                 t1 = 2.0
                 TrixiParticles.evaluate_characteristics!(inlet_system,
                                                          v, u, v0_ode, u0_ode, semi, t1)
@@ -99,6 +100,7 @@
                 end
 
                 # Second evaluation
+                # Particles not influenced by the fluid have previous values
                 t2 = 3.0
                 TrixiParticles.evaluate_characteristics!(inlet_system,
                                                          v, u, v0_ode, u0_ode, semi, t2)
