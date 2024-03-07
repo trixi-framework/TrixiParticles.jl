@@ -69,14 +69,16 @@ open_boundary_in = OpenBoundarySPHSystem(([0.0, 0.0], [0.0, domain_size[2]]), In
                                          sound_speed; particle_spacing,
                                          flow_direction, open_boundary_layers,
                                          density=fluid_density, buffer=n_buffer_particles,
-                                         pressure, reference_velocity=velocity_function)
+                                         reference_pressure=pressure,
+                                         reference_velocity=velocity_function)
 
 open_boundary_out = OpenBoundarySPHSystem(([domain_size[1], 0.0],
                                            [domain_size[1], domain_size[2]]), OutFlow(),
                                           sound_speed; particle_spacing,
                                           flow_direction, open_boundary_layers,
                                           density=fluid_density, buffer=n_buffer_particles,
-                                          pressure, reference_velocity=velocity_function)
+                                          reference_pressure=pressure,
+                                          reference_velocity=velocity_function)
 
 # ==========================================================================================
 # ==== Boundary

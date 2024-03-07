@@ -335,6 +335,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we find the characteristics for the particle which are outside the influence
     # using the average of the values of the previous time step.
+    # Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of fluid particles
