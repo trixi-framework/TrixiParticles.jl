@@ -49,6 +49,7 @@
                                         direction=(sign_ * flow_direction))
 
                 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
+                                                           density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
                 semi = Semidiscretization(fluid_system, inlet_system)

@@ -15,7 +15,7 @@
 
         particle_ID = TrixiParticles.available_particle(system_buffer)
 
-        TrixiParticles.update!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test Base.OneTo(n_particles + 1) ==
               TrixiParticles.each_moving_particle(system_buffer)
@@ -23,7 +23,7 @@
         TrixiParticles.deactivate_particle!(system_buffer, particle_ID,
                                             ones(2, particle_ID))
 
-        TrixiParticles.update!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
 
@@ -31,7 +31,7 @@
         TrixiParticles.deactivate_particle!(system_buffer, particle_ID,
                                             ones(2, particle_ID))
 
-        TrixiParticles.update!(system_buffer.buffer)
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
         @test setdiff(Base.OneTo(n_particles), particle_ID) ==
               TrixiParticles.each_moving_particle(system_buffer)
