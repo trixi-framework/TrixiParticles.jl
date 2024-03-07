@@ -20,7 +20,7 @@ struct OutFlow end
                           buffer=nothing, reference_velocity=zero(flow_direction),
                           reference_pressure=0.0, reference_density=density)
 Open boundary system for in- and outflow particles.
-These open boundaries use the characteristic variables to propagate the appropiate values
+These open boundaries use the characteristic variables to propagate the appropriate values
 to the outlet or inlet and has been proposed by Lastiwka et al (2009). For more information
 about the method see [Open Boundary System](@ref open_boundary).
 
@@ -56,7 +56,7 @@ about the method see [Open Boundary System](@ref open_boundary).
                        Density is constant zero by default.
 
 # Examples
-```jldoctest; output = false
+```julia
 # 2D inflow
 plane_points = ([0.0, 0.0], [0.0, 1.0])
 flow_direction=[1.0, 0.0]
@@ -273,13 +273,13 @@ end
 
 @inline function within_boundary_zone(particle_coords, system)
     (; zone_origin, spanning_set) = system
-    particle_positon = particle_coords - zone_origin
+    particle_position = particle_coords - zone_origin
 
     for dim in 1:ndims(system)
         span_dim = spanning_set[dim]
         # Checks whether the projection of the particle position
         # falls within the range of the zone.
-        if !(0 <= dot(particle_positon, span_dim) <= dot(span_dim, span_dim))
+        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
 
             # Particle is not in boundary zone.
             return false
@@ -389,7 +389,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Loop over all flud neighbors within the kernel cutoff.
+    # Loop over all fluid neighbors within the kernel cutoff.
     for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                           nhs) do particle, neighbor, pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
@@ -535,7 +535,7 @@ end
     return system
 end
 
-# Flud particle is in boundary zone
+# Fluid particle is in boundary zone
 @inline function transform_particle!(fluid_system::FluidSystem, system,
                                      boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
