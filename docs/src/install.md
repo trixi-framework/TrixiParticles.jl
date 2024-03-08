@@ -11,7 +11,7 @@ You can install TrixiParticles.jl,
 [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) (used for time integration)
 and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
 in the Julia REPL:
-```jldoctest
+```julia
 julia> using Pkg
 
 julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEq", "Plots"])
