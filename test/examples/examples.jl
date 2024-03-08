@@ -88,7 +88,9 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "dam_break_2d.jl"),
-                                           tspan=(0.0, 0.1))
+                                           tspan=(0.0, 0.1))[
+                                            r"\[ Info: The desired tank length in y-direction .*\n",
+                                        ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end

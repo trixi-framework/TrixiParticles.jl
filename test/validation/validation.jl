@@ -14,7 +14,9 @@
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(validation_dir(), "oscillating_beam_2d",
                                                 "validation_oscillating_beam_2d.jl"),
-                                       tspan=(0.0, 1.0))
+                                       tspan=(0.0, 1.0))[
+                                        r"\[ Info: The desired tank length in y-direction .*\n",
+                                    ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
         @test isapprox(error_deflection_x, 0, atol=eps())
