@@ -60,14 +60,34 @@ julia --project=run
 from the TrixiParticles.jl root directory.
 Further details can be found in the [documentation](@ref installation).
 
+## Usage
+
+In the Julia REPL, first load the package TrixiParticles.jl.
+```jldoctest getting_started
+julia> using TrixiParticles
+```
+
+Then start the simulation by executing
+```jldoctest getting_started; filter = r".*"s
+julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
+```
+
+Further details can be found in the [documentation](@ref getting_started).
+
 ## Documentation
+
+You can find the documentation for the latest release
+[here](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
 ## Publications
 
 ## Cite Us
 
 ## Authors
-Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations for TrixiParticles.jl and are principal developers along with Sven Berger (hereon). The project was started by Michael Schlottke-Lakemper (RWTH Aachen University/HLRS) and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
+Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
+for TrixiParticles.jl and are principal developers along with Sven Berger (hereon).
+The project was started by Michael Schlottke-Lakemper (RWTH Aachen University/HLRS)
+and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
 
 ## License and contributing

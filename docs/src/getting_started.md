@@ -1,4 +1,4 @@
-# Getting started
+# [Getting started](@id getting_started)
 If you have not installed TrixiParticles.jl, please follow the instructions given [here](install.md).
 
 In the following sections, we will give a short introduction. For a more thorough discussion, take a look at our [Tutorials](tutorial.md).
@@ -9,7 +9,6 @@ We will run the file `examples/fluid/hydrostatic_water_column_2d.jl`, which simu
 Since TrixiParticles.jl uses multithreading, you should start Julia with the flag `--threads auto` (or, e.g. `--threads 4` for 4 threads).
 
 In the Julia REPL, first load the package TrixiParticles.jl.
-
 ```jldoctest getting_started
 julia> using TrixiParticles
 ```
@@ -21,7 +20,6 @@ julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column
 
 This will result in the following:
 ![image](https://github.com/svchb/TrixiParticles.jl/assets/10238714/f8d2c249-fd52-4958-bc8b-265bbadc49f2)
-
 
 To visualize the results, see [Visualization](visualization.md).
 
