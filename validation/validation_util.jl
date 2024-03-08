@@ -61,6 +61,6 @@ function extract_resolution_from_filename(str)
         decimal_str = str_non_zero
     end
 
-    # Handle integer numbers to have consistent floats strings.
+    # Convert integer strings to float strings
     return string(parse(Float64, decimal_str))
 end

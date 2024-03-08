@@ -17,8 +17,10 @@ W = 2 * H
 normalization_factor_time = sqrt(9.81 / H)
 normalization_factor_pressure = 1000 * 9.81 * H
 
+case_dir = joinpath(validation_dir(), "dam_break_2d")
+
 edac_reference_files = glob("validation_reference_edac*.json",
-                            "validation/dam_break_2d/")
+                            case_dir)
 edac_sim_files = glob("validation_result_dam_break_edac*.json",
                       "out/")
 
@@ -26,20 +28,20 @@ merged_files = vcat(edac_reference_files, edac_sim_files)
 edac_files = sort(merged_files, by=extract_number_from_filename)
 
 wcsph_reference_files = glob("validation_reference_wcsph*.json",
-                             "validation/dam_break_2d/")
+                             case_dir)
 wcsph_sim_files = glob("validation_result_dam_break_wcsph*.json",
                        "out/")
 
 merged_files = vcat(wcsph_reference_files, wcsph_sim_files)
 wcsph_files = sort(merged_files, by=extract_number_from_filename)
 
-surge_front = CSV.read("validation/dam_break_2d/exp_surge_front.csv", DataFrame)
+surge_front = CSV.read(joinpath(case_dir, "exp_surge_front.csv"), DataFrame)
 
-exp_P1 = CSV.read("validation/dam_break_2d/exp_pressure_sensor_P1.csv", DataFrame)
-exp_P2 = CSV.read("validation/dam_break_2d/exp_pressure_sensor_P2.csv", DataFrame)
+exp_P1 = CSV.read(joinpath(case_dir, "exp_pressure_sensor_P1.csv"), DataFrame)
+exp_P2 = CSV.read(joinpath(case_dir, "exp_pressure_sensor_P2.csv"), DataFrame)
 
-sim_P1 = CSV.read("validation/dam_break_2d/sim_pressure_sensor_P1.csv", DataFrame)
-sim_P2 = CSV.read("validation/dam_break_2d/sim_pressure_sensor_P2.csv", DataFrame)
+sim_P1 = CSV.read(joinpath(case_dir, "sim_pressure_sensor_P1.csv"), DataFrame)
+sim_P2 = CSV.read(joinpath(case_dir, "sim_pressure_sensor_P2.csv"), DataFrame)
 
 n_sensors = 2
 fig = Figure(size=(1200, 1200))
@@ -70,7 +72,7 @@ function plot_results(axs, ax_max, files)
         label_prefix = occursin("reference", json_file) ? "Reference " : ""
 
         lines!(axs[1], time, pressure_P1,
-               label="$(label_prefix) dp=$(extract_resolution_from_filename(json_file))",
+               label="$(label_prefix)dp=$(extract_resolution_from_filename(json_file))",
                color=file_number, colormap=:tab10, colorrange=(1, 10))
         lines!(axs[2], time, pressure_P2,
                label="$(label_prefix)dp=$(extract_resolution_from_filename(json_file))",
