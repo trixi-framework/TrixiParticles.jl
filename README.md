@@ -30,34 +30,36 @@ operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl 
 with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
 ### For users
-<!--
-TrixiParticles.jl is a registered Julia package. Hence, you
-can install TrixiParticles.jl and OrdinaryDiffEq.jl (used by the examples) by executing the following commands in the Julia REPL:
-```julia
+TrixiParticles.jl is a registered Julia package.
+You can install TrixiParticles.jl,
+[OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) (used for time integration)
+and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
+in the Julia REPL:
+```jldoctest
 julia> using Pkg
 
-julia> Pkg.add(["OrdinaryDiffEq", "TrixiParticles"])
+julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEq", "Plots"])
 ```
--->
 
 ### For developers
-If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl locally and use the
-code from the cloned directory:
+If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl
+to a local folder and use the code from the cloned directory:
 ```bash
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
-cd run
-julia --project=. -e 'using Pkg; Pkg.develop(PackageSpec(path=".."))' # Install locally
-julia --project=. -e 'using Pkg; Pkg.add("OrdinaryDiffEq")' # Install additional packages
+julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
+julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq", "Plots")' # Add additional packages
 ```
-**Note:** OrdinaryDiffEq is only necessary to run examples.
 
-If you installed TrixiParticles.jl this way, you always have to start Julia with the `--project`
-flag set to your `run` directory, e.g.,
+If you installed TrixiParticles.jl this way, you always have to start Julia with the
+`--project` flag set to your `run` directory, e.g.,
 ```bash
-julia --project=.
+julia --project=run
 ```
+from the TrixiParticles.jl root directory.
+Further details can be found in the [documentation](@ref installation).
+
 ## Documentation
 
 ## Publications
