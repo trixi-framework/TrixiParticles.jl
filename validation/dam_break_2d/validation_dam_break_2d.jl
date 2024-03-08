@@ -107,8 +107,10 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               extra_callback=postprocessing_cb, tspan=tspan,
               fluid_system=fluid_system_edac, tank=tank_edac)
 
-reference_file_edac_name = "validation/dam_break_2d/validation_reference_edac_$formatted_string.json"
-run_file_edac_name = "out/validation_result_dam_break_edac_$formatted_string.json"
+reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
+                                    "validation_reference_edac_$formatted_string.json")
+run_file_edac_name = joinpath("out",
+                              "validation_result_dam_break_edac_$formatted_string.json")
 
 reference_data = JSON.parsefile(reference_file_edac_name)
 run_data = JSON.parsefile(run_file_edac_name)
@@ -139,8 +141,10 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan)
 
-reference_file_wcsph_name = "validation/dam_break_2d/validation_reference_wcsph_$formatted_string.json"
-run_file_wcsph_name = "out/validation_result_dam_break_wcsph_$formatted_string.json"
+reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
+                                     "validation_reference_wcsph_$formatted_string.json")
+run_file_wcsph_name = joinpath("out",
+                               "validation_result_dam_break_wcsph_$formatted_string.json")
 
 reference_data = JSON.parsefile(reference_file_wcsph_name)
 run_data = JSON.parsefile(run_file_wcsph_name)
