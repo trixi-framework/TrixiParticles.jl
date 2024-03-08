@@ -95,7 +95,8 @@ viscosity_edac = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
 fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kernel,
                                                 smoothing_length,
                                                 sound_speed, viscosity=viscosity_edac,
-                                                density_calculator=SummationDensity(),
+                                                density_calculator=ContinuityDensity(),
+                                                pressure_acceleration=nothing,
                                                 acceleration=(0.0, -gravity))
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
