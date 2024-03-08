@@ -67,17 +67,17 @@ function plot_results(axs, ax_max, files)
         pressure_P2 = json_data["pressure_P2_fluid_1"]["values"] ./
                       normalization_factor_pressure
 
-        label_prefix = occursin("reference", json_file) ? "Reference" : ""
+        label_prefix = occursin("reference", json_file) ? "Reference " : ""
 
         lines!(axs[1], time, pressure_P1,
-               label="$label_prefix dp=$(extract_resolution_from_filename(json_file))",
+               label="$(label_prefix) dp=$(extract_resolution_from_filename(json_file))",
                color=file_number, colormap=:tab10, colorrange=(1, 10))
         lines!(axs[2], time, pressure_P2,
-               label="$label_prefix dp=$(extract_resolution_from_filename(json_file))",
+               label="$$(label_prefix)dp=$(extract_resolution_from_filename(json_file))",
                color=file_number, colormap=:tab10, colorrange=(1, 10))
         value = json_data["max_x_coord_fluid_1"]
         lines!(ax_max, value["time"] .* sqrt(9.81), Float64.(value["values"]) ./ W,
-               label="$label_prefix dp=$(extract_resolution_from_filename(json_file))")
+               label="$$(label_prefix)dp=$(extract_resolution_from_filename(json_file))")
     end
 end
 
