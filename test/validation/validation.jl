@@ -14,9 +14,7 @@
         @test_nowarn_mod trixi_include(@__MODULE__,
                                        joinpath(validation_dir(), "oscillating_beam_2d",
                                                 "validation_oscillating_beam_2d.jl"),
-                                       tspan=(0.0, 1.0))[
-                                        r"\[ Info: The desired tank length in y-direction .*\n",
-                                    ]
+                                       tspan=(0.0, 1.0))
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
         @test isapprox(error_deflection_x, 0, atol=eps())
@@ -52,6 +50,7 @@
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
+            r"Info: The desired tank length in y-direction .*\n",
         ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
