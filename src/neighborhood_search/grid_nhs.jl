@@ -201,7 +201,8 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 
     # Find all cells containing particles that now belong to another cell.
     # `collect` the keyset to be able to loop over it with `@threaded`.
-    @threaded for cell in collect(keys(hashtable))
+    # @threaded for cell in collect(keys(hashtable))
+    for cell in collect(keys(hashtable))
         mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end
 
