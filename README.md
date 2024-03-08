@@ -72,6 +72,9 @@ Then start the simulation by executing
 julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"))
 ```
 
+This will open a new window with a 2D visualization of the final solution:
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0" width="400">
+
 Further details can be found in the [documentation](@ref getting_started).
 
 ## Documentation
