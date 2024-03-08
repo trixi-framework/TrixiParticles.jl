@@ -50,7 +50,8 @@
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
-            r"Info: The desired tank length in y-direction .*\n",
+            r"┌ Info: The desired tank length in y-direction .*\n",
+            r"└ New tank length in y-direction.*\n",
         ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
