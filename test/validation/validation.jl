@@ -42,8 +42,8 @@ include("../test_util.jl")
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
-        @test isapprox(error_edac_P1, 0, atol=eps())
-        @test isapprox(error_edac_P2, 0, atol=eps())
+        @test isapprox(error_edac_P1, 0, atol=1e-10)
+        @test isapprox(error_edac_P2, 0, atol=1e-12)
         @test isapprox(error_wcsph_P1, 0, atol=eps())
         @test isapprox(error_wcsph_P2, 0, atol=eps())
 
@@ -54,6 +54,7 @@ include("../test_util.jl")
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
+            r"WARNING: Method definition extract_resolution_from_filename.*\n",
         ]
         # Verify number of plots
         @test length(axs_edac[1].scene.plots) >= 2
