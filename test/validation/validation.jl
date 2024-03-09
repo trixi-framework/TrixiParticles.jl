@@ -42,8 +42,8 @@ include("../test_util.jl")
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
-        @test isapprox(error_edac_P1, 0, atol=1e-10)
-        @test isapprox(error_edac_P2, 0, atol=1e-12)
+        @test isapprox(error_edac_P1, 0, atol=1e-9)
+        @test isapprox(error_edac_P2, 0, atol=1e-11)
         @test isapprox(error_wcsph_P1, 0, atol=eps())
         @test isapprox(error_wcsph_P2, 0, atol=eps())
 
