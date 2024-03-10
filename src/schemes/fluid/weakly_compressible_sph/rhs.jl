@@ -16,18 +16,15 @@ function interact!(dv, v_particle_system, u_particle_system,
     # the following code and the two other lines below that are marked as "debug example".
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
+    # d_rho_before = [dv[end, i] for i in axes(dv, 2)]
+
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+                          neighborhood_search, parallel=true) do particle, neighbor, pos_diff, distance
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = 0.5 * (rho_a + rho_b)
-
-        # Determine correction values
-        viscosity_correction, pressure_correction = free_surface_correction(correction,
-                                                                            particle_system,
-                                                                            rho_mean)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -44,28 +41,62 @@ function interact!(dv, v_particle_system, u_particle_system,
                                               particle_system, neighbor_system,
                                               particle, neighbor)
 
-        dv_pressure = pressure_correction *
-                      pressure_acceleration(particle_system, neighbor_system, neighbor,
+        dv_pressure = pressure_acceleration(particle_system, neighbor_system, neighbor,
                                             m_a, m_b, p_a, p_b, rho_a, rho_b, pos_diff,
                                             distance, grad_kernel, correction)
 
-        dv_viscosity_ = viscosity_correction *
-                        dv_viscosity(particle_system, neighbor_system,
+        dv_viscosity_ = dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_mean)
 
         for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
-            # Debug example
-            # debug_array[i, particle] += dv_pressure[i]
         end
 
-        # TODO If variable smoothing_length is used, this should use the neighbor smoothing length
+        rho_a = particle_density(v_particle_system, particle_system, particle)
+        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_mean = 0.5 * (rho_a + rho_b)
+
+        grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+
+        m_a = hydrodynamic_mass(particle_system, particle)
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
         continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
     end
+
+    # d_rho1 = [dv[end, i] for i in axes(dv, 2)]
+    # dv[end, :] .= d_rho_before
+
+    # for_particle_neighbor(particle_system, neighbor_system,
+    #                       system_coords, neighbor_system_coords,
+    #                       neighborhood_search, parallel=true) do particle, neighbor, pos_diff, distance
+    #     rho_a = particle_density(v_particle_system, particle_system, particle)
+    #     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    #     rho_mean = 0.5 * (rho_a + rho_b)
+
+    #     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
+
+    #     m_a = hydrodynamic_mass(particle_system, particle)
+    #     m_b = hydrodynamic_mass(neighbor_system, neighbor)
+
+    #     continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
+    #                          particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+    #                          particle_system, neighbor_system, grad_kernel)
+    # end
+
+    # d_rho2 = [dv[end, i] for i in axes(dv, 2)]
+    # if !iszero(d_rho1 .- d_rho2)
+    #     error()
+    # end
+    # @info "" nameof(typeof(neighbor_system)) maximum(abs.(d_rho1 .- d_rho2))
+    # dv[end, :] .= d_rho1
+    # error()
+
+    # error("dsfsdf")
     # Debug example
     # periodic_box = neighborhood_search.periodic_box
     # Note: this saves a file in every stage of the integrator
@@ -99,9 +130,9 @@ end
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
-    density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
-                       particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                       particle_system, neighbor_system, grad_kernel)
+    # density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
+    #                    particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
+    #                    particle_system, neighbor_system, grad_kernel)
 end
 
 @inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,

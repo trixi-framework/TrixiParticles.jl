@@ -288,6 +288,8 @@ end
     # Merge all lists of particles in the neighboring cells into one iterator
     Iterators.flatten(particles_in_cell(cell, neighborhood_search)
                       for cell in neighboring_cells)
+    # sort(collect(Iterators.flatten(particles_in_cell(cell, neighborhood_search)
+    #                   for cell in neighboring_cells)))
 end
 
 # 3D

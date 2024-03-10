@@ -51,12 +51,12 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           density_diffusion=nothing,
                                            acceleration=(0.0, -gravity),
                                            correction=nothing)
 

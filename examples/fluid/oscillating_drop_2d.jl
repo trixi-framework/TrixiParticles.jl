@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.05
+fluid_particle_spacing = 0.1
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -27,7 +27,7 @@ tspan = (0.0, 1period)
 
 fluid_density = 1000.0
 sound_speed = 10.0
-state_equation = StateEquationCole(; sound_speed, exponent=7,
+state_equation = StateEquationCole(; sound_speed, exponent=1,
                                    reference_density=fluid_density)
 
 # Equation A.19 in the paper rearranged.
@@ -52,8 +52,7 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.01, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           smoothing_length, #viscosity=viscosity,
                                            source_terms=source_terms)
 
 # ==========================================================================================

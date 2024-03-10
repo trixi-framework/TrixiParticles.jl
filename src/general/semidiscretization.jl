@@ -333,6 +333,8 @@ end
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
+    # return unsafe_wrap(Array{eltype(v_ode), 2}, pointer(view(v_ode, range)),
+    #                    (v_nvariables(system), n_moving_particles(system)))
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
 end

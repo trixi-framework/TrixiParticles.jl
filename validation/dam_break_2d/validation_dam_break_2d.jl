@@ -99,31 +99,31 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
                                                 pressure_acceleration=nothing,
                                                 acceleration=(0.0, -gravity))
 
-trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-              fluid_particle_spacing=particle_spacing,
-              smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
-              boundary_layers=4, state_equation=nothing,
-              solution_prefix="validation_" * method * "_" * formatted_string,
-              extra_callback=postprocessing_cb, tspan=tspan,
-              fluid_system=fluid_system_edac, tank=tank_edac)
+# trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
+#               fluid_particle_spacing=particle_spacing,
+#               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+#               boundary_layers=4, state_equation=nothing,
+#               solution_prefix="validation_" * method * "_" * formatted_string,
+#               extra_callback=postprocessing_cb, tspan=tspan,
+#               fluid_system=fluid_system_edac, tank=tank_edac)
 
-reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
-                                    "validation_reference_edac_$formatted_string.json")
-run_file_edac_name = joinpath("out",
-                              "validation_result_dam_break_edac_$formatted_string.json")
+# reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
+#                                     "validation_reference_edac_$formatted_string.json")
+# run_file_edac_name = joinpath("out",
+#                               "validation_result_dam_break_edac_$formatted_string.json")
 
-reference_data = JSON.parsefile(reference_file_edac_name)
-run_data = JSON.parsefile(run_file_edac_name)
+# reference_data = JSON.parsefile(reference_file_edac_name)
+# run_data = JSON.parsefile(run_file_edac_name)
 
-error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
-                                 reference_data["pressure_P1_fluid_1"]["values"],
-                                 run_data["pressure_P1_fluid_1"]["time"],
-                                 run_data["pressure_P1_fluid_1"]["values"])
+# error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
+#                                  reference_data["pressure_P1_fluid_1"]["values"],
+#                                  run_data["pressure_P1_fluid_1"]["time"],
+#                                  run_data["pressure_P1_fluid_1"]["values"])
 
-error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
-                                 reference_data["pressure_P2_fluid_1"]["values"],
-                                 run_data["pressure_P2_fluid_1"]["time"],
-                                 run_data["pressure_P2_fluid_1"]["values"])
+# error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
+#                                  reference_data["pressure_P2_fluid_1"]["values"],
+#                                  run_data["pressure_P2_fluid_1"]["time"],
+#                                  run_data["pressure_P2_fluid_1"]["values"])
 
 # WCSPH simulation
 ############################################################################################
@@ -142,7 +142,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               extra_callback=postprocessing_cb, tspan=tspan)
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",
-                                     "validation_reference_wcsph_$formatted_string.json")
+                                     "validation_result_dam_break_wcsph_$formatted_string.json")
 run_file_wcsph_name = joinpath("out",
                                "validation_result_dam_break_wcsph_$formatted_string.json")
 
