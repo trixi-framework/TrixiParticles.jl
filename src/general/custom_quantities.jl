@@ -41,9 +41,13 @@ end
 
 Returns the maximum pressure over all particles in a system.
 """
-function max_pressure(v, u, t, system)
+function max_pressure(v, u, t, system::FluidSystem)
     return maximum(particle -> particle_pressure(v, system, particle),
-                   each_moving_particle(system))
+                   eachparticle(system))
+end
+
+function max_pressure(v, u, t, system)
+    return NaN
 end
 
 """
@@ -51,9 +55,13 @@ end
 
 Returns the minimum pressure over all particles in a system.
 """
-function min_pressure(v, u, t, system)
+function min_pressure(v, u, t, system::FluidSystem)
     return minimum(particle -> particle_pressure(v, system, particle),
-                   each_moving_particle(system))
+                   eachparticle(system))
+end
+
+function min_pressure(v, u, t, system)
+    return NaN
 end
 
 """
@@ -61,14 +69,14 @@ end
 
 Returns the average pressure over all particles in a system.
 """
-function avg_pressure(v, u, t, system)
-    if n_moving_particles(system) == 0
-        return 0.0
-    end
-
+function avg_pressure(v, u, t, system::FluidSystem)
     sum_ = sum(particle -> particle_pressure(v, system, particle),
-               each_moving_particle(system))
-    return sum_ / n_moving_particles(system)
+               eachparticle(system))
+    return sum_ / nparticles(system)
+end
+
+function avg_pressure(v, u, t, system)
+    return NaN
 end
 
 """
@@ -76,9 +84,13 @@ end
 
 Returns the maximum density over all particles in a system.
 """
-function max_density(v, u, t, system)
+function max_density(v, u, t, system::FluidSystem)
     return maximum(particle -> particle_density(v, system, particle),
-                   each_moving_particle(system))
+                   eachparticle(system))
+end
+
+function max_density(v, u, t, system)
+    return NaN
 end
 
 """
@@ -86,9 +98,13 @@ end
 
 Returns the minimum density over all particles in a system.
 """
-function min_density(v, u, t, system)
+function min_density(v, u, t, system::FluidSystem)
     return minimum(particle -> particle_density(v, system, particle),
-                   each_moving_particle(system))
+                   eachparticle(system))
+end
+
+function min_density(v, u, t, system)
+    return NaN
 end
 
 """
@@ -96,12 +112,12 @@ end
 
 Returns the average_density over all particles in a system.
 """
-function avg_density(v, u, t, system)
-    if n_moving_particles(system) == 0
-        return 0.0
-    end
-
+function avg_density(v, u, t, system::FluidSystem)
     sum_ = sum(particle -> particle_density(v, system, particle),
-               each_moving_particle(system))
-    return sum_ / n_moving_particles(system)
+               eachparticle(system))
+    return sum_ / nparticles(system)
+end
+
+function avg_density(v, u, t, system)
+    return NaN
 end
