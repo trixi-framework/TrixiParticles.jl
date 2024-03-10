@@ -21,7 +21,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     for_particle_neighbor(particle_system, neighbor_system,
                           system_coords, neighbor_system_coords,
-                          neighborhood_search, parallel=true) do particle, neighbor, pos_diff, distance
+                          neighborhood_search, parallel=false) do particle, neighbor, pos_diff, distance
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = 0.5 * (rho_a + rho_b)
