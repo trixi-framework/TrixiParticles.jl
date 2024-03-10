@@ -325,6 +325,8 @@ end
     # return PtrArray(pointer(view(u_ode, range)),
     #                 (StaticInt(u_nvariables(system)), n_moving_particles(system)))
 
+    # Use the plain `Array` version (for now) because of weird heisenbugs with `PtrArray`s.
+    # See https://github.com/trixi-framework/TrixiParticles.jl/pull/454
     return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
                        (u_nvariables(system), n_moving_particles(system)))
 end
@@ -338,7 +340,7 @@ end
 
     # return PtrArray(pointer(view(v_ode, range)),
     #                 (StaticInt(v_nvariables(system)), n_moving_particles(system)))
-    
+
     return unsafe_wrap(Array{eltype(v_ode), 2}, pointer(view(v_ode, range)),
                        (v_nvariables(system), n_moving_particles(system)))
 end
