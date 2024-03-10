@@ -322,8 +322,11 @@ end
     # This is a non-allocating version of:
     # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
     #                    (u_nvariables(system), n_moving_particles(system)))
-    return PtrArray(pointer(view(u_ode, range)),
-                    (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+    # return PtrArray(pointer(view(u_ode, range)),
+    #                 (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+
+    return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
+                       (u_nvariables(system), n_moving_particles(system)))
 end
 
 @inline function wrap_v(v_ode, system, semi)
@@ -333,8 +336,11 @@ end
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
-    return PtrArray(pointer(view(v_ode, range)),
-                    (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+    # return PtrArray(pointer(view(v_ode, range)),
+    #                 (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+    
+    return unsafe_wrap(Array{eltype(v_ode), 2}, pointer(view(v_ode, range)),
+                       (v_nvariables(system), n_moving_particles(system)))
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
