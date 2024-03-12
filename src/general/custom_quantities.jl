@@ -28,7 +28,7 @@ function total_mass(v, u, t, system::BoundarySystem)
     # when simulating a solid, stationary wall. The boundary always behaves as if it had
     # infinite mass. There is no momentum transferred to the boundary on impact.
     #
-    # When the dummy particles model is used, i.e., boundary particles behave like fliud
+    # When the dummy particles model is used, i.e., boundary particles behave like fluid
     # particles when interacting with actual fluid particles, the boundary particles do have
     # a "hydrodynamic mass", which corresponds to the fluid density, but this is only
     # relevant for the fluid interaction, and it has no connection to the physical mass
