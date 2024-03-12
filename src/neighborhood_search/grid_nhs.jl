@@ -248,6 +248,7 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 
     return neighborhood_search
 end
+
 @inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
                                     parallel::Val{true})
     @threaded for cell in collect(keys(hashtable))
