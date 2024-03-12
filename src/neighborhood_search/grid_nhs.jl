@@ -103,7 +103,8 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            periodic_box_min_corner=nothing,
-                                           periodic_box_max_corner=nothing, parallel=true) where {NDIMS}
+                                           periodic_box_max_corner=nothing,
+                                           parallel=true) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -247,13 +248,15 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 
     return neighborhood_search
 end
-@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun, parallel::Val{true})
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    parallel::Val{true})
     @threaded for cell in collect(keys(hashtable))
         mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end
 end
 
-@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun, parallel::Val{false})
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    parallel::Val{false})
     for cell in collect(keys(hashtable))
         mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end

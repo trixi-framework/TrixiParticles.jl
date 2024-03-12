@@ -120,7 +120,8 @@ end
 
 function create_neighborhood_search(system, neighbor,
                                     ::Union{Val{nothing}, Val{TrivialNeighborhoodSearch}},
-                                    periodic_box_min_corner, periodic_box_max_corner, threaded_grid_search)
+                                    periodic_box_min_corner, periodic_box_max_corner,
+                                    threaded_grid_search)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
                                              periodic_box_min_corner=periodic_box_min_corner,
@@ -128,11 +129,13 @@ function create_neighborhood_search(system, neighbor,
 end
 
 function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
-                                    periodic_box_min_corner, periodic_box_max_corner, threaded_grid_search)
+                                    periodic_box_min_corner, periodic_box_max_corner,
+                                    threaded_grid_search)
     radius = compact_support(system, neighbor)
     search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
                                                    periodic_box_min_corner=periodic_box_min_corner,
-                                                   periodic_box_max_corner=periodic_box_max_corner, parallel=threaded_grid_search)
+                                                   periodic_box_max_corner=periodic_box_max_corner,
+                                                   parallel=threaded_grid_search)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
