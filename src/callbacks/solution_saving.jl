@@ -64,7 +64,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct SolutionSavingCallback{I, CQ}
+mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
     save_times            :: Array{Float64, 1}
     save_initial_solution :: Bool
@@ -75,7 +75,7 @@ struct SolutionSavingCallback{I, CQ}
     prefix                :: String
     max_coordinates       :: Float64
     custom_quantities     :: CQ
-    latest_saved_iter     :: Vector{Int}
+    latest_saved_iter     :: Int
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -101,7 +101,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               [-1])
+                                               -1)
 
     if length(save_times) > 0
         return PresetTimeCallback(save_times, solution_callback)
@@ -127,6 +127,9 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    # Reset `latest_saved_iter`
+    solution_callback.latest_saved_iter = -1
+
     # Save initial solution
     if solution_callback.save_initial_solution
         # Update systems to compute quantities like density and pressure.
@@ -158,7 +161,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
-    if iter == latest_saved_iter[1]
+    if iter == latest_saved_iter
         # This should only happen at the end of the simulation when using `dt` and the
         # final time is not a multiple of the saving interval.
         @assert isfinished(integrator)
@@ -167,7 +170,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         iter += 1
     end
 
-    latest_saved_iter[1] = iter
+    latest_saved_iter = iter
 
     if verbose
         println("Writing solution to $output_directory at t = $(integrator.t)")
