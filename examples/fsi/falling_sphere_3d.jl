@@ -8,6 +8,7 @@ trixi_include(@__MODULE__,
               acceleration=(0.0, -9.81, 0.0), sphere1_center = (0.5, 2.0, 0.5),
               fluid_smoothing_kernel = WendlandC2Kernel{3}(),
               solid_smoothing_kernel = WendlandC2Kernel{3}(),
+              sphere_type=RoundSphere(),
               output_directory="out", prefix="",
               write_meta_data=false, # Files with meta data can't be read by meshio
               tspan=(0.0, 2.0), abstol=1e-6, reltol=1e-3)

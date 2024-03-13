@@ -42,9 +42,9 @@ nu = 0.0
 sphere1_center = (0.5, 1.6)
 sphere2_center = (1.5, 1.6)
 sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, sphere1_center,
-                      sphere1_density)
+                      sphere1_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
-                      sphere2_density)
+                      sphere2_density, sphere_type=VoxelSphere())
 
 # ==========================================================================================
 # ==== Fluid
