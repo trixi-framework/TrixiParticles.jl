@@ -59,6 +59,20 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     return results
 end
 
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, v, u;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true)
+    sol = (; u=[(; x=(v, u))])
+
+    # Filter out particles without neighbors
+    filter_no_neighbors = true
+    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                         semi, ref_system, sol, filter_no_neighbors,
+                                         smoothing_length, cut_off_bnd)
+
+    return results
+end
+
 @doc raw"""
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
                              smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
@@ -124,6 +138,17 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
         vtk["velocity"] = velocity
         vtk["pressure"] = pressure
     end
+end
+
+function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, v,
+                                  u;
+                                  smoothing_length=ref_system.smoothing_length,
+                                  cut_off_bnd=true,
+                                  output_directory="out", filename="plane")
+    sol = (; u=[(; x=(v, u))])
+    interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
+                             smoothing_length=smoothing_length, cut_off_bnd=cut_off_bnd,
+                             output_directory=output_directory, filename=filename)
 end
 
 function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol,
