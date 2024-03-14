@@ -62,6 +62,8 @@ end
 function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                             periodic_box_min_corner=nothing,
                             periodic_box_max_corner=nothing, threaded_grid_search=true)
+    systems = filter(system -> !isnothing(system), systems)
+
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
     # Other checks might be added here later.
     check_configuration(systems)
