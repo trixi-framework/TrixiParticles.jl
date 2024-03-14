@@ -63,14 +63,9 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
     # Other checks might be added here later.
     check_configuration(systems)
 
-    sizes_u = [u_nvariables(system) * n_moving_particles(system)
-               for system in systems]
-    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                     for i in eachindex(sizes_u))
-    sizes_v = [v_nvariables(system) * n_moving_particles(system)
-               for system in systems]
-    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                     for i in eachindex(sizes_v))
+    #systems = create_subsystems(systems)
+
+    ranges_u, ranges_v = ranges_uv(systems)
 
     # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
     # We will need one neighborhood search for each pair of systems.
@@ -82,6 +77,19 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
                      for system in systems)
 
     return Semidiscretization(systems, ranges_u, ranges_v, searches)
+end
+
+function ranges_uv(systems)
+    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_u = Tuple([(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])]
+                     for i in eachindex(sizes_u))
+    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_v = Tuple([(sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])]
+                     for i in eachindex(sizes_v))
+
+    return ranges_u, ranges_v
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -315,7 +323,7 @@ end
 @inline function wrap_u(u_ode, system, semi)
     (; ranges_u) = semi
 
-    range = ranges_u[system_indices(system, semi)]
+    range = ranges_u[system_indices(system, semi)][1]
 
     @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
 
@@ -329,7 +337,7 @@ end
 @inline function wrap_v(v_ode, system, semi)
     (; ranges_v) = semi
 
-    range = ranges_v[system_indices(system, semi)]
+    range = ranges_v[system_indices(system, semi)][1]
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
@@ -429,6 +437,14 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         u = wrap_u(u_ode, system, semi)
 
         update_final!(system, v, u, v_ode, u_ode, semi, t)
+    end
+
+    # Particle refinement
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        refinement!(system, v, u, v_ode, u_ode, semi)
     end
 end
 
