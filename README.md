@@ -23,6 +23,21 @@ Its features include:
   - VTK
 
 ## Examples
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" width="80%"/><br><figcaption>2D Dam Break</figcaption>
+    </td>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" width="80%"/><br><figcaption>Moving Wall</figcaption>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/8466dbed-b1b1-4fce-ab2d-8b93b5cda833" width="40%"/><br><figcaption>Oscillating Beam</figcaption>
+    </td>
+  </tr>
+</table>
 
 ## Installation
 If you have not yet installed Julia, please [follow the instructions for your
