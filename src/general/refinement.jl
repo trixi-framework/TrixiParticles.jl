@@ -22,6 +22,10 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     # and will be created in `create_system_child()`
     system_child::System
 
+    # internal `resize!`able storage
+    _u :: Vector{ELTYPE}
+    _v :: Vector{ELTYPE}
+
     # API --> parent system with `RL=0`
     function ParticleRefinement(refinement_criteria...;
                                 refinement_pattern=CubicSplitting(),
@@ -48,14 +52,8 @@ end
 
 @inline Base.ndims(::ParticleRefinement{RL, NDIMS}) where {RL, NDIMS} = ndims
 
-@inline function child_set(system, particle_refinement)
-    (; available_childs) = particle_refinement
-
-    start_iter = nparticles(system) + 1 - available_childs
-    end_iter = start_iter + nchilds(system, particle_refinement)
-
-    return start_iter:end_iter
-end
+@inline child_set(system, particle_refinement) = Base.OneTo(nchilds(system,
+                                                                    particle_refinement))
 
 # ==== Create child systems
 
@@ -151,28 +149,42 @@ function check_refinement_criteria!(system, particle_refinement::ParticleRefinem
 end
 
 function refine_particles!(system_parent, particle_refinement::ParticleRefinement,
-                           v, u, v_ode, u_ode, semi)
-    (; candidates, system_child) = particle_refinement
-
-    capacity_parent = nparticles(system_parent) - length(candidates)
-    capacity_child = nparticles(system_child) +
-                     length(candidates) * nchilds(system_parent, particle_refinement)
+                           v_parent, u_parent, v_ode, u_ode, semi)
+    (; candidates, system_child, _u, _v) = particle_refinement
 
     if !isempty(candidates)
+        n_new_child = length(candidates) * nchilds(system_parent, particle_refinement)
+        capacity_parent = nparticles(system_parent) - length(candidates)
+        capacity_child = nparticles(system_child) + n_new_child
+
+        particle_refinement.available_childs = n_new_child
+
+        # Resize child system (extending)
         resize!(system_child, capacity_child)
 
-        particle_refinement.available_childs = capacity_child
+        # Resize internal storage for new child particles
+        resize!(_u, n_new_child)
+        resize!(_v, n_new_child)
 
+        u_child = PtrArray(pointer(_u),
+                           (StaticInt(u_nvariables(system_child)), n_new_child))
+        v_child = PtrArray(pointer(_v),
+                           (StaticInt(v_nvariables(system_child)), n_new_child))
+
+        # Loop over all refinement candidates
         for particle_parent in candidates
-            particle_childs = child_set(system_child, particle_refinement)
-
-            bear_childs!(system_child, system_parent, particle_childs, particle_parent,
-                         particle_refinement, v_ode, u_ode, semi)
+            bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
+                         v_parent, u_parent, v_child, u_child, semi)
 
             particle_refinement.available_childs -= nchilds(system, particle_refinement)
         end
 
-        resize!(system_parent, capacity_parent)
+        # Resize parent system (reducing)
+        restructure_and_resize!(system_parent, capacity_parent)
+
+        # Resize `v_ode` and `u_ode`
+        resize!(v_ode, u_ode, semi, system_parent, system_child,
+                capacity_parent, capacity_child)
     end
 end
 
@@ -181,22 +193,37 @@ end
 #
 # Reducing the dof by using a fixed regular refinement pattern
 # (given: position and number of child particles)
-function bear_childs!(system_child, system_parent, particle_childs, particle_parent,
-                      particle_refinement, v_ode, u_ode, semi)
-    # spread child positions according to the refinement pattern
-    set_positions!(system_child, system_parent, particle_childs, particle_parent,
-                   particle_refinement.refinement_pattern, semi, v_ode, u_ode)
+function bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
+                      v_parent, u_parent, v_child, u_child, semi)
+    (; rel_position_childs, available_childs, candidates) = particle_refinement
+    n_new_child = length(candidates) * nchilds(system_parent, particle_refinement)
 
-    for particle_child in particle_childs
-        system_child.mass[particle_child] = particle_refinement.mass_child
+    parent_coords = current_coords(u_parent, system_parent, particle_parent)
+
+    # Loop over all child particles of parent particle
+    # The number of child particles depends on the refinement pattern
+    for particle_child in child_set(system_parent, particle_refinement)
+        absolute_index = particle_child + nparticles(system_child) - available_childs
+        relative_index = particle_child + n_new_child - available_childs
+
+        system_child.mass[absolute_index] = particle_refinement.mass_child
+
+        # spread child positions according to the refinement pattern
+        child_coords = parent_coords + rel_position_childs[particle_child]
+        for dim in 1:ndims(system_child)
+            u_child[relative_index, dim] = child_coords[dim]
+        end
 
         # Interpolate field variables
         interpolate_particle_pressure!(system_child, system_parent,
-                                       particle_childs, particle_parent, semi, v_ode, u_ode)
+                                       particle_childs, particle_parent,
+                                       v_parent, u_parent, v_child, u_child, semi)
         interpolate_particle_density!(system_child, system_parent,
-                                      particle_childs, particle_parent, semi, v_ode, u_ode)
+                                      particle_childs, particle_parent,
+                                      v_parent, u_parent, v_child, u_child, semi)
         interpolate_current_velocity!(system_child, system_parent,
-                                      particle_childs, particle_parent, semi, v_ode, u_ode)
+                                      particle_childs, particle_parent,
+                                      v_parent, u_parent, v_child, u_child, semi)
     end
 
     return system_child
@@ -210,5 +237,11 @@ function Base.resize!(system::WeaklyCompressibleSPHSystem, capacity)
     resize!(cache, capacity, density_calculator)
 end
 
-Base.resize!(cache, capacity, ::SummationDensity) = resize!(cache.density, capacity)
-Base.resize!(cache, capacity, ::ContinuityDensity) = cache
+resize!(cache, capacity, ::SummationDensity) = resize!(cache.density, capacity)
+resize!(cache, capacity, ::ContinuityDensity) = cache
+
+function resize!(v_ode, u_ode, semi, system_parent, system_child,
+                 capacity_parent, capacity_child)
+    (; particle_refinement) = system_parent
+    (; candidates) = particle_refinement
+end

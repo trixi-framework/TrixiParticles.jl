@@ -35,6 +35,16 @@ end
     return v[end, particle]
 end
 
+# *Note* that these functions are intended to internally set the density for buffer particles
+# and density correction. It cannot be used to set up an initial condition,
+# as the particle density depends on the particle positions.
+
+@inline set_particle_density(particle, v, ::SummationDensity, system, density) = system
+
+@inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
+    v[end, particle] = density
+end
+
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)
@@ -52,7 +62,10 @@ function summation_density!(system, semi, u, u_ode, density;
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
                               particles=particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
-            density[particle] += mass * smoothing_kernel(system, distance)
+
+            h_mean = (system.smoothing_length + neighbor_system.smoothing_length)/2
+            #density[particle] += mass * smoothing_kernel(system, distance)
+            density[particle] += mass * kernel(system.smoothing_kernel, distance, h_mean)
         end
     end
 end

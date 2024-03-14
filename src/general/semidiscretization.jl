@@ -439,13 +439,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
 
-    # Particle refinement
-    foreach_system(semi) do system
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
-
-        refinement!(system, v, u, v_ode, u_ode, semi)
-    end
 end
 
 function update_nhs(u_ode, semi)
