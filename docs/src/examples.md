@@ -3,8 +3,11 @@
 
 ## Fluid
 
-### 2D Dam Break (dam_break_2d.jl)
-![2D Dam Break](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8)
+### Accelerated Tank 2D (accelerated_tank_2d.jl)
+![Accelerated Tank 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/4c4c537a-8585-4456-9a1b-8b5adbf68533)
+
+### Dam Break 2D (dam_break_2d.jl)
+![Dam Break 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8)
 
 
 ## Structure Mechanics
