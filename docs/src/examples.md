@@ -9,6 +9,8 @@
 ### Dam Break 2D (dam_break_2d.jl)
 ![Dam Break 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8)
 
+### Dam Break 3D (dam_break_3d.jl)
+![Dam Break 3D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/76a2b235-1b49-465f-a207-76859410b783)
 
 ## Structure Mechanics
 
