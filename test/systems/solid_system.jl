@@ -218,6 +218,7 @@
                                                   smoothing_length, 1.0, 1.0)
                 nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
                                                                   TrixiParticles.eachparticle(system))
+
                 TrixiParticles.initialize!(system, nhs)
 
                 # Apply the deformation matrix

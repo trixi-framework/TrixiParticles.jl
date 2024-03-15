@@ -6,66 +6,48 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-acceleration = 0.0
-tspan = (0.0, 2.0)
+tspan = (0.0, 1.0)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 0.9)
-tank_size = (2.0, 1.0)
+initial_fluid_size = (1.0, 0.9)
+tank_size = (1.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(acceleration * initial_fluid_size[2])
+sound_speed = 10.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
-                                   exponent=7)
+                                   exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers, spacing_ratio=spacing_ratio)
+                       acceleration=(0.0, -9.81), state_equation=state_equation,
+                       n_layers=boundary_layers, spacing_ratio=1.0)
 
 # Function for moving boundaries
-f_y(t) = 0.5 * 9.81 * t^2
-f_x(t) = 0.0
+movement_function(t) = SVector(0.0, 0.5 * 9.81 * t^2)
 
 is_moving(t) = true
 
-movement = BoundaryMovement((f_x, f_y), is_moving)
+boundary_movement = BoundaryMovement(movement_function, is_moving)
 
-# ==========================================================================================
-# ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-fluid_density_calculator = SummationDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
-fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity)
-
-# ==========================================================================================
-# ==== Boundary
-boundary_density_calculator = AdamiPressureExtrapolation()
-boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             smoothing_kernel, smoothing_length)
-
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    movement=boundary_movement)
+# Import the setup from `hydrostatic_water_column_2d.jl`
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+              fluid_particle_spacing=fluid_particle_spacing, movement=boundary_movement,
+              acceleration=(0.0, 0.0), tank=tank, semi=nothing, ode=nothing,
+              sol=nothing) # Overwrite `sol` assignment to skip time integration
 
 # ==========================================================================================
 # ==== Simulation
 semi = Semidiscretization(fluid_system, boundary_system)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=10)
+info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback)

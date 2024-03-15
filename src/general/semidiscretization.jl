@@ -13,8 +13,8 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 # Keywords
 - `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
                             By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use [`TrivialNeighborhoodSearch`](@ref) to loop over all particles
-                            (no neighborhood search).
+                            Use [`TrivialNeighborhoodSearch`](@ref) or `nothing` to loop
+                            over all particles (no neighborhood search).
 - `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in negative coordinate
                                 directions.
@@ -23,11 +23,21 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
                                 directions.
 
 # Examples
-```julia
+```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=TrivialNeighborhoodSearch)
+
+# output
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Semidiscretization                                                                               │
+│ ══════════════════                                                                               │
+│ #spatial dimensions: ………………………… 2                                                                │
+│ #systems: ……………………………………………………… 2                                                                │
+│ neighborhood search: ………………………… TrivialNeighborhoodSearch                                        │
+│ total #particles: ………………………………… 636                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
 struct Semidiscretization{S, RU, RV, NS}
@@ -36,34 +46,42 @@ struct Semidiscretization{S, RU, RV, NS}
     ranges_v              :: RV
     neighborhood_searches :: NS
 
-    function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
-                                periodic_box_min_corner=nothing,
-                                periodic_box_max_corner=nothing)
-        # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
-        # Other checks might be added here later.
-        check_configuration(systems)
-
-        sizes_u = [u_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
-                         for i in eachindex(sizes_u))
-        sizes_v = [v_nvariables(system) * n_moving_particles(system)
-                   for system in systems]
-        ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
-                         for i in eachindex(sizes_v))
-
-        # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
-        # We will need one neighborhood search for each pair of systems.
-        searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
-                                                          Val(neighborhood_search),
-                                                          periodic_box_min_corner,
-                                                          periodic_box_max_corner)
-                               for neighbor in systems)
-                         for system in systems)
-
+    # Dispatch at `systems` to distinguish this constructor from the one below when
+    # 4 systems are passed.
+    # This is an internal constructor only used in `test/count_allocations.jl`.
+    function Semidiscretization(systems::Tuple, ranges_u, ranges_v, neighborhood_searches)
         new{typeof(systems), typeof(ranges_u),
-            typeof(ranges_v), typeof(searches)}(systems, ranges_u, ranges_v, searches)
+            typeof(ranges_v), typeof(neighborhood_searches)}(systems, ranges_u, ranges_v,
+                                                             neighborhood_searches)
     end
+end
+
+function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
+                            periodic_box_min_corner=nothing,
+                            periodic_box_max_corner=nothing)
+    # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
+    # Other checks might be added here later.
+    check_configuration(systems)
+
+    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_u = Tuple((sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])
+                     for i in eachindex(sizes_u))
+    sizes_v = [v_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_v = Tuple((sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])
+                     for i in eachindex(sizes_v))
+
+    # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
+    # We will need one neighborhood search for each pair of systems.
+    searches = Tuple(Tuple(create_neighborhood_search(system, neighbor,
+                                                      Val(neighborhood_search),
+                                                      periodic_box_min_corner,
+                                                      periodic_box_max_corner)
+                           for neighbor in systems)
+                     for system in systems)
+
+    return Semidiscretization(systems, ranges_u, ranges_v, searches)
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)
@@ -96,7 +114,8 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
     end
 end
 
-function create_neighborhood_search(system, neighbor, ::Val{nothing},
+function create_neighborhood_search(system, neighbor,
+                                    ::Union{Val{nothing}, Val{TrivialNeighborhoodSearch}},
                                     periodic_box_min_corner, periodic_box_max_corner)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
@@ -189,26 +208,35 @@ end
 """
     semidiscretize(semi, tspan; reset_threads=true)
 
-Prepare the semidiscretization `semi` for time integration over the time span `tspan`.
-
-This function sets up the necessary data structures and initial conditions
-for time integration of the coupled systems within the semidiscretization.
+Create an `ODEProblem` from the semidiscretization with the specified `tspan`.
 
 # Arguments
-- `semi`: The `Semidiscretization` object representing the coupled simulation environment.
+- `semi`: A [`Semidiscretization`](@ref) holding the systems involved in the simulation.
 - `tspan`: The time span over which the simulation will be run.
 
-# Keyword Arguments
-- `reset_threads`: A boolean flag to reset Polyester.jl threads before simulation (default: `true`). This is relevant for managing parallel computations and is typically needed to avoid issues in thread management.
+# Keywords
+- `reset_threads`: A boolean flag to reset Polyester.jl threads before the simulation (default: `true`).
+  After an error within a threaded loop, threading might be disabled. Resetting the threads before the simulation
+  ensures that threading is enabled again for the simulation.
+  See also [trixi-framework/Trixi.jl#1583](https://github.com/trixi-framework/Trixi.jl/issues/1583).
 
 # Returns
-- `DynamicalODEProblem`: An object representing the dynamical ODE problem set up for time integration, containing initial conditions and other necessary information.
+A `DynamicalODEProblem` (see [the OrdinaryDiffEq.jl docs](https://docs.sciml.ai/DiffEqDocs/stable/types/dynamical_types/))
+to be integrated with [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl).
+Note that this is not a true `DynamicalODEProblem` where the acceleration does not depend on the velocity.
+Therefore, not all integrators designed for `DynamicalODEProblems` will work properly.
+However, all integrators designed for `ODEProblems` can be used.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = r"u0: .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); ref_system = fluid_system)
 semi = Semidiscretization(fluid_system, boundary_system)
 tspan = (0.0, 1.0)
 ode_problem = semidiscretize(semi, tspan)
+
+# output
+ODEProblem with uType RecursiveArrayTools.ArrayPartition{Float64, Tuple{Vector{Float64}, Vector{Float64}}} and tType Float64. In-place: true
+timespan: (0.0, 1.0)
+u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
 function semidiscretize(semi, tspan; reset_threads=true)
@@ -240,6 +268,7 @@ function semidiscretize(semi, tspan; reset_threads=true)
     u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
     v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
 
+    # Set initial condition
     foreach_system(semi) do system
         u0_system = wrap_u(u0_ode, system, semi)
         v0_system = wrap_v(v0_ode, system, semi)
@@ -318,6 +347,12 @@ end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
+    (; systems) = semi
+
+    return minimum(system -> calculate_dt(v_ode, u_ode, cfl_number, system), systems)
 end
 
 function drift!(du_ode, v_ode, u_ode, semi, t)
@@ -485,8 +520,11 @@ particle ``a``.
                             damping a fluid at rest.
 
 # Examples
-```julia
+```jldoctest; output = false
 source_terms = SourceTermDamping(; damping_coefficient=1e-4)
+
+# output
+SourceTermDamping{Float64}(0.0001)
 ```
 """
 struct SourceTermDamping{ELTYPE}

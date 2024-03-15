@@ -9,8 +9,10 @@ docs/src/contributing.md
 docs/src/license.md
 docs/src/code_of_conduct.md
 docs/src/news.md
+*_replaced.md
 run
 *.json
+!.zenodo.json
 *.png
 *.jpg
 *.gif
