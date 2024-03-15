@@ -1,32 +1,42 @@
 """
     trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-              write_meta_data=true, custom_quantities...)
+              write_meta_data=true, max_coordinates=Inf, custom_quantities...)
 
 Convert Trixi simulation data to VTK format.
 
 # Arguments
-- `vu_ode`: Solution of the TrixiParticles ODE system at one time step. This expects an `ArrayPartition` as returned in the examples as `sol`.
+- `vu_ode`: Solution of the TrixiParticles ODE system at one time step.
+            This expects an `ArrayPartition` as returned in the examples as `sol.u[end]`.
 - `semi`:   Semidiscretization of the TrixiParticles simulation.
 - `t`:      Current time of the simulation.
 
 # Keywords
-- `iter`:                 Iteration number when multiple iterations are to be stored in separate files.
-- `output_directory`:     Output directory path. Defaults to `"out"`.
-- `prefix`:               Prefix for output files. Defaults to an empty string.
-- `write_meta_data`:      Write meta data.
-- `custom_quantities...`: Additional custom quantities to include in the VTK output. TODO.
-- `max_coordinates=Inf`   The coordinates of particles will be clipped if their absolute values exceed this threshold.
-
+- `iter=nothing`:           Iteration number when multiple iterations are to be stored in
+                            separate files. This number is just appended to the filename.
+- `output_directory="out"`: Output directory path.
+- `prefix=""`:              Prefix for output files.
+- `write_meta_data=true`:   Write meta data.
+- `max_coordinates=Inf`     The coordinates of particles will be clipped if their absolute
+                            values exceed this threshold.
+- `custom_quantities...`:   Additional custom quantities to include in the VTK output.
+                            Each custom quantity must be a function of `(v, u, t, system)`,
+                            which will be called for every system, where `v` and `u` are the
+                            wrapped solution arrays for the corresponding system and `t` is
+                            the current simulation time. Note that working with these `v`
+                            and `u` arrays requires undocumented internal functions of
+                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            for a list of pre-defined custom quantities that can be used here.
 
 # Example
 ```jldoctest; output = false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing))
 trixi2vtk(sol.u[end], semi, 0.0, iter=1, output_directory="output", prefix="solution")
 
+# Additionally store the kinetic energy of each system as "my_custom_quantity"
+trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
+
 # output
 
 ```
-
-TODO: example for custom_quantities
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
                    write_meta_data=true, max_coordinates=Inf, custom_quantities...)
@@ -229,12 +239,15 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
     end
 
     vtk["material_density"] = system.material_density
-    vtk["young_modulus"] = system.young_modulus
-    vtk["poisson_ratio"] = system.poisson_ratio
-    vtk["lame_lambda"] = system.lame_lambda
-    vtk["lame_mu"] = system.lame_mu
-    vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
-    vtk["smoothing_length"] = system.smoothing_length
+
+    if write_meta_data
+        vtk["young_modulus"] = system.young_modulus
+        vtk["poisson_ratio"] = system.poisson_ratio
+        vtk["lame_lambda"] = system.lame_lambda
+        vtk["lame_mu"] = system.lame_mu
+        vtk["smoothing_kernel"] = type2string(system.smoothing_kernel)
+        vtk["smoothing_length"] = system.smoothing_length
+    end
 
     write2vtk!(vtk, v, u, t, system.boundary_model, system, write_meta_data=write_meta_data)
 end
