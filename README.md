@@ -34,7 +34,7 @@ Its features include:
   </tr>
   <tr>
     <td colspan="2" align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/8466dbed-b1b1-4fce-ab2d-8b93b5cda833" width="40%"/><br><figcaption>Oscillating Beam</figcaption>
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" width="40%"/><br><figcaption>Oscillating Beam</figcaption>
     </td>
   </tr>
 </table>
