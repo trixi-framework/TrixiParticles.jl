@@ -159,7 +159,7 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
 
     # Get non-`resize!`d ranges
     ranges_v_cache, ranges_u_cache = ranges_uv(systems)
-    each_particle_cache = Tuple(eachparticle(system) for system in semi.systems)
+    each_particle_cache = Tuple(get_iterator(system) for system in semi.systems)
 
     # Resize internal storage
     n_total_particles = sum(nparticles.(semi.systems))
@@ -172,7 +172,7 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
     foreach_system(semi) do system
         n_candidates += ncandidates(system.particle_refinement)
         n_childs += ncandidates(system.particle_refinement) *
-                       nchilds(system, system.refinement_pattern)
+                    nchilds(system, system.refinement_pattern)
     end
 
     capacity = n_total_particles - n_candidates + n_childs
@@ -196,50 +196,48 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
         _v = _wrap_v(_v_ode, system, callback)
         _u = _wrap_u(_u_ode, system, callback)
 
-        copy_values_v!(v, _v, system, system.particle_refinement, semi)
-        copy_values_u!(u, _u, system, system.particle_refinement, semi)
+        copy_values_v!(v, _v, system, system.particle_refinement, semi, callback)
+        copy_values_u!(u, _u, system, system.particle_refinement, semi, callback)
     end
 
     return callback
 end
 
+refine_particles!(semi::Semidiscretization{Nothing}, v_ode, u_ode) = semi
+
+function refine_particles!(callback, semi, v_ode, u_ode)
+
+    # Refine particles in all systems
+    foreach_system(semi) do system
+        refine_particles!(system, sysem.particle_refinement, v_ode, u_ode, callback, semi)
+    end
+end
+
+refine_particles!(system, ::Nothing, v, u, semi) = system
+
 function refine_particles!(system_parent, particle_refinement::ParticleRefinement,
-                           v_parent, u_parent, v_ode, u_ode, semi)
-    (; candidates, system_child, _u, _v) = particle_refinement
+                           v_ode, u_ode, callback, semi)
+    (; _v_ode, _u_ode) = callback
+    (; candidates, system_child, available_childs) = particle_refinement
 
     if !isempty(candidates)
-        n_new_child = length(candidates) * nchilds(system_parent, particle_refinement)
-        capacity_parent = nparticles(system_parent) - length(candidates)
-        capacity_child = nparticles(system_child) + n_new_child
+        # Old storage
+        v_parent = _wrap_v(_v_ode, system_parent, callback)
+        u_parent = _wrap_u(_u_ode, system_parent, callback)
 
-        particle_refinement.available_childs = n_new_child
+        # Resized storage
+        v_child = wrap_v(v_ode, system_child, semi)
+        u_child = wrap_u(u_ode, system_child, semi)
 
-        # Resize child system (extending)
-        resize!(system_child, capacity_child)
-
-        # Resize internal storage for new child particles
-        resize!(_u, n_new_child)
-        resize!(_v, n_new_child)
-
-        u_child = PtrArray(pointer(_u),
-                           (StaticInt(u_nvariables(system_child)), n_new_child))
-        v_child = PtrArray(pointer(_v),
-                           (StaticInt(v_nvariables(system_child)), n_new_child))
+        available_childs = length(candidates) * nchilds(system_parent, particle_refinement)
 
         # Loop over all refinement candidates
         for particle_parent in candidates
             bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
                          v_parent, u_parent, v_child, u_child, semi)
 
-            particle_refinement.available_childs -= nchilds(system, particle_refinement)
+            available_childs -= nchilds(system, particle_refinement)
         end
-
-        # Resize parent system (reducing)
-        restructure_and_resize!(system_parent, capacity_parent)
-
-        # Resize `v_ode` and `u_ode`
-        resize!(v_ode, u_ode, semi, system_parent, system_child,
-                capacity_parent, capacity_child)
     end
 end
 
@@ -250,35 +248,62 @@ end
 # (given: position and number of child particles)
 function bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
                       v_parent, u_parent, v_child, u_child, semi)
-    (; rel_position_childs, available_childs, candidates) = particle_refinement
-    n_new_child = length(candidates) * nchilds(system_parent, particle_refinement)
+    (; rel_position_childs, available_childs, mass_child) = particle_refinement
 
+    nhs = get_neighborhood_search(system_parent, system_parent, semi)
     parent_coords = current_coords(u_parent, system_parent, particle_parent)
+
+    system_child.mass .= mass_child
 
     # Loop over all child particles of parent particle
     # The number of child particles depends on the refinement pattern
     for particle_child in child_set(system_parent, particle_refinement)
         absolute_index = particle_child + nparticles(system_child) - available_childs
-        relative_index = particle_child + n_new_child - available_childs
-
-        system_child.mass[absolute_index] = particle_refinement.mass_child
 
         # spread child positions according to the refinement pattern
         child_coords = parent_coords + rel_position_childs[particle_child]
         for dim in 1:ndims(system_child)
-            u_child[relative_index, dim] = child_coords[dim]
+            u_child[absolute_index, dim] = child_coords[dim]
         end
 
-        # Interpolate field variables
-        interpolate_particle_pressure!(system_child, system_parent,
-                                       particle_childs, particle_parent,
-                                       v_parent, u_parent, v_child, u_child, semi)
-        interpolate_particle_density!(system_child, system_parent,
-                                      particle_childs, particle_parent,
-                                      v_parent, u_parent, v_child, u_child, semi)
-        interpolate_current_velocity!(system_child, system_parent,
-                                      particle_childs, particle_parent,
-                                      v_parent, u_parent, v_child, u_child, semi)
+        volume = zero(eltype(system_child))
+        p_a = zero(eltype(system_child))
+        rho_a = zero(eltype(system_child))
+
+        for neighbor in eachneighbor(child_coords, nhs)
+            neighbor_coords = current_coords(u_parent, system_parent, neighbor)
+            pos_diff = child_coords - neighbor_coords
+
+            distance2 = dot(pos_diff, pos_diff)
+
+            if distance2 <= search_radius^2
+                distance = sqrt(distance2)
+                kernel_weight = smoothing_kernel(system_parent, distance)
+                volume += kernel_weight
+
+                v_b = current_velocity(v_parent, system_parent, neighbor)
+                p_b = particle_pressure(v_parent, system_parent, neighbor)
+                rho_b = particle_density(v_parent, system_parent, neighbor)
+
+                for dim in 1:ndims(system_child)
+                    v_child[dim, system_child] += kernel_weight * v_b[dim]
+                end
+
+                rho_a += kernel_weight * rho_b
+                p_a += kernel_weight * p_b
+            end
+        end
+
+        for dim in 1:ndims(system_child)
+            v[dim, system_child] ./ volume
+        end
+
+        rho_a /= volume
+        p_a /= volume
+
+        set_particle_density(particle_child, v_child, system_child.density_calculator,
+                             system_child, rho_a)
+        set_particle_pressure(particle_child, v_child, system_child, p_a)
     end
 
     return system_child
@@ -330,7 +355,7 @@ end
 @inline function _wrap_v(_v_ode, system, callback)
     (; ranges_v_cache) = callback
 
-    range = ranges_v_cache[system_indices(system, semi)][1]
+    range = ranges_v_cache[system_indices(system, semi)]
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
@@ -355,21 +380,15 @@ end
 # `v_new` <= `v_old`
 function copy_values_v!(v_new, v_old, system, particle_refinement::ParticleRefinement,
                         semi, callback)
-    (; candidates) = particle_refinement
     (; eachparticle_cache) = callback
-
-    # Mark candidates
-    v_old[1, candidates] .= Inf
 
     # Copy only non-refined particles
     new_particle_id = 1
     for particle in eachparticle_cache[system_indices(system, semi)]
-        if v_new[1, particle] < Inf
-            for i in 1:v_nvariables(system)
-                v_new[i, new_particle_id] = v_old[i, particle]
-            end
-            new_particle_id += 1
+        for i in 1:v_nvariables(system)
+            v_new[i, new_particle_id] = v_old[i, particle]
         end
+        new_particle_id += 1
     end
 end
 
@@ -387,20 +406,26 @@ end
 # `u_new` <= `u_old`
 function copy_values_u!(u_new, u_old, system, particle_refinement::ParticleRefinement,
                         semi, callback)
-    (; candidates) = particle_refinement
     (; eachparticle_cache) = callback
-
-    # Mark candidates
-    u_old[1, candidates] .= Inf
 
     # Copy only non-refined particles
     new_particle_id = 1
     for particle in eachparticle_cache[system_indices(system, semi)]
-        if u_new[1, particle] < Inf
-            for i in 1:u_nuariables(system)
-                u_new[i, new_particle_id] = u_old[i, particle]
-            end
-            new_particle_id += 1
+        for i in 1:u_nuariables(system)
+            u_new[i, new_particle_id] = u_old[i, particle]
         end
+        new_particle_id += 1
     end
+end
+
+@inline get_iterator(system) = get_iterator(system, system.particle_refinement)
+
+@inline get_iterator(system, ::Nothing) = eachparticle(system)
+
+@inline function get_iterator(system, particle_refinement::ParticleRefinement)
+    (; candidates) = particle_refinement
+
+    # Filter candidates
+    #return Iterators.filter(i -> !(i in candidates), eachparticle(system))
+    return setdiff(eachparticle(system), candidates)
 end
