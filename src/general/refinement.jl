@@ -22,10 +22,6 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     # and will be created in `create_system_child()`
     system_child::System
 
-    # internal `resize!`able storage
-    _u :: Vector{ELTYPE}
-    _v :: Vector{ELTYPE}
-
     # API --> parent system with `RL=0`
     function ParticleRefinement(refinement_criteria...;
                                 refinement_pattern=CubicSplitting(),
@@ -54,6 +50,9 @@ end
 
 @inline child_set(system, particle_refinement) = Base.OneTo(nchilds(system,
                                                                     particle_refinement))
+
+@inline ncandidates(::Nothing) = 0
+@inline ncandidates(particle_refinement) = particle_refinement.candidates
 
 # ==== Create child systems
 
@@ -117,22 +116,28 @@ function create_system_child(system::WeaklyCompressibleSPHSystem,
 end
 
 # ==== Refinement
-function refinement!(system::FluidSystem, v, u, v_ode, u_ode, semi)
-    refinement!(system, system.particle_refinement, v, u, v_ode, u_ode, semi)
+function refinement!(v_ode, u_ode, semi, callback)
+    foreach_system(semi) do system
+        check_refinement_criteria!(system, v_ode, u_ode, semi)
+    end
+
+    resize_and_copy!(callback, semi, v_ode, u_ode)
+
+    refine_particles!(callback, semi, v_ode, u_ode)
 end
 
-refinement!(system, ::Nothing, v, u, v_ode, u_ode, semi) = system
+check_refinement_criteria!(system, v_ode, u_ode, semi) = system
 
-function refinement!(system, particle_refinement::ParticleRefinement,
-                     v, u, v_ode, u_ode, semi)
-    check_refinement_criteria!(system, particle_refinement, v, u, v_ode, u_ode, semi)
-
-    refine_particles!(system, particle_refinement, v, u, v_ode, u_ode, semi)
+function check_refinement_criteria!(system::FluidSystem, v_ode, u_ode, semi)
+    check_refinement_criteria!(system, system.particle_refinement, v_ode, u_ode, semi)
 end
 
 function check_refinement_criteria!(system, particle_refinement::ParticleRefinement,
-                                    v, u, v_ode, u_ode, semi)
+                                    v_ode, u_ode, semi)
     (; candidates, refinement_criteria) = particle_refinement
+
+    v = wrap_v(v_ode, systm, semi)
+    u = wrap_u(u_ode, systm, semi)
 
     !isempty(candidates) && resize!(candidates, 0)
 
@@ -146,6 +151,56 @@ function check_refinement_criteria!(system, particle_refinement::ParticleRefinem
     end
 
     return system
+end
+
+function resize_and_copy!(callback, semi, v_ode, u_ode)
+    (; _v_ode, _u_ode, n_candidates, n_childs,
+    ranges_v_cache, ranges_u_cache, each_particle_cache) = callback
+
+    # Get non-`resize!`d ranges
+    ranges_v_cache, ranges_u_cache = ranges_uv(systems)
+    each_particle_cache = Tuple(eachparticle(system) for system in semi.systems)
+
+    # Resize internal storage
+    n_total_particles = sum(nparticles.(semi.systems))
+    resize!(_v_ode, capacity, n_total_particles)
+    resize!(_u_ode, capacity, n_total_particles)
+
+    # Count all candidates for refinement
+    n_candidates = 0
+    n_childs = 0
+    foreach_system(semi) do system
+        n_candidates += ncandidates(system.particle_refinement)
+        n_childs += ncandidates(system.particle_refinement) *
+                       nchilds(system, system.refinement_pattern)
+    end
+
+    capacity = n_total_particles - n_candidates + n_childs
+
+    # Resize integrated values
+    resize!(v_ode, capacity)
+    resize!(u_ode, capacity)
+
+    # Resize all systems
+    foreach_system(semi) do system
+        resize!(system, system.particle_refinement)
+    end
+
+    # Set `resize!`d ranges
+    semi.ranges_v, semi.ranges_u = ranges_uv(systems)
+
+    # Preserve non-changing values
+    foreach_system(semi) do system
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+        _v = _wrap_v(_v_ode, system, callback)
+        _u = _wrap_u(_u_ode, system, callback)
+
+        copy_values_v!(v, _v, system, system.particle_refinement, semi)
+        copy_values_u!(u, _u, system, system.particle_refinement, semi)
+    end
+
+    return callback
 end
 
 function refine_particles!(system_parent, particle_refinement::ParticleRefinement,
@@ -229,6 +284,24 @@ function bear_childs!(system_child, system_parent, particle_parent, particle_ref
     return system_child
 end
 
+@inline Base.resize!(system::System, ::Nothing) = system
+
+@inline function Base.resize!(system::System, particle_refinement::ParticleRefinement)
+    (; candidates, system_child) = particle_refinement
+
+    if !isempty(candidates)
+        n_new_child = length(candidates) * nchilds(system_parent, particle_refinement)
+        capacity_parent = nparticles(system_parent) - length(candidates)
+        capacity_child = nparticles(system_child) + n_new_child
+
+        # Resize child system (extending)
+        resize!(system_child, capacity_child)
+
+        # Resize parent system (reducing)
+        resize!(system_parent, capacity_parent)
+    end
+end
+
 function Base.resize!(system::WeaklyCompressibleSPHSystem, capacity)
     (; mass, pressure, cache, density_calculator) = system
 
@@ -240,8 +313,94 @@ end
 resize!(cache, capacity, ::SummationDensity) = resize!(cache.density, capacity)
 resize!(cache, capacity, ::ContinuityDensity) = cache
 
-function resize!(v_ode, u_ode, semi, system_parent, system_child,
-                 capacity_parent, capacity_child)
-    (; particle_refinement) = system_parent
+@inline function _wrap_u(_u_ode, system, callback)
+    (; ranges_u_cache) = callback
+
+    range = ranges_u_cache[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+
+    # This is a non-allocating version of:
+    # return unsafe_wrap(Array{eltype(_u_ode), 2}, pointer(view(_u_ode, range)),
+    #                    (u_nvariables(system), n_moving_particles(system)))
+    return PtrArray(pointer(view(_u_ode, range)),
+                    (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+end
+
+@inline function _wrap_v(_v_ode, system, callback)
+    (; ranges_v_cache) = callback
+
+    range = ranges_v_cache[system_indices(system, semi)][1]
+
+    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+
+    # This is a non-allocating version of:
+    # return unsafe_wrap(Array{eltype(_v_ode), 2}, pointer(view(_v_ode, range)),
+    #                    (v_nvariables(system), n_moving_particles(system)))
+    return PtrArray(pointer(view(_v_ode, range)),
+                    (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+# `v_new` >= `v_old`
+function copy_values_v!(v_new, v_old, system, ::Nothing, semi, callback)
+    (; each_particle_cache) = callback
+
+    for particle in each_particle_cache[system_indices(system, semi)]
+        for i in 1:v_nvariables(system)
+            v_new[i, particle] = v_old[i, particle]
+        end
+    end
+end
+
+# `v_new` <= `v_old`
+function copy_values_v!(v_new, v_old, system, particle_refinement::ParticleRefinement,
+                        semi, callback)
     (; candidates) = particle_refinement
+    (; eachparticle_cache) = callback
+
+    # Mark candidates
+    v_old[1, candidates] .= Inf
+
+    # Copy only non-refined particles
+    new_particle_id = 1
+    for particle in eachparticle_cache[system_indices(system, semi)]
+        if v_new[1, particle] < Inf
+            for i in 1:v_nvariables(system)
+                v_new[i, new_particle_id] = v_old[i, particle]
+            end
+            new_particle_id += 1
+        end
+    end
+end
+
+# `u_new` >= `u_old`
+function copy_values_u!(u_new, u_old, system, ::Nothing, semi, callback)
+    (; each_particle_cache) = callback
+
+    for particle in each_particle_cache[system_indices(system, semi)]
+        for i in 1:u_nuariables(system)
+            u_new[i, particle] = u_old[i, particle]
+        end
+    end
+end
+
+# `u_new` <= `u_old`
+function copy_values_u!(u_new, u_old, system, particle_refinement::ParticleRefinement,
+                        semi, callback)
+    (; candidates) = particle_refinement
+    (; eachparticle_cache) = callback
+
+    # Mark candidates
+    u_old[1, candidates] .= Inf
+
+    # Copy only non-refined particles
+    new_particle_id = 1
+    for particle in eachparticle_cache[system_indices(system, semi)]
+        if u_new[1, particle] < Inf
+            for i in 1:u_nuariables(system)
+                u_new[i, new_particle_id] = u_old[i, particle]
+            end
+            new_particle_id += 1
+        end
+    end
 end
