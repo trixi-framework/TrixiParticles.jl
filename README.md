@@ -23,6 +23,8 @@ Its features include:
   - VTK
 
 ## Examples
+We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).
+
 <table align="center" border="0">
   <tr>
   </tr>
