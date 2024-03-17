@@ -25,17 +25,23 @@
 ![Periodic Channel](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/f9a542bf-956b-4647-843b-94cbb085a4fa)
 
 
+## Fluid Structure Interaction
+
+### Dam Break with Elastic Plate (dam_break_plate_2d.jl)
+![Dam Break Plate](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258)
+
+### Falling Sphere 2D (falling_sphere_2d.jl)
+![Falling Sphere 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452)
+
+### Falling Spheres 2D (falling_spheres_2d.jl)
+![Falling Spheres 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452)
+
+### Moving Wall (moving_wall_2d.jl)
+![Moving Wall](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae)
+
+
 ## Structure Mechanics
 
 ### Oscillating Beam (oscillating_beam_2d.jl)
 ![Oscillating Beam](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074)
-
-## Fluid Structure Interaction
-
-### Moving Wall (moving_wall_2d.jl)
-![Moving Wall](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8)
-
-
-
-## Postprocessing
 
