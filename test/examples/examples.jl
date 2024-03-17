@@ -143,11 +143,11 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fsi/dam_break_2d_w_plate.jl" begin
+        @trixi_testset "fsi/dam_break_plate_2d.jl" begin
             # Use rounded dimensions to avoid warnings
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fsi",
-                                                    "dam_break_2d_w_plate.jl"),
+                                                    "dam_break_plate_2d.jl"),
                                            initial_fluid_size=(0.15, 0.29),
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
