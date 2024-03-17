@@ -1,47 +1,43 @@
 # Examples
 
-
 ## Fluid
 
 ### Accelerated Tank 2D (accelerated_tank_2d.jl)
-![Accelerated Tank 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/4c4c537a-8585-4456-9a1b-8b5adbf68533)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/4c4c537a-8585-4456-9a1b-8b5adbf68533" width="30%"/>
 
 ### Dam Break 2D (dam_break_2d.jl)
-![Dam Break 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" width="30%"/>
 
 ### Dam Break 3D (dam_break_3d.jl)
-![Dam Break 3D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/76a2b235-1b49-465f-a207-76859410b783)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/76a2b235-1b49-465f-a207-76859410b783" width="30%"/>
 
 ### Falling Water Column (falling_water_column_2d.jl)
-![Falling Water Column](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/06a522f0-424f-49d3-afd0-29593373aa29)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/06a522f0-424f-49d3-afd0-29593373aa29" width="30%"/>
 
 ### Hydrostatic Water Column (hydrostatic_water_column_*.jl)
-![Hydrostatic Water Column](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/8e7991f6-fd2f-429b-8eb8-61be983cbe2a)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/8e7991f6-fd2f-429b-8eb8-61be983cbe2a" width="30%"/>
 
 ### Oscillating Drop (oscillating_drop_2d.jl)
-![Oscillating Drop](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/1dfa9dcf-7fc1-4221-ad83-a54c5d9ab9fb)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/1dfa9dcf-7fc1-4221-ad83-a54c5d9ab9fb" width="30%"/>
 
 ### Periodic Channel (periodic_channel_2d.jl)
-![Periodic Channel](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/f9a542bf-956b-4647-843b-94cbb085a4fa)
-
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/f9a542bf-956b-4647-843b-94cbb085a4fa" width="30%"/>
 
 ## Fluid Structure Interaction
 
 ### Dam Break with Elastic Plate (dam_break_plate_2d.jl)
-![Dam Break Plate](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" width="30%"/>
 
 ### Falling Sphere 2D (falling_sphere_2d.jl)
-![Falling Sphere 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452" width="30%"/>
 
 ### Falling Spheres 2D (falling_spheres_2d.jl)
-![Falling Spheres 2D](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452)
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452" width="30%"/>
 
 ### Moving Wall (moving_wall_2d.jl)
-![Moving Wall](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae)
-
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae" width="30%"/>
 
 ## Structure Mechanics
 
 ### Oscillating Beam (oscillating_beam_2d.jl)
-![Oscillating Beam](https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074)
-
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" width="30%"/>
