@@ -83,7 +83,7 @@ If you installed TrixiParticles.jl this way, you always have to start Julia with
 julia --project=run
 ```
 from the TrixiParticles.jl root directory.
-Further details can be found in the [documentation](@ref installation).
+Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
 ## Usage
 
@@ -100,7 +100,7 @@ julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column
 This will open a new window with a 2D visualization of the final solution:
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0" width="400">
 
-Further details can be found in the [documentation](@ref getting_started).
+Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
 ## Documentation
 
