@@ -85,7 +85,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
   In: Astronomy and Computing 34 (2021).
   [doi: 10.1016/j.ascom.2020.100443](https://doi.org/10.1016/j.ascom.2020.100443)
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
-  "A threaded_nhs_update SPH Implementation on Multi-Core CPUs".
+  "A Parallel SPH Implementation on Multi-Core CPUs".
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
@@ -98,7 +98,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
     cell_size           :: NTuple{NDIMS, ELTYPE}
-    threaded_nhs_update            :: Bool
+    threaded_nhs_update :: Bool
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            periodic_box_min_corner=nothing,

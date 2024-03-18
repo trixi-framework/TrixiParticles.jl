@@ -138,7 +138,7 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
     search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
                                                    periodic_box_min_corner=periodic_box_min_corner,
                                                    periodic_box_max_corner=periodic_box_max_corner,
-                                                   parallel=threaded_nhs_update)
+                                                   threaded_nhs_update=threaded_nhs_update)
 
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
