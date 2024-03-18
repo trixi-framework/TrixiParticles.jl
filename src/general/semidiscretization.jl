@@ -65,9 +65,9 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
     # Other checks might be added here later.
     check_configuration(systems)
 
-    #systems = create_subsystems(systems)
+    systems = create_system_childs(systems)
 
-    ranges_u, ranges_v = ranges_uv(systems)
+    ranges_v, ranges_u = ranges_vu(systems)
 
     # Create (and initialize) a tuple of n neighborhood searches for each of the n systems
     # We will need one neighborhood search for each pair of systems.
@@ -81,7 +81,7 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
     return Semidiscretization(systems, ranges_u, ranges_v, searches)
 end
 
-function ranges_uv(systems)
+function ranges_vu(systems)
     sizes_u = [u_nvariables(system) * n_moving_particles(system)
                for system in systems]
     ranges_u = Tuple([(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])]
@@ -91,7 +91,7 @@ function ranges_uv(systems)
     ranges_v = Tuple([(sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])]
                      for i in eachindex(sizes_v))
 
-    return ranges_u, ranges_v
+    return ranges_v, ranges_u
 end
 
 # Inline show function e.g. Semidiscretization(neighborhood_search=...)

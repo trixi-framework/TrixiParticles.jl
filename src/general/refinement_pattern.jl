@@ -1,3 +1,5 @@
+abstract type RefinementCriteria{NDIMS, ELTYPE} end
+
 struct CubicSplitting{ELTYPE}
     epsilon :: ELTYPE
     alpha   :: ELTYPE
@@ -7,8 +9,9 @@ struct CubicSplitting{ELTYPE}
     end
 end
 
-function relative_positions(refinement_pattern::CubicSplitting, ::System{2},
-                            particle_spacing)
+function (refinement_pattern::CubicSplitting)(system::System{2})
+    (; initial_condition) = system
+    (; particle_spacing) = initial_condition
     (; epsilon) = refinement_pattern
 
     direction_1 = normalize([1.0, 1.0])
@@ -26,16 +29,68 @@ end
 
 # TODO: Clarify refinement pattern. Cubic splitting? Triangular or hexagonal?
 # See https://www.sciencedirect.com/science/article/pii/S0020740319317023
-@inline nchilds(system, refinement_pattern) = 2^ndims(system)
+@inline nchilds(system, rp::CubicSplitting) = 2^ndims(system)
 
-@inline smoothing_length_child(system, refinement_pattern) = system.smoothing_length
+@inline mass_child(system, mass, rp::CubicSplitting) = mass / nchilds(system, rp)
 
-@inline mass_child(system, refinement_pattern) = system.mass
+@inline smoothing_length_child(system, refinement_pattern) = refinement_pattern.alpha *
+                                                             system.smoothing_length
 
-@inline particle_spacing_child(system, refinement_pattern) = system.initial_condition.particle_spacing
+@inline particle_spacing_child(system, refinement_pattern) = system.initial_condition.particle_spacing *
+                                                             refinement_pattern.epsilon
 
 # ==== Refinement criteria
-struct RefinementZone end # TODO
+struct RefinementZone{NDIMS, ELTYPE} <: RefinementCriteria{NDIMS, ELTYPE}
+    zone_origin  :: SVector{NDIMS, ELTYPE}
+    spanning_set :: Vector{SVector}
+
+    function RefinementZone(plane_points, zone_width)
+        NDIMS = length(plane_points)
+        ELTYPE = typeof(zone_width)
+
+        # Vectors spanning the zone.
+        spanning_set = spanning_vectors(plane_points, zone_width)
+
+        spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+
+        zone_origin = SVector(plane_points[1]...)
+
+        return new{NDIMS, ELTYPE}(zone_origin, spanning_set_)
+    end
+end
+
+@inline Base.ndims(::RefinementCriteria{NDIMS}) where {NDIMS} = NDIMS
+@inline Base.eltype(::RefinementCriteria{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
+
+function spanning_vectors(plane_points, zone_width)
+
+    # Convert to tuple
+    return spanning_vectors(tuple(plane_points...), zone_width)
+end
+
+function spanning_vectors(plane_points::NTuple{2}, zone_width)
+    plane_size = plane_points[2] - plane_points[1]
+
+    # Calculate normal vector of plane
+    b = Vector(normalize([-plane_size[2]; plane_size[1]]) * zone_width)
+
+    return hcat(b, plane_size)
+end
+
+function spanning_vectors(plane_points::NTuple{3}, zone_width)
+    # Vectors spanning the plane
+    edge1 = plane_points[2] - plane_points[1]
+    edge2 = plane_points[3] - plane_points[1]
+
+    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
+        throw(ArgumentError("the provided points do not span a rectangular plane"))
+    end
+
+    # Calculate normal vector of plane
+    c = Vector(normalize(cross(edge2, edge1)) * zone_width)
+
+    return hcat(c, edge1, edge2)
+end
 
 @inline function (refinement_criterion::RefinementZone)(system, particle,
                                                         v, u, v_ode, u_ode, semi)
