@@ -32,10 +32,10 @@
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452" width="30%"/>
 
 ### Falling Spheres 2D (falling_spheres_2d.jl)
-<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/217c80b5-3472-41c9-8003-7163641dd452" width="30%"/>
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae" width="30%"/>
 
 ### Moving Wall (moving_wall_2d.jl)
-<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae" width="30%"/>
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" width="30%"/>
 
 ## Structure Mechanics
 
