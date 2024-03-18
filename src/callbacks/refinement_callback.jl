@@ -1,10 +1,9 @@
 mutable struct ParticleRefinementCallback{I}
     interval           :: I
-    n_candidates       :: Int
-    n_childs           :: Int
-    ranges_u_cache     :: NTuple
-    ranges_v_cache     :: NTuple
-    eachparticle_cache :: NTuple
+    ranges_u_cache     :: Tuple
+    ranges_v_cache     :: Tuple
+    nparticles_cache   :: Tuple
+    eachparticle_cache :: Tuple
 
     # internal `resize!`able storage
     _u_ode::Vector{Float64}
@@ -25,7 +24,7 @@ function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
         interval = 1
     end
 
-    refinement_callback = ParticleRefinementCallback(interval, 0, 0, (), (), (), [0.0], [0.0])
+    refinement_callback = ParticleRefinementCallback(interval, (), (), (), (), [0.0], [0.0])
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -102,7 +101,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         refinement_cb = cb.affect!
         setup = [
-            "interval" => refinement_cb.interval,
+            "interval" => refinement_cb.interval
         ]
         summary_box(io, "ParticleRefinementCallback", setup)
     end
@@ -118,7 +117,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         refinement_cb = cb.affect!.affect!
         setup = [
-            "dt" => refinement_cb.interval,
+            "dt" => refinement_cb.interval
         ]
         summary_box(io, "ParticleRefinementCallback", setup)
     end
