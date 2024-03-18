@@ -35,7 +35,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
 - `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in positive coordinate
                                 directions.
-- `parallel=true`:              Can be used to deactivate thread parallelization in the grid search.
+- `threaded_nhs_update=true`:              Can be used to deactivate thread parallelization in the grid search.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
 
@@ -86,7 +86,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
   In: Astronomy and Computing 34 (2021).
   [doi: 10.1016/j.ascom.2020.100443](https://doi.org/10.1016/j.ascom.2020.100443)
 - Markus Ihmsen, Nadir Akinci, Markus Becker, Matthias Teschner.
-  "A Parallel SPH Implementation on Multi-Core CPUs".
+  "A threaded_nhs_update SPH Implementation on Multi-Core CPUs".
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
@@ -99,12 +99,12 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
     cell_size           :: NTuple{NDIMS, ELTYPE}
-    parallel            :: Bool
+    threaded_nhs_update            :: Bool
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            periodic_box_min_corner=nothing,
                                            periodic_box_max_corner=nothing,
-                                           parallel=true) where {NDIMS}
+                                           threaded_nhs_update=true) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -143,7 +143,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         new{NDIMS, ELTYPE,
             typeof(periodic_box)}(hashtable, search_radius, empty_vector,
                                   cell_buffer, cell_buffer_indices,
-                                  periodic_box, n_cells, cell_size, parallel)
+                                  periodic_box, n_cells, cell_size, threaded_nhs_update)
     end
 end
 
@@ -199,14 +199,14 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    (; hashtable, cell_buffer, cell_buffer_indices, parallel) = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices, threaded_nhs_update) = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
 
     # Find all cells containing particles that now belong to another cell.
     # `collect` the keyset to be able to loop over it with `@threaded`.
-    mark_changed_cell!(neighborhood_search, hashtable, coords_fun, Val(parallel))
+    mark_changed_cell!(neighborhood_search, hashtable, coords_fun, Val(threaded_nhs_update))
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
@@ -250,14 +250,14 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 end
 
 @inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
-                                    parallel::Val{true})
+                                    threaded_nhs_update::Val{true})
     @threaded for cell in collect(keys(hashtable))
         mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end
 end
 
 @inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
-                                    parallel::Val{false})
+                                    threaded_nhs_update::Val{false})
     for cell in collect(keys(hashtable))
         mark_changed_cell!(neighborhood_search, cell, coords_fun)
     end
