@@ -43,4 +43,4 @@ To get started with development look at these pages:
 
 1. [Installation](@ref installation)
 2. [Development](@ref development)
-3. [Contributing](@ref contributing)
+3. [Contributing](@ref)
