@@ -79,3 +79,26 @@ include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
+
+# *Note* that these functions are intended to internally set the density for buffer particles
+# and density correction. It cannot be used to set up an initial condition,
+# as the particle density depends on the particle positions.
+
+@inline set_particle_density(particle, v, ::SummationDensity, system, density) = nothing
+
+@inline function set_particle_density(particle, v, ::ContinuityDensity,
+                                      system::WeaklyCompressibleSPHSystem, density)
+    v[end, particle] = density
+end
+
+@inline function set_particle_density(particle, v, ::ContinuityDensity,
+                                      system::EntropicallyDampedSPHSystem, density)
+    v[end - 1, particle] = density
+end
+
+@inline set_particle_pressure(particle, v, system, pressure) = nothing
+
+@inline function set_particle_pressure(particle, v, system::EntropicallyDampedSPHSystem,
+                                       pressure)
+    v[end, particle] = pressure
+end

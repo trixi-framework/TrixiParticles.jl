@@ -429,3 +429,17 @@ end
     #return Iterators.filter(i -> !(i in candidates), eachparticle(system))
     return setdiff(eachparticle(system), candidates)
 end
+
+@inline particle_pressure_parent(v, ::WeaklyCompressibleSPHSystem, particle) = 0.0
+@inline particle_pressure_parent(v, system::EntropicallyDampedSPHSystem, particle) = particle_pressure(v,
+                                                                                                       system,
+                                                                                                       particle)
+
+@inline particle_density_parent(v, system, particle) = particle_density_parent(v, system,
+                                                                               system.density_calculator,
+                                                                               particle)
+
+@inline particle_density_parent(v, system, ::SummationDensity, particle) = 0.0
+@inline particle_density_parent(v, system, ::ContinuityDensity, particle) = particle_density(v,
+                                                                                             system,
+                                                                                             particle)
