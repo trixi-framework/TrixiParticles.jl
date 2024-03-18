@@ -1,7 +1,6 @@
 @doc raw"""
-    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
-                                  periodic_box_min_corner=nothing,
-                                  periodic_box_max_corner=nothing)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles; periodic_box_min_corner=nothing,
+                                  periodic_box_max_corner=nothing, threaded_nhs_update=true)
 
 Simple grid-based neighborhood search with uniform search radius.
 The domain is divided into a regular grid.
@@ -35,7 +34,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
 - `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in positive coordinate
                                 directions.
-- `threaded_nhs_update=true`:              Can be used to deactivate thread parallelization in the grid search.
+- `threaded_nhs_update=true`:              Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
 
@@ -99,7 +98,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
     cell_size           :: NTuple{NDIMS, ELTYPE}
-    threaded_nhs_update            :: Bool
+    threaded_nhs_update :: Bool
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            periodic_box_min_corner=nothing,

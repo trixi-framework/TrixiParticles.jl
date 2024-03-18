@@ -1,6 +1,7 @@
 """
     Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
-                       periodic_box_min_corner=nothing, periodic_box_max_corner=nothing)
+                       periodic_box_min_corner=nothing, periodic_box_max_corner=nothing,
+                       threaded_nhs_update=true)
 
 The semidiscretization couples the passed systems to one simulation.
 
@@ -21,7 +22,7 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 - `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in positive coordinate
                                 directions.
-- `threaded_grid_search=true`:  Can be used to deactivate thread parallelization in the grid search.
+- `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
 
@@ -61,7 +62,7 @@ end
 
 function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                             periodic_box_min_corner=nothing,
-                            periodic_box_max_corner=nothing, threaded_grid_search=true)
+                            periodic_box_max_corner=nothing, threaded_nhs_update=true)
     systems = filter(system -> !isnothing(system), systems)
 
     # Check e.g. that the boundary systems are using a state equation if EDAC is not used.
@@ -83,7 +84,7 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
                                                       Val(neighborhood_search),
                                                       periodic_box_min_corner,
                                                       periodic_box_max_corner,
-                                                      threaded_grid_search)
+                                                      threaded_nhs_update)
                            for neighbor in systems)
                      for system in systems)
 
@@ -123,7 +124,7 @@ end
 function create_neighborhood_search(system, neighbor,
                                     ::Union{Val{nothing}, Val{TrivialNeighborhoodSearch}},
                                     periodic_box_min_corner, periodic_box_max_corner,
-                                    threaded_grid_search)
+                                    threaded_nhs_update)
     radius = compact_support(system, neighbor)
     TrivialNeighborhoodSearch{ndims(system)}(radius, eachparticle(neighbor),
                                              periodic_box_min_corner=periodic_box_min_corner,
@@ -132,13 +133,12 @@ end
 
 function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSearch},
                                     periodic_box_min_corner, periodic_box_max_corner,
-                                    threaded_grid_search)
+                                    threaded_nhs_update)
     radius = compact_support(system, neighbor)
     search = GridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
                                                    periodic_box_min_corner=periodic_box_min_corner,
                                                    periodic_box_max_corner=periodic_box_max_corner,
-                                                   parallel=threaded_grid_search)
-
+                                                   threaded_nhs_update=threaded_nhs_update)
     # Initialize neighborhood search
     initialize!(search, initial_coordinates(neighbor))
 
