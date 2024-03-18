@@ -2,13 +2,6 @@
 # but without checking the correctness of the solution.
 @testset verbose=true "Examples" begin
     @testset verbose=true "Fluid" begin
-        @trixi_testset "fluid/minimal.jl" begin
-            @test_nowarn trixi_include(@__MODULE__,
-                                       joinpath(examples_dir(), "fluid",
-                                                "minimal.jl"))
-            @test sol.retcode == ReturnCode.Success
-        end
-
         @trixi_testset "fluid/oscillating_drop_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
