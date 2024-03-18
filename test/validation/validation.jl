@@ -28,6 +28,8 @@
             r"WARNING: Method definition interpolated_mse.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
             r"WARNING: Method definition extract_resolution_from_filename.*\n",
+            r"WARNING: importing deprecated binding Makie.*\n",
+            r"WARNING: Makie.* is deprecated.*\n",
         ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
