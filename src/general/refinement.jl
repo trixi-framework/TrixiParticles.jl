@@ -58,10 +58,15 @@ end
 function create_system_childs(systems)
     systems_ = ()
     foreach_system(systems) do system
-        systems_ = (systems_..., create_system_child(system, system.particle_refinement)...)
+        systems_ = (systems_..., create_system_child(system)...)
     end
 
     return (systems..., systems_...)
+end
+
+create_system_child(system) = ()
+function create_system_child(system::FluidSystem)
+    create_system_child(system, system.particle_refinement)
 end
 
 create_system_child(system, ::Nothing) = ()
@@ -107,7 +112,7 @@ function create_system_child(system::WeaklyCompressibleSPHSystem,
                                                particle_refinement=particle_refinement_)
 
     # Empty mass vector leads to `nparticles(system_child) = 0`
-    Base.resize!(system_child.mass, 0)
+    resize!(system_child.mass, 0)
 
     particle_refinement.system_child = system_child
 
@@ -164,15 +169,15 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
     callback.nparticles_cache = Tuple(n_moving_particles(system) for system in semi.systems)
 
     # Resize internal storage
-    Base.resize!(_v_ode, length(v_ode))
-    Base.resize!(_u_ode, length(u_ode))
+    resize!(_v_ode, length(v_ode))
+    resize!(_u_ode, length(u_ode))
 
     _v_ode .= v_ode
     _u_ode .= u_ode
 
     # Resize all systems
     foreach_system(semi) do system
-        resize_system!(system, system.particle_refinement)
+        resize_system!(system)
     end
 
     # Set `resize!`d ranges
@@ -182,12 +187,12 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
         semi.ranges_u[i][1] = ranges_u_tmp[i][1]
     end
 
-    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in semi.systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in semi.systems)
+    sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in semi.systems)
 
     # Resize integrated values
-    Base.resize!(v_ode, sum(sizes_v))
-    Base.resize!(u_ode, sum(sizes_u))
+    resize!(v_ode, sum(sizes_v))
+    resize!(u_ode, sum(sizes_u))
 
     # Preserve non-changing values
     foreach_system(semi) do system
@@ -207,8 +212,14 @@ function refine_particles!(callback, semi, v_ode, u_ode)
 
     # Refine particles in all systems
     foreach_system(semi) do system
-        refine_particles!(system, system.particle_refinement, v_ode, u_ode, callback, semi)
+        refine_particles!(system, v_ode, u_ode, callback, semi)
     end
+end
+
+refine_particles!(system, v_ode, u_ode, callback, semi) = system
+
+function refine_particles!(system::FluidSystem, v_ode, u_ode, callback, semi)
+    refine_particles!(system, system.particle_refinement, v_ode, u_ode, callback, semi)
 end
 
 refine_particles!(system, ::Nothing, v_ode, u_ode, callback, semi) = system
@@ -313,9 +324,14 @@ function bear_childs!(system_child, system_parent, particle_parent, particle_ref
     return system_child
 end
 
-@inline resize_system!(system::System, ::Nothing) = system
+@inline resize_system!(system) = system
+@inline resize_system!(system::FluidSystem) = resize_system!(system,
+                                                             system.particle_refinement)
 
-@inline function resize_system!(system::System, particle_refinement::ParticleRefinement)
+@inline resize_system!(system::FluidSystem, ::Nothing) = system
+
+@inline function resize_system!(system::FluidSystem,
+                                particle_refinement::ParticleRefinement)
     (; candidates, system_child) = particle_refinement
 
     if !isempty(candidates)
@@ -334,13 +350,13 @@ end
 function resize_system!(system::FluidSystem, capacity::Int)
     (; mass, pressure, cache, density_calculator) = system
 
-    Base.resize!(mass, capacity)
-    Base.resize!(pressure, capacity)
-    resize!(cache, capacity, density_calculator)
+    resize!(mass, capacity)
+    resize!(pressure, capacity)
+    resize_cache!(cache, capacity, density_calculator)
 end
 
-resize!(cache, capacity::Int, ::SummationDensity) = Base.resize!(cache.density, capacity)
-resize!(cache, capacity::Int, ::ContinuityDensity) = cache
+resize_cache!(cache, capacity::Int, ::SummationDensity) = resize!(cache.density, capacity)
+resize_cache!(cache, capacity::Int, ::ContinuityDensity) = cache
 
 @inline function _wrap_u(_u_ode, system, semi, callback)
     (; ranges_u_cache, nparticles_cache) = callback
@@ -397,8 +413,8 @@ function copy_values_u!(u_new, u_old, system, semi, callback)
         new_particle_id += 1
     end
 end
-
-@inline get_iterator(system) = get_iterator(system, system.particle_refinement)
+@inline get_iterator(system) = eachparticle(system)
+@inline get_iterator(system::FluidSystem) = get_iterator(system, system.particle_refinement)
 
 @inline get_iterator(system, ::Nothing) = eachparticle(system)
 

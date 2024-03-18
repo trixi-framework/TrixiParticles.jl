@@ -268,6 +268,24 @@ function write_v0!(v0,
     return v0
 end
 
+copy_values_v!(v_new, v_old, system::BoundarySPHSystem, semi, callback) = v_new
+copy_values_u!(u_new, u_old, system::BoundarySPHSystem, semi, callback) = u_new
+
+function copy_values_v!(v_new, v_old,
+                        system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
+                        semi, callback)
+    (; eachparticle_cache) = callback
+
+    # Copy only non-refined particles
+    new_particle_id = 1
+    for particle in eachparticle_cache[system_indices(system, semi)]
+        for i in 1:v_nvariables(system)
+            v_new[i, new_particle_id] = v_old[i, particle]
+        end
+        new_particle_id += 1
+    end
+end
+
 function restart_with!(system::BoundarySPHSystem, v, u)
     return system
 end
