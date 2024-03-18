@@ -1,9 +1,8 @@
 @doc raw"""
     SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                           save_initial_solution=true,
-                           save_final_solution=true,
-                           output_directory="out", append_timestamp=false, max_coordinates=2^15,
-                           custom_quantities...)
+                           save_initial_solution=true, save_final_solution=true,
+                           output_directory="out", append_timestamp=false,
+                           max_coordinates=2^15, custom_quantities...)
 
 Callback to save the current numerical solution in VTK format in regular intervals.
 Either pass `interval` to save every `interval` time steps,
@@ -28,33 +27,34 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `custom_quantities...`:       Additional user-defined quantities.
 - `write_meta_data`:            Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
-- `max_coordinates=2^15`        The coordinates of particles will be clipped if their absolute values exceed this threshold.
+- `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
+                                absolute values exceed this threshold.
+- `custom_quantities...`:   Additional custom quantities to include in the VTK output.
+                            Each custom quantity must be a function of `(v, u, t, system)`,
+                            which will be called for every system, where `v` and `u` are the
+                            wrapped solution arrays for the corresponding system and `t` is
+                            the current simulation time. Note that working with these `v`
+                            and `u` arrays requires undocumented internal functions of
+                            TrixiParticles. See [Custom Quantities](@ref custom_quantities)
+                            for a list of pre-defined custom quantities that can be used here.
 
 # Examples
 ```jldoctest; output = false, filter = [r"output directory:.*", r"\s+│"]
-# Save every 100 time steps.
+# Save every 100 time steps
 saving_callback = SolutionSavingCallback(interval=100)
 
-# Save in intervals of 0.1 in terms of simulation time.
+# Save in intervals of 0.1 in terms of simulation time
 saving_callback = SolutionSavingCallback(dt=0.1)
 
-# Additionally store the norm of the particle velocity for fluid systems as "v_mag".
-using LinearAlgebra
-function v_mag(v, u, t, system)
-    # Ignore for other systems.
-    return nothing
-end
-function v_mag(v, u, t, system::WeaklyCompressibleSPHSystem)
-    return [norm(v[1:ndims(system), i]) for i in axes(v, 2)]
-end
-saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
+# Additionally store the kinetic energy of each system as "my_custom_quantity"
+saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_energy)
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
 │ SolutionSavingCallback                                                                           │
 │ ══════════════════════                                                                           │
 │ dt: ……………………………………………………………………… 0.1                                                              │
-│ custom quantities: ……………………………… [:v_mag => v_mag]                                                │
+│ custom quantities: ……………………………… [:my_custom_quantity => TrixiParticles.kinetic_energy]           │
 │ save initial solution: …………………… yes                                                              │
 │ save final solution: ………………………… yes                                                              │
 │ output directory: ………………………………… *path ignored with filter regex above*                           │
@@ -62,7 +62,7 @@ saving_callback = SolutionSavingCallback(dt=0.1, v_mag=v_mag)
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct SolutionSavingCallback{I, CQ}
+mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
     save_initial_solution :: Bool
     save_final_solution   :: Bool
@@ -72,7 +72,7 @@ struct SolutionSavingCallback{I, CQ}
     prefix                :: String
     max_coordinates       :: Float64
     custom_quantities     :: CQ
-    latest_saved_iter     :: Vector{Int}
+    latest_saved_iter     :: Int
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -97,7 +97,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               [-1])
+                                               -1)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -121,6 +121,9 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    # Reset `latest_saved_iter`
+    solution_callback.latest_saved_iter = -1
+
     # Save initial solution
     if solution_callback.save_initial_solution
         # Update systems to compute quantities like density and pressure.
@@ -152,7 +155,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
-    if iter == latest_saved_iter[1]
+    if iter == latest_saved_iter
         # This should only happen at the end of the simulation when using `dt` and the
         # final time is not a multiple of the saving interval.
         @assert isfinished(integrator)
@@ -161,7 +164,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         iter += 1
     end
 
-    latest_saved_iter[1] = iter
+    latest_saved_iter = iter
 
     if verbose
         println("Writing solution to $output_directory at t = $(integrator.t)")
