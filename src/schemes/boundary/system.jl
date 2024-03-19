@@ -46,7 +46,7 @@ System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
 """
-struct BoundaryDEMSystem{BM, NDIMS, ELTYPE <: Real} <: System{NDIMS}
+struct BoundaryDEMSystem{BM, NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
     boundary_model :: BM
 
@@ -303,7 +303,7 @@ function write_u0!(u0, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
 end
 
 function write_v0!(v0,
-                   system::Union{BoundarySPHSystem{<:BoundaryModelMonaghanKajtar},
+                   system::Union{BoundarySPHSystem,
                                  BoundaryDEMSystem})
     return v0
 end

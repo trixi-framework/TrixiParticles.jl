@@ -71,8 +71,8 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                  create_cache_model(correction, initial_density, NDIMS,
                                     n_particles)..., cache...)
 
-        new{ELTYPE, typeof(state_equation),
-        typeof(density_calculator), typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
+        new{typeof(density_calculator), ELTYPE, typeof(state_equation),
+        typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
         typeof(cache)}(pressure, hydrodynamic_mass, radius, state_equation,
                         density_calculator,
                         smoothing_kernel, smoothing_length, smoothing_factor, viscosity, correction,
@@ -88,10 +88,10 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
 
         smoothing_length = 2 * maximum(radius)
 
-        new{ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass, radius,
+        new{Nothing, ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass, radius,
                                                                  nothing, nothing, nothing,
                                                                  smoothing_length, 1.0,
-                                                                 nothing, nothing)
+                                                                 nothing, nothing, nothing)
     end
 end
 
