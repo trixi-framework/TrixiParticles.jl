@@ -212,7 +212,7 @@
                                                     "interpolation_plane.jl"),
                                            tspan=(0.0, 0.01)) [
                 r"WARNING: importing deprecated binding Makie.*\n",
-                r"WARNING: importing deprecated binding Colors.*\n",
+                r"WARNING: using deprecated binding Colors.*\n",
                 r"WARNING: Makie.* is deprecated.*\n",
                 r"  likely near none:1\n",
                 r", use .* instead.\n",
