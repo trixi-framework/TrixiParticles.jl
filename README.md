@@ -117,7 +117,8 @@ with the help of TrixiParticles.jl, please cite it as
 ```bibtex
 @misc{trixiparticles,
   title={{T}rixi{P}articles.jl: {P}article-based multiphysics simulations in {J}ulia},
-  author={Erik Faulhaber, Niklas Neher, Sven Berger, Michael Schlottke-Lakemper, Gregor Gassner},
+  author={Erik Faulhaber, Niklas Neher, Sven Berger,
+          Michael Schlottke-Lakemper, Gregor Gassner},
   year={2024},
   howpublished={\url{https://github.com/trixi-framework/TrixiParticles.jl}},
   doi={10.5281/zenodo.10797541}
