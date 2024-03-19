@@ -210,7 +210,12 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "postprocessing",
                                                     "interpolation_plane.jl"),
-                                           tspan=(0.0, 0.01))
+                                           tspan=(0.0, 0.01)) [
+                r"WARNING: importing deprecated binding Makie.*\n",
+                r"WARNING: Makie.* is deprecated.*\n",
+                r"  likely near none:1\n",
+                r", use .* instead.\n",
+            ]
             @test sol.retcode == ReturnCode.Success
         end
         @trixi_testset "postprocessing/interpolation_point_line.jl" begin
