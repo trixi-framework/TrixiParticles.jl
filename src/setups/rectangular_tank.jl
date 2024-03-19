@@ -1,8 +1,11 @@
 @doc raw"""
     RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
-                    n_layers=1, spacing_ratio=1.0,
-                    init_velocity=zeros(length(fluid_size)),
+                    velocity=zeros(length(fluid_size)), fluid_mass=nothing,
+                    pressure=0.0,
+                    acceleration=nothing, state_equation=nothing,
                     boundary_density=fluid_density,
+                    n_layers=1, spacing_ratio=1.0,
+                    min_coordinates=zeros(length(fluid_size)),
                     faces=Tuple(trues(2 * length(fluid_size))))
 
 Rectangular tank filled with a fluid to set up dam-break-style simulations.
@@ -11,15 +14,38 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `particle_spacing`:   Spacing between the fluid particles.
 - `fluid_size`:         The dimensions of the fluid as `(x, y)` (or `(x, y, z)` in 3D).
 - `tank_size`:          The dimensions of the tank as `(x, y)` (or `(x, y, z)` in 3D).
-- `fluid_density`:      The rest density of the fluid.
+- `fluid_density`:      The rest density of the fluid. Will only be used as default for
+                        `boundary_density` when using a state equation.
 
 # Keywords
+- `velocity`:       Either a function mapping each particle's coordinates to its velocity,
+                    or, for a constant fluid velocity, a vector holding this velocity.
+                    Velocity is constant zero by default.
+- `fluid_mass`:     Either `nothing` (default) to automatically compute particle mass from particle
+                    density and spacing, or a function mapping each particle's coordinates to its mass,
+                    or a scalar for a constant mass over all particles.
+- `pressure`:       Scalar to set the pressure of all particles to this value.
+                    This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
+                    will be overwritten when using an initial pressure function in the system.
+                    Cannot be used together with hydrostatic pressure gradient.
+- `acceleration`:   In order to initialize particles with a hydrostatic pressure gradient,
+                    an acceleration vector can be passed. Note that only accelerations
+                    in one coordinate direction and no diagonal accelerations are supported.
+                    This will only change the pressure of the particles. When using the
+                    [`WeaklyCompressibleSPHSystem`](@ref), pass a `state_equation` as well
+                    to initialize the particles with the corresponding density and mass.
+                    When using the [`EntropicallyDampedSPHSystem`](@ref), the pressure
+                    will be overwritten when using an initial pressure function in the system.
+                    This cannot be used together with the `pressure` keyword argument.
+- `state_equation`: When calculating a hydrostatic pressure gradient by setting `acceleration`,
+                    the `state_equation` will be used to set the corresponding density.
+                    Cannot be used together with `density`.
+- `boundary_density`:   Density of each boundary particle (by default set to the fluid density)
 - `n_layers`:           Number of boundary layers.
 - `spacing_ratio`:      Ratio of `particle_spacing` to boundary particle spacing.
                         A value of 2 means that the boundary particle spacing will be
                         half the fluid particle spacing.
-- `init_velocity`:      The initial velocity of each fluid particle as `(x, y)` (or `(x, y, z)` in 3D).
-- `boundary_density`:   Density of each boundary particle (by default set to the rest density)
+- `min_coordinates`:    Coordinates of the corner in negative coordinate directions.
 - `faces`:              By default all faces are generated. Set faces by passing a
                         bit-array of length 4 (2D) or 6 (3D) to generate the faces in the
                         normal direction: -x,+x,-y,+y,-z,+z.
@@ -31,17 +57,26 @@ Rectangular tank filled with a fluid to set up dam-break-style simulations.
 - `tank_size::Tuple`:           Tuple containing the size of the tank in each dimension after rounding.
 
 # Examples
-2D:
-```julia
+```jldoctest; output = false, filter = r"RectangularTank.*", setup = :(particle_spacing = 0.1; water_width = water_depth = container_width = container_height = container_depth = 1.0; water_height = 0.5; fluid_density = 1000.0)
+# 2D
 setup = RectangularTank(particle_spacing, (water_width, water_height),
-                        (container_width, container_height), particle_density,
+                        (container_width, container_height), fluid_density,
                         n_layers=2, spacing_ratio=3)
-```
 
-3D:
-```julia
+# 2D with hydrostatic pressure gradient.
+# `state_equation` has to be the same as for the WCSPH system.
+state_equation = StateEquationCole(sound_speed=10.0, exponent=1, reference_density=1000.0)
+setup = RectangularTank(particle_spacing, (water_width, water_height),
+                        (container_width, container_height), fluid_density,
+                        acceleration=(0.0, -9.81), state_equation=state_equation)
+
+# 3D
 setup = RectangularTank(particle_spacing, (water_width, water_height, water_depth),
-                        (container_width, container_height, container_depth), particle_density, n_layers=2)
+                        (container_width, container_height, container_depth), fluid_density,
+                        n_layers=2)
+
+# output
+RectangularTank{3, 6, Float64}(...) *the rest of this line is ignored by filter*
 ```
 
 See also: [`reset_wall!`](@ref).
@@ -58,11 +93,13 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
     n_layers                  :: Int
     n_particles_per_dimension :: NTuple{NDIMS, Int}
 
-    function RectangularTank(particle_spacing, fluid_size, tank_size,
-                             fluid_density; pressure=0.0,
-                             n_layers=1, spacing_ratio=1.0,
-                             init_velocity=zeros(length(fluid_size)),
+    function RectangularTank(particle_spacing, fluid_size, tank_size, fluid_density;
+                             velocity=zeros(length(fluid_size)), fluid_mass=nothing,
+                             pressure=0.0,
+                             acceleration=nothing, state_equation=nothing,
                              boundary_density=fluid_density,
+                             n_layers=1, spacing_ratio=1.0,
+                             min_coordinates=zeros(length(fluid_size)),
                              faces=Tuple(trues(2 * length(fluid_size))))
         NDIMS = length(fluid_size)
         ELTYPE = eltype(particle_spacing)
@@ -112,13 +149,26 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               particle_spacing,
                                                               n_particles_per_dim)
 
-        fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS),
-                                 fluid_density, init_velocity=init_velocity,
-                                 pressure=pressure)
+        if state_equation !== nothing
+            # Use hydrostatic pressure gradient and calculate density from inverse state
+            # equation, so don't pass fluid density.
+            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
+                                     velocity, pressure, acceleration, state_equation,
+                                     mass=fluid_mass)
+        else
+            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
+                                     density=fluid_density, velocity, pressure,
+                                     acceleration, state_equation, mass=fluid_mass)
+        end
 
-        boundary = InitialCondition(boundary_coordinates, boundary_velocities,
-                                    boundary_masses, boundary_densities,
+        boundary = InitialCondition(coordinates=boundary_coordinates,
+                                    velocity=boundary_velocities,
+                                    mass=boundary_masses, density=boundary_densities,
                                     particle_spacing=boundary_spacing)
+
+        # Move the tank corner in the negative coordinate directions to the desired position
+        fluid.coordinates .+= min_coordinates
+        boundary.coordinates .+= min_coordinates
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
@@ -153,7 +203,7 @@ function fluid_particles_per_dimension(size::NTuple{3}, particle_spacing)
                                                   "fluid length in x-direction")
     n_particles_y, new_y_size = round_n_particles(size[2], particle_spacing,
                                                   "fluid length in y-direction")
-    n_particles_z, new_z_size = round_n_particles(size[2], particle_spacing,
+    n_particles_z, new_z_size = round_n_particles(size[3], particle_spacing,
                                                   "fluid length in z-direction")
 
     return (n_particles_x, n_particles_y, n_particles_z),
@@ -264,7 +314,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     if faces[1]
         left_boundary = rectangular_shape_coords(particle_spacing,
                                                  (n_layers, n_particles_y),
-                                                 (layer_offset, 0.0))
+                                                 (layer_offset, 0.0),
+                                                 loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, left_boundary)
@@ -281,7 +332,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     if faces[2]
         right_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y),
-                                                  (tank_size[1], 0.0))
+                                                  (tank_size[1], 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, right_boundary)
@@ -393,7 +445,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     if faces[1]
         x_neg_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
-                                                  (layer_offset, 0.0, 0.0))
+                                                  (layer_offset, 0.0, 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_neg_boundary)
@@ -410,7 +463,8 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     if faces[2]
         x_pos_boundary = rectangular_shape_coords(particle_spacing,
                                                   (n_layers, n_particles_y, n_particles_z),
-                                                  (tank_size[1], 0.0, 0.0))
+                                                  (tank_size[1], 0.0, 0.0),
+                                                  loop_order=:x_first)
 
         # store coordinates of left boundary
         boundary_coordinates = hcat(boundary_coordinates, x_pos_boundary)

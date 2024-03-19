@@ -1,118 +1,24 @@
-# TrixiParticles.jl API
+# TrixiParticles.jl
 
-## Callbacks
+TrixiParticles.jl is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in Julia. A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing. Its features include:
 
-```@autodocs
-Modules = [TrixiParticles]
-Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
-```
+## Features
+- Incompressible Navier-Stokes
+  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
+- Solid-body mechanics
+  - Methods: Total Lagrangian SPH (TLSPH)
+- Fluid-Structure Interaction
+- Output formats:
+  - VTK
 
-## General
+## Examples
 
-### File density_calculators.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "density_calculators.jl")]
-```
 
-### File initial_condition.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "initial_condition.jl")]
-```
+## Quickstart
+1. [Installation](@ref installation)
+2. [Getting started](@ref getting_started)
 
-### File semidiscretization.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "semidiscretization.jl")]
-```
 
-### File smoothing_kernels.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("general", "smoothing_kernels.jl")]
-```
-
-## Neighborhood Search
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = map(file -> joinpath("neighborhood_search", file), readdir(joinpath("..", "src", "neighborhood_search")))
-```
-
-## Schemes
-
-### Boundary
-
-#### File system.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = map(file -> joinpath("boundary", file), readdir(joinpath("..", "src", "schemes", "boundary")))
-```
-
-#### File dummy_particles.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "dummy_particles", "dummy_particles.jl")]
-```
-#### File monaghan_kajtar.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
-```
-
-### Weakly Compressible SPH
-
-#### File system.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
-```
-
-#### File state_equations.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
-```
-
-#### File viscosity.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "viscosity.jl")]
-```
-
-### Entropically Damped Artificial Compressibility for SPH
-
-#### File system.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "fluid", "entropically_damped_sph", "system.jl")]
-```
-
-### Total Lagrangian SPH
-
-#### File system.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
-```
-
-#### File penalty_force.jl
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
-```
-
-## Setups
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = map(file -> joinpath("setups", file), readdir(joinpath("..", "src", "setups")))
-```
-
-## Util
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = ["util.jl"]
-```
+## Start with development
+1. [Installation](@ref installation)
+2. [Contributing](@ref)

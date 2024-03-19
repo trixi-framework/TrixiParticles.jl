@@ -18,10 +18,6 @@ TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
 @inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
 
-@inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
-    return dv
-end
-
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
 
@@ -53,11 +49,8 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   neighbor_system::NBodySystem)
     (; mass, G) = neighbor_system
 
-    system_coords = TrixiParticles.current_coordinates(u_particle_system,
-                                                       particle_system)
-
-    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system,
-                                                         neighbor_system)
+    system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     TrixiParticles.for_particle_neighbor(particle_system, neighbor_system,
@@ -87,8 +80,8 @@ function energy(v_ode, u_ode, system, semi)
 
     e = zero(eltype(system))
 
-    v = TrixiParticles.wrap_v(v_ode, 1, system, semi)
-    u = TrixiParticles.wrap_u(u_ode, 1, system, semi)
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
 
     for particle in TrixiParticles.eachparticle(system)
         e += 0.5 * mass[particle] *

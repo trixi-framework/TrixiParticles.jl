@@ -12,9 +12,10 @@ on:
       - 'NEWS.md'
       - 'README.md'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
       - 'docs/**'
   pull_request:
-      paths-ignore:
+    paths-ignore:
       - 'AUTHORS.md'
       - 'CITATION.bib'
       - 'CONTRIBUTING.md'
@@ -22,8 +23,10 @@ on:
       - 'NEWS.md'
       - 'README.md'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
       - 'docs/**'
   workflow_dispatch:
+
 
 # Cancel redundant CI tests automatically
 concurrency:
@@ -32,7 +35,27 @@ concurrency:
 
 jobs:
   build:
+    name: Run Tests (Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }})
     runs-on: ubuntu-latest
+    strategy:
+      # Don't cancel all running jobs when one job fails
+      fail-fast: false
+      matrix:
+        version:
+          - '1.9'
+          - '1'
+        os:
+          - ubuntu-latest
+        arch:
+          - x64
+        include:
+          # Also run tests on Windows and macOS-ARM, but only with the latest Julia version
+          - version: '1'
+            os: windows-latest
+            arch: x64
+          - version: '1'
+            os: macos-14
+            arch: arm64
 
     steps:
       - name: Check out project
@@ -40,36 +63,34 @@ jobs:
       - name: Set up Julia
         uses: julia-actions/setup-julia@v1
         with:
-          version: '1'
-      - name: Apply JuliaFormatter and check format
-        run: |
-          julia -e 'using Pkg; Pkg.add("JuliaFormatter")'
-          julia -e 'using JuliaFormatter; !format(".", verbose=true) &&
-            error("Code not properly formatted")'
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@v1
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Run unit tests
         uses: julia-actions/julia-runtest@v1
         with:
           annotate: true
-          coverage: true
+          # Only run coverage in one Job (Ubuntu and latest Julia version)
+          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         env:
           TRIXIPARTICLES_TEST: unit
       - name: Process coverage results
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
         uses: julia-actions/julia-processcoverage@v1
         with:
-          directories: src,test,examples
+          directories: src,test
       - name: Upload coverage report to Codecov
-        uses: codecov/codecov-action@v3
+        # Only run coverage in one Job (Ubuntu and latest Julia version)
+        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        uses: codecov/codecov-action@v4
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
           fail_ci_if_error: true
           flags: unit
-      - name: Compile docs
-        run: |
-          julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-          julia --project=docs --color=yes docs/make.jl
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
       - name: Run example tests
         uses: julia-actions/julia-runtest@v1
         with:

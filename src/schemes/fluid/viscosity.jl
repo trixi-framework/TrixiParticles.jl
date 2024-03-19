@@ -1,13 +1,44 @@
-struct NoViscosity end
 
-@inline function (::NoViscosity)(particle_system, neighbor_system, v_particle_system,
-                                 v_neighbor_system, particle, neighbor, pos_diff, distance,
-                                 sound_speed, m_a, m_b, rho_mean)
+function dv_viscosity(particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    viscosity = viscosity_model(neighbor_system)
+
+    return dv_viscosity(viscosity, particle_system, neighbor_system,
+                        v_particle_system, v_neighbor_system,
+                        particle, neighbor, pos_diff, distance,
+                        sound_speed, m_a, m_b, rho_mean)
+end
+
+function dv_viscosity(viscosity, particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    return viscosity(particle_system, neighbor_system,
+                     v_particle_system, v_neighbor_system,
+                     particle, neighbor, pos_diff, distance,
+                     sound_speed, m_a, m_b, rho_mean)
+end
+
+function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
     return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
 end
 
 @doc raw"""
-    ArtificialViscosityMonaghan(alpha, beta, epsilon=0.01)
+    ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
+
+# Keywords
+- `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
+           kinematic viscosity, see description below.
+- `beta`: A value of `0.0` works well for simulations with shocks of moderate strength.
+          In simulations where the Mach number can be very high, eg. astrophysical calculation,
+          good results can be obtained by choosing a value of `beta=2` and `alpha=1`.
+- `epsilon=0.01`: Parameter to prevent singularities.
+
 
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
@@ -26,20 +57,14 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 ``v_{ab} = v_a - v_b`` is the difference of their velocities,
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
-TODO: Check the following statement, since in Monaghan 2005 p. 1741 (10.1088/0034-4885/68/8/r01) this was meant for "interstellar cloud collisions"
-The choice of the parameters ``\alpha`` and ``\beta`` is not critical, but their values should usually be near
-``\alpha = 1, \beta = 2`` (Monaghan 1992, p. 551).
-The parameter ``\epsilon`` prevents singularities and is usually chosen as ``\epsilon = 0.01``.
-
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
 To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
-\nu = \frac{\alpha h c }{\rho_{ab}}.
+    \nu = \frac{\alpha h c }{2d + 4},
 ```
+where ``d`` is the dimension.
 
-TODO: Check the following statement: [`ArtificialViscosityMonaghan`](@ref) is only applicable for the [`BoundaryModelMonaghanKajtar`](@ref),
-
-## References:
+## References
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
   In: Annual Review of Astronomy and Astrophysics 30.1 (1992), pages 543-574.
   [doi: 10.1146/ANNUREV.AA.30.090192.002551](https://doi.org/10.1146/ANNUREV.AA.30.090192.002551)
@@ -55,7 +80,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(alpha, beta; epsilon=0.01)
+    function ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -100,8 +125,21 @@ end
     return 0.0
 end
 
+# See, e.g.,
+# M. Antuono, A. Colagrossi, S. Marrone.
+# "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
+# In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
+# https://doi.org/10.1016/j.cpc.2012.07.006
+function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
+    (; smoothing_length) = system
+    (; alpha) = viscosity
+    sound_speed = system_sound_speed(system)
+
+    return alpha * smoothing_length * sound_speed / (2 * ndims(system) + 4)
+end
+
 @doc raw"""
-    ViscosityAdami(nu)
+    ViscosityAdami(; nu, epsilon=0.01)
 
 Viscosity by Adami (Adami et al. 2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
@@ -117,23 +155,11 @@ The inter-particle-averaged shear stress  is
 ```
 where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
 
-For the interaction of dummy particles (see [`BoundaryModelDummyParticles`](@ref)) and fluid particles,
-Adami (Adami et al. 2012) imposes a no-slip boundary condition by assigning a wall velocity ``v_w``
-to the boundary particle.
-
-The wall velocity of particle ``a`` is calculated from the prescribed boundary particle velocity ``v_a`` and the smoothed velocity field
-```math
-v_w = 2 v_a - \frac{\sum_b v_b W_{ab}}{\sum_b W_{ab}},
-```
-where the sum is over all fluid particles.
-
-# Arguments
-- `nu`: Kinematic viscosity
-
 # Keywords
+- `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
-## References:
+## References
 - S. Adami et al. "A generalized wall boundary condition for smoothed particle hydrodynamics".
   In: Journal of Computational Physics 231 (2012), pages 7057-7075.
   [doi: 10.1016/j.jcp.2012.05.005](http://dx.doi.org/10.1016/j.jcp.2012.05.005)
@@ -145,7 +171,7 @@ struct ViscosityAdami{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityAdami(nu; epsilon=0.01)
+    function ViscosityAdami(; nu, epsilon=0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
@@ -177,9 +203,22 @@ end
 
     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
+    # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
+    # They argued that the formulation is more flexible because of the possibility to formulate
+    # different inter-particle averages or to assume different inter-particle distributions.
+    # Ramachandran (2019) and Adami (2012) use this formulation also for the pressure acceleration.
+    #
+    # TODO: Is there a better formulation to discretize the Laplace operator?
+    # Because when using this formulation for the pressure acceleration, it is not
+    # energy conserving.
+    # See issue: https://github.com/trixi-framework/TrixiParticles.jl/issues/394
     visc = (volume_a^2 + volume_b^2) * dot(grad_kernel, pos_diff) * tmp / m_a
 
     return visc .* v_diff
+end
+
+function kinematic_viscosity(system, viscosity::ViscosityAdami)
+    return viscosity.nu
 end
 
 @inline viscous_velocity(v, system, particle) = current_velocity(v, system, particle)

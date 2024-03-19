@@ -1,7 +1,8 @@
 @doc raw"""
-    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles; periodic_box_min_corner=nothing,
+                                  periodic_box_max_corner=nothing, threaded_nhs_update=true)
 
-Simple grid-based neighborhood search with uniform search radius ``d``.
+Simple grid-based neighborhood search with uniform search radius.
 The domain is divided into a regular grid.
 For each (non-empty) grid cell, a list of particles in this cell is stored.
 Instead of representing a finite domain by an array of cells, a potentially infinite domain
@@ -11,17 +12,74 @@ indexed by the cell index tuple
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor \right) \quad \text{or} \quad
 \left( \left\lfloor \frac{x}{d} \right\rfloor, \left\lfloor \frac{y}{d} \right\rfloor, \left\lfloor \frac{z}{d} \right\rfloor \right),
 ```
-where ``x, y, z`` are the space coordinates.
+where ``x, y, z`` are the space coordinates and ``d`` is the search radius.
 
-To find particles within a radius around a point, only particles in the neighboring cells
-are considered.
+To find particles within the search radius around a point, only particles in the neighboring
+cells are considered.
 
 See also (Chalela et al., 2021), (Ihmsen et al. 2011, Section 4.4).
 
 As opposed to (Ihmsen et al. 2011), we do not sort the particles in any way,
-since that makes our implementation a lot faster (although less parallelizable).
+since not sorting makes our implementation a lot faster (although less parallelizable).
 
-## References:
+# Arguments
+- `NDIMS`:          Number of dimensions.
+- `search_radius`:  The uniform search radius.
+- `n_particles`:    Total number of particles.
+
+# Keywords
+- `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in negative coordinate
+                                directions.
+- `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
+                                coordinates of the domain corner in positive coordinate
+                                directions.
+- `threaded_nhs_update=true`:              Can be used to deactivate thread parallelization in the neighborhood search update.
+                                This can be one of the largest sources of variations between simulations
+                                with different thread numbers due to particle ordering changes.
+
+!!! warning "Internal use only"
+    Please note that this constructor is intended for internal use only. It is *not* part of
+    the public API of TrixiParticles.jl, and it thus can altered (or be removed) at any time
+    without it being considered a breaking change.
+
+    To run a simulation with this neighborhood search, just pass the type to the constructor
+    of [`Semidiscretization`](@ref):
+    ```jldoctest semi_example; output=false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+    semi = Semidiscretization(system1, system2,
+                              neighborhood_search=GridNeighborhoodSearch)
+
+    # output
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ Semidiscretization                                                                               │
+    │ ══════════════════                                                                               │
+    │ #spatial dimensions: ………………………… 2                                                                │
+    │ #systems: ……………………………………………………… 2                                                                │
+    │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
+    │ total #particles: ………………………………… 636                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ```
+    The keyword arguments `periodic_box_min_corner` and `periodic_box_max_corner` explained
+    above can also be passed to the [`Semidiscretization`](@ref) and will internally be
+    forwarded to the neighborhood search:
+    ```jldoctest semi_example; output = false
+    semi = Semidiscretization(system1, system2,
+                              neighborhood_search=GridNeighborhoodSearch,
+                              periodic_box_min_corner=[0.0, -0.25],
+                              periodic_box_max_corner=[1.0, 0.75])
+
+    # output
+    ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+    │ Semidiscretization                                                                               │
+    │ ══════════════════                                                                               │
+    │ #spatial dimensions: ………………………… 2                                                                │
+    │ #systems: ……………………………………………………… 2                                                                │
+    │ neighborhood search: ………………………… GridNeighborhoodSearch                                           │
+    │ total #particles: ………………………………… 636                                                              │
+    └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+    ```
+
+## References
 - M. Chalela, E. Sillero, L. Pereyra, M.A. Garcia, J.B. Cabral, M. Lares, M. Merchán.
   "GriSPy: A Python package for fixed-radius nearest neighbors search".
   In: Astronomy and Computing 34 (2021).
@@ -40,10 +98,12 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
     cell_size           :: NTuple{NDIMS, ELTYPE}
+    threaded_nhs_update :: Bool
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
-                                           min_corner=nothing,
-                                           max_corner=nothing) where {NDIMS}
+                                           periodic_box_min_corner=nothing,
+                                           periodic_box_max_corner=nothing,
+                                           threaded_nhs_update=true) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -51,13 +111,15 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         cell_buffer_indices = zeros(Int, Threads.nthreads())
 
-        if (min_corner === nothing && max_corner === nothing) || search_radius < eps()
+        if search_radius < eps() ||
+           (periodic_box_min_corner === nothing && periodic_box_max_corner === nothing)
+
             # No periodicity
             periodic_box = nothing
             n_cells = ntuple(_ -> -1, Val(NDIMS))
             cell_size = ntuple(_ -> search_radius, Val(NDIMS))
-        elseif min_corner !== nothing && max_corner !== nothing
-            periodic_box = PeriodicBox(min_corner, max_corner)
+        elseif periodic_box_min_corner !== nothing && periodic_box_max_corner !== nothing
+            periodic_box = PeriodicBox(periodic_box_min_corner, periodic_box_max_corner)
 
             # Round up search radius so that the grid fits exactly into the domain without
             # splitting any cells. This might impact performance slightly, since larger
@@ -73,14 +135,14 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
                                     "Please use no NHS for very small problems."))
             end
         else
-            throw(ArgumentError("`min_corner` and `max_corner` must either be " *
-                                "both `nothing` or both an array or tuple"))
+            throw(ArgumentError("`periodic_box_min_corner` and `periodic_box_max_corner` " *
+                                "must either be both `nothing` or both an array or tuple"))
         end
 
         new{NDIMS, ELTYPE,
             typeof(periodic_box)}(hashtable, search_radius, empty_vector,
                                   cell_buffer, cell_buffer_indices,
-                                  periodic_box, n_cells, cell_size)
+                                  periodic_box, n_cells, cell_size, threaded_nhs_update)
     end
 end
 
@@ -136,16 +198,14 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices, threaded_nhs_update) = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
 
     # Find all cells containing particles that now belong to another cell.
     # `collect` the keyset to be able to loop over it with `@threaded`.
-    @threaded for cell in collect(keys(hashtable))
-        mark_changed_cell!(neighborhood_search, cell, coords_fun)
-    end
+    mark_changed_cell!(neighborhood_search, hashtable, coords_fun, Val(threaded_nhs_update))
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
@@ -188,9 +248,23 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
     return neighborhood_search
 end
 
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    threaded_nhs_update::Val{true})
+    @threaded for cell in collect(keys(hashtable))
+        mark_changed_cell!(neighborhood_search, cell, coords_fun)
+    end
+end
+
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    threaded_nhs_update::Val{false})
+    for cell in collect(keys(hashtable))
+        mark_changed_cell!(neighborhood_search, cell, coords_fun)
+    end
+end
+
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
-# with @batch (@threaded).
-# Otherwise, @threaded does not work here with Julia ARM on macOS.
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
 @inline function mark_changed_cell!(neighborhood_search, cell, coords_fun)
     (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
@@ -208,6 +282,19 @@ end
     end
 end
 
+# 1D
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{1})
+    cell = cell_coords(coords, neighborhood_search)
+    x = cell[1]
+    # Generator of all neighboring cells to consider
+    neighboring_cells = ((x + i) for i in -1:1)
+
+    # Merge all lists of particles in the neighboring cells into one iterator
+    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
+                      for cell in neighboring_cells)
+end
+
+# 2D
 @inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
     cell = cell_coords(coords, neighborhood_search)
     x, y = cell
@@ -219,6 +306,7 @@ end
                       for cell in neighboring_cells)
 end
 
+# 3D
 @inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{3})
     cell = cell_coords(coords, neighborhood_search)
     x, y, z = cell
@@ -311,4 +399,25 @@ end
     cell = cell_coords(coords, neighborhood_search.search_radius) .+ 1
 
     return cartesian2morton(SVector(cell))
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::GridNeighborhoodSearch, search_radius, u)
+    if nhs.periodic_box === nothing
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs))
+    else
+        search = GridNeighborhoodSearch{ndims(nhs)}(search_radius, nparticles(nhs),
+                                                    periodic_box_min_corner=nhs.periodic_box.min_corner,
+                                                    periodic_box_max_corner=nhs.periodic_box.max_corner)
+    end
+
+    # Initialize neighborhood search
+    initialize!(search, u)
+
+    return search
+end
+
+# Create a copy of a neighborhood search but with a different search radius
+function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch, search_radius, u)
+    return nhs
 end

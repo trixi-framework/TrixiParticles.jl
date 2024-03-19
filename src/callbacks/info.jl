@@ -70,23 +70,21 @@ function (info_callback::InfoCallback)(integrator)
                     allocations=true, linechars=:unicode, compact=false)
         println()
     else
+        t = integrator.t
+        t_initial = first(integrator.sol.prob.tspan)
+        t_final = last(integrator.sol.prob.tspan)
+        sim_time_percentage = (t - t_initial) / (t_final - t_initial) * 100
         runtime_absolute = 1.0e-9 * (time_ns() - info_callback.start_time)
-        @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
-                integrator.stats.naccept, integrator.dt, integrator.t, runtime_absolute)
+        println(rpad(@sprintf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e (%5.3f%%)",
+                              integrator.stats.naccept, integrator.dt, t,
+                              sim_time_percentage), 71) *
+                @sprintf("│ run time: %.4e s", runtime_absolute))
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
     u_modified!(integrator, false)
 
     return nothing
-end
-
-@inline function isfinished(integrator)
-    # Checking for floating point equality is OK here as `DifferentialEquations.jl`
-    # sets the time exactly to the final time in the last iteration
-    return integrator.t == last(integrator.sol.prob.tspan) ||
-           isempty(integrator.opts.tstops) ||
-           integrator.iter == integrator.opts.maxiters
 end
 
 # Print information about the current simulation setup
@@ -114,8 +112,7 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     semi = integrator.p
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
-    systems = semi.systems
-    foreach_enumerate(systems) do (system_index, system)
+    foreach_system(semi) do system
         show(io_context, MIME"text/plain"(), system)
         println(io, "\n")
     end
