@@ -32,8 +32,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.radius)
 # ==== Systems
 
 # let them fall
-tank.fluid.coordinates[2,:] .+=0.5
-solid_system = DEMSystem(tank.fluid, 2*10^5, acceleration=(0.0, gravity))
+tank.fluid.coordinates[2, :] .+= 0.5
+solid_system = DEMSystem(tank.fluid, 2 * 10^5, acceleration=(0.0, gravity))
 boundary_system = BoundaryDEMSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================

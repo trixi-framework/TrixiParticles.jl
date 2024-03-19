@@ -6,7 +6,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
     acceleration      :: SVector{NDIMS, ELTYPE}
     source_terms      :: ST
 
-    function DEMSystem(initial_condition, kn; acceleration=ntuple(_ -> 0.0,
+    function DEMSystem(initial_condition, kn;
+                       acceleration=ntuple(_ -> 0.0,
                                            ndims(initial_condition)), source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
@@ -20,7 +21,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(source_terms)}(initial_condition, mass, radius, kn, acceleration_, source_terms)
+        return new{NDIMS, ELTYPE, typeof(source_terms)}(initial_condition, mass, radius, kn,
+                                                        acceleration_, source_terms)
     end
 end
 

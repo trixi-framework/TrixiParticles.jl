@@ -13,11 +13,11 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     nghb_mass = neighbor_system.mass
     gamma_coefficient = 0.0001
 
-    E_particle = 10*10^9 #particle_system.elastic_modulus  # Elastic modulus for particles
+    E_particle = 10 * 10^9 #particle_system.elastic_modulus  # Elastic modulus for particles
     nu_particle = 0.3 #particle_system.poissons_ratio  # Poisson's ratio for particles
 
     # Extracting material properties for neighbor system
-    E_neighbor = 10*10^9 #neighbor_system.elastic_modulus  # Elastic modulus for neighbor
+    E_neighbor = 10 * 10^9 #neighbor_system.elastic_modulus  # Elastic modulus for neighbor
     nu_neighbor = 0.3 #neighbor_system.poissons_ratio  # Poisson's ratio for neighbor
 
     # Compute effective modulus for both systems
@@ -38,13 +38,15 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         overlap <= 0 && return
 
         # Compute effective radius for the interaction
-        r_star = (radius[particle] * nghb_radius[neighbor]) / (radius[particle] + nghb_radius[neighbor])
+        r_star = (radius[particle] * nghb_radius[neighbor]) /
+                 (radius[particle] + nghb_radius[neighbor])
 
         # Compute stiffness constant kn for the interaction
-        kn = (4/3) * E_star * sqrt(r_star * overlap)
+        kn = (4 / 3) * E_star * sqrt(r_star * overlap)
 
         # Calculate effective mass for the interaction
-        m_star = (mass[particle] * nghb_mass[neighbor]) / (mass[particle] + nghb_mass[neighbor])
+        m_star = (mass[particle] * nghb_mass[neighbor]) /
+                 (mass[particle] + nghb_mass[neighbor])
 
         # Calculate critical damping coefficient
         gamma_c = 2 * sqrt(m_star * kn)
@@ -84,7 +86,6 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     wall_kn_factor = 5 * max_kn
     wall_kn = wall_kn_factor * max_kn
 
-
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -105,7 +106,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         # Position correction to prevent penetration
         position_correction_factor = 0.5 # you can tweak this value
         @inbounds for i in 1:ndims(particle_system)
-            u_particle_system[i, particle] -= position_correction_factor * overlap * normal[i]
+            u_particle_system[i, particle] -= position_correction_factor * overlap *
+                                              normal[i]
         end
 
         # Compute the force magnitude using Hertzian contact mechanics

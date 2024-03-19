@@ -166,7 +166,6 @@ struct InitialCondition{ELTYPE}
 
         radius = 0.5 * particle_spacing * ones(length(masses))
 
-
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
                            densities, pressures, radius)
     end

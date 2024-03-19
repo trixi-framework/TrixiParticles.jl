@@ -72,11 +72,11 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                                     n_particles)..., cache...)
 
         new{typeof(density_calculator), ELTYPE, typeof(state_equation),
-        typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
-        typeof(cache)}(pressure, hydrodynamic_mass, radius, state_equation,
-                        density_calculator,
-                        smoothing_kernel, smoothing_length, smoothing_factor, viscosity, correction,
-                        cache)
+            typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
+            typeof(cache)}(pressure, hydrodynamic_mass, radius, state_equation,
+                           density_calculator,
+                           smoothing_kernel, smoothing_length, smoothing_factor, viscosity,
+                           correction, cache)
     end
 
     function BoundaryModelDummyParticles(radius)
@@ -88,10 +88,14 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
 
         smoothing_length = 2 * maximum(radius)
 
-        new{Nothing, ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass, radius,
-                                                                 nothing, nothing, nothing,
-                                                                 smoothing_length, 1.0,
-                                                                 nothing, nothing, nothing)
+        new{Nothing, ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass,
+                                                                          radius,
+                                                                          nothing, nothing,
+                                                                          nothing,
+                                                                          smoothing_length,
+                                                                          1.0,
+                                                                          nothing, nothing,
+                                                                          nothing)
     end
 end
 
