@@ -213,6 +213,7 @@
                                            tspan=(0.0, 0.01)) [
                 r"WARNING: importing deprecated binding Makie.*\n",
                 r"WARNING: using deprecated binding Colors.*\n",
+                r"WARNING: using deprecated binding PlotUtils.*\n",
                 r"WARNING: Makie.* is deprecated.*\n",
                 r"  likely near none:1\n",
                 r", use .* instead.\n",
