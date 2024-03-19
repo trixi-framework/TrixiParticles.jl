@@ -37,9 +37,9 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
-    pressure           :: Vector{ELTYPE}
-    hydrodynamic_mass  :: Vector{ELTYPE}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C, A}
+    pressure           :: A
+    hydrodynamic_mass  :: A
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -47,8 +47,9 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     viscosity          :: V
     correction         :: COR
     cache              :: C
+end
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=nothing,
                                          state_equation=nothing, correction=nothing)
@@ -64,14 +65,13 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                  create_cache_model(correction, initial_density, NDIMS,
                                     n_particles)..., cache...)
 
-        new{typeof(density_calculator), eltype(initial_density),
+        BoundaryModelDummyParticles{typeof(density_calculator), eltype(initial_density),
             typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
+            typeof(correction), typeof(cache), typeof(pressure)}(pressure, hydrodynamic_mass, state_equation,
                                                density_calculator,
                                                smoothing_kernel, smoothing_length,
                                                viscosity, correction, cache)
     end
-end
 
 @doc raw"""
     AdamiPressureExtrapolation()

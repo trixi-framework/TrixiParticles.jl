@@ -71,30 +71,31 @@ initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, 
 InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
 ```
 """
-struct InitialCondition{ELTYPE}
+struct InitialCondition{ELTYPE, A, B}
     particle_spacing :: ELTYPE
-    coordinates      :: Array{ELTYPE, 2}
-    velocity         :: Array{ELTYPE, 2}
-    mass             :: Array{ELTYPE, 1}
-    density          :: Array{ELTYPE, 1}
-    pressure         :: Array{ELTYPE, 1}
+    coordinates      :: A
+    velocity         :: A
+    mass             :: B
+    density          :: B
+    pressure         :: B
+end
 
-    function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
+function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
                               mass=nothing, pressure=0.0, particle_spacing=-1.0)
         NDIMS = size(coordinates, 1)
 
-        return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                       pressure, particle_spacing)
-    end
+    #     return InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+    #                                    pressure, particle_spacing)
+    # end
 
-    # Function barrier to make `NDIMS` static and therefore SVectors type-stable
-    function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
-                                     pressure, particle_spacing) where {NDIMS}
+    # # Function barrier to make `NDIMS` static and therefore SVectors type-stable
+    # function InitialCondition{NDIMS}(coordinates, velocity, mass, density,
+    #                                  pressure, particle_spacing) where {NDIMS}
         ELTYPE = eltype(coordinates)
         n_particles = size(coordinates, 2)
 
         if n_particles == 0
-            return new{ELTYPE}(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
+            return InitialCondition{ELTYPE, typeof(coordinates), Vector{Float64}}(particle_spacing, coordinates, zeros(ELTYPE, NDIMS, 0),
                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
         end
 
@@ -106,11 +107,11 @@ struct InitialCondition{ELTYPE}
         else
             # Assuming `velocity` is a scalar or a function
             velocity_fun = wrap_function(velocity, Val(NDIMS))
-            if length(velocity_fun(coordinates_svector[1])) != NDIMS
+            CUDA.@allowscalar if length(velocity_fun(coordinates_svector[1])) != NDIMS
                 throw(ArgumentError("`velocity` must be $NDIMS-dimensional " *
                                     "for $NDIMS-dimensional `coordinates`"))
             end
-            velocities_svector = velocity_fun.(coordinates_svector)
+            CUDA.@allowscalar velocities_svector = velocity_fun.(coordinates_svector)
             velocities = stack(velocities_svector)
         end
         if size(coordinates) != size(velocities)
@@ -163,10 +164,9 @@ struct InitialCondition{ELTYPE}
             masses = mass_fun.(coordinates_svector)
         end
 
-        return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
+        return InitialCondition{ELTYPE, typeof(coordinates), typeof(masses)}(particle_spacing, coordinates, velocities, masses,
                            densities, pressures)
     end
-end
 
 function wrap_function(function_::Function, ::Val)
     # Already a function

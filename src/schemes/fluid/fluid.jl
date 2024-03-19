@@ -17,18 +17,26 @@ function write_u0!(u0, system::FluidSystem)
     for particle in eachparticle(system)
         # Write particle coordinates
         for dim in 1:ndims(system)
-            u0[dim, particle] = initial_condition.coordinates[dim, particle]
+            CUDA.@allowscalar u0[dim, particle] = initial_condition.coordinates[dim, particle]
         end
     end
 
     return u0
 end
 
+# function write_u0!(u0::CuArray, system::FluidSystem)
+#     (; initial_condition) = system
+
+#     copyto!(u0, initial_condition.coordinates)
+
+#     return u0
+# end
+
 function write_v0!(v0, system::FluidSystem)
     for particle in eachparticle(system)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = system.initial_condition.velocity[dim, particle]
+            CUDA.@allowscalar v0[dim, particle] = system.initial_condition.velocity[dim, particle]
         end
     end
 
@@ -36,6 +44,14 @@ function write_v0!(v0, system::FluidSystem)
 
     return v0
 end
+
+# function write_v0!(v0::CuArray, system::FluidSystem)
+#     copyto!(v0, system.initial_condition.velocity)
+
+#     write_v0!(v0, system, system.density_calculator)
+
+#     return v0
+# end
 
 write_v0!(v0, system, density_calculator) = v0
 

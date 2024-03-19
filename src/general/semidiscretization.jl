@@ -248,7 +248,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, data_type=Vector)
     (; systems) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
@@ -274,8 +274,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
-    u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-    v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+    u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
+    v0_ode = data_type{ELTYPE}(undef, sum(sizes_v))
 
     # Set initial condition
     foreach_system(semi) do system
@@ -346,6 +346,36 @@ end
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
 end
 
+@inline function wrap_u(u_ode::CuArray, system, semi)
+    (; ranges_u) = semi
+
+    range = ranges_u[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+
+    if n_moving_particles(system) == 0
+        return unsafe_wrap(CuArray{eltype(u_ode), 2}, pointer(u_ode),
+                       (u_nvariables(system), n_moving_particles(system)))
+    end
+    return unsafe_wrap(CuArray{eltype(u_ode), 2}, pointer(view(u_ode, range)),
+                       (u_nvariables(system), n_moving_particles(system)))
+end
+
+@inline function wrap_v(v_ode::CuArray, system, semi)
+    (; ranges_v) = semi
+
+    range = ranges_v[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+
+    if n_moving_particles(system) == 0
+        return unsafe_wrap(CuArray{eltype(v_ode), 2}, pointer(v_ode),
+                       (v_nvariables(system), n_moving_particles(system)))
+    end
+    return unsafe_wrap(CuArray{eltype(v_ode), 2}, pointer(view(v_ode, range)),
+                       (v_nvariables(system), n_moving_particles(system)))
+end
+
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
     (; systems) = semi
 
@@ -362,15 +392,34 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded for particle in each_moving_particle(system)
-                    # This can be dispatched per system
-                    add_velocity!(du, v, particle, system)
-                end
+                add_velocity!(du, v, system)
             end
         end
     end
 
     return du_ode
+end
+
+@inline function add_velocity!(du, v, system)
+    @threaded for particle in each_moving_particle(system)
+        # This can be dispatched per system
+        add_velocity!(du, v, particle, system)
+    end
+
+    return du
+end
+
+@inline function add_velocity!(du::CuArray, v, system)
+    CUDA.@cuda threads=n_moving_particles(system) add_velocity_kernel!(du, v, system)
+
+    return du
+end
+
+@inline function add_velocity_kernel!(du, v, system)
+    particle = CUDA.threadIdx().x
+    add_velocity!(du, v, particle, system)
+
+    return nothing
 end
 
 @inline function add_velocity!(du, v, particle, system)
@@ -469,6 +518,28 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
     return dv_ode
 end
 
+function add_source_terms!(dv_ode::CuArray, v_ode, u_ode, semi)
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        CUDA.@cuda threads=n_moving_particles(system) add_source_terms_kernel!(dv, v, u, system)
+    end
+
+    return dv_ode
+end
+
+@inline function add_source_terms_kernel!(dv, v, u, system)
+    particle = CUDA.threadIdx().x
+
+    # Dispatch by system type to exclude boundary systems
+    add_acceleration!(dv, particle, system)
+    add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
+
+    return nothing
+end
+
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
@@ -483,6 +554,52 @@ end
 
     return dv
 end
+
+# @inline function add_acceleration!(dv, system::Union{FluidSystem, SolidSystem})
+#     (; acceleration) = system
+
+#     dv[axes(acceleration, 1), :] .+= acceleration
+
+#     return dv
+# end
+
+# function add_source_terms!(dv_ode::CuArray, v_ode, u_ode, semi)
+#     foreach_system(semi) do system
+#         dv = wrap_v(dv_ode, system, semi)
+#         v = wrap_v(v_ode, system, semi)
+#         u = wrap_u(u_ode, system, semi)
+
+#         # coordinates = current_coordinates(u, system)
+#         # coordinates_svector = reinterpret(reshape, SVector{ndims(system), eltype(system)}, coordinates)
+#         # velocity = reinterpret(reshape, SVector{ndims(system), eltype(system)}, current_velocity(v, system))
+#         # density = current_density(v, system)
+#         # pressure = system.pressure
+#         # dv_svector = reinterpret(reshape, SVector{size(dv, 1), eltype(system)}, dv)
+
+#         # for i in eachindex(dv_svector)
+#         #     CUDA.@allowscalar add_source_terms_inner!(dv_svector[i], coordinates_svector[i], velocity[i], density[i], pressure[i], source_terms(system))
+#         # end
+#         # NOTE!! This produces different results than the loop above.
+#         # add_source_terms_inner!.(dv_svector, coordinates_svector, velocity, density, pressure, Ref(source_terms(system)))
+#         # add_acceleration!(dv, system)
+
+#         CUDA.@sync CUDA.@cuda add_source_terms_kernel!(dv, v, u, system)
+#     end
+
+#     return dv_ode
+# end
+
+# @inline function add_source_terms_inner!(dv, coords, velocity, density, pressure, source_terms_)
+#     dv += source_terms_(coords, velocity, density, pressure)
+
+#     # Loop over `eachindex(source)`, so that users could also pass source terms for
+#     # the density when using `ContinuityDensity`.
+#     # for i in eachindex(source)
+#     #     dv[i, particle] += source[i]
+#     # end
+
+#     return dv
+# end
 
 @inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_)
     coords = current_coords(u, system, particle)

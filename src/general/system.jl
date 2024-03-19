@@ -57,7 +57,8 @@ end
 # This can be dispatched by system type.
 @inline initial_coordinates(system) = system.initial_condition.coordinates
 
-@inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
+@inline current_velocity(v, system, particle) = extract_svector(v, system, particle)    
+@inline current_velocity(v, system) = view(v, 1:ndims(system), :)
 
 @inline function current_acceleration(system, particle)
     # TODO: Return `dv` of solid particles

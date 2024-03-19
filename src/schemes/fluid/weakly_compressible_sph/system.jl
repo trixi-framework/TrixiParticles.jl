@@ -40,10 +40,10 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
-                                   V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
-    initial_condition                 :: InitialCondition{ELTYPE}
-    mass                              :: Array{ELTYPE, 1} # [particle]
-    pressure                          :: Array{ELTYPE, 1} # [particle]
+                                   V, DD, COR, PF, ST, C, A, B} <: FluidSystem{NDIMS}
+    initial_condition                 :: B
+    mass                              :: A # [particle]
+    pressure                          :: A # [particle]
     density_calculator                :: DC
     state_equation                    :: SE
     smoothing_kernel                  :: K
@@ -55,8 +55,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
     cache                             :: C
+end
 
-    function WeaklyCompressibleSPHSystem(initial_condition,
+function WeaklyCompressibleSPHSystem(initial_condition,
                                          density_calculator, state_equation,
                                          smoothing_kernel, smoothing_length;
                                          pressure_acceleration=nothing,
@@ -96,11 +97,12 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator),
+        return WeaklyCompressibleSPHSystem{NDIMS, ELTYPE, typeof(density_calculator),
                    typeof(state_equation), typeof(smoothing_kernel),
                    typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
+                   typeof(source_terms), typeof(cache), typeof(mass),
+                   typeof(initial_condition)}(initial_condition, mass, pressure,
                                                         density_calculator, state_equation,
                                                         smoothing_kernel, smoothing_length,
                                                         acceleration_, viscosity,
@@ -108,7 +110,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                                         pressure_acceleration,
                                                         source_terms, cache)
     end
-end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
 
@@ -288,6 +289,17 @@ function compute_pressure!(system, v)
     end
 end
 
+function compute_pressure!(system, v::CuArray)
+    CUDA.@cuda threads=nparticles(system) compute_pressure_kernel!(system, v)
+end
+
+@inline function compute_pressure_kernel!(system, v)
+    particle = CUDA.threadIdx().x
+    apply_state_equation!(system, particle_density(v, system, particle), particle)
+
+    return nothing
+end
+
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
@@ -299,11 +311,18 @@ end
 function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
     for particle in eachparticle(system)
         # Set particle densities
-        v0[end, particle] = system.initial_condition.density[particle]
+        CUDA.@allowscalar v0[end, particle] = system.initial_condition.density[particle]
     end
 
     return v0
 end
+
+# function write_v0!(v0::CuArray, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
+#     # TODO
+#     copyto!(view(v0, size(v0, 1), :), system.initial_condition.density)
+
+#     return v0
+# end
 
 function restart_with!(system::WeaklyCompressibleSPHSystem, v, u)
     for particle in each_moving_particle(system)

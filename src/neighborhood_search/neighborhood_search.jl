@@ -27,6 +27,18 @@ end
                           Val(parallel))
 end
 
+@inline function for_particle_neighbor(f, system_coords::CuArray, neighbor_coords,
+                                       neighborhood_search;
+                                       particles=axes(system_coords, 2), parallel=true)
+    CUDA.@cuda threads=size(system_coords, 2) for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
+end
+
+@inline function for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
+    for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search, CUDA.threadIdx().x)
+
+    return nothing
+end
+
 @inline function for_particle_neighbor(f, system_coords, neighbor_coords,
                                        neighborhood_search, particles, parallel::Val{true})
     @threaded for particle in particles

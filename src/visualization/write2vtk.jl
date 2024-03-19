@@ -56,7 +56,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         u = wrap_u(u_ode, system, semi)
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
-        trixi2vtk(v, u, t, system, periodic_box;
+        CUDA.@allowscalar trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
                   write_meta_data=write_meta_data, max_coordinates=max_coordinates,
