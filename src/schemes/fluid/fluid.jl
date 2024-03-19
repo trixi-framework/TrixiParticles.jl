@@ -84,7 +84,7 @@ include("entropically_damped_sph/entropically_damped_sph.jl")
 # and density correction. It cannot be used to set up an initial condition,
 # as the particle density depends on the particle positions.
 
-@inline set_particle_density(particle, v, ::SummationDensity, system, density) = nothing
+@inline set_particle_density(particle, v, ::SummationDensity, system, density) = particle
 
 @inline function set_particle_density(particle, v, ::ContinuityDensity,
                                       system::WeaklyCompressibleSPHSystem, density)
@@ -96,7 +96,7 @@ end
     v[end - 1, particle] = density
 end
 
-@inline set_particle_pressure(particle, v, system, pressure) = nothing
+@inline set_particle_pressure(particle, v, system, pressure) = particle
 
 @inline function set_particle_pressure(particle, v, system::EntropicallyDampedSPHSystem,
                                        pressure)

@@ -16,7 +16,8 @@ using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
-                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
+                 get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem,
+                 RecursiveArrayTools
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
@@ -71,5 +72,6 @@ export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
        max_density, min_density, avg_density
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
+export ParticleRefinement, RefinementZone, CubicSplitting
 
 end # module

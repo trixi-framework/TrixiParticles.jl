@@ -60,7 +60,7 @@ internal function `eachneighbor`.
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
 """
-struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}
+mutable struct TrivialNeighborhoodSearch{NDIMS, ELTYPE, EP, PB}
     search_radius :: ELTYPE
     eachparticle  :: EP
     periodic_box  :: PB
@@ -95,3 +95,9 @@ end
 @inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
 @inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle
+
+function resize_nhs!(search::TrivialNeighborhoodSearch, system, neighbor, u_neighbor)
+    search.eachparticle = eachparticle(neighbor)
+
+    return search
+end

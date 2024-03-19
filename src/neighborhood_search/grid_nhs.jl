@@ -87,7 +87,7 @@ since not sorting makes our implementation a lot faster (although less paralleli
   In: Computer Graphics Forum 30.1 (2011), pages 99–112.
   [doi: 10.1111/J.1467-8659.2010.01832.X](https://doi.org/10.1111/J.1467-8659.2010.01832.X)
 """
-struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
+mutable struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     hashtable           :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     search_radius       :: ELTYPE
     empty_vector        :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
@@ -403,5 +403,15 @@ end
 
 # Create a copy of a neighborhood search but with a different search radius
 function copy_neighborhood_search(nhs::TrivialNeighborhoodSearch, search_radius, u)
+    return nhs
+end
+
+function resize_nhs!(nhs::GridNeighborhoodSearch, system, neighbor_system, u_neighbor)
+    NDIMS = ndims(neighbor_system)
+    n_particles = nparticles(neighbor_system)
+    nhs.cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
+
+    initialize!(nhs, nhs_coords(system, neighbor_system, u_neighbor))
+
     return nhs
 end

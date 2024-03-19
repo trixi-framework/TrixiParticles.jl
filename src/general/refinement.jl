@@ -121,14 +121,14 @@ function create_system_child(system::WeaklyCompressibleSPHSystem,
 end
 
 # ==== Refinement
-function refinement!(v_ode, u_ode, semi, callback)
+function refinement!(v_ode, u_ode, _v_cache, _u_cache, semi, callback)
     foreach_system(semi) do system
         check_refinement_criteria!(system, v_ode, u_ode, semi)
     end
 
-    resize_and_copy!(callback, semi, v_ode, u_ode)
+    resize_and_copy!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 
-    refine_particles!(callback, semi, v_ode, u_ode)
+    refine_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 end
 
 check_refinement_criteria!(system, v_ode, u_ode, semi) = system
@@ -160,20 +160,11 @@ function check_refinement_criteria!(system, particle_refinement::ParticleRefinem
     return system
 end
 
-function resize_and_copy!(callback, semi, v_ode, u_ode)
-    (; _v_ode, _u_ode) = callback
-
+function resize_and_copy!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
     # Get non-`resize!`d ranges
     callback.ranges_v_cache, callback.ranges_u_cache = ranges_vu(semi.systems)
     callback.eachparticle_cache = Tuple(get_iterator(system) for system in semi.systems)
     callback.nparticles_cache = Tuple(n_moving_particles(system) for system in semi.systems)
-
-    # Resize internal storage
-    resize!(_v_ode, length(v_ode))
-    resize!(_u_ode, length(u_ode))
-
-    _v_ode .= v_ode
-    _u_ode .= u_ode
 
     # Resize all systems
     foreach_system(semi) do system
@@ -198,8 +189,8 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
-        _v = _wrap_v(_v_ode, system, semi, callback)
-        _u = _wrap_u(_u_ode, system, semi, callback)
+        _v = _wrap_v(_v_cache, system, semi, callback)
+        _u = _wrap_u(_u_cache, system, semi, callback)
 
         copy_values_v!(v, _v, system, semi, callback)
         copy_values_u!(u, _u, system, semi, callback)
@@ -208,31 +199,36 @@ function resize_and_copy!(callback, semi, v_ode, u_ode)
     return callback
 end
 
-function refine_particles!(callback, semi, v_ode, u_ode)
+function refine_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 
     # Refine particles in all systems
     foreach_system(semi) do system
-        refine_particles!(system, v_ode, u_ode, callback, semi)
+        refine_particles!(system, v_ode, u_ode, _v_cache, _u_cache, callback, semi)
     end
 end
 
-refine_particles!(system, v_ode, u_ode, callback, semi) = system
+refine_particles!(system, v_ode, u_ode, _v_cache, _u_cache, callback, semi) = system
 
-function refine_particles!(system::FluidSystem, v_ode, u_ode, callback, semi)
-    refine_particles!(system, system.particle_refinement, v_ode, u_ode, callback, semi)
+function refine_particles!(system::FluidSystem, v_ode, u_ode, _v_cache, _u_cache,
+                           callback, semi)
+    refine_particles!(system, system.particle_refinement, v_ode, u_ode, _v_cache, _u_cache,
+                      callback, semi)
 end
 
-refine_particles!(system, ::Nothing, v_ode, u_ode, callback, semi) = system
+function refine_particles!(system::FluidSystem, ::Nothing, v_ode, u_ode, _v_cache, _u_cache,
+                           callback, semi)
+    return system
+end
 
-function refine_particles!(system_parent, particle_refinement::ParticleRefinement,
-                           v_ode, u_ode, callback, semi)
-    (; _v_ode, _u_ode) = callback
+function refine_particles!(system_parent::FluidSystem,
+                           particle_refinement::ParticleRefinement,
+                           v_ode, u_ode, _v_cache, _u_cache, callback, semi)
     (; candidates, system_child) = particle_refinement
 
     if !isempty(candidates)
         # Old storage
-        v_parent = _wrap_v(_v_ode, system_parent, semi, callback)
-        u_parent = _wrap_u(_u_ode, system_parent, semi, callback)
+        v_parent = _wrap_v(_v_cache, system_parent, semi, callback)
+        u_parent = _wrap_u(_u_cache, system_parent, semi, callback)
 
         # Resized storage
         v_child = wrap_v(v_ode, system_child, semi)
@@ -309,16 +305,18 @@ function bear_childs!(system_child, system_parent, particle_parent, particle_ref
             end
         end
 
-        for dim in 1:ndims(system_child)
-            v_child[dim, absolute_index] ./ volume
+        if volume > eps()
+            for dim in 1:ndims(system_child)
+                v_child[dim, absolute_index] /= volume
+            end
+
+            rho_a /= volume
+            p_a /= volume
+
+            set_particle_density(absolute_index, v_child, system_child.density_calculator,
+                                 system_child, rho_a)
+            set_particle_pressure(absolute_index, v_child, system_child, p_a)
         end
-
-        rho_a /= volume
-        p_a /= volume
-
-        set_particle_density(particle_child, v_child, system_child.density_calculator,
-                             system_child, rho_a)
-        set_particle_pressure(particle_child, v_child, system_child, p_a)
     end
 
     return system_child
@@ -358,7 +356,7 @@ end
 resize_cache!(cache, capacity::Int, ::SummationDensity) = resize!(cache.density, capacity)
 resize_cache!(cache, capacity::Int, ::ContinuityDensity) = cache
 
-@inline function _wrap_u(_u_ode, system, semi, callback)
+@inline function _wrap_u(_u_cache, system, semi, callback)
     (; ranges_u_cache, nparticles_cache) = callback
 
     range = ranges_u_cache[system_indices(system, semi)][1]
@@ -367,13 +365,13 @@ resize_cache!(cache, capacity::Int, ::ContinuityDensity) = cache
     @boundscheck @assert length(range) == u_nvariables(system) * n_particles
 
     # This is a non-allocating version of:
-    # return unsafe_wrap(Array{eltype(_u_ode), 2}, pointer(view(_u_ode, range)),
+    # return unsafe_wrap(Array{eltype(_u_cache), 2}, pointer(view(_u_cache, range)),
     #                    (u_nvariables(system), n_particles))
-    return PtrArray(pointer(view(_u_ode, range)),
+    return PtrArray(pointer(view(_u_cache, range)),
                     (StaticInt(u_nvariables(system)), n_particles))
 end
 
-@inline function _wrap_v(_v_ode, system, semi, callback)
+@inline function _wrap_v(_v_cache, system, semi, callback)
     (; ranges_v_cache, nparticles_cache) = callback
 
     range = ranges_v_cache[system_indices(system, semi)][1]
@@ -382,9 +380,9 @@ end
     @boundscheck @assert length(range) == v_nvariables(system) * n_particles
 
     # This is a non-allocating version of:
-    # return unsafe_wrap(Array{eltype(_v_ode), 2}, pointer(view(_v_ode, range)),
+    # return unsafe_wrap(Array{eltype(_v_cache), 2}, pointer(view(_v_cache, range)),
     #                    (v_nvariables(system), n_particles))
-    return PtrArray(pointer(view(_v_ode, range)),
+    return PtrArray(pointer(view(_v_cache, range)),
                     (StaticInt(v_nvariables(system)), n_particles))
 end
 
@@ -413,6 +411,7 @@ function copy_values_u!(u_new, u_old, system, semi, callback)
         new_particle_id += 1
     end
 end
+
 @inline get_iterator(system) = eachparticle(system)
 @inline get_iterator(system::FluidSystem) = get_iterator(system, system.particle_refinement)
 

@@ -82,14 +82,15 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
 end
 
 function ranges_vu(systems)
-    sizes_u = [u_nvariables(system) * n_moving_particles(system)
-               for system in systems]
-    ranges_u = Tuple([(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])]
-                     for i in eachindex(sizes_u))
     sizes_v = [v_nvariables(system) * n_moving_particles(system)
                for system in systems]
     ranges_v = Tuple([(sum(sizes_v[1:(i - 1)]) + 1):sum(sizes_v[1:i])]
                      for i in eachindex(sizes_v))
+
+    sizes_u = [u_nvariables(system) * n_moving_particles(system)
+               for system in systems]
+    ranges_u = Tuple([(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])]
+                     for i in eachindex(sizes_u))
 
     return ranges_v, ranges_u
 end
@@ -147,8 +148,8 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
 end
 
 @inline function compact_support(system, neighbor)
-    (; smoothing_kernel, smoothing_length) = system
-    return compact_support(smoothing_kernel, smoothing_length)
+    smoothing_length_avg = average_smoothing_length(system, neighbor)
+    return compact_support(system.smoothing_kernel, smoothing_length_avg)
 end
 
 @inline function compact_support(system::TotalLagrangianSPHSystem,

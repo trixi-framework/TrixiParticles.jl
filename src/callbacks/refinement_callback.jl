@@ -4,10 +4,6 @@ mutable struct ParticleRefinementCallback{I}
     ranges_v_cache     :: Tuple
     nparticles_cache   :: Tuple
     eachparticle_cache :: Tuple
-
-    # internal `resize!`able storage
-    _u_ode::Vector{Float64}
-    _v_ode::Vector{Float64}
 end
 
 function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
@@ -24,7 +20,7 @@ function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
         interval = 1
     end
 
-    refinement_callback = ParticleRefinementCallback(interval, (), (), (), (), [0.0], [0.0])
+    refinement_callback = ParticleRefinementCallback(interval, (), (), (), ())
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -70,15 +66,40 @@ function (refinement_callback::ParticleRefinementCallback)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
-    refinement!(v_ode, u_ode, semi, refinement_callback)
+    # Update NHS
+    @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    # Basically `get_tmp_cache(integrator)` to write into in order to be non-allocating
+    # https://docs.sciml.ai/DiffEqDocs/stable/basics/integrator/#Caches
+    v_tmp, u_tmp = integrator.cache.tmp.x
+
+    v_tmp .= v_ode
+    u_tmp .= u_ode
+
+    refinement!(v_ode, u_ode, v_tmp, u_tmp, semi, refinement_callback)
+
+    # Resize neighborhood search
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor_system
+            search = get_neighborhood_search(system, neighbor_system, semi)
+            u_neighbor = wrap_u(u_ode, neighbor_system, semi)
+
+            resize_nhs!(search, system, neighbor_system, u_neighbor)
+        end
+    end
+
+    resize!(integrator, (length(v_ode), length(u_ode)))
+
+    @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
+                                                                          semi, t)
 
     # Tell OrdinaryDiffEq that u has been modified
     u_modified!(integrator, true)
 
     return integrator
 end
+
+Base.resize!(a::RecursiveArrayTools.ArrayPartition, sizes::Tuple) = resize!.(a.x, sizes)
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:ParticleRefinementCallback})
     @nospecialize cb # reduce precompilation time
