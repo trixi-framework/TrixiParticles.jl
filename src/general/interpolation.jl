@@ -61,7 +61,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     u_ode = sol.u[end].x[2]
 
     results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode;
+                                         semi, ref_system, v_ode, u_ode,
                                          filter_no_neighbors, smoothing_length, cut_off_bnd,
                                          clip_negative_pressure)
 
@@ -76,7 +76,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
     filter_no_neighbors = true
 
     results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
-                                         semi, ref_system, v_ode, u_ode;
+                                         semi, ref_system, v_ode, u_ode,
                                          filter_no_neighbors, smoothing_length, cut_off_bnd,
                                          clip_negative_pressure)
 
@@ -489,9 +489,8 @@ end
 
     for (i, point) in enumerate(points_coords)
         result = interpolate_point(SVector{ndims(ref_system)}(point), semi, ref_system,
-                                   v_ode, u_ode, neighborhood_searches,
-                                   smoothing_length=smoothing_length,
-                                   cut_off_bnd=cut_off_bnd = clip_negative_pressure)
+                                   v_ode, u_ode, neighborhood_searches;
+                                   smoothing_length, cut_off_bnd, clip_negative_pressure)
         densities[i] = result.density
         neighbor_counts[i] = result.neighbor_count
         coords[i] = result.coord
@@ -510,9 +509,8 @@ function interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
                                                           smoothing_length)
 
     return interpolate_point(SVector{ndims(ref_system)}(point_coords), semi, ref_system,
-                             v_ode, u_ode, neighborhood_searches,
-                             smoothing_length=smoothing_length, cut_off_bnd=cut_off_bnd,
-                             clip_negative_pressure=clip_negative_pressure)
+                             v_ode, u_ode, neighborhood_searches;
+                             smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
 
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length)
