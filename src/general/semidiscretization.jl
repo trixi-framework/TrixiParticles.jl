@@ -97,6 +97,7 @@ function ranges_vu(systems)
     ranges_u = Tuple([(sum(sizes_u[1:(i - 1)]) + 1):sum(sizes_u[1:i])]
                      for i in eachindex(sizes_u))
 
+    # Each range is stored in a `Vector`, so we can mutate ranges in an immutable struct
     return ranges_v, ranges_u
 end
 
@@ -155,8 +156,8 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
 end
 
 @inline function compact_support(system, neighbor)
-    smoothing_length_avg = average_smoothing_length(system, neighbor)
-    return compact_support(system.smoothing_kernel, smoothing_length_avg)
+    (; smoothing_kernel, smoothing_length) = system
+    return compact_support(smoothing_kernel, smoothing_length)
 end
 
 @inline function compact_support(system::TotalLagrangianSPHSystem,
@@ -333,7 +334,9 @@ end
 @inline function wrap_u(u_ode, system, semi)
     (; ranges_u) = semi
 
-    range = ranges_u[system_indices(system, semi)][1]
+    # Each range is stored in a `Vector`, so we can mutate ranges in an immutable struct.
+    # The `Vector` has length 1, thus, take the first element.
+    range = first(ranges_u[system_indices(system, semi)])
 
     @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
 
@@ -347,7 +350,9 @@ end
 @inline function wrap_v(v_ode, system, semi)
     (; ranges_v) = semi
 
-    range = ranges_v[system_indices(system, semi)][1]
+    # Each range is stored in a `Vector`, so we can mutate ranges in an immutable struct.
+    # The `Vector` has length 1, thus, take the first element.
+    range = first(ranges_v[system_indices(system, semi)])
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 

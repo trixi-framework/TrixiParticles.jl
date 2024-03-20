@@ -52,10 +52,7 @@ function summation_density!(system, semi, u, u_ode, density;
         for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
                               particles=particles) do particle, neighbor, pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
-
-            h_mean = (system.smoothing_length + neighbor_system.smoothing_length)/2
-            #density[particle] += mass * smoothing_kernel(system, distance)
-            density[particle] += mass * kernel(system.smoothing_kernel, distance, h_mean)
+            density[particle] += mass * smoothing_kernel(system, distance)
         end
     end
 end
