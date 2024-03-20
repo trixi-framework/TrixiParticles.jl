@@ -30,13 +30,17 @@ end
 @inline function for_particle_neighbor(f, system_coords::CuArray, neighbor_coords,
                                        neighborhood_search;
                                        particles=axes(system_coords, 2), parallel=true)
-    CUDA.@cuda threads=size(system_coords, 2) for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
+    # CUDA.@sync CUDA.@cuda threads=size(system_coords, 2) for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
+    backend = get_backend(system_coords)
+    kernel = for_particle_neighbor_kernel(backend)
+    kernel(f, system_coords, neighbor_coords, neighborhood_search, ndrange=length(particles))
+    synchronize(backend)
 end
 
-@inline function for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
-    for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search, CUDA.threadIdx().x)
-
-    return nothing
+@kernel function for_particle_neighbor_kernel(f, system_coords, neighbor_coords, neighborhood_search)
+    # particle = CUDA.threadIdx().x
+    particle = @index(Global)
+    for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search, particle)
 end
 
 @inline function for_particle_neighbor(f, system_coords, neighbor_coords,

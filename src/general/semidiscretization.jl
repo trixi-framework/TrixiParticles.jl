@@ -410,12 +410,20 @@ end
 end
 
 @inline function add_velocity!(du::CuArray, v, system)
-    CUDA.@cuda threads=n_moving_particles(system) add_velocity_kernel!(du, v, system)
+    # CUDA.@sync CUDA.@cuda threads=n_moving_particles(system) add_velocity_kernel_cuda!(du, v, system)
+    backend = get_backend(du)
+    add_velocity_kernel!(backend)(du, v, system, ndrange=n_moving_particles(system))
+    synchronize(backend)
 
     return du
 end
 
-@inline function add_velocity_kernel!(du, v, system)
+@kernel function add_velocity_kernel!(du, v, system)
+    particle = @index(Global)
+    add_velocity!(du, v, particle, system)
+end
+
+function add_velocity_kernel_cuda!(du, v, system)
     particle = CUDA.threadIdx().x
     add_velocity!(du, v, particle, system)
 
@@ -424,7 +432,7 @@ end
 
 @inline function add_velocity!(du, v, particle, system)
     for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
+        @inbounds du[i, particle] = v[i, particle]
     end
 
     return du
@@ -524,20 +532,22 @@ function add_source_terms!(dv_ode::CuArray, v_ode, u_ode, semi)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        CUDA.@cuda threads=n_moving_particles(system) add_source_terms_kernel!(dv, v, u, system)
+        # CUDA.@sync CUDA.@cuda threads=n_moving_particles(system) add_source_terms_kernel!(dv, v, u, system)
+        backend = get_backend(dv_ode)
+        add_source_terms_kernel!(backend)(dv, v, u, system, ndrange=n_moving_particles(system))
+        synchronize(backend)
     end
 
     return dv_ode
 end
 
-@inline function add_source_terms_kernel!(dv, v, u, system)
-    particle = CUDA.threadIdx().x
+@kernel function add_source_terms_kernel!(dv, v, u, system)
+    # particle = CUDA.threadIdx().x
+    particle = @index(Global)
 
     # Dispatch by system type to exclude boundary systems
     add_acceleration!(dv, particle, system)
     add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
-
-    return nothing
 end
 
 @inline source_terms(system) = nothing

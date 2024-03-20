@@ -290,14 +290,17 @@ function compute_pressure!(system, v)
 end
 
 function compute_pressure!(system, v::CuArray)
-    CUDA.@cuda threads=nparticles(system) compute_pressure_kernel!(system, v)
+    # CUDA.@sync CUDA.@cuda threads=nparticles(system) compute_pressure_kernel!(system, v)
+    backend = get_backend(v)
+    compute_pressure_kernel!(backend)(system, v, ndrange=nparticles(system))
+    synchronize(backend)
 end
 
-@inline function compute_pressure_kernel!(system, v)
-    particle = CUDA.threadIdx().x
-    apply_state_equation!(system, particle_density(v, system, particle), particle)
+@kernel function compute_pressure_kernel!(system, v)
+    # particle = CUDA.threadIdx().x
+    particle = @index(Global)
 
-    return nothing
+    apply_state_equation!(system, particle_density(v, system, particle), particle)
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
