@@ -54,8 +54,7 @@ function compute_density!(system, u, u_ode, semi, ::SummationDensity)
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
-    (; smoothing_length, state_equation, viscosity, acceleration) = system
-    (; sound_speed) = state_equation
+    (; smoothing_length, viscosity, acceleration) = system
 
     dt_viscosity = 0.125 * smoothing_length^2 / kinematic_viscosity(system, viscosity)
 
@@ -70,7 +69,7 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::FluidSystem)
     # Antuono et al. (2015) use h / (c + h * pi_max).
     #
     # See docstring of the callback for the references.
-    dt_sound_speed = cfl_number * smoothing_length / sound_speed
+    dt_sound_speed = cfl_number * smoothing_length / system_sound_speed(system)
 
     return min(dt_viscosity, dt_acceleration, dt_sound_speed)
 end
