@@ -92,9 +92,7 @@ DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recu
 makedocs(sitename="TrixiParticles.jl",
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
-         format=Documenter.HTML(
-            assets=["assets/custom.css"]
-        ),
+         format=Documenter.HTML(assets=["assets/custom.css"]),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
