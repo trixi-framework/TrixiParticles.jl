@@ -39,7 +39,7 @@ include("schemes/schemes.jl")
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
-include("general/refinement.jl")
+include("particle_refinement/particle_refinement.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition

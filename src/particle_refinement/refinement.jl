@@ -1,10 +1,5 @@
-# Criteria of refinement:
-#
-# - fixed (/moving?) refinement zone
-# - number of neighbors
-# - problem specific criteria (e.g. high velocity gradient)
-
 include("refinement_pattern.jl")
+include("refinement_criteria.jl")
 
 mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     candidates           :: Vector{Int}

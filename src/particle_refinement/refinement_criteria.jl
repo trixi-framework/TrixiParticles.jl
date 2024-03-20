@@ -1,45 +1,11 @@
+# Criteria of refinement:
+#
+# - fixed (/moving?) refinement zone
+# - number of neighbors
+# - problem specific criteria (e.g. high velocity gradient)
+
 abstract type RefinementCriteria{NDIMS, ELTYPE} end
 
-struct CubicSplitting{ELTYPE}
-    epsilon :: ELTYPE
-    alpha   :: ELTYPE
-
-    function CubicSplitting(; epsilon=0.5, alpha=0.5)
-        new{typeof(epsilon)}(epsilon, alpha)
-    end
-end
-
-function (refinement_pattern::CubicSplitting)(system::System{2})
-    (; initial_condition) = system
-    (; particle_spacing) = initial_condition
-    (; epsilon) = refinement_pattern
-
-    direction_1 = normalize([1.0, 1.0])
-    direction_2 = normalize([1.0, -1.0])
-    direction_3 = -direction_1
-    direction_4 = -direction_2
-
-    relative_position = hcat(particle_spacing * epsilon * direction_1,
-                             particle_spacing * epsilon * direction_2,
-                             particle_spacing * epsilon * direction_3,
-                             particle_spacing * epsilon * direction_4)
-
-    return reinterpret(reshape, SVector{2, typeof(epsilon)}, relative_position)
-end
-
-# TODO: Clarify refinement pattern. Cubic splitting? Triangular or hexagonal?
-# See https://www.sciencedirect.com/science/article/pii/S0020740319317023
-@inline nchilds(system, rp::CubicSplitting) = 2^ndims(system)
-
-@inline mass_child(system, mass, rp::CubicSplitting) = mass / nchilds(system, rp)
-
-@inline smoothing_length_child(system, refinement_pattern) = refinement_pattern.alpha *
-                                                             system.smoothing_length
-
-@inline particle_spacing_child(system, refinement_pattern) = system.initial_condition.particle_spacing *
-                                                             refinement_pattern.epsilon
-
-# ==== Refinement criteria
 struct RefinementZone{NDIMS, ELTYPE} <: RefinementCriteria{NDIMS, ELTYPE}
     zone_origin  :: SVector{NDIMS, ELTYPE}
     spanning_set :: Vector{SVector}
