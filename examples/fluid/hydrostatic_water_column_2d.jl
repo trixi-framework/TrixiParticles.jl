@@ -44,7 +44,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==== Boundary
 
 # This is to set another boundary density calculation with `trixi_include`
-boundary_density_calculator = PressureZeroing()
+boundary_density_calculator = AdamiPressureExtrapolation()
 
 # This is to set wall viscosity with `trixi_include`
 viscosity_wall = nothing
@@ -53,7 +53,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              viscosity=viscosity_wall)
-# boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, movement=nothing)
 
 # ==========================================================================================
 # ==== Simulation
@@ -63,13 +63,11 @@ Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
+
 fluid_system = adapt(CuArray, fluid_system)
-boundary_model = adapt(CuArray, boundary_model)
-boundary = adapt(CuArray, tank.boundary)
-boundary_system = BoundarySPHSystem(boundary, boundary_model, movement=nothing)
 boundary_system = adapt(CuArray, boundary_system)
 
-semi = Semidiscretization(boundary_system, neighborhood_search=nothing)
+semi = Semidiscretization(fluid_system, boundary_system, neighborhood_search=nothing)
 ode = semidiscretize(semi, tspan, data_type=CuArray)
 
 info_callback = InfoCallback(interval=50)
