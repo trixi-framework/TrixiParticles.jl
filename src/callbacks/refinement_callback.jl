@@ -88,10 +88,10 @@ function (refinement_callback::ParticleRefinementCallback)(integrator)
         end
     end
 
-    resize!(integrator, (length(v_ode), length(u_ode)))
-
     @trixi_timeit timer() "update systems and nhs" update_systems_and_nhs(v_ode, u_ode,
                                                                           semi, t)
+
+    resize!(integrator, (length(v_ode), length(u_ode)))
 
     # Tell OrdinaryDiffEq that u has been modified
     u_modified!(integrator, true)
@@ -122,7 +122,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         refinement_cb = cb.affect!
         setup = [
-            "interval" => refinement_cb.interval
+            "interval" => refinement_cb.interval,
         ]
         summary_box(io, "ParticleRefinementCallback", setup)
     end
@@ -138,7 +138,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         refinement_cb = cb.affect!.affect!
         setup = [
-            "dt" => refinement_cb.interval
+            "dt" => refinement_cb.interval,
         ]
         summary_box(io, "ParticleRefinementCallback", setup)
     end

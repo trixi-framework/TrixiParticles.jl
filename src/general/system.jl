@@ -19,8 +19,6 @@ initialize!(system, neighborhood_search) = system
 @inline eachparticle(system) = Base.OneTo(nparticles(system))
 @inline each_moving_particle(system) = Base.OneTo(n_moving_particles(system))
 
-@inline refinement!(system, v, u, v_ode, u_ode, semi) = system
-
 # This should not be dispatched by system type. We always expect to get a column of `A`.
 @inline function extract_svector(A, system, i)
     extract_svector(A, Val(ndims(system)), i)

@@ -441,7 +441,6 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
 
         update_final!(system, v, u, v_ode, u_ode, semi, t)
     end
-
 end
 
 function update_nhs(u_ode, semi)

@@ -7,11 +7,11 @@
 include("refinement_pattern.jl")
 
 mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
-    candidates          :: Vector{Int}
-    refinement_levels   :: Int
-    refinement_pattern  :: RP
-    refinement_criteria :: RC
-    available_childs    :: Int
+    candidates           :: Vector{Int}
+    refinement_pattern   :: RP
+    refinement_criteria  :: RC
+    criteria_next_levels :: Vector{RC}
+    available_childs     :: Int
 
     # Depends on refinement pattern, particle spacing and parameters ϵ and α.
     # Should be obtained prior to simulation in `create_system_child()`
@@ -24,24 +24,26 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     # API --> parent system with `RL=0`
     function ParticleRefinement(refinement_criteria...;
                                 refinement_pattern=CubicSplitting(),
-                                refinement_levels=1)
+                                criteria_next_levels=[])
         ELTYPE = eltype(refinement_criteria[1])
         NDIMS = ndims(refinement_criteria[1])
 
         return new{0, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([0], refinement_levels, refinement_pattern,
-                                                refinement_criteria, 0)
+                   typeof(refinement_criteria)}([], refinement_pattern,
+                                                refinement_criteria,
+                                                criteria_next_levels, 0)
     end
 
     # Internal constructor for multiple refinement levels
     function ParticleRefinement{RL}(refinement_criteria::Tuple,
-                                    refinement_pattern, refinement_levels) where {RL}
+                                    refinement_pattern, criteria_next_levels) where {RL}
         ELTYPE = eltype(refinement_criteria[1])
         NDIMS = ndims(refinement_criteria[1])
 
         return new{RL, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([0], refinement_levels, refinement_pattern,
-                                                refinement_criteria, 0)
+                   typeof(refinement_criteria)}([], refinement_pattern,
+                                                refinement_criteria,
+                                                criteria_next_levels, 0)
     end
 end
 
@@ -71,12 +73,18 @@ end
 
 create_system_child(system, ::Nothing) = ()
 
-function create_system_child(system::WeaklyCompressibleSPHSystem,
+function create_system_child(system::FluidSystem,
                              particle_refinement::ParticleRefinement{RL}) where {RL}
-    (; refinement_levels, refinement_pattern, refinement_criteria) = particle_refinement
-    (; density_calculator, state_equation, smoothing_kernel,
-    pressure_acceleration_formulation, viscosity, density_diffusion,
-    acceleration, correction, source_terms) = system
+    (; criteria_next_levels, refinement_pattern, refinement_criteria) = particle_refinement
+
+    if system isa WeaklyCompressibleSPHSystem
+        (; density_calculator, state_equation, smoothing_kernel,
+        pressure_acceleration_formulation, viscosity, density_diffusion,
+        acceleration, correction, source_terms) = system
+    else
+        (; density_calculator, smoothing_kernel, sound_speed, viscosity, nu_edac,
+        pressure_acceleration_formulation, acceleration, correction, source_terms) = system
+    end
 
     NDIMS = ndims(system)
 
@@ -97,19 +105,32 @@ function create_system_child(system::WeaklyCompressibleSPHSystem,
 
     #  Let recursive dispatch handle multiple refinement levels
     level = RL + 1
-    particle_refinement_ = if level == refinement_levels
+    particle_refinement_ = if isempty(criteria_next_levels)
         nothing
     else
+        refinement_criteria = first(criteria_next_levels)
         ParticleRefinement{level}(refinement_criteria, refinement_pattern,
-                                  refinement_levels)
+                                  criteria_next_levels[(level + 1):end])
     end
 
-    system_child = WeaklyCompressibleSPHSystem(empty_ic, density_calculator, state_equation,
-                                               smoothing_kernel, smoothing_length_;
-                                               pressure_acceleration=pressure_acceleration_formulation,
-                                               viscosity, density_diffusion, acceleration,
-                                               correction, source_terms,
-                                               particle_refinement=particle_refinement_)
+    if system isa WeaklyCompressibleSPHSystem
+        system_child = WeaklyCompressibleSPHSystem(empty_ic, density_calculator,
+                                                   state_equation,
+                                                   smoothing_kernel, smoothing_length_;
+                                                   pressure_acceleration=pressure_acceleration_formulation,
+                                                   viscosity, density_diffusion,
+                                                   acceleration,
+                                                   correction, source_terms,
+                                                   particle_refinement=particle_refinement_)
+    else
+        alpha = nu_edac * 8 / (smoothing_length_ * sound_speed)
+        system_child = EntropicallyDampedSPHSystem(empty_ic, smoothing_kernel,
+                                                   smoothing_length_, sound_speed;
+                                                   pressure_acceleration=pressure_acceleration_formulation,
+                                                   density_calculator, alpha, viscosity,
+                                                   acceleration, source_terms,
+                                                   particle_refinement=particle_refinement_)
+    end
 
     # Empty mass vector leads to `nparticles(system_child) = 0`
     resize!(system_child.mass, 0)
@@ -281,6 +302,10 @@ function bear_childs!(system_child, system_parent, particle_parent, particle_ref
         p_a = zero(eltype(system_child))
         rho_a = zero(eltype(system_child))
 
+        for dim in 1:ndims(system_child)
+            v_child[dim, absolute_index] = zero(eltype(system_child))
+        end
+
         for neighbor in eachneighbor(child_coords, nhs)
             neighbor_coords = current_coords(u_parent, system_parent, neighbor)
             pos_diff = child_coords - neighbor_coords
@@ -337,6 +362,8 @@ end
         capacity_parent = nparticles(system) - length(candidates)
         capacity_child = nparticles(system_child) + n_new_child
 
+        capacity_parent <= 0 && error("`RefinementCriteria` affects all particles")
+
         # Resize child system (extending)
         resize_system!(system_child, capacity_child)
 
@@ -345,11 +372,18 @@ end
     end
 end
 
-function resize_system!(system::FluidSystem, capacity::Int)
+function resize_system!(system::WeaklyCompressibleSPHSystem, capacity::Int)
     (; mass, pressure, cache, density_calculator) = system
 
     resize!(mass, capacity)
     resize!(pressure, capacity)
+    resize_cache!(cache, capacity, density_calculator)
+end
+
+function resize_system!(system::EntropicallyDampedSPHSystem, capacity::Int)
+    (; mass, cache, density_calculator) = system
+
+    resize!(mass, capacity)
     resize_cache!(cache, capacity, density_calculator)
 end
 

@@ -40,7 +40,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     gravity-like source terms.
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
-                                   PF, ST, C} <: FluidSystem{NDIMS}
+                                   PF, ST, PR, C} <: FluidSystem{NDIMS}
     initial_condition                 :: InitialCondition{ELTYPE}
     mass                              :: Array{ELTYPE, 1} # [particle]
     density_calculator                :: DC
@@ -53,6 +53,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
     correction                        :: Nothing
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
+    particle_refinement               :: PR
     cache                             :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
@@ -62,6 +63,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
+                                         particle_refinement=nothing,
                                          source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
@@ -87,10 +89,12 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
         cache = create_cache_density(initial_condition, density_calculator)
 
         new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
+            typeof(viscosity), typeof(pressure_acceleration),
+            typeof(source_terms), typeof(particle_refinement),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                            smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           nothing, pressure_acceleration, source_terms, cache)
+                           nothing, pressure_acceleration, source_terms,
+                           particle_refinement, cache)
     end
 end
 
