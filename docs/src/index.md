@@ -12,6 +12,7 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
   - VTK
 
 ## Examples
+```@raw html
 <table align="center" border="0">
   <tr>
     <td align="center">
@@ -30,7 +31,7 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
     </td>
   </tr>
 </table>
-
+```
 
 ## Quickstart
 1. [Installation](@ref installation)
