@@ -71,18 +71,19 @@ create_child_system(system::FluidSystem, ::Nothing) = ()
 
 function create_child_system(system::FluidSystem,
                              particle_refinement::ParticleRefinement{RL}) where {RL}
+    (; particle_spacing) = system.initial_condition
     (; criteria_next_levels, refinement_pattern, refinement_criteria) = particle_refinement
 
     NDIMS = ndims(system)
 
     # Distribute values according to refinement pattern
-    smoothing_length_ = smoothing_length_child(system, refinement_pattern)
+    smoothing_length_ = refinement_pattern.smoothing_ratio * system.smoothing_length
     particle_refinement.rel_position_children = relative_position_children(system,
                                                                            refinement_pattern)
     particle_refinement.mass_ratio = mass_distribution(system, refinement_pattern)
 
     # Create "empty" `InitialCondition` for child system
-    particle_spacing_ = particle_spacing_child(system, refinement_pattern)
+    particle_spacing_ = particle_spacing * refinement_pattern.separation_parameter #TODO: Is this really the new particle spacing?
     coordinates_ = zeros(NDIMS, 2)
     velocity_ = similar(coordinates_)
     density_ = system.initial_condition.density[1]
