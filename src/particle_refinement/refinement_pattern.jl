@@ -7,7 +7,8 @@ struct CubicSplitting{ELTYPE}
     end
 end
 
-function (refinement_pattern::CubicSplitting)(system::System{2})
+function relative_position_children(system::System{2},
+                                    refinement_pattern::CubicSplitting)
     (; initial_condition) = system
     (; particle_spacing) = initial_condition
     (; epsilon) = refinement_pattern
@@ -23,6 +24,12 @@ function (refinement_pattern::CubicSplitting)(system::System{2})
                              particle_spacing * epsilon * direction_4)
 
     return reinterpret(reshape, SVector{2, typeof(epsilon)}, relative_position)
+end
+
+function mass_distribution(system::System{2}, refinement_pattern::CubicSplitting)
+    lambda = 1 / nchilds(system, refinement_pattern)
+
+    return lambda .* ones(nchilds(system, refinement_pattern))
 end
 
 # TODO: Clarify refinement pattern. Cubic splitting? Triangular or hexagonal?

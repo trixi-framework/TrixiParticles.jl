@@ -69,7 +69,7 @@ function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSear
     # Other checks might be added here later.
     check_configuration(systems)
 
-    systems = create_system_childs(systems)
+    systems = create_child_systems(systems)
 
     ranges_v, ranges_u = ranges_vu(systems)
 

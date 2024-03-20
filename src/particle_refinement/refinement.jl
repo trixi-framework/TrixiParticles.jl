@@ -3,17 +3,19 @@ include("refinement_criteria.jl")
 
 mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     candidates           :: Vector{Int}
+    candidates_mass      :: Vector{ELTYPE}
     refinement_pattern   :: RP
     refinement_criteria  :: RC
     criteria_next_levels :: Vector{RC}
-    available_childs     :: Int
+    available_children   :: Int
 
     # Depends on refinement pattern, particle spacing and parameters ϵ and α.
-    # Should be obtained prior to simulation in `create_system_child()`
-    rel_position_childs::Vector{SVector{NDIMS, ELTYPE}}
+    # Should be obtained prior to simulation in `create_child_system()`
+    rel_position_children :: Vector{SVector{NDIMS, ELTYPE}}
+    mass_ratio            :: Vector{ELTYPE}
 
     # It is essential to know the child system, which is empty at the beginning
-    # and will be created in `create_system_child()`
+    # and will be created in `create_child_system()`
     system_child::System
 
     # API --> parent system with `RL=0`
@@ -24,7 +26,7 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
         NDIMS = ndims(refinement_criteria[1])
 
         return new{0, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], refinement_pattern,
+                   typeof(refinement_criteria)}([], [], refinement_pattern,
                                                 refinement_criteria,
                                                 criteria_next_levels, 0)
     end
@@ -36,7 +38,7 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
         NDIMS = ndims(refinement_criteria[1])
 
         return new{RL, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], refinement_pattern,
+                   typeof(refinement_criteria)}([], [], refinement_pattern,
                                                 refinement_criteria,
                                                 criteria_next_levels, 0)
     end
@@ -52,40 +54,33 @@ end
 
 # ==== Create child systems
 
-function create_system_childs(systems)
+function create_child_systems(systems)
     systems_ = ()
     foreach_system(systems) do system
-        systems_ = (systems_..., create_system_child(system)...)
+        systems_ = (systems_..., create_child_system(system)...)
     end
 
     return (systems..., systems_...)
 end
 
-create_system_child(system) = ()
-function create_system_child(system::FluidSystem)
-    create_system_child(system, system.particle_refinement)
+create_child_system(system) = ()
+function create_child_system(system::FluidSystem)
+    create_child_system(system, system.particle_refinement)
 end
 
-create_system_child(system, ::Nothing) = ()
+create_child_system(system::FluidSystem, ::Nothing) = ()
 
-function create_system_child(system::FluidSystem,
+function create_child_system(system::FluidSystem,
                              particle_refinement::ParticleRefinement{RL}) where {RL}
     (; criteria_next_levels, refinement_pattern, refinement_criteria) = particle_refinement
-
-    if system isa WeaklyCompressibleSPHSystem
-        (; density_calculator, state_equation, smoothing_kernel,
-        pressure_acceleration_formulation, viscosity, density_diffusion,
-        acceleration, correction, source_terms) = system
-    else
-        (; density_calculator, smoothing_kernel, sound_speed, viscosity, nu_edac,
-        pressure_acceleration_formulation, acceleration, correction, source_terms) = system
-    end
 
     NDIMS = ndims(system)
 
     # Distribute values according to refinement pattern
     smoothing_length_ = smoothing_length_child(system, refinement_pattern)
-    particle_refinement.rel_position_childs = refinement_pattern(system)
+    particle_refinement.rel_position_children = relative_position_children(system,
+                                                                           refinement_pattern)
+    particle_refinement.mass_ratio = mass_distribution(system, refinement_pattern)
 
     # Create "empty" `InitialCondition` for child system
     particle_spacing_ = particle_spacing_child(system, refinement_pattern)
@@ -109,15 +104,21 @@ function create_system_child(system::FluidSystem,
     end
 
     if system isa WeaklyCompressibleSPHSystem
+        (; density_calculator, state_equation, smoothing_kernel,
+        pressure_acceleration_formulation, viscosity, density_diffusion,
+        acceleration, correction, source_terms) = system
+
         system_child = WeaklyCompressibleSPHSystem(empty_ic, density_calculator,
-                                                   state_equation,
-                                                   smoothing_kernel, smoothing_length_;
+                                                   state_equation, smoothing_kernel,
+                                                   smoothing_length_;
                                                    pressure_acceleration=pressure_acceleration_formulation,
                                                    viscosity, density_diffusion,
-                                                   acceleration,
-                                                   correction, source_terms,
+                                                   acceleration, correction, source_terms,
                                                    particle_refinement=particle_refinement_)
     else
+        (; density_calculator, smoothing_kernel, sound_speed, viscosity, nu_edac,
+        pressure_acceleration_formulation, acceleration, correction, source_terms) = system
+
         alpha = nu_edac * 8 / (smoothing_length_ * sound_speed)
         system_child = EntropicallyDampedSPHSystem(empty_ic, smoothing_kernel,
                                                    smoothing_length_, sound_speed;
@@ -133,7 +134,7 @@ function create_system_child(system::FluidSystem,
     particle_refinement.system_child = system_child
 
     return (system_child,
-            create_system_child(system_child, system_child.particle_refinement)...)
+            create_child_system(system_child, system_child.particle_refinement)...)
 end
 
 # ==== Refinement
@@ -157,18 +158,22 @@ check_refinement_criteria!(system, ::Nothing, v_ode, u_ode, semi) = system
 
 function check_refinement_criteria!(system, particle_refinement::ParticleRefinement,
                                     v_ode, u_ode, semi)
-    (; candidates, refinement_criteria) = particle_refinement
+    (; candidates, candidates_mass, refinement_criteria) = particle_refinement
 
     v = wrap_v(v_ode, system, semi)
     u = wrap_u(u_ode, system, semi)
 
-    !isempty(candidates) && Base.resize!(candidates, 0)
+    Base.resize!(candidates, 0)
+    Base.resize!(candidates_mass, 0)
 
     for particle in each_moving_particle(system)
         for refinement_criterion in refinement_criteria
             if (isempty(candidates) || particle != last(candidates)) &&
                refinement_criterion(system, particle, v, u, v_ode, u_ode, semi)
                 push!(candidates, particle)
+                # Store mass of candidate, since we lose the mass of the particle
+                # when resizing the systems
+                push!(candidates_mass, system.mass[particle])
             end
         end
     end
@@ -239,7 +244,7 @@ end
 function refine_particles!(system_parent::FluidSystem,
                            particle_refinement::ParticleRefinement,
                            v_ode, u_ode, _v_cache, _u_cache, callback, semi)
-    (; candidates, system_child) = particle_refinement
+    (; candidates, candidates_mass, system_child) = particle_refinement
 
     if !isempty(candidates)
         # Old storage
@@ -250,16 +255,19 @@ function refine_particles!(system_parent::FluidSystem,
         v_child = wrap_v(v_ode, system_child, semi)
         u_child = wrap_u(u_ode, system_child, semi)
 
-        particle_refinement.available_childs = length(candidates) *
-                                               nchilds(system_parent, particle_refinement)
+        particle_refinement.available_children = length(candidates) *
+                                                 nchilds(system_parent, particle_refinement)
 
         # Loop over all refinement candidates
+        mass_index = 1
         for particle_parent in candidates
-            bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
-                         v_parent, u_parent, v_child, u_child, semi)
+            mass_parent = candidates_mass[mass_index]
+            bear_childs!(system_child, system_parent, particle_parent, mass_parent,
+                         particle_refinement, v_parent, u_parent, v_child, u_child, semi)
 
-            particle_refinement.available_childs -= nchilds(system_parent,
-                                                            particle_refinement)
+            particle_refinement.available_children -= nchilds(system_parent,
+                                                              particle_refinement)
+            mass_index += 1
         end
     end
 end
@@ -269,9 +277,9 @@ end
 #
 # Reducing the dof by using a fixed regular refinement pattern
 # (given: position and number of child particles)
-function bear_childs!(system_child, system_parent, particle_parent, particle_refinement,
-                      v_parent, u_parent, v_child, u_child, semi)
-    (; rel_position_childs, available_childs, refinement_pattern) = particle_refinement
+function bear_childs!(system_child, system_parent, particle_parent, mass_parent,
+                      particle_refinement, v_parent, u_parent, v_child, u_child, semi)
+    (; rel_position_children, available_children, mass_ratio) = particle_refinement
 
     nhs = get_neighborhood_search(system_parent, system_parent, semi)
     parent_coords = current_coords(u_parent, system_parent, particle_parent)
@@ -279,16 +287,12 @@ function bear_childs!(system_child, system_parent, particle_parent, particle_ref
     # Loop over all child particles of parent particle
     # The number of child particles depends on the refinement pattern
     for particle_child in child_set(system_parent, particle_refinement)
-        absolute_index = particle_child + nparticles(system_child) - available_childs
+        absolute_index = particle_child + nparticles(system_child) - available_children
 
-        # TODO: Handle different masses. Problem: `particle_parent` does not have an
-        # mass-entry anymore, since `system_parent` was resized.
-        mass_ = system_parent.mass[1]
-        system_child.mass[absolute_index] = mass_child(system_parent, mass_,
-                                                       refinement_pattern)
+        system_child.mass[absolute_index] = mass_parent * mass_ratio[particle_child]
 
         # spread child positions according to the refinement pattern
-        child_coords = parent_coords + rel_position_childs[particle_child]
+        child_coords = parent_coords + rel_position_children[particle_child]
         for dim in 1:ndims(system_child)
             u_child[dim, absolute_index] = child_coords[dim]
         end
