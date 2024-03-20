@@ -1,0 +1,4 @@
+/* Increase default width */
+.docs-main {
+    max-width: 75% !important;
+}
