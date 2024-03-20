@@ -76,7 +76,7 @@ function (refinement_callback::ParticleRefinementCallback)(integrator)
     v_tmp .= v_ode
     u_tmp .= u_ode
 
-    refinement!(v_ode, u_ode, v_tmp, u_tmp, semi, refinement_callback)
+    refinement!(v_ode, u_ode, v_tmp, u_tmp, semi, refinement_callback, t)
 
     # Resize neighborhood search
     foreach_system(semi) do system

@@ -117,9 +117,9 @@ function create_child_system(system::FluidSystem,
 end
 
 # ==== Refinement
-function refinement!(v_ode, u_ode, _v_cache, _u_cache, semi, callback)
+function refinement!(v_ode, u_ode, _v_cache, _u_cache, semi, callback, t)
     foreach_system(semi) do system
-        check_refinement_criteria!(system, v_ode, u_ode, semi)
+        check_refinement_criteria!(system, v_ode, u_ode, semi, t)
     end
 
     resize_and_copy!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
@@ -127,16 +127,16 @@ function refinement!(v_ode, u_ode, _v_cache, _u_cache, semi, callback)
     refine_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 end
 
-check_refinement_criteria!(system, v_ode, u_ode, semi) = system
+check_refinement_criteria!(system, v_ode, u_ode, semi, t) = system
 
-function check_refinement_criteria!(system::FluidSystem, v_ode, u_ode, semi)
-    check_refinement_criteria!(system, system.particle_refinement, v_ode, u_ode, semi)
+function check_refinement_criteria!(system::FluidSystem, v_ode, u_ode, semi, t)
+    check_refinement_criteria!(system, system.particle_refinement, v_ode, u_ode, semi, t)
 end
 
-check_refinement_criteria!(system, ::Nothing, v_ode, u_ode, semi) = system
+check_refinement_criteria!(system, ::Nothing, v_ode, u_ode, semi, t) = system
 
 function check_refinement_criteria!(system, particle_refinement::ParticleRefinement,
-                                    v_ode, u_ode, semi)
+                                    v_ode, u_ode, semi, t)
     (; candidates, candidates_mass, refinement_criteria) = particle_refinement
 
     v = wrap_v(v_ode, system, semi)
@@ -148,7 +148,7 @@ function check_refinement_criteria!(system, particle_refinement::ParticleRefinem
     for particle in each_moving_particle(system)
         for refinement_criterion in refinement_criteria
             if (isempty(candidates) || particle != last(candidates)) &&
-               refinement_criterion(system, particle, v, u, v_ode, u_ode, semi)
+               refinement_criterion(system, particle, v, u, v_ode, u_ode, semi, t)
                 push!(candidates, particle)
                 # Store mass of candidate, since we lose the mass of the particle
                 # when resizing the systems

@@ -6,62 +6,72 @@
 
 abstract type RefinementCriteria{NDIMS, ELTYPE} end
 
-struct RefinementZone{NDIMS, ELTYPE} <: RefinementCriteria{NDIMS, ELTYPE}
-    zone_origin  :: SVector{NDIMS, ELTYPE}
+struct RefinementZone{NDIMS, ELTYPE, ZO} <: RefinementCriteria{NDIMS, ELTYPE}
+    zone_origin  :: ZO
     spanning_set :: Vector{SVector}
 
-    function RefinementZone(plane_points, zone_width)
-        NDIMS = length(plane_points)
-        ELTYPE = typeof(zone_width)
+    function RefinementZone(edge_lengths;
+                            zone_origin=ntuple(_ -> 0.0, length(edge_lengths)),
+                            rotation=nothing) # TODO
+        NDIMS = length(edge_lengths)
+        ELTYPE = eltype(edge_lengths)
+
+        if zone_origin isa Function
+            zone_origin_function = zone_origin
+        else
+            zone_origin_function = (v, u, v_ode, u_ode, t, system, semi) -> SVector(zone_origin...)
+        end
 
         # Vectors spanning the zone.
-        spanning_set = spanning_vectors(plane_points, zone_width)
+        spanning_set = spanning_vectors(edge_lengths, rotation)
 
-        spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
-
-        zone_origin = SVector(plane_points[1]...)
-
-        return new{NDIMS, ELTYPE}(zone_origin, spanning_set_)
+        return new{NDIMS, ELTYPE,
+                   typeof(zone_origin_function)}(zone_origin_function, spanning_set)
     end
 end
 
 @inline Base.ndims(::RefinementCriteria{NDIMS}) where {NDIMS} = NDIMS
 @inline Base.eltype(::RefinementCriteria{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
-function spanning_vectors(plane_points, zone_width)
+function spanning_vectors(edge_lengths, rotation)
 
     # Convert to tuple
-    return spanning_vectors(tuple(plane_points...), zone_width)
+    return spanning_vectors(tuple(edge_lengths...), rotation)
 end
 
-function spanning_vectors(plane_points::NTuple{2}, zone_width)
-    plane_size = plane_points[2] - plane_points[1]
+function spanning_vectors(edge_lengths::NTuple{2}, rotation)
+    ELTYPE = eltype(edge_lengths)
+    vec1 = [edge_lengths[1], 0.0]
+    vec2 = [0.0, edge_lengths[2]]
 
-    # Calculate normal vector of plane
-    b = Vector(normalize([-plane_size[2]; plane_size[1]]) * zone_width)
-
-    return hcat(b, plane_size)
-end
-
-function spanning_vectors(plane_points::NTuple{3}, zone_width)
-    # Vectors spanning the plane
-    edge1 = plane_points[2] - plane_points[1]
-    edge2 = plane_points[3] - plane_points[1]
-
-    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
-        throw(ArgumentError("the provided points do not span a rectangular plane"))
+    if !isnothing(rotation)
+        # rotate vecs
+        return reinterpret(reshape, SVector{2, ELTYPE}, hcat(vec1, vec2))
     end
 
-    # Calculate normal vector of plane
-    c = Vector(normalize(cross(edge2, edge1)) * zone_width)
+    return reinterpret(reshape, SVector{2, ELTYPE}, hcat(vec1, vec2))
+end
 
-    return hcat(c, edge1, edge2)
+function spanning_vectors(plane_points::NTuple{3}, rotation)
+    ELTYPE = eltype(edge_lengths)
+
+    vec1 = [edge_lengths[1], 0.0, 0.0]
+    vec2 = [0.0, edge_lengths[2], 0.0]
+    vec3 = [0.0, 0.0, edge_lengths[3]]
+
+    if !isnothing(rotation)
+        # rotate vecs
+        return reinterpret(reshape, SVector{3, ELTYPE}, hcat(vec1, vec2, vec3))
+    end
+
+    return reinterpret(reshape, SVector{3, ELTYPE}, hcat(vec1, vec2, vec3))
 end
 
 @inline function (refinement_criterion::RefinementZone)(system, particle,
-                                                        v, u, v_ode, u_ode, semi)
+                                                        v, u, v_ode, u_ode, semi, t)
     (; zone_origin, spanning_set) = refinement_criterion
-    particle_position = current_coords(u, system, particle) - zone_origin
+    particle_position = current_coords(u, system, particle) -
+                        zone_origin(v, u, v_ode, u_ode, t, system, semi)
 
     for dim in 1:ndims(system)
         span_dim = spanning_set[dim]
