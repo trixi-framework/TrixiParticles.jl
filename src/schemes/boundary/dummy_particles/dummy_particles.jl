@@ -333,15 +333,32 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                       v_neighbor_system, nhs)
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
-        compute_adami_density!(boundary_model, system, system_coords, particle)
+    @trixi_timeit timer() "inverse state equation" begin
+        compute_adami_density!(boundary_model, system, system_coords)
     end
+end
+
+function compute_adami_density!(boundary_model, system, system_coords)
+    @threaded for particle in eachparticle(system)
+        compute_adami_density_inner!(boundary_model, system, system_coords, particle)
+    end
+end
+
+function compute_adami_density!(boundary_model, system, system_coords::CuArray)
+    backend = get_backend(system_coords)
+    compute_adami_density_kernel!(backend)(boundary_model, system, system_coords, ndrange=nparticles(system))
+    synchronize(backend)
+end
+
+@kernel function compute_adami_density_kernel!(boundary_model, system, system_coords)
+    particle = @index(Global)
+    compute_adami_density_inner!(boundary_model, system, system_coords, particle)
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_adami_density!(boundary_model, system, system_coords, particle)
+function compute_adami_density_inner!(boundary_model, system, system_coords, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
@@ -398,7 +415,7 @@ end
     for particle in eachparticle(system)
         # Limit pressure to be non-negative to avoid attractive forces between fluid and
         # boundary particles at free surfaces (sticking artifacts).
-        pressure[particle] = max(pressure[particle], 0.0)
+        CUDA.@allowscalar pressure[particle] = max(pressure[particle], 0.0)
     end
 end
 

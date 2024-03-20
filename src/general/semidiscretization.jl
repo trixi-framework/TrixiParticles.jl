@@ -411,9 +411,11 @@ end
 
 @inline function add_velocity!(du::CuArray, v, system)
     # CUDA.@sync CUDA.@cuda threads=n_moving_particles(system) add_velocity_kernel_cuda!(du, v, system)
-    backend = get_backend(du)
-    add_velocity_kernel!(backend)(du, v, system, ndrange=n_moving_particles(system))
-    synchronize(backend)
+    if n_moving_particles(system) > 0
+        backend = get_backend(du)
+        add_velocity_kernel!(backend)(du, v, system, ndrange=n_moving_particles(system))
+        synchronize(backend)
+    end
 
     return du
 end
@@ -533,9 +535,11 @@ function add_source_terms!(dv_ode::CuArray, v_ode, u_ode, semi)
         u = wrap_u(u_ode, system, semi)
 
         # CUDA.@sync CUDA.@cuda threads=n_moving_particles(system) add_source_terms_kernel!(dv, v, u, system)
-        backend = get_backend(dv_ode)
-        add_source_terms_kernel!(backend)(dv, v, u, system, ndrange=n_moving_particles(system))
-        synchronize(backend)
+        if n_moving_particles(system) > 0
+            backend = get_backend(dv_ode)
+            add_source_terms_kernel!(backend)(dv, v, u, system, ndrange=n_moving_particles(system))
+            synchronize(backend)
+        end
     end
 
     return dv_ode
@@ -717,7 +721,7 @@ end
 
 function nhs_coords(system::FluidSystem,
                     neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
+    CUDA.@allowscalar if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
     end
 
