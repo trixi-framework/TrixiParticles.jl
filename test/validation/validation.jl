@@ -30,6 +30,8 @@
             r"WARNING: Method definition extract_resolution_from_filename.*\n",
             r"WARNING: importing deprecated binding Makie.*\n",
             r"WARNING: Makie.* is deprecated.*\n",
+            r"  likely near none:1\n",
+            r", use .* instead.\n",
         ]
         # Verify number of plots
         @test length(ax1.scene.plots) >= 6
