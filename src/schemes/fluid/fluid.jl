@@ -101,3 +101,43 @@ end
                                        pressure)
     v[end, particle] = pressure
 end
+
+function copy_system(system::WeaklyCompressibleSPHSystem;
+                     initial_condition=system.initial_condition,
+                     density_calculator=system.density_calculator,
+                     state_equation=system.state_equation,
+                     smoothing_kernel=system.smoothing_kernel,
+                     smoothing_length=system.smoothing_length,
+                     pressure_acceleration=system.pressure_acceleration_formulation,
+                     viscosity=system.viscosity,
+                     density_diffusion=system.density_diffusion,
+                     acceleration=system.acceleration,
+                     particle_refinement=system.particle_refinement,
+                     correction=system.correction,
+                     source_terms=system.source_terms)
+    return WeaklyCompressibleSPHSystem(initial_condition,
+                                       density_calculator, state_equation,
+                                       smoothing_kernel, smoothing_length;
+                                       pressure_acceleration, viscosity, density_diffusion,
+                                       acceleration, particle_refinement, correction,
+                                       source_terms)
+end
+
+function copy_system(system::EntropicallyDampedSPHSystem;
+                     initial_condition=system.initial_condition,
+                     smoothing_kernel=system.smoothing_kernel,
+                     smoothing_length=system.smoothing_length,
+                     sound_speed=system.sound_speed,
+                     pressure_acceleration=system.pressure_acceleration_formulation,
+                     density_calculator=system.density_calculator,
+                     alpha=0.5,
+                     viscosity=system.viscosity,
+                     acceleration=system.acceleration,
+                     particle_refinement=system.particle_refinement,
+                     source_terms=system.source_terms)
+    return EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
+                                       smoothing_length, sound_speed;
+                                       pressure_acceleration, density_calculator, alpha,
+                                       viscosity,
+                                       acceleration, particle_refinement, source_terms)
+end

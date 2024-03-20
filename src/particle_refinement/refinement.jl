@@ -53,7 +53,6 @@ end
 @inline nchilds(system, pr::ParticleRefinement) = nchilds(system, pr.refinement_pattern)
 
 # ==== Create child systems
-
 function create_child_systems(systems)
     systems_ = ()
     foreach_system(systems) do system
@@ -103,30 +102,9 @@ function create_child_system(system::FluidSystem,
                                   criteria_next_levels[(level + 1):end])
     end
 
-    if system isa WeaklyCompressibleSPHSystem
-        (; density_calculator, state_equation, smoothing_kernel,
-        pressure_acceleration_formulation, viscosity, density_diffusion,
-        acceleration, correction, source_terms) = system
-
-        system_child = WeaklyCompressibleSPHSystem(empty_ic, density_calculator,
-                                                   state_equation, smoothing_kernel,
-                                                   smoothing_length_;
-                                                   pressure_acceleration=pressure_acceleration_formulation,
-                                                   viscosity, density_diffusion,
-                                                   acceleration, correction, source_terms,
-                                                   particle_refinement=particle_refinement_)
-    else
-        (; density_calculator, smoothing_kernel, sound_speed, viscosity, nu_edac,
-        pressure_acceleration_formulation, acceleration, correction, source_terms) = system
-
-        alpha = nu_edac * 8 / (smoothing_length_ * sound_speed)
-        system_child = EntropicallyDampedSPHSystem(empty_ic, smoothing_kernel,
-                                                   smoothing_length_, sound_speed;
-                                                   pressure_acceleration=pressure_acceleration_formulation,
-                                                   density_calculator, alpha, viscosity,
-                                                   acceleration, source_terms,
-                                                   particle_refinement=particle_refinement_)
-    end
+    system_child = copy_system(system; initial_condition=empty_ic,
+                               smoothing_length=smoothing_length_,
+                               particle_refinement=particle_refinement_)
 
     # Empty mass vector leads to `nparticles(system_child) = 0`
     resize!(system_child.mass, 0)
