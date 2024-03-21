@@ -412,11 +412,9 @@ end
                                    kernel_weight, particle, neighbor)
     end
 
-    for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid attractive forces between fluid and
-        # boundary particles at free surfaces (sticking artifacts).
-        CUDA.@allowscalar pressure[particle] = max(pressure[particle], 0.0)
-    end
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
+    pressure .= max.(pressure, 0.0)
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
