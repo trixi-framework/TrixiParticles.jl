@@ -66,7 +66,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                          viscosity=nothing, density_diffusion=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         correction=nothing, source_terms=nothing, surface_tension=nothing)
+                                         correction=nothing, source_terms=nothing,
+                                         surface_tension=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
         n_particles = nparticles(initial_condition)
@@ -124,7 +125,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                                         acceleration_, viscosity,
                                                         density_diffusion, correction,
                                                         pressure_acceleration,
-                                                        source_terms, surface_tension, cache)
+                                                        source_terms, surface_tension,
+                                                        cache)
     end
 end
 

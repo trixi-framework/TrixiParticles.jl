@@ -199,10 +199,11 @@ end
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-    particle_container::Union{BoundarySPHSystem, FluidSystem},
-    neighbor_container::BoundarySPHSystem,
-    surface_tension::SurfaceTensionAkinci)
-return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+                                      particle_container::Union{BoundarySPHSystem,
+                                                                FluidSystem},
+                                      neighbor_container::BoundarySPHSystem,
+                                      surface_tension::SurfaceTensionAkinci)
+    return zeros(SVector{ndims(particle_container), eltype(particle_container)})
 end
 
 # adhesion term to compensate for cohesion force
