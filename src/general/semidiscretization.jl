@@ -145,6 +145,23 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
     return search
 end
 
+function create_neighborhood_search(system, neighbor, ::Val{ArrayGridNeighborhoodSearch},
+                                    periodic_box_min_corner, periodic_box_max_corner,
+                                    threaded_nhs_update)
+    radius = compact_support(system, neighbor)
+    search = ArrayGridNeighborhoodSearch{ndims(system)}(radius, nparticles(neighbor),
+                                                   periodic_box_min_corner=periodic_box_min_corner,
+                                                   periodic_box_max_corner=periodic_box_max_corner,
+                                                   threaded_nhs_update=threaded_nhs_update)
+
+    search = adapt(CuArray, search)
+
+    # Initialize neighborhood search
+    initialize!(search, initial_coordinates(neighbor))
+
+    return search
+end
+
 @inline function compact_support(system, neighbor)
     (; smoothing_kernel, smoothing_length) = system
     return compact_support(smoothing_kernel, smoothing_length)

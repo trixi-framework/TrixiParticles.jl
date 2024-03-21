@@ -51,7 +51,8 @@ viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+density_diffusion=nothing
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -73,7 +74,8 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, threaded_nhs_update=true)
+semi = Semidiscretization(fluid_system, boundary_system, threaded_nhs_update=true,
+                          neighborhood_search=TrixiParticles.ArrayGridNeighborhoodSearch)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)

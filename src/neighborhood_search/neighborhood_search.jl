@@ -124,3 +124,4 @@ end
 
 include("trivial_nhs.jl")
 include("grid_nhs.jl")
+include("array_grid_nhs.jl")
