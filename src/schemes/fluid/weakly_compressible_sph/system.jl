@@ -119,7 +119,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                    typeof(state_equation), typeof(smoothing_kernel),
                    typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(cache)}(initial_condition, mass, pressure,
+                   typeof(source_terms), typeof(surface_tension), typeof(cache)}(initial_condition, mass, pressure,
                                                         density_calculator, state_equation,
                                                         smoothing_kernel, smoothing_length,
                                                         acceleration_, viscosity,
@@ -373,7 +373,7 @@ function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, sy
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
-        nhs = neighborhood_searches(system, neighbor_system, semi)
+        nhs = get_neighborhood_search(system, semi)
 
         calc_normal_akinci(surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
                            system, neighbor_system)

@@ -64,7 +64,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                                     particle_system, neighbor_system, surface_tension)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity[i] + dv_surface_tension[i] +
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
                                dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
