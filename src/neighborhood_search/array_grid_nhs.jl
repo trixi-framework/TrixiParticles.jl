@@ -8,7 +8,7 @@ struct ArrayGridNeighborhoodSearch{NDIMS, ELTYPE, G, GI, HC, PB}
     # cell_buffer         :: Array{NTuple{NDIMS, Int}, 2} # Multithreaded buffer for `update!`
     # cell_buffer_indices :: Vector{Int} # Store which entries of `cell_buffer` are initialized
     periodic_box        :: PB
-    n_cells             :: NTuple{NDIMS, Int}
+    n_cells             :: NTuple{NDIMS, Int32}
     cell_size           :: NTuple{NDIMS, ELTYPE}
     threaded_nhs_update :: Bool
 end
@@ -29,11 +29,11 @@ function ArrayGridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
         # Allow small tolerance to avoid inefficient larger cells due to machine
         # rounding errors.
         size = max_corner - min_corner
-        n_cells = Tuple(floor.(Int, (size .+ 10eps()) / search_radius))
+        n_cells = Tuple(floor.(Int32, (size .+ 10eps()) / search_radius))
         cell_size = Tuple(size ./ n_cells)
 
-        grid = Array{Int, NDIMS + 1}(undef, buffer_size, n_cells...)
-        grid_indices = zeros(Int, n_cells...)
+        grid = Array{Int32, NDIMS + 1}(undef, buffer_size, n_cells...)
+        grid_indices = zeros(Int32, n_cells...)
 
         # cell_buffer = Array{NTuple{NDIMS, Int}, 2}(undef, n_particles, Threads.nthreads())
         # cell_buffer_indices = zeros(Int, Threads.nthreads())
@@ -109,45 +109,104 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
     # initialize!(neighborhood_search, coords)
     (; grid, grid_indices, has_changed) = neighborhood_search
 
-    has_changed .= 0
-
     # Find all cells containing particles that now belong to another cell
-    @trixi_timeit timer() "mark changed cells" begin
-        backend = get_backend(grid)
-        mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
-        synchronize(backend)
+    # @trixi_timeit timer() "mark changed cells" begin
+    #     backend = get_backend(grid)
+    #     mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+    #     synchronize(backend)
+    # end
+
+    @trixi_timeit timer() "move to new cells" begin
+        @trixi_timeit timer() "move right" begin
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (1, 0), ndrange=size(grid_indices))
+            synchronize(backend)
+        end
+        @trixi_timeit timer() "move left" begin
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 0), ndrange=size(grid_indices))
+            synchronize(backend)
+        end
+        @trixi_timeit timer() "move up" begin
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (0, 1), ndrange=size(grid_indices))
+            synchronize(backend)
+        end
+        @trixi_timeit timer() "move down" begin
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (0, -1), ndrange=size(grid_indices))
+            synchronize(backend)
+        end
+        @trixi_timeit timer() "move diagonally" begin
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (1, 1), ndrange=size(grid_indices))
+            synchronize(backend)
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 1), ndrange=size(grid_indices))
+            synchronize(backend)
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (1, -1), ndrange=size(grid_indices))
+            synchronize(backend)
+            backend = get_backend(grid)
+            move_cell_kernel!(backend)(neighborhood_search, coords, (-1, -1), ndrange=size(grid_indices))
+            synchronize(backend)
+        end
     end
 
     # @trixi_timeit timer() "filter" CUDA.@allowscalar changed = filter(i -> has_changed[i], CartesianIndices(has_changed))
 
     # Iterate over all marked cells and move the particles into their new cells
 
-        CUDA.@allowscalar while findmax(has_changed)[1]
-            cell = findmax(has_changed)[2]
-            has_changed[cell] = false
+    # CUDA.@allowscalar while findmax(has_changed)[1]
+    #     cell = findmax(has_changed)[2]
+    #     has_changed[cell] = false
 
-            @trixi_timeit timer() "move to new cells" begin
-            # Find all particles whose coordinates do not match this cell
-            moved_particle_indices = (i for i in 1:grid_indices[cell]
-                                    if cell_coords(extract_svector(coords, neighborhood_search, grid[i, cell]),
-                                                    neighborhood_search) != Tuple(cell))
+    #     @trixi_timeit timer() "move to new cells" begin
+    #         # Find all particles whose coordinates do not match this cell
+    #         moved_particle_indices = (i for i in 1:grid_indices[cell]
+    #                                 if cell_coords(extract_svector(coords, neighborhood_search, grid[i, cell]),
+    #                                                 neighborhood_search) != Tuple(cell))
 
-            # Add moved particles to new cell
-            for i in moved_particle_indices
-                particle = grid[i, cell]
-                new_cell_coords = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+    #         # Add moved particles to new cell
+    #         for i in moved_particle_indices
+    #             particle = grid[i, cell]
+    #             new_cell_coords = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
 
-                # Add particle to new cell
-                grid_indices[new_cell_coords...] += 1
-                grid[grid_indices[new_cell_coords...], new_cell_coords...] = particle
+    #             # Add particle to new cell
+    #             grid_indices[new_cell_coords...] += 1
+    #             grid[grid_indices[new_cell_coords...], new_cell_coords...] = particle
+    #         end
+    #     end
+    # end
+
+    @trixi_timeit timer() "sanity check" begin
+        has_changed .= 0
+
+        @trixi_timeit timer() "mark changed cells" begin
+            backend = get_backend(grid)
+            mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+            synchronize(backend)
+        end
+
+        if findmax(has_changed)[1]
+            # cell = Tuple(findmax(has_changed)[2])
+
+            # CUDA.@allowscalar for particle in particles_in_cell(cell, neighborhood_search)
+            #     new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+            #     if !(new_cell in (cell, cell .+ (1, 0), cell .+ (-1, 0), cell .+ (0, 1), cell .+ (0, -1),
+            #                       cell .+ (-1, -1), cell .+ (-1, 1), cell .+ (1, -1), cell .+ (1, 1)))
+            #         @info "" cell new_cell
+            #     end
+            # end
+            @warn "NHS re-initialization"
+            @trixi_timeit timer() "nhs re-initialization" initialize!(neighborhood_search, coords)
+        else
+            @trixi_timeit timer() "remove from old cells" begin
+                backend = get_backend(grid)
+                remove_from_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+                synchronize(backend)
             end
         end
-    end
-
-    @trixi_timeit timer() "remove from old cells" begin
-        backend = get_backend(grid)
-        remove_from_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
-        synchronize(backend)
     end
 
     return neighborhood_search
@@ -159,10 +218,27 @@ end
     cell = @index(Global, NTuple)
 
     for particle in particles_in_cell(cell, neighborhood_search)
-        if cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search) != cell
+        new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+        if !(new_cell in (cell, cell .+ (1, 0), cell .+ (-1, 0), cell .+ (0, 1), cell .+ (0, -1),
+                          cell .+ (-1, -1), cell .+ (-1, 1), cell .+ (1, -1), cell .+ (1, 1)))
             # Mark this cell and continue with the next one
             has_changed[cell...] = true
             break
+        end
+    end
+end
+
+@kernel function move_cell_kernel!(neighborhood_search, coords, move_step)
+    (; grid, grid_indices) = neighborhood_search
+
+    cell = @index(Global, NTuple)
+
+    for particle in particles_in_cell(cell, neighborhood_search)
+        new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+        if cell .+ move_step == new_cell
+            # Add moved particle to new cell
+            grid_indices[new_cell...] += 1
+            grid[grid_indices[new_cell...], new_cell...] = particle
         end
     end
 end
@@ -175,8 +251,12 @@ end
     # Remove moved particles from old cell
     for i in grid_indices[cell...]:-1:1
         # Remove moved particles from the end of the cell
-        if cell_coords(extract_svector(coords, neighborhood_search, grid[i, cell...]),
-                    neighborhood_search) != cell
+        new_cell = cell_coords(extract_svector(coords, neighborhood_search, grid[i, cell...]),
+                               neighborhood_search)
+        if new_cell != cell
+            if !(grid[i, cell...] in view(grid, :, new_cell...))
+                error("ssdlfjd")
+            end
             grid[i, cell...] = grid[grid_indices[cell...], cell...]
             grid[grid_indices[cell...], cell...] = 0
             grid_indices[cell...] -= 1
