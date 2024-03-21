@@ -135,11 +135,9 @@ function refinement!(v_ode, u_ode, _v_cache, _u_cache, semi, callback, t)
 
     refine_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 
-    if !(callback.coarsen)
-        return nothing
+    if callback.coarsen
+        coarsen_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
     end
-
-    coarsen_particles!(callback, semi, v_ode, u_ode, _v_cache, _u_cache)
 end
 
 check_refinement_criteria!(system, v_ode, u_ode, semi, t) = system

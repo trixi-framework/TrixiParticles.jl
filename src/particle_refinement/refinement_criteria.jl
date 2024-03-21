@@ -9,10 +9,10 @@ abstract type RefinementCriteria{NDIMS, ELTYPE} end
 struct RefinementZone{NDIMS, ELTYPE, ZO} <: RefinementCriteria{NDIMS, ELTYPE}
     zone_origin  :: ZO
     spanning_set :: Vector{SVector}
-
+    padding      :: ELTYPE
     function RefinementZone(edge_lengths;
                             zone_origin=ntuple(_ -> 0.0, length(edge_lengths)),
-                            rotation=nothing) # TODO
+                            rotation=nothing, padding=0.0) # TODO
         NDIMS = length(edge_lengths)
         ELTYPE = eltype(edge_lengths)
 
@@ -25,8 +25,10 @@ struct RefinementZone{NDIMS, ELTYPE, ZO} <: RefinementCriteria{NDIMS, ELTYPE}
         # Vectors spanning the zone.
         spanning_set = spanning_vectors(edge_lengths, rotation)
 
+        padding_ = padding^2
         return new{NDIMS, ELTYPE,
-                   typeof(zone_origin_function)}(zone_origin_function, spanning_set)
+                   typeof(zone_origin_function)}(zone_origin_function, spanning_set,
+                                                 padding_)
     end
 end
 
@@ -69,7 +71,7 @@ end
 
 @inline function (refinement_criterion::RefinementZone)(system, particle,
                                                         v, u, v_ode, u_ode, semi, t)
-    (; zone_origin, spanning_set) = refinement_criterion
+    (; zone_origin, spanning_set, padding) = refinement_criterion
     particle_position = current_coords(u, system, particle) -
                         zone_origin(v, u, v_ode, u_ode, t, system, semi)
 
@@ -77,7 +79,7 @@ end
         span_dim = spanning_set[dim]
         # Checks whether the projection of the particle position
         # falls within the range of the zone.
-        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
+        if !(padding < dot(particle_position, span_dim) < dot(span_dim, span_dim) - padding)
 
             # Particle is not in refinement zone.
             return false

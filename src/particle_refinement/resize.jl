@@ -145,9 +145,9 @@ end
                                                          system.particle_refinement,
                                                          system.particle_coarsening)
 
-@inline get_iterator(system, ::Nothing, ::Nothing) = eachparticle(system)
+@inline get_iterator(system::FluidSystem, ::Nothing, ::Nothing) = eachparticle(system)
 
-@inline function get_iterator(system,
+@inline function get_iterator(system::FluidSystem,
                               particle_refinement::ParticleRefinement,
                               particle_coarsening::Nothing)
     (; candidates) = particle_refinement
@@ -158,7 +158,7 @@ end
     return setdiff(eachparticle(system), candidates)
 end
 
-@inline function get_iterator(system,
+@inline function get_iterator(system::FluidSystem,
                               particle_refinement::Nothing,
                               particle_coarsening::ParticleCoarsening)
     candidates_coarsening = particle_coarsening.candidates
@@ -171,7 +171,7 @@ end
 
 # System is a child system with multilevel refinement.
 # Thus, check if it has coarsening candidates AND refinement candidates
-@inline function get_iterator(system,
+@inline function get_iterator(system::FluidSystem,
                               particle_refinement::ParticleRefinement,
                               particle_coarsening::ParticleCoarsening)
     candidates_refinement = particle_refinement.candidates

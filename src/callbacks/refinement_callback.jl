@@ -1,12 +1,15 @@
 mutable struct ParticleRefinementCallback{I}
     interval           :: I
+    coarsen_interval   :: Int
     ranges_u_cache     :: Tuple
     ranges_v_cache     :: Tuple
     nparticles_cache   :: Tuple
     eachparticle_cache :: Tuple
+    coarsen            :: Bool
 end
 
-function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
+function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0,
+                                    coarsen_interval::Integer=1)
     if dt > 0 && interval !== -1
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -20,7 +23,8 @@ function ParticleRefinementCallback(; interval::Integer=-1, dt=0.0)
         interval = 1
     end
 
-    refinement_callback = ParticleRefinementCallback(interval, (), (), (), ())
+    refinement_callback = ParticleRefinementCallback(interval, coarsen_interval,
+                                                     (), (), (), (), false)
 
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
@@ -66,6 +70,8 @@ function (refinement_callback::ParticleRefinementCallback)(integrator)
     semi = integrator.p
     v_ode, u_ode = integrator.u.x
 
+    refinement_callback.coarsen = coarsen_condition(refinement_callback, integrator)
+
     # Update NHS
     @trixi_timeit timer() "update nhs" update_nhs(u_ode, semi)
 
@@ -97,6 +103,16 @@ function (refinement_callback::ParticleRefinementCallback)(integrator)
     u_modified!(integrator, true)
 
     return integrator
+end
+
+@inline function coarsen_condition(cb::ParticleRefinementCallback{Int}, integrator)
+    return integrator.stats.naccept > 0 &&
+           round(integrator.stats.naccept / cb.interval) % cb.coarsen_interval == 0
+end
+
+@inline function coarsen_condition(cb::ParticleRefinementCallback, integrator)
+    return integrator.stats.naccept > 0 &&
+           round(Int, integrator.t / cb.interval) % cb.coarsen_interval == 0
 end
 
 Base.resize!(a::RecursiveArrayTools.ArrayPartition, sizes::Tuple) = resize!.(a.x, sizes)
