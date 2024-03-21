@@ -112,7 +112,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
         cache = (;
-                 create_cache(surface_tension, ELTYPE, NDIMS, n_particles)...,
+                 create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
                  cache...)
 
         return new{NDIMS, ELTYPE, typeof(density_calculator),
@@ -154,7 +154,7 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
-function create_cache(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
+function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
     return (; surface_normal)
 end
@@ -359,8 +359,7 @@ end
     extract_smatrix(system.cache.correction_matrix, system, particle)
 end
 
-function compute_surface_normal!(surface_tension, v, u, container, container_index, u_ode,
-                                 v_ode, semi, t)
+function compute_surface_normal!(surface_tension, v, u, system, u_ode, v_ode, semi, t)
 end
 
 function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, system, u_ode,
@@ -384,4 +383,12 @@ end
                             ::SurfaceTensionAkinci)
     (; cache) = particle_container
     return extract_svector(cache.surface_normal, particle_container, particle)
+end
+
+@inline function surface_tension_model(system::WeaklyCompressibleSPHSystem)
+    return system.surface_tension
+end
+
+@inline function surface_tension_model(system)
+    return nothing
 end

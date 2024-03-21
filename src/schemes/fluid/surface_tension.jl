@@ -1,5 +1,3 @@
-struct NoSurfaceTension end
-
 abstract type AkinciTypeSurfaceTension end
 
 @doc raw"""
@@ -74,7 +72,9 @@ end
     end
 
     # Eq. 1 in acceleration form
-    return -surface_tension_coefficient * mb * C * pos_diff / distance
+    cohesion_force = -surface_tension_coefficient * mb * C * pos_diff / distance
+
+    return cohesion_force
 end
 
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
