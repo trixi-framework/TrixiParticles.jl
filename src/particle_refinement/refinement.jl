@@ -15,7 +15,7 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     mass_ratio            :: Vector{ELTYPE}
 
     # It is essential to know the child system, which is empty at the beginning
-    # and will be created in `create_child_system()`
+    # and will be created in `create_child_system()` at the beginning of the simulation
     system_child::System
 
     # API --> parent system with `RL=0`
@@ -290,6 +290,12 @@ function bear_childs!(system_child, system_parent, particle_parent, mass_parent,
 
             distance2 = dot(pos_diff, pos_diff)
 
+            # TODO: Check the following statement
+            #
+            # For the Navier–Stokes equations Feldman and Bonet showed that
+            # the only way to conserve both total momentum and energy is to deﬁne
+            # the velocities of the daughter particles `v_child` equal to the
+            # the velocity of the original parent particle therefore: `v_child = v_parent`
             if distance2 <= nhs.search_radius^2
                 distance = sqrt(distance2)
                 kernel_weight = smoothing_kernel(system_parent, distance)
