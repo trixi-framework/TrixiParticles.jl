@@ -1,20 +1,64 @@
-# Weakly Compressible SPH
+# [Weakly Compressible SPH](@id wcsph)
 
-TODO: Explain the WCSPH formulation.
+Weakly compressible SPH as introduced by Monaghan (1994). This formulation relies on a stiff
+[equation of state](@ref equation_of_state) that generates large pressure changes
+for small density variations.
 
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
 ```
 
-## Equation of State
+### References
+- Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
+  In: Journal of Computational Physics 110 (1994), pages 399--406.
+  [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
 
-TODO: Explain how WCSPH uses the state equation.
+## [Equation of State](@id equation_of_state)
 
+The equation of state is used to relate fluid density to pressure and thus allow
+an explicit simulation of the [WCSPH system](@ref WeaklyCompressibleSPHSystem).
+The equation in the following formulation was introduced by Cole (Cole 1948, pp. 39 and 43).
+The pressure ``p`` is calculated as
+```math
+    p = B \left(\left(\frac{\rho}{\rho_0}\right)^\gamma - 1\right) + p_{\text{background}},
+```
+where ``\rho`` denotes the density, ``\rho_0`` the reference density,
+and ``p_{\text{background}}`` the background pressure, which is set to zero when applied to
+free-surface flows (Adami et al., 2012).
+
+The bulk modulus, ``B =  \frac{\rho_0 c^2}{\gamma}``, is calculated from the artificial
+speed of sound ``c`` and the isentropic exponent ``\gamma``.
+
+An ideal gas equation of state with a linear relationship between pressure and density can
+be obtained by choosing `exponent=1`, i.e.
+```math
+    p = B \left( \frac{\rho}{\rho_0} -1 \right) = c^2(\rho - \rho_0).
+```
+
+For higher Reynolds numbers, `exponent=7` is recommended, whereas at lower Reynolds
+numbers `exponent=1` yields more accurate pressure estimates since pressure and
+density are proportional.
+
+When using [`SummationDensity`](@ref) (or [`DensityReinitializationCallback`](@ref))
+and free surfaces, initializing particles with equal spacing will cause underestimated
+density and therefore strong attractive forces between particles at the free surface.
+Setting `clip_negative_pressure=true` can avoid this.
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
 ```
+
+## References
+- Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
+- J. P. Morris, P. J. Fox, Y. Zhu
+  "Modeling Low Reynolds Number Incompressible Flows Using SPH ".
+  In: Journal of Computational Physics , Vol. 136, No. 1, pages 214--226.
+  [doi: 10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
+- S. Adami, X. Y. Hu, N. A. Adams.
+  "A generalized wall boundary condition for smoothed particle hydrodynamics".
+  In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
+  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
 
 ## [Viscosity](@id viscosity_wcsph)
 
@@ -56,14 +100,14 @@ For the cheap [`DensityDiffusionMolteniColagrossi`](@ref), this results in reduc
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600" alt="density_diffusion_2d"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/01289e3b-98ce-4b2d-8151-cd20782d5823" alt="density_diffusion_2d"/>
   <figcaption>Dam break in 2D with different density diffusion terms</figcaption>
 </figure>
 ```
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaDKc0DCJfFH606zWFkjutMYzs70Y4Ot_33avjcIRxV3xNbrX1gqx6EpeSmysai338aRsOoqJ8B1idUs5U30SA_o12OQ=s1600" alt="density_diffusion_3d"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/63a05b2a-6c37-468e-b895-15ab142a4eba" alt="density_diffusion_3d"/>
   <figcaption>Dam break in 3D with different density diffusion terms</figcaption>
 </figure>
 ```
@@ -76,7 +120,7 @@ until ``t = 40`` (again using ``δ = 0.1``):
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600" alt="density_diffusion_tank"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/440debc9-6051-4a3b-aa9c-02a6b32fccf3" alt="density_diffusion_tank"/>
   <figcaption>Tank in rest under gravity in 3D with different density diffusion terms</figcaption>
 </figure>
 ```
@@ -97,7 +141,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffusion.jl")]
 ```
 
-## Corrections
+## [Corrections](@id corrections)
 
 ```@autodocs
 Modules = [TrixiParticles]

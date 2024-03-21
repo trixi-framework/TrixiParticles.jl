@@ -73,7 +73,7 @@ to an improvement, especially at free surfaces.
     - In 2D, we can expect an increase of about 5--6% in computation time.
 
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
@@ -115,7 +115,7 @@ This correction can be applied with [`SummationDensity`](@ref) and
     - In 2D, we can expect an increase of about 10--15% in computation time.
 
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
@@ -141,7 +141,7 @@ which results in a 1st-order-accurate SPH method.
 - Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
@@ -161,26 +161,25 @@ function kernel_correction_coefficient(system::BoundarySystem, particle)
     return system.boundary_model.cache.kernel_correction_coefficient[particle]
 end
 
-function compute_correction_values!(system, correction, v, u, v_ode, u_ode, semi,
-                                    density_calculator)
+function compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
     return system
 end
 
-function compute_correction_values!(system, ::ShepardKernelCorrection, v, u, v_ode, u_ode,
-                                    semi,
-                                    ::SummationDensity)
-    return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system, ::ShepardKernelCorrection, u, v_ode, u_ode,
+                                    semi)
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
                                   system.cache.kernel_correction_coefficient)
 end
 
-function compute_correction_values!(system::BoundarySystem, ::ShepardKernelCorrection, v, u,
-                                    v_ode, u_ode, semi,
-                                    ::SummationDensity)
-    return compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
+function compute_correction_values!(system::BoundarySystem, ::ShepardKernelCorrection, u,
+                                    v_ode, u_ode, semi)
+    return compute_shepard_coeff!(system, current_coordinates(u, system), v_ode, u_ode,
+                                  semi,
                                   system.boundary_model.cache.kernel_correction_coefficient)
 end
 
-function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
+function compute_shepard_coeff!(system, system_coords, v_ode, u_ode, semi,
                                 kernel_correction_coefficient)
     set_zero!(kernel_correction_coefficient)
 
@@ -189,7 +188,6 @@ function compute_shepard_coeff!(system, v, u, v_ode, u_ode, semi,
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-        system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
@@ -221,33 +219,29 @@ end
 
 function compute_correction_values!(system::FluidSystem,
                                     correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection}, v, u,
-                                    v_ode, u_ode, semi,
-                                    density_calculator)
-    compute_correction_values!(system, correction,
-                               v, u, v_ode, u_ode, semi,
-                               density_calculator,
+                                                      MixedKernelGradientCorrection}, u,
+                                    v_ode, u_ode, semi)
+    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
+                               u_ode, semi,
                                system.cache.kernel_correction_coefficient,
                                system.cache.dw_gamma)
 end
 
 function compute_correction_values!(system::BoundarySystem,
                                     correction::Union{KernelCorrection,
-                                                      MixedKernelGradientCorrection}, v, u,
-                                    v_ode, u_ode, semi,
-                                    density_calculator)
-    compute_correction_values!(system, correction, v, u, v_ode, u_ode, semi,
-                               density_calculator,
+                                                      MixedKernelGradientCorrection}, u,
+                                    v_ode, u_ode, semi)
+    compute_correction_values!(system, correction, current_coordinates(u, system), v_ode,
+                               u_ode, semi,
                                system.boundary_model.cache.kernel_correction_coefficient,
                                system.boundary_model.cache.dw_gamma)
 end
 
 function compute_correction_values!(system,
                                     ::Union{KernelCorrection,
-                                            MixedKernelGradientCorrection}, v, u, v_ode,
-                                    u_ode, semi,
-                                    density_calculator, kernel_correction_coefficient,
-                                    dw_gamma)
+                                            MixedKernelGradientCorrection}, system_coords,
+                                    v_ode,
+                                    u_ode, semi, kernel_correction_coefficient, dw_gamma)
     set_zero!(kernel_correction_coefficient)
     set_zero!(dw_gamma)
 
@@ -256,7 +250,6 @@ function compute_correction_values!(system,
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
-        system_coords = current_coordinates(u, system)
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
@@ -326,7 +319,7 @@ the correction matrix $\bm{L}_a$ is evaluated explicitly as
 - Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
 - Set `dt_max =< 1e-3` for stability.
 
-## References:
+## References
 - J. Bonet, T.-S.L. Lok.
   "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
   In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.

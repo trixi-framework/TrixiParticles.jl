@@ -1,27 +1,320 @@
-@doc raw"""
-    interpolate_line(start, end_, no_points, semi, ref_system, sol; endpoint=true,
-                     smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+using LinearAlgebra
 
-Interpolates properties along a line in an TrixiParticles simulation.
+@doc raw"""
+    interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
+                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                         clip_negative_pressure=false)
+
+Interpolates properties along a plane in a TrixiParticles simulation.
+The region for interpolation is defined by its lower left and top right corners,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points within the defined region,
+spaced uniformly according to the given resolution.
+
+See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+
+# Arguments
+- `min_corner`: The lower left corner of the interpolation region.
+- `max_corner`: The top right corner of the interpolation region.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`:       The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`:        The solution state from which the properties are interpolated.
+
+# Keywords
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
+- `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
+
+!!! note
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```jldoctest; output = false, filter = r"density = .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing); ref_system = fluid_system)
+# Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
+results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+
+# output
+(density = ...)
+```
+"""
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true, clip_negative_pressure=false)
+    # Filter out particles without neighbors
+    filter_no_neighbors = true
+    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                         semi, ref_system, sol, filter_no_neighbors,
+                                         smoothing_length, cut_off_bnd,
+                                         clip_negative_pressure)
+
+    return results
+end
+
+@doc raw"""
+    interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
+                             smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                             clip_negative_pressure=false, output_directory="out", filename="plane")
+
+Interpolates properties along a plane in a TrixiParticles simulation and exports the result
+as a VTI file.
+The region for interpolation is defined by its lower left and top right corners,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points within the defined region,
+spaced uniformly according to the given resolution.
+
+See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+
+# Arguments
+- `min_corner`: The lower left corner of the interpolation region.
+- `max_corner`: The top right corner of the interpolation region.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`:       The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`:        The solution state from which the properties are interpolated.
+
+# Keywords
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `output_directory="out"`: Directory to save the VTI file.
+- `filename="plane"`:       Name of the VTI file.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
+- `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
+
+!!! note
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used, which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```julia
+# Interpolating across a plane from [0.0, 0.0] to [1.0, 1.0] with a resolution of 0.2
+results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, sol)
+```
+"""
+function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system, sol;
+                                  smoothing_length=ref_system.smoothing_length,
+                                  cut_off_bnd=true, clip_negative_pressure=false,
+                                  output_directory="out", filename="plane")
+    # Don't filter out particles without neighbors to keep 2D grid structure
+    filter_no_neighbors = false
+    results, x_range, y_range = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                                     semi, ref_system, sol,
+                                                     filter_no_neighbors,
+                                                     smoothing_length, cut_off_bnd,
+                                                     clip_negative_pressure)
+
+    density = reshape(results.density, length(x_range), length(y_range))
+    velocity = reshape(results.velocity, length(x_range), length(y_range))
+    pressure = reshape(results.pressure, length(x_range), length(y_range))
+
+    vtk_grid(joinpath(output_directory, filename), x_range, y_range) do vtk
+        vtk["density"] = density
+        vtk["velocity"] = velocity
+        vtk["pressure"] = pressure
+    end
+end
+
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol,
+                              filter_no_neighbors, smoothing_length, cut_off_bnd,
+                              clip_negative_pressure)
+    dims = length(min_corner)
+    if dims != 2 || length(max_corner) != 2
+        throw(ArgumentError("function is intended for 2D coordinates only"))
+    end
+
+    if any(min_corner .> max_corner)
+        throw(ArgumentError("`min_corner` should be smaller than `max_corner` in every dimension"))
+    end
+
+    # Calculate the number of points in each dimension based on the resolution
+    no_points_x = ceil(Int, (max_corner[1] - min_corner[1]) / resolution) + 1
+    no_points_y = ceil(Int, (max_corner[2] - min_corner[2]) / resolution) + 1
+
+    x_range = range(min_corner[1], max_corner[1], length=no_points_x)
+    y_range = range(min_corner[2], max_corner[2], length=no_points_y)
+
+    # Generate points within the plane
+    points_coords = [SVector(x, y) for x in x_range, y in y_range]
+
+    results = interpolate_point(points_coords, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd,
+                                clip_negative_pressure=clip_negative_pressure)
+
+    if filter_no_neighbors
+        # Find indices where neighbor_count > 0
+        indices = findall(x -> x > 0, results.neighbor_count)
+
+        # Filter all arrays in the named tuple using these indices
+        results = map(x -> x[indices], results)
+    end
+
+    return results, x_range, y_range
+end
+
+@doc raw"""
+    interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                         smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                         clip_negative_pressure=false)
+
+Interpolates properties along a plane in a 3D space in a TrixiParticles simulation.
+The plane for interpolation is defined by three points in 3D space,
+with a specified resolution determining the density of the interpolation points.
+
+The function generates a grid of points on a parallelogram within the plane defined by the
+three points, spaced uniformly according to the given resolution.
+
+See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
+          [`interpolate_line`](@ref), [`interpolate_point`](@ref).
+
+# Arguments
+- `point1`:     The first point defining the plane.
+- `point2`:     The second point defining the plane.
+- `point3`:     The third point defining the plane. The points must not be collinear.
+- `resolution`: The distance between adjacent interpolation points in the grid.
+- `semi`:       The semidiscretization used for the simulation.
+- `ref_system`: The reference system for the interpolation.
+- `sol`:        The solution state from which the properties are interpolated.
+
+# Keywords
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
+- `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
+
+# Returns
+- A `NamedTuple` of arrays containing interpolated properties at each point within the plane.
+
+!!! note
+    - The interpolation accuracy is subject to the density of particles and the chosen smoothing length.
+    - With `cut_off_bnd`, a density-based estimation of the surface is used which is not as
+      accurate as a real surface reconstruction.
+
+# Examples
+```jldoctest; output = false, filter = r"density = .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_3d.jl"), tspan=(0.0, 0.01)); ref_system = fluid_system)
+# Interpolating across a plane defined by points [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], and [0.0, 1.0, 0.0]
+# with a resolution of 0.1
+results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 0.1, semi, ref_system, sol)
+
+# output
+(density = ...)
+```
+"""
+function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true, clip_negative_pressure=false)
+    # Verify that points are in 3D space
+    if length(point1) != 3 || length(point2) != 3 || length(point3) != 3
+        throw(ArgumentError("all points must be 3D coordinates"))
+    end
+
+    if ndims(ref_system) != 3
+        throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
+    end
+
+    point1_ = SVector{3}(point1)
+    point2_ = SVector{3}(point2)
+    point3_ = SVector{3}(point3)
+
+    # Vectors defining the edges of the parallelogram
+    edge1 = point2_ - point1_
+    edge2 = point3_ - point1_
+
+    # Check if the points are collinear
+    if norm(cross(edge1, edge2)) == 0
+        throw(ArgumentError("the points must not be collinear"))
+    end
+
+    # Determine the number of points along each edge
+    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
+    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
+
+    # Create a set of points on the plane
+    points_coords = Vector{SVector{3, Float64}}(undef,
+                                                (num_points_edge1 + 1) *
+                                                (num_points_edge2 + 1))
+    index = 1
+    for i in 0:num_points_edge1
+        for j in 0:num_points_edge2
+            point_on_plane = point1 + (i / num_points_edge1) * edge1 +
+                             (j / num_points_edge2) * edge2
+            points_coords[index] = point_on_plane
+            index += 1
+        end
+    end
+
+    # Interpolate using the generated points
+    results = interpolate_point(points_coords, semi, ref_system, sol,
+                                smoothing_length=smoothing_length,
+                                cut_off_bnd=cut_off_bnd,
+                                clip_negative_pressure=clip_negative_pressure)
+
+    # Filter results
+    indices = findall(x -> x > 0, results.neighbor_count)
+    filtered_results = map(x -> x[indices], results)
+
+    return filtered_results
+end
+
+@doc raw"""
+    interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
+                     smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                     clip_negative_pressure=false)
+
+Interpolates properties along a line in a TrixiParticles simulation.
 The line interpolation is accomplished by generating a series of
 evenly spaced points between `start` and `end_`.
 If `endpoint` is `false`, the line is interpolated between the start and end points,
 but does not include these points.
 
+See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
+          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref).
+
 # Arguments
-- `start`: The starting point of the line.
-- `end_`: The ending point of the line.
-- `n_points`: The number of points to interpolate along the line.
-- `semi`: The semidiscretization used for the simulation.
+- `start`:      The starting point of the line.
+- `end_`:       The ending point of the line.
+- `n_points`:   The number of points to interpolate along the line.
+- `semi`:       The semidiscretization used for the simulation.
 - `ref_system`: The reference system for the interpolation.
-- `sol`: The solution state from which the properties are interpolated.
+- `sol`:        The solution state from which the properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: `cut_off_bnd`: Boolean to indicate if quantities should be set to zero when a
-                  point is "closer" to a boundary than to the fluid system
-                  (see an explanation for "closer" below). Defaults to `true`.
-- `endpoint`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation. Default is `true`.
-- `smoothing_length`: The smoothing length used in the interpolation. Default is `ref_system.smoothing_length`.
+- `endpoint=true`: A boolean to include (`true`) or exclude (`false`) the end point in the interpolation.
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
+- `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
 # Returns
 - A `NamedTuple` of arrays containing interpolated properties at each point along the line.
@@ -34,14 +327,17 @@ but does not include these points.
       accurate as a real surface reconstruction.
 
 # Examples
-```julia
+```jldoctest; output = false, filter = r"density = .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing); ref_system = fluid_system)
 # Interpolating along a line from [1.0, 0.0] to [1.0, 1.0] with 5 points
 results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
+
+# output
+(density = ...)
 ```
 """
 function interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint=true,
                           smoothing_length=ref_system.smoothing_length,
-                          cut_off_bnd=true)
+                          cut_off_bnd=true, clip_negative_pressure=false)
     start_svector = SVector{ndims(ref_system)}(start)
     end_svector = SVector{ndims(ref_system)}(end_)
     points_coords = range(start_svector, end_svector, length=n_points)
@@ -52,15 +348,18 @@ function interpolate_line(start, end_, n_points, semi, ref_system, sol; endpoint
 
     return interpolate_point(points_coords, semi, ref_system, sol,
                              smoothing_length=smoothing_length,
-                             cut_off_bnd=cut_off_bnd)
+                             cut_off_bnd=cut_off_bnd,
+                             clip_negative_pressure=clip_negative_pressure)
 end
 
 @doc raw"""
     interpolate_point(points_coords::Array{Array{Float64,1},1}, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                      clip_negative_pressure=false)
 
     interpolate_point(point_coords, semi, ref_system, sol;
-                      smoothing_length=ref_system.smoothing_length, cut_of_bnd=true)
+                      smoothing_length=ref_system.smoothing_length, cut_off_bnd=true,
+                      clip_negative_pressure=false)
 
 Performs interpolation of properties at specified points or an array of points in a TrixiParticles simulation.
 
@@ -68,29 +367,42 @@ When given an array of points (`points_coords`), it iterates over each point and
 For a single point (`point_coords`), it performs the interpolation at that specific location.
 The interpolation utilizes the same kernel function of the SPH simulation to weigh contributions from nearby particles.
 
+See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
+          [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref), .
+
 # Arguments
-- `points_coords`: An array of point coordinates, for which to interpolate properties.
-- `point_coords`: The coordinates of a single point for interpolation.
-- `semi`: The semidiscretization used in the SPH simulation.
-- `ref_system`: The reference system defining the properties of the SPH particles.
-- `sol`: The current solution state from which properties are interpolated.
+- `points_coords`:  An array of point coordinates, for which to interpolate properties.
+- `point_coords`:   The coordinates of a single point for interpolation.
+- `semi`:           The semidiscretization used in the SPH simulation.
+- `ref_system`:     The reference system defining the properties of the SPH particles.
+- `sol`:            The current solution state from which properties are interpolated.
 
 # Keywords
-- `cut_off_bnd`: Cut-off at the boundary.
-- `smoothing_length`: The smoothing length used in the kernel function. Defaults to `ref_system.smoothing_length`.
+- `smoothing_length=ref_system.smoothing_length`: The smoothing length used in the interpolation.
+- `cut_off_bnd=true`: Boolean to indicate if quantities should be set to `NaN` when the point
+                      is "closer" to the boundary than to the fluid in a kernel-weighted sense.
+                      Or, in more detail, when the boundary has more influence than the fluid
+                      on the density summation in this point, i.e., when the boundary particles
+                      add more kernel-weighted mass than the fluid particles.
+- `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
+                                  values, but this is unphysical. Instead we clip here during
+                                  interpolation thus only impacting the local interpolated value.
 
-# Returns:
+# Returns
 - For multiple points:  A `NamedTuple` of arrays containing interpolated properties at each point.
 - For a single point: A `NamedTuple` of interpolated properties at the point.
 
-# Examples:
-```julia
+# Examples
+```jldoctest; output = false, filter = r"density = .*", setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), tspan=(0.0, 0.01), callbacks=nothing); ref_system = fluid_system)
 # For a single point
 result = interpolate_point([1.0, 0.5], semi, ref_system, sol)
 
 # For multiple points
 points = [[1.0, 0.5], [1.0, 0.6], [1.0, 0.7]]
 results = interpolate_point(points, semi, ref_system, sol)
+
+# output
+(density = ...)
 ```
 !!! note
     - This function is particularly useful for analyzing gradients or creating visualizations
@@ -101,7 +413,7 @@ results = interpolate_point(points, semi, ref_system, sol)
 """
 function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi, ref_system,
                            sol; smoothing_length=ref_system.smoothing_length,
-                           cut_off_bnd=true)
+                           cut_off_bnd=true, clip_negative_pressure=false)
     num_points = length(points_coords)
     coords = similar(points_coords)
     velocities = similar(points_coords)
@@ -115,7 +427,8 @@ function interpolate_point(points_coords::AbstractArray{<:AbstractArray}, semi, 
     for (i, point) in enumerate(points_coords)
         result = interpolate_point(SVector{ndims(ref_system)}(point), semi, ref_system, sol,
                                    neighborhood_searches, smoothing_length=smoothing_length,
-                                   cut_off_bnd=cut_off_bnd)
+                                   cut_off_bnd=cut_off_bnd,
+                                   clip_negative_pressure=clip_negative_pressure)
         densities[i] = result.density
         neighbor_counts[i] = result.neighbor_count
         coords[i] = result.coord
@@ -129,13 +442,14 @@ end
 
 function interpolate_point(point_coords, semi, ref_system, sol;
                            smoothing_length=ref_system.smoothing_length,
-                           cut_off_bnd=true)
+                           cut_off_bnd=true, clip_negative_pressure=false)
     neighborhood_searches = process_neighborhood_searches(semi, sol, ref_system,
                                                           smoothing_length)
 
     return interpolate_point(SVector{ndims(ref_system)}(point_coords), semi, ref_system,
                              sol, neighborhood_searches, smoothing_length=smoothing_length,
-                             cut_off_bnd=cut_off_bnd)
+                             cut_off_bnd=cut_off_bnd,
+                             clip_negative_pressure=clip_negative_pressure)
 end
 
 function process_neighborhood_searches(semi, sol, ref_system, smoothing_length)
@@ -161,7 +475,7 @@ end
 @inline function interpolate_point(point_coords, semi, ref_system, sol,
                                    neighborhood_searches;
                                    smoothing_length=ref_system.smoothing_length,
-                                   cut_off_bnd=true)
+                                   cut_off_bnd=true, clip_negative_pressure=false)
     interpolated_density = 0.0
     interpolated_velocity = zero(SVector{ndims(ref_system)})
     interpolated_pressure = 0.0
@@ -214,6 +528,10 @@ end
                 interpolated_velocity += particle_velocity * (volume * kernel_value)
 
                 pressure = particle_pressure(v, system, particle)
+                if clip_negative_pressure
+                    pressure = max(0.0, pressure)
+                end
+
                 interpolated_pressure += pressure * (volume * kernel_value)
                 shepard_coefficient += volume * kernel_value
             else
@@ -226,8 +544,9 @@ end
 
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
-        return (density=0.0, neighbor_count=0, coord=point_coords,
-                velocity=zero(SVector{ndims(ref_system)}), pressure=0.0)
+        # Return NaN values that can be filtered out in ParaView
+        return (density=NaN, neighbor_count=0, coord=point_coords,
+                velocity=fill(NaN, SVector{ndims(ref_system)}), pressure=NaN)
     end
 
     return (density=interpolated_density / shepard_coefficient,
