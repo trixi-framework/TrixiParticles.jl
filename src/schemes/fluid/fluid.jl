@@ -113,14 +113,15 @@ function copy_system(system::WeaklyCompressibleSPHSystem;
                      density_diffusion=system.density_diffusion,
                      acceleration=system.acceleration,
                      particle_refinement=system.particle_refinement,
+                     particle_coarsening=system.particle_coarsening,
                      correction=system.correction,
                      source_terms=system.source_terms)
     return WeaklyCompressibleSPHSystem(initial_condition,
                                        density_calculator, state_equation,
                                        smoothing_kernel, smoothing_length;
                                        pressure_acceleration, viscosity, density_diffusion,
-                                       acceleration, particle_refinement, correction,
-                                       source_terms)
+                                       acceleration, particle_refinement,
+                                       particle_coarsening, correction, source_terms)
 end
 
 function copy_system(system::EntropicallyDampedSPHSystem;
@@ -134,10 +135,11 @@ function copy_system(system::EntropicallyDampedSPHSystem;
                      viscosity=system.viscosity,
                      acceleration=system.acceleration,
                      particle_refinement=system.particle_refinement,
+                     particle_coarsening=system.particle_coarsening,
                      source_terms=system.source_terms)
     return EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
                                        smoothing_length, sound_speed;
                                        pressure_acceleration, density_calculator, alpha,
-                                       viscosity,
-                                       acceleration, particle_refinement, source_terms)
+                                       viscosity, acceleration, particle_refinement,
+                                       particle_coarsening, source_terms)
 end

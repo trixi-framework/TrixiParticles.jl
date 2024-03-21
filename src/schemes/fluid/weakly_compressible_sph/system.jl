@@ -40,7 +40,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
-                                   V, DD, COR, PF, ST, PR, C} <: FluidSystem{NDIMS}
+                                   V, DD, COR, PF, ST, PR, PC, C} <: FluidSystem{NDIMS}
     initial_condition                 :: InitialCondition{ELTYPE}
     mass                              :: Array{ELTYPE, 1} # [particle]
     pressure                          :: Array{ELTYPE, 1} # [particle]
@@ -55,6 +55,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
     particle_refinement               :: PR
+    particle_coarsening               :: PC
     cache                             :: C
 
     function WeaklyCompressibleSPHSystem(initial_condition,
@@ -65,6 +66,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          particle_refinement=nothing,
+                                         particle_coarsening=nothing,
                                          correction=nothing, source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
@@ -98,16 +100,15 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                  create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                     n_particles)..., cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator),
-                   typeof(state_equation), typeof(smoothing_kernel),
-                   typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(particle_refinement),
+        return new{NDIMS, ELTYPE, typeof(density_calculator), typeof(state_equation),
+                   typeof(smoothing_kernel), typeof(viscosity), typeof(density_diffusion),
+                   typeof(correction), typeof(pressure_acceleration), typeof(source_terms),
+                   typeof(particle_refinement), typeof(particle_coarsening),
                    typeof(cache)}(initial_condition, mass, pressure, density_calculator,
                                   state_equation, smoothing_kernel, smoothing_length,
                                   acceleration_, viscosity, density_diffusion, correction,
                                   pressure_acceleration, source_terms, particle_refinement,
-                                  cache)
+                                  particle_coarsening, cache)
     end
 end
 
