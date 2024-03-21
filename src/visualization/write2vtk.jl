@@ -52,11 +52,11 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
     foreach_system(semi) do system
         system_index = system_indices(system, semi)
 
-        v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
+        v = Array(wrap_v(v_ode, system, semi))
+        u = Array(wrap_u(u_ode, system, semi))
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
-        CUDA.@allowscalar trixi2vtk(v, u, t, system, periodic_box;
+        trixi2vtk(v, u, t, system, periodic_box;
                   output_directory=output_directory,
                   system_name=filenames[system_index], iter=iter, prefix=prefix,
                   write_meta_data=write_meta_data, max_coordinates=max_coordinates,
@@ -85,7 +85,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     # Reset the collection when the iteration is 0
     pvd = paraview_collection(collection_file; append=iter > 0)
 
-    points = periodic_coords(current_coordinates(u, system), periodic_box)
+    points = periodic_coords(Array(current_coordinates(u, system)), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
@@ -176,8 +176,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["density"] = [particle_density(v, system, particle)
                       for particle in eachparticle(system)]
-    vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in eachparticle(system)]
+    vtk["pressure"] = Array(system.pressure)#[particle_pressure(v, system, particle)
+                       #for particle in eachparticle(system)]
 
     if write_meta_data
         vtk["acceleration"] = system.acceleration
@@ -285,9 +285,9 @@ end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity, system;
                     write_meta_data=true)
-    vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
-                                   for particle in eachparticle(system)]
-    vtk["pressure"] = model.pressure
+    vtk["hydrodynamic_density"] = Array(system.boundary_model.cache.density)#[particle_density(v, system, particle)
+                                  # for particle in eachparticle(system)]
+    vtk["pressure"] = Array(model.pressure)
 
     if write_meta_data
         vtk["viscosity_model"] = type2string(viscosity)
