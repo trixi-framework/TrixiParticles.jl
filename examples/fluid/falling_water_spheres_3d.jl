@@ -45,7 +45,7 @@ fluid_smoothing_kernel = WendlandC2Kernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
 
-nu = 0.00025
+nu = 0.0005
 alpha = 10 * nu / fluid_smoothing_length
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.1 * alpha)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
@@ -55,7 +55,7 @@ solid_system_1 = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                              fluid_smoothing_length, viscosity=viscosity,
                                              density_diffusion=density_diffusion,
                                              acceleration=(0.0, 0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.5),
+                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=1.0),
                                              correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 solid_system_2 = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
