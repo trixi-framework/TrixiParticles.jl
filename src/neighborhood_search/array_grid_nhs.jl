@@ -109,6 +109,14 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
     # initialize!(neighborhood_search, coords)
     (; grid, grid_indices, has_changed) = neighborhood_search
 
+    # Find all cells containing particles that now belong to another cell
+    @trixi_timeit timer() "mark changed cells" begin
+        has_changed .= false
+        backend = get_backend(grid)
+        mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+        synchronize(backend)
+    end
+
     @trixi_timeit timer() "move to new cells" begin
         # Move right
         backend = get_backend(grid)
@@ -145,13 +153,6 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
         synchronize(backend)
     end
 
-    # Find all cells containing particles that now belong to another cell
-    # @trixi_timeit timer() "mark changed cells" begin
-    #     backend = get_backend(grid)
-    #     mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
-    #     synchronize(backend)
-    # end
-    
     # Iterate over all marked cells and move the particles into their new cells
     # CUDA.@allowscalar while findmax(has_changed)[1]
     #     cell = findmax(has_changed)[2]
@@ -199,33 +200,34 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
     return neighborhood_search
 end
 
-# @kernel function mark_changed_cells_kernel!(neighborhood_search, coords)
-#     (; has_changed) = neighborhood_search
-
-#     cell = @index(Global, NTuple)
-
-#     for particle in particles_in_cell(cell, neighborhood_search)
-#         new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
-#         if !(new_cell in (cell, cell .+ (1, 0), cell .+ (-1, 0), cell .+ (0, 1), cell .+ (0, -1),
-#                           cell .+ (-1, -1), cell .+ (-1, 1), cell .+ (1, -1), cell .+ (1, 1)))
-#             # Mark this cell and continue with the next one
-#             has_changed[cell...] = true
-#             break
-#         end
-#     end
-# end
-
-@kernel function move_cell_kernel!(neighborhood_search, coords, move_step)
-    (; grid, grid_indices) = neighborhood_search
+@kernel function mark_changed_cells_kernel!(neighborhood_search, coords)
+    (; has_changed) = neighborhood_search
 
     cell = @index(Global, NTuple)
 
     for particle in particles_in_cell(cell, neighborhood_search)
         new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
-        if cell .+ move_step == new_cell
-            # Add moved particle to new cell
-            grid_indices[new_cell...] += 1
-            grid[grid_indices[new_cell...], new_cell...] = particle
+        if cell != new_cell
+            # Mark this cell and continue with the next one
+            has_changed[cell...] = true
+            break
+        end
+    end
+end
+
+@kernel function move_cell_kernel!(neighborhood_search, coords, move_step)
+    (; grid, grid_indices, has_changed) = neighborhood_search
+
+    cell = @index(Global, NTuple)
+
+    if has_changed[cell...]
+        for particle in particles_in_cell(cell, neighborhood_search)
+            new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+            if cell .+ move_step == new_cell
+                # Add moved particle to new cell
+                grid_indices[new_cell...] += 1
+                grid[grid_indices[new_cell...], new_cell...] = particle
+            end
         end
     end
 end
