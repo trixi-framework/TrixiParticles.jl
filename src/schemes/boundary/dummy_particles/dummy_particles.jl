@@ -332,7 +332,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         # Note: The version iterating neighbors first is not thread parallizable.
         # The factor is based on the achievable speed-up of the thread parallizable version.
         if nparticles(system) >
-           ceil(Int, 0.5 * Threads.nthreads() + 1) * nparticles(neighbor_system)
+           ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
             adami_pressure_extrapolation_neighbor!(boundary_model, system, neighbor_system,
