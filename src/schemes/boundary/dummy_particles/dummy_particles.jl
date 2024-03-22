@@ -399,22 +399,6 @@ end
         adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)
-        # density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
-
-        # resulting_acc = neighbor_system.acceleration -
-        #                 current_acceleration(system, particle)
-
-        # kernel_weight = smoothing_kernel(boundary_model, distance)
-
-        # pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
-        #                                          neighbor) +
-        #                        dot(resulting_acc, density_neighbor * pos_diff)) *
-        #                       kernel_weight
-
-        # cache.volume[particle] += kernel_weight
-
-        # compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
-        #                            kernel_weight, particle, neighbor)
     end
 end
 
@@ -441,22 +425,6 @@ end
         adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)
-        # density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
-
-        # resulting_acc = neighbor_system.acceleration -
-        #                 current_acceleration(system, particle)
-
-        # kernel_weight = smoothing_kernel(boundary_model, distance)
-
-        # pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
-        #                                          neighbor) +
-        #                        dot(resulting_acc, density_neighbor * pos_diff)) *
-        #                       kernel_weight
-
-        # cache.volume[particle] += kernel_weight
-
-        # compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
-        #                            kernel_weight, particle, neighbor)
     end
 end
 
