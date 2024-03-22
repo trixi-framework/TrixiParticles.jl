@@ -104,7 +104,8 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_particle_co
                 grad_kernel = smoothing_kernel_grad(particle_container, pos_diff, distance,
                                                     particle)
                 for i in 1:ndims(particle_container)
-                    cache.surface_normal[i, particle] += m_b / density_neighbor * grad_kernel[i]
+                    cache.surface_normal[i, particle] += m_b / density_neighbor *
+                                                         grad_kernel[i]
                 end
             end
         end

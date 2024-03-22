@@ -221,7 +221,8 @@ end
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
                                particle_container::FluidSystem,
                                neighbor_container::BoundarySPHSystem,
-                               surface_tension::Union{AkinciTypeSurfaceTension, CohesionForceAkinci})
+                               surface_tension::Union{AkinciTypeSurfaceTension,
+                                                      CohesionForceAkinci})
     (; smoothing_length) = particle_container
 
     m_a = hydrodynamic_mass(particle_container, particle)
