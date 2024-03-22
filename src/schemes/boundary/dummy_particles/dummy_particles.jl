@@ -324,13 +324,29 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
 
-        nhs = get_neighborhood_search(system, neighbor_system, semi)
-
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-        adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                      system_coords, neighbor_coords,
-                                      v_neighbor_system, nhs)
+        # This is an optimization for simulations with large and complex boundaries.
+        # Especially, in 3D simulations with large and/or complex structures outside
+        # of areas with permanent flow.
+        if nparticles(system) > 0.5 * Threads.nthreads() * nparticles(neighbor_system)
+            nhs = get_neighborhood_search(neighbor_system, system, semi)
+
+            adami_pressure_extrapolation_neighbor!(boundary_model, system, neighbor_system,
+                                                   system_coords, neighbor_coords,
+                                                   v_neighbor_system, nhs)
+        else
+            nhs = get_neighborhood_search(system, neighbor_system, semi)
+
+            adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
+                                          system_coords, neighbor_coords,
+                                          v_neighbor_system, nhs)
+        end
+        @simd for particle in eachparticle(system)
+            # Limit pressure to be non-negative to avoid attractive forces between fluid and
+            # boundary particles at free surfaces (sticking artifacts).
+            pressure[particle] = max(pressure[particle], 0.0)
+        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
@@ -365,6 +381,51 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
+@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                        neighbor_system::FluidSystem,
+                                                        system_coords, neighbor_coords,
+                                                        v_neighbor_system,
+                                                        neighborhood_search)
+    (; pressure, cache, viscosity) = boundary_model
+
+    for_particle_neighbor(neighbor_system, system,
+                          neighbor_coords, system_coords,
+                          neighborhood_search;
+                          particles=eachparticle(neighbor_system),
+                          parallel=false) do neighbor, particle,
+                                             pos_diff, distance
+        # since neighbor and particle are switched
+        pos_diff = -pos_diff
+        adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
+                              v_neighbor_system, particle, neighbor, pos_diff,
+                              distance, viscosity, cache, pressure)
+        # density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+        # resulting_acc = neighbor_system.acceleration -
+        #                 current_acceleration(system, particle)
+
+        # kernel_weight = smoothing_kernel(boundary_model, distance)
+
+        # pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+        #                                          neighbor) +
+        #                        dot(resulting_acc, density_neighbor * pos_diff)) *
+        #                       kernel_weight
+
+        # cache.volume[particle] += kernel_weight
+
+        # compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+        #                            kernel_weight, particle, neighbor)
+    end
+end
+
+@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                        neighbor_system,
+                                                        system_coords, neighbor_coords,
+                                                        v_neighbor_system,
+                                                        neighborhood_search)
+    return boundary_model
+end
+
 @inline function adami_pressure_extrapolation!(boundary_model, system,
                                                neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords,
@@ -377,28 +438,25 @@ end
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
+                              v_neighbor_system, particle, neighbor, pos_diff,
+                              distance, viscosity, cache, pressure)
+        # density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        resulting_acc = neighbor_system.acceleration -
-                        current_acceleration(system, particle)
+        # resulting_acc = neighbor_system.acceleration -
+        #                 current_acceleration(system, particle)
 
-        kernel_weight = smoothing_kernel(boundary_model, distance)
+        # kernel_weight = smoothing_kernel(boundary_model, distance)
 
-        pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
-                                                 neighbor) +
-                               dot(resulting_acc, density_neighbor * pos_diff)) *
-                              kernel_weight
+        # pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+        #                                          neighbor) +
+        #                        dot(resulting_acc, density_neighbor * pos_diff)) *
+        #                       kernel_weight
 
-        cache.volume[particle] += kernel_weight
+        # cache.volume[particle] += kernel_weight
 
-        compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
-                                   kernel_weight, particle, neighbor)
-    end
-
-    for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid attractive forces between fluid and
-        # boundary particles at free surfaces (sticking artifacts).
-        pressure[particle] = max(pressure[particle], 0.0)
+        # compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+        #                            kernel_weight, particle, neighbor)
     end
 end
 
@@ -406,6 +464,28 @@ end
                                                system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
+end
+
+@inline function adami_pressure_inner!(boundary_model, system,
+                                       neighbor_system::FluidSystem,
+                                       v_neighbor_system, particle, neighbor, pos_diff,
+                                       distance, viscosity, cache, pressure)
+    density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+    resulting_acc = neighbor_system.acceleration -
+                    current_acceleration(system, particle)
+
+    kernel_weight = smoothing_kernel(boundary_model, distance)
+
+    pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
+                                             neighbor) +
+                           dot(resulting_acc, density_neighbor * pos_diff)) *
+                          kernel_weight
+
+    cache.volume[particle] += kernel_weight
+
+    compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
+                               kernel_weight, particle, neighbor)
 end
 
 function compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
