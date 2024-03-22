@@ -153,12 +153,12 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
         synchronize(backend)
     end
 
-    # Iterate over all marked cells and move the particles into their new cells
-    # CUDA.@allowscalar while findmax(has_changed)[1]
-    #     cell = findmax(has_changed)[2]
-    #     has_changed[cell] = false
+    # # Iterate over all marked cells and move the particles into their new cells
+    # @trixi_timeit timer() "move to new cells" begin
+    #     CUDA.@allowscalar while findmax(has_changed)[1]
+    #         cell = findmax(has_changed)[2]
+    #         has_changed[cell] = false
 
-    #     @trixi_timeit timer() "move to new cells" begin
     #         # Find all particles whose coordinates do not match this cell
     #         moved_particle_indices = (i for i in 1:grid_indices[cell]
     #                                 if cell_coords(extract_svector(coords, neighborhood_search, grid[i, cell]),
