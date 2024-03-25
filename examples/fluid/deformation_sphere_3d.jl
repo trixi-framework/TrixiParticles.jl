@@ -25,14 +25,6 @@ fluid = RectangularShape(particle_spacing, (9, 9, 9), (0.0, 0.0, 0.0),
 # ==========================================================================================
 # ==== Containers
 
-# fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-#                                            state_equation, smoothing_kernel,
-#                                            smoothing_length,
-#                                            viscosity=ViscosityAdami(nu=0.01),
-#                                            acceleration=(0.0, 0.0, 0.0),
-#                                            surface_tension=SurfaceTensionAkinci(0.05, surface_tension_coefficient=0.1),
-#                                            correction=AkinciFreeSurfaceCorrection(water_density))
-
 nu=0.01
 alpha = 10 * nu / (smoothing_length * sound_speed)
 
@@ -41,7 +33,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            smoothing_length,
                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha, beta=0.0),
                                            acceleration=(0.0, 0.0, 0.0),
-                                           surface_tension=SurfaceTensionAkinci(0.05, surface_tension_coefficient=0.1),
+                                           surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1),
                                            correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),

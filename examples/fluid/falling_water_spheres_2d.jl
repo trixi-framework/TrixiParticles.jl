@@ -55,7 +55,7 @@ solid_system_1 = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                              fluid_smoothing_length, viscosity=viscosity,
                                              density_diffusion=nothing,
                                              acceleration=(0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(0.5*fluid_particle_spacing, surface_tension_coefficient=0.01),
+                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                              correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 solid_system_2 = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
