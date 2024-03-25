@@ -2,60 +2,62 @@ using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
-# ==== Reference Values
-
-gravity = 9.81
-atmospheric_pressure = 1E5
-incompressible_gamma = 7.0
-
-# ==========================================================================================
 # ==== Fluid
-water_density = 1000.0
+fluid_density = 1000.0
 
-c = 10 * sqrt(gravity)
-state_equation = StateEquationCole(c, incompressible_gamma, water_density,
-                                   atmospheric_pressure,
-                                   background_pressure=atmospheric_pressure)
+particle_spacing = 0.1
+
+sound_speed = 20
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=7, clip_negative_pressure=true)
 
 # ==========================================================================================
 # ==== Particle Setup
 
-particle_spacing = 0.2
+particle_spacing = 0.1
 
-smoothing_length = 4.0 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 2.0 * particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
-fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0), water_density)
-
+fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
+                         density=fluid_density)
 # ==========================================================================================
 # ==== Containers
-
+nu=0.01
+alpha = 8 * nu / (smoothing_length * sound_speed)
+source_terms=SourceTermDamping(;damping_coefficient=0.5)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            state_equation, smoothing_kernel,
                                            smoothing_length,
-                                           viscosity=ArtificialViscosityMonaghan(alpha=1.0,
-                                                                                 beta=2.0),
+                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha,
+                                                                                 beta=0.0),
                                            acceleration=(0.0, 0.0),
-                                           surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.2),
-                                           correction=AkinciFreeSurfaceCorrection(water_density))
+                                           surface_tension=SurfaceTensionAkinci(0.5*particle_spacing, surface_tension_coefficient=0.02),
+                                           correction=AkinciFreeSurfaceCorrection(fluid_density), source_terms=source_terms)
 
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(fluid_system,
-                          neighborhood_search=GridNeighborhoodSearch,
-                          damping_coefficient=0.0)
+semi = Semidiscretization(fluid_system)
 
-tspan = (0.0, 3.0)
+tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=1000)
+info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
-callbacks = CallbackSet(info_callback, saving_callback)
+stepsize_callback = StepsizeCallback(cfl=1.0)
 
-sol = solve(ode, TRBDF2(autodiff=false),
-            abstol=1e-8, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-6, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=5e-5, # Limit stepsize to prevent crashing
+
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
+
+# sol = solve(ode, RDPK3SpFSAL35(),
+#             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
+#             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
+#             dtmax=2e-3, # Limit stepsize to prevent crashing
+#             save_everystep=false, callback=callbacks);
+
+
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);

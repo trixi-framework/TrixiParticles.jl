@@ -12,9 +12,10 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
+    particle_radius::ELTYPE
 
-    function CohesionForceAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function CohesionForceAkinci(radius; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient, radius)
     end
 end
 
@@ -34,9 +35,10 @@ Versatile Surface Tension and Adhesion for SPH Fluids, Akinci et al, 2013, Siggr
 
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     surface_tension_coefficient::ELTYPE
+    particle_radius::ELTYPE
 
-    function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
-        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    function SurfaceTensionAkinci(radius; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient, radius)
     end
 end
 
@@ -59,12 +61,14 @@ end
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
+    # we only reach this function when distance > eps
     C = 0
-    if distance^2 <= smoothing_length^2
+    if distance <= smoothing_length
         if distance > 0.5 * smoothing_length
             # attractive force
             C = (smoothing_length - distance)^3 * distance^3
         else
+            # distance < 0.5 * smoothing_length
             # repulsive force
             C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
         end

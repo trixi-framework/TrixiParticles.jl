@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.005
+fluid_particle_spacing = 0.0025
 solid_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -13,14 +13,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 3.0)
+tspan = (0.0, 1.5)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity)
+sound_speed = 100
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -40,22 +40,22 @@ sphere2 = SphereShape(solid_particle_spacing, sphere1_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 3.5 * fluid_particle_spacing
+fluid_smoothing_length = 2.0 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-nu = 0.001
-alpha = 8 * nu / fluid_smoothing_length
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.1 * alpha)
+nu=0.005
+alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
+viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 solid_system_1 = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                              state_equation, fluid_smoothing_kernel,
                                              fluid_smoothing_length, viscosity=viscosity,
-                                             density_diffusion=density_diffusion,
+                                             density_diffusion=nothing,
                                              acceleration=(0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                                             surface_tension=SurfaceTensionAkinci(0.5*fluid_particle_spacing, surface_tension_coefficient=0.01),
                                              correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 solid_system_2 = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
