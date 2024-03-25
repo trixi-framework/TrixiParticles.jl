@@ -35,7 +35,7 @@ end
 
 function relative_position_children(system::System{2},
                                     refinement_pattern::CubicSplitting)
-    (; particle_spacing) = system.initial_condition
+    (; smoothing_length) = system
     (; separation_parameter) = refinement_pattern
 
     direction_1 = [1 / sqrt(2), 1 / sqrt(2)]
@@ -44,10 +44,10 @@ function relative_position_children(system::System{2},
     direction_4 = -direction_2
 
     # Is it `particle_spacing * separation_parameter` or `smoothing_length * separation_parameter`?
-    relative_position = hcat(particle_spacing * separation_parameter * direction_1,
-                             particle_spacing * separation_parameter * direction_2,
-                             particle_spacing * separation_parameter * direction_3,
-                             particle_spacing * separation_parameter * direction_4)
+    relative_position = hcat(smoothing_length * separation_parameter * direction_1,
+                             smoothing_length * separation_parameter * direction_2,
+                             smoothing_length * separation_parameter * direction_3,
+                             smoothing_length * separation_parameter * direction_4)
 
     if refinement_pattern.center_particle
         relative_position = hcat(relative_position, [0.0, 0.0])
@@ -62,7 +62,7 @@ struct TriangularSplitting{ELTYPE}
     center_particle      :: Bool
 
     function TriangularSplitting(; separation_parameter=0.5, smoothing_ratio=0.5,
-                                 center_particle=false)
+                                 center_particle=true)
         new{typeof(separation_parameter)}(separation_parameter, smoothing_ratio,
                                           center_particle)
     end
@@ -73,16 +73,16 @@ end
 
 function relative_position_children(system::System{2},
                                     refinement_pattern::TriangularSplitting)
-    (; particle_spacing) = system.initial_condition
+    (; smoothing_length) = system
     (; separation_parameter) = refinement_pattern
 
     direction_1 = [0.0, 1.0]
     direction_2 = [-sqrt(3) / 2, -0.5]
     direction_3 = [sqrt(3) / 2, -0.5]
 
-    relative_position = hcat(particle_spacing * separation_parameter * direction_1,
-                             particle_spacing * separation_parameter * direction_2,
-                             particle_spacing * separation_parameter * direction_3)
+    relative_position = hcat(smoothing_length * separation_parameter * direction_1,
+                             smoothing_length * separation_parameter * direction_2,
+                             smoothing_length * separation_parameter * direction_3)
 
     if refinement_pattern.center_particle
         relative_position = hcat(relative_position, [0.0, 0.0])
@@ -108,7 +108,7 @@ end
 
 function relative_position_children(system::System{2},
                                     refinement_pattern::HexagonalSplitting)
-    (; particle_spacing) = system.initial_condition
+    (; smoothing_length) = system
     (; separation_parameter) = refinement_pattern
 
     direction_1 = [1.0, 0.0]
@@ -118,12 +118,12 @@ function relative_position_children(system::System{2},
     direction_5 = [-0.5, sqrt(3) / 2]
     direction_6 = [-0.5, -sqrt(3) / 2]
 
-    relative_position = hcat(particle_spacing * separation_parameter * direction_1,
-                             particle_spacing * separation_parameter * direction_2,
-                             particle_spacing * separation_parameter * direction_3,
-                             particle_spacing * separation_parameter * direction_4,
-                             particle_spacing * separation_parameter * direction_5,
-                             particle_spacing * separation_parameter * direction_6)
+    relative_position = hcat(smoothing_length * separation_parameter * direction_1,
+                             smoothing_length * separation_parameter * direction_2,
+                             smoothing_length * separation_parameter * direction_3,
+                             smoothing_length * separation_parameter * direction_4,
+                             smoothing_length * separation_parameter * direction_5,
+                             smoothing_length * separation_parameter * direction_6)
 
     if refinement_pattern.center_particle
         relative_position = hcat(relative_position, [0.0, 0.0])

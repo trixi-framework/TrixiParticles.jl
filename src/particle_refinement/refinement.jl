@@ -1,12 +1,12 @@
 include("refinement_pattern.jl")
 include("refinement_criteria.jl")
 
-mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
+mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC, CNL}
     candidates           :: Vector{Int}
     candidates_mass      :: Vector{ELTYPE}
     refinement_pattern   :: RP
     refinement_criteria  :: RC
-    criteria_next_levels :: Vector{RC}
+    criteria_next_levels :: CNL
     available_children   :: Int
 
     # Depends on refinement pattern, particle spacing and parameters ϵ and α.
@@ -22,29 +22,36 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     function ParticleRefinement(refinement_criteria...;
                                 refinement_pattern=CubicSplitting(),
                                 criteria_next_levels=[])
-        ELTYPE = eltype(refinement_criteria[1])
-        NDIMS = ndims(refinement_criteria[1])
+        ELTYPE = eltype(first(refinement_criteria))
+        NDIMS = ndims(first(refinement_criteria))
 
         return new{0, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], [], refinement_pattern,
-                                                refinement_criteria,
-                                                criteria_next_levels, 0)
+                   typeof(refinement_criteria),
+                   typeof(criteria_next_levels)}([], [], refinement_pattern,
+                                                 refinement_criteria,
+                                                 criteria_next_levels, 0)
     end
 
     # Internal constructor for multiple refinement levels
-    function ParticleRefinement{RL}(refinement_criteria::Tuple,
-                                    refinement_pattern, criteria_next_levels) where {RL}
-        ELTYPE = eltype(refinement_criteria[1])
-        NDIMS = ndims(refinement_criteria[1])
+    function ParticleRefinement{RL}(refinement_criteria, refinement_pattern,
+                                    criteria_next_levels) where {RL}
+        if refinement_criteria isa Tuple
+            ELTYPE = eltype(first(refinement_criteria))
+            NDIMS = ndims(first(refinement_criteria))
+        else
+            ELTYPE = eltype(refinement_criteria)
+            NDIMS = ndims(refinement_criteria)
+        end
 
         return new{RL, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], [], refinement_pattern,
-                                                refinement_criteria,
-                                                criteria_next_levels, 0)
+                   typeof(refinement_criteria),
+                   typeof(criteria_next_levels)}([], [], refinement_pattern,
+                                                 refinement_criteria,
+                                                 criteria_next_levels, 0)
     end
 end
 
-@inline Base.ndims(::ParticleRefinement{RL, NDIMS}) where {RL, NDIMS} = ndims
+@inline refinement_level(::ParticleRefinement{RL}) where {RL} = RL
 
 @inline child_set(system, particle_refinement) = Base.OneTo(nchilds(system,
                                                                     particle_refinement))
@@ -71,7 +78,7 @@ create_child_system(system::FluidSystem, ::Nothing) = ()
 
 function create_child_system(system::FluidSystem,
                              particle_refinement::ParticleRefinement{RL}) where {RL}
-    (; particle_spacing) = system.initial_condition
+    (; smoothing_length) = system
     (; criteria_next_levels, refinement_pattern, refinement_criteria) = particle_refinement
 
     NDIMS = ndims(system)
@@ -83,7 +90,7 @@ function create_child_system(system::FluidSystem,
     particle_refinement.mass_ratio = mass_distribution(system, refinement_pattern)
 
     # Create "empty" `InitialCondition` for child system
-    particle_spacing_ = particle_spacing * refinement_pattern.separation_parameter #TODO: Is this really the new particle spacing?
+    particle_spacing_ = smoothing_length * refinement_pattern.separation_parameter
     coordinates_ = zeros(NDIMS, 2)
     velocity_ = similar(coordinates_)
     density_ = system.initial_condition.density[1]
