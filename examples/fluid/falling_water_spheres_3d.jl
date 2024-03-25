@@ -20,7 +20,7 @@ initial_fluid_size = (0.0, 0.0, 0.0)
 tank_size = (2.0, 1.0, 0.1)
 
 fluid_density = 1000.0
-sound_speed =50
+sound_speed = 50
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7)
 
@@ -47,7 +47,7 @@ fluid_smoothing_kernel = WendlandC2Kernel{3}()
 
 fluid_density_calculator = ContinuityDensity()
 
-nu=0.01
+nu = 0.01
 alpha = 10 * nu / (fluid_smoothing_length * sound_speed)
 # alpha = 10 * nu / fluid_smoothing_length
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)

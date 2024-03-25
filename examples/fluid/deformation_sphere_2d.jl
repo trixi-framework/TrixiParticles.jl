@@ -23,9 +23,9 @@ fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
                          density=fluid_density)
 # ==========================================================================================
 # ==== Containers
-nu=0.01
+nu = 0.01
 alpha = 8 * nu / (smoothing_length * sound_speed)
-source_terms=SourceTermDamping(;damping_coefficient=0.5)
+source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            state_equation, smoothing_kernel,
                                            smoothing_length,
@@ -33,7 +33,8 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                                                                  beta=0.0),
                                            acceleration=(0.0, 0.0),
                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-                                           correction=AkinciFreeSurfaceCorrection(fluid_density), source_terms=source_terms)
+                                           correction=AkinciFreeSurfaceCorrection(fluid_density),
+                                           source_terms=source_terms)
 
 # ==========================================================================================
 # ==== Simulation
@@ -48,7 +49,6 @@ saving_callback = SolutionSavingCallback(dt=0.02)
 
 stepsize_callback = StepsizeCallback(cfl=1.0)
 
-
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
 # sol = solve(ode, RDPK3SpFSAL35(),
@@ -56,7 +56,6 @@ callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 #             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
 #             dtmax=2e-3, # Limit stepsize to prevent crashing
 #             save_everystep=false, callback=callbacks);
-
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback

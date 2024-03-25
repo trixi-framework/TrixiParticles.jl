@@ -53,7 +53,7 @@ function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
 end
 
 @fastpow @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                       smoothing_length, mb, pos_diff, distance)
+                                                smoothing_length, mb, pos_diff, distance)
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2

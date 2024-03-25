@@ -178,7 +178,6 @@ end
         return zeros(SVector{ndims(particle_container), eltype(particle_container)})
     end
 
-
     m_b = neighbor_container.mass[neighbor]
 
     return surface_tension_a(smoothing_length, m_b, pos_diff, distance)

@@ -25,13 +25,14 @@ fluid = RectangularShape(particle_spacing, (9, 9, 9), (0.0, 0.0, 0.0),
 # ==========================================================================================
 # ==== Containers
 
-nu=0.01
+nu = 0.01
 alpha = 10 * nu / (smoothing_length * sound_speed)
 
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            state_equation, smoothing_kernel,
                                            smoothing_length,
-                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha, beta=0.0),
+                                           viscosity=ArtificialViscosityMonaghan(alpha=alpha,
+                                                                                 beta=0.0),
                                            acceleration=(0.0, 0.0, 0.0),
                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1),
                                            correction=AkinciFreeSurfaceCorrection(fluid_density))
@@ -55,7 +56,6 @@ saving_callback = SolutionSavingCallback(dt=0.02)
 
 stepsize_callback = StepsizeCallback(cfl=1.2)
 
-
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
 # sol = solve(ode, RDPK3SpFSAL35(),
@@ -63,7 +63,6 @@ callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 #             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
 #             dtmax=2e-3, # Limit stepsize to prevent crashing
 #             save_everystep=false, callback=callbacks);
-
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback
