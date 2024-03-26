@@ -42,15 +42,15 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
-viscosity = nothing
+viscosity_wall = nothing
 # Activate to switch to no-slip walls
-#viscosity = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
+#viscosity_wall = ViscosityAdami(nu=0.0025 * smoothing_length * sound_speed / 8)
 
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
-                                             viscosity=viscosity)
+                                             viscosity=viscosity_wall)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

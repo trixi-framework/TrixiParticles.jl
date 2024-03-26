@@ -37,10 +37,10 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
 1. [Installation](@ref installation)
 2. [Getting started](@ref getting_started)
 
-If you have **any** questions concerning **TrixiParticles.jl** you can also reach us on [this public slack channel](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) also feel free to open an issue with your question.
+If you have any questions concerning **TrixiParticles.jl** you can join our community [on Slack](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) or open an issue with your question.
 
 ## Start with development
-To get started with development look at these pages:
+To get started with development have a look at these pages:
 
 1. [Installation](@ref installation)
 2. [Development](@ref development)
