@@ -81,7 +81,7 @@ end
 # Note: most of the time this only leads to an approximation of the surface normal
 function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
                             v_neighbor_container, u_neighbor_container,
-                            neighborhood_search, system, neighbor_system)
+                            neighborhood_search, system, neighbor_system::FluidSystem)
     (; smoothing_kernel, smoothing_length, cache) = system
 
     # TODO: swich to for_particle_neighbor
