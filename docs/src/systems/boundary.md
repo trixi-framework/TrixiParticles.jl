@@ -140,6 +140,10 @@ viscosity parameter of the adjacent fluid or the equivalent from the artificial 
 viscous interaction (default `viscosity=nothing`), a free-slip wall boundary
 condition is applied.
 
+!!! warning
+    The viscosity model [`ArtificialViscosityMonaghan`](@ref) for [`BoundaryModelDummyParticles`](@ref)
+    has not been verified yet.
+
 ### References
 - S. Adami, X. Y. Hu, N. A. Adams.
   "A generalized wall boundary condition for smoothed particle hydrodynamics".
