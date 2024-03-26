@@ -1,4 +1,6 @@
 function mass_distribution(system, refinement_pattern)
+    # TODO:
+    #=
     if refinement_pattern.center_particle
         # solve minimisation problem
 
@@ -12,10 +14,11 @@ function mass_distribution(system, refinement_pattern)
 
         error("no mass conservation")
     else
-        lambda = 1 / nchilds(system, refinement_pattern)
+        =#
+    lambda = 1 / nchilds(system, refinement_pattern)
 
-        return fill(lambda, SVector{nchilds(system, refinement_pattern), eltype(system)})
-    end
+    return fill(lambda, SVector{nchilds(system, refinement_pattern), eltype(system)})
+    #end
 end
 
 struct CubicSplitting{ELTYPE}

@@ -55,7 +55,6 @@ struct RefinementZone{NDIMS, ELTYPE, ZO} <: RefinementCriteria{NDIMS, ELTYPE}
         return new{NDIMS, ELTYPE,
                    typeof(zone_origin_function)}(zone_origin_function, spanning_set)
     end
-
 end
 
 @inline Base.ndims(::RefinementCriteria{NDIMS}) where {NDIMS} = NDIMS

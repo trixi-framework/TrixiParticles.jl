@@ -196,6 +196,8 @@ function refine_particles!(system_parent::FluidSystem,
     (; candidates, candidates_mass, system_child) = particle_refinement
 
     if !isempty(candidates)
+        nhs = get_neighborhood_search(system_parent, semi)
+
         # Old storage
         v_parent = _wrap_v(_v_cache, system_parent, semi, callback)
         u_parent = _wrap_u(_u_cache, system_parent, semi, callback)
@@ -211,8 +213,8 @@ function refine_particles!(system_parent::FluidSystem,
         mass_index = 1
         for particle_parent in candidates
             mass_parent = candidates_mass[mass_index]
-            bear_childs!(system_child, system_parent, particle_parent, mass_parent,
-                         particle_refinement, v_parent, u_parent, v_child, u_child, semi)
+            bear_children!(system_child, system_parent, particle_parent, mass_parent, nhs,
+                           particle_refinement, v_parent, u_parent, v_child, u_child)
 
             particle_refinement.available_children -= nchilds(system_parent,
                                                               particle_refinement)
@@ -226,11 +228,10 @@ end
 #
 # Reducing the dof by using a fixed regular refinement pattern
 # (given: position and number of child particles)
-function bear_childs!(system_child, system_parent, particle_parent, mass_parent,
-                      particle_refinement, v_parent, u_parent, v_child, u_child, semi)
+function bear_children!(system_child, system_parent, particle_parent, mass_parent, nhs,
+                        particle_refinement, v_parent, u_parent, v_child, u_child)
     (; rel_position_children, available_children, mass_ratio) = particle_refinement
 
-    nhs = get_neighborhood_search(system_parent, system_parent, semi)
     parent_coords = current_coords(u_parent, system_parent, particle_parent)
 
     # Loop over all child particles of parent particle
