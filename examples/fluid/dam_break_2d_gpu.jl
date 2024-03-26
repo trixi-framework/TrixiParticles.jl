@@ -76,6 +76,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 # ==== Simulation
 
 using CUDA, Adapt
+Adapt.@adapt_structure InitialCondition
 Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
