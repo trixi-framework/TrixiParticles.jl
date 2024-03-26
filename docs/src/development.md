@@ -1,17 +1,23 @@
 # [Development](@id development)
 
 
-## Documentation
-To generate the Documentation first instantiate the docs environment
-```
-cd /path/to/TrixiParticles.jl/
-julia --project=./docs
-julia > ] develop .
-julia > ] instantiate
-```
-than we can generated the docs for example by using the following command
+## Preview of the documentation
 
+To generate the Documentation, first instantiate the `docs` environment
+by executing the following command from the TrixiParticles.jl root directory:
+```bash
+julia --project=docs -e "using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()"
 ```
-cd /path/to/TrixiParticles.jl/ && julia --project=./docs ./docs/make.jl && cd docs/build && python3 -m http.server
+This command only has to be run once. After that, maintain the `docs` environment
+as described under [Installation](@ref Common issues).
+
+With an instantiated `docs` environment, generate the docs with the following command (again from the TrixiParticles.jl root directory):
+```bash
+julia --project=docs --color=yes docs/make.jl
 ```
-using your webbrowser one can than navigate to localhost:8000.
+You can then open the generated files in `docs/build` with your webbrowser.
+Alternatively, run
+```bash
+python3 -m http.server -d docs/build
+```
+and open `localhost:8000` in your webbrowser.
