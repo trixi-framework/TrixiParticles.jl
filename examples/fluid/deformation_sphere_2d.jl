@@ -1,8 +1,9 @@
+# In this example we can observe that the `SurfaceTensionAkinci` surface tension model correctly leads to a
+# surface minimization of the water square and approaches a circle.
 using TrixiParticles
 using OrdinaryDiffEq
 
-# ==========================================================================================
-# ==== Fluid
+
 fluid_density = 1000.0
 
 particle_spacing = 0.1
@@ -11,18 +12,15 @@ sound_speed = 20
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=true)
 
-# ==========================================================================================
-# ==== Particle Setup
-
 particle_spacing = 0.1
 
+# for all surface tension simulations needs to be smoothing_length = 4r
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
                          density=fluid_density)
-# ==========================================================================================
-# ==== Containers
+
 nu = 0.01
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
@@ -50,12 +48,6 @@ saving_callback = SolutionSavingCallback(dt=0.02)
 stepsize_callback = StepsizeCallback(cfl=1.0)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
-
-# sol = solve(ode, RDPK3SpFSAL35(),
-#             abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-#             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-#             dtmax=2e-3, # Limit stepsize to prevent crashing
-#             save_everystep=false, callback=callbacks);
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback
