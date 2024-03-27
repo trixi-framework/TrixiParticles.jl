@@ -26,6 +26,11 @@
 ```@raw html
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/fac6c41f-7af8-4936-9dd5-b6ff2b9f6ff4" width="60%"/>
 ```
+
+### Moving Wall (`fluid/moving_wall_2d.jl`)
+```@raw html
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" width="60%"/>
+```
  
 ### Oscillating Drop (`fluid/oscillating_drop_2d.jl`)
 ```@raw html
@@ -52,11 +57,6 @@
 ### Falling Spheres 2D (`fsi/falling_spheres_2d.jl`)
 ```@raw html
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/b3964f68-2782-43e6-b6ff-be96f9f224ae" width="60%"/>
-```
- 
-### Moving Wall (`fsi/moving_wall_2d.jl`)
-```@raw html
-<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" width="60%"/>
 ```
  
 ## Structure Mechanics
