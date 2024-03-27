@@ -24,7 +24,7 @@
  
 ### Hydrostatic Water Column (`fluid/hydrostatic_water_column_*.jl`)
 ```@raw html
-<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/8e7991f6-fd2f-429b-8eb8-61be983cbe2a" width="60%"/>
+<img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/fac6c41f-7af8-4936-9dd5-b6ff2b9f6ff4" width="60%"/>
 ```
  
 ### Oscillating Drop (`fluid/oscillating_drop_2d.jl`)
