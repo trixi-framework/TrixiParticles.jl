@@ -1,3 +1,4 @@
+name: Paper
 on: [push]
 
 jobs:
