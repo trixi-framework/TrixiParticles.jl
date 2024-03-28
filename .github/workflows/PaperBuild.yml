@@ -1,6 +1,7 @@
-name: Paper
+name: Build paper
 
-on: [push]
+on:
+  push
 
 jobs:
   paper:
