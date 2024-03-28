@@ -1,7 +1,6 @@
 name: Build paper
 
-on:
-  push
+on: [push, pull_request]
 
 jobs:
   paper:
