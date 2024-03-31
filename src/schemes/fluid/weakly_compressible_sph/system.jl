@@ -148,7 +148,6 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.density_diffusion)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
-    print(io, ", ", system.particle_refinement)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -173,6 +172,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         if !isnothing(system.particle_refinement)
             summary_line(io, "refinement level",
                          refinement_level(system.particle_refinement))
+        end
+        if !isnothing(system.particle_coarsening)
+            summary_line(io, "particle coarsening", "yes")
         end
         summary_footer(io)
     end

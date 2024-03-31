@@ -68,7 +68,7 @@ end
     particle_position = current_coords(u, system, particle) -
                         zone_origin(v, u, v_ode, u_ode, t, system, semi)
 
-    padding = padding ? 0.5smoothing_length : 0.0
+    padding = padding ? 0.01smoothing_length : 0.0
 
     for dim in 1:ndims(system)
         span_dim = spanning_set[dim]
