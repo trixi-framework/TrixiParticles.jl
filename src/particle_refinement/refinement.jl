@@ -1,12 +1,12 @@
 include("refinement_pattern.jl")
 include("refinement_criteria.jl")
 
-mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
+mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC, CNL}
     candidates           :: Vector{Int}
     candidates_mass      :: Vector{ELTYPE}
     refinement_pattern   :: RP
     refinement_criteria  :: RC
-    criteria_next_levels :: Vector{RC}
+    criteria_next_levels :: CNL
     available_children   :: Int
 
     # Depends on refinement pattern, particle spacing and parameters ϵ and α.
@@ -22,37 +22,44 @@ mutable struct ParticleRefinement{RL, NDIMS, ELTYPE, RP, RC}
     function ParticleRefinement(refinement_criteria...;
                                 refinement_pattern=CubicSplitting(),
                                 criteria_next_levels=[])
-        ELTYPE = eltype(refinement_criteria[1])
-        NDIMS = ndims(refinement_criteria[1])
+        ELTYPE = eltype(first(refinement_criteria))
+        NDIMS = ndims(first(refinement_criteria))
 
         return new{0, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], [], refinement_pattern,
-                                                refinement_criteria,
-                                                criteria_next_levels, 0)
+                   typeof(refinement_criteria),
+                   typeof(criteria_next_levels)}([], [], refinement_pattern,
+                                                 refinement_criteria,
+                                                 criteria_next_levels, 0)
     end
 
     # Internal constructor for multiple refinement levels
-    function ParticleRefinement{RL}(refinement_criteria::Tuple,
-                                    refinement_pattern, criteria_next_levels) where {RL}
-        ELTYPE = eltype(refinement_criteria[1])
-        NDIMS = ndims(refinement_criteria[1])
+    function ParticleRefinement{RL}(refinement_criteria, refinement_pattern,
+                                    criteria_next_levels) where {RL}
+        if refinement_criteria isa Tuple
+            ELTYPE = eltype(first(refinement_criteria))
+            NDIMS = ndims(first(refinement_criteria))
+        else
+            ELTYPE = eltype(refinement_criteria)
+            NDIMS = ndims(refinement_criteria)
+        end
 
         return new{RL, NDIMS, ELTYPE, typeof(refinement_pattern),
-                   typeof(refinement_criteria)}([], [], refinement_pattern,
-                                                refinement_criteria,
-                                                criteria_next_levels, 0)
+                   typeof(refinement_criteria),
+                   typeof(criteria_next_levels)}([], [], refinement_pattern,
+                                                 refinement_criteria,
+                                                 criteria_next_levels, 0)
     end
 end
 
-include("resize.jl")
-
-@inline Base.ndims(::ParticleRefinement{RL, NDIMS}) where {RL, NDIMS} = ndims
+@inline refinement_level(::ParticleRefinement{RL}) where {RL} = RL
 
 @inline child_set(system, particle_refinement) = Base.OneTo(nchilds(system,
                                                                     particle_refinement))
 
 @inline nchilds(system, ::Nothing) = 0
 @inline nchilds(system, pr::ParticleRefinement) = nchilds(system, pr.refinement_pattern)
+
+include("resize.jl")
 
 # ==== Create child systems
 function create_child_systems(systems)
@@ -73,7 +80,7 @@ create_child_system(system::FluidSystem, ::Nothing) = ()
 
 function create_child_system(system::FluidSystem,
                              particle_refinement::ParticleRefinement{RL}) where {RL}
-    (; particle_spacing) = system.initial_condition
+    (; smoothing_length) = system
     (; criteria_next_levels, refinement_pattern, refinement_criteria) = particle_refinement
 
     NDIMS = ndims(system)
@@ -85,7 +92,7 @@ function create_child_system(system::FluidSystem,
     particle_refinement.mass_ratio = mass_distribution(system, refinement_pattern)
 
     # Create "empty" `InitialCondition` for child system
-    particle_spacing_ = particle_spacing * refinement_pattern.separation_parameter #TODO: Is this really the new particle spacing?
+    particle_spacing_ = smoothing_length * refinement_pattern.separation_parameter
     coordinates_ = zeros(NDIMS, 2)
     velocity_ = similar(coordinates_)
     density_ = system.initial_condition.density[1]
@@ -200,6 +207,8 @@ function refine_particles!(system_parent::FluidSystem,
     (; candidates, candidates_mass, system_child) = particle_refinement
 
     if !isempty(candidates)
+        nhs = get_neighborhood_search(system_parent, semi)
+
         # Old storage
         v_parent = _wrap_v(_v_cache, system_parent, semi, callback)
         u_parent = _wrap_u(_u_cache, system_parent, semi, callback)
@@ -215,8 +224,8 @@ function refine_particles!(system_parent::FluidSystem,
         mass_index = 1
         for particle_parent in candidates
             mass_parent = candidates_mass[mass_index]
-            bear_childs!(system_child, system_parent, particle_parent, mass_parent,
-                         particle_refinement, v_parent, u_parent, v_child, u_child, semi)
+            bear_children!(system_child, system_parent, particle_parent, mass_parent, nhs,
+                           particle_refinement, v_parent, u_parent, v_child, u_child)
 
             particle_refinement.available_children -= nchilds(system_parent,
                                                               particle_refinement)
@@ -230,11 +239,10 @@ end
 #
 # Reducing the dof by using a fixed regular refinement pattern
 # (given: position and number of child particles)
-function bear_childs!(system_child, system_parent, particle_parent, mass_parent,
-                      particle_refinement, v_parent, u_parent, v_child, u_child, semi)
+function bear_children!(system_child, system_parent, particle_parent, mass_parent, nhs,
+                        particle_refinement, v_parent, u_parent, v_child, u_child)
     (; rel_position_children, available_children, mass_ratio) = particle_refinement
 
-    nhs = get_neighborhood_search(system_parent, system_parent, semi)
     parent_coords = current_coords(u_parent, system_parent, particle_parent)
 
     # Loop over all child particles of parent particle

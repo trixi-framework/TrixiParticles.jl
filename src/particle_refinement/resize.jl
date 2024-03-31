@@ -56,7 +56,7 @@ end
         capacity_parent = nparticles(system) - candidates_refine + candidates_coarsen
         capacity_child = nparticles(system_child) + n_new_child - waste_children
 
-        capacity_parent <= 0 && error("`RefinementCriteria` affects all particles")
+        capacity_parent < 0 && error("`RefinementCriteria` affects more than all particles")
 
         # Resize child system (extending)
         resize_system!(system_child, capacity_child)
