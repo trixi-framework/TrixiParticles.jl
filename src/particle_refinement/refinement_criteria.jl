@@ -62,10 +62,13 @@ end
 
 @inline function (refinement_criterion::RefinementZone)(system, particle,
                                                         v, u, v_ode, u_ode, semi, t;
-                                                        padding=0.0)
+                                                        padding=false)
+    (; smoothing_length) = system
     (; zone_origin, spanning_set) = refinement_criterion
     particle_position = current_coords(u, system, particle) -
                         zone_origin(v, u, v_ode, u_ode, t, system, semi)
+
+    padding = padding ? 0.5smoothing_length : 0.0
 
     for dim in 1:ndims(system)
         span_dim = spanning_set[dim]

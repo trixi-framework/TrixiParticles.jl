@@ -43,7 +43,8 @@ function check_coarsening_criteria!(system, particle_coarsening::ParticleCoarsen
     for particle in each_moving_particle(system)
         for refinement_criterion in refinement_criteria
             if (isempty(potential_candidates) || particle != last(potential_candidates)) &&
-               !(refinement_criterion(system, particle, v, u, v_ode, u_ode, semi, t))
+               !(refinement_criterion(system, particle, v, u, v_ode, u_ode, semi, t;
+                                      padding=true))
 
                 # Add potential candidates for coarsening
                 push!(potential_candidates, particle)
