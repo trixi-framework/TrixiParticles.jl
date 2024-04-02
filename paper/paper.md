@@ -110,11 +110,12 @@ TODO: Mention adaptive time-integration
 
 TODO: make this nicer
 Currently implemented systems:
+
 * Fluid Systems
     + `WeaklyCmpressibleSPHSystem` (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
     + `EntropicallyDampedSPHSystem` (EDAC): As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
 
-* Strutrure Systems
+* Struture Systems
     + `TotalLagrangianSPHSystem` (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors.
     + `DEMSystem`: Discrete element system.
 
@@ -128,14 +129,23 @@ In this example, an elastic sphere modeled with Total Lagrangian SPH falls into 
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
 Currently the following feature highlights are implemented
+
 * Weakly compressible SPH with density diffusion [@Antuono:2010]
+
 * Entropically damped artificial compressibility (EDAC) [@Ramachandran:2019]
+
 * Total Lagrangian SPH and fluid-structure interaction [@O_Connor:2021]
+
 * Discrete element method (DEM) [@Bicanic:2004], [@Cundall:1979]
+
 * Transport-velocity formulation (TVF) [@Adami:2013]
+
 * Intra-particle-force surface tension [@Akinci:2013]
+
 * Non-reflecting (open) boundaries [@Lastiwka2009]
+
 * Efficient grid neighborhood search [@Ihmsen:2010]
+
 * GPU support
 
 
