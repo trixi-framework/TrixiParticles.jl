@@ -129,6 +129,23 @@ end
     return cohesion_force
 end
 
+@inline function adhesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
+    support_radius, mb, pos_diff, distance, adhesion_coefficient)
+    # Eq. 7
+    # we only reach this function when distance > eps
+    A = 0
+    if distance <= support_radius
+        if distance > 0.5 * support_radius
+            A = 0.007/h^3.25 * (-4*distance^2/support_radius + 6 * distance - 2 * support_radius)^0.25
+        end
+    end
+
+    # Eq. 6 in acceleration form with mb being the boundary mass calculated as mb=rho_0 / volume
+    cohesion_force = -adhesion_coefficient * mb * A * pos_diff / distance
+
+    return cohesion_force
+end
+
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: most of the time this only leads to an approximation of the surface normal
 function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,

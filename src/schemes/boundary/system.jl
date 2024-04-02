@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing)
+    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -10,16 +10,19 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `adhesion_coefficient`: Coefficient specifing the adhesion of a fluid to the surface.
+   Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    coordinates       :: Array{ELTYPE, 2}
-    boundary_model    :: BM
-    movement          :: M
-    ismoving          :: Vector{Bool}
-    cache             :: C
+    initial_condition     :: InitialCondition{ELTYPE}
+    coordinates           :: Array{ELTYPE, 2}
+    boundary_model        :: BM
+    movement              :: M
+    ismoving              :: Vector{Bool}
+    adhesion_coefficient  :: ELTYPE
+    cache                 :: C
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing)
+    function BoundarySPHSystem(initial_condition, model; movement=nothing, adhesion_coefficient=0.0)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
@@ -35,7 +38,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, cache)
+                                  ismoving, adhesion_coefficient, cache)
     end
 end
 
@@ -99,6 +102,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, "BoundarySPHSystem{", ndims(system), "}(")
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
+    print(io, ", ", system.adhesion_coefficient)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -114,6 +118,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_line(io, "movement function",
                      isnothing(system.movement) ? "nothing" :
                      string(system.movement.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_footer(io)
     end
 end
