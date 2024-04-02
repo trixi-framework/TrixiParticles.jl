@@ -47,31 +47,34 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
     viscosity          :: V
     correction         :: COR
     cache              :: C
+end
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
-                                         density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=nothing,
-                                         state_equation=nothing, correction=nothing)
-        pressure = initial_boundary_pressure(initial_density, density_calculator,
-                                             state_equation)
-        NDIMS = ndims(smoothing_kernel)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                     density_calculator, smoothing_kernel,
+                                     smoothing_length; viscosity=nothing,
+                                     state_equation=nothing, correction=nothing)
+    pressure = initial_boundary_pressure(initial_density, density_calculator,
+                                         state_equation)
+    NDIMS = ndims(smoothing_kernel)
 
-        n_particles = length(initial_density)
+    n_particles = length(initial_density)
 
-        cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-                 create_cache_model(initial_density, density_calculator)...)
-        cache = (;
-                 create_cache_model(correction, initial_density, NDIMS,
-                                    n_particles)..., cache...)
+    cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
+             create_cache_model(initial_density, density_calculator)...)
+    cache = (;
+             create_cache_model(correction, initial_density, NDIMS,
+                                n_particles)..., cache...)
 
-        return new{typeof(density_calculator), eltype(initial_density),
-                   typeof(pressure), typeof(state_equation),
-                   typeof(smoothing_kernel), typeof(viscosity),
-                   typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass,
+    return BoundaryModelDummyParticles{typeof(density_calculator), eltype(initial_density),
+                                       typeof(pressure), typeof(state_equation),
+                                       typeof(smoothing_kernel), typeof(viscosity),
+                                       typeof(correction),
+                                       typeof(cache)}(pressure, hydrodynamic_mass,
                                                       state_equation, density_calculator,
                                                       smoothing_kernel, smoothing_length,
                                                       viscosity, correction, cache)
-    end
 end
 
 @doc raw"""
