@@ -41,6 +41,7 @@ aas-journal: Astrophysical Journal <- The name of the AAS journal.
 ---
 
 # Summary
+
 The realm of particle-based methods is broad and depending on the method, particles are either considered as physical particles or as mathematical interpolation points.
 The latter case refers to the smoothed particle hydrodynamics (SPH) which is a method to discretize partial differential equations and is developed by [@Monaghan:1977] to simulate astrophysical applications and is currently widely used to simulate e.g. fluid and structural mechanics and even heat conduction problems.
 The former case refers e.g. to discrete element method (DEM) introduced by [@Bicanic:2004] which models separate, discrete particles with rotational degrees of freedom. Typical applications include those involving discontinuous materials such as granular matter, bulk materials or powders.
@@ -81,15 +82,8 @@ TODO:
 | SplisHSPlasH [@SplisHSPlasH]  | C++                  | yes          |
 | SPHinXsys [@SPHinXsys]        | C++                  | yes          |
 
-
-TODO Add to .bib:
-- [DualSPHysics](https://github.com/DualSPHysics/DualSPHysics)
-- [PySPH](https://github.com/pypr/pysph)
-- [SplisHSPlasH](https://github.com/InteractiveComputerGraphics/SPlisHSPlasH)
-- [SPHinXsys](https://github.com/Xiangyu-Hu/SPHinXsys)
-
-
 # Scientific background
+
 In TrixiParticles.jl we store the particles in systems, each representing a different type of particle-based method. Those systems are able to interact with each other, where the interaction depends on the type of the system. This approach makes it easy to add new systems.
 
 ![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=35%}
@@ -147,10 +141,12 @@ As a young project that aims to be the Julia code for particle-based simulation 
 like particle-in-cell, incompressible SPH or heat conduction with SPH and couple those among each other and even with mesh-based methods.
 
 # Citations
-TODO
+
+TDO
+
 # Acknowledgements
+
 TODO
 The project has benefited from funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
 
 # References
-TODO
