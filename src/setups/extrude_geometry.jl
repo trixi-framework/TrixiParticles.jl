@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     extrude_geometry(geometry; particle_spacing, direction, n_extrude=1,
                     velocity=zeros(length(direction)),
                     mass=nothing, density=nothing, pressure=0.0)
@@ -31,7 +31,7 @@ Extrude either a line, a plane or a shape along a specific direction.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
 
 # Examples
-```jldoctest; output = false
+```jldoctest; output = false, filter = [r"┌ Info: The desired size .*\n", r"└ New particle spacing is set to .*\n"]
 # Extrude a line in 2D to a plane in 2D
 p1 = [0.0, 0.0]
 p2 = [1.0, 1.0]
