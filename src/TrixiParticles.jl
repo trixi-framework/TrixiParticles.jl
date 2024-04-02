@@ -5,7 +5,7 @@ using Reexport: @reexport
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
-using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
+using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
