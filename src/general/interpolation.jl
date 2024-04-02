@@ -57,8 +57,7 @@ function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_syst
                               cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
     filter_no_neighbors = true
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
                                          semi, ref_system, v_ode, u_ode,
