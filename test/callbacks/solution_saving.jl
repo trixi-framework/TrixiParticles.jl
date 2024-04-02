@@ -24,7 +24,8 @@
         end
 
         @testset verbose=true "interval" begin
-            callback = SolutionSavingCallback(interval=100, prefix="test", output_directory=out)
+            callback = SolutionSavingCallback(interval=100, prefix="test",
+                                              output_directory=out)
 
             show_compact = "SolutionSavingCallback(interval=100)"
             @test repr(callback) == show_compact
@@ -44,7 +45,8 @@
         end
 
         @testset verbose=true "interval" begin
-            callback = SolutionSavingCallback(save_times=[1.0, 2.0, 3.0], prefix="test", output_directory=out)
+            callback = SolutionSavingCallback(save_times=[1.0, 2.0, 3.0], prefix="test",
+                                              output_directory=out)
 
             show_compact = "SolutionSavingCallback(save_times=[1.0, 2.0, 3.0])"
             @test repr(callback) == show_compact
