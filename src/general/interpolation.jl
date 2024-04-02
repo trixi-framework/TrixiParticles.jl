@@ -229,6 +229,10 @@ results = interpolate_plane_3d([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system, sol;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true, clip_negative_pressure=false)
+    if ndims(ref_system) != 3
+        throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
+    end
+
     coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
     if !isapprox(resolution, resolution_, rtol=5e-2)
