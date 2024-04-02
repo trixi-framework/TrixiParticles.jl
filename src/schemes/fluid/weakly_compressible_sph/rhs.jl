@@ -180,7 +180,8 @@ end
 
     m_b = neighbor_container.mass[neighbor]
 
-    return surface_tension_a(smoothing_length, m_b, pos_diff, distance)
+    support_radius = compact_support(smoothing_kernel, smoothing_length)
+    return surface_tension_a(support_radius, m_b, pos_diff, distance)
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
@@ -188,7 +189,7 @@ end
                                       neighbor_container::FluidSystem,
                                       surface_tension_a::SurfaceTensionAkinci,
                                       surface_tension_b::SurfaceTensionAkinci)
-    (; smoothing_length) = particle_container
+    (; smoothing_length, smoothing_kernel) = particle_container
 
     # no surface tension with oneself
     if distance < eps()
@@ -201,7 +202,8 @@ end
 
     n_b = get_normal(neighbor, neighbor_container, surface_tension_b)
 
-    surf = surface_tension_a(smoothing_length, m_b, n_a, n_b, pos_diff, distance)
+    support_radius = compact_support(smoothing_kernel, smoothing_length)
+    surf = surface_tension_a(support_radius, m_b, n_a, n_b, pos_diff, distance)
 
     return surf
 end

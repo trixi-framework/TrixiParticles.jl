@@ -1,7 +1,7 @@
 abstract type AkinciTypeSurfaceTension end
 
 @doc raw"""
-cohesionForceAkinci(smoothing_length, ma, mb, dx, distance)
+cohesionForceAkinci(support_radius, ma, mb, dx, distance)
 Use the cohesion force model by Akinci. This is based on an Intra-particle-force formulation.
 # Keywords
 - 'surface_tension_coefficient=1.0': Coefficient that linearly scales the surface tension induced force.
@@ -22,7 +22,7 @@ function (surface_tension::CohesionForceAkinci)(smoothing_length, mb, pos_diff, 
 end
 
 @doc raw"""
-SurfaceTensionAkinci(smoothing_length, mb, na, nb, dx, distance)
+SurfaceTensionAkinci(support_radius, mb, na, nb, dx, distance)
 Use the surface tension model by Akinci. This is based on an Intra-particle-force formulation.
 # Keywords
 - 'surface_tension_coefficient=1.0': Coefficient that linearly scales the surface tension induced force.
@@ -38,37 +38,37 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, na, nb, pos_diff,
+function (surface_tension::SurfaceTensionAkinci)(support_radius, mb, na, nb, pos_diff,
                                                  distance)
     (; surface_tension_coefficient) = surface_tension
-    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
+    return cohesion_force_akinci(surface_tension, support_radius, mb, pos_diff,
                                  distance) .- (surface_tension_coefficient * (na - nb))
 end
 
 # just the cohesion force to compensate near boundaries
-function (surface_tension::SurfaceTensionAkinci)(smoothing_length, mb, pos_diff,
+function (surface_tension::SurfaceTensionAkinci)(support_radius, mb, pos_diff,
                                                  distance)
-    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff,
+    return cohesion_force_akinci(surface_tension, support_radius, mb, pos_diff,
                                  distance)
 end
 
 @fastpow @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                                smoothing_length, mb, pos_diff, distance)
+    support_radius, mb, pos_diff, distance)
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
     # we only reach this function when distance > eps
     C = 0
-    if distance <= smoothing_length
-        if distance > 0.5 * smoothing_length
+    if distance <= support_radius
+        if distance > 0.5 * support_radius
             # attractive force
-            C = (smoothing_length - distance)^3 * distance^3
+            C = (support_radius - distance)^3 * distance^3
         else
-            # distance < 0.5 * smoothing_length
+            # distance < 0.5 * support_radius
             # repulsive force
-            C = 2 * (smoothing_length - distance)^3 * distance^3 - smoothing_length^6 / 64.0
+            C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
         end
-        C *= 32.0 / (pi * smoothing_length^9)
+        C *= 32.0 / (pi * support_radius^9)
     end
 
     # Eq. 1 in acceleration form

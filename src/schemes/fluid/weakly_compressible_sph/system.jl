@@ -90,10 +90,6 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
             throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
         end
 
-        if surface_tension isa SurfaceTensionAkinci && !isapprox(compact_support(smoothing_kernel, smoothing_length), smoothing_length)
-            throw(ArgumentError("The surface tension model can only be used with Kernels that have a compact support of `smoothing_length`."))
-        end
-
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,

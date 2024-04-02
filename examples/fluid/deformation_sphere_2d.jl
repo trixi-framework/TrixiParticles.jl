@@ -17,11 +17,15 @@ particle_spacing = 0.1
 # for all surface tension simulations needs to be smoothing_length = 4r
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
+nu = 0.01
+
+# smoothing_length = 2.0 * particle_spacing
+# smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# nu = 0.025
 
 fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
                          density=fluid_density)
 
-nu = 0.01
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
