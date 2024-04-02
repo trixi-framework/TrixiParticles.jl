@@ -391,10 +391,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded for particle in each_moving_particle(system)
-                    # This can be dispatched per system
-                    add_velocity!(du, v, particle, system)
-                end
+                add_velocity!(du, v, system)
             end
         end
     end
@@ -402,15 +399,41 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
     return du_ode
 end
 
-@inline function add_velocity!(du, v, particle, system)
-    for i in 1:ndims(system)
-        du[i, particle] = v[i, particle]
+@inline function add_velocity!(du, v, system::BoundarySPHSystem)
+    return du
+end
+
+@inline function add_velocity!(du, v, system)
+    @threaded for particle in each_moving_particle(system)
+        add_velocity_per_particle!(du, v, system, particle)
     end
 
     return du
 end
 
-@inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
+# GPU kernel version of the `@threaded` code above
+@inline function add_velocity!(du, v, system::GPUSystem)
+    if n_moving_particles(system) > 0
+        backend = get_backend(du)
+        add_velocity_kernel!(backend)(du, v, system, ndrange=n_moving_particles(system))
+        synchronize(backend)
+    end
+
+    return du
+end
+
+@kernel function add_velocity_kernel!(du, v, system)
+    particle = @index(Global)
+    add_velocity_per_particle!(du, v, system, particle)
+end
+
+@inline function add_velocity_per_particle!(du, v, system, particle)
+    for i in 1:ndims(system)
+        @inbounds du[i, particle] = v[i, particle]
+    end
+
+    return du
+end
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
     @trixi_timeit timer() "kick!" begin
@@ -492,20 +515,46 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
 
         @threaded for particle in each_moving_particle(system)
             # Dispatch by system type to exclude boundary systems
-            add_acceleration!(dv, particle, system)
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
+            add_acceleration!(dv, system, particle)
+            add_source_terms_inner!(dv, v, u, system, source_terms(system), particle)
         end
     end
 
     return dv_ode
 end
 
+# GPU kernel version of the `@threaded` code above
+function add_source_terms!(dv_ode, v_ode, u_ode, semi::GPUSemidiscretization)
+    foreach_system(semi) do system
+        dv = wrap_v(dv_ode, system, semi)
+        v = wrap_v(v_ode, system, semi)
+        u = wrap_u(u_ode, system, semi)
+
+        if n_moving_particles(system) > 0
+            backend = get_backend(dv_ode)
+            add_source_terms_kernel!(backend)(dv, v, u, system,
+                                              ndrange=n_moving_particles(system))
+            synchronize(backend)
+        end
+    end
+
+    return dv_ode
+end
+
+@kernel function add_source_terms_kernel!(dv, v, u, system)
+    particle = @index(Global)
+
+    # Dispatch by system type to exclude boundary systems
+    add_acceleration!(dv, system, particle)
+    add_source_terms_inner!(dv, v, u, system, source_terms(system), particle)
+end
+
 @inline source_terms(system) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
-@inline add_acceleration!(dv, particle, system) = dv
+@inline add_acceleration!(dv, system, particle) = dv
 
-@inline function add_acceleration!(dv, particle, system::Union{FluidSystem, SolidSystem})
+@inline function add_acceleration!(dv, system::Union{FluidSystem, SolidSystem}, particle)
     (; acceleration) = system
 
     for i in 1:ndims(system)
@@ -515,7 +564,7 @@ end
     return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_)
+@inline function add_source_terms_inner!(dv, v, u, system, source_terms_, particle)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
     density = particle_density(v, system, particle)
@@ -532,7 +581,7 @@ end
     return dv
 end
 
-@inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing) = dv
+@inline add_source_terms_inner!(dv, v, u, system, source_terms_::Nothing, particle) = dv
 
 @doc raw"""
     SourceTermDamping(; damping_coefficient)

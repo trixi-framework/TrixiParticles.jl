@@ -286,6 +286,19 @@ function compute_pressure!(system, v)
     end
 end
 
+# GPU kernel version of the `@threaded` code above
+function compute_pressure!(system::GPUSystem, v)
+    backend = get_backend(v)
+    compute_pressure_kernel!(backend)(system, v, ndrange=nparticles(system))
+    synchronize(backend)
+end
+
+@kernel function compute_pressure_kernel!(system, v)
+    particle = @index(Global)
+
+    apply_state_equation!(system, particle_density(v, system, particle), particle)
+end
+
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
