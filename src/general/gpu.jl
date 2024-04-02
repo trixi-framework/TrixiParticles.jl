@@ -32,3 +32,5 @@ end
 function Adapt.adapt_structure(to::typeof(Array), range::UnitRange)
     return range
 end
+
+KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()

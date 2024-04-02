@@ -10,6 +10,7 @@ using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallb
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
+using KernelAbstractions: KernelAbstractions, @kernel, get_backend, synchronize, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
