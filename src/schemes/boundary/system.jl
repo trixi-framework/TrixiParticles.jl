@@ -13,11 +13,10 @@ The interaction between fluid and boundary particles is specified by the boundar
 """
 struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
     initial_condition :: IC
-    coordinates       :: CO         # Array{ELTYPE, 2}
+    coordinates       :: CO # Array{ELTYPE, 2}
     boundary_model    :: BM
     movement          :: M
-    # Use `Ref{Bool}` here to make a mutable field compatible with GPUs
-    ismoving          :: IM         # Ref{Bool}
+    ismoving          :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     cache             :: CA
 
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
