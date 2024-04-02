@@ -151,8 +151,8 @@ function create_cache_model(viscosity::Nothing, n_particles, n_dims)
     return (;)
 end
 
-function create_cache_model(viscosity::ViscosityAdami, n_particles, n_dims)
-    ELTYPE = eltype(viscosity.nu)
+function create_cache_model(viscosity, n_particles, n_dims)
+    ELTYPE = eltype(viscosity.epsilon)
 
     wall_velocity = zeros(ELTYPE, n_dims, n_particles)
 
@@ -425,12 +425,11 @@ function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami,
     return cache
 end
 
-@inline function compute_wall_velocity!(viscosity, system, system_coords, particle)
+@inline function compute_wall_velocity!(viscosity::Nothing, system, system_coords, particle)
     return viscosity
 end
 
-@inline function compute_wall_velocity!(viscosity::ViscosityAdami, system,
-                                        system_coords, particle)
+@inline function compute_wall_velocity!(viscosity, system, system_coords, particle)
     (; boundary_model) = system
     (; cache) = boundary_model
     (; volume, wall_velocity) = cache
