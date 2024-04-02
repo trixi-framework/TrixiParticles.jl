@@ -100,6 +100,8 @@ where $v_a$ is the velocity of particle $a$ and $m_a$, $m_b$, $\rho_a$, $\rho_b$
 
 ### Structure of TrixiParticles.jl
 
+TODO
+
 ![Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations) \label{fig:structure}](structure.png){width=75%}
 
 TODO: Mention adaptive time-integration
@@ -108,33 +110,33 @@ TODO: Mention adaptive time-integration
 
 TODO: make this nicer
 Currently implemented systems:
-Fluid Systems
-- WeaklyCmpressibleSPHSystem (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
-- EntropicallyDampedSPHSystem (EDAC): As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
+* Fluid Systems
+    + `WeaklyCmpressibleSPHSystem` (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
+    + `EntropicallyDampedSPHSystem` (EDAC): As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
 
-Strutrure Systems
-- TotalLagrangianSPHSystem (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors.
-- DEMSystem: Discrete element system.
+* Strutrure Systems
+    + `TotalLagrangianSPHSystem` (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors.
+    + `DEMSystem`: Discrete element system.
 
-Boundary Systems
-- BoundarySPHSystem with several boundary models where each model follows a different interaction rule.
-- OpenBoundarySPHSystem: System to simulate non-reflecting boundary conditions
+* Boundary Systems
+    + `BoundarySPHSystem` with several boundary models where each model follows a different interaction rule.
+    + `OpenBoundarySPHSystem`: System to simulate non-reflecting boundary conditions
 
 Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results.
 In this example, an elastic sphere modeled with Total Lagrangian SPH falls into a tank filled with water.
 
-![Elastic sphere falling into a tank filled with water.\label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
+![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
 Currently the following feature highlights are implemented
-- Weakly compressible SPH with density diffusion [@Antuono:2010]
-- Entropically damped artificial compressibility (EDAC) [@Ramachandran:2019]
-- Total Lagrangian SPH and fluid-structure interaction [@O_Connor:2021]
-- Discrete element method (DEM) [@Bicanic:2004], [@Cundall:1979]
-- Transport-velocity formulation (TVF) [@Adami:2013]
-- Intra-particle-force surface tension [@Akinci:2013]
-- Non-reflecting (open) boundaries [@Lastiwka2009]
-- Efficient grid neighborhood search [@Ihmsen:2010]
-- GPU support
+* Weakly compressible SPH with density diffusion [@Antuono:2010]
+* Entropically damped artificial compressibility (EDAC) [@Ramachandran:2019]
+* Total Lagrangian SPH and fluid-structure interaction [@O_Connor:2021]
+* Discrete element method (DEM) [@Bicanic:2004], [@Cundall:1979]
+* Transport-velocity formulation (TVF) [@Adami:2013]
+* Intra-particle-force surface tension [@Akinci:2013]
+* Non-reflecting (open) boundaries [@Lastiwka2009]
+* Efficient grid neighborhood search [@Ihmsen:2010]
+* GPU support
 
 
 As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods
@@ -142,7 +144,7 @@ like particle-in-cell, incompressible SPH or heat conduction with SPH and couple
 
 # Citations
 
-TDO
+TODO
 
 # Acknowledgements
 
