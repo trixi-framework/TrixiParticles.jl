@@ -248,7 +248,7 @@ timespan: (0.0, 1.0)
 u0: ([...], [...]) *this line is ignored by filter*
 ```
 """
-function semidiscretize(semi, tspan; reset_threads=true)
+function semidiscretize(semi, tspan; reset_threads=true, data_type=Array)
     (; systems) = semi
 
     @assert all(system -> eltype(system) === eltype(systems[1]), systems)
@@ -274,8 +274,8 @@ function semidiscretize(semi, tspan; reset_threads=true)
 
     sizes_u = (u_nvariables(system) * n_moving_particles(system) for system in systems)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
-    u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
-    v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
+    u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
+    v0_ode = data_type{ELTYPE}(undef, sum(sizes_v))
 
     # Set initial condition
     foreach_system(semi) do system
@@ -286,7 +286,12 @@ function semidiscretize(semi, tspan; reset_threads=true)
         write_v0!(v0_system, system)
     end
 
-    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi)
+    # Convert all arrays to the correct array type. When e.g. `data_type=CuArray`, this will
+    # convert all `Array`s to `CuArray`s, moving data to the GPU.
+    # See the comments in general/gpu.jl for more details.
+    semi_adapted = Adapt.adapt(data_type, semi)
+
+    return DynamicalODEProblem(kick!, drift!, v0_ode, u0_ode, tspan, semi_adapted)
 end
 
 """
