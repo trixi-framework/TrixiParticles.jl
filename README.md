@@ -8,6 +8,7 @@
 [![codecov](https://codecov.io/github/trixi-framework/TrixiParticles.jl/branch/main/graph/badge.svg?token=RDZXYbij0b)](https://codecov.io/github/trixi-framework/TrixiParticles.jl)
 [![SciML Code Style](https://img.shields.io/static/v1?label=code%20style&message=SciML&color=9558b2&labelColor=389826)](https://github.com/SciML/SciMLStyle)
 [![License: MIT](https://img.shields.io/badge/License-MIT-success.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.10797541.svg)](https://zenodo.org/doi/10.5281/zenodo.10797541)
 
 **TrixiParticles.jl** is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in [Julia](https://julialang.org).
 A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing.
@@ -23,6 +24,31 @@ Its features include:
   - VTK
 
 ## Examples
+We provide several example simulation setups in the `examples` folder (which can be accessed from Julia via `examples_dir()`).
+
+<table align="center" border="0">
+  <tr>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
+    </td>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
+    </td>
+  </tr>
+  <tr>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br><figcaption>Oscillating Beam</figcaption>
+    </td>
+    <td align="center">
+      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br><figcaption>Dam Break with Elastic Plate</figcaption>
+    </td>
+  </tr>
+</table>
+
 
 ## Installation
 If you have not yet installed Julia, please [follow the instructions for your
@@ -58,7 +84,7 @@ If you installed TrixiParticles.jl this way, you always have to start Julia with
 julia --project=run
 ```
 from the TrixiParticles.jl root directory.
-Further details can be found in the [documentation](@ref installation).
+Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
 ## Usage
 
@@ -75,7 +101,7 @@ julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column
 This will open a new window with a 2D visualization of the final solution:
 <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/95821154-577d-4323-ba57-16ef02ea24e0" width="400">
 
-Further details can be found in the [documentation](@ref getting_started).
+Further details can be found in the [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable).
 
 ## Documentation
 
@@ -85,6 +111,19 @@ You can find the documentation for the latest release
 ## Publications
 
 ## Cite Us
+
+If you use TrixiParticles.jl in your own research or write a paper using results obtained
+with the help of TrixiParticles.jl, please cite it as
+```bibtex
+@misc{trixiparticles,
+  title={{T}rixi{P}articles.jl: {P}article-based multiphysics simulations in {J}ulia},
+  author={Erik Faulhaber and Niklas Neher and Sven Berger and
+          Michael Schlottke-Lakemper and Gregor Gassner},
+  year={2024},
+  howpublished={\url{https://github.com/trixi-framework/TrixiParticles.jl}},
+  doi={10.5281/zenodo.10797541}
+}
+```
 
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
