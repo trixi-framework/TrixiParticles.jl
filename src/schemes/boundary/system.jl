@@ -11,13 +11,13 @@ The interaction between fluid and boundary particles is specified by the boundar
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    coordinates       :: Array{ELTYPE, 2}
+struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
+    initial_condition :: IC
+    coordinates       :: CO         # Array{ELTYPE, 2}
     boundary_model    :: BM
     movement          :: M
-    ismoving          :: Vector{Bool}
-    cache             :: C
+    ismoving          :: IM         # Vector{Bool}
+    cache             :: CA
 
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
         coordinates = copy(initial_condition.coordinates)
@@ -33,7 +33,8 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
 
-        return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
+        return new{typeof(model), NDIMS, typeof(initial_condition),
+                   typeof(coordinates), typeof(movement), typeof(ismoving),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, cache)
     end
