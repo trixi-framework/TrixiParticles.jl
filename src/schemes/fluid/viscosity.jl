@@ -105,8 +105,8 @@ end
                                                           rho_mean)
     (; smoothing_length) = particle_system
 
-    v_a = current_velocity(v_particle_system, particle_system, particle)
-    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, smoothing_length)

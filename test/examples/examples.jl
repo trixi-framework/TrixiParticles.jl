@@ -76,19 +76,13 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/moving_wall_2d.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
-                                           joinpath(examples_dir(), "fluid",
-                                                    "moving_wall_2d.jl"))
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
-        end
-
         @trixi_testset "fluid/dam_break_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "dam_break_2d.jl"),
-                                           tspan=(0.0, 0.1))
+                                                    "dam_break_2d.jl"), tspan=(0.0, 0.1)) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n"
+            ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -128,6 +122,14 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/moving_wall_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "moving_wall_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         include("dam_break_2d_corrections.jl")
     end
 
@@ -152,11 +154,11 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fsi/dam_break_2d.jl" begin
+        @trixi_testset "fsi/dam_break_plate_2d.jl" begin
             # Use rounded dimensions to avoid warnings
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fsi",
-                                                    "dam_break_2d.jl"),
+                                                    "dam_break_plate_2d.jl"),
                                            initial_fluid_size=(0.15, 0.29),
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
@@ -216,7 +218,14 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "postprocessing",
                                                     "interpolation_plane.jl"),
-                                           tspan=(0.0, 0.01))
+                                           tspan=(0.0, 0.01)) [
+                r"WARNING: importing deprecated binding Makie.*\n",
+                r"WARNING: using deprecated binding Colors.*\n",
+                r"WARNING: using deprecated binding PlotUtils.*\n",
+                r"WARNING: Makie.* is deprecated.*\n",
+                r"  likely near none:1\n",
+                r", use .* instead.\n"
+            ]
             @test sol.retcode == ReturnCode.Success
         end
         @trixi_testset "postprocessing/interpolation_point_line.jl" begin

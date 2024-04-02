@@ -1,8 +1,9 @@
 @doc raw"""
-    SolutionSavingCallback(; interval::Integer=0, dt=0.0,
+    SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
                            save_initial_solution=true, save_final_solution=true,
-                           output_directory="out", append_timestamp=false,
-                           max_coordinates=2^15, custom_quantities...)
+                           output_directory="out", append_timestamp=false, max_coordinates=2^15,
+                           custom_quantities...)
+
 
 Callback to save the current numerical solution in VTK format in regular intervals.
 Either pass `interval` to save every `interval` time steps,
@@ -19,6 +20,7 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `dt`:                         Save the solution in regular intervals of `dt` in terms
                                 of integration time by adding additional `tstops`
                                 (note that this may change the solution).
+- `save_times=[]`               List of times at which to save a solution.
 - `save_initial_solution=true`: Save the initial solution.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
@@ -62,8 +64,9 @@ saving_callback = SolutionSavingCallback(dt=0.1, my_custom_quantity=kinetic_ener
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 """
-struct SolutionSavingCallback{I, CQ}
+mutable struct SolutionSavingCallback{I, CQ}
     interval              :: I
+    save_times            :: Array{Float64, 1}
     save_initial_solution :: Bool
     save_final_solution   :: Bool
     write_meta_data       :: Bool
@@ -72,17 +75,18 @@ struct SolutionSavingCallback{I, CQ}
     prefix                :: String
     max_coordinates       :: Float64
     custom_quantities     :: CQ
-    latest_saved_iter     :: Vector{Int}
+    latest_saved_iter     :: Int
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
-                                save_initial_solution=true,
-                                save_final_solution=true,
+                                save_times=Array{Float64, 1}([]),
+                                save_initial_solution=true, save_final_solution=true,
                                 output_directory="out", append_timestamp=false,
                                 prefix="", verbose=false, write_meta_data=true,
                                 max_coordinates=Float64(2^15), custom_quantities...)
-    if dt > 0 && interval > 0
-        throw(ArgumentError("Setting both interval and dt is not supported!"))
+    if (dt > 0 && interval > 0) || (length(save_times) > 0 && (dt > 0 || interval > 0))
+        throw(ArgumentError("Setting multiple save times for the same solution " *
+                            "callback is not possible. Use either `dt`, `interval` or `save_times`."))
     end
 
     if dt > 0
@@ -93,13 +97,15 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
         output_directory *= string("_", Dates.format(now(), "YY-mm-ddTHHMMSS"))
     end
 
-    solution_callback = SolutionSavingCallback(interval,
+    solution_callback = SolutionSavingCallback(interval, save_times,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               [-1])
+                                               -1)
 
-    if dt > 0
+    if length(save_times) > 0
+        return PresetTimeCallback(save_times, solution_callback)
+    elseif dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(solution_callback, dt,
                                 initialize=initialize_save_cb!,
@@ -121,6 +127,9 @@ function initialize_save_cb!(cb, u, t, integrator)
 end
 
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
+    # Reset `latest_saved_iter`
+    solution_callback.latest_saved_iter = -1
+
     # Save initial solution
     if solution_callback.save_initial_solution
         # Update systems to compute quantities like density and pressure.
@@ -152,7 +161,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
     semi = integrator.p
     iter = get_iter(interval, integrator)
 
-    if iter == latest_saved_iter[1]
+    if iter == latest_saved_iter
         # This should only happen at the end of the simulation when using `dt` and the
         # final time is not a multiple of the saving interval.
         @assert isfinished(integrator)
@@ -161,7 +170,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         iter += 1
     end
 
-    latest_saved_iter[1] = iter
+    latest_saved_iter = iter
 
     if verbose
         println("Writing solution to $output_directory at t = $(integrator.t)")
