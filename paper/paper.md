@@ -90,13 +90,11 @@ TODO Add to .bib:
 
 
 # Scientific background
-In TrixiParticles.jl we store the particles in systems, each representing a different type of particle-based method.
-The different systems are able to interact with each other, where the interaction depends on the type of the system. This approach makes it easy to add new systems.
+In TrixiParticles.jl we store the particles in systems, each representing a different type of particle-based method. Those systems are able to interact with each other, where the interaction depends on the type of the system. This approach makes it easy to add new systems.
 
-![Particles of two different systems in a simulation domain.\label{fig:systems}](systems.png){width=35%}
+![Particles of two different systems in a simulation domain. \label{fig:systems}](https://github.com/LasNikas/paper-2024-joss-pdf/assets/73897120/2e5024e7-0f8b-4e0e-b5bd-83df57d68c3e){width=35%}
 
-Figure ? shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$.
-To calculate the forces acting on each particle, the particles need to interact with each other.
+To illustrate this, figure ? shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$. To calculate the forces acting on each particle, the particles need to interact with each other.
 In general, the force of a particle $a$ in system $(1)$ is calculated as following
 $$ f_a^{(1)} = \sum_{b \in \mathcal{N}^{(1)}} f_{ab}^{(1)} + \sum_{b \in \mathcal{N}^{(2)}} f_{ab}^{(2)} + \dots + \sum_{b\in \mathcal{N}^{(n)}}f_{ab}^{(n)}, $$
 
@@ -105,6 +103,14 @@ where the superscripts denote the system, $\mathcal{N}$ is the set of neighborin
 The interaction of those particle systems follows method specific rules. For example, the SPH method determines the acceleration of particle $a$ basically with the following interaction
 $$ \frac{d v_a}{d t} = -m_a \sum_b m_b \left( \frac{p_b}{\rho_a^2} + \frac{p_a}{\rho_a}^2 \right) \nabla_a W_{ab},$$
 where $v_a$ is the velocity of particle $a$ and $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ is the mass, density and pressure of particle $a$ and $b$, respectively. The summation is over a weighting function also called kernel-function $W_{ab}$ depending on the relative distance of particle $a$ and $b$.
+
+### Structure of TrixiParticles.jl
+
+![Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations) \label{fig:structure}](https://github.com/LasNikas/paper-2024-joss-pdf/assets/73897120/63dc553f-0fdb-4ac5-acba-4217867252e1){width=75%}
+
+TODO: Mention adaptive time-integration
+
+# Feature highlights
 
 TODO: make this nicer
 Currently implemented systems:
@@ -120,14 +126,10 @@ Boundary Systems
 - BoundarySPHSystem with several boundary models where each model follows a different interaction rule.
 - OpenBoundarySPHSystem: System to simulate non-reflecting boundary conditions
 
-TODO: Mention adaptive time-integration
-
-# Feature highlights
-
 Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results.
 In this example, an elastic sphere modeled with Total Lagrangian SPH falls into a tank filled with water.
 
-![Elastic sphere falling into a tank filled with water.\label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
+![Elastic sphere falling into a tank filled with water.\label{fig:falling_sphere}](https://github.com/LasNikas/paper-2024-joss-pdf/assets/73897120/2e979e95-9327-4d98-b252-6991ee9387d4){width=50%}
 
 Currently the following feature highlights are implemented
 - Weakly compressible SPH with density diffusion [@Antuono:2010]
