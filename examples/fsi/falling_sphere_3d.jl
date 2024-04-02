@@ -11,4 +11,4 @@ trixi_include(@__MODULE__,
               sphere_type=RoundSphere(),
               output_directory="out", prefix="",
               write_meta_data=false, # Files with meta data can't be read by meshio
-              tspan=(0.0, 2.0), abstol=1e-6, reltol=1e-3)
+              tspan=(0.0, 1.0), abstol=1e-6, reltol=1e-3)
