@@ -88,7 +88,7 @@ In TrixiParticles.jl we store the particles in systems, each representing a diff
 
 ![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=35%}
 
-To illustrate this, figure ? shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$. To calculate the forces acting on each particle, the particles need to interact with each other.
+To illustrate this, figure \autoref{fig:systems} shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$. To calculate the forces acting on each particle, the particles need to interact with each other.
 In general, the force of a particle $a$ in system $(1)$ is calculated as following
 $$ f_a^{(1)} = \sum_{b \in \mathcal{N}^{(1)}} f_{ab}^{(1)} + \sum_{b \in \mathcal{N}^{(2)}} f_{ab}^{(2)} + \dots + \sum_{b\in \mathcal{N}^{(n)}}f_{ab}^{(n)}, $$
 
