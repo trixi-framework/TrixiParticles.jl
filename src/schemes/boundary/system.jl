@@ -16,13 +16,14 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
     coordinates       :: CO         # Array{ELTYPE, 2}
     boundary_model    :: BM
     movement          :: M
-    ismoving          :: IM         # Vector{Bool}
+    # Use `Ref{Bool}` here to make a mutable field compatible with GPUs
+    ismoving          :: IM         # Ref{Bool}
     cache             :: CA
 
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
-        ismoving = zeros(Bool, 1)
+        ismoving = Ref(true)
 
         cache = create_cache_boundary(movement, initial_condition)
 
@@ -126,7 +127,7 @@ function (movement::BoundaryMovement)(system, t)
     (; movement_function, is_moving, moving_particles) = movement
     (; acceleration, velocity) = cache
 
-    system.ismoving[1] = is_moving(t)
+    system.ismoving[] = is_moving(t)
 
     is_moving(t) || return system
 
@@ -146,7 +147,7 @@ function (movement::BoundaryMovement)(system, t)
 end
 
 function (movement::Nothing)(system, t)
-    system.ismoving[1] = false
+    system.ismoving[] = false
 
     return system
 end
@@ -178,7 +179,7 @@ end
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
+    if ismoving[]
         return extract_svector(cache.velocity, system, particle)
     end
 
@@ -188,7 +189,7 @@ end
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
+    if ismoving[]
         return extract_svector(cache.acceleration, system, particle)
     end
 

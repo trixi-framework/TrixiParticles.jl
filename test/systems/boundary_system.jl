@@ -23,7 +23,7 @@
             @test system.coordinates == coordinates
             @test system.boundary_model == model
             @test system.movement === nothing
-            @test system.ismoving == [false]
+            @test system.ismoving[] == false
         end
     end
 
