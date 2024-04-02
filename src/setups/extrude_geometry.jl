@@ -31,7 +31,7 @@ Extrude either a line, a plane or a shape along a specific direction.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
 
 # Examples
-```julia
+```jldoctest; output = false
 # Extrude a line in 2D to a plane in 2D
 p1 = [0.0, 0.0]
 p2 = [1.0, 1.0]
@@ -56,6 +56,9 @@ shape = SphereShape(0.1, 0.5, (0.2, 0.4), 1000.0, n_layers=3,
 direction = [0.0, 0.0, 1.0]
 
 shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
+
+# output
+InitialCondition{Float64}(0.1, [0.44999999999999996 0.43096988312782164 … -0.23871756048182058 -0.24999999999999994; 0.4 0.4956708580912724 … 0.5001344202803415 0.4000000000000001; 0.05 0.05 … 0.35000000000000003 0.35000000000000003], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 ```
 
 !!! warning "Experimental Implementation"
@@ -126,13 +129,13 @@ function sample_plane(shape::InitialCondition, particle_spacing; tlsph)
     return shape.coordinates, particle_spacing
 end
 
-function sample_plane(plane_points, particle_spacing; tlsph)
+function sample_plane(plane_points, particle_spacing; tlsph=nothing)
 
     # Convert to tuple
-    return sample_plane(tuple(plane_points...), particle_spacing; tlsph)
+    return sample_plane(tuple(plane_points...), particle_spacing; tlsph=nothing)
 end
 
-function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph)
+function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph=nothing)
     # Verify that points are in 2D space
     if any(length.(plane_points) .!= 2)
         throw(ArgumentError("all points must be 2D coordinates"))
@@ -146,7 +149,7 @@ function sample_plane(plane_points::NTuple{2}, particle_spacing; tlsph)
     return coords, particle_spacing_new
 end
 
-function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph)
+function sample_plane(plane_points::NTuple{3}, particle_spacing; tlsph=nothing)
     # Verify that points are in 3D space
     if any(length.(plane_points) .!= 3)
         throw(ArgumentError("all points must be 3D coordinates"))
