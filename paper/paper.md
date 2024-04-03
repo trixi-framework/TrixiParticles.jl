@@ -122,7 +122,6 @@ At present, TrixiParticles.jl includes the implementation of the following syste
 
 The code presented here can be found on [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with a detailed [manual](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use the package. Additionally, we provide tutorials .... reproduce results.... etc TODO.
 
-
 ### Feature highlights
 
 As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as particle-in-cell, incompressible SPH or heat conduction (TODO: refs) with SPH and couple them among each other and even with mesh-based methods. So far, the following feature highlights have been implemented:
@@ -149,8 +148,12 @@ Figure \autoref{fig:falling_sphere} illustrates an example of our simulation res
 
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
-The current state allows also to validate our simulation and produce quantitative results with a post-process callback as we can see in Figure TODO add one of the plots from the validation cases.
+TODO: Make this nicer or omit it...
+The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_TP} shows simulation results of TrixiParticles.jl compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The different colors indicate different resolutions in the simulation. \autoref{fig:beam_DS} shows the same comparison but simulated with [@DualSPHysics]. The results obtained with TrixiParticles.jl match perfectly those of [@DualSPHysics].
 
+![Comparison of TrixiParticles.jl against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_TP}](oscillating_beam_TP.png){width=45%}
+
+![Comparison of [@DualSPHysics] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_DS}](oscillating_beam_DS.png){width=45%}
 
 # Citations
 
