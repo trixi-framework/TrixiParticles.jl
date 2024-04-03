@@ -45,10 +45,6 @@ struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-function (surface_tension::CohesionForceAkinci)(smoothing_length, mb, pos_diff, distance)
-    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance)
-end
-
 @doc raw"""
 SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
@@ -97,6 +93,10 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
+function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length, mb, pos_diff, distance)
+    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance)
+end
+
 function (surface_tension::SurfaceTensionAkinci)(support_radius, mb, na, nb, pos_diff,
                                                  distance)
     (; surface_tension_coefficient) = surface_tension
@@ -136,14 +136,20 @@ end
     A = 0
     if distance <= support_radius
         if distance > 0.5 * support_radius
-            A = 0.007/h^3.25 * (-4*distance^2/support_radius + 6 * distance - 2 * support_radius)^0.25
+            A = 0.007/support_radius^3.25 * (-4*distance^2/support_radius + 6 * distance - 2 * support_radius)^0.25
+        else#if  distance < 0.25 * support_radius
+            # if we get to close to the boundary add some repulsive force to prevent the particles going through the wall
+            # Note: this is not in the original model!
+            # the maximum of the function is reached at 0.75
+            rep_distance = (0.75 - 0.5*distance/support_radius) * support_radius
+            A = - 0.007/support_radius^3.25 * (-4*rep_distance^2/support_radius + 6 * rep_distance - 2 * support_radius)^0.25
         end
     end
 
     # Eq. 6 in acceleration form with mb being the boundary mass calculated as mb=rho_0 / volume
-    cohesion_force = -adhesion_coefficient * mb * A * pos_diff / distance
+    adhesion_force = -adhesion_coefficient * mb * A * pos_diff / distance
 
-    return cohesion_force
+    return adhesion_force
 end
 
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
@@ -151,7 +157,7 @@ end
 function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
                             v_neighbor_container, u_neighbor_container,
                             neighborhood_search, system, neighbor_system::FluidSystem)
-    (; smoothing_length, cache) = system
+    (; smoothing_kernel, smoothing_length, cache) = system
 
     @threaded for particle in each_moving_particle(system)
         particle_coords = current_coords(u_system, system, particle)
@@ -162,7 +168,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
             pos_diff = particle_coords - neighbor_coords
             distance = norm(pos_diff)
             # correctness strongly depends on this being a symmetric distribution of particles
-            if sqrt(eps()) < distance <= smoothing_length
+            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 density_neighbor = particle_density(v_neighbor_container,
                                                     neighbor_system, neighbor)

@@ -167,7 +167,7 @@ end
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_container,
+                                      particle_container::FluidSystem,
                                       neighbor_container::FluidSystem,
                                       surface_tension_a::CohesionForceAkinci,
                                       surface_tension_b::CohesionForceAkinci)
@@ -217,17 +217,29 @@ end
 end
 
 # wall adhesion term to compensate for cohesion force
-# @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-#                                particle_container::FluidSystem,
-#                                neighbor_container::BoundarySPHSystem,
-#                                surface_tension::Union{AkinciTypeSurfaceTension,
-#                                                       CohesionForceAkinci})
-#     (; smoothing_length) = particle_container
+@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
+                               particle_container::FluidSystem,
+                               neighbor_container::BoundarySPHSystem,
+                               surface_tension::AkinciTypeSurfaceTension)
+    (; smoothing_length, smoothing_kernel) = particle_container
+    (; adhesion_coefficient, boundary_model) = neighbor_container
 
-#     m_a = hydrodynamic_mass(particle_container, particle)
+    if distance < eps()
+        return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+    end
 
-#     return 0.1 * surface_tension(smoothing_length, m_a, pos_diff, distance)
-# end
+    if adhesion_coefficient < eps()
+        return zeros(SVector{ndims(particle_container), eltype(particle_container)})
+    end
+
+    m_b = hydrodynamic_mass(neighbor_container, neighbor)
+
+    #println("m_b", m_b)
+    println("volume", 1000.0, boundary_model.cache["volume"])
+
+    support_radius = compact_support(smoothing_kernel, smoothing_length)
+    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance, adhesion_coefficient) #+ surface_tension(support_radius, m_b, pos_diff, distance)
+end
 
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,
                                particle_container, neighbor_container,

@@ -7,20 +7,20 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.0025
 
-boundary_layers = 4
+boundary_layers = 5
 spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.75)
+tspan = (0.0, 1.5)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 100
+sound_speed = 150
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -31,8 +31,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, 0.8)
-sphere2_center = (1.5, 0.8)
+sphere1_center = (0.5, sphere_radius)
+sphere2_center = (1.5, sphere_radius-0.5*fluid_particle_spacing)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
@@ -40,12 +40,15 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 2.0 * fluid_particle_spacing
-fluid_smoothing_kernel = WendlandC2Kernel{2}()
+fluid_smoothing_length = 1.0 * fluid_particle_spacing
+fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
+fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-nu = 0.005
+nu = 0.00025
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
@@ -55,12 +58,12 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                              fluid_smoothing_length, viscosity=viscosity,
                                              density_diffusion=nothing,
                                              acceleration=(0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0025),
                                              correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                             state_equation, fluid_smoothing_kernel,
-                                             fluid_smoothing_length, viscosity=viscosity,
+                                             state_equation, fluid_smoothing_kernel_2,
+                                             fluid_smoothing_length_2, viscosity=viscosity,
                                              density_diffusion=density_diffusion,
                                              acceleration=(0.0, -gravity))
 
@@ -71,9 +74,10 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=nu))
+                                             viscosity=ViscosityAdami(nu=2.0 * nu))
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.001)
+# adhesion_coefficient = 10.0 and surface_tension_coefficent=0.5 for perfect wetting
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation
@@ -87,7 +91,8 @@ saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix
 callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-7, # Default abstol is 1e-6
-            reltol=1e-5, # Default reltol is 1e-3
+sol = solve(ode, RDPK3SpFSAL35(),
+            abstol=1e-6, # Default abstol is 1e-6
+            reltol=1e-4, # Default reltol is 1e-3
+            dt=1e-5,
             save_everystep=false, callback=callbacks);
