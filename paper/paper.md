@@ -44,7 +44,7 @@ aas-journal: Astrophysical Journal <- The name of the AAS journal.
 
 The realm of particle-based methods is broad and depending on the method, particles are either considered as physical particles or as mathematical interpolation points.
 The latter case refers to the smoothed particle hydrodynamics (SPH) which is a method to discretize partial differential equations and is developed by [@Monaghan:1977] to simulate astrophysical applications and is currently widely used to simulate e.g. fluid and structural mechanics and even heat conduction problems.
-The former case refers e.g. to discrete element method (DEM) introduced by [@Bicanic:2004] which models separate, discrete particles with rotational degrees of freedom. Typical applications include those involving discontinuous materials such as granular matter, bulk materials or powders.
+The former case refers e.g. to discrete element method (DEM) introduced by [@Cundall:1979] which models separate, discrete particles with rotational degrees of freedom. Typical applications include those involving discontinuous materials such as granular matter, bulk materials or powders.
 
 Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics
 or magnetohydrodynamics are often simulated using mesh-based methods. A wide range of
@@ -84,7 +84,7 @@ This makes it easy for users to add custom functionality even without touching t
 
 In TrixiParticles.jl we store the particles in systems, each representing a different type of particle-based method. Those systems are able to interact with each other, where the interaction depends on the type of the system. This approach makes it easy to add new systems.
 
-![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=35%}
+![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$. To calculate the forces acting on each particle, the particles need to interact with each other.
 In general, the force of a particle $a$ in system $(1)$ is calculated as following
@@ -96,18 +96,17 @@ The interaction of those particle systems follows method specific rules. For exa
 $$ \frac{d v_a}{d t} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},$$
 where $v_a$ is the velocity of particle $a$ and $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ is the mass, density and pressure of particle $a$ and $b$, respectively. The summation is over a weighting function also called kernel-function $W_{ab}$ depending on the relative distance of particle $a$ and $b$.
 
-### Structure of TrixiParticles.jl
+# Functionality
 
-TODO
+\autoref{fig:structure} depicts the basic building blocks of TrixiParticles.jl. Basically a simulation consists of a spatial discretization, left block, and of a time integration, center block. For the latter, the [SCiML ecosystem for ordinary differential equations](https://docs.sciml.ai/DiffEqDocs/latest/) (ODE) is used. The callbacks, right block, are used to communicate with the time integration interface during the simulation.
 
-![Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations) \label{fig:structure}](structure.png){width=75%}
+The object `Semidiscretization` couples the passed systems to one simulation and also defines the corresponding neighborhood searches for each system. The resulting ODE problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
-TODO: Mention adaptive time-integration
 
-# Feature highlights
+![TODO: caption *Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations)* \label{fig:structure}](structure.png){width=75%}
 
-TODO: make this nicer
-Currently implemented systems:
+
+At present, TrixiParticles.jl includes the implementation of the following systems
 
 * Fluid Systems
     + `WeaklyCmpressibleSPHSystem` (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
@@ -121,12 +120,12 @@ Currently implemented systems:
     + `BoundarySPHSystem` with several boundary models where each model follows a different interaction rule.
     + `OpenBoundarySPHSystem`: System to simulate non-reflecting boundary conditions
 
-Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results.
-In this example, an elastic sphere modeled with Total Lagrangian SPH falls into a tank filled with water.
+The code presented here can be found on [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with a detailed [manual](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use the package. Additionally, we provide tutorials .... reproduce results.... etc TODO.
 
-![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
-Currently the following feature highlights are implemented
+### Feature highlights
+
+As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as particle-in-cell, incompressible SPH or heat conduction (TODO: refs) with SPH and couple them among each other and even with mesh-based methods. So far, the following feature highlights have been implemented:
 
 * Weakly compressible SPH with density diffusion [@Antuono:2010]
 
@@ -146,9 +145,12 @@ Currently the following feature highlights are implemented
 
 * GPU support
 
+Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with Total Lagrangian SPH falls into a tank filled with water.
 
-As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods
-like particle-in-cell, incompressible SPH or heat conduction with SPH and couple those among each other and even with mesh-based methods.
+![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
+
+The current state allows also to validate our simulation and produce quantitative results with a post-process callback as we can see in Figure TODO add one of the plots from the validation cases.
+
 
 # Citations
 
