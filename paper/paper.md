@@ -71,25 +71,14 @@ We strive to achieve the highest possible performance without compromising on re
 and ease of use. This approach allows users not only to prototype new ideas rapidly,
 but also to scale up simulations efficiently.
 
-TODO:
-"A description of how this software compares to other commonly-used packages in this research area."
+There are several open-source software specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys],
+written in C++, and  [@PySPH], written in Python. These frameworks emphasize performance and are often designed for specific purposes, such as SPH methods only.
+As a result, the code often suffers from unreadability, poor extensibility or specific method limitations.
 
-There are several open-source software specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys], written in C++, and  [@PySPH], written in Python.
-All of them couple different SPH methods. For other particle-based methods like DEM, there is e.g. [@Kratos], written in C++, which couples DEM with other mesh-based methods.
-
-TrixiParticles.jl provides support not only for coupling SPH methods but also for coupling other particle-based methods like DEM.
+TrixiParticles.jl provides support not only for SPH methods but also for simulating or coupling other particle-based methods such as DEM.
 Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
 Instead, each simulation is configured and set up by pure Julia code.
-
-TODO: Remove the table?
-
-| open-source software          |Programming language  |  GPU support |
-|-------------------------------|----------------------|--------------|
-| TrxiParticles.jl              | Julia                | yes          |
-| PySPH [@PySPH]                | Python               | no           |
-| DualSPHysics [@DualSPHysics]  | C++                  | yes          |
-| SplisHSPlasH [@SplisHSPlasH]  | C++                  | yes          |
-| SPHinXsys [@SPHinXsys]        | C++                  | yes          |
+This makes it easy for users to add custom functionality even without touching the source code.
 
 # Scientific background
 
