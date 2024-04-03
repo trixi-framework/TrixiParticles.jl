@@ -234,11 +234,8 @@ end
 
     m_b = hydrodynamic_mass(neighbor_container, neighbor)
 
-    #println("m_b", m_b)
-    println("volume", 1000.0, boundary_model.cache["volume"])
-
     support_radius = compact_support(smoothing_kernel, smoothing_length)
-    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance, adhesion_coefficient) #+ surface_tension(support_radius, m_b, pos_diff, distance)
+    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance, adhesion_coefficient)
 end
 
 @inline function calc_adhesion(particle, neighbor, pos_diff, distance,

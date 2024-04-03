@@ -137,16 +137,10 @@ end
     if distance <= support_radius
         if distance > 0.5 * support_radius
             A = 0.007/support_radius^3.25 * (-4*distance^2/support_radius + 6 * distance - 2 * support_radius)^0.25
-        else#if  distance < 0.25 * support_radius
-            # if we get to close to the boundary add some repulsive force to prevent the particles going through the wall
-            # Note: this is not in the original model!
-            # the maximum of the function is reached at 0.75
-            rep_distance = (0.75 - 0.5*distance/support_radius) * support_radius
-            A = - 0.007/support_radius^3.25 * (-4*rep_distance^2/support_radius + 6 * rep_distance - 2 * support_radius)^0.25
         end
     end
 
-    # Eq. 6 in acceleration form with mb being the boundary mass calculated as mb=rho_0 / volume
+    # Eq. 6 in acceleration form with mb being the boundary mass calculated as mb=rho_0 * volume (Akinci boundary condition treatment)
     adhesion_force = -adhesion_coefficient * mb * A * pos_diff / distance
 
     return adhesion_force
