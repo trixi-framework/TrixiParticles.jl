@@ -1,17 +1,21 @@
 @doc raw"""
-    extrude_geometry(geometry; particle_spacing, direction, n_extrude=1,
-                    velocity=zeros(length(direction)),
-                    mass=nothing, density=nothing, pressure=0.0)
+    extrude_geometry(geometry; particle_spacing, direction, n_extrude::Integer,
+                     velocity=zeros(length(direction)),
+                     mass=nothing, density=nothing, pressure=0.0)
+
 Extrude either a line, a plane or a shape along a specific direction.
 
 # Arguments
-- `geometry`:           Either points defining a 3D plane (2D line)
-                        or particle coordinates defining a specific shape.
+- `geometry`:           Either particle coordinates or an [`InitialCondition`](@ref)
+                        defining a 2D shape to extrude to a 3D volume, or two 2D points
+                        defining a line to extrude to a plane in 2D, or three 3D points defining
+                        a parallelogram to extrude to a parallelepiped.
 
 # Keywords
-- `particle_spacing`:   Spacing between the particles.
+- `particle_spacing`:   Spacing between the particles. Can be omitted when `geometry` is an
+                        `InitialCondition` (unless `geometry.particle_spacing == -1`).
 - `direction`:          A vector that specifies the direction in which to extrude.
-- `n_extrude=2`         Number of layers of particles created in the direction of extrusion.
+- `n_extrude`:          Number of layers of particles created in the direction of extrusion.
 - `velocity`:           Either a function mapping each particle's coordinates to its velocity,
                         or, for a constant fluid velocity, a vector holding this velocity.
                         Velocity is constant zero by default.
@@ -31,7 +35,7 @@ Extrude either a line, a plane or a shape along a specific direction.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
 
 # Examples
-```jldoctest; output = false, filter = [r"┌ Info: The desired size .*\n", r"└ New particle spacing is set to .*\n"]
+```jldoctest; output = false
 # Extrude a line in 2D to a plane in 2D
 p1 = [0.0, 0.0]
 p2 = [1.0, 1.0]
@@ -58,22 +62,31 @@ direction = [0.0, 0.0, 1.0]
 shape = extrude_geometry(shape; direction, particle_spacing=0.1, n_extrude=4, density=1000.0)
 
 # output
+┌ Info: The desired size is not a multiple of the particle spacing 0.1.
+└ New particle spacing is set to 0.09387239731236392.
+┌ Info: The desired size is not a multiple of the particle spacing 0.1.
+└ New particle spacing is set to 0.09198039027185569.
 InitialCondition{Float64}(0.1, [0.44999999999999996 0.43096988312782164 … -0.23871756048182058 -0.24999999999999994; 0.4 0.4956708580912724 … 0.5001344202803415 0.4000000000000001; 0.05 0.05 … 0.35000000000000003 0.35000000000000003], [0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0; 0.0 0.0 … 0.0 0.0], [1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002  …  1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002, 1.0000000000000002], [1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0  …  1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0  …  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 ```
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude=2,
+function extrude_geometry(geometry; particle_spacing=-1, direction, n_extrude::Integer,
                           velocity=zeros(length(direction)), tlsph=false,
                           mass=nothing, density=nothing, pressure=0.0)
     direction_ = normalize(direction)
     NDIMS = length(direction_)
 
-    if !(geometry isa InitialCondition) && particle_spacing == -1
-        throw(ArgumentError("`particle_spacing` must be specified when not extruding an `InitialCondition`"))
-    elseif geometry isa InitialCondition
+    if geometry isa InitialCondition && geometry.particle_spacing > 0
+        if particle_spacing > 0 && particle_spacing != geometry.particle_spacing
+            throw(ArgumentError("`particle_spacing` must be -1 when using an `InitialCondition`"))
+        end
         particle_spacing = geometry.particle_spacing
+    end
+
+    if particle_spacing <= 0
+        throw(ArgumentError("`particle_spacing` must be specified when not extruding an `InitialCondition`"))
     end
 
     geometry = shift_plane_corners(geometry, direction_, particle_spacing, tlsph)
