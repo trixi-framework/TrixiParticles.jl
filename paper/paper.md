@@ -74,6 +74,15 @@ but also to scale up simulations efficiently.
 TODO:
 "A description of how this software compares to other commonly-used packages in this research area."
 
+There are several open-source software specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys], written in C++, and  [@PySPH], written in Python.
+All of them couple different SPH methods. For other particle-based methods like DEM, there is e.g. [@Kratos], written in C++, which couples DEM with other mesh-based methods.
+
+TrixiParticles.jl provides support not only for coupling SPH methods but also for coupling other particle-based methods like DEM.
+Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
+Instead, each simulation is configured and set up by pure Julia code.
+
+TODO: Remove the table?
+
 | open-source software          |Programming language  |  GPU support |
 |-------------------------------|----------------------|--------------|
 | TrxiParticles.jl              | Julia                | yes          |
