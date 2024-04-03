@@ -390,21 +390,29 @@ end
 # The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
 # See pages 32 and 123.
 function von_mises_stress(system::TotalLagrangianSPHSystem)
-    von_mises_stress = zeros(eltype(system.pk1_corrected), nparticles(system))
+    von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
     @threaded for particle in each_moving_particle(system)
-        F = deformation_gradient(system, particle)
-        J = det(F)
-        P = pk1_corrected(system, particle)
-        sigma = (1.0 / J) * P * F'
-
-        # Calculate deviatoric stress tensor
-        s = sigma - (1.0 / 3.0) * tr(sigma) * I
-
-        von_mises_stress[particle] = sqrt(3.0 / 2.0 * sum(s .^ 2))
+        von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
-    return von_mises_stress
+    return von_mises_stress_vector
+end
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function von_mises_stress(system, particle)
+    F = deformation_gradient(system, particle)
+    J = det(F)
+    P = pk1_corrected(system, particle)
+    sigma = (1.0 / J) * P * F'
+
+    # Calculate deviatoric stress tensor
+    s = sigma - (1.0 / 3.0) * tr(sigma) * I
+
+    return sqrt(3.0 / 2.0 * sum(s .^ 2))
 end
 
 # An explanation of these equation can be found in
