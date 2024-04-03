@@ -139,20 +139,24 @@ struct DensityDiffusionAntuono{NDIMS, ELTYPE, ARRAY2D, ARRAY3D} <: DensityDiffus
     correction_matrix           :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
     normalized_density_gradient :: ARRAY2D # Array{ELTYPE, 2}: [i, particle]
 
-    function DensityDiffusionAntuono(initial_condition; delta)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
-                                             nparticles(initial_condition))
-
-        normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
-                                                       nparticles(initial_condition))
-
-        new{NDIMS, ELTYPE,
+    function DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
+        new{size(correction_matrix, 1), typeof(delta),
             typeof(normalized_density_gradient),
             typeof(correction_matrix)}(delta, correction_matrix,
                                        normalized_density_gradient)
     end
+end
+
+function DensityDiffusionAntuono(initial_condition; delta)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS,
+                                         nparticles(initial_condition))
+
+    normalized_density_gradient = Array{ELTYPE, 2}(undef, NDIMS,
+                                                   nparticles(initial_condition))
+
+    return DensityDiffusionAntuono(delta, correction_matrix, normalized_density_gradient)
 end
 
 @inline Base.ndims(::DensityDiffusionAntuono{NDIMS}) where {NDIMS} = NDIMS
