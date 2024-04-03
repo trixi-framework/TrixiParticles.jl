@@ -90,12 +90,12 @@ In TrixiParticles.jl we store the particles in systems, each representing a diff
 
 To illustrate this, figure \autoref{fig:systems} shows particles in a simulation domain. The black ones belong to system $(1)$ and the gray ones belong to system $(2)$. To calculate the forces acting on each particle, the particles need to interact with each other.
 In general, the force of a particle $a$ in system $(1)$ is calculated as following
-$$ f_a^{(1)} = \sum_{b \in \mathcal{N}^{(1)}} f_{ab}^{(1)} + \sum_{b \in \mathcal{N}^{(2)}} f_{ab}^{(2)} + \dots + \sum_{b\in \mathcal{N}^{(n)}}f_{ab}^{(n)}, $$
+$$ f_a^{(1)} = \sum_{b \in \mathcal{N}_{(1)}^{(1)}} f_{ab}^{(1)} + \sum_{b \in \mathcal{N}_{(1)}^{(2)}} f_{ab}^{(2)} + \dots + \sum_{b\in \mathcal{N}_{(1)}^{(n)}}f_{ab}^{(n)}, $$
 
-where the superscripts denote the system, $\mathcal{N}$ is the set of neighboring particles of the corresponding system and $f_{ab}$ is the interaction force of particle $a$ and neighbor particle $b$. Each neighborhood is updated before the interaction with an efficient grid neighborhood search introduced in [@Ihmsen:2010].
+where $\mathcal{N}$ is the set of neighboring particles of the corresponding system denoted by the superscript and $f_{ab}$ is the interaction force of particle $a$ and neighbor particle $b$. Each neighborhood is updated before the interaction with an efficient grid neighborhood search introduced in [@Ihmsen:2010].
 
-The interaction of those particle systems follows method specific rules. For example, the SPH method determines the acceleration of particle $a$ basically with the following interaction
-$$ \frac{d v_a}{d t} = -m_a \sum_b m_b \left( \frac{p_b}{\rho_a^2} + \frac{p_a}{\rho_a}^2 \right) \nabla_a W_{ab},$$
+The interaction of those particle systems follows method specific rules. For example, the SPH method determines the acceleration of particle $a$ according to [@Monaghan:2005] with the following interaction
+$$ \frac{d v_a}{d t} = -m_a \sum_b m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab},$$
 where $v_a$ is the velocity of particle $a$ and $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ is the mass, density and pressure of particle $a$ and $b$, respectively. The summation is over a weighting function also called kernel-function $W_{ab}$ depending on the relative distance of particle $a$ and $b$.
 
 ### Structure of TrixiParticles.jl
@@ -115,7 +115,7 @@ Currently implemented systems:
     + `WeaklyCmpressibleSPHSystem` (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
     + `EntropicallyDampedSPHSystem` (EDAC): As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
 
-* Struture Systems
+* Structure Systems
     + `TotalLagrangianSPHSystem` (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors.
     + `DEMSystem`: Discrete element system.
 
