@@ -93,7 +93,9 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length, mb, pos_diff, distance)
+function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length,
+                                                                             mb, pos_diff,
+                                                                             distance)
     return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance)
 end
 
@@ -105,7 +107,7 @@ function (surface_tension::SurfaceTensionAkinci)(support_radius, mb, na, nb, pos
 end
 
 @fastpow @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-    support_radius, mb, pos_diff, distance)
+                                                support_radius, mb, pos_diff, distance)
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
@@ -130,13 +132,15 @@ end
 end
 
 @inline function adhesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-    support_radius, mb, pos_diff, distance, adhesion_coefficient)
+                                       support_radius, mb, pos_diff, distance,
+                                       adhesion_coefficient)
     # Eq. 7
     # we only reach this function when distance > eps
     A = 0
     if distance <= support_radius
         if distance > 0.5 * support_radius
-            A = 0.007/support_radius^3.25 * (-4*distance^2/support_radius + 6 * distance - 2 * support_radius)^0.25
+            A = 0.007 / support_radius^3.25 *
+                (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
         end
     end
 

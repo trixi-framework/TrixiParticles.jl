@@ -18,7 +18,6 @@ smoothing_kernel = WendlandC2Kernel{3}()
 fluid = RectangularShape(particle_spacing, (9, 9, 9), (0.0, 0.0, 0.0),
                          density=fluid_density)
 
-
 nu = 0.01
 alpha = 10 * nu / (smoothing_length * sound_speed)
 

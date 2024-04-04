@@ -51,18 +51,19 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-                                             state_equation, fluid_smoothing_kernel,
-                                             fluid_smoothing_length, viscosity=viscosity,
-                                             density_diffusion=nothing,
-                                             acceleration=(0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
-                                             correction=AkinciFreeSurfaceCorrection(fluid_density))
+                                                     state_equation, fluid_smoothing_kernel,
+                                                     fluid_smoothing_length,
+                                                     viscosity=viscosity,
+                                                     density_diffusion=nothing,
+                                                     acceleration=(0.0, -gravity),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                                     correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                             state_equation, fluid_smoothing_kernel,
-                                             fluid_smoothing_length, viscosity=viscosity,
-                                             density_diffusion=density_diffusion,
-                                             acceleration=(0.0, -gravity))
+                                     state_equation, fluid_smoothing_kernel,
+                                     fluid_smoothing_length, viscosity=viscosity,
+                                     density_diffusion=density_diffusion,
+                                     acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -73,7 +74,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              fluid_smoothing_kernel, fluid_smoothing_length,
                                              viscosity=ViscosityAdami(nu=nu))
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.001)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    adhesion_coefficient=0.001)
 
 # ==========================================================================================
 # ==== Simulation

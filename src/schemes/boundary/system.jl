@@ -14,15 +14,16 @@ The interaction between fluid and boundary particles is specified by the boundar
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    initial_condition     :: InitialCondition{ELTYPE}
-    coordinates           :: Array{ELTYPE, 2}
-    boundary_model        :: BM
-    movement              :: M
-    ismoving              :: Vector{Bool}
-    adhesion_coefficient  :: ELTYPE
-    cache                 :: C
+    initial_condition    :: InitialCondition{ELTYPE}
+    coordinates          :: Array{ELTYPE, 2}
+    boundary_model       :: BM
+    movement             :: M
+    ismoving             :: Vector{Bool}
+    adhesion_coefficient :: ELTYPE
+    cache                :: C
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing, adhesion_coefficient=0.0)
+    function BoundarySPHSystem(initial_condition, model; movement=nothing,
+                               adhesion_coefficient=0.0)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)

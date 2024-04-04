@@ -3,7 +3,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-
 fluid_density = 1000.0
 
 particle_spacing = 0.1

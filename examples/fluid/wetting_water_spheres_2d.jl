@@ -31,8 +31,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, sphere_radius+0.5*fluid_particle_spacing)
-sphere2_center = (1.5, sphere_radius-0.5*fluid_particle_spacing)
+sphere1_center = (0.5, sphere_radius + 0.5 * fluid_particle_spacing)
+sphere2_center = (1.5, sphere_radius - 0.5 * fluid_particle_spacing)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
@@ -58,18 +58,19 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-                                             state_equation, fluid_smoothing_kernel,
-                                             fluid_smoothing_length, viscosity=viscosity,
-                                             density_diffusion=nothing,
-                                             acceleration=(0.0, -gravity),
-                                             surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
-                                             correction=AkinciFreeSurfaceCorrection(fluid_density))
+                                                     state_equation, fluid_smoothing_kernel,
+                                                     fluid_smoothing_length,
+                                                     viscosity=viscosity,
+                                                     density_diffusion=nothing,
+                                                     acceleration=(0.0, -gravity),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                                     correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                             state_equation, fluid_smoothing_kernel_2,
-                                             fluid_smoothing_length_2, viscosity=viscosity,
-                                             density_diffusion=density_diffusion,
-                                             acceleration=(0.0, -gravity))
+                                     state_equation, fluid_smoothing_kernel_2,
+                                     fluid_smoothing_length_2, viscosity=viscosity,
+                                     density_diffusion=density_diffusion,
+                                     acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -77,7 +78,8 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel_2, fluid_smoothing_length_2,
+                                             fluid_smoothing_kernel_2,
+                                             fluid_smoothing_length_2,
                                              viscosity=ViscosityAdami(nu=2.0 * nu))
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficent=0.01 for perfect wetting
