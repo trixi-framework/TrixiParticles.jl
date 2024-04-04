@@ -82,8 +82,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              fluid_smoothing_length_2,
                                              viscosity=ViscosityAdami(nu=2.0 * nu))
 
-# adhesion_coefficient = 1.0 and surface_tension_coefficent=0.01 for perfect wetting
-# adhesion_coefficient = 0.001 and surface_tension_coefficent=2.0 for no wetting
+# adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
+# adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.0)
 
 # ==========================================================================================

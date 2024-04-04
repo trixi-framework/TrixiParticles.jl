@@ -15,7 +15,7 @@ surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.25)
 # cause stability problems.
 # `adhesion_coefficient` needs to be set to a value so that the fluid doesn't separate
 # from the boundary
-# Note: The viscosity will be increased by the surface tension model hence we can reduce the artifical viscosity value.
+# Note: The viscosity will be increased by the surface tension model hence we can reduce the artificial viscosity value.
 # Note: The surface tension model leds to an increase in compressibility of the fluid
 #       which needs to be rectified by an increase of the `sound_speed`.
 # Note: The Wendland Kernels don't work very well here since the SurfaceTensionAkinci

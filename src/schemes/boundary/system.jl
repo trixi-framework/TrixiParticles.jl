@@ -10,7 +10,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
-- `adhesion_coefficient`: Coefficient specifing the adhesion of a fluid to the surface.
+- `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
 struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
