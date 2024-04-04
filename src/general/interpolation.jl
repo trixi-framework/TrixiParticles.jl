@@ -135,8 +135,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   smoothing_length=ref_system.smoothing_length,
                                   cut_off_bnd=true,
                                   output_directory="out", filename="plane")
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                              v_ode, u_ode; clip_negative_pressure,
@@ -262,8 +261,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
                               sol::ODESolution;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                          v_ode, u_ode; smoothing_length, cut_off_bnd,
@@ -355,8 +353,7 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
                           endpoint=true, smoothing_length=ref_system.smoothing_length,
                           cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
                      endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
@@ -439,8 +436,8 @@ results = interpolate_point(points, semi, ref_system, sol)
 @inline function interpolate_point(point_coords, semi, ref_system, sol::ODESolution;
                                    smoothing_length=ref_system.smoothing_length,
                                    cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
+
     interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
                       smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
