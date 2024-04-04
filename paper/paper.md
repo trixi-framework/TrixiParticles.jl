@@ -152,7 +152,7 @@ Figure \autoref{fig:falling_sphere} illustrates an example of our simulation res
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
 TODO: Make this nicer or omit it...
-The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@DualSPHysics] (on the right) compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The different colors indicate different resolutions in the simulation. The results obtained with TrixiParticles.jl match perfectly those of [@DualSPHysics].
+The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The different colors indicate different resolutions in the simulation. The results obtained with TrixiParticles.jl match perfectly those of [@O_Connor:2021].
 
 ![Comparison of TrixiParticles.jl and  [@DualSPHysics] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
 
