@@ -106,7 +106,7 @@ where $v_a$ is the velocity of particle $a$ and $m_a$, $m_b$, $\rho_a$, $\rho_b$
 The object `Semidiscretization` couples the passed systems to one simulation and also defines the corresponding neighborhood searches for each system. The resulting ODE problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
 
-![TODO: caption *Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations)* \label{fig:structure}](structure.png){width=75%}
+![TODO: caption *Inspired by [docs Trixi](https://trixi-framework.github.io/Trixi.jl/stable/overview/#overview-semidiscretizations)* \label{fig:structure}](structure.png){width=100%}
 
 
 At present, TrixiParticles.jl includes the implementation of the following systems
