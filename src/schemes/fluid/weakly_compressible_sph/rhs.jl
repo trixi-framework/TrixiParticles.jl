@@ -174,7 +174,7 @@ end
     (; smoothing_length) = particle_container
 
     # no cohesion with oneself
-    if distance < eps()
+    if distance < sqrt(eps())
         return zeros(SVector{ndims(particle_container), eltype(particle_container)})
     end
 
@@ -192,7 +192,7 @@ end
     (; smoothing_length, smoothing_kernel) = particle_container
 
     # no surface tension with oneself
-    if distance < eps()
+    if distance < sqrt(eps())
         return zeros(SVector{ndims(particle_container), eltype(particle_container)})
     end
 
@@ -224,7 +224,7 @@ end
     (; smoothing_length, smoothing_kernel) = particle_container
     (; adhesion_coefficient, boundary_model) = neighbor_container
 
-    if distance < eps()
+    if distance < sqrt(eps())
         return zeros(SVector{ndims(particle_container), eltype(particle_container)})
     end
 

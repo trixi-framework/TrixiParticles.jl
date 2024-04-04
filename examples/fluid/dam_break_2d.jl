@@ -69,7 +69,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation

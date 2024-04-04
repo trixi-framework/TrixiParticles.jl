@@ -137,7 +137,7 @@ end
     # Eq. 7
     # we only reach this function when distance > eps
     A = 0
-    if distance <= support_radius
+    if distance < support_radius
         if distance > 0.5 * support_radius
             A = 0.007 / support_radius^3.25 *
                 (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
