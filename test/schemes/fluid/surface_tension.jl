@@ -8,14 +8,14 @@
 
         test_distance = 0.1
         val = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance) * test_distance
+                                                   pos_diff, test_distance) * test_distance
         @test isapprox(val[1], 0.1443038770421044, atol=6e-15)
         @test isapprox(val[2], 0.1443038770421044, atol=6e-15)
 
         # maximum repulsion force
         test_distance = 0.01
         max = TrixiParticles.cohesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance) * test_distance
+                                                   pos_diff, test_distance) * test_distance
         @test isapprox(max[1], 0.15913517632298307, atol=6e-15)
         @test isapprox(max[2], 0.15913517632298307, atol=6e-15)
 
@@ -72,8 +72,8 @@
         # maximum adhesion force
         test_distance = 0.75
         max = TrixiParticles.adhesion_force_akinci(surface_tension, support_radius, m_b,
-                                                    pos_diff, test_distance, 1.0) *
-               test_distance
+                                                   pos_diff, test_distance, 1.0) *
+              test_distance
         @test isapprox(max[1], -0.004949747468305833, atol=6e-15)
         @test isapprox(max[2], -0.004949747468305833, atol=6e-15)
 
