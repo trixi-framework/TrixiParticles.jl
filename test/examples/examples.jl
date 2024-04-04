@@ -76,14 +76,6 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/moving_wall_2d.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
-                                           joinpath(examples_dir(), "fluid",
-                                                    "moving_wall_2d.jl"))
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
-        end
-
         @trixi_testset "fluid/dam_break_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
@@ -180,6 +172,12 @@
                                            joinpath(examples_dir(), "fluid",
                                                     "dam_break_2d_surface_tension.jl"),
                                            tspan=(0.0, 0.4))
+        end
+    
+        @trixi_testset "fluid/moving_wall_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "moving_wall_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -224,11 +222,11 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fsi/dam_break_2d.jl" begin
+        @trixi_testset "fsi/dam_break_plate_2d.jl" begin
             # Use rounded dimensions to avoid warnings
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fsi",
-                                                    "dam_break_2d.jl"),
+                                                    "dam_break_plate_2d.jl"),
                                            initial_fluid_size=(0.15, 0.29),
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
