@@ -147,3 +147,10 @@ Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "density_diffus
 Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
 ```
+
+
+## [Surface Tension](@id surface tension)
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]
+```
