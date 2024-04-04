@@ -153,7 +153,7 @@ end
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: most of the time this only leads to an approximation of the surface normal
 function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
-                            v_neighbor_container, u_neighbor_container,
+                            v_neighbor_system, u_neighbor_system,
                             neighborhood_search, system, neighbor_system::FluidSystem)
     (; smoothing_kernel, smoothing_length, cache) = system
 
@@ -168,7 +168,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
             # correctness strongly depends on this being a symmetric distribution of particles
             if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
-                density_neighbor = particle_density(v_neighbor_container,
+                density_neighbor = particle_density(v_neighbor_system,
                                                     neighbor_system, neighbor)
                 grad_kernel = smoothing_kernel_grad(system, pos_diff, distance,
                                                     particle)
@@ -186,7 +186,7 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
 end
 
 function calc_normal_akinci(surface_tension, u_system,
-                            v_neighbor_container, u_neighbor_container,
+                            v_neighbor_system, u_neighbor_system,
                             neighborhood_search, system,
                             neighbor_system)
     # normal not needed

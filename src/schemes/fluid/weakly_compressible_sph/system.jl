@@ -374,10 +374,10 @@ function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, sy
     end
 end
 
-@inline function get_normal(particle, particle_container::FluidSystem,
+@inline function get_normal(particle, particle_system::FluidSystem,
                             ::SurfaceTensionAkinci)
-    (; cache) = particle_container
-    return extract_svector(cache.surface_normal, particle_container, particle)
+    (; cache) = particle_system
+    return extract_svector(cache.surface_normal, particle_system, particle)
 end
 
 @inline function surface_tension_model(system::WeaklyCompressibleSPHSystem)
