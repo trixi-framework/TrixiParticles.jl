@@ -46,19 +46,6 @@ The realm of particle-based methods is broad and depending on the method, partic
 The latter case refers to the smoothed particle hydrodynamics (SPH) which is a method to discretize partial differential equations and is developed by [@Monaghan:1977] to simulate astrophysical applications and is currently widely used to simulate e.g. fluid and structural mechanics and even heat conduction problems.
 The former case refers e.g. to discrete element method (DEM) introduced by [@Cundall:1979] which models separate, discrete particles with rotational degrees of freedom. Typical applications include those involving discontinuous materials such as granular matter, bulk materials or powders.
 
-Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics
-or magnetohydrodynamics are often simulated using mesh-based methods. A wide range of
-mature and powerful software is available for these simulations. However, in certain applications,
-these methods reach their limits or are not designed to solve these problems efficiently.
-This is where particle-based methods offer an alternative.
-
-The mesh-free formalism of the methods allows for easy preprocessing, making them particularly
-suitable for simulating complex geometries. This also facilitates the coupling of different single
-physics into a multiphysics system.
-
-TODO: Summary of the rest of the paper
-
-# Statement of need
 
 TrixiParticles.jl is an open-source numerical simulation framework for
 particle-based multiphysics simulations, implemented in Julia as part of the modern,
@@ -71,14 +58,30 @@ We strive to achieve the highest possible performance without compromising on re
 and ease of use. This approach allows users not only to prototype new ideas rapidly,
 but also to scale up simulations efficiently.
 
-There are several open-source software specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys],
+TODO: Summary of the rest of the paper
+
+# Statement of need
+
+Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics
+or magnetohydrodynamics are often simulated using mesh-based methods. A wide range of
+mature and powerful software is available for these simulations (TODO: refs?). However, in certain applications,
+these methods reach their limits or are not designed to solve these problems efficiently.
+This is where particle-based methods offer an alternative.
+
+The mesh-free formalism of the methods allows for easy preprocessing, making them particularly
+suitable for simulating complex geometries. This also facilitates the coupling of different single
+physics into a multiphysics system.
+
+There are several open-source software e.g. specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys],
 written in C++, and  [@PySPH], written in Python. These frameworks emphasize performance and are often designed for specific purposes, such as SPH methods only.
-As a result, the code often suffers from unreadability, poor extensibility or specific method limitations.
+As a result, the code might suffer from unreadability, specific method limitations or it might be hard to extend new methods.
 
 TrixiParticles.jl provides support not only for SPH methods but also for simulating or coupling other particle-based methods such as DEM.
 Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
 Instead, each simulation is configured and set up by pure Julia code.
 This makes it easy for users to add custom functionality even without touching the source code.
+
+TODO ?: As a side note, the existing code also supports GPU implementation without the need for separate code.
 
 # Scientific background
 
