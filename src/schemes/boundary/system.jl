@@ -40,7 +40,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 end
 
 """
-    BoundaryDEMSystem(inititial_condition)
+    BoundaryDEMSystem(initial_condition)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -50,8 +50,8 @@ struct BoundaryDEMSystem{BM, NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
     boundary_model :: BM
 
-    function BoundaryDEMSystem(inititial_condition, model)
-        coordinates = inititial_condition.coordinates
+    function BoundaryDEMSystem(initial_condition, model)
+        coordinates = initial_condition.coordinates
         NDIMS = size(coordinates, 1)
 
         return new{typeof(model), NDIMS, eltype(coordinates)}(coordinates, model)
