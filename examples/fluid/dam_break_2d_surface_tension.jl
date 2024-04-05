@@ -28,7 +28,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               smoothing_length=1.0 * fluid_particle_spacing,
               correction=AkinciFreeSurfaceCorrection(fluid_density),
               density_diffusion=nothing, adhesion_coefficient=0.5, alpha=0.001,
-              sound_speed=100)
+              sound_speed=100, tspan=(0.0, 2.0))
 
 # sol = solve(ode, RDPK3SpFSAL35(),
 #             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
