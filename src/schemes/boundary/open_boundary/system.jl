@@ -35,7 +35,7 @@ about the method see [Open Boundary System](@ref open_boundary).
 - `sample_plane`: For customized particle sampling in the boundary zone, this can be either
                   points defining a 3D plane (2D line), particle coordinates defining a specific
                   shape or a specific [`InitialCondition`](@ref) type.
-                  The geometry will be extruded in upstream direction with [`ExtrudeGeometry`](@ref).
+                  The geometry will be extruded in upstream direction with [`extrude_geometry`](@ref).
                   Default is `plane_points` which fully samples the boundary zone with particles.
 - `particle_spacing`: The spacing between the particles in the boundary zone.
 - `flow_direction`: Vector defining the flow direction.
@@ -116,8 +116,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
         (boundary_zone isa InFlow) && (direction = -flow_direction_)
 
         # Sample particles in boundary zone.
-        initial_condition = ExtrudeGeometry(sample_geometry; particle_spacing, direction,
-                                            n_extrude=open_boundary_layers, density)
+        initial_condition = extrude_geometry(sample_geometry; particle_spacing, direction,
+                                             n_extrude=open_boundary_layers, density)
 
         (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
         initial_condition = allocate_buffer(initial_condition, buffer)

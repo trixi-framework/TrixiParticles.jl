@@ -44,9 +44,9 @@
                                                      reference_pressure, reference_density)
 
                 sign_ = (boundary_zone isa InFlow) ? 1 : -1
-                fluid = ExtrudeGeometry(plane_points; particle_spacing, n_extrude=4,
-                                        density, pressure,
-                                        direction=(sign_ * flow_direction))
+                fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
+                                         density, pressure,
+                                         direction=(sign_ * flow_direction))
 
                 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel,
                                                            density_calculator=ContinuityDensity(),
