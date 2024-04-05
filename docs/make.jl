@@ -117,7 +117,7 @@ makedocs(sitename="TrixiParticles.jl",
                  ],
                  "Systems" => [
                      "Discrete Element Method (Solid)" => joinpath("systems",
-                     "dem.md"),
+                                                                   "dem.md"),
                      "Weakly Compressible SPH (Fluid)" => joinpath("systems",
                                                                    "weakly_compressible_sph.md"),
                      "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
