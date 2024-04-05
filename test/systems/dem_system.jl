@@ -1,4 +1,3 @@
-include("../test_util.jl")
 @testset verbose=true "EntropicallyDampedSPHSystem" begin
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
