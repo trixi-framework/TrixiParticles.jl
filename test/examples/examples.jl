@@ -154,7 +154,7 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "falling_water_spheres_3d.jl"),
-                                           tspan=(0.0, 0.1), fluid_particle_spacing = 0.01) [
+                                           tspan=(0.0, 0.1), fluid_particle_spacing=0.01) [
                 r"┌ Info: The desired tank length in x-direction .*\n",
                 r"└ New tank length in x-direction.*\n",
                 r"┌ Info: The desired tank length in y-direction .*\n",
