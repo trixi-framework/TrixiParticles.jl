@@ -110,50 +110,50 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
     (; grid, grid_indices, has_changed) = neighborhood_search
 
     # Find all cells containing particles that now belong to another cell
-    @trixi_timeit timer() "mark changed cells" begin
-        has_changed .= false
-        backend = get_backend(grid)
-        mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
-        synchronize(backend)
-    end
+    # @trixi_timeit timer() "mark changed cells" begin
+    #     has_changed .= false
+    #     backend = get_backend(grid)
+    #     mark_changed_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+    #     synchronize(backend)
+    # end
 
-    @trixi_timeit timer() "move to new cells" begin
-        # Move right
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (1, 0), ndrange=size(grid_indices))
-        synchronize(backend)
+    # @trixi_timeit timer() "move to new cells" begin
+    #     # Move right
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (1, 0), ndrange=size(grid_indices))
+    #     synchronize(backend)
 
-        # Move left
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 0), ndrange=size(grid_indices))
-        synchronize(backend)
+    #     # Move left
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 0), ndrange=size(grid_indices))
+    #     synchronize(backend)
 
-        # Move up
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (0, 1), ndrange=size(grid_indices))
-        synchronize(backend)
+    #     # Move up
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (0, 1), ndrange=size(grid_indices))
+    #     synchronize(backend)
 
-        # Move down
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (0, -1), ndrange=size(grid_indices))
-        synchronize(backend)
+    #     # Move down
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (0, -1), ndrange=size(grid_indices))
+    #     synchronize(backend)
 
-        # Move diagonally
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (1, 1), ndrange=size(grid_indices))
-        synchronize(backend)
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 1), ndrange=size(grid_indices))
-        synchronize(backend)
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (1, -1), ndrange=size(grid_indices))
-        synchronize(backend)
-        backend = get_backend(grid)
-        move_cell_kernel!(backend)(neighborhood_search, coords, (-1, -1), ndrange=size(grid_indices))
-        synchronize(backend)
-    end
+    #     # Move diagonally
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (1, 1), ndrange=size(grid_indices))
+    #     synchronize(backend)
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (-1, 1), ndrange=size(grid_indices))
+    #     synchronize(backend)
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (1, -1), ndrange=size(grid_indices))
+    #     synchronize(backend)
+    #     backend = get_backend(grid)
+    #     move_cell_kernel!(backend)(neighborhood_search, coords, (-1, -1), ndrange=size(grid_indices))
+    #     synchronize(backend)
+    # end
 
-    # # Iterate over all marked cells and move the particles into their new cells
+    # Iterate over all marked cells and move the particles into their new cells
     # @trixi_timeit timer() "move to new cells" begin
     #     CUDA.@allowscalar while findmax(has_changed)[1]
     #         cell = findmax(has_changed)[2]
@@ -176,26 +176,32 @@ function update!(neighborhood_search::ArrayGridNeighborhoodSearch, coords::Abstr
     #     end
     # end
 
+    @trixi_timeit timer() "move atomic" begin
+        backend = get_backend(grid)
+        move_cell_kernel2!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
+        synchronize(backend)
+    end
+
     @trixi_timeit timer() "remove from old cells" begin
         backend = get_backend(grid)
         remove_from_cells_kernel!(backend)(neighborhood_search, coords, ndrange=size(grid_indices))
         synchronize(backend)
     end
 
-    @trixi_timeit timer() "sanity check" begin
-        has_changed .= 0
-        backend = get_backend(grid)
-        # Check that all particles are in the correct cell
-        sanity_check_kernel1!(backend)(neighborhood_search, coords, ndrange=size(coords, 2))
-        # Check that each cell doesn't contain extra particles that don't belong there
-        sanity_check_kernel2!(backend)(neighborhood_search, coords, ndrange=size(coords, 2))
-        synchronize(backend)
+    # @trixi_timeit timer() "sanity check" begin
+    #     has_changed .= 0
+    #     backend = get_backend(grid)
+    #     # Check that all particles are in the correct cell
+    #     sanity_check_kernel1!(backend)(neighborhood_search, coords, ndrange=size(coords, 2))
+    #     # Check that each cell doesn't contain extra particles that don't belong there
+    #     sanity_check_kernel2!(backend)(neighborhood_search, coords, ndrange=size(coords, 2))
+    #     synchronize(backend)
 
-        if findmax(has_changed)[1]
-            @warn "NHS re-initialization"
-            @trixi_timeit timer() "nhs re-initialization" initialize!(neighborhood_search, coords)
-        end
-    end
+    #     if findmax(has_changed)[1]
+    #         @warn "NHS re-initialization"
+    #         @trixi_timeit timer() "nhs re-initialization" initialize!(neighborhood_search, coords)
+    #     end
+    # end
 
     return neighborhood_search
 end
@@ -211,6 +217,24 @@ end
             # Mark this cell and continue with the next one
             has_changed[cell...] = true
             break
+        end
+    end
+end
+
+@kernel function move_cell_kernel2!(neighborhood_search, coords)
+    (; grid, grid_indices, has_changed) = neighborhood_search
+
+    cell = @index(Global, NTuple)
+
+    for particle in particles_in_cell(cell, neighborhood_search)
+        new_cell = cell_coords(extract_svector(coords, neighborhood_search, particle), neighborhood_search)
+        if cell != new_cell
+            # Add moved particle to new cell
+            index = CUDA.@atomic grid_indices[new_cell...] += 1
+
+            # TODO why is index the old `grid_indices[new_cell...]`
+            # and not the incremented value?
+            grid[index + 1, new_cell...] = particle
         end
     end
 end
