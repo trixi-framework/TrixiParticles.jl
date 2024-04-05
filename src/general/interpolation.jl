@@ -135,8 +135,7 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
                                   smoothing_length=ref_system.smoothing_length,
                                   cut_off_bnd=true,
                                   output_directory="out", filename="plane")
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_system,
                              v_ode, u_ode; clip_negative_pressure,
@@ -262,8 +261,7 @@ function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_syst
                               sol::ODESolution;
                               smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                          v_ode, u_ode; smoothing_length, cut_off_bnd,
@@ -273,45 +271,18 @@ end
 function interpolate_plane_3d(point1, point2, point3, resolution, semi, ref_system,
                               v_ode, u_ode; smoothing_length=ref_system.smoothing_length,
                               cut_off_bnd=true, clip_negative_pressure=false)
-    # Verify that points are in 3D space
-    if length(point1) != 3 || length(point2) != 3 || length(point3) != 3
-        throw(ArgumentError("all points must be 3D coordinates"))
-    end
-
     if ndims(ref_system) != 3
         throw(ArgumentError("`interpolate_plane_3d` requires a 3D simulation"))
     end
 
-    point1_ = SVector{3}(point1)
-    point2_ = SVector{3}(point2)
-    point3_ = SVector{3}(point3)
+    coords, resolution_ = sample_plane((point1, point2, point3), resolution)
 
-    # Vectors defining the edges of the parallelogram
-    edge1 = point2_ - point1_
-    edge2 = point3_ - point1_
-
-    # Check if the points are collinear
-    if norm(cross(edge1, edge2)) == 0
-        throw(ArgumentError("the points must not be collinear"))
+    if !isapprox(resolution, resolution_, rtol=5e-2)
+        @info "The desired plane size is not a multiple of the resolution $resolution." *
+              "\nNew resolution is set to $resolution_."
     end
 
-    # Determine the number of points along each edge
-    num_points_edge1 = ceil(Int, norm(edge1) / resolution)
-    num_points_edge2 = ceil(Int, norm(edge2) / resolution)
-
-    # Create a set of points on the plane
-    points_coords = Vector{SVector{3, Float64}}(undef,
-                                                (num_points_edge1 + 1) *
-                                                (num_points_edge2 + 1))
-    index = 1
-    for i in 0:num_points_edge1
-        for j in 0:num_points_edge2
-            point_on_plane = point1 + (i / num_points_edge1) * edge1 +
-                             (j / num_points_edge2) * edge2
-            points_coords[index] = point_on_plane
-            index += 1
-        end
-    end
+    points_coords = reinterpret(reshape, SVector{3, Float64}, coords)
 
     # Interpolate using the generated points
     results = interpolate_point(points_coords, semi, ref_system, v_ode, u_ode,
@@ -382,8 +353,7 @@ results = interpolate_line([1.0, 0.0], [1.0, 1.0], 5, semi, ref_system, sol)
 function interpolate_line(start, end_, n_points, semi, ref_system, sol::ODESolution;
                           endpoint=true, smoothing_length=ref_system.smoothing_length,
                           cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
 
     interpolate_line(start, end_, n_points, semi, ref_system, v_ode, u_ode;
                      endpoint, smoothing_length, cut_off_bnd, clip_negative_pressure)
@@ -466,8 +436,8 @@ results = interpolate_point(points, semi, ref_system, sol)
 @inline function interpolate_point(point_coords, semi, ref_system, sol::ODESolution;
                                    smoothing_length=ref_system.smoothing_length,
                                    cut_off_bnd=true, clip_negative_pressure=false)
-    v_ode = sol.u[end].x[1]
-    u_ode = sol.u[end].x[2]
+    v_ode, u_ode = sol.u[end].x
+
     interpolate_point(point_coords, semi, ref_system, v_ode, u_ode;
                       smoothing_length, cut_off_bnd, clip_negative_pressure)
 end
