@@ -15,16 +15,20 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 
 ### Deprecated
 
+## Version 0.1.1
 
-## Pre Initial Release (v0.1.0)
+### Added
+A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids", 2013 was added to WCSPH
+
+# Pre Initial Release (v0.1.0)
 This section summarizes the initial features that TrixiParticles.jl was released with.
 
-### Highlights
-#### EDAC
+## Highlights
+### EDAC
 An implementation of EDAC (Entropically Damped Artificial Compressibility) was added,
 which allows for more stable simulations compared to basic WCSPH and reduces spurious pressure oscillations.
 
-#### WCSPH
+### WCSPH
 An implementation of WCSPH (Weakly Compressible Smoothed Particle Hydrodynamics), which is the classical SPH approach.
 
 Features:
@@ -36,5 +40,5 @@ Features:
 - Density diffusion based on the models by Molteni & Colagrossi (2009), Ferrari et al. (2009) and Antuono et al. (2010).
 
 
-#### TLSPH
+### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
