@@ -3,6 +3,9 @@ module TrixiParticles
 using Reexport: @reexport
 
 using CSV: CSV
+using CUDA: CUDA, CuArray, CuVector
+using KernelAbstractions: @kernel, @index, get_backend, synchronize
+using Adapt
 using Dates
 using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback

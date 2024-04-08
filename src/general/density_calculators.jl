@@ -27,12 +27,20 @@ struct ContinuityDensity end
     particle_density(v, system.density_calculator, system, particle)
 end
 
+@inline function current_density(v, system)
+    current_density(v, system.density_calculator, system)
+end
+
 @inline function particle_density(v, ::SummationDensity, system, particle)
     return system.cache.density[particle]
 end
 
 @inline function particle_density(v, ::ContinuityDensity, system, particle)
     return v[end, particle]
+end
+
+@inline function current_density(v, ::ContinuityDensity, system)
+    return view(v, size(v, 1), :)
 end
 
 function summation_density!(system, semi, u, u_ode, density;

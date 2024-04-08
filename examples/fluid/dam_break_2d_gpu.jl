@@ -14,7 +14,7 @@ W = 2 * H
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = H / 40
+fluid_particle_spacing = H / 20
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
 boundary_layers = 4
@@ -26,7 +26,7 @@ boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
 # ==== Experiment Setup
 gravity = 9.81
 
-tspan = (0.0, 5.7 / sqrt(gravity))
+tspan = (0.0, 0.1)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (W, H)
@@ -50,9 +50,9 @@ fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
-# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 # density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
-density_diffusion=nothing
+# density_diffusion = nothing
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
@@ -74,14 +74,27 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
+
+using CUDA, Adapt
+Adapt.@adapt_structure InitialCondition
+Adapt.@adapt_structure WeaklyCompressibleSPHSystem
+Adapt.@adapt_structure BoundarySPHSystem
+Adapt.@adapt_structure BoundaryModelDummyParticles
+Adapt.@adapt_structure TrixiParticles.ArrayGridNeighborhoodSearch
+# Adapt.@adapt_structure TrixiParticles.NeighborListNeighborhoodSearchWrapper
+
+fluid_system = adapt(CuArray, fluid_system)
+boundary_system = adapt(CuArray, boundary_system)
+
 semi = Semidiscretization(fluid_system, boundary_system, threaded_nhs_update=true,
                           neighborhood_search=TrixiParticles.ArrayGridNeighborhoodSearch)
-ode = semidiscretize(semi, tspan)
+ode = semidiscretize(semi, tspan, data_type=CuArray)
 
-info_callback = InfoCallback(interval=100)
+info_callback = InfoCallback(interval=20)
 
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
+saving_callback = nothing
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
 # i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
@@ -89,6 +102,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 # which takes between 2 and 4 hours.
 saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],
                                       prefix="marrone_times")
+saving_paper=nothing
 
 # This can be overwritten with `trixi_include`
 extra_callback = nothing

@@ -10,7 +10,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.05
+fluid_particle_spacing = 0.08
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -19,7 +19,7 @@ sigma = 0.5
 # Make this a constant because global variables in the source terms are slow
 const OMEGA = 1.0
 
-source_terms = (coords, velocity, density, pressure) -> -OMEGA^2 * coords
+source_terms = (coords, velocity, density, pressure) -> -OMEGA^2 * SVector(coords[1], coords[2], 0.0)
 
 # 1 period in the exact solution as computed below (but integrated with a small timestep)
 period = 4.567375
@@ -53,18 +53,23 @@ density_diffusion = DensityDiffusionAntuono(fluid, delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           density_diffusion=density_diffusion,
+                                           density_diffusion=nothing,
                                            source_terms=source_terms)
+
+using CUDA, Adapt
+Adapt.@adapt_structure InitialCondition
+Adapt.@adapt_structure WeaklyCompressibleSPHSystem
+fluid_system = adapt(CuArray, fluid_system)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system)
-ode = semidiscretize(semi, tspan)
+semi = Semidiscretization(fluid_system, neighborhood_search=nothing)
+ode = semidiscretize(semi, tspan, data_type=CuArray)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.04, prefix="")
 
-callbacks = CallbackSet(info_callback, saving_callback)
+callbacks = CallbackSet(info_callback)#, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(),

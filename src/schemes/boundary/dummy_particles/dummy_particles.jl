@@ -37,9 +37,9 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
-    pressure           :: Vector{ELTYPE}
-    hydrodynamic_mass  :: Vector{ELTYPE}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C, A}
+    pressure           :: A
+    hydrodynamic_mass  :: A
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -47,8 +47,9 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     viscosity          :: V
     correction         :: COR
     cache              :: C
+end
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=nothing,
                                          state_equation=nothing, correction=nothing)
@@ -64,14 +65,13 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                  create_cache_model(correction, initial_density, NDIMS,
                                     n_particles)..., cache...)
 
-        new{typeof(density_calculator), eltype(initial_density),
+        BoundaryModelDummyParticles{typeof(density_calculator), eltype(initial_density),
             typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
+            typeof(correction), typeof(cache), typeof(pressure)}(pressure, hydrodynamic_mass, state_equation,
                                                density_calculator,
                                                smoothing_kernel, smoothing_length,
                                                viscosity, correction, cache)
     end
-end
 
 @doc raw"""
     AdamiPressureExtrapolation()
@@ -333,15 +333,32 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                       v_neighbor_system, nhs)
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
-        compute_adami_density!(boundary_model, system, system_coords, particle)
+    @trixi_timeit timer() "inverse state equation" begin
+        compute_adami_density!(boundary_model, system, system_coords)
     end
+end
+
+function compute_adami_density!(boundary_model, system, system_coords)
+    @threaded for particle in eachparticle(system)
+        compute_adami_density_inner!(boundary_model, system, system_coords, particle)
+    end
+end
+
+function compute_adami_density!(boundary_model, system, system_coords::CuArray)
+    backend = get_backend(system_coords)
+    compute_adami_density_kernel!(backend)(boundary_model, system, system_coords, ndrange=nparticles(system))
+    synchronize(backend)
+end
+
+@kernel function compute_adami_density_kernel!(boundary_model, system, system_coords)
+    particle = @index(Global)
+    compute_adami_density_inner!(boundary_model, system, system_coords, particle)
 end
 
 # Use this function to avoid passing closures to Polyester.jl with `@batch` (`@threaded`).
 # Otherwise, `@threaded` does not work here with Julia ARM on macOS.
 # See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
-function compute_adami_density!(boundary_model, system, system_coords, particle)
+function compute_adami_density_inner!(boundary_model, system, system_coords, particle)
     (; pressure, state_equation, cache, viscosity) = boundary_model
     (; volume, density) = cache
 
@@ -395,11 +412,9 @@ end
                                    kernel_weight, particle, neighbor)
     end
 
-    for particle in eachparticle(system)
-        # Limit pressure to be non-negative to avoid attractive forces between fluid and
-        # boundary particles at free surfaces (sticking artifacts).
-        pressure[particle] = max(pressure[particle], 0.0)
-    end
+    # Limit pressure to be non-negative to avoid attractive forces between fluid and
+    # boundary particles at free surfaces (sticking artifacts).
+    pressure .= max.(pressure, 0.0)
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,

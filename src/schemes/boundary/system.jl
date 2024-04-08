@@ -11,32 +11,37 @@ The interaction between fluid and boundary particles is specified by the boundar
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    coordinates       :: Array{ELTYPE, 2}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C, A, B, D} <: BoundarySystem{NDIMS}
+    initial_condition :: B
+    coordinates       :: A
     boundary_model    :: BM
     movement          :: M
-    ismoving          :: Vector{Bool}
+    ismoving          :: D
     cache             :: C
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing)
-        coordinates = copy(initial_condition.coordinates)
-        NDIMS = size(coordinates, 1)
-        ismoving = zeros(Bool, 1)
-
-        cache = create_cache_boundary(movement, initial_condition)
-
-        if movement !== nothing && isempty(movement.moving_particles)
-            # Default is an empty vector, since the number of particles is not known when
-            # instantiating `BoundaryMovement`.
-            resize!(movement.moving_particles, nparticles(initial_condition))
-            movement.moving_particles .= collect(1:nparticles(initial_condition))
-        end
-
-        return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
-                   typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, cache)
+    function BoundarySPHSystem(initial_condition, coordinates, model, movement, ismoving, cache)
+        return new{typeof(model), size(coordinates, 1), eltype(coordinates), typeof(movement),
+               typeof(cache), typeof(coordinates), typeof(initial_condition), typeof(ismoving)}(initial_condition, coordinates, model, movement,
+                              ismoving, cache)
     end
+end
+
+function BoundarySPHSystem(initial_condition, model; movement=nothing)
+    coordinates = copy(initial_condition.coordinates)
+    NDIMS = size(coordinates, 1)
+    ismoving = zeros(Bool, 1)
+
+    cache = create_cache_boundary(movement, initial_condition)
+
+    if movement !== nothing && isempty(movement.moving_particles)
+        # Default is an empty vector, since the number of particles is not known when
+        # instantiating `BoundaryMovement`.
+        resize!(movement.moving_particles, nparticles(initial_condition))
+        movement.moving_particles .= collect(1:nparticles(initial_condition))
+    end
+
+    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
+                              ismoving, cache)
 end
 
 """
@@ -145,7 +150,7 @@ function (movement::BoundaryMovement)(system, t)
 end
 
 function (movement::Nothing)(system, t)
-    system.ismoving[1] = false
+    CUDA.@allowscalar system.ismoving[1] = false
 
     return system
 end
@@ -177,9 +182,10 @@ end
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
-        return extract_svector(cache.velocity, system, particle)
-    end
+    # TODO
+    # if ismoving[1]
+    #     return extract_svector(cache.velocity, system, particle)
+    # end
 
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
@@ -187,9 +193,10 @@ end
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
-        return extract_svector(cache.acceleration, system, particle)
-    end
+    # TODO
+    # if ismoving[1]
+    #     return extract_svector(cache.acceleration, system, particle)
+    # end
 
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
