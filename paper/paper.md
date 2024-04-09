@@ -42,21 +42,7 @@ aas-journal: Astrophysical Journal <- The name of the AAS journal.
 
 # Summary
 
-The realm of particle-based methods is broad and depending on the method, particles are either considered as physical particles or as mathematical interpolation points.
-The latter case refers to the smoothed particle hydrodynamics (SPH) which is a method to discretize partial differential equations and is developed by [@Monaghan:1977] to simulate astrophysical applications and is currently widely used to simulate e.g. fluid and structural mechanics and even heat conduction problems.
-The former case refers e.g. to discrete element method (DEM) introduced by [@Cundall:1979] which models separate, discrete particles with rotational degrees of freedom. Typical applications include those involving discontinuous materials such as granular matter, bulk materials or powders.
-
-
-TrixiParticles.jl is an open-source numerical simulation framework for
-particle-based multiphysics simulations, implemented in Julia as part of the modern,
-Julia-based Trixi framework [@trixi].
-Our primary goal is to provide a user-friendly application, accessible even to
-those unfamiliar with particle-based methods. To this end, TrixiParticles.jl is designed
-for easy extensibility, enabling researchers to experiment with new models or methods quickly,
-without the need to study and modify large parts of the code extensively.
-We strive to achieve the highest possible performance without compromising on readability
-and ease of use. This approach allows users not only to prototype new ideas rapidly,
-but also to scale up simulations efficiently.
+TrixiParticles.jl, part of the Trixi Project[@trixi], is an innovative Julia-based open-source framework designed for  particle-based multiphysics simulations. It aims to overcome the limitations of traditional mesh-based methods in handling complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics, by offering a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others. Unique in its approach, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions, enhancing research flexibility. This is further complemented by its user-friendly design, which allows simulations to be configured directly with Julia code, eliminating the need for parameter files. This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping and efficient scaling of simulations, establishing TrixiParticles.jl as a robust and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
 
 TODO: Summary of the rest of the paper
 
@@ -133,7 +119,7 @@ As a young project that aims to be the Julia code for particle-based simulation 
 
 * Entropically damped artificial compressibility (EDAC) [@Ramachandran:2019]
 
-* Total Lagrangian SPH and fluid-structure interaction [@O_Connor:2021]
+* Total Lagrangian SPH (TLSPH) and fluid-structure interaction [@O_Connor:2021]
 
 * Discrete element method (DEM) [@Bicanic:2004], [@Cundall:1979]
 
@@ -147,12 +133,11 @@ As a young project that aims to be the Julia code for particle-based simulation 
 
 * GPU support
 
-Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with Total Lagrangian SPH falls into a tank filled with water.
+Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with TLSPH falls into a tank filled with water.
 
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
-TODO: Make this nicer or omit it...
-The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The different colors indicate different resolutions in the simulation. The results obtained with TrixiParticles.jl match perfectly those of [@O_Connor:2021].
+The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The results obtained with TrixiParticles.jl match perfectly those of [@O_Connor:2021].
 
 ![Comparison of TrixiParticles.jl and  [@DualSPHysics] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
 
