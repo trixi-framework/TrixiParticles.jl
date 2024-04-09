@@ -156,7 +156,8 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem,
+                                               RigidSPHSystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
 end
@@ -393,6 +394,8 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
+        #@trixi_timeit timer() "collision interaction" collision_interaction!(dv_ode, du_ode, v_ode, u_ode, semi)
+
         @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
     end
 
@@ -470,6 +473,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
 end
 
 @inline source_terms(system) = nothing
+@inline source_terms(system::RigidSPHSystem) = nothing
 @inline source_terms(system::Union{FluidSystem, SolidSystem}) = system.source_terms
 
 @inline add_acceleration!(dv, particle, system) = dv
@@ -577,39 +581,82 @@ end
     end
 end
 
-# NHS updates
-function nhs_coords(system::FluidSystem,
-                    neighbor::FluidSystem, u)
-    return current_coordinates(u, neighbor)
-end
+function collision_interaction!(dv_ode, du_ode, v_ode, u_ode, semi)
+    # Call `interact!` for each pair of systems
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            # Construct string for the interactions timer.
+            # Avoid allocations from string construction when no timers are used.
+            if timeit_debug_enabled()
+                system_index = system_indices(system, semi)
+                neighbor_index = system_indices(neighbor, semi)
+                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+            else
+                timer_str = ""
+            end
 
-function nhs_coords(system::FluidSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
-    return current_coordinates(u, neighbor)
-end
-
-function nhs_coords(system::FluidSystem,
-                    neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
-        return current_coordinates(u, neighbor)
+            collision_interact!(dv_ode, du_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+        end
     end
 
-    # Don't update
-    return nothing
+    return dv_ode
 end
 
-function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::FluidSystem, u)
+# FluidSystems don't collide with each other
+@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system::FluidSystem, neighbor::FluidSystem, semi; timer_str="")
+    return dv_ode
+end
+
+# BoundarySPHSystems don't collide with each other use RigidSPHSystem
+@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system::BoundarySPHSystem, neighbor::BoundarySPHSystem, semi; timer_str="")
+    return dv_ode
+end
+
+
+# Function barrier to make benchmarking interactions easier.
+# One can benchmark, e.g. the fluid-fluid interaction, with:
+# dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
+# @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
+@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
+    dv = wrap_v(dv_ode, system, semi)
+    du = wrap_u(du_ode, system, semi)
+    v_system = wrap_v(v_ode, system, semi)
+    u_system = wrap_u(u_ode, system, semi)
+
+    v_neighbor = wrap_v(v_ode, neighbor, semi)
+    u_neighbor = wrap_u(u_ode, neighbor, semi)
+    nhs = get_neighborhood_search(system, neighbor, semi)
+
+    @trixi_timeit timer() timer_str begin
+        collision_interact!(dv, du, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+    end
+end
+
+@inline function collision_interact!(dv, du, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+    return dv
+end
+
+
+# NHS updates
+# All systems that always move update every time
+function nhs_coords(system::FluidSystem,
+                    neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem},
+                    u)
     return current_coordinates(u, neighbor)
 end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
-    # Don't update
-    return nothing
+                    neighbor::Union{FluidSystem, RigidSPHSystem}, u)
+    return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::TotalLagrangianSPHSystem,
+function nhs_coords(system::RigidSPHSystem,
+                    neighbor::Union{FluidSystem, TotalLagrangianSPHSystem}, u)
+    return current_coordinates(u, neighbor)
+end
+
+# Only update when moving
+function nhs_coords(system::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem},
                     neighbor::BoundarySPHSystem, u)
     if neighbor.ismoving[1]
         return current_coordinates(u, neighbor)
@@ -620,7 +667,8 @@ function nhs_coords(system::TotalLagrangianSPHSystem,
 end
 
 function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::FluidSystem, u)
+                    neighbor::Union{FluidSystem, TotalLagrangianSPHSystem,
+                                    BoundarySPHSystem, RigidSPHSystem}, u)
     # Don't update
     return nothing
 end
@@ -630,14 +678,12 @@ function nhs_coords(system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::TotalLagrangianSPHSystem, u)
+function nhs_coords(system::TotalLagrangianSPHSystem, neighbor::TotalLagrangianSPHSystem, u)
     # Don't update
     return nothing
 end
 
-function nhs_coords(system::BoundarySPHSystem,
-                    neighbor::BoundarySPHSystem, u)
+function nhs_coords(system::RigidSPHSystem, neighbor::RigidSPHSystem, u)
     # Don't update
     return nothing
 end
@@ -663,7 +709,8 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems)
+function check_configuration(system::Union{TotalLagrangianSPHSystem, RigidSPHSystem},
+                             systems)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
