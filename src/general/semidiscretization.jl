@@ -394,7 +394,8 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
-        #@trixi_timeit timer() "collision interaction" collision_interaction!(dv_ode, du_ode, v_ode, u_ode, semi)
+        @trixi_timeit timer() "collision interaction" collision_interaction!(dv_ode, v_ode,
+                                                                             u_ode, semi)
 
         @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
     end
@@ -581,21 +582,26 @@ end
     end
 end
 
-function collision_interaction!(dv_ode, du_ode, v_ode, u_ode, semi)
+function collision_interaction!(dv_ode, v_ode, u_ode, semi)
     # Call `interact!` for each pair of systems
     foreach_system(semi) do system
         foreach_system(semi) do neighbor
-            # Construct string for the interactions timer.
-            # Avoid allocations from string construction when no timers are used.
-            if timeit_debug_enabled()
-                system_index = system_indices(system, semi)
-                neighbor_index = system_indices(neighbor, semi)
-                timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
-            else
-                timer_str = ""
-            end
+            system_index = system_indices(system, semi)
+            neighbor_index = system_indices(neighbor, semi)
 
-            collision_interact!(dv_ode, du_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
+            # the same system does not collide with its self
+            if system_index != neighbor_index
+                # Construct string for the interactions timer.
+                # Avoid allocations from string construction when no timers are used.
+                if timeit_debug_enabled()
+                    timer_str = "$(timer_name(system))$system_index-$(timer_name(neighbor))$neighbor_index"
+                else
+                    timer_str = ""
+                end
+
+                collision_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                                    timer_str=timer_str)
+            end
         end
     end
 
@@ -603,23 +609,25 @@ function collision_interaction!(dv_ode, du_ode, v_ode, u_ode, semi)
 end
 
 # FluidSystems don't collide with each other
-@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system::FluidSystem, neighbor::FluidSystem, semi; timer_str="")
+@inline function collision_interact!(dv_ode, v_ode, u_ode, system::FluidSystem,
+                                     neighbor::FluidSystem, semi; timer_str="")
     return dv_ode
 end
 
 # BoundarySPHSystems don't collide with each other use RigidSPHSystem
-@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system::BoundarySPHSystem, neighbor::BoundarySPHSystem, semi; timer_str="")
+@inline function collision_interact!(dv_ode, v_ode, u_ode,
+                                     system::BoundarySPHSystem, neighbor::BoundarySPHSystem,
+                                     semi; timer_str="")
     return dv_ode
 end
-
 
 # Function barrier to make benchmarking interactions easier.
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function collision_interact!(dv_ode, du_ode, v_ode, u_ode, system, neighbor, semi; timer_str="")
+@inline function collision_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi;
+                                     timer_str="")
     dv = wrap_v(dv_ode, system, semi)
-    du = wrap_u(du_ode, system, semi)
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
 
@@ -628,14 +636,73 @@ end
     nhs = get_neighborhood_search(system, neighbor, semi)
 
     @trixi_timeit timer() timer_str begin
-        collision_interact!(dv, du, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+        collision_interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system,
+                            neighbor)
     end
 end
 
-@inline function collision_interact!(dv, du, v_system, u_system, v_neighbor, u_neighbor, nhs, system, neighbor)
+@inline function collision_interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
+                                     nhs, system, neighbor)
     return dv
 end
 
+# Systems representing solids collide with each other and the boundary
+@inline function collision_interact!(dv, v_particle_system, u_particle_system,
+                                     v_neighbor_system, u_neighbor_system,
+                                     neighborhood_search,
+                                     particle_system::Union{RigidSPHSystem,
+                                                            TotalLagrangianSPHSystem},
+                                     neighbor_system::Union{BoundarySPHSystem,
+                                                            RigidSPHSystem,
+                                                            TotalLagrangianSPHSystem})
+    (; particle_spacing) = neighbor_system
+    neighbor_radius = 0.5 * particle_spacing
+
+    (; particle_spacing) = particle_system
+    particle_radius = 0.5 * particle_spacing
+
+    collision_distance = neighbor_radius + particle_radius
+
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    total_dv = zeros(ndims(particle_system))
+
+    for_particle_neighbor(particle_system, neighbor_system,
+                          system_coords, neighbor_system_coords,
+                          neighborhood_search) do particle, neighbor, pos_diff, distance
+        overlap = collision_distance - distance
+        overlap <= 0 && return
+
+        normal = pos_diff / distance
+
+        part_v = extract_svector(v_particle_system, particle_system, particle)
+        nghbr_v = extract_svector(v_neighbor_system, neighbor_system, neighbor)
+        rel_vel = part_v - nghbr_v
+
+        # nothing to do we are in contact
+        norm(rel_vel) <= sqrt(eps()) && return
+
+        println("collide")
+
+        rel_vel_normal = dot(rel_vel, normal)
+        collision_damping_coefficient = 0.1
+        force_magnitude = collision_damping_coefficient * rel_vel_normal
+        force = force_magnitude * normal
+
+        @inbounds for i in 1:ndims(particle_system)
+            total_dv[i] += force[i] / mass[particle]
+        end
+    end
+
+    for particle in each_moving_particle(particle_system)
+        for i in 1:ndims(particle_system)
+            dv[i, particle] += total_dv[i]
+        end
+    end
+
+    return dv
+end
 
 # NHS updates
 # All systems that always move update every time

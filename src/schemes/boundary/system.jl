@@ -17,9 +17,10 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
     boundary_model    :: BM
     movement          :: M
     ismoving          :: Vector{Bool}
+    particle_spacing  :: ELTYPE
     cache             :: C
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing)
+    function BoundarySPHSystem(initial_condition, model; movement=nothing, particle_spacing = NaN)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
@@ -33,9 +34,10 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
 
+
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, cache)
+                                  ismoving, particle_spacing, cache)
     end
 end
 
@@ -99,6 +101,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, "BoundarySPHSystem{", ndims(system), "}(")
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
+    print(io, ", ", system.particle_spacing)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -111,6 +114,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_header(io, "BoundarySPHSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "boundary model", system.boundary_model)
+        summary_line(io, "particle spacing", system.particle_spacing)
         summary_line(io, "movement function",
                      isnothing(system.movement) ? "nothing" :
                      string(system.movement.movement_function))

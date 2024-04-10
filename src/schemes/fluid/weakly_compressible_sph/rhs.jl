@@ -153,3 +153,40 @@ end
 
     return p_a, p_a
 end
+
+# Fluid particles collide with a boundary particle at distance =< 0 to the surface boundary
+# particle to prevent them going through the first layer of boundary particles
+@inline function collision_interact!(dv, v_particle_system, u_particle_system,
+                                     v_neighbor_system, u_neighbor_system,
+                                     neighborhood_search, particle_system::FluidSystem,
+                                     neighbor_system::Union{BoundarySPHSystem,
+                                                            RigidSPHSystem,
+                                                            TotalLagrangianSPHSystem})
+    # (particle_spacing) = neighbor_system
+
+    system_coords = current_coordinates(u_particle_system, particle_system)
+    neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
+
+    for_particle_neighbor(particle_system, neighbor_system,
+                          system_coords, neighbor_system_coords,
+                          neighborhood_search) do particle, neighbor, pos_diff, distance
+        if distance <= sqrt(eps())
+            # todo: not correct
+            normal = pos_diff / distance
+
+            part_v = extract_svector(v_particle_system, particle_system, particle)
+            nghbr_v = extract_svector(v_neighbor_system, neighbor_system, neighbor)
+            # Relative velocity
+            rel_vel_normal = dot(part_v - nghbr_v, normal)
+
+            collision_damping_coefficient = 0.1
+            force_magnitude = collision_damping_coefficient * rel_vel_normal
+            force = force_magnitude * normal
+
+            @inbounds for i in 1:ndims(particle_system)
+                dv[i, particle] += force[i] / mass[particle]
+            end
+        end
+    end
+    return dv
+end

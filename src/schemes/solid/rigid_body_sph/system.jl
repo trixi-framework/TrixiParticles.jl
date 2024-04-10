@@ -14,16 +14,17 @@ System for a SPH particles of a rigid structure.
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
 """
 struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    local_coordinates   :: Array{ELTYPE, 2} # [dimension, particle]
-    mass                :: Array{ELTYPE, 1} # [particle]
-    material_density    :: Array{ELTYPE, 1} # [particle]
-    acceleration        :: SVector{NDIMS, ELTYPE}
-    center_of_gravity   :: SVector{NDIMS, ELTYPE}
-    boundary_model      :: BM
+    initial_condition :: InitialCondition{ELTYPE}
+    local_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
+    mass              :: Array{ELTYPE, 1} # [particle]
+    material_density  :: Array{ELTYPE, 1} # [particle]
+    acceleration      :: SVector{NDIMS, ELTYPE}
+    center_of_gravity :: SVector{NDIMS, ELTYPE}
+    particle_spacing  :: ELTYPE
+    boundary_model    :: BM
 
     function RigidSPHSystem(initial_condition; boundary_model=nothing,
-                            acceleration=ntuple(_ -> 0.0, ndims(initial_condition)))
+                            acceleration=ntuple(_ -> 0.0, ndims(initial_condition)), particle_spacing=NaN)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -43,7 +44,7 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
         return new{typeof(boundary_model), NDIMS, ELTYPE}(initial_condition,
                                                           local_coordinates,
                                                           mass, material_density,
-                                                          acceleration_, cog,
+                                                          acceleration_, cog, particle_spacing,
                                                           boundary_model)
     end
 end
@@ -82,7 +83,6 @@ end
 @inline function v_nvariables(system::RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
-
 
 # Variable accessors
 
@@ -123,7 +123,6 @@ end
 end
 
 function initialize!(system::RigidSPHSystem, neighborhood_search)
-
 end
 
 function write_u0!(u0, system::RigidSPHSystem)
@@ -188,7 +187,6 @@ function update_final!(system::RigidSPHSystem, v, u, v_ode, u_ode, semi, t)
     # Only update boundary model
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
 end
-
 
 function viscosity_model(system::RigidSPHSystem)
     return system.boundary_model.viscosity

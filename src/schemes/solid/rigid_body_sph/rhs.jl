@@ -63,7 +63,8 @@ function interact!(dv, v_particle_system, u_particle_system,
             # particle b to obtain the same force as for the fluid-solid interaction.
             # Divide by the material mass of particle a to obtain the acceleration
             # of solid particle a.
-            total_dv[i] += dv[i, particle] + dv_particle[i] * m_b / particle_system.mass[particle]
+            total_dv[i] += dv[i, particle] +
+                           dv_particle[i] * m_b / particle_system.mass[particle]
         end
 
         continuity_equation!(dv, v_particle_system, v_neighbor_system,
@@ -75,7 +76,7 @@ function interact!(dv, v_particle_system, u_particle_system,
     #total_dv ./=nparticles(particle_system)
     for particle in each_moving_particle(particle_system)
         for i in 1:ndims(particle_system)
-            dv[i, particle] += total_dv[i]/nparticles(particle_system)
+            dv[i, particle] += total_dv[i] / nparticles(particle_system)
         end
     end
     return dv
@@ -111,8 +112,6 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::RigidSPHSystem,
                    neighbor_system::Union{BoundarySPHSystem})
-
-
 
     # TODO continuity equation?
     return dv

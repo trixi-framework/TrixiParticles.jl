@@ -253,7 +253,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 end
 
 function write2vtk!(vtk, v, u, t, system::RigidSPHSystem; write_meta_data=true)
-
     vtk["velocity"] = view(v, 1:ndims(system), :)
     vtk["material_density"] = system.material_density
 

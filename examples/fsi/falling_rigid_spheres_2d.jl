@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.0075
+fluid_particle_spacing = 0.02
 solid_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -20,7 +20,7 @@ initial_fluid_size = (2.0, 0.9)
 tank_size = (2.0, 1.0)
 
 fluid_density = 1000.0
-sound_speed = 10 * sqrt(gravity * initial_fluid_size[2])
+sound_speed = 40
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -32,7 +32,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 sphere1_radius = 0.3
 sphere2_radius = 0.2
 sphere1_density = 500.0
-sphere2_density = 700.0
+sphere2_density = 900.0
 
 # Young's modulus and Poisson ratio
 sphere1_E = 7e4
@@ -69,7 +69,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Solid
@@ -97,8 +97,10 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      fluid_smoothing_kernel,
                                                      fluid_smoothing_length)
 
-solid_system_1 = RigidSPHSystem(sphere1; boundary_model=solid_boundary_model_1, acceleration=(0.0, -gravity))
-solid_system_2 = RigidSPHSystem(sphere2; boundary_model=solid_boundary_model_2, acceleration=(0.0, -gravity))
+solid_system_1 = RigidSPHSystem(sphere1; boundary_model=solid_boundary_model_1,
+                                acceleration=(0.0, -gravity), particle_spacing=fluid_particle_spacing)
+solid_system_2 = RigidSPHSystem(sphere2; boundary_model=solid_boundary_model_2,
+                                acceleration=(0.0, -gravity), particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation
