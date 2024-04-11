@@ -104,10 +104,10 @@ end
 @inline min_corner(vertices, dim, pad) = minimum(vertices[dim, :]) - pad
 @inline max_corner(vertices, dim, pad) = maximum(vertices[dim, :]) + pad
 
-@inline function position(A, shape, i)
+@inline function point_position(A, shape, i)
     return TrixiParticles.extract_svector(A, Val(ndims(shape)), i)
 end
 
-@inline function position(A, ::Val{NDIMS}, i) where {NDIMS}
+@inline function point_position(A, ::Val{NDIMS}, i) where {NDIMS}
     return TrixiParticles.extract_svector(A, Val(NDIMS), i)
 end

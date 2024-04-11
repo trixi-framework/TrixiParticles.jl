@@ -18,7 +18,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
     inpoly = falses(size(points, 2))
 
     @threaded for query_point in axes(points, 2)
-        p = position(points, mesh, query_point)
+        p = point_position(points, mesh, query_point)
 
         winding_number = 0.0
         for face in eachfaces(mesh)
@@ -40,9 +40,9 @@ end
 # A. Van Oosterom 1983,
 # The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
 function inverse_tangent_function(faces, face_id, p::SVector{3}, shape)
-    v1 = position(view(faces, :, :, face_id), shape, 1)
-    v2 = position(view(faces, :, :, face_id), shape, 2)
-    v3 = position(view(faces, :, :, face_id), shape, 3)
+    v1 = point_position(view(faces, :, :, face_id), shape, 1)
+    v2 = point_position(view(faces, :, :, face_id), shape, 2)
+    v3 = point_position(view(faces, :, :, face_id), shape, 3)
     a = v1 - p
     b = v2 - p
     c = v3 - p
@@ -56,8 +56,8 @@ function inverse_tangent_function(faces, face_id, p::SVector{3}, shape)
 end
 
 function inverse_tangent_function(edges, edge, p::SVector{2}, shape)
-    v1 = position(view(edges, :, :, edge), shape, 1)
-    v2 = position(view(edges, :, :, edge), shape, 2)
+    v1 = point_position(view(edges, :, :, edge), shape, 1)
+    v2 = point_position(view(edges, :, :, edge), shape, 2)
     a = v1 - p
     b = v2 - p
 

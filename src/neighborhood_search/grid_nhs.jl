@@ -1,7 +1,6 @@
 @doc raw"""
-    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
-                                  periodic_box_min_corner=nothing,
-                                  periodic_box_max_corner=nothing)
+    GridNeighborhoodSearch{NDIMS}(search_radius, n_particles; periodic_box_min_corner=nothing,
+                                  periodic_box_max_corner=nothing, threaded_nhs_update=true)
 
 Simple grid-based neighborhood search with uniform search radius.
 The domain is divided into a regular grid.
@@ -35,6 +34,9 @@ since not sorting makes our implementation a lot faster (although less paralleli
 - `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in positive coordinate
                                 directions.
+- `threaded_nhs_update=true`:              Can be used to deactivate thread parallelization in the neighborhood search update.
+                                This can be one of the largest sources of variations between simulations
+                                with different thread numbers due to particle ordering changes.
 
 !!! warning "Internal use only"
     Please note that this constructor is intended for internal use only. It is *not* part of
@@ -96,10 +98,12 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
     periodic_box        :: PB
     n_cells             :: NTuple{NDIMS, Int}
     cell_size           :: NTuple{NDIMS, ELTYPE}
+    threaded_nhs_update :: Bool
 
     function GridNeighborhoodSearch{NDIMS}(search_radius, n_particles;
                                            periodic_box_min_corner=nothing,
-                                           periodic_box_max_corner=nothing) where {NDIMS}
+                                           periodic_box_max_corner=nothing,
+                                           threaded_nhs_update=true) where {NDIMS}
         ELTYPE = typeof(search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
@@ -138,7 +142,7 @@ struct GridNeighborhoodSearch{NDIMS, ELTYPE, PB}
         new{NDIMS, ELTYPE,
             typeof(periodic_box)}(hashtable, search_radius, empty_vector,
                                   cell_buffer, cell_buffer_indices,
-                                  periodic_box, n_cells, cell_size)
+                                  periodic_box, n_cells, cell_size, threaded_nhs_update)
     end
 end
 
@@ -194,16 +198,14 @@ end
 
 # Modify the existing hash table by moving particles into their new cells
 function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
-    (; hashtable, cell_buffer, cell_buffer_indices) = neighborhood_search
+    (; hashtable, cell_buffer, cell_buffer_indices, threaded_nhs_update) = neighborhood_search
 
     # Reset `cell_buffer` by moving all pointers to the beginning.
     cell_buffer_indices .= 0
 
     # Find all cells containing particles that now belong to another cell.
     # `collect` the keyset to be able to loop over it with `@threaded`.
-    @threaded for cell in collect(keys(hashtable))
-        mark_changed_cell!(neighborhood_search, cell, coords_fun)
-    end
+    mark_changed_cell!(neighborhood_search, hashtable, coords_fun, Val(threaded_nhs_update))
 
     # This is needed to prevent lagging on macOS ARM.
     # See https://github.com/JuliaSIMD/Polyester.jl/issues/89
@@ -244,6 +246,20 @@ function update!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
     end
 
     return neighborhood_search
+end
+
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    threaded_nhs_update::Val{true})
+    @threaded for cell in collect(keys(hashtable))
+        mark_changed_cell!(neighborhood_search, cell, coords_fun)
+    end
+end
+
+@inline function mark_changed_cell!(neighborhood_search, hashtable, coords_fun,
+                                    threaded_nhs_update::Val{false})
+    for cell in collect(keys(hashtable))
+        mark_changed_cell!(neighborhood_search, cell, coords_fun)
+    end
 end
 
 # Use this function barrier and unpack inside to avoid passing closures to Polyester.jl

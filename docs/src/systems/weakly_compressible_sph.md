@@ -100,14 +100,14 @@ For the cheap [`DensityDiffusionMolteniColagrossi`](@ref), this results in reduc
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaBL-tqW6p9ry3NHvNnHVNufRfh_NSz0Le4vJ4n2rS-10Vr3Dkm2Cjb4T861vk6yhnvqMgS_PLXeZsNoVepIfYgpw-hlgQ=s1600" alt="density_diffusion_2d"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/01289e3b-98ce-4b2d-8151-cd20782d5823" alt="density_diffusion_2d"/>
   <figcaption>Dam break in 2D with different density diffusion terms</figcaption>
 </figure>
 ```
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaDKc0DCJfFH606zWFkjutMYzs70Y4Ot_33avjcIRxV3xNbrX1gqx6EpeSmysai338aRsOoqJ8B1idUs5U30SA_o12OQ=s1600" alt="density_diffusion_3d"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/63a05b2a-6c37-468e-b895-15ab142a4eba" alt="density_diffusion_3d"/>
   <figcaption>Dam break in 3D with different density diffusion terms</figcaption>
 </figure>
 ```
@@ -120,7 +120,7 @@ until ``t = 40`` (again using ``δ = 0.1``):
 
 ```@raw html
 <figure>
-  <img src="https://lh3.googleusercontent.com/drive-viewer/AK7aPaCf1gDlbxkQjxpyffPJ-ijx-DdVxlwUVb_DLYIW4X5E0hkDeJcuAqCae6y4eDydgTKe752zWa08tKVL5yhB-ad8Uh8J=s1600" alt="density_diffusion_tank"/>
+  <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/44124897/440debc9-6051-4a3b-aa9c-02a6b32fccf3" alt="density_diffusion_tank"/>
   <figcaption>Tank in rest under gravity in 3D with different density diffusion terms</figcaption>
 </figure>
 ```

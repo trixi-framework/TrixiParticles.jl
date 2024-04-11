@@ -12,6 +12,7 @@ docs/src/news.md
 *_replaced.md
 run
 *.json
+!.zenodo.json
 *.png
 *.jpg
 *.gif

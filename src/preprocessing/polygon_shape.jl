@@ -22,8 +22,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         edges = zeros(ELTYPE, NDIMS, NDIMS, n_vertices - 1)
 
         for i in 1:(n_vertices - 1)
-            v1 = position(vertices, Val(NDIMS), i)
-            v2 = position(vertices, Val(NDIMS), i + 1)
+            v1 = point_position(vertices, Val(NDIMS), i)
+            v2 = point_position(vertices, Val(NDIMS), i + 1)
             edges[:, 1, i] = v1
             edges[:, 2, i] = v2
         end

@@ -7,7 +7,7 @@ using Dates
 using DataFrames: DataFrame
 using FileIO: load
 using DelimitedFiles: readdlm
-using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect
+using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
@@ -65,7 +65,7 @@ export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export WindingNumberHorman, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

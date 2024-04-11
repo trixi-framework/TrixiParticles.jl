@@ -23,8 +23,8 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
 
     @threaded for query_point in axes(points, 2)
         for vertex in eachvertices(shape)
-            direction = position(vertices, shape, vertex) -
-                        position(points, shape, query_point)
+            direction = point_position(vertices, shape, vertex) -
+                        point_position(points, shape, query_point)
 
             dot_v = dot(direction, v_unit)
             dot_h = dot(direction, h_unit)
@@ -37,9 +37,9 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
 
         winding_number = 0
         for vertex in eachvertices(shape)
-            v1 = position(vertices, shape, vertex)
-            v2 = position(vertices, shape, vertex + 1)
-            v_query = position(points, shape, query_point)
+            v1 = point_position(vertices, shape, vertex)
+            v2 = point_position(vertices, shape, vertex + 1)
+            v_query = point_position(points, shape, query_point)
 
             # because 0 <= `quadrant_numbers` <= 3 we know that -3 <= `quarter_angel` <= 3
             quarter_angel = quadrant_numbers[vertex + 1] - quadrant_numbers[vertex]
