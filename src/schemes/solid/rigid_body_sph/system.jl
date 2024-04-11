@@ -21,10 +21,12 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
     acceleration      :: SVector{NDIMS, ELTYPE}
     center_of_gravity :: SVector{NDIMS, ELTYPE}
     particle_spacing  :: ELTYPE
+    has_collided      :: MutableBool
     boundary_model    :: BM
 
     function RigidSPHSystem(initial_condition; boundary_model=nothing,
-                            acceleration=ntuple(_ -> 0.0, ndims(initial_condition)), particle_spacing=NaN)
+                            acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
+                            particle_spacing=NaN)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -38,13 +40,15 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
         mass = copy(initial_condition.mass)
         material_density = copy(initial_condition.density)
 
-        # calculate center of gravity
+        # TODO: calculate center of gravity
         cog = zeros(SVector{NDIMS, ELTYPE})
 
         return new{typeof(boundary_model), NDIMS, ELTYPE}(initial_condition,
                                                           local_coordinates,
                                                           mass, material_density,
-                                                          acceleration_, cog, particle_spacing,
+                                                          acceleration_, cog,
+                                                          particle_spacing,
+                                                          MutableBool(false),
                                                           boundary_model)
     end
 end

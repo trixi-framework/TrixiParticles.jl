@@ -15,6 +15,10 @@ timer_name(::BoundarySystem) = "boundary"
     return du
 end
 
+mutable struct MutableBool
+    value::Bool
+end
+
 # Note that `semidiscretization.jl` depends on the system types and has to be
 # included later.
 # `density_calculators.jl` needs to be included before `corrections.jl`.

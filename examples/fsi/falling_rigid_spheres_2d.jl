@@ -16,7 +16,7 @@ gravity = 9.81
 tspan = (0.0, 1.5)
 
 # Boundary geometry and initial fluid particle positions
-initial_fluid_size = (2.0, 0.9)
+initial_fluid_size = (2.0, 0.5)
 tank_size = (2.0, 1.0)
 
 fluid_density = 1000.0
@@ -35,12 +35,12 @@ sphere1_density = 500.0
 sphere2_density = 900.0
 
 # Young's modulus and Poisson ratio
-sphere1_E = 7e4
-sphere2_E = 1e5
-nu = 0.0
+# sphere1_E = 7e4
+# sphere2_E = 1e5
+# nu = 0.0
 
-sphere1_center = (0.5, 1.6)
-sphere2_center = (1.5, 1.6)
+sphere1_center = (0.5, 1.1)
+sphere2_center = (1.5, 1.1)
 sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, sphere1_center,
                       sphere1_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
@@ -69,7 +69,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, particle_spacing=fluid_particle_spacing)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
+                                    particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Solid
@@ -98,9 +99,11 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      fluid_smoothing_length)
 
 solid_system_1 = RigidSPHSystem(sphere1; boundary_model=solid_boundary_model_1,
-                                acceleration=(0.0, -gravity), particle_spacing=fluid_particle_spacing)
+                                acceleration=(0.0, -gravity),
+                                particle_spacing=fluid_particle_spacing)
 solid_system_2 = RigidSPHSystem(sphere2; boundary_model=solid_boundary_model_2,
-                                acceleration=(0.0, -gravity), particle_spacing=fluid_particle_spacing)
+                                acceleration=(0.0, -gravity),
+                                particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation

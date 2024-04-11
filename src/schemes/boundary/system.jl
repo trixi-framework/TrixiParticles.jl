@@ -20,7 +20,8 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
     particle_spacing  :: ELTYPE
     cache             :: C
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing, particle_spacing = NaN)
+    function BoundarySPHSystem(initial_condition, model; movement=nothing,
+                               particle_spacing=NaN)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
         ismoving = zeros(Bool, 1)
@@ -33,7 +34,6 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
             resize!(movement.moving_particles, nparticles(initial_condition))
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
-
 
         return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
