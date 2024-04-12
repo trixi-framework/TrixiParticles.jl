@@ -370,6 +370,8 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 end
             end
         end
+        # @trixi_timeit timer() "collision interaction" collision_interaction!(du_ode, v_ode,
+        # u_ode, semi)
     end
 
     return du_ode
@@ -664,6 +666,8 @@ end
 @inline function collision_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi;
                                      timer_str="")
     dv = wrap_v(dv_ode, system, semi)
+    # dv = wrap_u(dv_ode, system, semi)
+
     v_system = wrap_v(v_ode, system, semi)
     u_system = wrap_u(u_ode, system, semi)
 
@@ -734,10 +738,15 @@ end
         end
 
         # Calculate the required change in velocity along the normal (reversing it to simulate a bounce)
-        change_in_velocity_normal = -1000 * (1 + e) * initial_normal_velocity * max_normal
+        change_in_velocity_normal = -(1 + e) * initial_normal_velocity * max_normal
+
+        #collision_time = max_overlap/norm(particle_velocity)
+        #println("collison_time", collision_time)
 
         # Apply the change uniformly across all particles
         @inbounds for particle in each_moving_particle(particle_system)
+            # current_dv_normal = dot(dv[:, particle], max_normal) * max_normal
+            # dv[:, particle] = change_in_velocity_normal/collision_time
             dv[:, particle] = change_in_velocity_normal
         end
     end
