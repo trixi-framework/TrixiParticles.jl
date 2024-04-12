@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.02
+fluid_particle_spacing = 0.0125
 solid_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -13,14 +13,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.5)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
-tank_size = (2.0, 1.0)
+tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 40
+sound_speed = 100
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -31,13 +31,11 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere1_radius = 0.3
 sphere2_radius = 0.2
-sphere1_density = 500.0
-sphere2_density = 900.0
-
-# Young's modulus and Poisson ratio
-# sphere1_E = 7e4
-# sphere2_E = 1e5
-# nu = 0.0
+# wood
+sphere1_density = 600.0
+# steel
+#sphere2_density = 7700
+sphere2_density = 1500
 
 sphere1_center = (0.5, 1.1)
 sphere2_center = (1.5, 1.1)
@@ -52,7 +50,7 @@ fluid_smoothing_length = 3.0 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+viscosity = ViscosityAdami(nu=1e-4)
 density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
 
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
@@ -67,15 +65,13 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length)
+                                             fluid_smoothing_kernel, fluid_smoothing_length, viscosity=viscosity)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Solid
-solid_smoothing_length = 2 * sqrt(2) * solid_particle_spacing
-solid_smoothing_kernel = WendlandC2Kernel{2}()
 
 # For the FSI we need the hydrodynamic masses and densities in the solid boundary model
 hydrodynamic_densites_1 = fluid_density * ones(size(sphere1.density))
@@ -86,7 +82,7 @@ solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                      state_equation=state_equation,
                                                      boundary_density_calculator,
                                                      fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                     fluid_smoothing_length, viscosity=viscosity)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^ndims(fluid_system)
@@ -96,7 +92,7 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      state_equation=state_equation,
                                                      boundary_density_calculator,
                                                      fluid_smoothing_kernel,
-                                                     fluid_smoothing_length)
+                                                     fluid_smoothing_length,viscosity=viscosity)
 
 solid_system_1 = RigidSPHSystem(sphere1; boundary_model=solid_boundary_model_1,
                                 acceleration=(0.0, -gravity),
@@ -116,8 +112,26 @@ saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
+function collision(vu, integrator, semi, t)
+    v_ode, u_ode = vu.x
+
+    TrixiParticles.foreach_system(semi) do system
+        v =  TrixiParticles.wrap_v(v_ode, system, semi)
+        u =  TrixiParticles.wrap_u(u_ode, system, semi)
+
+        if system isa RigidSPHSystem && system.has_collided.value
+            println(system.collision_u)
+
+            for particle in  TrixiParticles.each_moving_particle(system)
+                v[:, particle] += system.collision_impulse
+                u[:, particle] += system.collision_u
+            end
+        end
+    end
+end
+
 # Use a Runge-Kutta method with automatic (error based) time step size control.
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL49(;stage_limiter! =collision),
             abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-5, # Default reltol is 1e-3
+            reltol=1e-4, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

@@ -19,7 +19,9 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
     mass              :: Array{ELTYPE, 1} # [particle]
     material_density  :: Array{ELTYPE, 1} # [particle]
     acceleration      :: SVector{NDIMS, ELTYPE}
-    center_of_gravity :: SVector{NDIMS, ELTYPE}
+    center_of_gravity :: Array{ELTYPE, 1} # [dimension]
+    collision_impulse :: Array{ELTYPE, 1} # [dimension]
+    collision_u       :: Array{ELTYPE, 1} # [dimension]
     particle_spacing  :: ELTYPE
     has_collided      :: MutableBool
     boundary_model    :: BM
@@ -42,11 +44,15 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
 
         # TODO: calculate center of gravity
         cog = zeros(SVector{NDIMS, ELTYPE})
+        collision_impulse = zeros(SVector{NDIMS, ELTYPE})
+        collision_u = zeros(SVector{NDIMS, ELTYPE})
 
         return new{typeof(boundary_model), NDIMS, ELTYPE}(initial_condition,
                                                           local_coordinates,
                                                           mass, material_density,
                                                           acceleration_, cog,
+                                                          collision_impulse,
+                                                          collision_u,
                                                           particle_spacing,
                                                           MutableBool(false),
                                                           boundary_model)
