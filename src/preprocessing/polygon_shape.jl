@@ -1,33 +1,51 @@
-struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
+struct Polygon{NDIMS, ELTYPE, F} <: Shapes{NDIMS}
     vertices   :: Array{ELTYPE, 2}
-    edges      :: Array{ELTYPE, 3} # [dim, dim, face]
+    faces      :: F
     n_vertices :: Int
 
     function Polygon(vertices_)
         NDIMS = size(vertices_, 1)
 
+        vertices_x = copy(vertices_[1, :])
+        vertices_y = copy(vertices_[2, :])
+
         if !(vertices_[:, end] ≈ vertices_[:, 1])
-            vertices = zeros(NDIMS, size(vertices_, 2) + 1)
-            vertices[:, 1:(end - 1)] = copy(vertices_)
-            for dim in 1:NDIMS
-                vertices[dim, end] = vertices_[dim, 1]
-            end
+            push!(vertices_x, vertices_x[1])
+            push!(vertices_y, vertices_y[1])
+
+            vertices = vcat(vertices_x', vertices_y')
         else
-            vertices = copy(vertices_)
+            vertices = vertices_
         end
 
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
 
-        edges = zeros(ELTYPE, NDIMS, NDIMS, n_vertices - 1)
+        faces = Vector{NamedTuple}()
+
+        delete_indices = Int[]
 
         for i in 1:(n_vertices - 1)
-            v1 = point_position(vertices, Val(NDIMS), i)
-            v2 = point_position(vertices, Val(NDIMS), i + 1)
-            edges[:, 1, i] = v1
-            edges[:, 2, i] = v2
+            v1 = SVector(vertices[:, i]...)
+            v2 = SVector(vertices[:, i + 1]...)
+            if isapprox(v1, v2)
+                push!(delete_indices, i)
+                continue
+            end
+
+            edge = v2 - v1
+
+            # TODO: Recalculate all normals outside.
+            edge_normal = SVector(-normalize([-edge[2], edge[1]])...)
+
+            push!(faces, (v1=v1, v2=v2, normals=edge_normal))
         end
 
-        return new{NDIMS, ELTYPE}(vertices, edges, n_vertices)
+        deleteat!(vertices_x, delete_indices)
+        deleteat!(vertices_y, delete_indices)
+
+        vertices = vcat(vertices_x', vertices_y')
+
+        return new{NDIMS, ELTYPE, typeof(faces)}(vertices, faces, length(faces))
     end
 end

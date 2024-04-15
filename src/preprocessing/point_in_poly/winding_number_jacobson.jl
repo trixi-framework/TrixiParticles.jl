@@ -13,7 +13,7 @@ struct WindingNumberJacobson{ELTYPE}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh, points)
+function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points)
     (; winding_number_factor) = point_in_poly
     (; faces) = mesh
     inpoly = falses(size(points, 2))
@@ -22,10 +22,23 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
         p = point_position(points, mesh, query_point)
 
         winding_number = sum(faces) do face
-            return inverse_tangent_function(face, p)
+
+            # A. Van Oosterom 1983,
+            # The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
+            v1, v2, v3 = face
+            a = v1 - p
+            b = v2 - p
+            c = v3 - p
+            a_ = norm(a)
+            b_ = norm(b)
+            c_ = norm(c)
+
+            divisor = a_ * b_ * c_ + dot(a, b) * c_ + dot(b, c) * a_ + dot(c, a) * b_
+
+            return 2atan(det([a b c]), divisor)
         end
 
-        winding_number /= pi_factor(Val(ndims(mesh)))
+        winding_number /=  4pi
 
         # `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
@@ -36,29 +49,29 @@ function (point_in_poly::WindingNumberJacobson)(mesh, points)
     return inpoly
 end
 
-# A. Van Oosterom 1983,
-# The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
-function inverse_tangent_function(face, p::SVector{3})
-    v1, v2, v3 = face
-    a = v1 - p
-    b = v2 - p
-    c = v3 - p
-    a_ = norm(a)
-    b_ = norm(b)
-    c_ = norm(c)
+function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points)
+    (; winding_number_factor) = point_in_poly
+    (; faces) = mesh
+    inpoly = falses(size(points, 2))
 
-    divisor = a_ * b_ * c_ + dot(a, b) * c_ + dot(b, c) * a_ + dot(c, a) * b_
+    @threaded for query_point in axes(points, 2)
+        p = point_position(points, mesh, query_point)
 
-    return 2atan(det([a b c]), divisor)
+        winding_number = sum(faces) do face
+            v1, v2 = face
+            a = v1 - p
+            b = v2 - p
+
+            return atan(det([a b]), (dot(a, b)))
+        end
+
+        winding_number /=  2pi
+
+        # `(winding_number != 0.0)`
+        if !(-winding_number_factor < winding_number < winding_number_factor)
+            inpoly[query_point] = true
+        end
+    end
+
+    return inpoly
 end
-
-function inverse_tangent_function(edge, p::SVector{2})
-    v1, v2 = edge
-    a = v1 - p
-    b = v2 - p
-
-    return atan(det([a b]), (dot(a, b)))
-end
-
-@inline pi_factor(::Val{3}) = 4pi
-@inline pi_factor(::Val{2}) = 2pi
