@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.0125
+fluid_particle_spacing = 0.015
 solid_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -13,14 +13,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 4.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 100
+sound_speed = 150
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -35,10 +35,10 @@ sphere2_radius = 0.2
 sphere1_density = 600.0
 # steel
 #sphere2_density = 7700
-sphere2_density = 1500
+sphere2_density = 3000
 
 sphere1_center = (0.5, 1.1)
-sphere2_center = (1.5, 1.1)
+sphere2_center = (1.5, 0.8)
 sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, sphere1_center,
                       sphere1_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
@@ -103,7 +103,7 @@ solid_system_2 = RigidSPHSystem(sphere2; boundary_model=solid_boundary_model_2,
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, solid_system_1, solid_system_2)
+semi = Semidiscretization(boundary_system, solid_system_2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)
@@ -120,8 +120,6 @@ function collision(vu, integrator, semi, t)
         u =  TrixiParticles.wrap_u(u_ode, system, semi)
 
         if system isa RigidSPHSystem && system.has_collided.value
-            println(system.collision_u)
-
             for particle in  TrixiParticles.each_moving_particle(system)
                 v[:, particle] += system.collision_impulse
                 u[:, particle] += system.collision_u
@@ -132,6 +130,6 @@ end
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL49(;stage_limiter! =collision),
-            abstol=1e-6, # Default abstol is 1e-6
-            reltol=1e-4, # Default reltol is 1e-3
+            abstol=1e-7, # Default abstol is 1e-6
+            reltol=1e-5, # Default reltol is 1e-3
             save_everystep=false, callback=callbacks);

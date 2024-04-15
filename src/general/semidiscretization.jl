@@ -714,12 +714,10 @@ end
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    total_dv = zeros(ndims(particle_system))
-
-    max_overlap = 0.0
-    max_normal = zeros(ndims(particle_system))
     particle_system.collision_impulse .= zeros(ndims(particle_system))
     particle_system.collision_u .= zeros(ndims(particle_system))
+    max_overlap = 0.0
+    collision_normal = zeros(ndims(particle_system))
 
     # Detect the maximum overlap and calculate the normal vector at maximum overlap
     for_particle_neighbor(particle_system, neighbor_system, system_coords,
@@ -728,19 +726,15 @@ end
         overlap = collision_distance - distance
         if overlap > max_overlap
             max_overlap = overlap
-            max_normal = pos_diff / distance  # Normal vector pointing from particle to neighbor
+            # Normal vector pointing from particle to neighbor
+            collision_normal = pos_diff / distance
         end
     end
 
     if max_overlap > 0
         particle_system.has_collided.value = true
-        # current_dv_normal = dot(dv[:, particle], max_normal) * max_normal
 
-        particle_velocity = extract_svector(v_particle_system, particle_system, 1)
-        initial_normal_velocity = dot(particle_velocity, max_normal)
-
-        # we need to move in the opposite direction the same amount so times 2
-        particle_system.collision_u .= (max_overlap + sqrt(eps()))* max_normal + max_overlap/norm(particle_velocity) * initial_normal_velocity
+        initial_velocity_normal = dot(extract_svector(v_particle_system, particle_system, 1), collision_normal)
 
         # Coefficient of restitution (0 < e <= 1)
         # Tungsten Carbide = 0.7 to 1.0
@@ -748,60 +742,29 @@ end
         # High Grade aluminium hardened = 0.7 to 0.8
         # Low Grade aluminium unhardened = 0.3 to 0.4
         # Pure aluminium = 0.08 to 0.12
-        e = 0.8
-        if norm(particle_velocity) < sqrt(eps())
-            e = 0.0
+        restitution_coefficient = 0.1
+        if norm(initial_velocity_normal) < 10*sqrt(eps())
+            restitution_coefficient = 0.0
         end
 
         # Calculate the required change in velocity along the normal (reversing it to simulate a bounce)
-        change_in_velocity_normal = -(1 + e) * initial_normal_velocity * max_normal
+        velocity_change_normal = -(1 + restitution_coefficient) * initial_velocity_normal * collision_normal
 
-        #collision_time = max_overlap/norm(particle_velocity)
-        #println("collison_time", collision_time)
+        # we need to move in the opposite direction the same amount so times 2
+        positional_correction = (2.0 * max_overlap + sqrt(eps())) * collision_normal
+        # if we don't move back far enough the current version gets unstable
+        movement_scale = max(1.0, 0.25 * particle_radius / norm(positional_correction))
+        positional_correction_scaled = positional_correction * movement_scale
 
-        particle_system.collision_impulse .= change_in_velocity_normal
+        particle_system.collision_u .= positional_correction_scaled
+        particle_system.collision_impulse .= velocity_change_normal
 
         # Apply the change uniformly across all particles
         for particle in each_moving_particle(particle_system)
-            current_dv_normal = dot(dv[:, particle], max_normal) * max_normal
-            # dv[:, particle] = change_in_velocity_normal / collision_time
-            # dv[:, particle] += -current_dv_normal + change_in_velocity_normal * 50000
-            dv[:, particle] += -current_dv_normal
+            current_normal_component = dot(dv[:, particle], collision_normal) * collision_normal
+            dv[:, particle] += -current_normal_component
         end
     end
-
-    # doesn't work
-    # for particle in each_moving_particle(particle_system)
-    #     @inbounds for i in 1:ndims(particle_system)
-    #         u_particle_system[i, particle] -= position_correction[i]
-    #     end
-    # end
-
-    # normal = pos_diff / distance
-
-    # part_v = extract_svector(v_particle_system, particle_system, particle)
-    # nghbr_v = extract_svector(v_neighbor_system, neighbor_system, neighbor)
-    # rel_vel = part_v - nghbr_v
-
-    # # nothing to do we are in contact
-    # norm(rel_vel) <= sqrt(eps()) && return
-
-    # println("collide")
-
-    # rel_vel_normal = dot(rel_vel, normal)
-    # collision_damping_coefficient = 0.1
-    # force_magnitude = collision_damping_coefficient * rel_vel_normal
-    # force = force_magnitude * normal
-
-    # @inbounds for i in 1:ndims(particle_system)
-    #     total_dv[i] += force[i] / mass[particle]
-    # end
-
-    # for particle in each_moving_particle(particle_system)
-    #     for i in 1:ndims(particle_system)
-    #         dv[i, particle] += total_dv[i]
-    #     end
-    # end
 
     return dv
 end
