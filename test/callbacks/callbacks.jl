@@ -2,4 +2,5 @@
     include("info.jl")
     include("stepsize.jl")
     include("postprocess.jl")
+    include("update.jl")
 end
