@@ -373,11 +373,9 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                     # This can be dispatched per system
                     add_velocity!(du, v, particle, system)
                 end
-                # if system isa RigidSPHSystem && system.has_collided.value
-                #     for particle in each_moving_particle(system)
-                #         du[:, particle] = system.collision_impulse
-                #     end
-                # end
+                if system isa RigidSPHSystem && system.has_collided.value
+                    println("body speed", v[:,1])
+                end
             end
         end
 
@@ -399,6 +397,7 @@ end
 @inline add_velocity!(du, v, particle, system::BoundarySPHSystem) = du
 
 function kick!(dv_ode, v_ode, u_ode, semi, t)
+    println("kick at ", t)
     @trixi_timeit timer() "kick!" begin
         @trixi_timeit timer() "reset ∂v/∂t" set_zero!(dv_ode)
 
@@ -409,9 +408,6 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
                                                                        semi)
 
         @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
-
-        @trixi_timeit timer() "collision interaction" collision_interaction!(dv_ode, v_ode,
-                                                                             u_ode, semi)
     end
 
     return dv_ode
@@ -597,24 +593,24 @@ end
 end
 
 # start of recursion
-function collision_interaction!(dv_ode, v_ode, u_ode, semi)
-    collision_interaction!(dv_ode, v_ode, u_ode, semi, true)
+function collision_interaction!(v_ode, u_ode, semi)
+    collision_interaction!(v_ode, u_ode, semi, true)
 
-    return dv_ode
+    return v_ode
 end
 
-@inline function reset_system_collision_status(semi)
-    foreach_system(semi) do system
-        if system isa RigidSPHSystem || system isa TotalLagrangianSPHSystem
-            system.has_collided.value = false
-        end
-    end
-end
+# @inline function reset_system_collision_status(semi)
+#     foreach_system(semi) do system
+#         if system isa RigidSPHSystem || system isa TotalLagrangianSPHSystem
+#             system.has_collided.value = false
+#         end
+#     end
+# end
 
-function collision_interaction!(dv_ode, v_ode, u_ode, semi, systems_have_collided)
+function collision_interaction!(v_ode, u_ode, semi, systems_have_collided)
     if systems_have_collided
         semi.systems_have_collided.value = false
-        reset_system_collision_status(semi)
+        # reset_system_collision_status(semi)
 
         # Call `interact!` for each pair of systems
         foreach_system(semi) do system
@@ -632,30 +628,30 @@ function collision_interaction!(dv_ode, v_ode, u_ode, semi, systems_have_collide
                         timer_str = ""
                     end
 
-                    collision_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi,
+                    collision_interact!(v_ode, u_ode, system, neighbor, semi,
                                         timer_str=timer_str)
                 end
             end
         end
 
         # if systems have collided we need to call this again since there can be more collisions
-        collision_interaction!(dv_ode, v_ode, u_ode, semi, semi.systems_have_collided.value)
+        # collision_interaction!(v_ode, u_ode, semi, semi.systems_have_collided.value)
     end
 
-    return dv_ode
+    return v_ode
 end
 
 # FluidSystems don't collide with each other
-@inline function collision_interact!(dv_ode, v_ode, u_ode, system::FluidSystem,
+@inline function collision_interact!(v_ode, u_ode, system::FluidSystem,
                                      neighbor::FluidSystem, semi; timer_str="")
-    return dv_ode
+    return v_ode
 end
 
 # BoundarySPHSystems don't collide with each other use RigidSPHSystem
-@inline function collision_interact!(dv_ode, v_ode, u_ode,
+@inline function collision_interact!(v_ode, u_ode,
                                      system::BoundarySPHSystem, neighbor::BoundarySPHSystem,
                                      semi; timer_str="")
-    return dv_ode
+    return v_ode
 end
 
 # @inline function set_collision_status!(semi, system)
@@ -671,9 +667,8 @@ end
 # One can benchmark, e.g. the fluid-fluid interaction, with:
 # dv_ode, du_ode = copy(sol.u[end]).x; v_ode, u_ode = copy(sol.u[end]).x;
 # @btime TrixiParticles.interact!($dv_ode, $v_ode, $u_ode, $fluid_system, $fluid_system, $semi);
-@inline function collision_interact!(dv_ode, v_ode, u_ode, system, neighbor, semi;
-                                     timer_str="")
-    dv = wrap_v(dv_ode, system, semi)
+@inline function collision_interact!(v_ode, u_ode, system, neighbor, semi; timer_str="")
+    #dv = wrap_v(dv_ode, system, semi)
     # dv = wrap_u(dv_ode, system, semi)
 
     v_system = wrap_v(v_ode, system, semi)
@@ -682,24 +677,25 @@ end
     v_neighbor = wrap_v(v_ode, neighbor, semi)
     u_neighbor = wrap_u(u_ode, neighbor, semi)
     nhs = get_neighborhood_search(system, neighbor, semi)
+    nhs_bnd = get_neighborhood_search(neighbor, neighbor, semi)
 
     @trixi_timeit timer() timer_str begin
-        collision_interact!(dv, v_system, u_system, v_neighbor, u_neighbor, nhs, system,
+        collision_interact!(v_system, u_system, v_neighbor, u_neighbor, nhs, nhs_bnd, system,
                             neighbor)
     end
 
     # set_collision_status!(semi, system)
 end
 
-@inline function collision_interact!(dv, v_system, u_system, v_neighbor, u_neighbor,
-                                     nhs, system, neighbor)
-    return dv
+@inline function collision_interact!(v_system, u_system, v_neighbor, u_neighbor,
+                                     nhs, nhs_bnd, system, neighbor)
+    return v_system
 end
 
 # Systems representing solids colliding with a boundary under the assumption the boundary is not influenced by the collision
-@inline function collision_interact!(dv, v_particle_system, u_particle_system,
+@inline function collision_interact!(v_particle_system, u_particle_system,
                                      v_neighbor_system, u_neighbor_system,
-                                     neighborhood_search,
+                                     neighborhood_search, nhs_bnd,
                                      particle_system::Union{RigidSPHSystem,
                                                             TotalLagrangianSPHSystem},
                                      neighbor_system::BoundarySPHSystem)
@@ -709,8 +705,6 @@ end
     (; particle_spacing) = particle_system
     particle_radius = 0.5 * particle_spacing
 
-    collision_distance = neighbor_radius + particle_radius
-
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
@@ -718,23 +712,87 @@ end
     particle_system.collision_u .= zeros(ndims(particle_system))
     max_overlap = 0.0
     collision_normal = zeros(ndims(particle_system))
+    contact_point = zeros(ndims(particle_system))
+    largest_overlap_coord = zeros(ndims(particle_system))
+
+    body_velocity = current_velocity(v_particle_system, particle_system, 1)
 
     # Detect the maximum overlap and calculate the normal vector at maximum overlap
     for_particle_neighbor(particle_system, neighbor_system, system_coords,
                           neighbor_system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
-        overlap = collision_distance - distance
-        if overlap > max_overlap
-            max_overlap = overlap
-            # Normal vector pointing from particle to neighbor
-            collision_normal = pos_diff / distance
+                          neighborhood_search,
+                          parallel=false) do particle, neighbor, pos_diff, distance
+
+        # Check axis-aligned bounding box overlap i.e. we assume the particles are actually the cell center of a cubic mesh
+        if all(abs(pos_diff[i]) <= (neighbor_radius + particle_radius)
+               for i in 1:ndims(particle_system))
+
+            bnd_coord = extract_svector(neighbor_system_coords, Val(ndims(neighborhood_search)), neighbor)
+            overlap_coord = extract_svector(system_coords, Val(ndims(neighborhood_search)), particle)
+
+            # Calculate overlap on each axis and find the minimum to determine the collision normal
+            overlaps=[]
+            if abs(bnd_coord[2] - overlap_coord[2]) < neighbor_radius + particle_radius && bnd_coord[2] > 0.0
+                overlaps = [abs(overlap_coord[1] - bnd_coord[1]), 0.0]
+            else
+                overlaps = [0.0, abs(overlap_coord[2] - bnd_coord[2])]
+            end
+
+            overlaps = [(particle_radius + neighbor_radius) - abs(pos_diff[i])
+                        for i in 1:ndims(particle_system)]
+                # min_overlap, axis = findmin(overlaps)
+                # if min_overlap > max_overlap
+                # # max_overlap = min_overlap
+                # # collision_normal[axis] = sign(pos_diff[axis])
+                # # bnd_coord = extract_svector(neighbor_system_coords,
+                # #                             Val(ndims(neighborhood_search)), neighbor)
+                # # largest_overlap_coord .= extract_svector(system_coords,
+                # #                                          Val(ndims(neighborhood_search)),
+                # #                                          particle)
+                # # contact_point = largest_overlap_coord + collision_normal * max_overlap
+                # normal_accumulator = zeros(Float64, ndims(particle_system))
+                # bnd_coord = extract_svector(neighbor_system_coords, Val(ndims(neighborhood_search)), neighbor)
+
+                # # Calculate the surface normal using neighbors of the most overlapping boundary particle
+                # for bnd_neighbor in eachneighbor(bnd_coord, nhs_bnd)
+                #     n_pos_diff = extract_svector(neighbor_system_coords, Val(ndims(neighborhood_search)), bnd_neighbor) - bnd_coord
+                #     n_distance = norm(n_pos_diff)
+                #     if n_distance > sqrt(eps())
+                #         normal_accumulator += normalize(n_pos_diff) * smoothing_kernel(neighbor_system, n_distance)
+                #     end
+                #     # println("n_pos_diff", n_pos_diff, " ", normalize(n_pos_diff))
+
+                #     # println("normal_accumulator", normal_accumulator)
+                # end
+
+                # collision_normal = normalize(normal_accumulator)
+
+                if abs(overlaps[2]) > sqrt(eps())
+                    if overlaps[2] > max_overlap
+                        collision_normal = [0.0, -1.0]
+                        max_overlap = overlaps[2]
+                    end
+                elseif abs(overlaps[1]) > sqrt(eps())
+                    if overlaps[1] > max_overlap
+                        collision_normal = [-1.0, 0.0]
+                        max_overlap = overlaps[1]
+                    end
+                end
+
+                # max_overlap = min_overlap
+                # overall_normal = normalize(pos_diff)  # Calculate a normalized overall normal
+                # collision_normal = sign.(pos_diff) .* (overlaps ./ min_overlap)  # Weighted direction for minimum overlap
+                # bnd_coord = extract_svector(neighbor_system_coords, Val(ndims(neighborhood_search)), neighbor)
+                largest_overlap_coord .= extract_svector(system_coords, Val(ndims(neighborhood_search)), particle)
+                contact_point = largest_overlap_coord - 100.0 * collision_normal * max_overlap
+
         end
     end
 
     if max_overlap > 0
         particle_system.has_collided.value = true
 
-        initial_velocity_normal = dot(extract_svector(v_particle_system, particle_system, 1), collision_normal)
+        initial_velocity_normal = dot(body_velocity, collision_normal)
 
         # Coefficient of restitution (0 < e <= 1)
         # Tungsten Carbide = 0.7 to 1.0
@@ -743,30 +801,68 @@ end
         # Low Grade aluminium unhardened = 0.3 to 0.4
         # Pure aluminium = 0.08 to 0.12
         restitution_coefficient = 0.1
-        if norm(initial_velocity_normal) < 10*sqrt(eps())
+        if norm(initial_velocity_normal) < 10 * sqrt(eps())
             restitution_coefficient = 0.0
         end
 
         # Calculate the required change in velocity along the normal (reversing it to simulate a bounce)
-        velocity_change_normal = -(1 + restitution_coefficient) * initial_velocity_normal * collision_normal
+        velocity_change_normal = -(1 + restitution_coefficient) * initial_velocity_normal *
+                                 collision_normal
 
-        # we need to move in the opposite direction the same amount so times 2
-        positional_correction = (2.0 * max_overlap + sqrt(eps())) * collision_normal
-        # if we don't move back far enough the current version gets unstable
-        movement_scale = max(1.0, 0.25 * particle_radius / norm(positional_correction))
-        positional_correction_scaled = positional_correction * movement_scale
+        println(particle_system)
+        println("initial_velocity_normal ", initial_velocity_normal)
+        println("collision_normal ", collision_normal)
 
-        particle_system.collision_u .= positional_correction_scaled
-        particle_system.collision_impulse .= velocity_change_normal
+        post_collision_velocity = body_velocity + velocity_change_normal
+
+        # velocity_change = norm(v_particle_system[:, 1]) -  norm(v_particle_system[:, 1] + velocity_change_normal)
+        # if abs(velocity_change) > 1
+        #     println("before: ", v_particle_system[:, 1])
+        #     println("after: ", v_particle_system[:, 1] + velocity_change_normal)
+        #     println("imp: ", velocity_change_normal)
+
+        #     exit(-1)
+        # end
+
+        # Calculate back movement time based on post-collision velocity
+        back_movement_time = (max_overlap + sqrt(eps())) / norm(body_velocity)
+        back_movement = post_collision_velocity * back_movement_time
+
+        # positional_correction = max_overlap * collision_normal
+
+        # # we need to move in the opposite direction the same amount so times 2
+        # positional_correction = (2.0 * max_overlap + sqrt(eps())) * collision_normal
+        # # if we don't move back far enough the current version gets unstable
+        # movement_scale = max(1.0, 0.25 * particle_radius / norm(positional_correction))
+        # positional_correction_scaled = positional_correction * movement_scale
+
+        # position_correction = (contact_point - largest_overlap_coord)
+        # println("position_correction", position_correction)
+        # println("largest_overlap_coord", largest_overlap_coord)
+        println("contact_point", contact_point)
+        println("post_collision_velocity", post_collision_velocity)
+        # println("body_velocity", body_velocity)
+        # exit(-1)
+
+        # if norm(position_correction) > 0.1
+        #     exit(-1)
+        # end
+
+        position_correction = (contact_point - largest_overlap_coord) +
+                                       back_movement
+        # collision_impulse = velocity_change_normal
+        println("position_correction", position_correction)
+        println("back_movement", back_movement)
 
         # Apply the change uniformly across all particles
         for particle in each_moving_particle(particle_system)
-            current_normal_component = dot(dv[:, particle], collision_normal) * collision_normal
-            dv[:, particle] += -current_normal_component
+            v_particle_system[:, particle] = post_collision_velocity
+            # u_particle_system[:, particle] += position_correction
+            u_particle_system[:, particle] += [0.0, 0.5]
         end
     end
 
-    return dv
+    return v_particle_system
 end
 
 # collision influences both systems

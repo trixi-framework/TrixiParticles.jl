@@ -1,5 +1,6 @@
 using TrixiParticles
 using OrdinaryDiffEq
+using LinearAlgebra
 
 # ==========================================================================================
 # ==== Resolution
@@ -13,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 4.0)
+tspan = (0.0, 0.4)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
@@ -107,7 +108,7 @@ semi = Semidiscretization(boundary_system, solid_system_2)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=10)
-saving_callback = SolutionSavingCallback(dt=0.02, output_directory="out", prefix="",
+saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="",
                                          write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
@@ -115,17 +116,29 @@ callbacks = CallbackSet(info_callback, saving_callback)
 function collision(vu, integrator, semi, t)
     v_ode, u_ode = vu.x
 
-    TrixiParticles.foreach_system(semi) do system
-        v =  TrixiParticles.wrap_v(v_ode, system, semi)
-        u =  TrixiParticles.wrap_u(u_ode, system, semi)
+    println("vollision at ", t)
 
-        if system isa RigidSPHSystem && system.has_collided.value
-            for particle in  TrixiParticles.each_moving_particle(system)
-                v[:, particle] += system.collision_impulse
-                u[:, particle] += system.collision_u
-            end
-        end
-    end
+    TrixiParticles.collision_interaction!(v_ode, u_ode, semi)
+
+    # TrixiParticles.foreach_system(semi) do system
+    #     v =  TrixiParticles.wrap_v(v_ode, system, semi)
+    #     u =  TrixiParticles.wrap_u(u_ode, system, semi)
+
+    #     if system isa RigidSPHSystem && system.has_collided.value
+    #         velocity_change = norm(v[:, 1]) -  norm(v[:, 1] + system.collision_impulse)
+    #         if abs(velocity_change) > 1
+    #             println("before: ", v[:, 1])
+    #             println("after: ", v[:, 1] + system.collision_impulse)
+    #             println("imp: ", system.collision_impulse)
+
+    #             exit(-1)
+    #         end
+    #         for particle in  TrixiParticles.each_moving_particle(system)
+    #             v[:, particle] += system.collision_impulse
+    #             u[:, particle] += system.collision_u
+    #         end
+    #     end
+    # end
 end
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
