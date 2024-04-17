@@ -347,7 +347,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                           system_coords, neighbor_coords,
                                           v_neighbor_system, nhs)
         end
-        @simd for particle in eachparticle(system)
+        for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
             # boundary particles at free surfaces (sticking artifacts).
             pressure[particle] = max(pressure[particle], 0.0)
