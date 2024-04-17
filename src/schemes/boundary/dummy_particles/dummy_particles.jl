@@ -335,6 +335,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
            ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
+            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
             adami_pressure_extrapolation_neighbor!(boundary_model, system, neighbor_system,
                                                    system_coords, neighbor_coords,
                                                    v_neighbor_system, nhs)
