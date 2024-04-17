@@ -399,7 +399,7 @@ end
                           particles=eachparticle(neighbor_system),
                           parallel=false) do neighbor, particle,
                                              pos_diff, distance
-        # since neighbor and particle are switched
+        # Since neighbor and particle are switched
         pos_diff = -pos_diff
         adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
                               v_neighbor_system, particle, neighbor, pos_diff,
