@@ -197,3 +197,9 @@ end
 function viscosity_model(system::RigidSPHSystem)
     return system.boundary_model.viscosity
 end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem)
+    (; acceleration, particle_spacing) = system
+
+    return cfl_number * particle_spacing/maximum(abs.(acceleration))
+end

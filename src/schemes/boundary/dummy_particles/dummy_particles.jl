@@ -378,12 +378,18 @@ end
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
         density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
-
-        resulting_acc = neighbor_system.acceleration -
-                        current_acceleration(system, particle)
-
         kernel_weight = smoothing_kernel(boundary_model, distance)
 
+        # if system isa RigidSPHSystem
+        #     resulting_acc = neighbor_system.acceleration - 100.0 * system.acceleration
+        # else
+        resulting_acc = neighbor_system.acceleration -
+                        current_acceleration(system, particle)
+        # end
+
+        if system isa RigidSPHSystem
+            pressure[particle] +=100000*kernel_weight
+        end
         pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
                                                  neighbor) +
                                dot(resulting_acc, density_neighbor * pos_diff)) *
