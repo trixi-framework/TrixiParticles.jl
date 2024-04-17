@@ -4,7 +4,7 @@ using LinearAlgebra
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.015
+fluid_particle_spacing = 0.01
 solid_particle_spacing = fluid_particle_spacing
 
 # Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
@@ -14,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 2.0)
+tspan = (0.0, 4.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
@@ -39,7 +39,7 @@ sphere1_density = 600.0
 sphere2_density = 3000
 
 sphere1_center = (0.5, 1.1)
-sphere2_center = (1.5, 0.8)
+sphere2_center = (1.0, 0.8)
 sphere1 = SphereShape(solid_particle_spacing, sphere1_radius, sphere1_center,
                       sphere1_density, sphere_type=VoxelSphere())
 sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
@@ -47,7 +47,7 @@ sphere2 = SphereShape(solid_particle_spacing, sphere2_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 3.0 * fluid_particle_spacing
+fluid_smoothing_length = 3.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -118,34 +118,6 @@ function collision(vu, integrator, semi, t)
     # println("vollision at ", t)
 
     TrixiParticles.collision_interaction!(v_ode, u_ode, semi)
-
-    # TrixiParticles.foreach_system(semi) do system
-    #     v =  TrixiParticles.wrap_v(v_ode, system, semi)
-    #     u =  TrixiParticles.wrap_u(u_ode, system, semi)
-
-    #     if system isa RigidSPHSystem && system.has_collided.value
-    #         velocity_change = norm(v[:, 1]) -  norm(v[:, 1] + system.collision_impulse)
-    #         if abs(velocity_change) > 1
-    #             println("before: ", v[:, 1])
-    #             println("after: ", v[:, 1] + system.collision_impulse)
-    #             println("imp: ", system.collision_impulse)
-
-    #             exit(-1)
-    #         end
-    #         for particle in  TrixiParticles.each_moving_particle(system)
-    #             v[:, particle] += system.collision_impulse
-    #             u[:, particle] += system.collision_u
-    #         end
-    #     end
-    # end
-end
-
-function collision2(vu, integrator, semi, t)
-    v_ode, u_ode = vu.x
-
-    # println("vollision at ", t)
-
-    TrixiParticles.collision_interaction!(v_ode, u_ode, semi, u_only=true)
 
     # TrixiParticles.foreach_system(semi) do system
     #     v =  TrixiParticles.wrap_v(v_ode, system, semi)

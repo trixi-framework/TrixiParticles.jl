@@ -808,7 +808,7 @@ end
         # Low Grade aluminium unhardened = 0.3 to 0.4
         # Pure aluminium = 0.08 to 0.12
         restitution_coefficient = 0.5
-        println("initial_velocity_normal", initial_velocity_normal, " max ", max_overlap)
+        # println("initial_velocity_normal", initial_velocity_normal, " max ", max_overlap)
         # todo: this actually depends on the timestep
         if norm(initial_velocity_normal) < 1e-2 || max_overlap < 1e-6
             restitution_coefficient = 0.0
@@ -818,7 +818,7 @@ end
         velocity_change_normal = -(1 + restitution_coefficient) * initial_velocity_normal *
                                  collision_normal
 
-        println("collision_normal ", collision_normal)
+        # println("collision_normal ", collision_normal)
 
         post_collision_velocity = body_velocity + velocity_change_normal
 
@@ -846,8 +846,8 @@ end
         # position_correction = (contact_point - largest_overlap_coord)
         # println("position_correction", position_correction)
         # println("largest_overlap_coord", largest_overlap_coord)
-        println("contact_point", contact_point)
-        println("post_collision_velocity", post_collision_velocity)
+        # println("contact_point", contact_point)
+        # println("post_collision_velocity", post_collision_velocity)
         # println("body_velocity", body_velocity)
         # exit(-1)
 
@@ -858,8 +858,8 @@ end
         position_correction = (contact_point - largest_overlap_coord) +
                                        back_movement
         # collision_impulse = velocity_change_normal
-        println("position_correction", position_correction)
-        println("back_movement", back_movement)
+        # println("position_correction", position_correction)
+        # println("back_movement", back_movement)
 
         # Apply the change uniformly across all particles
         for particle in each_moving_particle(particle_system)

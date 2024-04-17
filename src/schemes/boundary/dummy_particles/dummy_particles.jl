@@ -329,7 +329,7 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                      system_coords, neighbor_coords,
+                                      system_coords, neighbor_coords, v,
                                       v_neighbor_system, nhs)
     end
 
@@ -367,7 +367,7 @@ end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system,
                                                neighbor_system::FluidSystem,
-                                               system_coords, neighbor_coords,
+                                               system_coords, neighbor_coords, v_particle_system,
                                                v_neighbor_system, neighborhood_search)
     (; pressure, cache, viscosity) = boundary_model
 
@@ -388,7 +388,12 @@ end
         # end
 
         if system isa RigidSPHSystem
-            pressure[particle] +=100000*kernel_weight
+            # pressure[particle] += 4000 * kernel_weight
+            pressure[particle] += (10000 + 0.5 * density_neighbor * norm(v_particle_system[1:ndims(system),1])^2) * kernel_weight
+            # println("old ", 0.5* density_neighbor *norm(v_particle_system[:,1])^2 * kernel_weight, " ", 4000 * kernel_weight)
+            # println("new ", 0.5* density_neighbor *norm(v_particle_system[1:ndims(system),1]- v_neighbor_system[1:ndims(system),neighbor])^2 * kernel_weight, " ", 4000 * kernel_weight)
+        # else
+        #     pressure[particle] += (0.5 * density_neighbor * norm(v_neighbor_system[1:ndims(system),neighbor])^2) * kernel_weight
         end
         pressure[particle] += (particle_pressure(v_neighbor_system, neighbor_system,
                                                  neighbor) +
@@ -397,6 +402,7 @@ end
 
         cache.volume[particle] += kernel_weight
 
+        # why is this done here?
         compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
                                    kernel_weight, particle, neighbor)
     end
@@ -409,7 +415,7 @@ end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords,
+                                               system_coords, neighbor_coords, v_particle_system,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
 end
