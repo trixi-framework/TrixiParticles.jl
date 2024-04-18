@@ -184,16 +184,6 @@ end
     return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
 end
 
-@inline function current_acceleration(system::BoundarySPHSystem, particle)
-    (; cache, ismoving) = system
-
-    if ismoving[1]
-        return extract_svector(cache.acceleration, system, particle)
-    end
-
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
-end
-
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end
