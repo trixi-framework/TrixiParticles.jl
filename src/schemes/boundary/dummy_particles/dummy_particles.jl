@@ -44,14 +44,13 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    smoothing_factor   :: ELTYPE
     viscosity          :: V
     correction         :: COR
     cache              :: C
 
     function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                          density_calculator, smoothing_kernel,
-                                         smoothing_factor; viscosity=nothing,
+                                         smoothing_length; viscosity=nothing,
                                          state_equation=nothing, correction=nothing)
         ELTYPE = eltype(initial_density)
         pressure = initial_boundary_pressure(initial_density, density_calculator,
@@ -59,8 +58,6 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
         NDIMS = ndims(smoothing_kernel)
 
         n_particles = length(initial_density)
-
-        smoothing_length = smoothing_factor * particle_spacing
 
         cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
                  create_cache_model(initial_density, density_calculator)...)
@@ -72,7 +69,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
             typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
             typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
                            density_calculator,
-                           smoothing_kernel, smoothing_length, smoothing_factor, viscosity,
+                           smoothing_kernel, smoothing_length, viscosity,
                            correction, cache)
     end
 end
