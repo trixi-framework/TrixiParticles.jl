@@ -472,19 +472,20 @@ end
 @inline function adami_pressure_inner!(boundary_model, system,
                                        neighbor_system::FluidSystem, v,
                                        v_neighbor_system, particle, neighbor, pos_diff,
-                                       distance, viscosity, cache, pressure, pressure_offset)
+                                       distance, viscosity, cache, pressure,
+                                       pressure_offset)
     density_neighbor = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-        kernel_weight = smoothing_kernel(boundary_model, distance)
+    kernel_weight = smoothing_kernel(boundary_model, distance)
 
-        pressure[particle] += (pressure_offset +
-                               particle_pressure(v_neighbor_system, neighbor_system,
-                                                 neighbor) +
-                               dynamic_pressure(density_neighbor, v, v_neighbor_system,
-                                                particle, neighbor, system)
-                               +
-                               dot(neighbor_system.acceleration,
-                                   density_neighbor * pos_diff)) * kernel_weight
+    pressure[particle] += (pressure_offset +
+                           particle_pressure(v_neighbor_system, neighbor_system,
+                                             neighbor) +
+                           dynamic_pressure(density_neighbor, v, v_neighbor_system,
+                                            particle, neighbor, system)
+                           +
+                           dot(neighbor_system.acceleration,
+                               density_neighbor * pos_diff)) * kernel_weight
 
     cache.volume[particle] += kernel_weight
 
