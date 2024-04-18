@@ -551,7 +551,6 @@ function system_interaction!(dv_ode, v_ode, u_ode, semi)
             else
                 timer_str = ""
             end
-
             interact!(dv_ode, v_ode, u_ode, system, neighbor, semi, timer_str=timer_str)
         end
     end

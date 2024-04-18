@@ -1,8 +1,8 @@
 abstract type Shapes{NDIMS} end
 
+include("../point_in_poly/algorithm.jl")
 include("polygon_shape.jl")
 include("triangle_mesh.jl")
-include("point_in_poly/algorithm.jl")
 
 function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
                       pressure=0.0, scale_factor=nothing, ELTYPE=Float64, skipstart=1,
@@ -53,9 +53,10 @@ function read_in_2d(; filename, scale_factor=nothing, ELTYPE=Float64, skipstart=
     return copy(points')
 end
 
-function particle_grid(vertices, particle_spacing; pad=2particle_spacing, seed=nothing,
+function particle_grid(shape, particle_spacing; pad=2particle_spacing, seed=nothing,
                        max_nparticles=Int(1e6))
-    NDIMS = size(vertices, 1)
+    NDIMS = ndims(shape)
+    (; min_box, max_box) = shape
 
     if seed !== nothing
         if seed isa AbstractVector && length(seed) == NDIMS
@@ -65,10 +66,10 @@ function particle_grid(vertices, particle_spacing; pad=2particle_spacing, seed=n
                                 "of length $NDIMS for a $(NDIMS)D problem"))
         end
     else
-        min_corner_ = [min_corner(vertices, dim, pad) for dim in 1:NDIMS]
+        min_corner_ = min_box .- pad
     end
 
-    ranges(dim) = min_corner_[dim]:particle_spacing:max_corner(vertices, dim, pad)
+    ranges(dim) = min_corner_[dim]:particle_spacing:(max_box .+ pad)[dim]
 
     ranges_ = ntuple(dim -> ranges(dim), NDIMS)
 
@@ -85,7 +86,7 @@ end
 function sample(; shape, particle_spacing, density, velocity=zeros(ndims(shape)),
                 pressure=0.0, point_in_shape_algorithm=WindingNumberJacobson(),
                 pad=2particle_spacing, seed=nothing, max_nparticles=Int(1e6))
-    grid = particle_grid(shape.vertices, particle_spacing; pad, seed, max_nparticles)
+    grid = particle_grid(shape, particle_spacing; pad, seed, max_nparticles)
 
     inpoly = point_in_shape_algorithm(shape, grid)
     coordinates = grid[:, inpoly]
@@ -96,18 +97,6 @@ end
 
 @inline Base.ndims(::Shapes{NDIMS}) where {NDIMS} = NDIMS
 
-# Note: `n_vertices`-1, since the last vertex is the same as the first one
-@inline eachvertices(shape) = Base.OneTo(shape.n_vertices - 1)
-@inline eachfaces(shape::TriangleMesh) = Base.OneTo(shape.n_faces)
-@inline eachfaces(shape::Polygon) = eachvertices(shape)
+@inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 
-@inline min_corner(vertices, dim, pad) = minimum(vertices[dim, :]) - pad
-@inline max_corner(vertices, dim, pad) = maximum(vertices[dim, :]) + pad
-
-@inline function point_position(A, shape, i)
-    return TrixiParticles.extract_svector(A, Val(ndims(shape)), i)
-end
-
-@inline function point_position(A, ::Val{NDIMS}, i) where {NDIMS}
-    return TrixiParticles.extract_svector(A, Val(NDIMS), i)
-end
+@inline point_position(A, shape, i) = extract_svector(A, Val(ndims(shape)), i)
