@@ -463,7 +463,7 @@ end
                                                  neighbor) +
                                0.5 * density_neighbor *
                                dot(current_velocity(v, system, particle),
-                                   pos_diff / distance)^2
+                                   normalize(pos_diff / distance))^2
                                +
                                dot(neighbor_system.acceleration,
                                    density_neighbor * pos_diff)) * kernel_weight
