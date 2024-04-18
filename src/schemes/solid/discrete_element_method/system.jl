@@ -10,21 +10,24 @@ and interactions between particles are modeled using forces such as normal conta
    velocities, masses, and radii of particles.
 - `kn`: Normal stiffness coefficient for particle-particle and particle-wall contacts.
 
-# Keyword Arguments
+# Keyword
 - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
    an `SVector` of length `NDIMS`, with a default of zero in each dimension.
 - `source_terms`: Optional; additional forces or modifications to particle dynamics not
    captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
 """
 struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    mass              :: Array{ELTYPE, 1}     # [particle]
-    radius            :: Array{ELTYPE, 1}     # [particle]
-    kn                :: ELTYPE               # Normal stiffness
-    acceleration      :: SVector{NDIMS, ELTYPE}
-    source_terms      :: ST
+    initial_condition   :: InitialCondition{ELTYPE}
+    mass                :: Array{ELTYPE, 1}     # [particle]
+    radius              :: Array{ELTYPE, 1}     # [particle]
+    elastic_modulus     :: ELTYPE
+    poissons_ratio      :: ELTYPE
+    kn                  :: ELTYPE               # Normal stiffness
+    damping_coefficient :: ELTYPE
+    acceleration        :: SVector{NDIMS, ELTYPE}
+    source_terms        :: ST
 
-    function DEMSystem(initial_condition, kn;
+    function DEMSystem(initial_condition, kn, elastic_modulus, poissons_ratio; damping_coefficient = 0.0001,
                        acceleration=ntuple(_ -> 0.0,
                                            ndims(initial_condition)), source_terms=nothing)
         NDIMS = ndims(initial_condition)
@@ -39,7 +42,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(source_terms)}(initial_condition, mass, radius, kn,
+        return new{NDIMS, ELTYPE, typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus, poissons_ratio, kn, damping_coefficient,
                                                         acceleration_, source_terms)
     end
 end

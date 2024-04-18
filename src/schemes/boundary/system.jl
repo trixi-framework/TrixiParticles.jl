@@ -46,15 +46,17 @@ System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
 """
-struct BoundaryDEMSystem{BM, NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
     coordinates    :: Array{ELTYPE, 2}
-    boundary_model :: BM
+    radius         :: Array{ELTYPE, 1}
+    kn             :: ELTYPE
 
-    function BoundaryDEMSystem(initial_condition, model)
+    function BoundaryDEMSystem(initial_condition, kn)
         coordinates = initial_condition.coordinates
+        radius      = initial_condition.radius
         NDIMS = size(coordinates, 1)
 
-        return new{typeof(model), NDIMS, eltype(coordinates)}(coordinates, model)
+        return new{NDIMS, eltype(coordinates)}(coordinates, radius, kn)
     end
 end
 
@@ -74,7 +76,6 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
     else
         summary_header(io, "BoundaryDEMSystem{$(ndims(system))}")
         summary_line(io, "#particles", nparticles(system))
-        summary_line(io, "boundary model", system.boundary_model)
         summary_footer(io)
     end
 end

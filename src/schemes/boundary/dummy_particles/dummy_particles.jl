@@ -40,7 +40,6 @@ BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     pressure           :: Vector{ELTYPE}
     hydrodynamic_mass  :: Vector{ELTYPE}
-    radius             :: Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -77,25 +76,6 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                            density_calculator,
                            smoothing_kernel, smoothing_length, smoothing_factor, viscosity,
                            correction, cache)
-    end
-
-    function BoundaryModelDummyParticles(radius)
-        ELTYPE = eltype(radius)
-        pressure = similar(radius)
-        n_particles = length(radius)
-
-        mass = ones(ELTYPE, n_particles)
-
-        smoothing_length = 2 * maximum(radius)
-
-        new{Nothing, ELTYPE, Nothing, Nothing, Nothing, Nothing, Nothing}(pressure, mass,
-                                                                          radius,
-                                                                          nothing, nothing,
-                                                                          nothing,
-                                                                          smoothing_length,
-                                                                          1.0,
-                                                                          nothing, nothing,
-                                                                          nothing)
     end
 end
 

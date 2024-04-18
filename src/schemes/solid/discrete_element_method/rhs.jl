@@ -4,24 +4,19 @@
 # When particles overlap (i.e., they come into contact), a normal force is applied to resolve the overlap.
 # This force is computed based on Hertzian contact mechanics typical for DEM simulations.
 # The force is proportional to the amount of overlap and is directed along the normal between the particle centers.
-# The magnitude of the force is determined by the stiffness constant `kn` and the overlap distan
+# The magnitude of the force is determined by the stiffness constant `kn` and the overlap distance.
 function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                    u_neighbor_system, neighborhood_search, particle_system::DEMSystem,
                    neighbor_system)
-    (; mass, radius) = particle_system
+    (; mass, radius, elastic_modulus, poissons_ratio, damping_coefficient) = particle_system
+
     nghb_radius = neighbor_system.radius
     nghb_mass = neighbor_system.mass
-    gamma_coefficient = 0.0001
-
-    E_particle = 10 * 10^9 #particle_system.elastic_modulus  # Elastic modulus for particles
-    nu_particle = 0.3 #particle_system.poissons_ratio  # Poisson's ratio for particles
-
-    # Extracting material properties for neighbor system
-    E_neighbor = 10 * 10^9 #neighbor_system.elastic_modulus  # Elastic modulus for neighbor
-    nu_neighbor = 0.3 #neighbor_system.poissons_ratio  # Poisson's ratio for neighbor
+    nghb_elastic_modulus = neighbor_system.elastic_modulus
+    nghb_poissons_ratio = neighbor_system.poissons_ratio
 
     # Compute effective modulus for both systems
-    E_star = 1 / ((1 - nu_particle^2) / E_particle + (1 - nu_neighbor^2) / E_neighbor)
+    E_star = 1 / ((1 - poissons_ratio^2) / elastic_modulus + (1 - nghb_poissons_ratio^2) / nghb_elastic_modulus)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -62,7 +57,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         rel_vel_normal = dot(rel_vel, normal)
 
         # Compute the force magnitude using Hertzian contact mechanics with damping
-        force_magnitude = kn * overlap + gamma_coefficient * gamma_c * rel_vel_normal
+        force_magnitude = kn * overlap + damping_coefficient * gamma_c * rel_vel_normal
 
         force = force_magnitude * normal
 
@@ -80,11 +75,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                    neighbor_system::BoundaryDEMSystem)
     (; mass, radius, kn) = particle_system
 
-    nghb_radius = neighbor_system.boundary_model.radius
-
-    max_kn = kn
-    wall_kn_factor = 5 * max_kn
-    wall_kn = wall_kn_factor * max_kn
+    nghb_kn = neighbor_system.kn
+    nghb_radius = neighbor_system.radius
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -111,7 +103,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         end
 
         # Compute the force magnitude using Hertzian contact mechanics
-        force_magnitude = wall_kn * position_correction_factor * overlap
+        force_magnitude = nghb_kn * position_correction_factor * overlap
 
         force = force_magnitude * normal
 
