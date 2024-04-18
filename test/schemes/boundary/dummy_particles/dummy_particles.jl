@@ -56,7 +56,7 @@
                                         boundary_system.boundary_model.viscosity)
             TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
                                                          fluid_system, boundary.coordinates,
-                                                         fluid.coordinates,v_fluid,
+                                                         fluid.coordinates, v_fluid,
                                                          v_fluid .*
                                                          ones(size(fluid.coordinates)),
                                                          neighborhood_search)
@@ -94,7 +94,8 @@
                                         boundary_system.boundary_model.viscosity)
             TrixiParticles.adami_pressure_extrapolation!(boundary_model, boundary_system,
                                                          fluid_system, boundary.coordinates,
-                                                         fluid.coordinates, v_fluid, v_fluid,
+                                                         fluid.coordinates, v_fluid,
+                                                         v_fluid,
                                                          neighborhood_search)
 
             for particle in TrixiParticles.eachparticle(boundary_system)
