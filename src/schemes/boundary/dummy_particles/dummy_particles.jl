@@ -376,6 +376,23 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::BoundarySPHSystem)
+    if system.ismoving[1]
+        return 0.5 * density_neighbor *
+               norm(current_velocity(v, system, particle) -
+                    v_neighbor_system[1:ndims(system), neighbor])^2
+    end
+    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+end
+
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::TotalLagrangianSPHSystem)
+    return 0.5 * density_neighbor *
+           norm(current_velocity(v, system, particle) -
+                v_neighbor_system[1:ndims(system), neighbor])^2
+end
+
 @inline function adami_pressure_extrapolation!(boundary_model, system,
                                                neighbor_system::FluidSystem,
                                                system_coords, neighbor_coords, v,
@@ -396,9 +413,8 @@ end
         pressure[particle] += (pressure_offset +
                                particle_pressure(v_neighbor_system, neighbor_system,
                                                  neighbor) +
-                               0.5 * density_neighbor *
-                               dot(current_velocity(v, system, particle),
-                                   normalize(pos_diff / distance))^2
+                               dynamic_pressure(density_neighbor, v, v_neighbor_system,
+                                                particle, neighbor, system)
                                +
                                dot(neighbor_system.acceleration,
                                    density_neighbor * pos_diff)) * kernel_weight
