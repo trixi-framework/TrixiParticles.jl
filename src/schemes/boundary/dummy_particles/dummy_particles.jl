@@ -397,17 +397,17 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
 end
 
 @inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
-                                  neighbor, system::BoundarySPHSystem)
+                                  neighbor, system::BoundarySystem)
     if system.ismoving[1]
         return 0.5 * density_neighbor *
                norm(current_velocity(v, system, particle) -
                     v_neighbor_system[1:ndims(system), neighbor])^2
     end
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return 0.0
 end
 
 @inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
-                                  neighbor, system::TotalLagrangianSPHSystem)
+                                  neighbor, system::SolidSystem)
     return 0.5 * density_neighbor *
            norm(current_velocity(v, system, particle) -
                 v_neighbor_system[1:ndims(system), neighbor])^2
