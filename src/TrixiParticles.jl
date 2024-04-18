@@ -15,6 +15,7 @@ using LinearAlgebra: norm, dot, I, tr, inv, pinv, det, cross, normalize
 using MeshIO: decompose, TriangleFace
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
+using OrdinaryDiffEq
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series

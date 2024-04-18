@@ -1,3 +1,17 @@
+function signed_point_face_distance(p::SVector{3}, boundary, face_index)
+    (; face_vertices, normals_vertex, normals_edge, normals_face) = boundary
+
+    # Find distance `p` to triangle
+    return signed_distance(p, face_vertices[face_index], normals_vertex[face_index],
+                           normals_edge[face_index], normals_face[face_index])
+end
+
+function signed_point_face_distance(p::SVector{2}, boundary, face_index)
+    (; edge_vertices, normals_vertex, normals_edge) = boundary
+
+    return signed_distance(p, edge_vertices[face_index], normals_vertex[face_index],
+                           normals_edge[face_index])
+end
 
 # Reference:
 # Christer Ericson’s Real-time Collision Detection book

@@ -20,6 +20,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
                                              smoothing_length, background_pressure, tlsph)
     end
 end
+
 function Base.show(io::IO, system::ParticlePackingSystem)
     @nospecialize system # reduce precompilation time
 
@@ -46,25 +47,29 @@ end
 
 write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true) = vtk
 
+write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
+
+@inline source_terms(system::ParticlePackingSystem) = nothing
+@inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
+
+
 # Number of particles in the system
 @inline nparticles(system::ParticlePackingSystem) = length(system.initial_condition.mass)
 
-@inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
-    for i in 1:ndims(system)
-        du[i, particle] = system.initial_condition.velocity[i, particle]
-    end
-
-    return du
-end
-
 function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
+    u = wrap_u(u_ode, system, semi)
+
+    @trixi_timeit timer() "bounding method" update_position!(u, system)
+
+    update_transport_velocity!(system, v_ode, semi)
+end
+
+function update_position!(u, system::ParticlePackingSystem)
     (; boundary, initial_condition) = system
     (; particle_spacing) = initial_condition
 
     shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
-
-    u = wrap_u(u_ode, system, semi)
 
     @threaded for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
@@ -96,8 +101,6 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
             end
         end
     end
-
-    update_transport_velocity!(system, v_ode, semi)
 end
 
 @inline function update_transport_velocity!(system::ParticlePackingSystem, v_ode, semi)
@@ -116,22 +119,11 @@ end
     return system
 end
 
-write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
+# Evolved velocity is stored in `initial_condition`
+@inline function add_velocity!(du, v, particle, system::ParticlePackingSystem)
+    for i in 1:ndims(system)
+        du[i, particle] = system.initial_condition.velocity[i, particle]
+    end
 
-@inline source_terms(system::ParticlePackingSystem) = nothing
-@inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
-
-function signed_point_face_distance(p::SVector{3}, boundary, face_index)
-    (; face_vertices, normals_vertex, normals_edge, normals_face) = boundary
-
-    # Find distance `p` to triangle
-    return signed_distance(p, face_vertices[face_index], normals_vertex[face_index],
-                           normals_edge[face_index], normals_face[face_index])
-end
-
-function signed_point_face_distance(p::SVector{2}, boundary, face_index)
-    (; edge_vertices, normals_vertex, normals_edge) = boundary
-
-    return signed_distance(p, edge_vertices[face_index], normals_vertex[face_index],
-                           normals_edge[face_index])
+    return du
 end

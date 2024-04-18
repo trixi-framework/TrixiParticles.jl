@@ -7,7 +7,8 @@ include("triangle_mesh.jl")
 function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
                       pressure=0.0, scale_factor=nothing, ELTYPE=Float64, skipstart=1,
                       point_in_shape_algorithm=WindingNumberJacobson(), seed=nothing,
-                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e6))
+                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e6),
+                      particle_packing=false)
     if !isa(filename, String)
         throw(ArgumentError("`filename` must be of type String"))
     end
@@ -32,8 +33,23 @@ function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
         velocity = zeros(ndims(shape))
     end
 
-    return sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
-                  pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
+    ic = sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
+                pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
+
+    packing_args = (smoothing_kernel=WendlandC2Kernel{ndims(ic)}(),
+                    smoothing_length=3.0particle_spacing, background_pressure=100.0,
+                    tlsph=true, time_integrator=RK4(), dtmax=1e-2, info_callback=nothing,
+                    solution_saving_callback=nothing, maxiters=100, tspan=(0.0, 10.0))
+
+    if particle_packing isa Bool
+        return particle_packing ? start_particle_packing(ic, shape; packing_args...) : ic
+    elseif particle_packing isa NamedTuple
+        # start packing with custom arguments
+        return start_particle_packing(ic, shape;
+                                      (; packing_args..., particle_packing...)...)
+    end
+
+    throw(ArgumentError("`particle_packing` must either be of type `Bool` or `NamedTuple`."))
 end
 
 function read_in_2d(; filename, scale_factor=nothing, ELTYPE=Float64, skipstart=1)
