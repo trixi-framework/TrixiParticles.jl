@@ -329,8 +329,8 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         # This is an optimization for simulations with large and complex boundaries.
         # Especially, in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
-        # Note: The version iterating neighbors first is not thread parallizable.
-        # The factor is based on the achievable speed-up of the thread parallizable version.
+        # Note: The version iterating neighbors first is not thread parallelizable.
+        # The factor is based on the achievable speed-up of the thread parallelizable version.
         if nparticles(system) >
            ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
             nhs = get_neighborhood_search(neighbor_system, system, semi)
@@ -427,7 +427,7 @@ end
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
+        adami_pressure_inner!(boundary_model, system, neighbor_system,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)
     end
