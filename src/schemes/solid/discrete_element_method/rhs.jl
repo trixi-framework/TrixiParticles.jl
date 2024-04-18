@@ -16,7 +16,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     nghb_poissons_ratio = neighbor_system.poissons_ratio
 
     # Compute effective modulus for both systems
-    E_star = 1 / ((1 - poissons_ratio^2) / elastic_modulus + (1 - nghb_poissons_ratio^2) / nghb_elastic_modulus)
+    E_star = 1 / ((1 - poissons_ratio^2) / elastic_modulus +
+              (1 - nghb_poissons_ratio^2) / nghb_elastic_modulus)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)

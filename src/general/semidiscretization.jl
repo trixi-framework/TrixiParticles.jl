@@ -593,7 +593,8 @@ function nhs_coords(system::DEMSystem, neighbor::DEMSystem, u)
     return current_coordinates(u, neighbor)
 end
 
-function nhs_coords(system::BoundaryDEMSystem, neighbor::Union{BoundaryDEMSystem, DEMSystem}, u)
+function nhs_coords(system::BoundaryDEMSystem,
+                    neighbor::Union{BoundaryDEMSystem, DEMSystem}, u)
     return nothing
 end
 function nhs_coords(system::DEMSystem, neighbor::BoundaryDEMSystem, u)

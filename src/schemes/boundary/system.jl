@@ -47,13 +47,13 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
-    coordinates    :: Array{ELTYPE, 2}
-    radius         :: Array{ELTYPE, 1}
-    kn             :: ELTYPE
+    coordinates :: Array{ELTYPE, 2}
+    radius      :: Array{ELTYPE, 1}
+    kn          :: ELTYPE
 
     function BoundaryDEMSystem(initial_condition, kn)
         coordinates = initial_condition.coordinates
-        radius      = initial_condition.radius
+        radius = initial_condition.radius
         NDIMS = size(coordinates, 1)
 
         return new{NDIMS, eltype(coordinates)}(coordinates, radius, kn)
