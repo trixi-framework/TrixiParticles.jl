@@ -1,5 +1,6 @@
 """
-    DEMSystem(initial_condition, kn; acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
+    DEMSystem(initial_condition, kn, elastic_modulus, poissons_ratio;
+     damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
 
 Creates a Discrete Element Method (DEM) system for simulating the dynamics of particulate systems.
 DEM tracks the motion and interaction of particles, where each particle is considered discrete,
@@ -9,12 +10,15 @@ and interactions between particles are modeled using forces such as normal conta
 - `initial_condition`: Initial condition of the system, encapsulating the initial positions,
    velocities, masses, and radii of particles.
 - `kn`: Normal stiffness coefficient for particle-particle and particle-wall contacts.
+- `elastic_modulus`: Elastic modulus for this particle system.
+- `poissons_ratio`: Poisson ratio for this particle system.
 
 # Keyword
 - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
    an `SVector` of length `NDIMS`, with a default of zero in each dimension.
 - `source_terms`: Optional; additional forces or modifications to particle dynamics not
    captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
+- `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
 """
 struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
