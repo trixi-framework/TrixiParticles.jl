@@ -46,14 +46,16 @@
         ]
         @test sol.retcode == ReturnCode.Success
         @test count_rhs_allocations(sol, semi) == 0
-        @test isapprox(error_edac_P1, 0, atol=1e-9)
-        @test isapprox(error_edac_P2, 0, atol=1e-11)
 
         if VERSION >= v"1.10"
+            @test isapprox(error_edac_P1, 0, atol=1e-9)
+            @test isapprox(error_edac_P2, 0, atol=6e-12)
             @test isapprox(error_wcsph_P1, 0, atol=eps())
             @test isapprox(error_wcsph_P2, 0, atol=eps())
         else
             # 1.9 causes a large difference in the solution
+            @test isapprox(error_edac_P1, 0, atol=1e-8)
+            @test isapprox(error_edac_P2, 0, atol=1e-10)
             @test isapprox(error_wcsph_P1, 0, atol=10)
             @test isapprox(error_wcsph_P2, 0, atol=1e-3)
         end
