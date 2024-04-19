@@ -3,13 +3,12 @@ struct UpdateCallback{I}
 end
 
 """
-    UpdateCallback(; update=true, interval::Integer, dt=0.0)
+    UpdateCallback(; interval::Integer, dt=0.0)
 
 Callback to update quantities either at the end of every `interval` integration step or at
 regular intervals at `dt` in terms of integration time.
 
 # Keywords
-- `update`: Callback is only applied when `true` (default)
 - `interval`: Update quantities at the end of every `interval` time steps (default `interval=1`)
 - `dt`: Update quantities in regular intervals of `dt` in terms of integration time
 """
