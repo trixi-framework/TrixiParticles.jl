@@ -4,13 +4,9 @@ using OrdinaryDiffEq
 gravity = -9.81
 
 # ==========================================================================================
-# ==== Fluid
+# ==== Falling rocks
 
 particle_spacing = 0.1
-
-# Ratio of fluid particle spacing to boundary particle spacing
-beta = 1
-boundary_layers = 2
 
 rock_width = 2.0
 rock_height = 2.0
@@ -21,12 +17,12 @@ tank_height = 4.0
 
 tank = RectangularTank(particle_spacing, (rock_width, rock_height),
                        (tank_width, tank_height), rock_density,
-                       n_layers=boundary_layers, spacing_ratio=beta)
+                       n_layers=2)
 
 # ==========================================================================================
 # ==== Systems
 
-# let them fall
+# Move the rocks up to let them fall
 tank.fluid.coordinates[2, :] .+= 0.5
 solid_system = DEMSystem(tank.fluid, 2 * 10e5, 10e9, 0.3, acceleration=(0.0, gravity))
 boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
@@ -40,7 +36,7 @@ semi = Semidiscretization(solid_system, boundary_system,
 tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
+info_callback = InfoCallback(interval=5000)
 saving_callback = SolutionSavingCallback(dt=0.02)
 
 callbacks = CallbackSet(info_callback, saving_callback)

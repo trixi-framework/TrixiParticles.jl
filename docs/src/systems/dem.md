@@ -28,3 +28,7 @@ Pages = [joinpath("schemes", "solid", "discrete_element_method", "system.jl")]
   In: Geotechnique, vol. 29, 1979.
   [doi: 10.1680/geot.1979.29.1.47](https://doi.org/10.1680/geot.1979.29.1.47)
 
+- A. Renzo and F. Maio. "Comparison of contact-force models for the simulation of collisions in DEM-based granular flow codes"
+  In: Chemical Engineering Science, 2004.
+  [doi: 10.1016/j.ces.2003.09.037](https://doi.org/10.1016/j.ces.2003.09.037)
+
