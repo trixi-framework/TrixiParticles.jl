@@ -341,9 +341,15 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         else
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-        adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                      system_coords, neighbor_coords,
-                                      v_neighbor_system, nhs)
+            adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
+                                          system_coords, neighbor_coords,
+                                          v_neighbor_system, nhs)
+        end
+        @simd for particle in eachparticle(system)
+            # Limit pressure to be non-negative to avoid attractive forces between fluid and
+            # boundary particles at free surfaces (sticking artifacts).
+            pressure[particle] = max(pressure[particle], 0.0)
+        end
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
