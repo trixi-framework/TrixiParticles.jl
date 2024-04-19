@@ -68,7 +68,7 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
+InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0], [-0.5, -0.5, -0.5])
 ```
 """
 struct InitialCondition{ELTYPE}

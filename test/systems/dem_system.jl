@@ -1,4 +1,4 @@
-@testset verbose=true "EntropicallyDampedSPHSystem" begin
+@testset verbose=true "DEMSystem" begin
     @trixi_testset "show" begin
         coordinates = [1.0 2.0
                        1.0 2.0]
