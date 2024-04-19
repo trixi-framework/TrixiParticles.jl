@@ -26,7 +26,7 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         distance < sqrt(eps()) && return
 
         # Calculate the overlap (penetration depth) between the two particles
-        overlap = r_a[particle] + nghb_radius[neighbor] - distance
+        overlap = r_a[particle] + r_b[neighbor] - distance
 
         # If there's no overlap, no force needs to be applied
         overlap <= 0 && return
