@@ -341,15 +341,9 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
         else
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                          system_coords, neighbor_coords,
-                                          v_neighbor_system, nhs)
-        end
-        @simd for particle in eachparticle(system)
-            # Limit pressure to be non-negative to avoid attractive forces between fluid and
-            # boundary particles at free surfaces (sticking artifacts).
-            pressure[particle] = max(pressure[particle], 0.0)
-        end
+        adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
+                                      system_coords, neighbor_coords,
+                                      v_neighbor_system, nhs)
     end
 
     @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
@@ -397,7 +391,7 @@ end
                           particles=eachparticle(neighbor_system),
                           parallel=false) do neighbor, particle,
                                              pos_diff, distance
-        # since neighbor and particle are switched
+        # Since neighbor and particle are switched
         pos_diff = -pos_diff
         adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
                               v_neighbor_system, particle, neighbor, pos_diff,
@@ -425,7 +419,7 @@ end
                           neighborhood_search;
                           particles=eachparticle(system)) do particle, neighbor,
                                                              pos_diff, distance
-        adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
+        adami_pressure_inner!(boundary_model, system, neighbor_system,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)
     end
