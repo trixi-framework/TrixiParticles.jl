@@ -29,7 +29,11 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
         # Normal direction from particle to neighbor
         normal = pos_diff / distance
 
-        interaction_force = collision_interaction(particle_system, neighbor_system, overlap, normal, v_particle_system, v_neighbor_system, elastic_modulus, poissons_ratio, radius, nghb_radius, mass, damping_coefficient, particle, neighbor)
+        interaction_force = collision_interaction(particle_system, neighbor_system, overlap,
+                                                  normal, v_particle_system,
+                                                  v_neighbor_system, elastic_modulus,
+                                                  poissons_ratio, radius, nghb_radius, mass,
+                                                  damping_coefficient, particle, neighbor)
 
         # Update the acceleration of the particle based on the force and its mass
         for i in 1:ndims(particle_system)
@@ -42,12 +46,18 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     return dv
 end
 
-
-@inline function collision_interaction(particle_system, neighbor_system::BoundaryDEMSystem, overlap, normal, v_particle_system, v_neighbor_system, elastic_modulus, poissons_ratio, radius, nghb_radius, mass, damping_coefficient, particle, neighbor)
+@inline function collision_interaction(particle_system, neighbor_system::BoundaryDEMSystem,
+                                       overlap, normal, v_particle_system,
+                                       v_neighbor_system, elastic_modulus, poissons_ratio,
+                                       radius, nghb_radius, mass, damping_coefficient,
+                                       particle, neighbor)
     return neighbor_system.kn * overlap * normal
 end
 
-@inline function collision_interaction(particle_system, neighbor_system::DEMSystem, overlap, normal, v_particle_system, v_neighbor_system, elastic_modulus, poissons_ratio, radius, nghb_radius, mass, damping_coefficient, particle, neighbor)
+@inline function collision_interaction(particle_system, neighbor_system::DEMSystem, overlap,
+                                       normal, v_particle_system, v_neighbor_system,
+                                       elastic_modulus, poissons_ratio, radius, nghb_radius,
+                                       mass, damping_coefficient, particle, neighbor)
     part_v = extract_svector(v_particle_system, particle_system, particle)
     nghbr_v = extract_svector(v_neighbor_system, neighbor_system, neighbor)
 
@@ -57,18 +67,18 @@ end
 
     # Compute effective modulus for both systems
     E_star = 1 / ((1 - poissons_ratio^2) / elastic_modulus +
-    (1 - neighbor_system.poissons_ratio^2) / neighbor_system.elastic_modulus)
+              (1 - neighbor_system.poissons_ratio^2) / neighbor_system.elastic_modulus)
 
     # Compute effective radius for the interaction
     r_star = (radius[particle] * nghb_radius[neighbor]) /
-    (radius[particle] + nghb_radius[neighbor])
+             (radius[particle] + nghb_radius[neighbor])
 
     # Compute stiffness constant kn for the interaction
     kn = (4 / 3) * E_star * sqrt(r_star * overlap)
 
     # Calculate effective mass for the interaction
     m_star = (mass[particle] * neighbor_system.mass[neighbor]) /
-    (mass[particle] + neighbor_system.mass[neighbor])
+             (mass[particle] + neighbor_system.mass[neighbor])
 
     # Calculate critical damping coefficient
     gamma_c = 2 * sqrt(m_star * kn)
@@ -79,11 +89,12 @@ end
     return force_magnitude * normal
 end
 
-@inline function position_correction!(neighbor_system, u_particle_system, overlap, normal, particle)
-
+@inline function position_correction!(neighbor_system, u_particle_system, overlap, normal,
+                                      particle)
 end
 
-@inline function position_correction!(neighbor_system::BoundaryDEMSystem, u_particle_system, overlap, normal, particle)
+@inline function position_correction!(neighbor_system::BoundaryDEMSystem, u_particle_system,
+                                      overlap, normal, particle)
     for i in 1:ndims(neighbor_system)
         # Position correction to prevent penetration
         u_particle_system[i, particle] -= 0.5 * overlap * normal[i]
