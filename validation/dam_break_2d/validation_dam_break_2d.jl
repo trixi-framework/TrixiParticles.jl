@@ -115,12 +115,12 @@ run_file_edac_name = joinpath("out",
 reference_data = JSON.parsefile(reference_file_edac_name)
 run_data = JSON.parsefile(run_file_edac_name)
 
-error_edac_P1 = interpolated_mre(reference_data["pressure_P1_fluid_1"]["time"],
+error_edac_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
                                  reference_data["pressure_P1_fluid_1"]["values"],
                                  run_data["pressure_P1_fluid_1"]["time"],
                                  run_data["pressure_P1_fluid_1"]["values"])
 
-error_edac_P2 = interpolated_mre(reference_data["pressure_P2_fluid_1"]["time"],
+error_edac_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
                                  reference_data["pressure_P2_fluid_1"]["values"],
                                  run_data["pressure_P2_fluid_1"]["time"],
                                  run_data["pressure_P2_fluid_1"]["values"])
@@ -150,12 +150,12 @@ run_file_wcsph_name = joinpath("out",
 reference_data = JSON.parsefile(reference_file_wcsph_name)
 run_data = JSON.parsefile(run_file_wcsph_name)
 
-error_wcsph_P1 = interpolated_mre(reference_data["pressure_P1_fluid_1"]["time"],
+error_wcsph_P1 = interpolated_mse(reference_data["pressure_P1_fluid_1"]["time"],
                                   reference_data["pressure_P1_fluid_1"]["values"],
                                   run_data["pressure_P1_fluid_1"]["time"],
                                   run_data["pressure_P1_fluid_1"]["values"])
 
-error_wcsph_P2 = interpolated_mre(reference_data["pressure_P2_fluid_1"]["time"],
+error_wcsph_P2 = interpolated_mse(reference_data["pressure_P2_fluid_1"]["time"],
                                   reference_data["pressure_P2_fluid_1"]["values"],
                                   run_data["pressure_P2_fluid_1"]["time"],
                                   run_data["pressure_P2_fluid_1"]["values"])

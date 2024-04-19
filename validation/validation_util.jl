@@ -1,9 +1,3 @@
-# Perform linear interpolation to find a value at `interpolation_point` using arrays `x` and `y`.
-#
-# Arguments:
-# - `x`                   : The array of abscissas (e.g., time points).
-# - `y`                   : The array of ordinates (e.g., data points corresponding to `x`).
-# - `interpolation_point` : The point at which to interpolate the data.
 function linear_interpolation(x, y, interpolation_point)
     if !(first(x) <= interpolation_point <= last(x))
         throw(ArgumentError("`interpolation_point` at $interpolation_point is outside the interpolation range"))
@@ -18,15 +12,6 @@ function linear_interpolation(x, y, interpolation_point)
     return y[i] + slope * (interpolation_point - x[i])
 end
 
-
-# Calculate the mean squared error (MSE) between interpolated simulation values and reference values
-# over a common time range.
-#
-# Arguments:
-# - `reference_time`    : Time points for the reference data.
-# - `reference_values`  : Data points for the reference data.
-# - `simulation_time`   : Time points for the simulation data.
-# - `simulation_values` : Data points for the simulation data.
 function interpolated_mse(reference_time, reference_values, simulation_time,
                           simulation_values)
     if last(simulation_time) > last(reference_time)
@@ -48,37 +33,6 @@ function interpolated_mse(reference_time, reference_values, simulation_time,
     mse = sum((interpolated_values .- filtered_values) .^ 2) / length(common_time_range)
     return mse
 end
-
-# Calculate the mean relative error (MRE) between interpolated simulation values and reference values
-# over a common time range.
-#
-# Arguments:
-# - `reference_time`    : Time points for the reference data.
-# - `reference_values`  : Data points for the reference data.
-# - `simulation_time`   : Time points for the simulation data.
-# - `simulation_values` : Data points for the simulation data.
-function interpolated_mre(reference_time, reference_values, simulation_time, simulation_values)
-    if last(simulation_time) > last(reference_time)
-        @warn "simulation time range is larger than reference time range. " *
-              "Only checking values within reference time range."
-    end
-
-    # Remove reference time points outside the simulation time
-    start = searchsortedfirst(reference_time, first(simulation_time))
-    end_ = searchsortedlast(reference_time, last(simulation_time))
-    common_time_range = reference_time[start:end_]
-
-    # Interpolate simulation data at the common time points
-    interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
-                           for t in common_time_range]
-
-    filtered_values = reference_values[start:end_]
-
-    # Calculate MRE only over the common time range
-    mre = sum(abs.(interpolated_values .- filtered_values) ./ abs.(filtered_values)) / length(common_time_range)
-    return mre
-end
-
 
 function extract_number_from_filename(filename)
     # This regex matches the last sequence of digits in the filename
