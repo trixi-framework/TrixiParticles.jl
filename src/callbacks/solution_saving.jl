@@ -2,7 +2,7 @@
     SolutionSavingCallback(; interval::Integer=0, dt=0.0, save_times=Array{Float64, 1}([]),
                            save_initial_solution=true, save_final_solution=true,
                            output_directory="out", append_timestamp=false, prefix="",
-                           verbose=false, write_meta_data=true max_coordinates=2^15,
+                           verbose=false, write_meta_data=true, max_coordinates=2^15,
                            custom_quantities...)
 
 
