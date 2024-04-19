@@ -22,7 +22,7 @@ Pages = [joinpath("schemes", "solid", "discrete_element_method", "system.jl")]
 ## References
 - N. Bićanić. "Discrete element methods". 
   In: Encyclopedia of Computational Mechanics, 2004.
-  [doi: 10.1002/0470091355.ecm006.pub2]( https://doi.org/10.1002/0470091355.ecm006.pub2)
+  [doi: 10.1002/0470091355.ecm006.pub2](https://doi.org/10.1002/0470091355.ecm006.pub2)
 
 - P. Cundall and O. Strack. "A discrete numerical model for granular assemblies". 
   In: Geotechnique, vol. 29, 1979.

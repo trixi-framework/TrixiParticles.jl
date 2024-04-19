@@ -40,7 +40,7 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
 end
 
 """
-    BoundaryDEMSystem(initial_condition)
+    BoundaryDEMSystem(initial_condition, kn)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
