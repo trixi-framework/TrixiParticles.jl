@@ -19,21 +19,15 @@ function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
 
     u = wrap_u(u_ode, packing_system, semi)
 
-
-    ic.coordinates .= u
-
-    return ic
-
-
     # TODO: Remove particles that are closer than `max_distance` to any particle
-    # Why is this not working?
-    too_close = find_too_close_particles(u, 0.25ic.particle_spacing)
+    max_distance = 0.25ic.particle_spacing
+    too_close = find_too_close_particles(u, max_distance)
 
     if isempty(too_close)
         ic.coordinates .= u
+
         return ic
     end
-
     not_too_close = setdiff(eachparticle(packing_system), too_close)
 
     coordinates = u[:, not_too_close]
@@ -41,6 +35,8 @@ function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
     mass = ic.mass[not_too_close]
     density = ic.density[not_too_close]
     pressure = ic.pressure[not_too_close]
+
+    @info "$(length(too_close)) removed particles that are too close together"
 
     return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
                                        ic.particle_spacing)

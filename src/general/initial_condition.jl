@@ -314,8 +314,8 @@ function find_too_close_particles(coords, max_distance)
     # We are modifying the vector `result`, so this cannot be parallel
     TrixiParticles.for_particle_neighbor(coords, coords, nhs,
                                          parallel=false) do particle, neighbor, _, _
-        if !(neighbor in result)
-            append!(result, neighbor)
+        if particle != neighbor && !(particle in result) && !(neighbor in result)
+            append!(result, particle)
         end
     end
 
