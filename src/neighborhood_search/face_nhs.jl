@@ -2,7 +2,6 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, NP}
     hashtable     :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     nhs_particles :: NP
     cell_size     :: NTuple{NDIMS, ELTYPE}
-    spanning_set  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
 
     function FaceNeighborhoodSearch(nhs_particles)
         NDIMS = ndims(nhs_particles)
@@ -10,14 +9,9 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, NP}
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
 
-        radi = [nhs_particles.search_radius for i in 1:NDIMS]
-        vecs = reinterpret(reshape, SVector{NDIMS, ELTYPE}, I(NDIMS) .* radi')
-
-        spanning_set = [[fill(0.0, SVector{NDIMS}), vecs[i]] for i in 1:NDIMS]
-
         new{NDIMS, ELTYPE,
             typeof(nhs_particles)}(empty!(hashtable), nhs_particles,
-                                   nhs_particles.cell_size, spanning_set)
+                                   nhs_particles.cell_size)
     end
 end
 
@@ -52,6 +46,9 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch{2}, boundary)
     return neighborhood_search
 end
 
+# No nhs
+@inline eachneighborface(coords, nhs_faces::TrivialNeighborhoodSearch) = nhs_faces.eachparticle
+
 # 2D
 @inline function eachneighborface(coords, nhs_faces::FaceNeighborhoodSearch{2})
     cell = TrixiParticles.cell_coords(coords, nhs_faces.nhs_particles)
@@ -65,8 +62,6 @@ end
                                     for cell in neighboring_cells))
 end
 
-@inline eachneighborface(coords, nhs_faces::TrivialNeighborhoodSearch) = nhs_faces.eachparticle
-
 @inline function faces_in_cell(cell_index, neighborhood_search)
     (; hashtable, nhs_particles) = neighborhood_search
     (; empty_vector) = nhs_particles
@@ -77,66 +72,35 @@ end
 end
 
 function cell_intersection(edge, cell, nhs)
-    (; spanning_set, cell_size) = nhs
-
-    min_corner = SVector(cell .* cell_size...)
-
-    v1 = spanning_set[1][2]
-    v2 = spanning_set[2][2]
-
-    position_1 = edge[1] - min_corner
-    position_2 = edge[2] - min_corner
+    (; cell_size) = nhs
 
     # Check if any edge point is in cell
-    point_in_cell(position_1, v1, v2) && return true
-    point_in_cell(position_2, v1, v2) && return true
+    cell == cell_coords(edge[1], nhs.nhs_particles) && return true
+    cell == cell_coords(edge[2], nhs.nhs_particles) && return true
 
-    cell_edge_1 = [spanning_set[1][i] + min_corner for i in 1:2]
-    cell_edge_2 = [spanning_set[2][i] + min_corner for i in 1:2]
+    min_corner = SVector(cell .* cell_size...)
+    max_corner = min_corner + SVector(cell_size...)
 
-    # Check edge intersection with cell edges
-    edge_intersection(edge, cell_edge_1) && return true
-    edge_intersection(edge, cell_edge_2) && return true
+    ray_direction = edge[2] - edge[1]
 
-    return false
+    return ray_intersection(min_corner, max_corner, edge[1], ray_direction)
 end
 
-function edge_intersection(edge_1, edge_2)
-    a = edge_1[1]
-    b = edge_1[2]
+function ray_intersection(min_corner, max_corner, ray_origin, ray_direction)
+    inv_dirx = 1 / ray_direction[1]
+    inv_diry = 1 / ray_direction[2]
 
-    c = edge_2[1]
-    d = edge_2[2]
+    tx1 = (min_corner[1] - ray_origin[1]) * inv_dirx
+    tx2 = (max_corner[1] - ray_origin[1]) * inv_dirx
 
-    # Helper function
-    det2D(ab, cd) = ab[1] * cd[2] - ab[2] * cd[1]
+    tmin = min(tx1, tx2)
+    tmax = max(tx1, tx2)
 
-    v1 = b - a
-    v2 = d - a
-    v3 = c - a
+    ty1 = (min_corner[2] - ray_origin[2]) * inv_diry
+    ty2 = (max_corner[2] - ray_origin[2]) * inv_diry
 
-    det_1 = det2D(v1, v2)
-    det_2 = det2D(v1, v3)
+    tmin = max(tmin, min(ty1, ty2))
+    tmax = min(tmax, max(ty1, ty2))
 
-    if det_1 * det_2 <= 0
-        v4 = d - c
-        v5 = a - c
-        v6 = b - c
-
-        det_3 = det2D(v4, v5)
-        det_4 = det2D(v4, v6)
-
-        if det_3 * det_4 <= 0
-            return true
-        end
-    end
-
-    return false
-end
-
-@inline function point_in_cell(p, v1, v2)
-    !(0 <= dot(p, v1) <= dot(v1, v1)) && return false
-    !(0 <= dot(p, v2) <= dot(v2, v2)) && return false
-
-    return true
+    return tmin <= tmax
 end
