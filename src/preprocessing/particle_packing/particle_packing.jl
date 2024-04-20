@@ -4,11 +4,23 @@ include("rhs.jl")
 
 function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
                                 background_pressure, tlsph, time_integrator, dtmax, tspan,
-                                info_callback, solution_saving_callback, maxiters)
+                                info_callback, solution_saving_callback, maxiters,
+                                neighborhood_search)
     packing_system = ParticlePackingSystem(ic, smoothing_kernel, smoothing_length;
                                            boundary=shape, background_pressure, tlsph)
 
     semi = Semidiscretization(packing_system)
+
+    if neighborhood_search
+        nhs_particles = get_neighborhood_search(packing_system, semi)
+        nhs_faces = FaceNeighborhoodSearch(nhs_particles)
+        initialize!(nhs_faces, shape)
+    else
+        nhs_faces = TrivialNeighborhoodSearch{ndims(packing_system)}(1.0, eachface(shape))
+    end
+
+    packing_system.nhs_faces = nhs_faces
+
     ode = semidiscretize(semi, tspan)
 
     callbacks = CallbackSet(UpdateCallback(), solution_saving_callback, info_callback)

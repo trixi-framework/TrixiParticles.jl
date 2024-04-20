@@ -1,10 +1,11 @@
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
+mutable struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     boundary            :: B
     smoothing_kernel    :: K
     smoothing_length    :: ELTYPE
     background_pressure :: ELTYPE
     tlsph               :: Bool
+    nhs_faces           :: Union{TrivialNeighborhoodSearch, FaceNeighborhoodSearch}
 
     function ParticlePackingSystem(initial_condition, smoothing_kernel, smoothing_length;
                                    background_pressure, boundary, tlsph=false)
@@ -36,6 +37,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         show(io, system)
     else
         summary_header(io, "ParticlePackingSystem{$(ndims(system))}")
+        summary_line(io, "neighborhood search", system.nhs_faces |> typeof |> nameof)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "#faces", nfaces(system.boundary))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
@@ -52,7 +54,6 @@ write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
 @inline source_terms(system::ParticlePackingSystem) = nothing
 @inline add_acceleration!(dv, particle, system::ParticlePackingSystem) = dv
 
-
 # Number of particles in the system
 @inline nparticles(system::ParticlePackingSystem) = length(system.initial_condition.mass)
 
@@ -66,7 +67,7 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
 end
 
 function update_position!(u, system::ParticlePackingSystem)
-    (; boundary, initial_condition) = system
+    (; boundary, initial_condition, nhs_faces) = system
     (; particle_spacing) = initial_condition
 
     shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
@@ -79,7 +80,7 @@ function update_position!(u, system::ParticlePackingSystem)
         normal_vector = fill(0.0, SVector{ndims(system)})
 
         # Determine minimal unsigned distance to boundary
-        for face in eachface(boundary)
+        for face in eachneighborface(particle_position, nhs_faces)
             new_distance_sign, new_distance2, n = signed_point_face_distance(particle_position,
                                                                              boundary, face)
 
