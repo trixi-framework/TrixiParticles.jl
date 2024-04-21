@@ -282,40 +282,30 @@ end
     end
 end
 
-# 1D
-@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{1})
+@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch)
     cell = cell_coords(coords, neighborhood_search)
+
+    # Merge all lists of particles in the neighboring cells into one iterator
+    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
+                      for cell in neighboring_cells(cell))
+end
+
+@inline function neighboring_cells(cell::NTuple{1})
     x = cell[1]
     # Generator of all neighboring cells to consider
-    neighboring_cells = ((x + i) for i in -1:1)
-
-    # Merge all lists of particles in the neighboring cells into one iterator
-    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
-                      for cell in neighboring_cells)
+    return ((x + i) for i in -1:1)
 end
 
-# 2D
-@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{2})
-    cell = cell_coords(coords, neighborhood_search)
+@inline function neighboring_cells(cell::NTuple{2})
     x, y = cell
     # Generator of all neighboring cells to consider
-    neighboring_cells = ((x + i, y + j) for i in -1:1, j in -1:1)
-
-    # Merge all lists of particles in the neighboring cells into one iterator
-    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
-                      for cell in neighboring_cells)
+    return ((x + i, y + j) for i in -1:1, j in -1:1)
 end
 
-# 3D
-@inline function eachneighbor(coords, neighborhood_search::GridNeighborhoodSearch{3})
-    cell = cell_coords(coords, neighborhood_search)
+@inline function neighboring_cells(cell::NTuple{3})
     x, y, z = cell
     # Generator of all neighboring cells to consider
-    neighboring_cells = ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
-
-    # Merge all lists of particles in the neighboring cells into one iterator
-    Iterators.flatten(particles_in_cell(cell, neighborhood_search)
-                      for cell in neighboring_cells)
+    return ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
 end
 
 @inline function particles_in_cell(cell_index, neighborhood_search)

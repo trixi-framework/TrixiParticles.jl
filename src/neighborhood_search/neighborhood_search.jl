@@ -108,4 +108,3 @@ end
 
 include("trivial_nhs.jl")
 include("grid_nhs.jl")
-include("face_nhs.jl")

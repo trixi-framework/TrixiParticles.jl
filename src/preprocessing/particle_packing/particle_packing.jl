@@ -14,7 +14,6 @@ function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
     if neighborhood_search
         nhs_particles = get_neighborhood_search(packing_system, semi)
         nhs_faces = FaceNeighborhoodSearch(nhs_particles)
-        initialize!(nhs_faces, shape)
     else
         nhs_faces = TrivialNeighborhoodSearch{ndims(packing_system)}(1.0, eachface(shape))
     end
