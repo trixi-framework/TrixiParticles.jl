@@ -18,7 +18,6 @@ function linear_interpolation(x, y, interpolation_point)
     return y[i] + slope * (interpolation_point - x[i])
 end
 
-
 # Calculate the mean squared error (MSE) between interpolated simulation values and reference values
 # over a common time range.
 #
@@ -57,7 +56,8 @@ end
 # - `reference_values`  : Data points for the reference data.
 # - `simulation_time`   : Time points for the simulation data.
 # - `simulation_values` : Data points for the simulation data.
-function interpolated_mre(reference_time, reference_values, simulation_time, simulation_values)
+function interpolated_mre(reference_time, reference_values, simulation_time,
+                          simulation_values)
     if last(simulation_time) > last(reference_time)
         @warn "simulation time range is larger than reference time range. " *
               "Only checking values within reference time range."
@@ -74,11 +74,13 @@ function interpolated_mre(reference_time, reference_values, simulation_time, sim
 
     filtered_values = reference_values[start:end_]
 
-    # Calculate MRE only over the common time range
-    mre = sum(abs.(interpolated_values .- filtered_values) ./ abs.(filtered_values)) / length(common_time_range)
-    return mre
-end
+    # Calculate MRE only over the common time range (adding 10*eps() to prevent NaNs)
+    relative_errors = abs.(interpolated_values .- filtered_values) ./
+                      (abs.(filtered_values) + 10 * eps())
+    valid_relative_errors = filter(!isnan, relative_errors)
 
+    return sum(valid_relative_errors) / length(common_time_range)
+end
 
 function extract_number_from_filename(filename)
     # This regex matches the last sequence of digits in the filename
