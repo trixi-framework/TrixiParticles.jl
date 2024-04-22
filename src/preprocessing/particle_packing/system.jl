@@ -5,6 +5,7 @@ mutable struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem
     smoothing_length    :: ELTYPE
     background_pressure :: ELTYPE
     tlsph               :: Bool
+    closest_face        :: Vector{Int} # TODO: Remove this (only for debugging)
     nhs_faces           :: Union{TrivialNeighborhoodSearch, FaceNeighborhoodSearch}
 
     function ParticlePackingSystem(initial_condition, smoothing_kernel, smoothing_length;
@@ -16,9 +17,11 @@ mutable struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
+        closest_face = zeros(Int, nparticles(initial_condition))
         return new{NDIMS, ELTYPE, typeof(boundary),
                    typeof(smoothing_kernel)}(initial_condition, boundary, smoothing_kernel,
-                                             smoothing_length, background_pressure, tlsph)
+                                             smoothing_length, background_pressure, tlsph,
+                                             closest_face)
     end
 end
 
@@ -47,7 +50,15 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
     end
 end
 
-write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true) = vtk
+function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
+    if write_meta_data
+        vtk["n_neigboring_faces"] = [length(eachneighborface(current_coords(u, system,
+                                                                            particle),
+                                                             system.nhs_faces))
+                                     for particle in eachparticle(system)]
+        vtk["closest_face"] = system.closest_face
+    end
+end
 
 write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
 
@@ -67,7 +78,7 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
 end
 
 function update_position!(u, system::ParticlePackingSystem)
-    (; boundary, initial_condition, nhs_faces) = system
+    (; boundary, initial_condition, nhs_faces, closest_face) = system
     (; particle_spacing) = initial_condition
 
     shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
@@ -88,6 +99,7 @@ function update_position!(u, system::ParticlePackingSystem)
                 distance2 = new_distance2
                 distance_sign = new_distance_sign
                 normal_vector = n
+                closest_face[particle] = face
             end
         end
 

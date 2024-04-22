@@ -22,20 +22,18 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, boundary)
 
     empty!(hashtable)
 
-    for cell in keys(nhs_particles.hashtable)
-        for cell_neighbor in neighboring_cells(cell)
-            for face in eachface(boundary)
-                if cell_intersection(boundary, face, cell_neighbor, neighborhood_search)
-                    if haskey(hashtable, cell_neighbor) &&
-                       !(face in hashtable[cell_neighbor])
+    for face in eachface(boundary)
+        for cell in cell_coords(face, boundary, neighborhood_search)
+            if cell_intersection(boundary, face, cell, neighborhood_search)
+                if haskey(hashtable, cell) &&
+                   !(face in hashtable[cell])
 
-                        # Add particle to corresponding cell
-                        append!(hashtable[cell_neighbor], face)
+                    # Add particle to corresponding cell
+                    append!(hashtable[cell], face)
 
-                    else
-                        # Create cell
-                        hashtable[cell_neighbor] = [face]
-                    end
+                else
+                    # Create cell
+                    hashtable[cell] = [face]
                 end
             end
         end
@@ -48,6 +46,47 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, boundary)
     end
 
     return neighborhood_search
+end
+
+function cell_coords(edge, shape::Shapes{2}, neighborhood_search::FaceNeighborhoodSearch)
+    (; cell_size) = neighborhood_search
+
+    v1 = shape.edge_vertices[edge][1]
+    v2 = shape.edge_vertices[edge][2]
+
+    cell1 = Tuple(floor_to_int.(v1 ./ cell_size))
+    cell2 = Tuple(floor_to_int.(v2 ./ cell_size))
+
+    # Create cell grid
+    mins = min.(cell1, cell2)
+    maxs = max.(cell1, cell2)
+
+    rangex = mins[1]:maxs[1]
+    rangey = mins[2]:maxs[2]
+
+    return Iterators.product(rangex, rangey)
+end
+
+function cell_coords(face, shape::Shapes{3}, neighborhood_search::FaceNeighborhoodSearch)
+    (; cell_size) = neighborhood_search
+
+    v1 = shape.face_vertices[face][1]
+    v2 = shape.face_vertices[face][2]
+    v3 = shape.face_vertices[face][3]
+
+    cell1 = Tuple(floor_to_int.(v1 ./ cell_size))
+    cell2 = Tuple(floor_to_int.(v2 ./ cell_size))
+    cell3 = Tuple(floor_to_int.(v3 ./ cell_size))
+
+    # Create cell grid
+    mins = min.(cell1, cell2, cell3)
+    maxs = max.(cell1, cell2, cell3)
+
+    rangex = mins[1]:maxs[1]
+    rangey = mins[2]:maxs[2]
+    rangez = mins[3]:maxs[3]
+
+    return Iterators.product(rangex, rangey, rangez)
 end
 
 # No nhs
