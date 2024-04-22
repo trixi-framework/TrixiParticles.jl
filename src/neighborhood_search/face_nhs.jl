@@ -158,7 +158,7 @@ function ray_intersection(min_corner, max_corner, ray_origin, ray_direction::SVe
     return tmin <= tmax
 end
 
-# TODO: Fix false-negative problem (use signed distance function?)
+# TODO: Realy needs test. Is there a false-negative problem? (use signed distance function?)
 function triangle_plane_intersection(vertices, min_corner, max_corner, cell_size, n)
     v = vertices[1]
 

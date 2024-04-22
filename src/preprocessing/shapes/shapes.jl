@@ -36,9 +36,9 @@ function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
     ic = sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
                 pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
 
-    packing_args = (smoothing_kernel=WendlandC2Kernel{ndims(ic)}(),
+    packing_args = (smoothing_kernel=SchoenbergCubicSplineKernel{ndims(ic)}(),
                     neighborhood_search=true,
-                    smoothing_length=3.0particle_spacing, background_pressure=100.0,
+                    smoothing_length=1.2particle_spacing, background_pressure=100.0,
                     tlsph=true, time_integrator=RK4(), dtmax=1e-2, info_callback=nothing,
                     solution_saving_callback=nothing, maxiters=100, tspan=(0.0, 10.0))
 
