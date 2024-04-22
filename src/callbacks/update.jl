@@ -56,7 +56,7 @@ function initial_update!(cb::UpdateCallback, u, t, integrator)
     semi = integrator.p
 
     @trixi_timeit timer() "initialize face-nhs" foreach_system(semi) do system
-        initialize!(system.nhs_faces, system.boundary)
+        initialize!(system.nhs_faces, system)
     end
 
     return cb(integrator)

@@ -4,29 +4,31 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, NP}
     cell_size         :: NTuple{NDIMS, ELTYPE}
     neighbor_iterator :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
 
-    function FaceNeighborhoodSearch(nhs_particles)
+    function FaceNeighborhoodSearch(nhs_particles; subdivision=1)
         NDIMS = ndims(nhs_particles)
         ELTYPE = eltype(nhs_particles.search_radius)
 
         hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
         neighbor_iterator = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
 
+        cell_size = nhs_particles.cell_size ./ subdivision
+
         new{NDIMS, ELTYPE,
             typeof(nhs_particles)}(empty!(hashtable), nhs_particles,
-                                   nhs_particles.cell_size, neighbor_iterator)
+                                   cell_size, neighbor_iterator)
     end
 end
 
-function initialize!(neighborhood_search::FaceNeighborhoodSearch, boundary)
-    (; hashtable, nhs_particles, neighbor_iterator) = neighborhood_search
+function initialize!(neighborhood_search::FaceNeighborhoodSearch, system)
+    (; boundary) = system
+    (; hashtable, neighbor_iterator) = neighborhood_search
 
     empty!(hashtable)
 
     for face in eachface(boundary)
         for cell in cell_coords(face, boundary, neighborhood_search)
             if cell_intersection(boundary, face, cell, neighborhood_search)
-                if haskey(hashtable, cell) &&
-                   !(face in hashtable[cell])
+                if haskey(hashtable, cell) && !(face in hashtable[cell])
 
                     # Add particle to corresponding cell
                     append!(hashtable[cell], face)
@@ -48,7 +50,7 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, boundary)
     return neighborhood_search
 end
 
-function cell_coords(edge, shape::Shapes{2}, neighborhood_search::FaceNeighborhoodSearch)
+@inline function cell_coords(edge, shape, neighborhood_search::FaceNeighborhoodSearch{2})
     (; cell_size) = neighborhood_search
 
     v1 = shape.edge_vertices[edge][1]
@@ -67,7 +69,7 @@ function cell_coords(edge, shape::Shapes{2}, neighborhood_search::FaceNeighborho
     return Iterators.product(rangex, rangey)
 end
 
-function cell_coords(face, shape::Shapes{3}, neighborhood_search::FaceNeighborhoodSearch)
+@inline function cell_coords(face, shape, neighborhood_search::FaceNeighborhoodSearch{3})
     (; cell_size) = neighborhood_search
 
     v1 = shape.face_vertices[face][1]
@@ -93,7 +95,7 @@ end
 @inline eachneighborface(coords, nhs_faces::TrivialNeighborhoodSearch) = nhs_faces.eachparticle
 
 @inline function eachneighborface(coords, nhs_faces::FaceNeighborhoodSearch)
-    cell = TrixiParticles.cell_coords(coords, nhs_faces.nhs_particles)
+    cell = TrixiParticles.cell_coords(coords, nothing, nhs_faces.cell_size)
 
     haskey(nhs_faces.neighbor_iterator, cell) && return nhs_faces.neighbor_iterator[cell]
 
@@ -116,8 +118,8 @@ function cell_intersection(boundary, edge_index, cell, nhs::FaceNeighborhoodSear
     edge = edge_vertices[edge_index]
 
     # Check if any edge point is in cell
-    cell == cell_coords(edge[1], nhs.nhs_particles) && return true
-    cell == cell_coords(edge[2], nhs.nhs_particles) && return true
+    cell == cell_coords(edge[1], nothing, nhs.cell_size) && return true
+    cell == cell_coords(edge[2], nothing, nhs.cell_size) && return true
 
     # Check if line segment intersects cell
     min_corner = SVector(cell .* cell_size...)
@@ -135,9 +137,9 @@ function cell_intersection(boundary, face_index, cell, nhs::FaceNeighborhoodSear
     vertices = face_vertices[face_index]
 
     # Check if any vertex is in cell
-    cell == cell_coords(vertices[1], nhs.nhs_particles) && return true
-    cell == cell_coords(vertices[2], nhs.nhs_particles) && return true
-    cell == cell_coords(vertices[3], nhs.nhs_particles) && return true
+    cell == cell_coords(vertices[1], nothing, nhs.cell_size) && return true
+    cell == cell_coords(vertices[2], nothing, nhs.cell_size) && return true
+    cell == cell_coords(vertices[3], nothing, nhs.cell_size) && return true
 
     # Check if line segment intersects cell
     min_corner = SVector(cell .* cell_size...)
