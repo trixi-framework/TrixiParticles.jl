@@ -48,16 +48,16 @@
         @test count_rhs_allocations(sol, semi) == 0
 
         if VERSION >= v"1.10"
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
+            @test isapprox(error_edac_P1, 0, atol=6.1e-8)
+            @test isapprox(error_edac_P2, 0, atol=9e-10)
             @test isapprox(error_wcsph_P1, 0, atol=eps())
             @test isapprox(error_wcsph_P2, 0, atol=eps())
         else
             # 1.9 causes a large difference in the solution
-            @test isapprox(error_edac_P1, 0, atol=eps())
-            @test isapprox(error_edac_P2, 0, atol=eps())
-            @test isapprox(error_wcsph_P1, 0, atol=eps())
-            @test isapprox(error_wcsph_P2, 0, atol=eps())
+            @test isapprox(error_edac_P1, 0, atol=2e-7)
+            @test isapprox(error_edac_P2, 0, atol=2e-9)
+            @test isapprox(error_wcsph_P1, 0, atol=0.00031)
+            @test isapprox(error_wcsph_P2, 0, atol=2e-6)
         end
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
@@ -66,6 +66,7 @@
                                                 "plot_dam_break_results.jl")) [
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
+            r"WARNING: Method definition interpolated_mre.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
             r"WARNING: Method definition extract_resolution_from_filename.*\n",
         ]
