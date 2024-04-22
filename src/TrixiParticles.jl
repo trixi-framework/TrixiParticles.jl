@@ -42,7 +42,7 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, RigidSPHSystem
+       BoundarySPHSystem
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback
 export ContinuityDensity, SummationDensity

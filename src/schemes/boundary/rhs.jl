@@ -1,8 +1,7 @@
 # Interaction of boundary  with other systems
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::Union{BoundarySPHSystem, RigidSPHSystem},
-                   neighbor_system)
+                   particle_system::BoundarySPHSystem, neighbor_system)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
 end
@@ -10,8 +9,7 @@ end
 # For dummy particles with `ContinuityDensity`, solve the continuity equation
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::Union{BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
-                                          RigidSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}}},
+                   particle_system::BoundarySPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}},
                    neighbor_system::FluidSystem)
     (; boundary_model) = particle_system
     fluid_density_calculator = neighbor_system.density_calculator
