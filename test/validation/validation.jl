@@ -26,6 +26,7 @@
                                                 "plot_oscillating_beam_results.jl")) [
             r"WARNING: Method definition linear_interpolation.*\n",
             r"WARNING: Method definition interpolated_mse.*\n",
+            r"WARNING: Method definition interpolated_mre.*\n",
             r"WARNING: Method definition extract_number_from_filename.*\n",
             r"WARNING: Method definition extract_resolution_from_filename.*\n",
             r"WARNING: importing deprecated binding Makie.*\n",
