@@ -37,7 +37,7 @@ bibliography: paper.bib
 
 # Summary
 
-TrixiParticles.jl, part of the Trixi Project~[@schlottkelakemper2020trixi], is an innovative Julia-based open-source framework designed for particle-based multiphysics simulations.
+TrixiParticles.jl, part of the Trixi Project [@schlottkelakemper2020trixi], is an innovative Julia-based open-source framework designed for particle-based multiphysics simulations.
 It aims to overcome the limitations of traditional mesh-based methods in handling complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics,
 by offering a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others.
 Unique in its approach, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions, enhancing research flexibility.
@@ -72,14 +72,14 @@ The interaction between two particles is defined by the types of their systems. 
 ![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
-In general, the force~$f_a$ experienced by a particle~$a$ is calculated as following
+In general, the force $f_a$ experienced by a particle $a$ is calculated as following
 $$ f_a = \sum_{b \in \mathcal{S}_1} f_{ab}^{\mathcal{S}_1} + \sum_{b \in \mathcal{S}_2} f_{ab}^{\mathcal{S}_2} + \dots + \sum_{b\in \mathcal{S}_n}f_{ab}^{\mathcal{S}_n}, $$
-where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle~$a$ experiences due to particle~$b$ depends on the system type of particle~$a$ and the type of the system~$\mathcal{S}^i$ of particle~$b$ is the set of neighboring particles of the corresponding system denoted by the superscript and $f_{ab}$ is the interaction force of particle $a$ and neighbor particle $b$.
+where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$ and the type of the system $\mathcal{S}^i$ of particle $b$ is the set of neighboring particles of the corresponding system denoted by the superscript and $f_{ab}$ is the interaction force of particle $a$ and neighbor particle $b$.
 For computational efficiency, only particles with a distance within a system-dependent search radius interact with each other.
 
 For example, the SPH method determines the force between two SPH particles according to [@Monaghan:2005] as
 $$ f_{ab} = -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab} + \Pi_{ab},$$
-where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and pressure of particles~$a$ and~$b$, respectively. The last term $\Pi_{ab}$ includes dissipative terms such as artificial viscosity [@Monaghan:2005] and is scheme-specific. The weighting function $W_{ab}$, also called kernel-function, depends on the relative distance between particles~$a$ and~$b$.
+where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and pressure of particles $a$ and $b$, respectively. The last term $\Pi_{ab}$ includes dissipative terms such as artificial viscosity [@Monaghan:2005] and is scheme-specific. The weighting function $W_{ab}$, also called kernel-function, depends on the relative distance between particles $a$ and $b$.
 
 # Functionality
 
@@ -87,11 +87,14 @@ where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and p
 
 The object `Semidiscretization` couples the systems of a simulation and also creates the corresponding neighborhood searches for each system. The resulting ODE problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
-
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
 
+The code presented here can be found on [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with a detailed [manual](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use the package. Additionally, we provide tutorials explaining how to set up a simulation for fluids, structure mechanics or a fluid-structure interaction.
+A collection of predefined simulation files can be found in the `examples` directory.
 
-At present, TrixiParticles.jl includes the implementation of the following systems
+### Feature highlights
+
+So far, the following feature highlights have been implemented:
 
 * *Fluid Systems*
     + `WeaklyCmpressibleSPHSystem` (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
@@ -103,41 +106,29 @@ At present, TrixiParticles.jl includes the implementation of the following syste
 
 * *Boundary Systems*
     + `BoundarySPHSystem` with several boundary models where each model follows a different interaction rule.
-    + `OpenBoundarySPHSystem`: System to simulate non-reflecting boundary conditions [@Lastiwka:2009]
+    + `OpenBoundarySPHSystem`: System to simulate non-reflecting (open) boundary conditions [@Lastiwka:2009]
 
-The code presented here can be found on [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with a detailed [manual](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use the package. Additionally, we provide tutorials explaining how to setup a simulation for fluids, structure mechanics or a fluid-structure interaction. All implemented examples for testing are located in the [`examples/`](https://github.com/trixi-framework/TrixiParticles.jl/tree/main/examples) folder, thus, the results can be easily reproduced.
+* *Correction methods and models*
+  + Density diffusion [@Antuono:2010]
+  + Transport-velocity formulation (TVF) [@Adami:2013]
+  + Intra-particle-force surface tension [@Akinci:2013]
+  + Kernel corrections TODO: refs
 
-### Feature highlights
+* *TODO: category naming?*
+  + Efficient grid neighborhood search
+  + GPU support
 
-As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018] and couple them among each other and even with mesh-based methods.
-
-So far, the following feature highlights have been implemented:
-
-* Weakly compressible SPH with density diffusion [@Antuono:2010]
-
-* Entropically damped artificial compressibility (EDAC) [@Ramachandran:2019]
-
-* Total Lagrangian SPH (TLSPH) and fluid-structure interaction [@O_Connor:2021]
-
-* Discrete element method (DEM) [@Bicanic:2004], [@Cundall:1979]
-
-* Transport-velocity formulation (TVF) [@Adami:2013]
-
-* Intra-particle-force surface tension [@Akinci:2013]
-
-* Non-reflecting (open) boundaries [@Lastiwka:2009]
-
-* Efficient grid neighborhood search
-
-* GPU support
-
-Figure \autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with TLSPH falls into a tank filled with water.
+\autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with TLSPH falls into a tank filled with water, modeled by WCSPH.
 
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=50%}
 
-The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007]. The curves show the y-deflection of the tip of a beam oscillating under its own weight. The results obtained with TrixiParticles.jl match perfectly those of [@O_Connor:2021].
+The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
+The curves show the y-deflection of the tip of a beam oscillating under its own weight.
+The results obtained with TrixiParticles.jl perfectly match those of [@O_Connor:2021].
 
 ![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
+
+As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018] and couple them among each other and even with mesh-based methods.
 
 # Acknowledgements
 
