@@ -26,9 +26,9 @@ To ignore a custom quantity for a specific system, return `nothing`.
 - `save_final_solution=true`:   Save the final solution.
 - `output_directory="out"`:     Directory to save the VTK files.
 - `append_timestamp=false`:     Append current timestamp to the output directory.
-- 'prefix=""':                     Prefix added to the filename.
+- 'prefix=""':                  Prefix added to the filename.
 - `custom_quantities...`:       Additional user-defined quantities.
-- `write_meta_data=true`:            Write meta data.
+- `write_meta_data=true`:       Write meta data.
 - `verbose=false`:              Print to standard IO when a file is written.
 - `max_coordinates=2^15`:       The coordinates of particles will be clipped if their
                                 absolute values exceed this threshold.
