@@ -29,16 +29,16 @@ function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
 end
 
 @doc raw"""
-    ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
+    ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
 
 # Keywords
 - `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
            kinematic viscosity, see description below.
-- `beta`: A value of `0.0` works well for simulations with shocks of moderate strength.
-          In simulations where the Mach number can be very high, eg. astrophysical calculation,
-          good results can be obtained by choosing a value of `beta=2` and `alpha=1`.
+- `beta=0.0`: A value of `0.0` works well for most fluid simulations and simulations
+          with shocks of moderate strength. In simulations where the Mach number can be
+          very high, eg. astrophysical calculation, good results can be obtained by
+          choosing a value of `beta=2` and `alpha=1`.
 - `epsilon=0.01`: Parameter to prevent singularities.
-
 
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
@@ -80,7 +80,7 @@ struct ArtificialViscosityMonaghan{ELTYPE}
     beta    :: ELTYPE
     epsilon :: ELTYPE
 
-    function ArtificialViscosityMonaghan(; alpha, beta, epsilon=0.01)
+    function ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
         new{typeof(alpha)}(alpha, beta, epsilon)
     end
 end
@@ -92,12 +92,16 @@ end
                                                           distance, sound_speed, m_a, m_b,
                                                           rho_mean)
     (; smoothing_length) = particle_system
+    (; alpha, beta, epsilon) = viscosity
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
-    pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, smoothing_length)
+    # v_ab ⋅ r_ab
+    vr = dot(v_diff, pos_diff)
+
+    pi_ab = viscosity(sound_speed, vr, distance, rho_mean, smoothing_length)
 
     if pi_ab < eps()
         return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
@@ -106,13 +110,7 @@ end
     return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
 end
 
-@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
-                                                          rho_mean, h)
-    (; alpha, beta, epsilon) = viscosity
-
-    # v_ab ⋅ r_ab
-    vr = dot(v_diff, pos_diff)
-
+@inline function (viscosity::ArtificialViscosityMonaghan)(c, vr, distance, rho_mean, h)
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
     # "In the case of shock tube problems, it is usual to turn the viscosity on for
     # approaching particles and turn it off for receding particles. In this way, the
@@ -126,10 +124,9 @@ end
 end
 
 # See, e.g.,
-# M. Antuono, A. Colagrossi, S. Marrone.
-# "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-# In: Computer Physics Communications 183, no. 12 (2012), pages 2570-80.
-# https://doi.org/10.1016/j.cpc.2012.07.006
+# Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
+# In: Reports on Progress in Physics (2005), pages 1703-1759.
+# [doi: 10.1088/0034-4885/68/8/r01](http://dx.doi.org/10.1088/0034-4885/68/8/R01)
 function kinematic_viscosity(system, viscosity::ArtificialViscosityMonaghan)
     (; smoothing_length) = system
     (; alpha) = viscosity
@@ -190,6 +187,7 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
+    # TODO This is not correct for two different fluids this should be nu_a and nu_b
     eta_a = nu * rho_a
     eta_b = nu * rho_b
 
@@ -218,6 +216,67 @@ end
 end
 
 function kinematic_viscosity(system, viscosity::ViscosityAdami)
+    return viscosity.nu
+end
+
+@doc raw"""
+    ViscosityMoris(; nu, epsilon=0.01)
+
+Viscosity by Moris (Moris et al. 1997).
+```math
+f_{ab} = \sum_w \frac{m_b(eta_a+eta_b)}{||r_{ab}||^2+(\epsilon h_{ab})^2}  \nabla W_{ab} \cdot r_{ab}\cdot v_{ab},
+```
+where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
+
+# Keywords
+- `nu`: Kinematic viscosity
+- `epsilon=0.01`: Parameter to prevent singularities
+
+## References
+- J. Morris et al., "Modeling Low Reynolds Number Incompressible Flows Using SPH",
+  In: Journal of Computational Physics, Volume 136, Issue 1, 1997, Pages 214-226.
+  [doi: doi.org/10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
+- G. Fourtakas et al., "Local uniform stencil (LUST) boundary condition for arbitrary
+  3-D boundaries in parallel smoothed particle hydrodynamics (SPH) models",
+  In: Computers & Fluids, 2019.
+  [doi: doi.org/10.1016/j.compfluid.2019.06.009](https://doi.org/10.1016/j.compfluid.2019.06.009)
+"""
+struct ViscosityMoris{ELTYPE}
+    nu::ELTYPE
+    epsilon::ELTYPE
+
+    function ViscosityMoris(; nu, epsilon=0.01)
+        new{typeof(nu)}(nu, epsilon)
+    end
+end
+
+@inline function (viscosity::ViscosityMoris)(particle_system, neighbor_system,
+                                             v_particle_system, v_neighbor_system,
+                                             particle, neighbor, pos_diff,
+                                             distance, sound_speed, m_a, m_b, rho_mean)
+    (; epsilon, nu) = viscosity
+    (; smoothing_length) = particle_system
+
+    v_a = viscous_velocity(v_particle_system, particle_system, particle)
+    v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
+    v_diff = v_a - v_b
+
+    rho_a = particle_density(v_particle_system, particle_system, particle)
+    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+
+    # TODO This is not correct for two different fluids this should be nu_a and nu_b
+    eta_a = nu * rho_a
+    eta_b = nu * rho_b
+
+    factor = (m_b * (eta_a + eta_b))/(rho_b * (distance^2 + (epsilon * smoothing_length)^2))
+
+    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
+    visc = factor * dot(pos_diff, grad_kernel) .* v_diff
+
+    return visc
+end
+
+function kinematic_viscosity(system, viscosity::ViscosityMoris)
     return viscosity.nu
 end
 
