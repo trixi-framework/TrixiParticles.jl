@@ -22,7 +22,7 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
-        ismoving = Ref(true)
+        ismoving = Ref(!isnothing(movement))
 
         cache = create_cache_boundary(movement, initial_condition)
 
