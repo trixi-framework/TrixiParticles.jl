@@ -92,7 +92,6 @@ end
                                                           distance, sound_speed, m_a, m_b,
                                                           rho_mean)
     (; smoothing_length) = particle_system
-    (; alpha, beta, epsilon) = viscosity
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -111,6 +110,8 @@ end
 end
 
 @inline function (viscosity::ArtificialViscosityMonaghan)(c, vr, distance, rho_mean, h)
+    (; alpha, beta, epsilon) = viscosity
+
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
     # "In the case of shock tube problems, it is usual to turn the viscosity on for
     # approaching particles and turn it off for receding particles. In this way, the
