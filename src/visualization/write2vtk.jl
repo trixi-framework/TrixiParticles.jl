@@ -297,7 +297,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity,
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
-                    viscosity::Union{ViscosityAdami, ViscosityMoris}, system; write_meta_data=true)
+                    viscosity::Union{ViscosityAdami, ViscosityMoris}, system;
+                    write_meta_data=true)
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure

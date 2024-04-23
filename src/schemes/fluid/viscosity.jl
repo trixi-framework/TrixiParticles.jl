@@ -268,7 +268,8 @@ end
     eta_a = nu * rho_a
     eta_b = nu * rho_b
 
-    factor = (m_b * (eta_a + eta_b))/(rho_b * (distance^2 + (epsilon * smoothing_length)^2))
+    factor = (m_b * (eta_a + eta_b)) /
+             (rho_b * (distance^2 + (epsilon * smoothing_length)^2))
 
     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
     visc = factor * dot(pos_diff, grad_kernel) .* v_diff
