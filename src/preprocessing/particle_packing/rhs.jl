@@ -31,4 +31,6 @@ function interact!(dv, v_particle_system, u_particle_system,
             dv[i, particle] += dv_repulsive_pressure[i]
         end
     end
+
+    return dv
 end

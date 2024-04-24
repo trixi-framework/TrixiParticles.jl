@@ -1,8 +1,10 @@
 struct FaceNeighborhoodSearch{NDIMS, ELTYPE}
-    hashtable_face    :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    hashtable_sdf     :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
-    cell_size         :: NTuple{NDIMS, ELTYPE}
-    neighbor_iterator :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    hashtable_face         :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    hashtable_sdf          :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    cell_size              :: NTuple{NDIMS, ELTYPE}
+    neighbor_iterator      :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    neighbor_face_iterator :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    empty_vector           :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
 
     function FaceNeighborhoodSearch{NDIMS}(search_radius; subdivision=1) where {NDIMS}
         ELTYPE = eltype(search_radius)
@@ -10,16 +12,19 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE}
         hashtable_face = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
         hashtable_sdf = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
         neighbor_iterator = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
+        neighbor_face_iterator = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
 
         cell_size = ntuple(dim -> search_radius, NDIMS) ./ subdivision
+        empty_vector = Int[]
 
-        new{NDIMS, ELTYPE}(hashtable_face, hashtable_sdf,
-                           cell_size, neighbor_iterator)
+        new{NDIMS, ELTYPE}(hashtable_face, hashtable_sdf, cell_size, neighbor_iterator,
+                           neighbor_face_iterator, empty_vector)
     end
 end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, system)
-    (; hashtable_face, neighbor_iterator, cell_size) = neighborhood_search
+    (; hashtable_face, hashtable_sdf,
+    neighbor_face_iterator, neighbor_iterator, cell_size) = neighborhood_search
     (; boundary, initial_condition) = system
 
     empty!(hashtable_face)
@@ -50,14 +55,27 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, system)
     for cell_runner in meshgrid(cell_min, cell_max)
         if any([haskey(hashtable_face, cell_) for cell_ in neighboring_cells(cell_runner)])
             for cell in neighboring_cells(cell_runner)
-                neighbor_iterator[cell] = unique(Iterators.flatten(faces_in_cell(neighbor,
-                                                                                 neighborhood_search)
-                                                                   for neighbor in neighboring_cells(cell)))
+                neighbor_face_iterator[cell] = unique(Iterators.flatten(faces_in_cell(neighbor,
+                                                                                      neighborhood_search)
+                                                                        for neighbor in neighboring_cells(cell)))
             end
         end
     end
 
-    system.precalculate_sdf && calculate_signed_distance!(system)
+    if system.precalculate_sdf
+        calculate_signed_distance!(system)
+
+        for cell_runner in meshgrid(cell_min, cell_max)
+            if any([haskey(hashtable_sdf, cell_)
+                    for cell_ in neighboring_cells(cell_runner)])
+                for cell in neighboring_cells(cell_runner)
+                    neighbor_iterator[cell] = unique(Iterators.flatten(points_in_cell(neighbor,
+                                                                                      neighborhood_search)
+                                                                       for neighbor in neighboring_cells(cell)))
+                end
+            end
+        end
+    end
 
     return neighborhood_search
 end
@@ -105,39 +123,39 @@ end
     return meshgrid(mins, maxs)
 end
 
-# No nhs
+@inline function eachneighbor(coords, nhs_faces::FaceNeighborhoodSearch)
+    cell = TrixiParticles.cell_coords(coords, nothing, nhs_faces.cell_size)
+
+    haskey(nhs_faces.neighbor_iterator, cell) && return nhs_faces.neighbor_iterator[cell]
+
+    return nhs_faces.empty_vector
+end
+
 @inline eachneighborface(coords, nhs_faces::TrivialNeighborhoodSearch) = nhs_faces.eachparticle
 
 @inline function eachneighborface(coords, nhs_faces::FaceNeighborhoodSearch)
     cell = TrixiParticles.cell_coords(coords, nothing, nhs_faces.cell_size)
 
-    haskey(nhs_faces.neighbor_iterator, cell) && return nhs_faces.neighbor_iterator[cell]
+    haskey(nhs_faces.neighbor_face_iterator, cell) &&
+        return nhs_faces.neighbor_face_iterator[cell]
 
-    return Int[]
-end
-
-@inline function eachneighbor_distances(coords, nhs_faces)
-    cell = TrixiParticles.cell_coords(coords, nothing, nhs_faces.cell_size)
-
-    # Merge all lists of particles in the neighboring cells into one iterator
-    return Iterators.flatten(points_in_cell(cell, nhs_faces)
-                             for cell in neighboring_cells(cell))
+    return nhs_faces.empty_vector
 end
 
 @inline function points_in_cell(cell_index, neighborhood_search)
-    (; hashtable_sdf) = neighborhood_search
+    (; hashtable_sdf, empty_vector) = neighborhood_search
 
     # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
-    return get(hashtable_sdf, cell_index, Int[])
+    return get(hashtable_sdf, cell_index, empty_vector)
 end
 
 @inline function faces_in_cell(cell_index, neighborhood_search)
-    (; hashtable_face) = neighborhood_search
+    (; hashtable_face, empty_vector) = neighborhood_search
 
     # Return an empty vector when `cell_index` is not a key of `hashtable` and
     # reuse the empty vector to avoid allocations
-    return get(hashtable_face, cell_index, Int[])
+    return get(hashtable_face, cell_index, empty_vector)
 end
 
 function cell_intersection(boundary, edge_index, cell, nhs::FaceNeighborhoodSearch{2})
@@ -146,7 +164,6 @@ function cell_intersection(boundary, edge_index, cell, nhs::FaceNeighborhoodSear
 
     edge = edge_vertices[edge_index]
 
-    # Check if any edge point is in cell
     cell == cell_coords(edge[1], nothing, nhs.cell_size) && return true
     cell == cell_coords(edge[2], nothing, nhs.cell_size) && return true
 
@@ -165,7 +182,6 @@ function cell_intersection(boundary, face_index, cell, nhs::FaceNeighborhoodSear
 
     vertices = face_vertices[face_index]
 
-    # Check if any vertex is in cell
     cell == cell_coords(vertices[1], nothing, nhs.cell_size) && return true
     cell == cell_coords(vertices[2], nothing, nhs.cell_size) && return true
     cell == cell_coords(vertices[3], nothing, nhs.cell_size) && return true

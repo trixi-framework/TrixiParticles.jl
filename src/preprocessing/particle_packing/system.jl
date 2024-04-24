@@ -33,7 +33,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
             nhs_faces = FaceNeighborhoodSearch{NDIMS}(compact_support(smoothing_kernel,
                                                                       smoothing_length))
         else
-            nhs_faces = TrivialNeighborhoodSearch(1.0, eachface(boundary))
+            nhs_faces = TrivialNeighborhoodSearch{NDIMS}(1.0, eachface(boundary))
         end
 
         return new{NDIMS, ELTYPE, typeof(boundary),
@@ -116,9 +116,9 @@ function update_position_1!(u, system::ParticlePackingSystem)
 
         distance2 = Inf
         distance_sign = true
-        normal_vector = SVector(ntuple(@inline(dim->zero(eltype(system))), ndims(system)))
+        normal_vector = fill(0.0, SVector{ndims(system), eltype(system)})
 
-        # Determine minimal unsigned distance to boundary
+        # Calculate minimum unsigned distance to boundary
         for face in eachneighborface(particle_position, nhs_faces)
             new_distance_sign, new_distance2, n = signed_point_face_distance(particle_position,
                                                                              boundary, face)
@@ -148,7 +148,7 @@ function update_poisition_2!(u, system::ParticlePackingSystem)
     (; initial_condition, nhs_faces, distances, normals, sd_positions) = system
     (; particle_spacing) = initial_condition
 
-    search_radius = compact_support(system, system)
+    search_radius2 = compact_support(system, system)^2
 
     shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
 
@@ -159,10 +159,10 @@ function update_poisition_2!(u, system::ParticlePackingSystem)
         distance_signed = zero(eltype(system))
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
-        for neighbor in eachneighbor_distances(particle_position, nhs_faces)
+        for neighbor in eachneighbor(particle_position, nhs_faces)
             pos_diff = sd_positions[neighbor] - particle_position
             distance2 = dot(pos_diff, pos_diff)
-            distance2 > search_radius^2 && continue
+            distance2 > search_radius2 && continue
 
             distance = sqrt(distance2)
             kernel_weight = smoothing_kernel(system, distance)
@@ -244,7 +244,7 @@ function calculate_signed_distance!(system::ParticlePackingSystem)
         for face in eachneighborface(point_coords_, nhs_faces)
             sdf = signed_point_face_distance(point_coords_, boundary, face)
 
-            if sdf[2] <= (10particle_spacing)^2 && sdf[2] < distances[point]^2
+            if sdf[2] <= (4particle_spacing)^2 && sdf[2] < distances[point]^2
                 sd_positions[point] = point_coords_
                 distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
                 # TODO: Calculate normals with n = ∇ϕ/|∇ϕ|
