@@ -51,9 +51,26 @@ results = interpolate_plane_2d([0.0, 0.0], [1.0, 1.0], 0.2, semi, ref_system, so
 (density = ...)
 ```
 """
-function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol;
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
+                              sol::ODESolution;
                               smoothing_length=ref_system.smoothing_length,
-                              cut_off_bnd=true)
+                              cut_off_bnd=true, clip_negative_pressure=false)
+    # Filter out particles without neighbors
+    filter_no_neighbors = true
+    v_ode, u_ode = sol.u[end].x
+
+    results, _, _ = interpolate_plane_2d(min_corner, max_corner, resolution,
+                                         semi, ref_system, v_ode, u_ode,
+                                         filter_no_neighbors, smoothing_length, cut_off_bnd,
+                                         clip_negative_pressure)
+
+    return results
+end
+
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
+                              v_ode, u_ode;
+                              smoothing_length=ref_system.smoothing_length,
+                              cut_off_bnd=true, clip_negative_pressure=false)
     # Filter out particles without neighbors
     filter_no_neighbors = true
 
@@ -149,8 +166,9 @@ function interpolate_plane_2d_vtk(min_corner, max_corner, resolution, semi, ref_
     end
 end
 
-function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system, sol,
-                              filter_no_neighbors, smoothing_length, cut_off_bnd)
+function interpolate_plane_2d(min_corner, max_corner, resolution, semi, ref_system,
+                              v_ode, u_ode, filter_no_neighbors, smoothing_length,
+                              cut_off_bnd, clip_negative_pressure)
     dims = length(min_corner)
     if dims != 2 || length(max_corner) != 2
         throw(ArgumentError("function is intended for 2D coordinates only"))
