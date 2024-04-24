@@ -29,7 +29,7 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+                      add more kernel-weighted m_a than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -114,7 +114,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+                      add more kernel-weighted m_a than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -234,7 +234,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+                      add more kernel-weighted m_a than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -326,7 +326,7 @@ See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+                      add more kernel-weighted m_a than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -405,7 +405,7 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted mass than the fluid particles.
+                      add more kernel-weighted m_a than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -507,21 +507,19 @@ end
                                    smoothing_length=ref_system.smoothing_length,
                                    cut_off_bnd=true, clip_negative_pressure=false)
     interpolated_density = 0.0
-    interpolated_velocity = zero(SVector{ndims(ref_system)})
-    interpolated_pressure = 0.0
+    other_density = 0.0
+
+    NDIMS = ndims(ref_system)
+    no_interpolation_values = NDIMS+1
+    interpolation_values = zeros(no_interpolation_values)
 
     shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
     neighbor_count = 0
-    other_density = 0.0
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    if cut_off_bnd
-        systems = semi
-    else
-        # Don't loop over other systems
-        systems = (ref_system,)
-    end
+    # if we don't cut at the bnd we only need to iterate the reference system
+    systems = cut_off_bnd ? semi : (ref_system,)
 
     foreach_system(systems) do system
         system_id = system_indices(system, semi)
@@ -535,7 +533,7 @@ end
 
         # This is basically `for_particle_neighbor` unrolled
         for particle in eachneighbor(point_coords, nhs)
-            coords = extract_svector(system_coords, Val(ndims(system)), particle)
+            coords = extract_svector(system_coords, Val(NDIMS), particle)
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
@@ -546,26 +544,17 @@ end
             end
 
             distance = sqrt(distance2)
-            mass = hydrodynamic_mass(system, particle)
-            kernel_value = kernel(ref_smoothing_kernel, distance, smoothing_length)
-            m_W = mass * kernel_value
+            m_a = hydrodynamic_mass(system, particle)
+            w_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
             if system_id == ref_id
-                interpolated_density += m_W
+                interpolated_density += m_a * w_a
+                volume = m_a / particle_density(v, system, particle)
+                shepard_coefficient += volume * w_a
 
-                volume = mass / particle_density(v, system, particle)
-                particle_velocity = current_velocity(v, system, particle)
-                interpolated_velocity += particle_velocity * (volume * kernel_value)
-
-                pressure = particle_pressure(v, system, particle)
-                if clip_negative_pressure
-                    pressure = max(0.0, pressure)
-                end
-
-                interpolated_pressure += pressure * (volume * kernel_value)
-                shepard_coefficient += volume * kernel_value
+                interpolate_system!(interpolation_values, system, v, particle, volume, w_a, clip_negative_pressure)
             else
-                other_density += m_W
+                other_density += m_a * w_a
             end
 
             neighbor_count += 1
@@ -576,11 +565,30 @@ end
     if other_density > interpolated_density || shepard_coefficient < eps()
         # Return NaN values that can be filtered out in ParaView
         return (density=NaN, neighbor_count=0, coord=point_coords,
-                velocity=fill(NaN, SVector{ndims(ref_system)}), pressure=NaN)
+                velocity=fill(NaN, SVector{NDIMS}), pressure=NaN)
     end
 
     return (density=interpolated_density / shepard_coefficient,
             neighbor_count=neighbor_count,
-            coord=point_coords, velocity=interpolated_velocity / shepard_coefficient,
-            pressure=interpolated_pressure / shepard_coefficient)
+            coord=point_coords, velocity=interpolation_values[1:NDIMS] / shepard_coefficient,
+            pressure=interpolation_values[1:NDIMS+1] / shepard_coefficient)
+end
+
+@inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle, volume, w_a, clip_negative_pressure)
+    NDIMS = ndims(system)
+
+    particle_velocity = current_velocity(v, system, particle)
+    for i in 1:NDIMS
+        interpolation_values[i] += particle_velocity[i] * (volume * w_a)
+    end
+
+    pressure = particle_pressure(v, system, particle)
+    if clip_negative_pressure
+        pressure = max(0.0, pressure)
+    end
+    interpolation_values[NDIMS+1] += pressure * (volume * w_a)
+end
+
+@inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a, clip_negative_pressure)
+
 end
