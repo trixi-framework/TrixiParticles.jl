@@ -4,11 +4,23 @@ include("../point_in_poly/algorithm.jl")
 include("polygon_shape.jl")
 include("triangle_mesh.jl")
 
-function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
-                      pressure=0.0, scale_factor=nothing, ELTYPE=Float64, skipstart=1,
+function ComplexShape(shape; particle_spacing, density, velocity=nothing,
+                      pressure=0.0,
                       point_in_shape_algorithm=WindingNumberJacobson(), seed=nothing,
-                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e6),
-                      particle_packing=false)
+                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e6))
+    if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
+        throw(ArgumentError("`WindingNumberHorman` only supports 3D shapes"))
+    end
+
+    if velocity isa Nothing
+        velocity = zeros(ndims(shape))
+    end
+
+    return sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
+                  pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
+end
+
+function load_shape(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
     if !isa(filename, String)
         throw(ArgumentError("`filename` must be of type String"))
     end
@@ -19,38 +31,12 @@ function ComplexShape(; filename, particle_spacing, density, velocity=nothing,
         points = read_in_2d(; filename, scale_factor, ELTYPE, skipstart)
         shape = Polygon(points)
     elseif file_extension == ".stl"
-        if point_in_shape_algorithm isa WindingNumberHorman
-            throw(ArgumentError("input file must be of type .asc when using `WindingNumberHorman`"))
-        end
         # TODO: For some reason, this only works on the second run.
         mesh = load(filename)
         shape = TriangleMesh(mesh)
     else
         throw(ArgumentError("Only `.stl` and `.asc` files are supported (yet)."))
     end
-
-    if velocity isa Nothing
-        velocity = zeros(ndims(shape))
-    end
-
-    ic = sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
-                pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
-
-    packing_args = (smoothing_kernel=SchoenbergCubicSplineKernel{ndims(ic)}(),
-                    neighborhood_search=true,
-                    smoothing_length=1.2particle_spacing, background_pressure=100.0,
-                    tlsph=true, time_integrator=RK4(), dtmax=1e-2, info_callback=nothing,
-                    solution_saving_callback=nothing, maxiters=100, tspan=(0.0, 10.0))
-
-    if particle_packing isa Bool
-        return particle_packing ? start_particle_packing(ic, shape; packing_args...) : ic
-    elseif particle_packing isa NamedTuple
-        # start packing with custom arguments
-        return start_particle_packing(ic, shape;
-                                      (; packing_args..., particle_packing...)...)
-    end
-
-    throw(ArgumentError("`particle_packing` must either be of type `Bool` or `NamedTuple`."))
 end
 
 function read_in_2d(; filename, scale_factor=nothing, ELTYPE=Float64, skipstart=1)

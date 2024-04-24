@@ -2,23 +2,37 @@ include("signed_distance.jl")
 include("system.jl")
 include("rhs.jl")
 
-function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
-                                background_pressure, tlsph, time_integrator, dtmax, tspan,
-                                info_callback, solution_saving_callback, maxiters,
-                                neighborhood_search)
+function ParticlePacking(initial_condition, shape;
+                         smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
+                         smoothing_length=1.2initial_condition.particle_spacing,
+                         neighborhood_search=true,
+                         precalculate_sdf=false,
+                         background_pressure=100.0,
+                         tlsph=true,
+                         time_integrator=RK4(),
+                         dtmax=1e-2,
+                         info_callback=nothing,
+                         solution_saving_callback=nothing,
+                         maxiters=100, tspan=(0.0, 10.0))
+
+    # start packing with custom arguments
+    return ParticlePacking(initial_condition, shape, smoothing_kernel, smoothing_length,
+                           time_integrator, dtmax, tspan, info_callback,
+                           solution_saving_callback, maxiters, background_pressure, tlsph,
+                           neighborhood_search, precalculate_sdf)
+end
+
+# TODO: call this with `trixi_include` so we can get rid of `OrdinaryDiffEq` dependency
+function ParticlePacking(ic, shape, smoothing_kernel, smoothing_length,
+                         time_integrator, dtmax, tspan, info_callback,
+                         solution_saving_callback, maxiters, background_pressure, tlsph,
+                         neighborhood_search, precalculate_sdf)
     packing_system = ParticlePackingSystem(ic, smoothing_kernel, smoothing_length;
-                                           boundary=shape, background_pressure, tlsph)
+                                           precalculate_sdf,
+                                           neighborhood_search, boundary=shape,
+                                           background_pressure, tlsph)
 
     semi = Semidiscretization(packing_system)
-
-    if neighborhood_search
-        nhs_particles = get_neighborhood_search(packing_system, semi)
-        nhs_faces = FaceNeighborhoodSearch(nhs_particles)
-    else
-        nhs_faces = TrivialNeighborhoodSearch{ndims(packing_system)}(1.0, eachface(shape))
-    end
-
-    packing_system.nhs_faces = nhs_faces
 
     ode = semidiscretize(semi, tspan)
 
@@ -39,6 +53,7 @@ function start_particle_packing(ic, shape; smoothing_kernel, smoothing_length,
 
         return ic
     end
+
     not_too_close = setdiff(eachparticle(packing_system), too_close)
 
     coordinates = u[:, not_too_close]
