@@ -49,7 +49,7 @@ Finally, some of the results obtained and some of the features that have been im
 
 # Statement of need
 
-Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics, are often conducted using mesh-based methods supported by mature software tools like ANSYS Fluent, COMSOL Multiphysics, and OpenFOAM. However, these methods face limitations for complex geometries or when integrating different physics disciplines into a single multiphysics system.
+Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics, are often conducted using mesh-based methods supported by mature software tools like [ANSYS Fluent](https://www.ansys.com/de-de/products/fluids/ansys-fluent), [COMSOL Multiphysics](https://www.comsol.com/), and [OpenFOAM](https://www.openfoam.com/). However, these methods face limitations for complex geometries or when integrating different physics disciplines into a single multiphysics system.
 
 The mesh-free formalism of the methods allows for easy preprocessing, making them particularly
 suitable for simulating complex geometries. This also facilitates the coupling of different single
@@ -102,7 +102,7 @@ So far, the following feature highlights have been implemented:
 
 * *Structure Systems*
     + `TotalLagrangianSPHSystem` (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors [@O_Connor:2021].
-    + `DEMSystem`: Discrete element system [@Bicanic:2004], [@Cundall:1979].
+    + `DEMSystem`: Discrete element system [@Bicanic:2004, @Cundall:1979].
 
 * *Boundary Systems*
     + `BoundarySPHSystem` with several boundary models where each model follows a different interaction rule.
@@ -112,9 +112,9 @@ So far, the following feature highlights have been implemented:
   + Density diffusion [@Antuono:2010]
   + Transport-velocity formulation (TVF) [@Adami:2013]
   + Intra-particle-force surface tension [@Akinci:2013]
-  + Kernel corrections TODO: refs
+  + Kernel corrections [@Akinci:2013, @Bonet:1999, @Basa:2009]
 
-* *TODO: category naming?*
+* Performance
   + Efficient grid neighborhood search
   + GPU support
 
@@ -122,17 +122,18 @@ So far, the following feature highlights have been implemented:
 
 ![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
 
-The current state allows also to validate our simulation and produce quantitative results with a post-process callback. \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
+Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
+\autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The curves show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl perfectly match those of [@O_Connor:2021].
 
 ![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
 
-As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018] and couple them among each other and even with mesh-based methods.
+As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018], and DEM specifically tailored for applications in coatings [@Ghasemi:2019, @Laukannen:2020].
+In the future, these methods will be coupled with each other and even with mesh-based methods to provide a comprehensive framework.
 
 # Acknowledgements
 
-TODO: What else?
 The project has benefited from funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
 
 # References
