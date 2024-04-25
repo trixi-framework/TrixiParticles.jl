@@ -102,7 +102,7 @@ So far, the following feature highlights have been implemented:
 
 * *Structure Systems*
     + `TotalLagrangianSPHSystem` (TLSPH): System to simulate elastic structure where the interaction is defined with stress tensors [@O_Connor:2021].
-    + `DEMSystem`: Discrete element system [@Bicanic:2004, @Cundall:1979].
+    + `DEMSystem`: Discrete element system [@Bicanic:2004], [@Cundall:1979].
 
 * *Boundary Systems*
     + `BoundarySPHSystem` with several boundary models where each model follows a different interaction rule.
@@ -112,7 +112,7 @@ So far, the following feature highlights have been implemented:
   + Density diffusion [@Antuono:2010]
   + Transport-velocity formulation (TVF) [@Adami:2013]
   + Intra-particle-force surface tension [@Akinci:2013]
-  + Kernel corrections [@Akinci:2013, @Bonet:1999, @Basa:2009]
+  + Kernel corrections [@Akinci:2013], [@Bonet:1999], [@Basa:2009]
 
 * Performance
   + Efficient grid neighborhood search
@@ -129,7 +129,7 @@ The results obtained with TrixiParticles.jl perfectly match those of [@O_Connor:
 
 ![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
 
-As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018], and DEM specifically tailored for applications in coatings [@Ghasemi:2019, @Laukannen:2020].
+As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018], and DEM specifically tailored for applications in coatings [@Ghasemi:2019], [@Laukkanen:2020].
 In the future, these methods will be coupled with each other and even with mesh-based methods to provide a comprehensive framework.
 
 # Acknowledgements
