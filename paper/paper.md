@@ -114,7 +114,7 @@ So far, the following feature highlights have been implemented:
   + Intra-particle-force surface tension [@Akinci:2013]
   + Kernel corrections [@Akinci:2013], [@Bonet:1999], [@Basa:2009]
 
-* Performance
+* *Performance*
   + Efficient grid neighborhood search
   + GPU support
 
