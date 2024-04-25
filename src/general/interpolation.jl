@@ -571,7 +571,7 @@ end
     return (density=interpolated_density / shepard_coefficient,
             neighbor_count=neighbor_count,
             coord=point_coords, velocity=interpolation_values[1:NDIMS] / shepard_coefficient,
-            pressure=interpolation_values[1:NDIMS+1] / shepard_coefficient)
+            pressure=interpolation_values[NDIMS+1] / shepard_coefficient)
 end
 
 @inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle, volume, w_a, clip_negative_pressure)
