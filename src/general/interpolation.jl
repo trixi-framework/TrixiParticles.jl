@@ -510,7 +510,7 @@ end
     other_density = 0.0
 
     NDIMS = ndims(ref_system)
-    no_interpolation_values = NDIMS+1
+    no_interpolation_values = n_interpolated_values(ref_system)
     interpolation_values = zeros(no_interpolation_values)
 
     shepard_coefficient = 0.0
@@ -561,17 +561,38 @@ end
         end
     end
 
+    system_specific_return = construct_system_properties(ref_system, interpolation_values, NDIMS, shepard_coefficient)
+
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
-        # Return NaN values that can be filtered out in ParaView
-        return (density=NaN, neighbor_count=0, coord=point_coords,
-                velocity=fill(NaN, SVector{NDIMS}), pressure=NaN)
+        common_return = (
+            density = NaN,
+            neighbor_count = 0,
+            coord = point_coords
+        )
+
+        #TODO
+        # Replace all values in the named tuple with NaNs
+        system_specific_return = map(x -> isnan(x) ? x : NaN, system_specific_return)
+
+        return merge(common_return, system_specific_return)
     end
 
-    return (density=interpolated_density / shepard_coefficient,
-            neighbor_count=neighbor_count,
-            coord=point_coords, velocity=interpolation_values[1:NDIMS] / shepard_coefficient,
-            pressure=interpolation_values[NDIMS+1] / shepard_coefficient)
+    common_return = (
+        density = interpolated_density / shepard_coefficient,
+        neighbor_count = neighbor_count,
+        coord = point_coords
+    )
+
+    return merge(common_return, system_specific_return)
+end
+
+@inline function n_interpolated_values(system::FluidSystem)
+    return ndims(system) + 1
+end
+
+@inline function n_interpolated_values(system::SolidSystem)
+    return ndims(system)*ndims(system) + ndims(system)
 end
 
 @inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle, volume, w_a, clip_negative_pressure)
@@ -590,5 +611,29 @@ end
 end
 
 @inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a, clip_negative_pressure)
+    particle_velocity = current_velocity(v, system, particle)
+    for i in 1:NDIMS
+        interpolation_values[i] += particle_velocity[i] * (volume * w_a)
+    end
 
+    stress = stress(system)
+    for i in 1:NDIMS
+        for j in 1:NDIMS
+            interpolation_values[NDIMS+i*NDIMS+j] = stress[i,j] * (volume * w_a)
+        end
+    end
+end
+
+@inline function construct_system_properties(system::FluidSystem, interpolation_values, NDIMS, shepard_coefficient)
+    # Handles properties specific to fluid systems, like velocity and pressure
+    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
+    pressure = interpolation_values[NDIMS+1] / shepard_coefficient
+    return (velocity=velocity, pressure=pressure,)
+end
+
+@inline function construct_system_properties(system::SolidSystem, interpolation_values, NDIMS, shepard_coefficient)
+    # Handles properties specific to solid systems, like velocity and stress
+    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
+    stress = extract_stress(interpolation_values, NDIMS+1, NDIMS)  # Example function
+    return (velocity=velocity, stress=stress,)
 end
