@@ -29,7 +29,7 @@ See also: [`interpolate_plane_2d_vtk`](@ref), [`interpolate_plane_3d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted m_a than the fluid particles.
+                      add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -114,7 +114,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_3d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted m_a than the fluid particles.
+                      add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -234,7 +234,7 @@ See also: [`interpolate_plane_2d`](@ref), [`interpolate_plane_2d_vtk`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted m_a than the fluid particles.
+                      add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -326,7 +326,7 @@ See also: [`interpolate_point`](@ref), [`interpolate_plane_2d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted m_a than the fluid particles.
+                      add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
@@ -405,7 +405,7 @@ See also: [`interpolate_line`](@ref), [`interpolate_plane_2d`](@ref),
                       is "closer" to the boundary than to the fluid in a kernel-weighted sense.
                       Or, in more detail, when the boundary has more influence than the fluid
                       on the density summation in this point, i.e., when the boundary particles
-                      add more kernel-weighted m_a than the fluid particles.
+                      add more kernel-weighted mass than the fluid particles.
 - `clip_negative_pressure=false`: One common approach in SPH models is to clip negative pressure
                                   values, but this is unphysical. Instead we clip here during
                                   interpolation thus only impacting the local interpolated value.
