@@ -3,15 +3,15 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
     normals_vertex :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_edge   :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_face   :: Vector{SVector{NDIMS, ELTYPE}}
-    min_box        :: Vector{ELTYPE}
-    max_box        :: Vector{ELTYPE}
+    min_box        :: SVector{NDIMS, ELTYPE}
+    max_box        :: SVector{NDIMS, ELTYPE}
 
     function TriangleMesh(mesh)
         NDIMS = length(first(mesh))
         n_faces = length(mesh)
 
-        min_box = [minimum(v[i] for v in mesh.position) for i in 1:NDIMS]
-        max_box = [maximum(v[i] for v in mesh.position) for i in 1:NDIMS]
+        min_box = SVector([minimum(v[i] for v in mesh.position) for i in 1:NDIMS]...)
+        max_box = SVector([maximum(v[i] for v in mesh.position) for i in 1:NDIMS]...)
 
         ELTYPE = eltype(min_box)
 
