@@ -571,9 +571,10 @@ end
             coord = point_coords
         )
 
-        #TODO
         # Replace all values in the named tuple with NaNs
-        system_specific_return = map(x -> isnan(x) ? x : NaN, system_specific_return)
+        system_specific_return = NamedTuple{keys(system_specific_return)}((
+            val isa AbstractArray ? fill(NaN, size(val)) : NaN for val in values(system_specific_return)
+        ))
 
         return merge(common_return, system_specific_return)
     end
