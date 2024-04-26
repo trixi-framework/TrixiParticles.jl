@@ -15,20 +15,19 @@ end
 
 function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points)
     (; winding_number_factor) = point_in_poly
-    (; faces) = mesh
+    (; face_vertices) = mesh
     inpoly = falses(size(points, 2))
 
     @threaded for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
-        winding_number = sum(faces) do face
+        winding_number = sum(face_vertices) do face
 
             # A. Van Oosterom 1983,
             # The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
-            v1, v2, v3 = face
-            a = v1 - p
-            b = v2 - p
-            c = v3 - p
+            a = face[1] - p
+            b = face[2] - p
+            c = face[3] - p
             a_ = norm(a)
             b_ = norm(b)
             c_ = norm(c)
@@ -38,7 +37,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points)
             return 2atan(det([a b c]), divisor)
         end
 
-        winding_number /=  4pi
+        winding_number /= 4pi
 
         # `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
@@ -51,21 +50,20 @@ end
 
 function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points)
     (; winding_number_factor) = point_in_poly
-    (; faces) = mesh
+    (; edge_vertices) = mesh
     inpoly = falses(size(points, 2))
 
     @threaded for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
-        winding_number = sum(faces) do face
-            v1, v2 = face
-            a = v1 - p
-            b = v2 - p
+        winding_number = sum(edge_vertices) do edge
+            a = edge[1] - p
+            b = edge[2] - p
 
             return atan(det([a b]), (dot(a, b)))
         end
 
-        winding_number /=  2pi
+        winding_number /= 2pi
 
         # `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)

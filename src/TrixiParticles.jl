@@ -12,6 +12,7 @@ using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det, cross, normalize
+using MeshIO: decompose, TriangleFace
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
@@ -39,7 +40,7 @@ include("schemes/schemes.jl")
 # included separately.
 include("general/semidiscretization.jl")
 include("visualization/write2vtk.jl")
-include("preprocessing/shapes.jl")
+include("preprocessing/preprocessing.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
@@ -65,7 +66,7 @@ export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export WindingNumberHorman, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_shape
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
