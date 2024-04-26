@@ -3,15 +3,16 @@ struct UpdateCallback{I}
 end
 
 """
-    UpdateCallback(; update=true, interval::Integer, dt=0.0)
+    UpdateCallback(; interval::Integer, dt=0.0)
 
-Callback to update quantities either at the end of every `interval` integration step or at
-regular intervals at `dt` in terms of integration time.
+Callback to update quantities either at the end of every `interval` time steps or
+in intervals of `dt` in terms of integration time by adding additional `tstops`
+(note that this may change the solution).
 
 # Keywords
-- `update`: Callback is only applied when `true` (default)
-- `interval`: Update quantities at the end of every `interval` time steps (default `interval=1`)
+- `interval=1`: Update quantities at the end of every `interval` time steps.
 - `dt`: Update quantities in regular intervals of `dt` in terms of integration time
+        by adding additional `tstops` (note that this may change the solution).
 """
 function UpdateCallback(; interval::Integer=-1, dt=0.0)
     if dt > 0 && interval !== -1
@@ -35,14 +36,14 @@ function UpdateCallback(; interval::Integer=-1, dt=0.0)
                                 initialize=initial_update!,
                                 save_positions=(false, false))
     else
-        # The first one is the condition, the second the affect!
+        # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(update_callback!, update_callback!,
                                 initialize=initial_update!,
                                 save_positions=(false, false))
     end
 end
 
-# initialize
+# `initialize`
 function initial_update!(cb, u, t, integrator)
     # The `UpdateCallback` is either `cb.affect!` (with `DiscreteCallback`)
     # or `cb.affect!.affect!` (with `PeriodicCallback`).
@@ -53,7 +54,7 @@ end
 
 initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
 
-# condition
+# `condition`
 function (update_callback!::UpdateCallback)(u, t, integrator)
     (; interval) = update_callback!
 
@@ -62,10 +63,10 @@ function (update_callback!::UpdateCallback)(u, t, integrator)
     #    (total #steps)       (#accepted steps)
     # We need to check the number of accepted steps since callbacks are not
     # activated after a rejected step.
-    return integrator.stats.naccept % interval == 0
+    return condition_integrator_interval(integrator, interval)
 end
 
-# affect
+# `affect!`
 function (update_callback!::UpdateCallback)(integrator)
     t = integrator.t
     semi = integrator.p
@@ -80,7 +81,7 @@ function (update_callback!::UpdateCallback)(integrator)
         update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t)
     end
 
-    # Tell OrdinaryDiffEq that u has been modified
+    # Tell OrdinaryDiffEq that `u` has been modified
     u_modified!(integrator, true)
 
     return integrator
