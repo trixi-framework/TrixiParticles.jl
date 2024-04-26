@@ -593,7 +593,7 @@ end
 end
 
 @inline function n_interpolated_values(system::SolidSystem)
-    return ndims(system)*ndims(system) + ndims(system)
+    return ndims(system)*ndims(system) + ndims(system) + 2
 end
 
 @inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle, volume, w_a, clip_negative_pressure)
@@ -612,29 +612,34 @@ end
 end
 
 @inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a, clip_negative_pressure)
+    NDIMS = ndims(system)
+
     particle_velocity = current_velocity(v, system, particle)
     for i in 1:NDIMS
         interpolation_values[i] += particle_velocity[i] * (volume * w_a)
     end
 
-    stress = stress(system)
+    interpolation_values[NDIMS+1] = det(deformation_gradient(system, particle)) * (volume * w_a)
+    interpolation_values[NDIMS+2] = von_mises_stress(system) * (volume * w_a)
+
+    sigma = cauchy_stress(system)
     for i in 1:NDIMS
         for j in 1:NDIMS
-            interpolation_values[NDIMS+i*NDIMS+j] = stress[i,j] * (volume * w_a)
+            interpolation_values[NDIMS+3+i*NDIMS+j] = sigma[i, j, particle] * (volume * w_a)
         end
     end
 end
 
 @inline function construct_system_properties(system::FluidSystem, interpolation_values, NDIMS, shepard_coefficient)
-    # Handles properties specific to fluid systems, like velocity and pressure
     velocity = interpolation_values[1:NDIMS] / shepard_coefficient
     pressure = interpolation_values[NDIMS+1] / shepard_coefficient
     return (velocity=velocity, pressure=pressure,)
 end
 
 @inline function construct_system_properties(system::SolidSystem, interpolation_values, NDIMS, shepard_coefficient)
-    # Handles properties specific to solid systems, like velocity and stress
     velocity = interpolation_values[1:NDIMS] / shepard_coefficient
-    stress = extract_stress(interpolation_values, NDIMS+1, NDIMS)  # Example function
-    return (velocity=velocity, stress=stress,)
+    jacobian = interpolation_values[NDIMS+1]/shepard_coefficient
+    von_mises_stress = interpolation_values[NDIMS+2]/shepard_coefficient
+    cauchy_stress = interpolation_values[NDIMS+3:end]/shepard_coefficient
+    return (velocity=velocity, jacobian=jacobian, von_mises_stress=von_mises_stress, cauchy_stress=cauchy_stress)
 end
