@@ -2,8 +2,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
     edge_vertices  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_vertex :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_edge   :: Vector{SVector{NDIMS, ELTYPE}}
-    min_box        :: Vector{ELTYPE}
-    max_box        :: Vector{ELTYPE}
+    min_box        :: SVector{NDIMS, ELTYPE}
+    max_box        :: SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices_)
         NDIMS = size(vertices_, 1)
@@ -20,8 +20,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
             vertices = vertices_
         end
 
-        min_box = [minimum(vertices[i, :]) for i in 1:NDIMS]
-        max_box = [maximum(vertices[i, :]) for i in 1:NDIMS]
+        min_box = SVector([minimum(vertices[i, :]) for i in 1:NDIMS]...)
+        max_box = SVector([maximum(vertices[i, :]) for i in 1:NDIMS]...)
 
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
