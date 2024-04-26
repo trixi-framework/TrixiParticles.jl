@@ -1,24 +1,28 @@
 using TrixiParticles
+using OrdinaryDiffEq
 
-particle_spacing = 2.0
+tspan = (0.0, 10.0)
 
-filename = joinpath(examples_dir(), "preprocessing", "inverted_curve_open.asc")
+particle_spacing = 0.5
 
-data = TrixiParticles.read_in_2d(; filename)
+filename = joinpath("out_preprocessing", "hexagon.asc")
+
+# Returns `Shape`
+shape = load_shape(filename)
 
 # Returns `InitialCondition`.
-#= test = ComplexShape(; filename, particle_spacing, density=1.0,
-                    point_in_shape_algorithm=WindingNumberHorman()) =#
+shape_sampled = ComplexShape(shape; particle_spacing, density=1.0)
 
-point_in_shape_algorithm = WindingNumberJacobson(; winding_number_factor=0.5)
+shape_packed = ParticlePacking(shape_sampled, shape;
+                               tlsph=true, maxiters=100,
+                               neighborhood_search=true,
+                               background_pressure=1000,
+                               precalculate_sdf=true,
+                               solution_saving_callback=SolutionSavingCallback(interval=1,
+                                                                               output_directory="out"),
+                               info_callback=InfoCallback(interval=50))
+#point_in_shape_algorithm=WindingNumberHorman())
+
+trixi2vtk(shape_sampled.coordinates, filename="coords")
 points = TrixiParticles.read_in_2d(; filename)
-shape = TrixiParticles.Polygon(points)
-grid = TrixiParticles.particle_grid(shape.vertices, particle_spacing)
-
-inpoly, winding_numbers = point_in_shape_algorithm(shape, grid)
-
-coordinates = grid[:, inpoly]
-
-trixi2vtk(grid, filename="winding_number", winding_number=winding_numbers)
-trixi2vtk(coordinates, filename="coords")
-trixi2vtk(points, filename="points")
+trixi2vtk(points, filename="points");
