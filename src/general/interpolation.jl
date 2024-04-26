@@ -552,7 +552,8 @@ end
                 volume = m_a / particle_density(v, system, particle)
                 shepard_coefficient += volume * w_a
 
-                interpolate_system!(interpolation_values, system, v, particle, volume, w_a, clip_negative_pressure)
+                interpolate_system!(interpolation_values, system, v, particle, volume, w_a,
+                                    clip_negative_pressure)
             else
                 other_density += m_a * w_a
             end
@@ -561,29 +562,29 @@ end
         end
     end
 
-    system_specific_return = construct_system_properties(ref_system, interpolation_values, NDIMS, shepard_coefficient)
+    system_specific_return = construct_system_properties(ref_system, interpolation_values,
+                                                         NDIMS, shepard_coefficient)
 
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
-        common_return = (
-            density = NaN,
-            neighbor_count = 0,
-            coord = point_coords
-        )
+        common_return = (density=NaN,
+                         neighbor_count=0,
+                         coord=point_coords)
 
         # Replace all values in the named tuple with NaNs
-        system_specific_return = NamedTuple{keys(system_specific_return)}((
-            val isa AbstractArray ? fill(NaN, size(val)) : NaN for val in values(system_specific_return)
-        ))
+        system_specific_return = NamedTuple{keys(system_specific_return)}((val isa
+                                                                           AbstractArray ?
+                                                                           fill(NaN,
+                                                                                size(val)) :
+                                                                           NaN
+                                                                           for val in values(system_specific_return)))
 
         return merge(common_return, system_specific_return)
     end
 
-    common_return = (
-        density = interpolated_density / shepard_coefficient,
-        neighbor_count = neighbor_count,
-        coord = point_coords
-    )
+    common_return = (density=interpolated_density / shepard_coefficient,
+                     neighbor_count=neighbor_count,
+                     coord=point_coords)
 
     return merge(common_return, system_specific_return)
 end
@@ -593,10 +594,11 @@ end
 end
 
 @inline function n_interpolated_values(system::SolidSystem)
-    return ndims(system)*ndims(system) + ndims(system) + 2
+    return ndims(system) * ndims(system) + ndims(system) + 2
 end
 
-@inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle, volume, w_a, clip_negative_pressure)
+@inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle,
+                                     volume, w_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)
@@ -608,10 +610,11 @@ end
     if clip_negative_pressure
         pressure = max(0.0, pressure)
     end
-    interpolation_values[NDIMS+1] += pressure * (volume * w_a)
+    interpolation_values[NDIMS + 1] += pressure * (volume * w_a)
 end
 
-@inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a, clip_negative_pressure)
+@inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a,
+                                     clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)
@@ -619,27 +622,32 @@ end
         interpolation_values[i] += particle_velocity[i] * (volume * w_a)
     end
 
-    interpolation_values[NDIMS+1] = det(deformation_gradient(system, particle)) * (volume * w_a)
-    interpolation_values[NDIMS+2] = von_mises_stress(system) * (volume * w_a)
+    interpolation_values[NDIMS + 1] = det(deformation_gradient(system, particle)) *
+                                      (volume * w_a)
+    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * w_a)
 
     sigma = cauchy_stress(system)
     for i in 1:NDIMS
         for j in 1:NDIMS
-            interpolation_values[NDIMS+3+i*NDIMS+j] = sigma[i, j, particle] * (volume * w_a)
+            interpolation_values[NDIMS + 3 + i * NDIMS + j] = sigma[i, j, particle] *
+                                                              (volume * w_a)
         end
     end
 end
 
-@inline function construct_system_properties(system::FluidSystem, interpolation_values, NDIMS, shepard_coefficient)
+@inline function construct_system_properties(system::FluidSystem, interpolation_values,
+                                             NDIMS, shepard_coefficient)
     velocity = interpolation_values[1:NDIMS] / shepard_coefficient
-    pressure = interpolation_values[NDIMS+1] / shepard_coefficient
-    return (velocity=velocity, pressure=pressure,)
+    pressure = interpolation_values[NDIMS + 1] / shepard_coefficient
+    return (velocity=velocity, pressure=pressure)
 end
 
-@inline function construct_system_properties(system::SolidSystem, interpolation_values, NDIMS, shepard_coefficient)
+@inline function construct_system_properties(system::SolidSystem, interpolation_values,
+                                             NDIMS, shepard_coefficient)
     velocity = interpolation_values[1:NDIMS] / shepard_coefficient
-    jacobian = interpolation_values[NDIMS+1]/shepard_coefficient
-    von_mises_stress = interpolation_values[NDIMS+2]/shepard_coefficient
-    cauchy_stress = interpolation_values[NDIMS+3:end]/shepard_coefficient
-    return (velocity=velocity, jacobian=jacobian, von_mises_stress=von_mises_stress, cauchy_stress=cauchy_stress)
+    jacobian = interpolation_values[NDIMS + 1] / shepard_coefficient
+    von_mises_stress = interpolation_values[NDIMS + 2] / shepard_coefficient
+    cauchy_stress = interpolation_values[(NDIMS + 3):end] / shepard_coefficient
+    return (velocity=velocity, jacobian=jacobian, von_mises_stress=von_mises_stress,
+            cauchy_stress=cauchy_stress)
 end
