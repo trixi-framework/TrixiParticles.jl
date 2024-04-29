@@ -1,9 +1,21 @@
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
-    (; face_vertices, normals_vertex, normals_edge, normals_face) = boundary
+    (; face_vertices, normals_vertex, normals_edge, normals_face,
+    face_vertices_ids, face_edges_ids) = boundary
+    v1 = face_vertices_ids[face_index][1]
+    v2 = face_vertices_ids[face_index][2]
+    v3 = face_vertices_ids[face_index][3]
+
+    e1 = face_edges_ids[face_index][1]
+    e2 = face_edges_ids[face_index][2]
+    e3 = face_edges_ids[face_index][3]
+
+    normals_vertices = (normals_vertex[v1], normals_vertex[v2], normals_vertex[v3])
+
+    normals_edges = (normals_edge[e1], normals_edge[e2], normals_edge[e3])
 
     # Find distance `p` to triangle
-    return signed_distance(p, face_vertices[face_index], normals_vertex[face_index],
-                           normals_edge[face_index], normals_face[face_index])
+    return signed_distance(p, face_vertices[face_index], normals_vertices,
+                           normals_edges, normals_face[face_index])
 end
 
 function signed_point_face_distance(p::SVector{2}, boundary, face_index)
