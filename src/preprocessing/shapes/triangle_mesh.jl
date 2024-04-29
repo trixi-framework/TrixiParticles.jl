@@ -44,10 +44,6 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
                                 vertices[vertex_id3] - vertices[vertex_id1]))
 
             normals_face[i] = n
-
-            normals_vertex[vertex_id1] += n
-            normals_vertex[vertex_id2] += n
-            normals_vertex[vertex_id3] += n
         end
 
         _edges = Dict{NTuple{2, Int}, Int}()
@@ -102,6 +98,12 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
             normals_edge[edge_id_1] += normals_face[i]
             normals_edge[edge_id_2] += normals_face[i]
             normals_edge[edge_id_3] += normals_face[i]
+
+            angles = incident_angles(face_vertices[i])
+
+            normals_vertex[vertex_id1] += angles[1] * normals_face[i]
+            normals_vertex[vertex_id2] += angles[2] * normals_face[i]
+            normals_vertex[vertex_id3] += angles[3] * normals_face[i]
         end
 
         resize!(normals_edge, length(_edges))
@@ -113,3 +115,18 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.normals_face)
+
+function incident_angles(triangle_points)
+    a = triangle_points[1]
+    b = triangle_points[2]
+    c = triangle_points[3]
+    sab = dot(b - a, b - a)
+    sbc = dot(b - c, b - c)
+    sac = dot(c - a, c - a)
+
+    alpha = acos(clamp((sab + sac - sbc) / (2 * sqrt(sab * sac)), -1, 1))
+    beta = acos(clamp((sbc + sab - sac) / (2 * sqrt(sbc * sab)), -1, 1))
+    gamma = acos(clamp((sac + sbc - sab) / (2 * sqrt(sac * sbc)), -1, 1))
+
+    return alpha, beta, gamma
+end
