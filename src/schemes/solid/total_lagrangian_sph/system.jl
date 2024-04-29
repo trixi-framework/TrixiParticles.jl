@@ -48,16 +48,16 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1, ARRAY2, ARRAY3,
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
                                 K, PF, ST} <: SolidSystem{NDIMS}
     initial_condition   :: IC
-    initial_coordinates :: ARRAY2 # Array{ELTYPE, 2}: [dimension, particle]
-    current_coordinates :: ARRAY2 # Array{ELTYPE, 2}: [dimension, particle]
-    mass                :: ARRAY1 # Array{ELTYPE, 1}: [particle]
-    correction_matrix   :: ARRAY3 # Array{ELTYPE, 3}: [i, j, particle]
-    pk1_corrected       :: ARRAY3 # Array{ELTYPE, 3}: [i, j, particle]
-    deformation_grad    :: ARRAY3 # Array{ELTYPE, 3}: [i, j, particle]
-    material_density    :: ARRAY1 # Array{ELTYPE, 1}: [particle]
+    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix   :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_moving_particles  :: Int64
     young_modulus       :: ELTYPE
     poisson_ratio       :: ELTYPE
