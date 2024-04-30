@@ -14,17 +14,18 @@
 - `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
                 information.
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, V}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
-    hydrodynamic_mass         :: Vector{ELTYPE}
+    hydrodynamic_mass         :: VECTOR # Vector{ELTYPE}
     viscosity                 :: V
 
     function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
                                          viscosity=nothing)
-        return new{typeof(K), typeof(viscosity)}(K, beta, boundary_particle_spacing, mass,
-                                                 viscosity)
+        return new{typeof(K), typeof(mass),
+                   typeof(viscosity)}(K, beta, boundary_particle_spacing,
+                                      mass, viscosity)
     end
 end
 

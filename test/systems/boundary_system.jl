@@ -17,13 +17,14 @@
             model = Val(:boundary_model)
 
             system = BoundarySPHSystem(initial_condition, model)
+            TrixiParticles.update_positions!(system, 0, 0, 0, 0, 0, 0.0)
 
             @test system isa BoundarySPHSystem
             @test ndims(system) == NDIMS
             @test system.coordinates == coordinates
             @test system.boundary_model == model
             @test system.movement === nothing
-            @test system.ismoving == [false]
+            @test system.ismoving[] == false
         end
     end
 
