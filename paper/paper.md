@@ -102,7 +102,7 @@ So far, the following feature highlights have been implemented:
 
 * *Structure Systems*
     + Total lagrangian SPH (TLSPH): System to simulate elastic structure where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
-    + Discrete element system [@Bicanic:2004], [@Cundall:1979].
+    + Discrete element system that models separate, discrete particles with rotational degrees of freedom, such as granular matter or bulk material [@Bicanic:2004], [@Cundall:1979].
 
 * *Boundary Systems*
     + Boundary system with several boundary models where each model follows a different interaction rule.
@@ -112,7 +112,6 @@ So far, the following feature highlights have been implemented:
   + Density diffusion [@Antuono:2010]
   + Transport-velocity formulation (TVF) [@Adami:2013]
   + Intra-particle-force surface tension [@Akinci:2013]
-  + Kernel corrections [@Akinci:2013], [@Bonet:1999], [@Basa:2009]
 
 * *Performance*
   + GPU support
