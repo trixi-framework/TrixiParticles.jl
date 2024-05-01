@@ -75,7 +75,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         distance < sqrt(eps()) && return
 
         # Apply the same force to the solid particle
-        # that the fluid particle experiences due to the soild particle.
+        # that the fluid particle experiences due to the solid particle.
         # Note that the same arguments are passed here as in fluid-solid interact!,
         # except that pos_diff has a flipped sign.
         #
