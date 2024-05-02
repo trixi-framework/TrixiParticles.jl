@@ -41,23 +41,25 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
 end
 
 """
-    BoundaryDEMSystem(initial_condition, kn)
+    BoundaryDEMSystem(initial_condition, normal_stiffness)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real} <: BoundarySystem{NDIMS}
-    coordinates :: Array{ELTYPE, 2}
-    radius      :: Array{ELTYPE, 1}
-    kn          :: ELTYPE
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, R, ARRAY2D} <: BoundarySystem{NDIMS}
+    coordinates      :: ARRAY2D # [dimension, particle]
+    radius           :: R       # [particle]
+    normal_stiffness :: ELTYPE
 
-    function BoundaryDEMSystem(initial_condition, kn)
+    function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
         radius = initial_condition.radius
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates)}(coordinates, radius, kn)
+        return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,
+                                                                                    radius,
+                                                                                    normal_stiffness)
     end
 end
 

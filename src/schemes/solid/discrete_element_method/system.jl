@@ -1,37 +1,40 @@
 """
-    DEMSystem(initial_condition, kn, elastic_modulus, poissons_ratio;
+    DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
      damping_coefficient=0.0001, acceleration=ntuple(_ -> 0.0, NDIMS), source_terms=nothing)
 
-Creates a Discrete Element Method (DEM) system for simulating the dynamics of particulate systems.
-DEM tracks the motion and interaction of particles, where each particle is considered discrete,
-and interactions between particles are modeled using forces such as normal contact stiffness.
+Constructs a Discrete Element Method (DEM) system for numerically simulating the dynamics of
+granular and particulate matter. DEM is employed to simulate and analyze the motion,
+interactions, and collective behavior of assemblies of discrete, solid particles, typically
+under mechanical loading. The model accounts for individual particle characteristics
+and implements interaction laws that govern contact forces (normal and tangential), based on
+specified material properties and contact mechanics.
 
 # Arguments
-- `initial_condition`: Initial condition of the system, encapsulating the initial positions,
-   velocities, masses, and radii of particles.
-- `kn`: Normal stiffness coefficient for particle-particle and particle-wall contacts.
-- `elastic_modulus`: Elastic modulus for this particle system.
-- `poissons_ratio`: Poisson ratio for this particle system.
+ - `initial_condition`: Initial condition of the system, encapsulating the initial positions,
+    velocities, masses, and radii of particles.
+ - `normal_stiffness`: Normal stiffness coefficient for particle-particle and particle-wall contacts.
+ - `elastic_modulus`: Elastic modulus for this particle system.
+ - `poissons_ratio`: Poisson ratio for this particle system.
 
-# Keyword
-- `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
-   an `SVector` of length `NDIMS`, with a default of zero in each dimension.
-- `source_terms`: Optional; additional forces or modifications to particle dynamics not
-   captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
-- `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
+# Keywords
+ - `acceleration`: Global acceleration vector applied to the system, such as gravity. Specified as
+    an `SVector` of length `NDIMS`, with a default of zero in each dimension.
+ - `source_terms`: Optional; additional forces or modifications to particle dynamics not
+    captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
+ - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
+struct DEMSystem{NDIMS, ELTYPE <: Real, M, R, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
-    mass                :: Array{ELTYPE, 1}     # [particle]
-    radius              :: Array{ELTYPE, 1}     # [particle]
+    mass                :: M                     # [particle]
+    radius              :: R                     # [particle]
     elastic_modulus     :: ELTYPE
     poissons_ratio      :: ELTYPE
-    kn                  :: ELTYPE               # Normal stiffness
+    normal_stiffness    :: ELTYPE
     damping_coefficient :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
 
-    function DEMSystem(initial_condition, kn, elastic_modulus, poissons_ratio;
+    function DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
                        damping_coefficient=0.0001,
                        acceleration=ntuple(_ -> 0.0,
                                            ndims(initial_condition)), source_terms=nothing)
@@ -47,10 +50,13 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(source_terms)}(initial_condition, mass, radius,
-                                                        elastic_modulus, poissons_ratio, kn,
-                                                        damping_coefficient,
-                                                        acceleration_, source_terms)
+        return new{NDIMS, ELTYPE, typeof(mass),
+                   typeof(radius), typeof(source_terms)}(initial_condition, mass,
+                                                         radius, elastic_modulus,
+                                                         poissons_ratio, normal_stiffness,
+                                                         damping_coefficient,
+                                                         acceleration_,
+                                                         source_terms)
     end
 end
 
@@ -59,7 +65,10 @@ function Base.show(io::IO, system::DEMSystem)
 
     print(io, "DEMSystem{", ndims(system), "}(")
     print(io, system.initial_condition)
-    print(io, ", ", system.kn)
+    print(io, ", ", system.elastic_modulus)
+    print(io, ", ", system.poissons_ratio)
+    print(io, ", ", system.normal_stiffness)
+    print(io, ", ", system.damping_coefficient)
     print(io, ") with ", TrixiParticles.nparticles(system), " particles")
 end
 
@@ -71,7 +80,10 @@ function Base.show(io::IO, ::MIME"text/plain", system::DEMSystem)
     else
         TrixiParticles.summary_header(io, "DEMSystem{$(ndims(system))}")
         TrixiParticles.summary_line(io, "#particles", TrixiParticles.nparticles(system))
-        TrixiParticles.summary_line(io, "kn", system.kn)
+        TrixiParticles.summary_line(io, "elastic_modulus", system.elastic_modulus)
+        TrixiParticles.summary_line(io, "poissons_ratio", system.poissons_ratio)
+        TrixiParticles.summary_line(io, "normal_stiffness", system.normal_stiffness)
+        TrixiParticles.summary_line(io, "damping_coefficient", system.damping_coefficient)
         TrixiParticles.summary_footer(io)
     end
 end

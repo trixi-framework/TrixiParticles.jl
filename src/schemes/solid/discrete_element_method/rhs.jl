@@ -4,91 +4,98 @@
 # When particles overlap (i.e., they come into contact), a normal force is applied to resolve the overlap.
 # This force is computed based on Hertzian contact mechanics typical for DEM simulations.
 # The force is proportional to the amount of overlap and is directed along the normal between the particle centers.
-# The magnitude of the force is determined by the stiffness constant `kn` and the overlap distance.
+# The magnitude of the force is determined by the stiffness constant `normal_stiffness` and the overlap distance.
 function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                    u_neighbor_system, neighborhood_search, particle_system::DEMSystem,
                    neighbor_system::Union{BoundaryDEMSystem, DEMSystem})
-    (; mass, radius, elastic_modulus, poissons_ratio, damping_coefficient) = particle_system
+    (; damping_coefficient) = particle_system
 
-    m_a = mass
-    r_a = radius
-    E_a = elastic_modulus
-    nu_a = poissons_ratio
 
-    r_b = neighbor_system.radius
+    E_a = particle_system.elastic_modulus
+    nu_a = particle_system.poissons_ratio
+
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     for_particle_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
                           neighborhood_search) do particle, neighbor, pos_diff, distance
-        # Only consider particles with a distance > 0.
+        m_a = particle_system.mass[particle]
+
+        r_a = particle_system.radius[particle]
+        r_b = neighbor_system.radius[neighbor]
+
+        # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
         # Calculate the overlap (penetration depth) between the two particles
-        overlap = r_a[particle] + r_b[neighbor] - distance
+        overlap = r_a + r_b - distance
 
         # If there's no overlap, no force needs to be applied
         overlap <= 0 && return
 
-        # Normal direction from particle to neighbor
+        # Normal direction from neighbor to particle
         normal = pos_diff / distance
 
-        interaction_force = collision_interaction(particle_system, neighbor_system, overlap,
-                                                  normal, v_particle_system,
-                                                  v_neighbor_system, E_a,
-                                                  nu_a, r_a, r_b, m_a,
-                                                  damping_coefficient, particle, neighbor)
+        interaction_force = collision_force(particle_system, neighbor_system, overlap,
+                                            normal, v_particle_system,
+                                            v_neighbor_system, E_a,
+                                            nu_a, r_a, r_b, m_a,
+                                            damping_coefficient, particle, neighbor)
 
         # Update the acceleration of the particle based on the force and its mass
         for i in 1:ndims(particle_system)
-            dv[i, particle] += interaction_force[i] / m_a[particle]
+            dv[i, particle] += interaction_force[i] / m_a
         end
 
+        # TODO: use update callback
         position_correction!(neighbor_system, u_particle_system, overlap, normal, particle)
     end
 
     return dv
 end
 
-@inline function collision_interaction(particle_system, neighbor_system::BoundaryDEMSystem,
-                                       overlap, normal, v_particle_system,
-                                       v_neighbor_system, E_a, nu_a,
-                                       r_a, r_b, m_a, damping_coefficient,
-                                       particle, neighbor)
-    return neighbor_system.kn * overlap * normal
+@inline function collision_force(particle_system, neighbor_system::BoundaryDEMSystem,
+                                 overlap, normal, v_particle_system,
+                                 v_neighbor_system, E_a, nu_a,
+                                 r_a, r_b, m_a, damping_coefficient,
+                                 particle, neighbor)
+    return neighbor_system.normal_stiffness * overlap * normal
 end
 
-@inline function collision_interaction(particle_system, neighbor_system::DEMSystem, overlap,
-                                       normal, v_particle_system, v_neighbor_system,
-                                       E_a, nu_a, r_a, r_b,
-                                       m_a, damping_coefficient, particle, neighbor)
-    v_a = extract_svector(v_particle_system, particle_system, particle)
-    v_b = extract_svector(v_neighbor_system, neighbor_system, neighbor)
+@inline function collision_force(particle_system, neighbor_system::DEMSystem, overlap,
+                                 normal, v_particle_system, v_neighbor_system,
+                                 E_a, nu_a, r_a, r_b,
+                                 m_a, damping_coefficient, particle, neighbor)
 
-    relative_velocity = v_a - v_b
-    rel_vel_normal = dot(relative_velocity, normal)
+    m_b = neighbor_system.mass[neighbor]
+    E_b = neighbor_system.elastic_modulus
+    nu_b = neighbor_system.poissons_ratio
+
+    v_a = current_velocity(v_particle_system, particle_system, particle)
+    v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+
+    v_ab = v_a - v_b
+    rel_vel_normal = dot(v_ab, normal)
 
     # Compute effective modulus for both systems
-    E_star = 1 / ((1 - nu_a^2) / E_a +
-              (1 - neighbor_system.poissons_ratio^2) / neighbor_system.elastic_modulus)
+    E_star = 1 / ((1 - nu_a^2) / E_a + (1 - nu_b^2) / E_b)
 
     # Compute effective radius for the interaction
-    r_star = (r_a[particle] * r_b[neighbor]) /
-             (r_a[particle] + r_b[neighbor])
+    r_star = (r_a * r_b) / (r_a + r_b)
 
-    # Compute stiffness constant kn for the interaction
-    kn = (4 / 3) * E_star * sqrt(r_star * overlap)
+    # Compute stiffness constant normal_stiffness for the interaction
+    normal_stiffness = (4 / 3) * E_star * sqrt(r_star * overlap)
 
     # Calculate effective mass for the interaction
-    m_star = (m_a[particle] * neighbor_system.mass[neighbor]) /
-             (m_a[particle] + neighbor_system.mass[neighbor])
+    m_star = (m_a * m_b) / (m_a + m_b)
 
     # Calculate critical damping coefficient
-    gamma_c = 2 * sqrt(m_star * kn)
+    gamma_c = 2 * sqrt(m_star * normal_stiffness)
 
     # Compute the force magnitude using Hertzian contact mechanics with damping
-    force_magnitude = kn * overlap + damping_coefficient * gamma_c * rel_vel_normal
+    force_magnitude = normal_stiffness * overlap +
+                      damping_coefficient * gamma_c * rel_vel_normal
 
     return force_magnitude * normal
 end

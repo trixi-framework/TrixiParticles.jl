@@ -20,7 +20,7 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 ### Highlights
 
 #### Discrete Element Method
-A basic implementation of the discrete element method was added
+A basic implementation of the discrete element method was added.
 
 
 ## Version 0.1.1
