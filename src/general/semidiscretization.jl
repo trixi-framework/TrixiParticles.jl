@@ -613,7 +613,7 @@ end
 
 function nhs_coords(system::FluidSystem,
                     neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
+    if neighbor.ismoving[]
         return current_coordinates(u, neighbor)
     end
 
@@ -634,7 +634,7 @@ end
 
 function nhs_coords(system::TotalLagrangianSPHSystem,
                     neighbor::BoundarySPHSystem, u)
-    if neighbor.ismoving[1]
+    if neighbor.ismoving[]
         return current_coordinates(u, neighbor)
     end
 

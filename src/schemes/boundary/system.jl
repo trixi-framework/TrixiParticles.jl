@@ -11,18 +11,18 @@ The interaction between fluid and boundary particles is specified by the boundar
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIMS}
-    initial_condition :: InitialCondition{ELTYPE}
-    coordinates       :: Array{ELTYPE, 2}
+struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
+    initial_condition :: IC
+    coordinates       :: CO # Array{ELTYPE, 2}
     boundary_model    :: BM
     movement          :: M
-    ismoving          :: Vector{Bool}
-    cache             :: C
+    ismoving          :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    cache             :: CA
 
     function BoundarySPHSystem(initial_condition, model; movement=nothing)
         coordinates = copy(initial_condition.coordinates)
         NDIMS = size(coordinates, 1)
-        ismoving = zeros(Bool, 1)
+        ismoving = Ref(!isnothing(movement))
 
         cache = create_cache_boundary(movement, initial_condition)
 
@@ -33,7 +33,8 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, M, C} <: BoundarySystem{NDIM
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
 
-        return new{typeof(model), NDIMS, eltype(coordinates), typeof(movement),
+        return new{typeof(model), NDIMS, typeof(initial_condition),
+                   typeof(coordinates), typeof(movement), typeof(ismoving),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, cache)
     end
@@ -176,7 +177,7 @@ function (movement::BoundaryMovement)(system, t)
     (; movement_function, is_moving, moving_particles) = movement
     (; acceleration, velocity) = cache
 
-    system.ismoving[1] = is_moving(t)
+    system.ismoving[] = is_moving(t)
 
     is_moving(t) || return system
 
@@ -196,7 +197,7 @@ function (movement::BoundaryMovement)(system, t)
 end
 
 function (movement::Nothing)(system, t)
-    system.ismoving[1] = false
+    system.ismoving[] = false
 
     return system
 end
@@ -229,7 +230,7 @@ end
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
+    if ismoving[]
         return extract_svector(cache.velocity, system, particle)
     end
 
@@ -239,7 +240,7 @@ end
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
     (; cache, ismoving) = system
 
-    if ismoving[1]
+    if ismoving[]
         return extract_svector(cache.acceleration, system, particle)
     end
 

@@ -37,9 +37,9 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
-    pressure           :: Vector{ELTYPE}
-    hydrodynamic_mass  :: Vector{ELTYPE}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -65,12 +65,13 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
                  create_cache_model(correction, initial_density, NDIMS,
                                     n_particles)..., cache...)
 
-        new{typeof(density_calculator), ELTYPE, typeof(state_equation),
-            typeof(smoothing_kernel), typeof(viscosity), typeof(correction),
-            typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
-                           density_calculator,
-                           smoothing_kernel, smoothing_length, viscosity,
-                           correction, cache)
+        return new{typeof(density_calculator), eltype(initial_density),
+                   typeof(pressure), typeof(state_equation),
+                   typeof(smoothing_kernel), typeof(viscosity),
+                   typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass,
+                                                      state_equation, density_calculator,
+                                                      smoothing_kernel, smoothing_length,
+                                                      viscosity, correction, cache)
     end
 end
 
