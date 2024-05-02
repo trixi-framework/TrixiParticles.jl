@@ -66,10 +66,10 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length, viscosity=viscosity)
+                                             fluid_smoothing_kernel, fluid_smoothing_length,
+                                             viscosity=viscosity)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    particle_spacing=fluid_particle_spacing)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Solid
@@ -83,7 +83,8 @@ solid_boundary_model_1 = BoundaryModelDummyParticles(hydrodynamic_densites_1,
                                                      state_equation=state_equation,
                                                      boundary_density_calculator,
                                                      fluid_smoothing_kernel,
-                                                     fluid_smoothing_length, viscosity=viscosity)
+                                                     fluid_smoothing_length,
+                                                     viscosity=viscosity)
 
 hydrodynamic_densites_2 = fluid_density * ones(size(sphere2.density))
 hydrodynamic_masses_2 = hydrodynamic_densites_2 * solid_particle_spacing^ndims(fluid_system)
@@ -93,7 +94,8 @@ solid_boundary_model_2 = BoundaryModelDummyParticles(hydrodynamic_densites_2,
                                                      state_equation=state_equation,
                                                      boundary_density_calculator,
                                                      fluid_smoothing_kernel,
-                                                     fluid_smoothing_length,viscosity=viscosity)
+                                                     fluid_smoothing_length,
+                                                     viscosity=viscosity)
 
 solid_system_1 = RigidSPHSystem(sphere1; boundary_model=solid_boundary_model_1,
                                 acceleration=(0.0, -gravity),
@@ -110,7 +112,6 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=10)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="",
                                          write_meta_data=true)
-
 
 function collision(vu, integrator, semi, t)
     v_ode, u_ode = vu.x
@@ -149,6 +150,7 @@ stepsize_callback = StepsizeCallback(cfl=0.5)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false;step_limiter! =collision),
+sol = solve(ode,
+            CarpenterKennedy2N54(williamson_condition=false; (step_limiter!)=collision),
             dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);

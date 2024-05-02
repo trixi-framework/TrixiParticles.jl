@@ -166,7 +166,8 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
-@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem},
+@inline function compact_support(system::Union{TotalLagrangianSPHSystem, BoundarySPHSystem,
+                                               RigidSPHSystem},
                                  neighbor)
     return compact_support(system, system.boundary_model, neighbor)
 end
@@ -371,6 +372,11 @@ end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+function calculate_dt(v_ode, u_ode, cfl_number, system)
+    # Ignore system regarding timestep calculation
+    return Inf
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
@@ -610,7 +616,7 @@ end
 # To prevent hard-to-find bugs, there is not default version
 function update_nhs!(neighborhood_search,
                      system::FluidSystem,
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
+                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem},
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
     PointNeighbors.update!(neighborhood_search,
@@ -620,7 +626,7 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::FluidSystem, neighbor::BoundarySPHSystem,
+                     system::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem}, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
     PointNeighbors.update!(neighborhood_search,
@@ -630,7 +636,7 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
+                     system::TotalLagrangianSPHSystem, neighbor::Union{FluidSystem, RigidSPHSystem},
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
     PointNeighbors.update!(neighborhood_search,
@@ -646,21 +652,16 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
-function update_nhs!(neighborhood_search,
-                     system::TotalLagrangianSPHSystem, neighbor::BoundarySPHSystem,
-                     u_system, u_neighbor)
-    # The current coordinates of solids change over time.
-    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           particles_moving=(true, neighbor.ismoving[]))
+function update_nhs!(neighborhood_search, system::RigidSPHSystem, neighbor::RigidSPHSystem,
+    u_system, u_neighbor)
+# Don't update. Neighborhood search works on the initial coordinates, which don't change.
+return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem,
-                                     BoundarySPHSystem},
+                                     BoundarySPHSystem, RigidSPHSystem},
                      u_system, u_neighbor)
     # Don't update. This NHS is never used.
     return neighborhood_search
@@ -668,7 +669,7 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
+                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem},
                      u_system, u_neighbor)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
@@ -744,7 +745,8 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
     end
 end
 
-function check_configuration(system::TotalLagrangianSPHSystem, systems)
+function check_configuration(system::Union{TotalLagrangianSPHSystem, RigidSPHSystem},
+                             systems)
     (; boundary_model) = system
 
     foreach_system(systems) do neighbor
