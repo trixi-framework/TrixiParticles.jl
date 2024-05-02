@@ -57,7 +57,7 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySys
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
-        radius = initial_condition.radius
+        radius = 0.5 * initial_condition.particle_spacing * ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
         return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,

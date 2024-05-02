@@ -45,7 +45,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
-        radius = copy(initial_condition.radius)
+        radius = 0.5 * initial_condition.particle_spacing * ones(length(mass))
 
         # Make acceleration an SVector
         acceleration_ = SVector(acceleration...)
@@ -53,13 +53,15 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(mass),
-                   typeof(radius), typeof(source_terms)}(initial_condition, mass,
-                                                         radius, elastic_modulus,
-                                                         poissons_ratio, normal_stiffness,
-                                                         damping_coefficient,
-                                                         acceleration_,
-                                                         source_terms)
+        return new{NDIMS, ELTYPE, typeof(mass), typeof(source_terms)}(initial_condition,
+                                                                      mass,
+                                                                      radius,
+                                                                      elastic_modulus,
+                                                                      poissons_ratio,
+                                                                      normal_stiffness,
+                                                                      damping_coefficient,
+                                                                      acceleration_,
+                                                                      source_terms)
     end
 end
 

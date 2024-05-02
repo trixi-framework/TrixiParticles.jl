@@ -68,7 +68,7 @@ initial_condition = InitialCondition(; coordinates, velocity, mass, density)
 initial_condition = InitialCondition(; coordinates, velocity=x -> 2x, mass=1.0, density=1000.0)
 
 # output
-InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0], [-0.5, -0.5, -0.5])
+InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.0 2.0], [1.0, 1.0, 1.0], [1000.0, 1000.0, 1000.0], [0.0, 0.0, 0.0])
 ```
 """
 struct InitialCondition{ELTYPE}
@@ -78,7 +78,6 @@ struct InitialCondition{ELTYPE}
     mass             :: Array{ELTYPE, 1}
     density          :: Array{ELTYPE, 1}
     pressure         :: Array{ELTYPE, 1}
-    radius           :: Array{ELTYPE, 1}
 
     function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
                               mass=nothing, pressure=0.0, particle_spacing=-1.0)
@@ -164,10 +163,8 @@ struct InitialCondition{ELTYPE}
             masses = mass_fun.(coordinates_svector)
         end
 
-        radius = 0.5 * particle_spacing * ones(length(masses))
-
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
-                           densities, pressures, radius)
+                           densities, pressures)
     end
 end
 
