@@ -10,10 +10,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
                    neighbor_system::Union{BoundaryDEMSystem, DEMSystem})
     (; damping_coefficient) = particle_system
 
-
     E_a = particle_system.elastic_modulus
     nu_a = particle_system.poissons_ratio
-
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -67,7 +65,6 @@ end
                                  normal, v_particle_system, v_neighbor_system,
                                  E_a, nu_a, r_a, r_b,
                                  m_a, damping_coefficient, particle, neighbor)
-
     m_b = neighbor_system.mass[neighbor]
     E_b = neighbor_system.elastic_modulus
     nu_b = neighbor_system.poissons_ratio
