@@ -46,5 +46,5 @@ sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-3, # Limit stepsize to prevent crashing
-            dt=1e-7,  # Inititial step size
+            dt=1e-7,  # Initial step size
             save_everystep=false, callback=callbacks);
