@@ -1,11 +1,10 @@
 # [Discrete Element Method](@id dem)
 The Discrete Element Method (DEM) is a computational technique widely used in physics, engineering,
-and applied mathematics for simulating the dynamics of systems of solid mass elements. This method allows
-for the analysis of the mechanical behavior of granular materials, such as powders, sand, soil, or rock,
-as well as other discontinua. Unlike continuum mechanics that treats materials as continuous, DEM
-considers individual particles or elements and their interactions. This approach provides detailed insights
-into the micro-mechanical behavior of materials, making it particularly valuable in fields such as
-geomechanics, material science, and mechanical engineering.
+and applied mathematics for simulating the mechanical behavior of granular materials, such as powders,
+sand, soil, or rock, as well as other discontinua. Unlike continuum mechanics that treats materials as 
+continuous, DEM considers individual particles or elements and their interactions. This approach provides
+detailed insights into the micro-mechanical behavior of materials, making it particularly valuable
+in fields such as geomechanics, material science, and mechanical engineering.
 
 ## Fundamental Principles
 The core idea behind DEM is the discretization of a material system into a finite set of distinct,

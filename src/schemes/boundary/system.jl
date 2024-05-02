@@ -46,10 +46,13 @@ end
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
 
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in a future releases.
+
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, R, ARRAY2D} <: BoundarySystem{NDIMS}
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
     coordinates      :: ARRAY2D # [dimension, particle]
-    radius           :: R       # [particle]
+    radius           :: ARRAY1D # [particle]
     normal_stiffness :: ELTYPE
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)

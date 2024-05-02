@@ -81,7 +81,7 @@ end
     # Compute effective radius for the interaction
     r_star = (r_a * r_b) / (r_a + r_b)
 
-    # Compute stiffness constant normal_stiffness for the interaction
+    # Compute stiffness constant for the interaction
     normal_stiffness = (4 / 3) * E_star * sqrt(r_star * overlap)
 
     # Calculate effective mass for the interaction

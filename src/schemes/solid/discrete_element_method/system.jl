@@ -22,11 +22,14 @@ specified material properties and contact mechanics.
  - `source_terms`: Optional; additional forces or modifications to particle dynamics not
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
+
+ !!! warning "Experimental Implementation"
+    This is an experimental feature and may change in a future releases.
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, M, R, ST} <: SolidSystem{NDIMS}
+struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
-    mass                :: M                     # [particle]
-    radius              :: R                     # [particle]
+    mass                :: ARRAY1D               # [particle]
+    radius              :: ARRAY1D               # [particle]
     elastic_modulus     :: ELTYPE
     poissons_ratio      :: ELTYPE
     normal_stiffness    :: ELTYPE
