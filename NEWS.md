@@ -4,8 +4,7 @@ TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](h
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability. 
 We aim at 3 to 4 month between major release versions and about 2 weeks between minor versions. 
 
-
-## Version 0.1.x
+## Version 0.2.x
 
 ### Highlights
 
@@ -15,10 +14,18 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 
 ### Deprecated
 
-## Version 0.1.1
+
+## Version 0.1.2
 
 ### Added
 A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids", 2013 was added to WCSPH
+
+## Version 0.1.1
+
+### Highlights
+
+#### Discrete Element Method
+A basic implementation of the discrete element method was added.
 
 # Pre Initial Release (v0.1.0)
 This section summarizes the initial features that TrixiParticles.jl was released with.

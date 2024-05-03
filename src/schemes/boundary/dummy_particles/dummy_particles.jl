@@ -52,6 +52,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
                                          density_calculator, smoothing_kernel,
                                          smoothing_length; viscosity=nothing,
                                          state_equation=nothing, correction=nothing)
+        ELTYPE = eltype(initial_density)
         pressure = initial_boundary_pressure(initial_density, density_calculator,
                                              state_equation)
         NDIMS = ndims(smoothing_kernel)
