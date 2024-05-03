@@ -41,11 +41,11 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
                                    V, DD, COR, PF, ST, SRFT, C} <: FluidSystem{NDIMS}
-    initial_condition                 :: InitialCondition{ELTYPE}
-    mass                              :: Array{ELTYPE, 1} # [particle]
-    pressure                          :: Array{ELTYPE, 1} # [particle]
+    initial_condition                 :: IC
+    mass                              :: MA     # Array{ELTYPE, 1}
+    pressure                          :: P      # Array{ELTYPE, 1}
     density_calculator                :: DC
     state_equation                    :: SE
     smoothing_kernel                  :: K
@@ -103,7 +103,9 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, DC, SE, K,
                  create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
                  cache...)
 
-        return new{NDIMS, ELTYPE, typeof(density_calculator),
+        return new{NDIMS, ELTYPE, typeof(initial_condition),
+                   typeof(mass), typeof(pressure),
+                   typeof(density_calculator),
                    typeof(state_equation), typeof(smoothing_kernel),
                    typeof(viscosity), typeof(density_diffusion),
                    typeof(correction), typeof(pressure_acceleration),
