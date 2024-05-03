@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
-version = "0.1.1-dev"
+version = "0.1.1"
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
