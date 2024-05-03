@@ -12,6 +12,7 @@ Adapt.@adapt_structure WeaklyCompressibleSPHSystem
 Adapt.@adapt_structure DensityDiffusionAntuono
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
+Adapt.@adapt_structure BoundaryModelMonaghanKajtar
 
 # The initial conditions are only used for initialization, which happens before `adapt`ing
 # the semidiscretization, so we don't need to store `InitialCondition`s on the GPU.
