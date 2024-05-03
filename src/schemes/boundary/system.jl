@@ -50,6 +50,53 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing)
 end
 
 """
+    BoundaryDEMSystem(initial_condition, normal_stiffness)
+
+System for boundaries modeled by boundary particles.
+The interaction between fluid and boundary particles is specified by the boundary model.
+
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in a future releases.
+
+"""
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
+    coordinates      :: ARRAY2D # [dimension, particle]
+    radius           :: ARRAY1D # [particle]
+    normal_stiffness :: ELTYPE
+
+    function BoundaryDEMSystem(initial_condition, normal_stiffness)
+        coordinates = initial_condition.coordinates
+        radius = 0.5 * initial_condition.particle_spacing *
+                 ones(length(initial_condition.mass))
+        NDIMS = size(coordinates, 1)
+
+        return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,
+                                                                                    radius,
+                                                                                    normal_stiffness)
+    end
+end
+
+function Base.show(io::IO, system::BoundaryDEMSystem)
+    @nospecialize system # reduce precompilation time
+
+    print(io, "BoundaryDEMSystem{", ndims(system), "}(")
+    print(io, system.boundary_model)
+    print(io, ") with ", nparticles(system), " particles")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", system::BoundaryDEMSystem)
+    @nospecialize system # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, system)
+    else
+        summary_header(io, "BoundaryDEMSystem{$(ndims(system))}")
+        summary_line(io, "#particles", nparticles(system))
+        summary_footer(io)
+    end
+end
+
+"""
     BoundaryMovement(movement_function, is_moving; moving_particles=nothing)
 
 # Arguments
@@ -128,7 +175,17 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
     end
 end
 
-timer_name(::BoundarySPHSystem) = "boundary"
+timer_name(::Union{BoundarySPHSystem, BoundaryDEMSystem}) = "boundary"
+
+@inline function Base.eltype(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+    eltype(system.coordinates)
+end
+
+# This does not account for moving boundaries, but it's only used to initialize the
+# neighborhood search, anyway.
+@inline function initial_coordinates(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
+    system.coordinates
+end
 
 function (movement::BoundaryMovement)(system, t)
     (; coordinates, cache) = system
@@ -160,13 +217,13 @@ function (movement::Nothing)(system, t)
     return system
 end
 
-@inline function nparticles(system::BoundarySPHSystem)
-    length(system.boundary_model.hydrodynamic_mass)
+@inline function nparticles(system::Union{BoundaryDEMSystem, BoundarySPHSystem})
+    size(system.coordinates, 2)
 end
 
 # No particle positions are advanced for boundary systems,
 # except when using `BoundaryModelDummyParticles` with `ContinuityDensity`.
-@inline function n_moving_particles(system::BoundarySPHSystem)
+@inline function n_moving_particles(system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return 0
 end
 
@@ -174,13 +231,14 @@ end
     return nparticles(system)
 end
 
-@inline u_nvariables(system::BoundarySPHSystem) = 0
+@inline u_nvariables(system::Union{BoundarySPHSystem, BoundaryDEMSystem}) = 0
 
 # For BoundaryModelDummyParticles with ContinuityDensity, this needs to be 1.
 # For all other models and density calculators, it's irrelevant.
 @inline v_nvariables(system::BoundarySPHSystem) = 1
+@inline v_nvariables(system::BoundaryDEMSystem) = 0
 
-@inline function current_coordinates(u, system::BoundarySPHSystem)
+@inline function current_coordinates(u, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return system.coordinates
 end
 
@@ -257,11 +315,13 @@ function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function write_u0!(u0, system::BoundarySPHSystem)
+function write_u0!(u0, system::Union{BoundarySPHSystem, BoundaryDEMSystem})
     return u0
 end
 
-function write_v0!(v0, system::BoundarySPHSystem)
+function write_v0!(v0,
+                   system::Union{BoundarySPHSystem,
+                                 BoundaryDEMSystem})
     return v0
 end
 
