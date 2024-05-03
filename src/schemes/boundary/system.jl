@@ -56,7 +56,6 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
-
 """
 struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <:
        BoundarySystem{NDIMS, IC}
