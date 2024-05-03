@@ -276,9 +276,11 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
     sizes_v = (v_nvariables(system) * n_moving_particles(system) for system in systems)
 
     if isnothing(data_type)
+        # Use CPU vectors and the optimized CPU code
         u0_ode = Vector{ELTYPE}(undef, sum(sizes_u))
         v0_ode = Vector{ELTYPE}(undef, sum(sizes_v))
     else
+        # Use the specified data type, e.g., `CuArray` or `ROCArray`
         u0_ode = data_type{ELTYPE}(undef, sum(sizes_u))
         v0_ode = data_type{ELTYPE}(undef, sum(sizes_v))
     end
@@ -293,8 +295,8 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
     end
 
     if !isnothing(data_type)
-        # Convert all arrays to the correct array type. When e.g. `data_type=CuArray`, this will
-        # convert all `Array`s to `CuArray`s, moving data to the GPU.
+        # Convert all arrays to the correct array type. When e.g. `data_type=CuArray`,
+        # this will convert all `Array`s to `CuArray`s, moving data to the GPU.
         # See the comments in general/gpu.jl for more details.
         semi_adapted = Adapt.adapt(data_type, semi)
 
