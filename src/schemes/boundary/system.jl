@@ -13,7 +13,7 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{NDIMS, ELTYPE <: Real, BM, IC, CO, M, IM, CA} <:
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, CA} <:
        BoundarySystem{NDIMS}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
@@ -40,7 +40,8 @@ struct BoundarySPHSystem{NDIMS, ELTYPE <: Real, BM, IC, CO, M, IM, CA} <:
             movement.moving_particles .= collect(1:nparticles(initial_condition))
         end
 
-        return new{NDIMS, ELTYPE, typeof(model), typeof(initial_condition),
+        # Because of dispatches boundary model needs to be first!
+        return new{typeof(model), NDIMS, ELTYPE, typeof(initial_condition),
                    typeof(coordinates), typeof(movement), typeof(ismoving),
                    typeof(cache)}(initial_condition, coordinates, model, movement,
                                   ismoving, adhesion_coefficient, cache)
