@@ -150,6 +150,15 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
+    return 0.0
+end
+
+@inline function compact_support(system::BoundaryDEMSystem, neighbor::DEMSystem)
+    # Use the compact support of the DEMSystem
+    return compact_support(neighbor, system)
+end
+
 @inline function compact_support(system::TotalLagrangianSPHSystem,
                                  neighbor::TotalLagrangianSPHSystem)
     (; smoothing_kernel, smoothing_length) = system
@@ -578,6 +587,20 @@ end
 end
 
 # NHS updates
+# To prevent hard to spot errors there is not default version
+
+function nhs_coords(system::DEMSystem, neighbor::DEMSystem, u)
+    return current_coordinates(u, neighbor)
+end
+
+function nhs_coords(system::BoundaryDEMSystem,
+                    neighbor::Union{BoundaryDEMSystem, DEMSystem}, u)
+    return nothing
+end
+function nhs_coords(system::DEMSystem, neighbor::BoundaryDEMSystem, u)
+    return nothing
+end
+
 function nhs_coords(system::FluidSystem,
                     neighbor::FluidSystem, u)
     return current_coordinates(u, neighbor)
