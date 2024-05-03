@@ -19,25 +19,34 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
     ismoving          :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     cache             :: CA
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing)
-        coordinates = copy(initial_condition.coordinates)
-        NDIMS = size(coordinates, 1)
-        ismoving = Ref(!isnothing(movement))
-
-        cache = create_cache_boundary(movement, initial_condition)
-
-        if movement !== nothing && isempty(movement.moving_particles)
-            # Default is an empty vector, since the number of particles is not known when
-            # instantiating `BoundaryMovement`.
-            resize!(movement.moving_particles, nparticles(initial_condition))
-            movement.moving_particles .= collect(1:nparticles(initial_condition))
-        end
-
-        return new{typeof(model), NDIMS, typeof(initial_condition),
-                   typeof(coordinates), typeof(movement), typeof(ismoving),
-                   typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, cache)
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
+    function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
+                               ismoving, cache)
+        new{typeof(boundary_model), size(coordinates, 1),
+            typeof(initial_condition), typeof(coordinates),
+            typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
+                                                               coordinates, boundary_model,
+                                                               movement,
+                                                               ismoving, cache)
     end
+end
+
+function BoundarySPHSystem(initial_condition, model; movement=nothing)
+    coordinates = copy(initial_condition.coordinates)
+    ismoving = Ref(!isnothing(movement))
+
+    cache = create_cache_boundary(movement, initial_condition)
+
+    if movement !== nothing && isempty(movement.moving_particles)
+        # Default is an empty vector, since the number of particles is not known when
+        # instantiating `BoundaryMovement`.
+        resize!(movement.moving_particles, nparticles(initial_condition))
+        movement.moving_particles .= collect(1:nparticles(initial_condition))
+    end
+
+    return BoundarySPHSystem(initial_condition, coordinates, model,
+                             movement, ismoving, cache)
 end
 
 """
