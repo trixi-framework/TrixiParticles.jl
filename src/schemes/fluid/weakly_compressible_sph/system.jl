@@ -99,20 +99,13 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                 n_particles)..., cache...)
 
-    return WeaklyCompressibleSPHSystem{NDIMS, ELTYPE, typeof(initial_condition),
-                                       typeof(mass), typeof(pressure),
-                                       typeof(density_calculator),
-                                       typeof(state_equation), typeof(smoothing_kernel),
-                                       typeof(viscosity), typeof(density_diffusion),
-                                       typeof(correction), typeof(pressure_acceleration),
-                                       typeof(source_terms),
-                                       typeof(cache)}(initial_condition, mass, pressure,
-                                                      density_calculator, state_equation,
-                                                      smoothing_kernel, smoothing_length,
-                                                      acceleration_, viscosity,
-                                                      density_diffusion, correction,
-                                                      pressure_acceleration,
-                                                      source_terms, cache)
+    return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
+                                       density_calculator, state_equation,
+                                       smoothing_kernel, smoothing_length,
+                                       acceleration_, viscosity,
+                                       density_diffusion, correction,
+                                       pressure_acceleration,
+                                       source_terms, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
