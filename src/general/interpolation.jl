@@ -494,7 +494,8 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
             u = wrap_u(u_ode, system, semi)
             system_coords = current_coordinates(u, system)
             old_nhs = get_neighborhood_search(ref_system, system, semi)
-            nhs = copy_neighborhood_search(old_nhs, search_radius, system_coords)
+            nhs = TrixiNeighborhoodSearch.copy_neighborhood_search(old_nhs, search_radius,
+                                                                   system_coords)
             return nhs
         end
     end
