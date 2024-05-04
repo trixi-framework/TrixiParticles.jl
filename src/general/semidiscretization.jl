@@ -140,7 +140,7 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
                                                    periodic_box_max_corner=periodic_box_max_corner,
                                                    threaded_nhs_update=threaded_nhs_update)
     # Initialize neighborhood search
-    initialize!(search, initial_coordinates(neighbor))
+    TrixiNeighborhoodSearch.initialize!(search, initial_coordinates(neighbor))
 
     return search
 end
@@ -474,7 +474,8 @@ function update_nhs(u_ode, semi)
             u_neighbor = wrap_u(u_ode, neighbor, semi)
             neighborhood_search = get_neighborhood_search(system, neighbor, semi)
 
-            update!(neighborhood_search, nhs_coords(system, neighbor, u_neighbor))
+            TrixiNeighborhoodSearch.update!(neighborhood_search,
+                                            nhs_coords(system, neighbor, u_neighbor))
         end
     end
 end
