@@ -20,7 +20,6 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 @reexport using StaticArrays: SVector
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
-using ThreadingUtilities
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include
 @reexport using TrixiNeighborhoodSearch: TrivialNeighborhoodSearch, GridNeighborhoodSearch
