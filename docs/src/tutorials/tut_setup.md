@@ -238,3 +238,83 @@ sol = solve(ode, RDPK3SpFSAL35(), save_everystep=false, callback=callbacks);
 ```
 
 See [Visualization](@ref) for how to visualize the solution.
+
+## Replacing components with custom implementations
+
+If we would like to use an implementation of a component that is not available
+in TrixiParticles.jl, we can implement it ourselves within the simulation file,
+without ever cloning the TrixiParticles.jl repository.
+A good starting point is to check out the available implementations in
+TrixiParticles.jl, then copy the relevant functions to the simulation file
+and modify them as needed.
+
+### Custom smoothing kernel
+
+To implement a custom smoothing kernel, we define a struct extending
+`TrixiParticles.SmoothingKernel`.
+This abstract struct has a type parameter for the number of dimensions,
+which we set to 2 in this case.
+
+```jldoctest tut_setup; output = false
+struct MyGaussianKernel <: TrixiParticles.SmoothingKernel{2} end
+
+# output
+
+```
+This kernel is going to be an implementation of the Gaussian kernel with
+a cutoff for compact support.
+Note that the same kernel in a more optimized version is already implemented
+in TrixiParticles.jl as [`GaussianKernel`](@ref).
+
+In order to use our new kernel, we have to define three functions.
+`TrixiParticles.kernel`, which is the kernel function itself,
+`TrixiParticles.kernel_deriv`, which is the derivative of the kernel function,
+and `TrixiParticles.compact_support`, which defines the compact support of the
+kernel in relation to the smoothing length.
+The latter is relevant for determining the search radius of the neighborhood search.
+
+```jldoctest tut_setup; output = false
+function TrixiParticles.kernel(kernel::MyGaussianKernel, r, h)
+    q = r / h
+
+    if q < 2
+        return 1 / (pi * h^2) * exp(-q^2)
+    end
+
+    return 0.0
+end
+
+function TrixiParticles.kernel_deriv(kernel::MyGaussianKernel, r, h)
+    q = r * h
+
+    if q < 2
+        return 1 / (pi * h^2)  * (-2 * q) * exp(-q^2) / h
+    end
+
+    return 0.0
+end
+
+TrixiParticles.compact_support(::MyGaussianKernel, h) = 3 * h
+
+# output
+
+```
+
+This is all we need to use our custom kernel implementation in a simulation.
+We only need to replace the definition above by
+```jldoctest tut_setup; output = false
+smoothing_kernel = MyGaussianKernel()
+
+# output
+MyGaussianKernel()
+```
+and run the simulation file again.
+
+In order to use our kernel in a pre-defined example file, we can use the function
+[`trixi_include`](@ref) to replace the definition of the variable `smoothing_kernel`.
+The following will run the example simulation
+`examples/fluid/hydrostatic_water_column_2d.jl` with our custom kernel.
+```jldoctest tut_setup; output = false, filter = r".*"s
+julia> trixi_include(joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"),
+                     smoothing_kernel=MyGaussianKernel());
+```
