@@ -485,7 +485,7 @@ end
 function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length)
     if isapprox(smoothing_length, ref_system.smoothing_length)
         # Update existing NHS
-        update_nhs(u_ode, semi)
+        update_nhs!(semi, u_ode)
         neighborhood_searches = semi.neighborhood_searches[system_indices(ref_system, semi)]
     else
         ref_smoothing_kernel = ref_system.smoothing_kernel
