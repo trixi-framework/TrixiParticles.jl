@@ -64,7 +64,7 @@ written in C++, and  [@Ramachandran:2021], written in Python. These frameworks e
 TrixiParticles.jl provides support for developing or testing new SPH methods and also for simulating or coupling other particle-based methods such as DEM.
 Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
 Instead, each simulation is configured and set up by pure Julia code.
-This makes it easy for users to add custom functionality even without touching the source code.
+This makes it easy for users to add custom functionality even without touching the original package.
 The latter is further enhanced by its seamless support for GPU acceleration, integrating advanced computational capabilities without necessitating separate codebases.
 
 # Scientific background
