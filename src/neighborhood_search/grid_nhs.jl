@@ -152,17 +152,17 @@ end
     return size(neighborhood_search.cell_buffer, 1)
 end
 
-function initialize!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
+function initialize!(neighborhood_search::GridNeighborhoodSearch, ::Nothing, ::Nothing)
     # No particle coordinates function -> don't initialize.
     return neighborhood_search
 end
 
 function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
-                     x::AbstractArray) where {NDIMS}
-    initialize!(neighborhood_search, i -> extract_svector(x, Val(NDIMS), i))
+                     x::AbstractMatrix, y::AbstractMatrix) where {NDIMS}
+    initialize!(neighborhood_search, i -> extract_svector(y, Val(NDIMS), i))
 end
 
-function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
+function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun1, coords_fun2)
     (; hashtable) = neighborhood_search
 
     empty!(hashtable)
@@ -173,7 +173,7 @@ function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun)
 
     for particle in 1:nparticles(neighborhood_search)
         # Get cell index of the particle's cell
-        cell = cell_coords(coords_fun(particle), neighborhood_search)
+        cell = cell_coords(coords_fun2(particle), neighborhood_search)
 
         # Add particle to corresponding cell or create cell if it does not exist
         if haskey(hashtable, cell)

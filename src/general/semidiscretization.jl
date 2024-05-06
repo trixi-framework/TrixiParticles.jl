@@ -140,7 +140,7 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
                                                    periodic_box_max_corner=periodic_box_max_corner,
                                                    threaded_nhs_update=threaded_nhs_update)
     # Initialize neighborhood search
-    initialize!(search, initial_coordinates(neighbor))
+    initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))
 
     return search
 end
