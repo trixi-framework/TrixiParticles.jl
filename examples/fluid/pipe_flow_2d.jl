@@ -64,7 +64,7 @@ fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Open Boundary
 function velocity_function(pos, t)
-    return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
+    return SVector(prescribed_velocity, 0.0) # SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 end
 
 open_boundary_in = OpenBoundarySPHSystem(([0.0, 0.0], [0.0, domain_size[2]]), InFlow(),
