@@ -52,14 +52,6 @@
     year      = 2021
 }
 
-@Article{Akinci:2013,
-	title={Versatile surface tension and adhesion for SPH fluids},
-	author={{Akinci}, N. and {Akinci}, G. and {Teschner}, M.},
-	journal={ACM Transactions on Graphics (TOG)},
-	volume={32},
-	year=2013
-}
-
 @Article{Clausen:2013,
   	author    = {{Clausen}, J.~R.},
   	journal   = {Physical Review E},
@@ -91,20 +83,31 @@
   	year      = 2005
 }
 
-
-@Article{Bicanic:2004,
-	title={Discrete element methods},
-	author={Bi{'c}ani{'c}, N.},
-	journal={Encyclopedia of computational mechanics},
-	year=2004
+@Misc{Bicanic:2004,
+  author    = {Bićanić, Nenad},
+  month     = aug,
+  title     = {Discrete Element Methods},
+  year      = {2004},
+  doi       = {10.1002/0470091355.ecm006.pub2},
+  groups    = {DEM},
+  isbn      = {9780470091357},
+  journal   = {Encyclopedia of Computational Mechanics},
+  publisher = {Wiley}
 }
 
 @Article{Cundall:1979,
-	title={A discrete numerical model for granular assemblies},
-	author={{Cundall}, P. and {Strack}, O.},
-	journal={geotechnique},
-	volume={29},
-	year=1979
+  author    = {Cundall, P. A. and Strack, O. D. L.},
+  journal   = {Géotechnique},
+  title     = {A discrete numerical model for granular assemblies},
+  year      = {1979},
+  issn      = {1751-7656},
+  month     = mar,
+  number    = {1},
+  pages     = {47--65},
+  volume    = {29},
+  doi       = {10.1680/geot.1979.29.1.47},
+  groups    = {DEM},
+  publisher = {Thomas Telford Ltd.}
 }
 
 @Article{Monaghan:1977,
@@ -138,36 +141,65 @@
   doi={10.5281/zenodo.3996439}
 }
 
-@misc{DualSPHysics,
-	title = {DualSPHysics},
-	year = {2024},
-	publisher = {GitHub},
-	journal = {GitHub repository},
-	url = {https://github.com/DualSPHysics/DualSPHysics}
+@Article{Dominguez:2021,
+  author    = {J. M. Dom{\'{\i}}nguez and G. Fourtakas and C. Altomare and R. B. Canelas and A. Tafuni and O. Garc{\'{\i}}a-Feal and I. Mart{\'{\i}}nez-Est{\'{e}}vez and A. Mokos and R. Vacondio and A. J. C. Crespo and B. D. Rogers and P. K. Stansby and M. G{\'{o}}mez-Gesteira},
+  journal   = {Computational Particle Mechanics},
+  title     = {{DualSPHysics}: from fluid dynamics to multiphysics problems},
+  year      = {2021},
+  issn      = {2196-4386},
+  month     = {mar},
+  number    = {5},
+  pages     = {867--895},
+  volume    = {9},
+  doi       = {10.1007/s40571-021-00404-2},
+  file      = {:/home/niki/bwSyncShare/partix/papers/sph/DualSPHysics.pdf:PDF},
+  groups    = {sph},
+  publisher = {Springer Science and Business Media {LLC}},
 }
 
-@misc{PySPH,
-	title = {PySPH},
-	year = {2024},
-	publisher = {GitHub},
-	journal = {GitHub repository},
-	url = {https://github.com/pypr/pysph}
+
+@article{Ramachandran:2021,
+    title = {{{PySPH}}: {{A Python-based Framework}} for {{Smoothed Particle Hydrodynamics}}},
+    shorttitle = {{{PySPH}}},
+    author = {Ramachandran, Prabhu and Bhosale, Aditya and Puri,
+    Kunal and Negi, Pawan and Muta, Abhinav and Dinesh,
+    A. and Menon, Dileep and Govind, Rahul and Sanka, Suraj and Sebastian,
+    Amal S. and Sen, Ananyo and Kaushik, Rohan and Kumar,
+    Anshuman and Kurapati, Vikas and Patil, Mrinalgouda and Tavker,
+    Deep and Pandey, Pankaj and Kaushik, Chandrashekhar and Dutt,
+    Arkopal and Agarwal, Arpit},
+    year = {2021},
+    month = dec,
+    journal = {ACM Transactions on Mathematical Software},
+    volume = {47},
+    number = {4},
+    pages = {1--38},
+    issn = {0098-3500, 1557-7295},
+    doi = {10.1145/3460773},
+    langid = {english}
 }
 
-@misc{SplisHSPlasH,
-	title = {SPlisHSPlasH},
-	year = {2024},
-	publisher = {GitHub},
-	journal = {GitHub repository},
-	url = {https://github.com/InteractiveComputerGraphics/SPlisHSPlasH}
+@software{Bender,
+author = {Bender, Jan and others},
+license = {MIT},
+title = {{SPlisHSPlasH Library}},
+url = {https://github.com/InteractiveComputerGraphics/SPlisHSPlasH}
 }
 
-@misc{SPHinXsys,
-	title = {SPHinXsys},
-	year = {2024},
-	publisher = {GitHub},
-	journal = {GitHub repository},
-	url = {https://github.com/Xiangyu-Hu/SPHinXsys}
+@article{Zhang:2021,
+title = {SPHinXsys: An open-source multi-physics and multi-resolution library based on smoothed particle hydrodynamics},
+journal = {Computer Physics Communications},
+volume = {267},
+pages = {108066},
+year = {2021},
+issn = {0010-4655},
+doi = {https://doi.org/10.1016/j.cpc.2021.108066},
+url = {https://www.sciencedirect.com/science/article/pii/S0010465521001788},
+author = {Chi Zhang and Massoud Rezavand and Yujie Zhu and Yongchuan Yu and Dong Wu and Wenbin Zhang and Jianhang Wang and Xiangyu Hu},
+keywords = {Open-source library, Smoothed particle hydrodynamics, Meshless method, Multi-physics solver, Multi-resolution solver},
+abstract = {In this paper, we present an open-source multi-resolution and multi-physics library, SPHinXsys, which is released under the Apache License (2.0). Along with the source code, a complete documentation is also distributed for easy compilation and execution. SPHinXsys aims at modeling coupled multi-physics industrial dynamic systems within a unified SPH framework. It has two important features, namely, (1) the generic design providing a C++ API with very good flexibility for domain-specific applications, (2) the unified framework within which numerous industrial or scientific applications can be coupled. The present version (v0.2.0) includes a wide range of validation tests and applications in the fields of fluid dynamics, solid dynamics, thermal and mass diffusion, reaction-diffusion, electromechanics and fluid-structure interactions.
+Program summary
+Program Title: SPHinXsys CPC Library link to program files: https://doi.org/10.17632/9rh6hyd89n.1 Developer's repository link: https://github.com/Xiangyu-Hu/SPHinXsys Code Ocean capsule: https://doi.org/10.24433/CO.0560985.v1 Licensing provisions: Apache-2.0 Programming language: C++ External dependencies: cmake, Boost, Threading Building Blocks (TBB), SimBody Nature of problem:: Multi-physics problems are ubiquitous in natural phenomena and play key roles in a vast range of scientific and industrial applications. Typical examples include aerial animal flying, aquatic animal swimming and the flow of blood in the heart and throughout the cardiovascular system. Due to the inter-discipline characteristics and intrinsic complexities, computational modeling of multi-physics problems is highly challenging. Solution method:: An open-source library is proposed for solving multi-physics problems in a unified multi-resolution Smoothed Particle Hydrodynamics framework. In particular, the library is applied for modeling cardiac functions where critical aspects of electrophysiology, passive and active mechanical responses are involved.}
 }
 
 @misc{Kratos,
@@ -196,8 +228,7 @@
   issn     = {0032-5910},
   pages    = {117249},
   volume   = {400},
-  doi      = {https://doi.org/10.1016/j.powtec.2022.117249},
-  url      = {https://www.sciencedirect.com/science/article/pii/S0032591022001437}
+  doi      = {https://doi.org/10.1016/j.powtec.2022.117249}
 }
 
 @article{Akinci:2013,
@@ -210,8 +241,7 @@ address = {New York, NY, USA},
 volume = {32},
 number = {6},
 issn = {0730-0301},
-url = {https://doi.org/10.1145/2508363.2508395},
-doi = {10.1145/2508363.2508395},
+doi = {https://doi.org/10.1145/2508363.2508395},
 journal = {ACM Trans. Graph.},
 month = {nov},
 articleno = {182},
@@ -227,7 +257,6 @@ pages = {106534},
 year = {2020},
 issn = {0301-679X},
 doi = {https://doi.org/10.1016/j.triboint.2020.106534},
-url = {https://www.sciencedirect.com/science/article/pii/S0301679X20303662},
 author = {A. Laukkanen and M. Lindgren and T. Andersson and T. Pinomaa and M. Lindroos},
 keywords = {Erosion-corrosion, Wear resistant steels, Micromechanical modeling, Wear}
 }
@@ -240,7 +269,6 @@ pages = {567-576},
 year = {2019},
 issn = {0257-8972},
 doi = {https://doi.org/10.1016/j.surfcoat.2018.11.068},
-url = {https://www.sciencedirect.com/science/article/pii/S0257897218312787},
 author = {M.A. Ghasemi and S.R. Falahatgar},
 keywords = {Coating/substrate structure, Discrete element method, Brittle fracture, Crack growth simulation}
 }

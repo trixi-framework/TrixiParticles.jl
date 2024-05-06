@@ -20,7 +20,7 @@ authors:
     affiliation: 3
   - name: Michael Schlottke-Lakemper
     orcid: 0000-0002-3195-2536
-    affiliation: 1 # TODO: @Michael: Stuttgart or Augsburg
+    affiliation: 1, 4
   - name: Gregor J. Gassner
     orcid: 0000-0002-1752-1158
     affiliation: 2
@@ -31,32 +31,35 @@ affiliations:
    index: 2
  - name: Institute of Surface Science, Helmholtz-Zentrum hereon, Germany
    index: 3
+ - name: University of Augsburg, Germany
+   index: 4
 date: \today
 bibliography: paper.bib
 ---
 
 # Summary
 
-TrixiParticles.jl, part of the Trixi Project [@schlottkelakemper2020trixi], is an innovative Julia-based open-source framework designed for particle-based multiphysics simulations.
-It aims to overcome the limitations of traditional mesh-based methods in handling complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics,
-by offering a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others.
-Unique in its approach, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions, enhancing research flexibility.
-This is further complemented by its user-friendly design, which allows simulations to be configured directly with Julia code, eliminating the need for parameter files.
-This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping, establishing TrixiParticles.jl as a robust and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
+TrixiParticles.jl, part of the Trixi framework [@schlottkelakemper2020trixi], is an innovative Julia-based open-source software designed for particle-based multiphysics simulations.
+It aims to make it easier to handle complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics,
+by providing a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others.
+To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
+This is further complemented by a user-friendly design, which allows simulations to be configured directly with Julia code, eliminating the need for parameter files.
+This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping, establishing TrixiParticles.jl as a robust (TODO: Why/How) and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
 
-Here, we give a brief overview of the software TrixiParticles.jl, starting with a description of the scientific background before going on to describe the functionality and usefulness in more detail.
-Finally, some of the results obtained and some of the features that have been implemented so far are briefly presented.
+Here, we give a brief overview of the software package TrixiParticles.jl, starting with a description of the scientific background before going on to describe the functionality and benefit in more detail.
+Finally, a few exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
+TODO: Make this more neutral
 Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics, are often conducted using mesh-based methods supported by mature software tools like [ANSYS Fluent](https://www.ansys.com/de-de/products/fluids/ansys-fluent), [COMSOL Multiphysics](https://www.comsol.com/), and [OpenFOAM](https://www.openfoam.com/). However, these methods face limitations for complex geometries or when integrating different physics disciplines into a single multiphysics system.
 
 The mesh-free formalism of the methods allows for easy preprocessing, making them particularly
 suitable for simulating complex geometries. This also facilitates the coupling of different single
 physics into a multiphysics system.
 
-There are several open-source software projects specialized for SPH methods, including [@DualSPHysics], [@SplisHSPlasH] and [@SPHinXsys],
-written in C++, and  [@PySPH], written in Python. These frameworks emphasize performance and are designed for a variety of SPH schemes.
+There are several open-source software projects specialized for SPH methods, including [@Dominguez:2021], [@Bender] and [@Zhang:2021],
+written in C++, and  [@Ramachandran:2021], written in Python. These frameworks emphasize performance and are designed for a variety of SPH schemes.
 
 TrixiParticles.jl provides support for developing or testing new SPH methods and also for simulating or coupling other particle-based methods such as DEM.
 Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
@@ -72,27 +75,27 @@ The interaction between two particles is defined by the types of their systems. 
 ![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
-In general, the force $f_a$ experienced by a particle $a$ is calculated as following
+In general, the force $f_a$ experienced by a particle $a$ is calculated as
 $$ f_a = \sum_{b \in \mathcal{S}_1} f_{ab}^{\mathcal{S}_1} + \sum_{b \in \mathcal{S}_2} f_{ab}^{\mathcal{S}_2} + \dots + \sum_{b\in \mathcal{S}_n}f_{ab}^{\mathcal{S}_n}, $$
-where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$ and the type of the system $\mathcal{S}_i$ of particle $b$.
+where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$, the system type $\mathcal{S}_i$ of particle $b$ and the relative particle distance.
 For computational efficiency, only particles with a distance within a system-dependent search radius interact with each other.
 
 For example, the SPH method determines the force between two SPH particles according to [@Monaghan:2005] as
 $$ f_{ab} = -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab} + \Pi_{ab},$$
 where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and pressure of particles $a$ and $b$, respectively. The last term $\Pi_{ab}$ includes dissipative terms such as artificial viscosity [@Monaghan:2005] and is scheme-specific. The weighting function $W_{ab}$, also called kernel-function, depends on the relative distance between particles $a$ and $b$.
 
-# Functionality
+# Code structure and features
 
-\autoref{fig:structure} depicts the basic building blocks of TrixiParticles.jl. A simulation essentially consists of spatial discretization (left block) and time integration (center block). For the latter, the Julia package [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) is used. The callbacks (right block) are used to communicate with the time integration interface during the simulation.
+\autoref{fig:structure} depicts the basic building blocks of TrixiParticles.jl. A simulation essentially consists of spatial discretization (left block) and time integration (center block). For the latter, the Julia package [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) is used. The callbacks (right block) provide additional functionality and communicate with the time integration method during the simulation.
 
-The `Semidiscretization` couples the systems of a simulation and also creates the corresponding neighborhood searches for each system. The resulting ODE problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
+The semidiscretization couples the systems of a simulation and also creates the corresponding neighborhood searches for each system. The resulting ordinary differential equation (ODE) problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
 
-The code presented here can be found on [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with a detailed [manual](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use the package. Additionally, we provide tutorials explaining how to set up a simulation for fluids, structure mechanics or a fluid-structure interaction.
-A collection of predefined simulation files can be found in the `examples` directory.
+TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluidflows, structure mechanics, or fluid-structure interaction.
+A collection of simulation setups to get started with can be found in the `examples` directory.
 
-### Feature highlights
+## Feature highlights
 
 So far, the following feature highlights have been implemented:
 
@@ -105,7 +108,7 @@ So far, the following feature highlights have been implemented:
     + Discrete element system that models separate, discrete particles with rotational degrees of freedom, such as granular matter or bulk material [@Bicanic:2004], [@Cundall:1979].
 
 * *Boundary Systems*
-    + Boundary system with several boundary models where each model follows a different interaction rule.
+    + Boundary system with several boundary models, where each model follows a different interaction rule.
     + Open boundary system to simulate non-reflecting (open) boundary conditions [@Lastiwka:2009]
 
 * *Correction methods and models*
@@ -113,22 +116,21 @@ So far, the following feature highlights have been implemented:
   + Transport-velocity formulation (TVF) [@Adami:2013]
   + Intra-particle-force surface tension [@Akinci:2013]
 
-* *Performance*
+* *Performance and parallelization*
+  + Shared memory parallelism using multithreading
+  + Highly optimized neighborhood search
   + GPU support
 
-\autoref{fig:falling_sphere} illustrates an example of our simulation results. In this example, an elastic sphere modeled with TLSPH falls into a tank filled with water, modeled by WCSPH.
+\autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
 
-![Elastic sphere falling into a tank filled with water. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
+![Elastic sphere falling into a tank filled with water. Left: Results rendered with blender. Right: Underlying particle representation. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
 
 Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
 \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
-The results obtained with TrixiParticles.jl perfectly match those of [@O_Connor:2021].
+The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] quite well.
 
-![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=100%}
-
-As a young project that aims to be the Julia code for particle-based simulation we expect to integrate other methods such as incompressible SPH (ISPH) [@Liu:2022] or heat conduction with SPH [@Biriukov:2018], and DEM specifically tailored for applications in coatings [@Ghasemi:2019], [@Laukkanen:2020].
-In the future, these methods will be coupled with each other and even with mesh-based methods to provide a comprehensive framework.
+![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=75%}
 
 # Acknowledgements
 
