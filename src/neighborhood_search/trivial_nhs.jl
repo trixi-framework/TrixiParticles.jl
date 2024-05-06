@@ -93,5 +93,10 @@ end
 end
 
 @inline initialize!(search::TrivialNeighborhoodSearch, coords_fun) = search
-@inline update!(search::TrivialNeighborhoodSearch, coords_fun) = search
+
+@inline function update!(search::TrivialNeighborhoodSearch, coords_fun1, coords_fun2;
+                         particles_moving=(true, true))
+    return search
+end
+
 @inline eachneighbor(coords, search::TrivialNeighborhoodSearch) = search.eachparticle

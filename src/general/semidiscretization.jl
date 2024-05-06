@@ -611,24 +611,26 @@ function update_nhs!(neighborhood_search,
                      system::FluidSystem,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
                      u_system, u_neighbor)
-    update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
-    # Only update when the boundary is moving
-    if neighbor.ismoving[]
-        return update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
-    end
-
-    return neighborhood_search
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            particles_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
-    update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -641,12 +643,10 @@ end
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
-    # Only update when the boundary is moving
-    if neighbor.ismoving[]
-        return update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
-    end
-
-    return neighborhood_search
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            particles_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -667,27 +667,33 @@ function update_nhs!(neighborhood_search,
     # - kernel summation (`SummationDensity`)
     # - continuity equation (`ContinuityDensity`)
     # - pressure extrapolation (`AdamiPressureExtrapolation`)
-    update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            particles_moving=(system.ismoving[], true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
                      u_system, u_neighbor)
-    update!(neighborhood_search, current_coordinates(u_neighbor, neighbor))
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::BoundaryDEMSystem,
                      u_system, u_neighbor)
-    # Don't update for static boundaries
-    return neighborhood_search
+    update!(neighborhood_search,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor), particles_moving=(true, false))
 end
 
 function update_nhs!(neighborhood_search,
                      system::BoundaryDEMSystem,
                      neighbor::Union{DEMSystem, BoundaryDEMSystem},
                      u_system, u_neighbor)
-    # Don't update for static boundaries
+    # Don't update. This NHS is never used.
     return neighborhood_search
 end
 
