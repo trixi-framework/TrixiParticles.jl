@@ -159,7 +159,7 @@ end
 
 function initialize!(neighborhood_search::GridNeighborhoodSearch{NDIMS},
                      x::AbstractMatrix, y::AbstractMatrix) where {NDIMS}
-    initialize!(neighborhood_search, i -> extract_svector(y, Val(NDIMS), i))
+    initialize!(neighborhood_search, nothing, i -> extract_svector(y, Val(NDIMS), i))
 end
 
 function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun1, coords_fun2)
@@ -186,7 +186,8 @@ function initialize!(neighborhood_search::GridNeighborhoodSearch, coords_fun1, c
     return neighborhood_search
 end
 
-function update!(neighborhood_search::GridNeighborhoodSearch, ::Nothing)
+function update!(neighborhood_search::GridNeighborhoodSearch, ::Nothing, ::Nothing;
+                 particles_moving=(true, true))
     # No particle coordinates function -> don't update.
     return neighborhood_search
 end
