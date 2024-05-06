@@ -651,7 +651,8 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem,
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, BoundarySPHSystem},
+                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem,
+                                     BoundarySPHSystem},
                      u_system, u_neighbor)
     # Don't update. This NHS is never used.
     return neighborhood_search
@@ -659,7 +660,8 @@ end
 
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, BoundarySPHSystem},
+                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem,
+                                     BoundarySPHSystem},
                      u_system, u_neighbor)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
@@ -688,7 +690,6 @@ function update_nhs!(neighborhood_search,
     # Don't update for static boundaries
     return neighborhood_search
 end
-
 
 function check_configuration(systems)
     foreach_system(systems) do system
