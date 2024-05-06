@@ -5,6 +5,10 @@
 ```
 
 ```@docs
+    BoundaryDEMSystem
+```
+
+```@docs
     BoundaryMovement
 ```
 

@@ -1,20 +1,20 @@
 struct UpdateCallback{I}
-    interval :: I
-    update   :: Bool
+    interval::I
 end
 
 """
-    UpdateCallback(; update=true, interval::Integer, dt=0.0)
+    UpdateCallback(; interval::Integer, dt=0.0)
 
-Callback to update quantities either at the end of every `interval` integration step or at
-regular intervals at `dt` in terms of integration time.
+Callback to update quantities either at the end of every `interval` time steps or
+in intervals of `dt` in terms of integration time by adding additional `tstops`
+(note that this may change the solution).
 
 # Keywords
-- `update`: Callback is only applied when `true` (default)
-- `interval`: Update quantities at the end of every `interval` time steps (default `interval=1`)
+- `interval=1`: Update quantities at the end of every `interval` time steps.
 - `dt`: Update quantities in regular intervals of `dt` in terms of integration time
+        by adding additional `tstops` (note that this may change the solution).
 """
-function UpdateCallback(; update=true, interval::Integer=-1, dt=0.0)
+function UpdateCallback(; interval::Integer=-1, dt=0.0)
     if dt > 0 && interval !== -1
         throw(ArgumentError("Setting both interval and dt is not supported!"))
     end
@@ -24,26 +24,26 @@ function UpdateCallback(; update=true, interval::Integer=-1, dt=0.0)
         interval = Float64(dt)
 
         # Update every time step (default)
-    elseif update && interval == -1
+    elseif interval == -1
         interval = 1
     end
 
-    update_callback! = UpdateCallback(interval, update)
+    update_callback! = UpdateCallback(interval)
 
-    if dt > 0 && update
+    if dt > 0
         # Add a `tstop` every `dt`, and save the final solution.
         return PeriodicCallback(update_callback!, dt,
                                 initialize=initial_update!,
                                 save_positions=(false, false))
     else
-        # The first one is the condition, the second the affect!
+        # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(update_callback!, update_callback!,
                                 initialize=initial_update!,
                                 save_positions=(false, false))
     end
 end
 
-# initialize
+# `initialize`
 function initial_update!(cb, u, t, integrator)
     # The `UpdateCallback` is either `cb.affect!` (with `DiscreteCallback`)
     # or `cb.affect!.affect!` (with `PeriodicCallback`).
@@ -52,21 +52,16 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-initial_update!(cb::UpdateCallback, u, t, integrator) = cb.update && cb(integrator)
+initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
 
-# condition
+# `condition`
 function (update_callback!::UpdateCallback)(u, t, integrator)
-    (; interval, update) = update_callback!
+    (; interval) = update_callback!
 
-    # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.stats.naccept`
-    #    (total #steps)       (#accepted steps)
-    # We need to check the number of accepted steps since callbacks are not
-    # activated after a rejected step.
-    return update && (integrator.stats.naccept % interval == 0)
+    return condition_integrator_interval(integrator, interval)
 end
 
-# affect
+# `affect!`
 function (update_callback!::UpdateCallback)(integrator)
     t = integrator.t
     semi = integrator.p
@@ -86,7 +81,7 @@ function (update_callback!::UpdateCallback)(integrator)
         update_transport_velocity!(system, v_ode, semi)
     end
 
-    # Tell OrdinaryDiffEq that u has been modified
+    # Tell OrdinaryDiffEq that `u` has been modified
     u_modified!(integrator, true)
 
     return integrator
@@ -94,8 +89,7 @@ end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:UpdateCallback})
     @nospecialize cb # reduce precompilation time
-    print(io, "UpdateCallback(interval=", (cb.affect!.update ? cb.affect!.interval : "-"),
-          ")")
+    print(io, "UpdateCallback(interval=", cb.affect!.interval, ")")
 end
 
 function Base.show(io::IO,
@@ -114,8 +108,7 @@ function Base.show(io::IO, ::MIME"text/plain",
     else
         update_cb = cb.affect!
         setup = [
-            "interval" => update_cb.update ? update_cb.interval : "-",
-            "update" => update_cb.update ? "yes" : "no",
+            "interval" => update_cb.interval,
         ]
         summary_box(io, "UpdateCallback", setup)
     end
@@ -132,7 +125,6 @@ function Base.show(io::IO, ::MIME"text/plain",
         update_cb = cb.affect!.affect!
         setup = [
             "dt" => update_cb.interval,
-            "update" => update_cb.update ? "yes" : "no",
         ]
         summary_box(io, "UpdateCallback", setup)
     end
