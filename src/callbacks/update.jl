@@ -58,11 +58,6 @@ initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
 function (update_callback!::UpdateCallback)(u, t, integrator)
     (; interval) = update_callback!
 
-    # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.stats.naccept`
-    #    (total #steps)       (#accepted steps)
-    # We need to check the number of accepted steps since callbacks are not
-    # activated after a rejected step.
     return condition_integrator_interval(integrator, interval)
 end
 
