@@ -20,13 +20,15 @@ struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: VECTOR # Vector{ELTYPE}
     viscosity                 :: V
+end
 
-    function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                         viscosity=nothing)
-        return new{typeof(K), typeof(mass),
-                   typeof(viscosity)}(K, beta, boundary_particle_spacing,
-                                      mass, viscosity)
-    end
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
+                                     viscosity=nothing)
+    return BoundaryModelMonaghanKajtar(K, convert(typeof(K), beta),
+                                       boundary_particle_spacing,
+                                       mass, viscosity)
 end
 
 function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)

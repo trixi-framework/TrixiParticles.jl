@@ -23,30 +23,39 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, CA} <:
     adhesion_coefficient :: ELTYPE
     cache                :: CA
 
-    function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                               adhesion_coefficient=0.0)
-        coordinates = copy(initial_condition.coordinates)
-        NDIMS = size(coordinates, 1)
-        ELTYPE = eltype(coordinates)
-
-        ismoving = Ref(!isnothing(movement))
-
-        cache = create_cache_boundary(movement, initial_condition)
-
-        if movement !== nothing && isempty(movement.moving_particles)
-            # Default is an empty vector, since the number of particles is not known when
-            # instantiating `BoundaryMovement`.
-            resize!(movement.moving_particles, nparticles(initial_condition))
-            movement.moving_particles .= collect(1:nparticles(initial_condition))
-        end
-
-        # Because of dispatches boundary model needs to be first!
-        return new{typeof(model), NDIMS, ELTYPE, typeof(initial_condition),
-                   typeof(coordinates), typeof(movement), typeof(ismoving),
-                   typeof(cache)}(initial_condition, coordinates, model, movement,
-                                  ismoving, adhesion_coefficient, cache)
+    # This constructor is necessary for Adapt.jl to work with this struct.
+    # See the comments in general/gpu.jl for more details.
+    function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
+                               ismoving, cache)
+        new{typeof(boundary_model), size(coordinates, 1),
+            typeof(initial_condition), typeof(coordinates),
+            typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
+                                                               coordinates, boundary_model,
+                                                               movement,
+                                                               ismoving, cache)
     end
 end
+
+function BoundarySPHSystem(initial_condition, model; movement=nothing,
+                               adhesion_coefficient=0.0)
+    coordinates = copy(initial_condition.coordinates)
+        ELTYPE = eltype(coordinates)
+
+    ismoving = Ref(!isnothing(movement))
+
+    cache = create_cache_boundary(movement, initial_condition)
+
+    if movement !== nothing && isempty(movement.moving_particles)
+        # Default is an empty vector, since the number of particles is not known when
+        # instantiating `BoundaryMovement`.
+        resize!(movement.moving_particles, nparticles(initial_condition))
+        movement.moving_particles .= collect(1:nparticles(initial_condition))
+    end
+
+        # Because of dispatches boundary model needs to be first!
+        return BoundarySPHSystem(initial_condition, coordinates, model, movement,
+                                  ismoving, adhesion_coefficient, cache)
+    end
 
 """
     BoundaryDEMSystem(initial_condition, normal_stiffness)

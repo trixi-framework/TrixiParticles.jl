@@ -58,58 +58,55 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     source_terms                      :: ST
     surface_tension                   :: SRFT
     cache                             :: C
+end
 
-    function WeaklyCompressibleSPHSystem(initial_condition,
-                                         density_calculator, state_equation,
-                                         smoothing_kernel, smoothing_length;
-                                         pressure_acceleration=nothing,
-                                         viscosity=nothing, density_diffusion=nothing,
-                                         acceleration=ntuple(_ -> 0.0,
-                                                             ndims(smoothing_kernel)),
-                                         correction=nothing, source_terms=nothing,
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function WeaklyCompressibleSPHSystem(initial_condition,
+                                     density_calculator, state_equation,
+                                     smoothing_kernel, smoothing_length;
+                                     pressure_acceleration=nothing,
+                                     viscosity=nothing, density_diffusion=nothing,
+                                     acceleration=ntuple(_ -> 0.0,
+                                                         ndims(smoothing_kernel)),
+                                     correction=nothing, source_terms=nothing,
                                          surface_tension=nothing)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-        n_particles = nparticles(initial_condition)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    n_particles = nparticles(initial_condition)
 
-        mass = copy(initial_condition.mass)
-        pressure = similar(initial_condition.pressure)
+    mass = copy(initial_condition.mass)
+    pressure = similar(initial_condition.pressure)
 
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
+    end
 
-        # Make acceleration an SVector
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
+    # Make acceleration an SVector
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
 
-        if correction isa ShepardKernelCorrection &&
-           density_calculator isa ContinuityDensity
-            throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
-        end
+    if correction isa ShepardKernelCorrection &&
+       density_calculator isa ContinuityDensity
+        throw(ArgumentError("`ShepardKernelCorrection` cannot be used with `ContinuityDensity`"))
+    end
 
-        pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
-                                                                         density_calculator,
-                                                                         NDIMS, ELTYPE,
-                                                                         correction)
+    pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
+                                                                     density_calculator,
+                                                                     NDIMS, ELTYPE,
+                                                                     correction)
 
-        cache = create_cache_density(initial_condition, density_calculator)
-        cache = (;
-                 create_cache_wcsph(correction, initial_condition.density, NDIMS,
-                                    n_particles)..., cache...)
+    cache = create_cache_density(initial_condition, density_calculator)
+    cache = (;
+             create_cache_wcsph(correction, initial_condition.density, NDIMS,
+                                n_particles)..., cache...)
         cache = (;
                  create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
                  cache...)
 
-        return new{NDIMS, ELTYPE, typeof(initial_condition),
-                   typeof(mass), typeof(pressure),
-                   typeof(density_calculator),
-                   typeof(state_equation), typeof(smoothing_kernel),
-                   typeof(viscosity), typeof(density_diffusion),
-                   typeof(correction), typeof(pressure_acceleration),
-                   typeof(source_terms), typeof(surface_tension), typeof(cache)}(initial_condition,
+        return WeaklyCompressibleSPHSystem(initial_condition,
                                                                                  mass,
                                                                                  pressure,
                                                                                  density_calculator,
