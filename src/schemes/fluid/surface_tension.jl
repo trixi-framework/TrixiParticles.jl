@@ -152,9 +152,10 @@ end
 
 # section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: most of the time this only leads to an approximation of the surface normal
-function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
-                            v_neighbor_system, u_neighbor_system,
-                            neighborhood_search, system, neighbor_system::FluidSystem)
+function calc_normal_akinci!(system, neighbor_system::FluidSystem,
+                             surface_tension::SurfaceTensionAkinci, u_system,
+                             v_neighbor_system, u_neighbor_system,
+                             neighborhood_search)
     (; smoothing_kernel, smoothing_length, cache) = system
 
     @threaded for particle in each_moving_particle(system)
@@ -164,9 +165,10 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
             neighbor_coords = current_coords(u_system, system, neighbor)
 
             pos_diff = particle_coords - neighbor_coords
-            distance = norm(pos_diff)
+            distance2 = dot(pos_diff, pos_diff)
             # correctness strongly depends on this being a symmetric distribution of particles
-            if sqrt(eps()) < distance <= compact_support(smoothing_kernel, smoothing_length)
+            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
+                distance = sqrt(distance2)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)
                 density_neighbor = particle_density(v_neighbor_system,
                                                     neighbor_system, neighbor)
@@ -183,11 +185,12 @@ function calc_normal_akinci(surface_tension::SurfaceTensionAkinci, u_system,
             cache.surface_normal[i, particle] *= smoothing_length
         end
     end
+    return system
 end
 
-function calc_normal_akinci(surface_tension, u_system,
-                            v_neighbor_system, u_neighbor_system,
-                            neighborhood_search, system,
-                            neighbor_system)
-    # normal not needed
+function calc_normal_akinci!(system, neighbor_system, surface_tension, u_system,
+                             v_neighbor_system, u_neighbor_system,
+                             neighborhood_search)
+    # Normal not needed
+    return system
 end

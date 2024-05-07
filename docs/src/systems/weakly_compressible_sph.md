@@ -149,7 +149,7 @@ Pages = [joinpath("general", "corrections.jl")]
 ```
 
 
-## [Surface Tension](@id surface tension)
+## [Surface Tension](@id surface_tension)
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]

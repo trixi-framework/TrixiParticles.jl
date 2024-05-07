@@ -16,10 +16,11 @@ surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.25)
 # `adhesion_coefficient` needs to be set to a value so that the fluid doesn't separate
 # from the boundary
 # Note: The viscosity will be increased by the surface tension model hence we can reduce the artificial viscosity value.
-# Note: The surface tension model leds to an increase in compressibility of the fluid
+# Note: The surface tension model leads to an increase in compressibility of the fluid,
 #       which needs to be rectified by an increase of the `sound_speed`.
-# Note: The Wendland Kernels don't work very well here since the SurfaceTensionAkinci
-#       model is optimized for smoothing_length=4r which is a too small smoothing_length for the Wendland Kernel functions.
+# Note: The Wendland Kernels don't work very well here since the `SurfaceTensionAkinci`
+#       model is optimized for smoothing_length=4r, which is a too small
+#       `smoothing_length` for the Wendland Kernel functions.
 # Note: Adhesion will result in friction at the boundary.
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               surface_tension=surface_tension,
@@ -28,11 +29,4 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               smoothing_length=1.0 * fluid_particle_spacing,
               correction=AkinciFreeSurfaceCorrection(fluid_density),
               density_diffusion=nothing, adhesion_coefficient=0.5, alpha=0.001,
-              sound_speed=100, tspan=(0.0, 2.0))
-
-# sol = solve(ode, RDPK3SpFSAL35(),
-#             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
-#             reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
-#             dtmax=1e-2, # Limit stepsize to prevent crashing
-#             dt=1e-5,
-#             save_everystep=false, callback=callbacks);
+              sound_speed=100.0, tspan=(0.0, 2.0))

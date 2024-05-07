@@ -224,8 +224,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
-    compute_surface_normal!(surface_tension, v, u, system, u_ode, v_ode, semi,
-                            t)
+    compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
 
     return system
 end
@@ -343,11 +342,12 @@ end
     extract_smatrix(system.cache.correction_matrix, system, particle)
 end
 
-function compute_surface_normal!(surface_tension, v, u, system, u_ode, v_ode, semi, t)
+function compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    return system
 end
 
-function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, system, u_ode,
-                                 v_ode, semi, t)
+function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, v, u, v_ode,
+                                 u_ode, semi, t)
     (; cache) = system
 
     # reset surface normal
@@ -358,9 +358,10 @@ function compute_surface_normal!(surface_tension::SurfaceTensionAkinci, v, u, sy
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         nhs = get_neighborhood_search(system, semi)
 
-        calc_normal_akinci(surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
-                           system, neighbor_system)
+        calc_normal_akinci!(surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
+                            system, neighbor_system)
     end
+    return system
 end
 
 @inline function get_normal(particle, particle_system::FluidSystem,
