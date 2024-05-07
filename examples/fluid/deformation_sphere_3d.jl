@@ -11,7 +11,7 @@ sound_speed = 20
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=true)
 
-# for all surface tension simulations needs to be smoothing_length = 4r
+# For all surface tension simulations needs to be smoothing_length = 4r
 smoothing_length = 2.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{3}()
 

@@ -350,7 +350,7 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
                                  u_ode, semi, t)
     (; cache) = system
 
-    # reset surface normal
+    # Reset surface normal
     cache.surface_normal .= zero(eltype(cache.surface_normal))
 
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system

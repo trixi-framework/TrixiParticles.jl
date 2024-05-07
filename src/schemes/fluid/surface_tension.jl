@@ -111,15 +111,15 @@ end
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
-    # we only reach this function when distance > eps
+    # We only reach this function when distance > eps
     C = 0
     if distance <= support_radius
         if distance > 0.5 * support_radius
-            # attractive force
+            # Attractive force
             C = (support_radius - distance)^3 * distance^3
         else
             # distance < 0.5 * support_radius
-            # repulsive force
+            # Repulsive force
             C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
         end
         C *= 32.0 / (pi * support_radius^9)
@@ -135,7 +135,7 @@ end
                                        support_radius, mb, pos_diff, distance,
                                        adhesion_coefficient)
     # Eq. 7
-    # we only reach this function when distance > eps
+    # We only reach this function when distance > eps
     A = 0
     if distance < support_radius
         if distance > 0.5 * support_radius
@@ -150,7 +150,7 @@ end
     return adhesion_force
 end
 
-# section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
+# Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: most of the time this only leads to an approximation of the surface normal
 function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                              surface_tension::SurfaceTensionAkinci, u_system,
@@ -166,7 +166,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
 
             pos_diff = particle_coords - neighbor_coords
             distance2 = dot(pos_diff, pos_diff)
-            # correctness strongly depends on this being a symmetric distribution of particles
+            # Correctness strongly depends on this being a symmetric distribution of particles
             if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
                 distance = sqrt(distance2)
                 m_b = hydrodynamic_mass(neighbor_system, neighbor)

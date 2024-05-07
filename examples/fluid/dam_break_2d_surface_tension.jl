@@ -19,8 +19,8 @@ surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.25)
 # Note: The surface tension model leads to an increase in compressibility of the fluid,
 #       which needs to be rectified by an increase of the `sound_speed`.
 # Note: The Wendland Kernels don't work very well here since the `SurfaceTensionAkinci`
-#       model is optimized for smoothing_length=4r, which is a too small
-#       `smoothing_length` for the Wendland Kernel functions.
+#       model is optimized for a compact support of `2 * particle_spacing`, which would result
+#       in a too small `smoothing_length` for the Wendland Kernel functions.
 # Note: Adhesion will result in friction at the boundary.
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               surface_tension=surface_tension,
