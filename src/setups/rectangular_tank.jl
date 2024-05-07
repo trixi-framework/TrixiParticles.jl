@@ -157,7 +157,6 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
         # Move the tank corner in the negative coordinate directions to the desired position
         boundary.coordinates .+= min_coordinates
 
-        fluid = boundary
         if norm(fluid_size) > eps()
             if state_equation !== nothing
                 # Use hydrostatic pressure gradient and calculate density from inverse state
@@ -174,6 +173,9 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
             end
             # Move the tank corner in the negative coordinate directions to the desired position
             fluid.coordinates .+= min_coordinates
+        else
+            # Fluid is empty
+            fluid = InitialCondition(coordinates=zeros(ELTYPE, NDIMS, 0), density=1.0)
         end
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
