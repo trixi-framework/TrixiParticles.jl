@@ -26,20 +26,21 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, CA} <:
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, cache)
-        new{typeof(boundary_model), size(coordinates, 1),
+                               ismoving, adhesion_coefficient, cache)
+        ELTYPE = eltype(coordinates)
+
+        new{typeof(boundary_model), size(coordinates, 1), ELTYPE,
             typeof(initial_condition), typeof(coordinates),
             typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
                                                                coordinates, boundary_model,
-                                                               movement,
-                                                               ismoving, cache)
+                                                               movement, ismoving,
+                                                               adhesion_coefficient, cache)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
                            adhesion_coefficient=0.0)
     coordinates = copy(initial_condition.coordinates)
-    ELTYPE = eltype(coordinates)
 
     ismoving = Ref(!isnothing(movement))
 
