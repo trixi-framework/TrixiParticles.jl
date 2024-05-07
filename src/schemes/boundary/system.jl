@@ -37,9 +37,9 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, CA} <:
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                               adhesion_coefficient=0.0)
+                           adhesion_coefficient=0.0)
     coordinates = copy(initial_condition.coordinates)
-        ELTYPE = eltype(coordinates)
+    ELTYPE = eltype(coordinates)
 
     ismoving = Ref(!isnothing(movement))
 
@@ -52,10 +52,10 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
-        # Because of dispatches boundary model needs to be first!
-        return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                                  ismoving, adhesion_coefficient, cache)
-    end
+    # Because of dispatches boundary model needs to be first!
+    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
+                             ismoving, adhesion_coefficient, cache)
+end
 
 """
     BoundaryDEMSystem(initial_condition, normal_stiffness)
