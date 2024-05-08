@@ -111,7 +111,7 @@ end
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::RigidSPHSystem,
-                   neighbor_system::Union{BoundarySPHSystem})
+                   neighbor_system::Union{BoundarySPHSystem, RigidSPHSystem})
 
     # TODO continuity equation?
     return dv

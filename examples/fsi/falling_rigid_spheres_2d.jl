@@ -150,7 +150,13 @@ stepsize_callback = StepsizeCallback(cfl=0.5)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
+# sol = solve(ode,
+#             CarpenterKennedy2N54(williamson_condition=false; (step_limiter!)=collision),
+#             dt=1.0, # This is overwritten by the stepsize callback
+#             save_everystep=false, callback=callbacks);
+
+
 sol = solve(ode,
-            CarpenterKennedy2N54(williamson_condition=false; (step_limiter!)=collision),
-            dt=1.0, # This is overwritten by the stepsize callback
-            save_everystep=false, callback=callbacks);
+    CarpenterKennedy2N54(williamson_condition=false),
+    dt=1.0, # This is overwritten by the stepsize callback
+    save_everystep=false, callback=callbacks);

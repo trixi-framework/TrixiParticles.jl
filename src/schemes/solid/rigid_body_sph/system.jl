@@ -12,8 +12,18 @@ System for a SPH particles of a rigid structure.
 - `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
                     fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
+                    Note that these source terms will not be used in the calculation of the
+                    boundary pressure when using a boundary with
+                    [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
+                    The keyword argument `acceleration` should be used instead for
+                    gravity-like source terms.
 """
-struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
+struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real, ST} <: SolidSystem{NDIMS}
     initial_condition :: InitialCondition{ELTYPE}
     local_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
     mass              :: Array{ELTYPE, 1} # [particle]
@@ -24,10 +34,11 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
     collision_u       :: Array{ELTYPE, 1} # [dimension]
     particle_spacing  :: ELTYPE
     boundary_model    :: BM
+    source_terms      :: ST
 
     function RigidSPHSystem(initial_condition; boundary_model=nothing,
                             acceleration=ntuple(_ -> 0.0, ndims(initial_condition)),
-                            particle_spacing=NaN)
+                            particle_spacing=NaN, source_terms=nothing)
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -46,14 +57,11 @@ struct RigidSPHSystem{BM, NDIMS, ELTYPE <: Real} <: SolidSystem{NDIMS}
         collision_impulse = zeros(SVector{NDIMS, ELTYPE})
         collision_u = zeros(SVector{NDIMS, ELTYPE})
 
-        return new{typeof(boundary_model), NDIMS, ELTYPE}(initial_condition,
-                                                          local_coordinates,
-                                                          mass, material_density,
-                                                          acceleration_, cog,
-                                                          collision_impulse,
-                                                          collision_u,
-                                                          particle_spacing,
-                                                          boundary_model)
+        return new{typeof(boundary_model), NDIMS, ELTYPE,
+                   typeof(source_terms)}(initial_condition, local_coordinates, mass,
+                                         material_density, acceleration_, cog,
+                                         collision_impulse, collision_u, particle_spacing,
+                                         boundary_model, source_terms)
     end
 end
 
@@ -199,5 +207,5 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::RigidSPHSystem)
     (; acceleration, particle_spacing) = system
 
-    return cfl_number * particle_spacing/maximum(abs.(acceleration))
+    return cfl_number * particle_spacing / maximum(abs.(acceleration))
 end
