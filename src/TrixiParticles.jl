@@ -22,8 +22,8 @@ using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include
-@reexport using TrixiNeighborhoodSearch: TrivialNeighborhoodSearch, GridNeighborhoodSearch
-using TrixiNeighborhoodSearch: TrixiNeighborhoodSearch, for_particle_neighbor
+@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
+using PointNeighbors: PointNeighbors, for_particle_neighbor
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # util needs to be first because of macro @trixi_timeit

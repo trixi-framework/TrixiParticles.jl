@@ -2,7 +2,7 @@
 
 The neighborhood search is the most essential component for performance.
 We provide several implementations in the package
-[TrixiNeighborhoodSearch.jl](https://github.com/trixi-framework/TrixiNeighborhoodSearch.jl).
+[PointNeighbors.jl](https://github.com/trixi-framework/PointNeighbors.jl).
 See the docs of this package for an overview and a comparison of different implementations.
 
 !!! note "Usage"
@@ -23,7 +23,7 @@ See the docs of this package for an overview and a comparison of different imple
     └──────────────────────────────────────────────────────────────────────────────────────────────────┘
     ```
     The keyword arguments `periodic_box_min_corner` and `periodic_box_max_corner` mentioned
-    in the TrixiNeighborhoodSearch.jl docs can also be passed to the
+    in the PointNeighbors.jl docs can also be passed to the
     [`Semidiscretization`](@ref) and will internally be forwarded to the neighborhood search.
     See the docs of [`Semidiscretization`](@ref) for more details.
     ```jldoctest semi_example; output = false
