@@ -16,7 +16,7 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 CSV = "0.10"
-CairoMakie = "0.11"
+CairoMakie = "0.11, 0.12"
 DataFrames = "1.6"
 GLM = "1.9"
 Glob = "1.3"
