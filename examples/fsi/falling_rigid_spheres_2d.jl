@@ -14,7 +14,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 4.0)
+tspan = (0.0, 0.5)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (2.0, 0.5)
@@ -146,7 +146,7 @@ end
 #             abstol=1e-7, # Default abstol is 1e-6
 #             reltol=1e-5, # Default reltol is 1e-3
 #             save_everystep=false, callback=callbacks);
-stepsize_callback = StepsizeCallback(cfl=0.5)
+stepsize_callback = StepsizeCallback(cfl=1.0)
 
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
