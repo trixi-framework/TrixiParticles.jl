@@ -27,7 +27,7 @@ TrixiNeighborhoodSearch = "1c4d5385-0a27-49de-8e2c-43b175c8985c"
 WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 
 [compat]
-Adapt = "3"
+Adapt = "3, 4"
 CSV = "0.10"
 DataFrames = "1.6"
 DiffEqCallbacks = "2.25, 3"
