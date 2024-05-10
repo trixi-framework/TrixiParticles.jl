@@ -140,7 +140,8 @@ function create_neighborhood_search(system, neighbor, ::Val{GridNeighborhoodSear
                                                    periodic_box_max_corner=periodic_box_max_corner,
                                                    threaded_nhs_update=threaded_nhs_update)
     # Initialize neighborhood search
-    PointNeighbors.initialize!(search, initial_coordinates(system), initial_coordinates(neighbor))
+    PointNeighbors.initialize!(search, initial_coordinates(system),
+                               initial_coordinates(neighbor))
 
     return search
 end
@@ -612,25 +613,27 @@ function update_nhs!(neighborhood_search,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            particles_moving=(true, neighbor.ismoving[]))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -644,9 +647,9 @@ function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            particles_moving=(true, neighbor.ismoving[]))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -668,25 +671,27 @@ function update_nhs!(neighborhood_search,
     # - continuity equation (`ContinuityDensity`)
     # - pressure extrapolation (`AdamiPressureExtrapolation`)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor),
-            particles_moving=(system.ismoving[], true))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(system.ismoving[], true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor), particles_moving=(true, true))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::BoundaryDEMSystem,
                      u_system, u_neighbor)
     PointNeighbors.update!(neighborhood_search,
-            current_coordinates(u_system, system),
-            current_coordinates(u_neighbor, neighbor), particles_moving=(true, false))
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, false))
 end
 
 function update_nhs!(neighborhood_search,

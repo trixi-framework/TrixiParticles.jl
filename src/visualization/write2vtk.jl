@@ -86,7 +86,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     pvd = paraview_collection(collection_file; append=iter > 0)
 
     points = PointNeighbors.periodic_coords(current_coordinates(u, system),
-                                                     periodic_box)
+                                            periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
