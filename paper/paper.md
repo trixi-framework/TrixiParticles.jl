@@ -50,11 +50,12 @@ Finally, a few exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
-Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics present several challenges especially when simulating real-world problems. Simulating these problems involves challenges such as dealing with complex geometries, free surfaces or deformable boundaries and moving material interfaces.
-But also the integration of different physics disciplines into a single multiphysics system is a strong challenge.
+Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics present several challenges especially when simulating real-world problems.
+Simulating these problems involves challenges such as dealing with complex geometries, free surfaces,
+deformable boundaries or moving material interfaces and coupling of different physics disciplines.
 
 The lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles and, thus, eliminating the need for a mesh to discretize the simulation domain.
-The mesh-free formalism of the methods not only allows for easy preprocessing, making them particularly suitable for simulating complex geometries, but also allows for the straightforward handling of very large deformations.
+The mesh-free formalism not only allows for easy preprocessing, making them particularly suitable for simulating complex geometries, but also allows for the straightforward handling of very large deformations.
 In addition, particle-based methods are inherently suited to simulating free surfaces, material interfaces and challenges involving moving boundaries.
 Facilitating the transition from continuum to fragmentation becomes straightforward by representing each material with its own set of particles, thereby effectively addressing material interface issues.
 This also simplifies the coupling of different singlephysics into a multiphysics system.
