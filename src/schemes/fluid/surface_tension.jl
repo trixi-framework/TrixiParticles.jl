@@ -53,6 +53,19 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
+# function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length,
+#                                                                              m_b, pos_diff,
+#                                                                              distance)
+#     return cohesion_force_akinci(surface_tension, smoothing_length, m_b, pos_diff, distance)
+# end
+
+# function (surface_tension::SurfaceTensionAkinci)(support_radius, m_b, na, nb, pos_diff,
+#                                                  distance)
+#     (; surface_tension_coefficient) = surface_tension
+#     return cohesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
+#                                  distance) .- (surface_tension_coefficient * (na - nb))
+# end
+
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
@@ -86,11 +99,13 @@ end
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
                                        distance, adhesion_coefficient)
     # Eq. 7
-    # We only reach this function when `distance > eps` and `distance < support_radius`
+    # We only reach this function when `distance > eps`
     A = 0
-    if distance > 0.5 * support_radius
-        A = 0.007 / support_radius^3.25 *
-            (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
+    if distance < support_radius
+        if distance > 0.5 * support_radius
+            A = 0.007 / support_radius^3.25 *
+                (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
+        end
     end
 
     # Eq. 6 in acceleration form with `m_b`` being the boundary mass calculated as
