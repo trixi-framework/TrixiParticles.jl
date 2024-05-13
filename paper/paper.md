@@ -72,7 +72,7 @@ The latter is further enhanced by its seamless support for GPU acceleration, int
 In TrixiParticles.jl, particles of a single particle-based method are grouped into a so called \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
-![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.pdf){width=40%}
+![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
