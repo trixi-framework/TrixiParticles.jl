@@ -179,7 +179,7 @@ where:
 To model the minimization of the surface curvature of the fluid a curvature force is used which is calculated
 ```math
 F_{\text{surf_min}} = -\sigma (n_a - n_b)
-
+```
 
 #### Wall Adhesion Force
 The wall adhesion model proposed by Akinci et al. is based on a kernel function which is 0 from 0.0 to 0.5 support radiia with a maximum at 0.75.
