@@ -122,17 +122,16 @@ So far, the following feature highlights have been implemented:
   + Shared memory parallelism using multithreading
   + Highly optimized neighborhood search providing various approaches
   + GPU support
-
-\autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
-
-![Elastic sphere falling into a tank filled with water. Left: Results rendered with blender. Right: Underlying particle representation. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
-
 Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
 \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021].
 
-![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=50%}
+![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=60%}
+
+\autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
+
+![Elastic sphere falling into a tank filled with water. Left: Results rendered with blender. Right: Underlying particle representation. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
 
 # Acknowledgements
 
