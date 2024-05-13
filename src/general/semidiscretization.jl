@@ -13,8 +13,8 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 
 # Keywords
 - `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
-                            By default, the [`GridNeighborhoodSearch`](@ref) is used.
-                            Use [`TrivialNeighborhoodSearch`](@ref) or `nothing` to loop
+                            By default, the `GridNeighborhoodSearch` is used.
+                            Use `TrivialNeighborhoodSearch` or `nothing` to loop
                             over all particles (no neighborhood search).
 - `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in negative coordinate
