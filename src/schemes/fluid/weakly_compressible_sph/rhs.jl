@@ -216,13 +216,11 @@ end
     (; smoothing_length, smoothing_kernel) = particle_system
     (; adhesion_coefficient, boundary_model) = neighbor_system
 
-    if distance < sqrt(eps())
-        return zeros(SVector{ndims(particle_system), eltype(particle_system)})
-    end
+    # No adhesion with oneself
+    distance < sqrt(eps()) && return zero(pos_diff)
 
-    if adhesion_coefficient < eps()
-        return zeros(SVector{ndims(particle_system), eltype(particle_system)})
-    end
+    # No reason to calculate the adhesion force if adhesion coefficient is near zero
+    abs(adhesion_coefficient) < eps() && return zero(pos_diff)
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 

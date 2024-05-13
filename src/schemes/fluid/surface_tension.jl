@@ -1,7 +1,7 @@
 abstract type AkinciTypeSurfaceTension end
 
 @doc raw"""
-CohesionForceAkinci(surface_tension_coefficient=1.0)
+    CohesionForceAkinci(surface_tension_coefficient=1.0)
 
 Implements the cohesion force model by Akinci, focusing on intra-particle forces
 to simulate surface tension and adhesion in fluid dynamics. This model is a crucial component
@@ -10,7 +10,7 @@ and the merging or breaking of fluid bodies.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
- enabling the tuning of the fluid's surface tension properties within the simulation.
+   enabling the tuning of the fluid's surface tension properties within the simulation.
 
 # Mathematical Formulation and Implementation Details
 The model calculates the cohesion force based on the distance between particles and the smoothing length.
@@ -33,8 +33,9 @@ where:
 - C is a scalar function of the distance between particles.
 
 # Reference:
-- Akinci et al. "Versatile Surface Tension and Adhesion for SPH Fluids".
-  In: Proceedings of Siggraph Asia 2013.
+- Nadir Akinci, Gizem Akinci, Matthias Teschner.
+  "Versatile Surface Tension and Adhesion for SPH Fluids".
+  In: ACM Transactions on Graphics 32.6 (2013).
   [doi: 10.1145/2508363.2508395](https://doi.org/10.1145/2508363.2508395)
 """
 struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
@@ -156,35 +157,22 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                              surface_tension::SurfaceTensionAkinci, u_system,
                              v_neighbor_system, u_neighbor_system,
                              neighborhood_search)
-    (; smoothing_kernel, smoothing_length, cache) = system
+    (; smoothing_length, cache) = system
 
-    @threaded for particle in each_moving_particle(system)
-        particle_coords = current_coords(u_system, system, particle)
-
-        for neighbor in eachneighbor(particle_coords, neighborhood_search)
-            neighbor_coords = current_coords(u_system, system, neighbor)
-
-            pos_diff = particle_coords - neighbor_coords
-            distance2 = dot(pos_diff, pos_diff)
-            # Correctness strongly depends on this being a symmetric distribution of particles
-            if eps() < distance2 <= compact_support(smoothing_kernel, smoothing_length)^2
-                distance = sqrt(distance2)
-                m_b = hydrodynamic_mass(neighbor_system, neighbor)
-                density_neighbor = particle_density(v_neighbor_system,
-                                                    neighbor_system, neighbor)
-                grad_kernel = smoothing_kernel_grad(system, pos_diff, distance,
-                                                    particle)
-                @simd for i in 1:ndims(system)
-                    cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                         grad_kernel[i]
-                end
-            end
-        end
-
+    for_particle_neighbor(particle_system, neighbor_system,
+                          system_coords, neighbor_system_coords,
+                          neighborhood_search) do particle, neighbor, pos_diff, distance
+        m_b = hydrodynamic_mass(neighbor_system, neighbor)
+        density_neighbor = particle_density(v_neighbor_system,
+                                            neighbor_system, neighbor)
+        grad_kernel = smoothing_kernel_grad(system, pos_diff, distance,
+                                            particle)
         for i in 1:ndims(system)
-            cache.surface_normal[i, particle] *= smoothing_length
+            cache.surface_normal[i, particle] += m_b / density_neighbor *
+                                                    grad_kernel[i] * smoothing_length
         end
     end
+
     return system
 end
 
