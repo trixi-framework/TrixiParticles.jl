@@ -8,7 +8,7 @@ See the docs of this package for an overview and a comparison of different imple
 !!! note "Usage"
     To run a simulation with a neighborhood search implementation, just pass the type
     to the constructor of the [`Semidiscretization`](@ref):
-    ```jldoctest semi_example; output=false, setup = :(trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
+    ```jldoctest semi_example; output=false, setup = :(using TrixiParticles; trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "hydrostatic_water_column_2d.jl"), sol=nothing); system1 = fluid_system; system2 = boundary_system)
     semi = Semidiscretization(system1, system2,
                               neighborhood_search=GridNeighborhoodSearch)
 
