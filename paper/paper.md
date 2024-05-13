@@ -132,7 +132,7 @@ Validation can be performed by, for example, quantitatively comparing results us
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021].
 
-![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=75%}
+![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=50%}
 
 # Acknowledgements
 
