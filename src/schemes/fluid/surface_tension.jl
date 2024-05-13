@@ -12,26 +12,6 @@ and the merging or breaking of fluid bodies.
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
    enabling the tuning of the fluid's surface tension properties within the simulation.
 
-# Mathematical Formulation and Implementation Details
-The model calculates the cohesion force based on the distance between particles and the smoothing length.
-This force is determined using two distinct regimes within the support radius:
-
-- For particles closer than half the support radius,
-  a repulsive force is calculated to prevent particle clustering too tightly,
-  enhancing the simulation's stability and realism.
-
-- Beyond half the support radius and within the full support radius,
-  an attractive force is computed, simulating the effects of surface tension that draw particles together.
-
-The cohesion force, \( F_{\text{cohesion}} \), for a pair of particles is given by:
-
-```math
-F_{\text{cohesion}} = -\sigma m_b C \frac{\vec{r}}{|\vec{r}|}
-```
-where:
-- σ represents the surface_tension_coefficient, adjusting the overall strength of the cohesion effect.
-- C is a scalar function of the distance between particles.
-
 # Reference:
 - Nadir Akinci, Gizem Akinci, Matthias Teschner.
   "Versatile Surface Tension and Adhesion for SPH Fluids".
@@ -59,31 +39,10 @@ separation, by utilizing intra-particle forces.
    surface tension forces, facilitating the fine-tuning of how surface tension phenomena
    are represented in the simulation.
 
-# Mathematical Formulation and Implementation Details
-The cohesion force between particles is computed considering their separation and the
-influence radius, with the force's nature—repulsive or attractive—determined by the
-particle's relative proximity within the support radius:
-
-- When particles are closer than half the support radius, the model calculates a
-  repulsive force to prevent excessive aggregation, thus enhancing the simulation's stability and realism.
-- For distances beyond half the support radius and up to the full extent of the support radius,
-  the model computes an attractive force, reflecting the cohesive nature of surface tension
-  that tends to draw particles together.
-
-The total force exerted on a particle by another is described by:
-
-```math
-F_{\text{total}} = F_{\text{cohesion}} - \sigma (n_a - n_b) \frac{\vec{r}}{|\vec{r}|}
-```
-where:
-- σ represents the surface_tension_coefficient, adjusting the overall strength of the cohesion effect.
-- `C`` is a scalar function of the distance between particles.
-- `n` being the normal vector
-- `F_{cohesion}` being the cohesion/repulsion force excerted on a particle pair.
-
 # Reference:
-- Akinci et al. "Versatile Surface Tension and Adhesion for SPH Fluids".
-  In: Proceedings of Siggraph Asia 2013.
+- Nadir Akinci, Gizem Akinci, Matthias Teschner.
+  "Versatile Surface Tension and Adhesion for SPH Fluids".
+  In: ACM Transactions on Graphics 32.6 (2013).
   [doi: 10.1145/2508363.2508395](https://doi.org/10.1145/2508363.2508395)
 """
 struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
@@ -94,21 +53,15 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length,
-                                                                             m_b, pos_diff,
-                                                                             distance)
-    return cohesion_force_akinci(surface_tension, smoothing_length, m_b, pos_diff, distance)
-end
-
-function (surface_tension::SurfaceTensionAkinci)(support_radius, m_b, na, nb, pos_diff,
-                                                 distance)
-    (; surface_tension_coefficient) = surface_tension
-    return cohesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-                                 distance) .- (surface_tension_coefficient * (na - nb))
-end
-
-@fastpow @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                                support_radius, m_b, pos_diff, distance)
+# Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
+# Currently, specializations reducing this to simple multiplications exist only up
+# to a power of three, see
+# https://github.com/JuliaLang/julia/blob/34934736fa4dcb30697ac1b23d11d5ad394d6a4d/base/intfuncs.jl#L327-L339
+# By using the `@fastpow` macro, we are consciously trading off some precision in the result
+# for enhanced computational speed. This is especially useful in scenarios where performance
+# is a higher priority than exact precision.
+@fastpow @inline function cohesion_force_akinci(surface_tension, support_radius, m_b,
+                                                pos_diff, distance)
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
@@ -130,9 +83,8 @@ end
     return cohesion_force
 end
 
-@inline function adhesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                       support_radius, m_b, pos_diff, distance,
-                                       adhesion_coefficient)
+@inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
+                                       distance, adhesion_coefficient)
     # Eq. 7
     # We only reach this function when `distance > eps` and `distance < support_radius`
     A = 0
@@ -166,7 +118,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                                             particle)
         for i in 1:ndims(system)
             cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                    grad_kernel[i] * smoothing_length
+                                                 grad_kernel[i] * smoothing_length
         end
     end
 

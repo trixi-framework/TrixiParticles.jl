@@ -172,14 +172,12 @@ end
                                       surface_tension_a::CohesionForceAkinci,
                                       surface_tension_b::CohesionForceAkinci)
     (; smoothing_length) = particle_system
-
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
-
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-
     support_radius = compact_support(smoothing_kernel, smoothing_length)
-    return surface_tension_a(support_radius, m_b, pos_diff, distance)
+
+    return cohesion_force_akinci(surface_tension_a, support_radius, m_b, pos_diff, distance)
 end
 
 @inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
@@ -188,18 +186,18 @@ end
                                       surface_tension_a::SurfaceTensionAkinci,
                                       surface_tension_b::SurfaceTensionAkinci)
     (; smoothing_length, smoothing_kernel) = particle_system
+    (; surface_tension_coefficient) = surface_tension_a
 
     # No surface tension with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
-
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
-
     n_a = surface_normal(particle, particle_system, surface_tension_a)
     n_b = surface_normal(neighbor, neighbor_system, surface_tension_b)
-
     support_radius = compact_support(smoothing_kernel, smoothing_length)
 
-    return surface_tension_a(support_radius, m_b, n_a, n_b, pos_diff, distance)
+    return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
+                                 pos_diff, distance) .-
+           (surface_tension_coefficient * (n_a - n_b))
 end
 
 # Skip
