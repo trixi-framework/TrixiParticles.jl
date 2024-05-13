@@ -150,6 +150,44 @@ Pages = [joinpath("general", "corrections.jl")]
 
 
 ## [Surface Tension](@id surface_tension)
+
+### Akinci based intra-particle force surface tension and wall adhesion model
+The work by Akinci proposes three forces:
+- a cohesion force
+- a surface normal force
+- a wall adhesion force
+
+The classical model is composed of the curvature minimization and cohesion force.
+
+#### Cohesion Force
+The model calculates the cohesion force based on the distance between particles and the smoothing length.
+This force is determined using two distinct regimes within the support radius:
+- For particles closer than half the support radius,
+  a repulsive force is calculated to prevent particle clustering too tightly,
+  enhancing the simulation's stability and realism.
+- Beyond half the support radius and within the full support radius,
+  an attractive force is computed, simulating the effects of surface tension that draw particles together.
+The cohesion force, ``F_{\text{cohesion}}``, for a pair of particles is given by:
+```math
+F_{\text{cohesion}} = -\sigma m_b C \frac{r}{\Vert r \Vert},
+```
+where:
+- ``\sigma`` represents the surface tension coefficient, adjusting the overall strength of the cohesion effect.
+- ``C`` is a scalar function of the distance between particles.
+
+#### Curvature Minimization Force
+To model the minimization of the surface curvature of the fluid a curvature force is used which is calculated
+```math
+F_{\text{surf_min}} = -\sigma (n_a - n_b)
+```
+
+#### Wall Adhesion Force
+The wall adhesion model proposed by Akinci et al. is based on a kernel function which is 0 from 0.0 to 0.5 support radiia with a maximum at 0.75.
+With the force calculated with a adhesion coefficient ``\beta``: 
+```math
+F_{\text{adhesion}} = -\beta m_b C \frac{r}{\Vert r \Vert},
+```
+
 ```@autodocs
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "surface_tension.jl")]

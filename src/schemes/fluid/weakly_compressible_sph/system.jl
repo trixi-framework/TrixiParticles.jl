@@ -358,14 +358,15 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         nhs = get_neighborhood_search(system, semi)
 
-        calc_normal_akinci!(system, surface_tension, u, v_neighbor_system, u_neighbor_system, nhs,
+        calc_normal_akinci!(system, surface_tension, u, v_neighbor_system,
+                            u_neighbor_system, nhs,
                             neighbor_system)
     end
     return system
 end
 
-@inline function get_normal(particle, particle_system::FluidSystem,
-                            ::SurfaceTensionAkinci)
+@inline function surface_normal(particle, particle_system::FluidSystem,
+                                ::SurfaceTensionAkinci)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
 end

@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.0025
 
-boundary_layers = 4
+boundary_layers = 3
 spacing_ratio = 1
 
 # ==========================================================================================
@@ -54,7 +54,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      state_equation, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
-                                                     density_diffusion=nothing,
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
