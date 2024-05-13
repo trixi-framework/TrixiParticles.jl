@@ -51,7 +51,7 @@ nu = 0.01
 alpha = 10 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 # viscosity = ViscosityAdami(nu=nu)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 solid_system_1 = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                              state_equation, fluid_smoothing_kernel,
