@@ -31,7 +31,7 @@ affiliations:
    index: 2
  - name: Institute of Surface Science, Helmholtz-Zentrum hereon, Germany
    index: 3
- - name: University of Augsburg, Germany
+ - name: High-Performance Scientific Computing, University of Augsburg, Germany
    index: 4
 date: \today
 bibliography: paper.bib
@@ -39,7 +39,7 @@ bibliography: paper.bib
 
 # Summary
 
-TrixiParticles.jl, part of the Trixi framework [@schlottkelakemper2020trixi], is an innovative Julia-based open-source software designed for particle-based multiphysics simulations.
+TrixiParticles.jl, part of the Trixi Framework [@schlottkelakemper2020trixi], is an innovative Julia-based open-source software designed for particle-based multiphysics simulations.
 It aims to make it easier to handle complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics,
 by providing a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others.
 To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
@@ -72,7 +72,7 @@ The latter is further enhanced by its seamless support for GPU acceleration, int
 In TrixiParticles.jl, particles of a single particle-based method are grouped into a so called \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
-![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
+![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.pdf){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
@@ -128,7 +128,7 @@ So far, the following feature highlights have been implemented:
 Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
 \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
-The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] quite well.
+The results obtained with TrixiParticles.jl match those of [@O_Connor:2021].
 
 ![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=75%}
 
