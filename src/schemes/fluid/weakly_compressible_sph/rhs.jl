@@ -194,8 +194,8 @@ end
 
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
-    n_a = get_normal(particle, particle_system, surface_tension_a)
-    n_b = get_normal(neighbor, neighbor_system, surface_tension_b)
+    n_a = surface_normal(particle, particle_system, surface_tension_a)
+    n_b = surface_normal(neighbor, neighbor_system, surface_tension_b)
 
     support_radius = compact_support(smoothing_kernel, smoothing_length)
 
