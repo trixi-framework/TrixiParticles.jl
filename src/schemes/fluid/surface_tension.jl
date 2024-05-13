@@ -95,58 +95,55 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
 end
 
 function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length,
-                                                                             mb, pos_diff,
+                                                                             m_b, pos_diff,
                                                                              distance)
-    return cohesion_force_akinci(surface_tension, smoothing_length, mb, pos_diff, distance)
+    return cohesion_force_akinci(surface_tension, smoothing_length, m_b, pos_diff, distance)
 end
 
-function (surface_tension::SurfaceTensionAkinci)(support_radius, mb, na, nb, pos_diff,
+function (surface_tension::SurfaceTensionAkinci)(support_radius, m_b, na, nb, pos_diff,
                                                  distance)
     (; surface_tension_coefficient) = surface_tension
-    return cohesion_force_akinci(surface_tension, support_radius, mb, pos_diff,
+    return cohesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
                                  distance) .- (surface_tension_coefficient * (na - nb))
 end
 
 @fastpow @inline function cohesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                                support_radius, mb, pos_diff, distance)
+                                                support_radius, m_b, pos_diff, distance)
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
-    # We only reach this function when distance > eps
+    # We only reach this function when distance > eps and `distance < support_radius`
     C = 0
-    if distance <= support_radius
-        if distance > 0.5 * support_radius
-            # Attractive force
-            C = (support_radius - distance)^3 * distance^3
-        else
-            # distance < 0.5 * support_radius
-            # Repulsive force
-            C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
-        end
-        C *= 32.0 / (pi * support_radius^9)
+    if distance > 0.5 * support_radius
+        # Attractive force
+        C = (support_radius - distance)^3 * distance^3
+    else
+        # `distance < 0.5 * support_radius`
+        # Repulsive force
+        C = 2 * (support_radius - distance)^3 * distance^3 - support_radius^6 / 64.0
     end
+    C *= 32.0 / (pi * support_radius^9)
 
     # Eq. 1 in acceleration form
-    cohesion_force = -surface_tension_coefficient * mb * C * pos_diff / distance
+    cohesion_force = -surface_tension_coefficient * m_b * C * pos_diff / distance
 
     return cohesion_force
 end
 
 @inline function adhesion_force_akinci(surface_tension::AkinciTypeSurfaceTension,
-                                       support_radius, mb, pos_diff, distance,
+                                       support_radius, m_b, pos_diff, distance,
                                        adhesion_coefficient)
     # Eq. 7
-    # We only reach this function when distance > eps
+    # We only reach this function when `distance > eps` and `distance < support_radius`
     A = 0
-    if distance < support_radius
-        if distance > 0.5 * support_radius
-            A = 0.007 / support_radius^3.25 *
-                (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
-        end
+    if distance > 0.5 * support_radius
+        A = 0.007 / support_radius^3.25 *
+            (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
     end
 
-    # Eq. 6 in acceleration form with mb being the boundary mass calculated as mb=rho_0 * volume (Akinci boundary condition treatment)
-    adhesion_force = -adhesion_coefficient * mb * A * pos_diff / distance
+    # Eq. 6 in acceleration form with `m_b`` being the boundary mass calculated as
+    # `m_b=rho_0 * volume`` (Akinci boundary condition treatment)
+    adhesion_force = -adhesion_coefficient * m_b * A * pos_diff / distance
 
     return adhesion_force
 end
