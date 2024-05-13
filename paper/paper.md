@@ -50,14 +50,14 @@ Finally, a few exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
-Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics present several challenges especially when simulating real-world problems.
-Simulating these problems involves challenges such as dealing with complex geometries, free surfaces,
-deformable boundaries or moving material interfaces and coupling of different physics disciplines.
+Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics pose several challenges, especially when simulating real-world problems.
+These simulations involve challenges such as dealing with complex geometries, free surfaces,
+deformable boundaries and moving material interfaces as well as the coupling of different physics disciplines.
 
-The lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles and, thus, eliminating the need for a mesh to discretize the simulation domain.
-The mesh-free formalism not only allows for easy preprocessing, making them particularly suitable for simulating complex geometries, but also allows for the straightforward handling of very large deformations.
+The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles, thus eliminating the need for a mesh to discretize the simulation domain.
+This mesh-free approach not only simplifies the preprocessing, making it particularly suitable for simulating complex geometries, but it also facilitates simulations of large deformations and movements.
 In addition, particle-based methods are inherently suited to simulating free surfaces, material interfaces and challenges involving moving boundaries.
-Facilitating the transition from continuum to fragmentation becomes straightforward by representing each material with its own set of particles, thereby effectively addressing material interface issues.
+Facilitating the transition from continuum to fragmentation becomes straightforward by representing each material with its own set of particles, effectively addressing material interface issues.
 This also simplifies the coupling of different singlephysics into a multiphysics system.
 
 There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender] and SPHinXsys [@Zhang:2021],
@@ -71,12 +71,12 @@ Another aspect is the ability to add custom methods or particle interactions wit
 
 # Overview of particle-based simulation
 
-In TrixiParticles.jl, particles of a single particle-based method are grouped into a so called \emph{system}.
+In TrixiParticles.jl, particles of a single particle-based method are grouped into what we refer to as a \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
 ![Particles of two different systems in a simulation domain. The black and gray dashed circle represent the search radius for neighboring particles of particle $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
 
-To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
+To illustrate this, \autoref{fig:systems} depicts particles within a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
 $$ f_a = \sum_{b \in \mathcal{S}_1} f_{ab}^{\mathcal{S}_1} + \sum_{b \in \mathcal{S}_2} f_{ab}^{\mathcal{S}_2} + \dots + \sum_{b\in \mathcal{S}_n}f_{ab}^{\mathcal{S}_n}, $$
 where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$, the system type $\mathcal{S}_i$ of particle $b$ and the relative particle distance.
@@ -94,8 +94,8 @@ The semidiscretization couples the systems of a simulation and also creates the 
 
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
 
-TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluidflows, structure mechanics, or fluid-structure interaction.
-A collection of simulation setups to get started with can be found in the `examples` directory.
+TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluid flows, structure mechanics, or fluid-structure interaction.
+A collection of simulation setups to get started with can be found in the examples directory.
 
 ## Feature highlights
 
