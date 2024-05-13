@@ -122,6 +122,7 @@ So far, the following feature highlights have been implemented:
   + Shared memory parallelism using multithreading
   + Highly optimized neighborhood search providing various approaches
   + GPU support
+
 Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
 \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
