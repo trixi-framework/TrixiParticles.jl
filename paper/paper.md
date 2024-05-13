@@ -18,12 +18,12 @@ authors:
     orcid: 0000-0001-6083-7038
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 3
-  - name: Michael Schlottke-Lakemper
-    orcid: 0000-0002-3195-2536
-    affiliation: 1, 4
   - name: Gregor J. Gassner
     orcid: 0000-0002-1752-1158
     affiliation: 2
+  - name: Michael Schlottke-Lakemper
+    orcid: 0000-0002-3195-2536
+    affiliation: 1, 4
 affiliations:
  - name: High-Performance Computing Center Stuttgart, University of Stuttgart, Germany
    index: 1
@@ -40,39 +40,40 @@ bibliography: paper.bib
 # Summary
 
 TrixiParticles.jl, part of the Trixi Framework [@schlottkelakemper2020trixi], is an innovative Julia-based open-source software designed for particle-based multiphysics simulations.
-It aims to make it easier to handle complex geometries and specialized applications, such as computational fluid dynamics and structural mechanics,
-by providing a versatile platform for Smoothed Particle Hydrodynamics (SPH) and the Discrete Element Method (DEM), among others.
-To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
-This is further complemented by a user-friendly design, which allows simulations to be configured directly with Julia code, eliminating the need for parameter files.
-This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping, establishing TrixiParticles.jl as a robust (TODO: Why/How) and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
+In this sense, we distinguish two approaches: Particles are either treated as physical particles or as mathematical interpolation points.
+The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979].
+Whereas the latter case refers to the smoothed particle hydrodynamics (SPH) which is a numerical discretization method for solving continuum mechanic problems.
+SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate computational fluid dynamics, structural mechanics and even heat conduction problems.
 
 Here, we give a brief overview of the software package TrixiParticles.jl, starting with a description of the scientific background before going on to describe the functionality and benefit in more detail.
 Finally, a few exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
-TODO: Make this more neutral
-Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics, are often conducted using mesh-based methods supported by mature software tools like [ANSYS Fluent](https://www.ansys.com/de-de/products/fluids/ansys-fluent), [COMSOL Multiphysics](https://www.comsol.com/), and [OpenFOAM](https://www.openfoam.com/). However, these methods face limitations for complex geometries or when integrating different physics disciplines into a single multiphysics system.
+Numerical simulations such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics present several challenges especially when simulating real-world problems. Simulating these problems involves challenges such as dealing with complex geometries, free surfaces or deformable boundaries and moving material interfaces.
+But also the integration of different physics disciplines into a single multiphysics system is a strong challenge.
 
-The mesh-free formalism of the methods allows for easy preprocessing, making them particularly
-suitable for simulating complex geometries. This also facilitates the coupling of different single
-physics into a multiphysics system.
+The lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles and, thus, eliminating the need for a mesh to discretize the simulation domain.
+The mesh-free formalism of the methods not only allows for easy preprocessing, making them particularly suitable for simulating complex geometries, but also allows for the straightforward handling of very large deformations.
+In addition, particle-based methods are inherently suited to simulating free surfaces, material interfaces and challenges involving moving boundaries.
+Facilitating the transition from continuum to fragmentation becomes straightforward by representing each material with its own set of particles, thereby effectively addressing material interface issues.
+This also simplifies the coupling of different singlephysics into a multiphysics system.
 
-There are several open-source software projects specialized for SPH methods, including [@Dominguez:2021], [@Bender] and [@Zhang:2021],
-written in C++, and  [@Ramachandran:2021], written in Python. These frameworks emphasize performance and are designed for a variety of SPH schemes.
+There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender] and SPHinXsys [@Zhang:2021],
+written in C++, and  PySPH [@Ramachandran:2021], written in Python.
+These softwares reflect the advantages of the SPH methods by simulating problems such as fluid-structure interaction (FSI) and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
 
-TrixiParticles.jl provides support for developing or testing new SPH methods and also for simulating or coupling other particle-based methods such as DEM.
-Another aspect is that TrixiParticles.jl is not configured at runtime via a parameter file, as it is the case with other numerical simulation codes.
-Instead, each simulation is configured and set up by pure Julia code.
-This makes it easy for users to add custom functionality even without touching the original package.
-The latter is further enhanced by its seamless support for GPU acceleration, integrating advanced computational capabilities without necessitating separate codebases.
+TrixiParticles.jl is written in Julia and thus combines the advantage of easy and rapid prototyping with the ability of high performance computing using multicore parallelization and hardware accelerators.
+The software package provides support for developing or testing new SPH methods and also for simulating or coupling other particle-based methods such as DEM.
+Another aspect is the ability to add custom methods or particle interactions without modifying the source code, since each simulation is configured and set up by pure Julia code.
 
-# Scientific background
+
+# Overview of particle-based simulation
 
 In TrixiParticles.jl, particles of a single particle-based method are grouped into a so called \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
-![Particles of two different systems in a simulation domain. \label{fig:systems}](systems.png){width=40%}
+![Particles of two different systems in a simulation domain. The black and gray dashed circle represent the search radius for neighboring particles of particle $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} shows particles in a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
@@ -105,7 +106,7 @@ So far, the following feature highlights have been implemented:
 
 * *Structure Systems*
     + Total lagrangian SPH (TLSPH): System to simulate elastic structure where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
-    + Discrete element system that models separate, discrete particles with rotational degrees of freedom, such as granular matter or bulk material [@Bicanic:2004], [@Cundall:1979].
+    + Discrete element system: Discretization of a material system into a finite set of distinct, interacting mass elements [@Bicanic:2004], [@Cundall:1979].
 
 * *Boundary Systems*
     + Boundary system with several boundary models, where each model follows a different interaction rule.
@@ -118,7 +119,7 @@ So far, the following feature highlights have been implemented:
 
 * *Performance and parallelization*
   + Shared memory parallelism using multithreading
-  + Highly optimized neighborhood search
+  + Highly optimized neighborhood search providing various approaches
   + GPU support
 
 \autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
