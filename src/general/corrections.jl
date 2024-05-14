@@ -459,7 +459,14 @@ function correction_matrix_inversion_step!(corr_matrix, system)
 
         det_ = abs(det(L))
         @fastmath if det_ < 1e-6 * norm_
-            L_inv = pinv(L)
+            # SVD decomposition in-place
+            U, s, Vt = LinearAlgebra.LAPACK.gesvd!(L)
+            # Calculate pseudo-inverse in place
+            thresh = max(1e-6, eps(Float64) * norm(s, Inf))
+            @inbounds for i in 1:length(s)
+                s[i] = s[i] > thresh ? 1.0 / s[i] : 0.0
+            end
+            L_inv = Vt' * Diagonal(s) * U'
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
                 corr_matrix[i, j, particle] = L_inv[i, j]
             end
