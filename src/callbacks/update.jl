@@ -52,7 +52,16 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
+function initial_update!(cb::UpdateCallback, u, t, integrator)
+    semi = integrator.p
+
+    # Tell systems that `UpdateCallback` is used
+    foreach_system(semi) do system
+        callback_used!(system)
+    end
+
+    return cb(integrator)
+end
 
 # `condition`
 function (update_callback!::UpdateCallback)(u, t, integrator)
@@ -124,3 +133,5 @@ function Base.show(io::IO, ::MIME"text/plain",
         summary_box(io, "UpdateCallback", setup)
     end
 end
+
+callback_used!(system) = system

@@ -96,6 +96,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
     reference_pressure       :: RP
     reference_density        :: RD
     buffer                   :: B
+    callback_used            :: Ref{Bool}
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone::Union{InFlow, OutFlow},
                                    sound_speed;
@@ -191,7 +192,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
                                    characteristics, previous_characteristics, sound_speed,
                                    boundary_zone, flow_direction_, zone_origin,
                                    spanning_set_, reference_velocity_, reference_pressure_,
-                                   reference_density_, buffer)
+                                   reference_density_, buffer, false)
     end
 end
 
@@ -228,6 +229,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_footer(io)
     end
 end
+
+callback_used!(system::OpenBoundarySPHSystem) = system.callback_used[] = true
 
 @inline source_terms(system::OpenBoundarySPHSystem) = nothing
 
@@ -291,6 +294,10 @@ end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
+    if t > 0.0 && !(system.callback_used[])
+        throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
+    end
+
     @trixi_timeit timer() "evaluate characteristics" evaluate_characteristics!(system, v, u,
                                                                                v_ode, u_ode,
                                                                                semi, t)
