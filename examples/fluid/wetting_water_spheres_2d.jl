@@ -40,8 +40,11 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.0 * fluid_particle_spacing
-fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+# fluid_smoothing_length = 1.2 * fluid_particle_spacing
+# fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+
+fluid_smoothing_length = 3.5 * fluid_particle_spacing
+fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
 fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
@@ -49,25 +52,28 @@ fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 # water at 20C
-nu = 0.00089
+nu = 0.0001
+# too much 0.00089 -> 0.00045 -> 0.0002 -> 0.0001
+# no impact 0.00005
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ViscosityAdami(nu=nu)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
+# with increased smoothing length surface_tension is too small
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                                      state_equation, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
-sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                     state_equation, fluid_smoothing_kernel_2,
-                                     fluid_smoothing_length_2, viscosity=viscosity,
-                                     density_diffusion=density_diffusion,
-                                     acceleration=(0.0, -gravity))
+# sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
+#                                      state_equation, fluid_smoothing_kernel_2,
+#                                      fluid_smoothing_length_2, viscosity=viscosity,
+#                                      density_diffusion=density_diffusion,
+#                                      acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -81,7 +87,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.5)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.1)
 
 # ==========================================================================================
 # ==== Simulation
@@ -96,7 +102,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
 sol = solve(ode, RDPK3SpFSAL35(),
-            abstol=1e-6, # Default abstol is 1e-6
+            abstol=1e-5, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
-            dt=1e-5,
+            dt=1e-4,
             save_everystep=false, callback=callbacks);
