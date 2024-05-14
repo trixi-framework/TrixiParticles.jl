@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.0025
+fluid_particle_spacing = 0.001
 
 boundary_layers = 5
 spacing_ratio = 1
@@ -48,22 +48,19 @@ fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-# for perfect wetting
-nu = 0.00025
-# for no wetting
-# nu = 0.001
+# water at 20C
+nu = 0.00089
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
+viscosity = ViscosityAdami(nu=nu)
+density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                                      state_equation, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
-                                                     density_diffusion=nothing,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
@@ -80,15 +77,15 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel_2,
                                              fluid_smoothing_length_2,
-                                             viscosity=ViscosityAdami(nu=2.0 * nu))
+                                             viscosity=ViscosityAdami(nu=nu))
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.0)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.5)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(boundary_system, sphere_surface_tension, sphere)
+semi = Semidiscretization(boundary_system, sphere_surface_tension)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
