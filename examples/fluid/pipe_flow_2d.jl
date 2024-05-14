@@ -6,10 +6,13 @@ using OrdinaryDiffEq
 # ==== Resolution
 domain_length_factor = 0.05
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 4
-spacing_ratio = 1
 
+# Make sure that the kernel support of fluid particles at an open boundary is always
+# fully sampled.
+# Due to the dynamics at the inlets and outlets, it is recommended to use
+# `open_boundary_layers > boundary_layers`
 open_boundary_layers = 6
 
 # ==========================================================================================
@@ -37,7 +40,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7, background_pressure=pressure)
 
 pipe = RectangularTank(particle_spacing, domain_size, boundary_size, fluid_density,
-                       pressure=pressure, n_layers=boundary_layers, spacing_ratio=1,
+                       pressure=pressure, n_layers=boundary_layers,
                        faces=(false, false, true, true))
 
 # Shift pipe walls in negative x-direction for the inflow
@@ -108,16 +111,7 @@ saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
 
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
-
-sol = solve(ode, RDPK3SpFSAL49(),
+sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
             reltol=1e-3, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
