@@ -79,14 +79,15 @@ system = OpenBoundarySPHSystem(plane_points, InFlow(), 10.0; particle_spacing=0.
                                open_boundary_layers=4, density=1.0, flow_direction)
 ```
 """
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: System{NDIMS}
-    initial_condition        :: InitialCondition{ELTYPE}
-    mass                     :: Array{ELTYPE, 1} # [particle]
-    density                  :: Array{ELTYPE, 1} # [particle]
-    volume                   :: Array{ELTYPE, 1} # [particle]
-    pressure                 :: Array{ELTYPE, 1} # [particle]
-    characteristics          :: Array{ELTYPE, 2} # [characteristics, particle]
-    previous_characteristics :: Array{ELTYPE, 2} # [characteristics, particle]
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, S, RV, RP,
+                             RD, B} <: System{NDIMS}
+    initial_condition        :: IC
+    mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    density                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    volume                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    pressure                 :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    characteristics          :: ARRAY2D # Array{ELTYPE, 2}: [characteristics, particle]
+    previous_characteristics :: ARRAY2D # Array{ELTYPE, 2}: [characteristics, particle]
     sound_speed              :: ELTYPE
     boundary_zone            :: BZ
     flow_direction           :: SVector{NDIMS, ELTYPE}
@@ -185,7 +186,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, S, RV, RP, RD, B} <: Sys
         characteristics = zeros(ELTYPE, 3, length(mass))
         previous_characteristics = zeros(ELTYPE, 3, length(mass))
 
-        return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(spanning_set_),
+        return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(initial_condition),
+                   typeof(mass), typeof(characteristics), typeof(spanning_set_),
                    typeof(reference_velocity_), typeof(reference_pressure_),
                    typeof(reference_density_),
                    typeof(buffer)}(initial_condition, mass, density, volume, pressure,
