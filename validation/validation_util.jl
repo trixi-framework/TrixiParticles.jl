@@ -18,6 +18,26 @@ function linear_interpolation(x, y, interpolation_point)
     return y[i] + slope * (interpolation_point - x[i])
 end
 
+function interpolate_to_common_time(reference_time, reference_values, simulation_time,
+                                    simulation_values)
+    if last(simulation_time) > last(reference_time)
+        @warn "Simulation time range is larger than reference time range. " *
+              "Only checking values within reference time range."
+    end
+
+    # Identify the common time range
+    start = searchsortedfirst(reference_time, first(simulation_time))
+    end_ = searchsortedlast(reference_time, last(simulation_time))
+    common_time_range = reference_time[start:end_]
+
+    # Interpolate simulation data at the common time points
+    interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
+                           for t in common_time_range]
+    filtered_values = reference_values[start:end_]
+
+    return common_time_range, interpolated_values, filtered_values
+end
+
 # Calculate the mean squared error (MSE) between interpolated simulation values and reference values
 # over a common time range.
 #
@@ -28,22 +48,12 @@ end
 # - `simulation_values` : Data points for the simulation data.
 function interpolated_mse(reference_time, reference_values, simulation_time,
                           simulation_values)
-    if last(simulation_time) > last(reference_time)
-        @warn "simulation time range is larger than reference time range. " *
-              "Only checking values within reference time range."
-    end
-    # Remove reference time points outside the simulation time
-    start = searchsortedfirst(reference_time, first(simulation_time))
-    end_ = searchsortedlast(reference_time, last(simulation_time))
-    common_time_range = reference_time[start:end_]
+    common_time_range, interpolated_values, filtered_values = interpolate_to_common_time(reference_time,
+                                                                                         reference_values,
+                                                                                         simulation_time,
+                                                                                         simulation_values)
 
-    # Interpolate simulation data at the common time points
-    interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
-                           for t in common_time_range]
-
-    filtered_values = reference_values[start:end_]
-
-    # Calculate MSE only over the common time range
+    # Calculate MSE
     mse = sum((interpolated_values .- filtered_values) .^ 2) / length(common_time_range)
     return mse
 end
@@ -58,25 +68,14 @@ end
 # - `simulation_values` : Data points for the simulation data.
 function interpolated_mre(reference_time, reference_values, simulation_time,
                           simulation_values)
-    if last(simulation_time) > last(reference_time)
-        @warn "simulation time range is larger than reference time range. " *
-              "Only checking values within reference time range."
-    end
-
-    # Remove reference time points outside the simulation time
-    start = searchsortedfirst(reference_time, first(simulation_time))
-    end_ = searchsortedlast(reference_time, last(simulation_time))
-    common_time_range = reference_time[start:end_]
-
-    # Interpolate simulation data at the common time points
-    interpolated_values = [linear_interpolation(simulation_time, simulation_values, t)
-                           for t in common_time_range]
-
-    filtered_values = reference_values[start:end_]
+    common_time_range, interpolated_values, filtered_values = interpolate_to_common_time(reference_time,
+                                                                                         reference_values,
+                                                                                         simulation_time,
+                                                                                         simulation_values)
 
     # Calculate MRE only over the common time range (adding 10*eps() to prevent NaNs)
     relative_errors = abs.(interpolated_values .- filtered_values) ./
-                      (abs.(filtered_values) .+ 10 * eps())
+                      (abs.(filtered_values) + 10 * eps())
     valid_relative_errors = filter(!isnan, relative_errors)
 
     return sum(valid_relative_errors) / length(common_time_range)
