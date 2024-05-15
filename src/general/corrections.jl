@@ -442,32 +442,31 @@ end
 function correction_matrix_inversion_step!(corr_matrix, system)
     @threaded for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
-        norm_ = norm(L)
 
-        # The norm value is quasi-zero, so there are probably no neighbors for this particle
-        if norm_ < sqrt(eps())
-            # The correction matrix is set to an identity matrix, which effectively disables
-            # the correction for this particle.
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = 0.0
-            end
-            @inbounds for i in 1:ndims(system)
-                corr_matrix[i, i, particle] = 1.0
-            end
-            continue
-        end
-
-        det_ = abs(det(L))
-        @fastmath if det_ < 1e-6 * norm_
-            L_inv = pinv(L)
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = L_inv[i, j]
-            end
+        # The matrix `L` only becomes singular when the particle and all neighbors
+        # are collinear (in 2D) or lie all in the same plane (in 3D).
+        # In this case, we just disable the correction and set the corrected gradient
+        # to be the uncorrected one by setting `L` to the identity matrix.
+        #
+        # Proof: `L` is just a sum of tensor products of relative positions X_ab with
+        # themselves. According to
+        # https://en.wikipedia.org/wiki/Outer_product#Connection_with_the_matrix_product
+        # the sum of tensor products can be rewritten as A A^T, where the columns of A
+        # are the relative positions X_ab. The rank of A A^T is equal to the rank of A,
+        # so `L` is singular if and only if the position vectors X_ab don't span the
+        # full space, i.e., particle a and all neighbors lie on the same line (in 2D)
+        # or plane (in 3D).
+        if abs(det(L)) < 1e-9
+            L_inv = I
         else
             L_inv = inv(L)
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = L_inv[i, j]
-            end
+        end
+
+        # Write inverse back to `corr_matrix`
+        for j in 1:ndims(system), i in 1:ndims(system)
+            @inbounds corr_matrix[i, j, particle] = L_inv[i, j]
         end
     end
+
+    return corr_matrix
 end
