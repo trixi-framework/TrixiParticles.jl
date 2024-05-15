@@ -7,15 +7,15 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
     normals_vertex    :: Vector{SVector{NDIMS, ELTYPE}}
     normals_edge      :: Vector{SVector{NDIMS, ELTYPE}}
     normals_face      :: Vector{SVector{NDIMS, ELTYPE}}
-    min_box           :: SVector{NDIMS, ELTYPE}
-    max_box           :: SVector{NDIMS, ELTYPE}
+    min_corner        :: SVector{NDIMS, ELTYPE}
+    max_corner        :: SVector{NDIMS, ELTYPE}
 
     function TriangleMesh(face_vertices, normals_face, vertices)
         NDIMS = 3
         n_faces = length(normals_face)
 
-        min_box = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
-        max_box = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
+        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
         ELTYPE = eltype(first(normals_face))
 
@@ -101,7 +101,7 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
                                   normalize.(normals_vertex), normalize.(normals_edge),
-                                  normals_face, min_box, max_box)
+                                  normals_face, min_corner, max_corner)
     end
 end
 

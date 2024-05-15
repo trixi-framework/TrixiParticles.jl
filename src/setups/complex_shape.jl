@@ -1,7 +1,20 @@
 function ComplexShape(shape::Shapes; particle_spacing, density, velocity=nothing,
                       pressure=0.0,
                       point_in_shape_algorithm=WindingNumberJacobson(), seed=nothing,
-                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e6))
+                      hierarchical_winding=false,
+                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e7))
+    if point_in_shape_algorithm isa WindingNumberJacobson && hierarchical_winding
+        bbox = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
+
+        directed_edges = zeros(Int, length(shape.normals_edge))
+        construct_hierarchy!(bbox, shape, directed_edges)
+
+        point_in_shape_algorithm = WindingNumberJacobson(;
+                                                         winding=HierarchicalWinding(bbox))
+    elseif point_in_shape_algorithm isa WindingNumberJacobson
+        point_in_shape_algorithm = WindingNumberJacobson(; winding=NaiveWinding())
+    end
+
     if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
         throw(ArgumentError("`WindingNumberHorman` only supports 2D shapes"))
     end
@@ -29,7 +42,7 @@ end
 function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing, seed=nothing,
                        max_nparticles=Int(1e6))
     NDIMS = ndims(shape)
-    (; min_box, max_box) = shape
+    (; min_corner, max_corner) = shape
 
     if seed !== nothing
         if seed isa AbstractVector && length(seed) == NDIMS
@@ -39,10 +52,10 @@ function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing, s
                                 "of length $NDIMS for a $(NDIMS)D problem"))
         end
     else
-        min_corner_ = min_box .- pad
+        min_corner_ = min_corner .- pad
     end
 
-    ranges(dim) = min_corner_[dim]:particle_spacing:(max_box .+ pad)[dim]
+    ranges(dim) = min_corner_[dim]:particle_spacing:(max_corner .+ pad)[dim]
 
     ranges_ = ntuple(dim -> ranges(dim), NDIMS)
 
