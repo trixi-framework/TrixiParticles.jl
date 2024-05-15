@@ -442,10 +442,10 @@ end
 function correction_matrix_inversion_step!(corr_matrix, system)
     @threaded for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
-        norm_ = norm(L)
+        det_ = abs(det(L))
 
-        # The norm value is quasi-zero, so there are probably no neighbors for this particle
-        if norm_ < sqrt(eps())
+        # The determinant threshold is used to determine invertability
+        if det_ < 1e-9
             # The correction matrix is set to an identity matrix, which effectively disables
             # the correction for this particle.
             @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -453,15 +453,6 @@ function correction_matrix_inversion_step!(corr_matrix, system)
             end
             @inbounds for i in 1:ndims(system)
                 corr_matrix[i, i, particle] = 1.0
-            end
-            continue
-        end
-
-        det_ = abs(det(L))
-        @fastmath if det_ < 1e-6 * norm_
-            L_inv = pinv(L)
-            @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-                corr_matrix[i, j, particle] = L_inv[i, j]
             end
         else
             L_inv = inv(L)
