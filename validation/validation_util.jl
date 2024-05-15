@@ -73,12 +73,11 @@ function interpolated_mre(reference_time, reference_values, simulation_time,
                                                                                          simulation_time,
                                                                                          simulation_values)
 
-    # Calculate MRE only over the common time range (adding 10*eps() to prevent NaNs)
+    # Calculate MRE only over the common time range (adding 1e-8 to prevent NaNs)
     relative_errors = abs.(interpolated_values .- filtered_values) ./
-                      (abs.(filtered_values) + 10 * eps())
-    valid_relative_errors = filter(!isnan, relative_errors)
+                      (abs.(filtered_values) + 1e-8)
 
-    return sum(valid_relative_errors) / length(common_time_range)
+    return sum(relative_errors) / length(common_time_range)
 end
 
 function extract_number_from_filename(filename)
