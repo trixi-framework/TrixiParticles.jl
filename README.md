@@ -17,8 +17,9 @@ Its features include:
 ## Features
 - Incompressible Navier-Stokes
   - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
+  - Models: Surface Tension
 - Solid-body mechanics
-  - Methods:  Total Lagrangian SPH (TLSPH)
+  - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
 - Output formats:
   - VTK
