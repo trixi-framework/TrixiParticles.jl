@@ -2,6 +2,7 @@ module TrixiParticles
 
 using Reexport: @reexport
 
+using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
@@ -38,8 +39,9 @@ include("setups/setups.jl")
 include("schemes/schemes.jl")
 
 # Note that `semidiscretization.jl` depends on the system types and has to be
-# included separately.
+# included separately. `gpu.jl` in turn depends on the semidiscretization type.
 include("general/semidiscretization.jl")
+include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("preprocessing/preprocessing.jl")
 include("visualization/recipes_plots.jl")
@@ -47,7 +49,7 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem
+       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity
