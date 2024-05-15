@@ -445,8 +445,10 @@ function correction_matrix_inversion_step!(corr_matrix, system)
 
         # The matrix `L` only becomes singular when the particle and all neighbors
         # are collinear (in 2D) or lie all in the same plane (in 3D).
-        # In this case, we just disable the correction and set the corrected gradient
-        # to be the uncorrected one by setting `L` to the identity matrix.
+        # This happens only when two (in 2D) or three (in 3D) particles are isolated,
+        # or in cases where there is only one layer of fluid particles on a wall.
+        # In these edge cases, we just disable the correction and set the corrected
+        # gradient to be the uncorrected one by setting `L` to the identity matrix.
         #
         # Proof: `L` is just a sum of tensor products of relative positions X_ab with
         # themselves. According to
