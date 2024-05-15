@@ -5,7 +5,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.0001
 
 boundary_layers = 5
 spacing_ratio = 1
@@ -17,7 +17,7 @@ tspan = (0.0, 1.5)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 2.0)
+tank_size = (0.05, 0.01)
 
 fluid_density = 1000.0
 sound_speed = 150
@@ -29,9 +29,9 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        faces=(true, true, true, false),
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-sphere_radius = 0.01
+sphere_radius = 0.0015
 
-sphere1_center = (0.5, sphere_radius + 0.5 * fluid_particle_spacing)
+sphere1_center = (0.025, sphere_radius + 0.5 * fluid_particle_spacing)
 sphere2_center = (1.5, sphere_radius - 0.5 * fluid_particle_spacing)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
@@ -52,7 +52,8 @@ fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 # water at 20C
-nu = 0.0001
+#nu=0.0089
+nu = 0.0002
 # too much 0.00089 -> 0.00045 -> 0.0002 -> 0.0001
 # no impact 0.00005
 
@@ -66,8 +67,30 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.115),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
+
+# 0.001
+# 0.2 > 90
+# 0.15 > 90
+# 0.125 > 90
+# 0.11 60-90
+# 0.1 ~ 45
+
+# 0.0008
+# 0.11 ~45-50
+# 0.1125 ~90
+# 0.115 ~90
+# 0.12 > 90
+
+
+# 0.0005
+#0.11 ~100
+
+
+# 0.00025
+# 0.115 ~60 grad aber zu tief in der mitte 0.006
+# 0.115 and increase nu to 0.0002
 
 # sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 #                                      state_equation, fluid_smoothing_kernel_2,
