@@ -6,17 +6,15 @@ using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
-using FileIO: load
+using FileIO: FileIO, File, query, skipmagic, @format_str, Stream, stream
 using DelimitedFiles: readdlm
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det, cross, normalize
-using MeshIO: decompose, TriangleFace
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
-using OrdinaryDiffEq
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
@@ -32,6 +30,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # util needs to be first because of macro @trixi_timeit
 include("util.jl")
+include("preprocessing/preprocessing.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("neighborhood_search/neighborhood_search.jl")
@@ -43,7 +42,6 @@ include("schemes/schemes.jl")
 include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
-include("preprocessing/preprocessing.jl")
 include("visualization/recipes_plots.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
@@ -67,10 +65,10 @@ export BoundaryMovement
 export GridNeighborhoodSearch, TrivialNeighborhoodSearch
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape, ComplexShape, load_shape
+export RectangularTank, RectangularShape, SphereShape, ComplexShape
 export ParticlePacking
 export WindingNumberHorman, WindingNumberJacobson
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_shape
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
