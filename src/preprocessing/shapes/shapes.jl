@@ -1,6 +1,7 @@
 abstract type Shapes{NDIMS} end
 
 include("../point_in_poly/algorithm.jl")
+include("io.jl")
 include("polygon_shape.jl")
 include("triangle_mesh.jl")
 
@@ -18,42 +19,6 @@ function ComplexShape(shape; particle_spacing, density, velocity=nothing,
 
     return sample(; shape, particle_spacing, density, velocity, point_in_shape_algorithm,
                   pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
-end
-
-function load_shape(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
-    if !isa(filename, String)
-        throw(ArgumentError("`filename` must be of type String"))
-    end
-
-    file_extension = splitext(filename)[end]
-
-    if file_extension == ".asc"
-        points = read_in_2d(; filename, scale_factor, ELTYPE, skipstart)
-        shape = Polygon(points)
-    elseif file_extension == ".stl"
-        # TODO: For some reason, this only works on the second run.
-        mesh = load(filename)
-        shape = TriangleMesh(mesh)
-    else
-        throw(ArgumentError("Only `.stl` and `.asc` files are supported (yet)."))
-    end
-end
-
-function read_in_2d(; filename, scale_factor=nothing, ELTYPE=Float64, skipstart=1)
-
-    # Read in the ASCII file as an Tuple containing the coordinates of the points and the
-    # header.
-
-    # Either `header=true` which returns a tuple `(data_cells, header_cells)`
-    # or ignoring the corresponding number of lines from the input with `skipstart`
-    points = readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
-    if scale_factor isa ELTYPE
-        points .*= scale_factor
-    elseif scale_factor !== nothing
-        throw(ArgumentError("`scale_factor` must be of type $ELTYPE"))
-    end
-
-    return copy(points')
 end
 
 function particle_grid(shape, particle_spacing; pad=2particle_spacing, seed=nothing,
@@ -99,6 +64,8 @@ function sample(; shape, particle_spacing, density, velocity=zeros(ndims(shape))
 end
 
 @inline Base.ndims(::Shapes{NDIMS}) where {NDIMS} = NDIMS
+
+@inline Base.eltype(shape::Shapes) = eltype(first(first(shape.min_box)))
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 

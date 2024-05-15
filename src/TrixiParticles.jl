@@ -5,14 +5,13 @@ using Reexport: @reexport
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
-using FileIO: load
+using FileIO: FileIO, File, query, skipmagic, @format_str, Stream, stream
 using DelimitedFiles: readdlm
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det, cross, normalize
-using MeshIO: decompose, TriangleFace
 using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch

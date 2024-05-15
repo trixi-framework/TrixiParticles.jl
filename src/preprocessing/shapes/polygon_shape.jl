@@ -26,7 +26,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
 
-        # Sum over all the edges and determine if the vertices are in clockwise order
+        # Sum over all the edges and determine if the vertices are in counter-clockwise order
         # to make sure that all normals pointing outwards
         counter = 0.0
         for i in 1:(n_vertices - 1)
@@ -36,7 +36,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         end
 
         if counter < 0.0
-            # Curve is counter-clockwise
+            # Curve is clockwise
             reverse!(vertices, dims=2)
             reverse!(vertices_x)
             reverse!(vertices_y)

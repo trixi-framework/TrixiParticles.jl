@@ -1,9 +1,9 @@
 using TrixiParticles
 
-particle_spacing = 0.5
+particle_spacing = 0.1
 
 dir = joinpath("Data", "stl-files", "examples")
-filename = joinpath(expanduser("~/") * dir, "cube.stl")
+filename = joinpath(expanduser("~/") * dir, "sphere.stl")
 
 # Returns `Shape`
 shape = load_shape(filename)
