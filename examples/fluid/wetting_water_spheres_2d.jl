@@ -29,7 +29,7 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        faces=(true, true, true, false),
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-sphere_radius = 0.05
+sphere_radius = 0.01
 
 sphere1_center = (0.5, sphere_radius + 0.5 * fluid_particle_spacing)
 sphere2_center = (1.5, sphere_radius - 0.5 * fluid_particle_spacing)
@@ -43,8 +43,8 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 # fluid_smoothing_length = 1.2 * fluid_particle_spacing
 # fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_smoothing_length = 3.5 * fluid_particle_spacing
-fluid_smoothing_kernel = WendlandC2Kernel{2}()
+fluid_smoothing_length = 4.0 * fluid_particle_spacing
+fluid_smoothing_kernel = WendlandC4Kernel{2}()
 
 fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
 fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
