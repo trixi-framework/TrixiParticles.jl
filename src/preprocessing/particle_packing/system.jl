@@ -12,7 +12,9 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
     precalculate_sdf    :: Bool
     nhs_faces           :: Union{TrivialNeighborhoodSearch, FaceNeighborhoodSearch}
 
-    function ParticlePackingSystem(initial_condition, smoothing_kernel, smoothing_length;
+    function ParticlePackingSystem(initial_condition;
+                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
+                                   smoothing_length=1.2initial_condition.particle_spacing,
                                    precalculate_sdf=false,
                                    neighborhood_search=true,
                                    background_pressure, boundary, tlsph=false)

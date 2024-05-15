@@ -43,6 +43,7 @@ include("general/semidiscretization.jl")
 include("general/gpu.jl")
 include("visualization/write2vtk.jl")
 include("visualization/recipes_plots.jl")
+include("preprocessing/particle_packing/particle_packing.jl")
 
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
@@ -66,7 +67,7 @@ export GridNeighborhoodSearch, TrivialNeighborhoodSearch
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape, ComplexShape
-export ParticlePacking
+export ParticlePackingSystem
 export WindingNumberHorman, WindingNumberJacobson
 export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_shape
 export SourceTermDamping

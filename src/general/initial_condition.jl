@@ -285,6 +285,41 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
+function InitialCondition(sol::ODESolution, system, semi; final_velocity=false,
+                          max_particle_distance=0.25system.initial_condition.particle_spacing)
+    ic = system.initial_condition
+
+    v_ode, u_ode = sol.u[end].x
+
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_u(v_ode, system, semi)
+
+    # TODO: Remove particles that are closer than `max_particle_distance` to any particle
+    too_close = find_too_close_particles(u, max_particle_distance)
+
+    velocity_ = final_velocity ? view(v, 1:ndims(system), :) : ic.velocity
+
+    if isempty(too_close)
+        ic.coordinates .= u
+        ic.velocity .= velocity_
+
+        return ic
+    end
+
+    not_too_close = setdiff(eachparticle(system), too_close)
+
+    coordinates = u[:, not_too_close]
+    velocity = velocity_[:, not_too_close]
+    mass = ic.mass[not_too_close]
+    density = ic.density[not_too_close]
+    pressure = ic.pressure[not_too_close]
+
+    @info "$(length(too_close)) removed particles that are too close together"
+
+    return InitialCondition{ndims(ic)}(coordinates, velocity, mass, density, pressure,
+                                       ic.particle_spacing)
+end
+
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
 function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
