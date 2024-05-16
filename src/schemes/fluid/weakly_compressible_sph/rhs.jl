@@ -59,12 +59,12 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_a, m_b, rho_mean)
 
         dv_surface_tension = surface_tension_correction *
-                             calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                                  particle_system, neighbor_system,
-                                                  surface_tension_a, surface_tension_b)
+                             surface_tension_force(surface_tension_a, surface_tension_b,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
 
-        dv_adhesion = calc_adhesion(particle, neighbor, pos_diff, distance,
-                                    particle_system, neighbor_system, surface_tension)
+        dv_adhesion = adhesion_force(surface_tension, particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance)
 
         @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
@@ -116,38 +116,6 @@ end
                        particle_system, neighbor_system, grad_kernel)
 end
 
-@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system::WeaklyCompressibleSPHSystem,
-                                    neighbor_system::WeaklyCompressibleSPHSystem,
-                                    grad_kernel)
-    # Density diffusion terms are all zero for distance zero
-    distance < sqrt(eps()) && return
-
-    (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
-    (; sound_speed) = state_equation
-
-    volume_b = m_b / rho_b
-
-    psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
-                                particle_system, particle, neighbor)
-    density_diffusion_term = dot(psi, grad_kernel) * volume_b
-
-    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
-end
-
-# Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system, neighbor_system, grad_kernel)
-    return dv
-end
-
 @inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,
                                             particle_system, neighbor_system,
                                             particle, neighbor)
@@ -164,71 +132,4 @@ end
     p_a = particle_pressure(v_particle_system, particle_system, particle)
 
     return p_a, p_a
-end
-
-@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_system::FluidSystem,
-                                      neighbor_system::FluidSystem,
-                                      surface_tension_a::CohesionForceAkinci,
-                                      surface_tension_b::CohesionForceAkinci)
-    (; smoothing_length) = particle_system
-    # No cohesion with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    support_radius = compact_support(smoothing_kernel, smoothing_length)
-
-    return cohesion_force_akinci(surface_tension_a, support_radius, m_b, pos_diff, distance)
-end
-
-@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_system::FluidSystem,
-                                      neighbor_system::FluidSystem,
-                                      surface_tension_a::SurfaceTensionAkinci,
-                                      surface_tension_b::SurfaceTensionAkinci)
-    (; smoothing_length, smoothing_kernel) = particle_system
-    (; surface_tension_coefficient) = surface_tension_a
-
-    # No surface tension with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
-    n_a = surface_normal(particle, particle_system, surface_tension_a)
-    n_b = surface_normal(neighbor, neighbor_system, surface_tension_b)
-    support_radius = compact_support(smoothing_kernel, smoothing_length)
-
-    return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
-                                 pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b))
-end
-
-# Skip
-@inline function calc_surface_tension(particle, neighbor, pos_diff, distance,
-                                      particle_system, neighbor_system,
-                                      surface_tension_a, surface_tension_b)
-    return zero(pos_diff)
-end
-
-@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-                               particle_system::FluidSystem,
-                               neighbor_system::BoundarySPHSystem,
-                               surface_tension::AkinciTypeSurfaceTension)
-    (; smoothing_length, smoothing_kernel) = particle_system
-    (; adhesion_coefficient, boundary_model) = neighbor_system
-
-    # No adhesion with oneself
-    distance < sqrt(eps()) && return zero(pos_diff)
-
-    # No reason to calculate the adhesion force if adhesion coefficient is near zero
-    abs(adhesion_coefficient) < eps() && return zero(pos_diff)
-
-    m_b = hydrodynamic_mass(neighbor_system, neighbor)
-
-    support_radius = compact_support(smoothing_kernel, smoothing_length)
-    return adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff, distance,
-                                 adhesion_coefficient)
-end
-
-@inline function calc_adhesion(particle, neighbor, pos_diff, distance,
-                               particle_system, neighbor_system,
-                               surface_tension)
-    return zero(pos_diff)
 end

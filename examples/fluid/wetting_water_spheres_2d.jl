@@ -20,7 +20,7 @@ initial_fluid_size = (0.0, 0.0)
 tank_size = (2.0, 2.0)
 
 fluid_density = 1000.0
-sound_speed = 150
+sound_speed = 120
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
