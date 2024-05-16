@@ -3,10 +3,7 @@ abstract type AkinciTypeSurfaceTension end
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
 
-Implements the cohesion force model by Akinci, focusing on intra-particle forces
-to simulate surface tension and adhesion in fluid dynamics. This model is a crucial component
-for capturing the complex interactions at the fluid surface, such as droplet formation
-and the merging or breaking of fluid bodies.
+This model only implements the cohesion force of the Akinci surface tension model.
 
 # Keywords
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
@@ -29,7 +26,7 @@ end
 @doc raw"""
     SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
-Implements a model for simulating surface tension and adhesion effects drawing upon the
+Implements a model for surface tension and adhesion effects drawing upon the
 principles outlined by Akinci et al. This model is instrumental in capturing the nuanced
 behaviors of fluid surfaces, such as droplet formation and the dynamics of merging or
 separation, by utilizing intra-particle forces.
