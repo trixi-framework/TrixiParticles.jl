@@ -128,7 +128,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # decrease adh=1.275 and  x-axis: 2.4mm y-axis:1.8
 # decrease adh=1.26 and  x-axis: 2.4mm y-axis:1.8
 # decrease adh=1.255 and  x-axis: 2.4mm y-axis:1.8
-# decrease smoothing length from 4 -> 3.75
+# decrease smoothing length from 4 -> 3.75 x-axis: 2mm y-axis:1.9
 
 
 # sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
