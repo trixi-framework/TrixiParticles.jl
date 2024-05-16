@@ -65,7 +65,7 @@ written in C++, and  PySPH [@Ramachandran:2021], written in Python.
 These softwares reflect the advantages of the SPH methods by simulating problems such as fluid-structure interaction (FSI) and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
 
 TrixiParticles.jl is written in Julia and thus combines the advantage of easy and rapid prototyping with the ability of high performance computing using multicore parallelization and hardware accelerators.
-The software package provides support for developing or testing new SPH methods and also for simulating or coupling other particle-based methods such as DEM.
+The software package provides support for developing and testing new SPH methods and also for simulating and coupling other particle-based methods such as DEM.
 Another aspect is the ability to add custom methods or particle interactions without modifying the source code, since each simulation is configured and set up by pure Julia code.
 
 
@@ -74,12 +74,12 @@ Another aspect is the ability to add custom methods or particle interactions wit
 In TrixiParticles.jl, particles of a single particle-based method are grouped into what we refer to as a \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
-![Particles of two different systems in a simulation domain. The black and gray dashed circle represent the search radius for neighboring particles of particle $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
+![Particles of two different systems in a simulation domain. The black and gray dashed circles represent the search radii for neighboring particles of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} depicts particles within a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
 $$ f_a = \sum_{b \in \mathcal{S}_1} f_{ab}^{\mathcal{S}_1} + \sum_{b \in \mathcal{S}_2} f_{ab}^{\mathcal{S}_2} + \dots + \sum_{b\in \mathcal{S}_n}f_{ab}^{\mathcal{S}_n}, $$
-where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$, the system type $\mathcal{S}_i$ of particle $b$ and the relative particle distance.
+where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$, the system type $\mathcal{S}_i$ of particle $b$, and the relative particle distance.
 For computational efficiency, only particles with a distance within a system-dependent search radius interact with each other.
 
 For example, the SPH method determines the force between two SPH particles according to [@Monaghan:2005] as
@@ -90,7 +90,8 @@ where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and p
 
 \autoref{fig:structure} depicts the basic building blocks of TrixiParticles.jl. A simulation essentially consists of spatial discretization (left block) and time integration (center block). For the latter, the Julia package [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) is used. The callbacks (right block) provide additional functionality and communicate with the time integration method during the simulation.
 
-The semidiscretization couples the systems of a simulation and also creates the corresponding neighborhood searches for each system. The resulting ordinary differential equation (ODE) problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
+The semidiscretization couples the systems of a simulation and also manage the corresponding neighborhood searches for each system.
+The resulting ordinary differential equation (ODE) problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
 
@@ -106,12 +107,12 @@ So far, the following feature highlights have been implemented:
     + Entropically damped artificial compressible (EDAC) SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
 
 * *Structure Systems*
-    + Total lagrangian SPH (TLSPH): System to simulate elastic structure where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
-    + Discrete element system: Discretization of a material system into a finite set of distinct, interacting mass elements [@Bicanic:2004], [@Cundall:1979].
+    + Total lagrangian SPH (TLSPH): Method to simulate elastic structures where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
+    + DEM: Discretization of granular matter or bulk material into a finite set of distinct, interacting mass elements [@Bicanic:2004], [@Cundall:1979].
 
 * *Boundary Systems*
     + Boundary system with several boundary models, where each model follows a different interaction rule.
-    + Open boundary system to simulate non-reflecting (open) boundary conditions [@Lastiwka:2009]
+    + Open boundary system to simulate non-reflecting (open) boundary conditions [@Lastiwka:2009].
 
 * *Correction methods and models*
   + Density diffusion [@Antuono:2010]
@@ -123,7 +124,7 @@ So far, the following feature highlights have been implemented:
   + Highly optimized neighborhood search providing various approaches
   + GPU support
 
-Validation can be performed by, for example, quantitatively comparing results using a post-process callback.
+Validation can be performed, for example, by quantitatively comparing results using a post-process callback.
 \autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021].
