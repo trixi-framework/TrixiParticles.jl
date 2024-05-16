@@ -20,7 +20,7 @@ initial_fluid_size = (0.0, 0.0)
 tank_size = (0.05, 0.01)
 
 fluid_density = 1000.0
-sound_speed = 150
+sound_speed = 120
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -43,7 +43,7 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 # fluid_smoothing_length = 1.2 * fluid_particle_spacing
 # fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_smoothing_length = 4.0 * fluid_particle_spacing
+fluid_smoothing_length = 3.75 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC4Kernel{2}()
 
 fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
@@ -51,9 +51,8 @@ fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-# water at 20C
-#nu=0.0089
-nu = 0.0002
+# water at 20C nu=0.00089
+nu = 0.0003
 # too much 0.00089 -> 0.00045 -> 0.0002 -> 0.0001
 # no impact 0.00005
 
@@ -67,7 +66,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.115),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.125),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # 0.001
@@ -92,6 +91,17 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # 0.115 ~60 grad aber zu tief in der mitte 0.006
 # 0.115 and increase nu to 0.0002
 
+
+
+
+# 60deg x=2.4, y=1.3
+# adh = 1.15, surft=0.115, nu=0.0003, h=3.75, x=1.7-1.8, y=2.2
+# adh = 1.2, surft=0.115, nu=0.0003, h=3.75, x=2-2.2, y=1.8
+# adh = 1.25, surft=0.115, nu=0.0003, h=3.75, x=2.2, y=1.8
+# adh = 1.3, surft=0.115, nu=0.0003, h=3.75, x=2.6, y=1.6
+# adh = 1.3, surft=0.12, nu=0.0003, h=3.75, x=2.2-2.6, y=1.6
+# adh = 1.3, surft=0.125, nu=0.0003, h=3.75, x=2.2-2.6, y=1.6 <-here (not done)
+
 # sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 #                                      state_equation, fluid_smoothing_kernel_2,
 #                                      fluid_smoothing_length_2, viscosity=viscosity,
@@ -110,7 +120,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.0)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.3)
 
 # ==========================================================================================
 # ==== Simulation
