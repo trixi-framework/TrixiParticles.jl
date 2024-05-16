@@ -12,7 +12,7 @@ and the merging or breaking of fluid bodies.
 - `surface_tension_coefficient=1.0`: Modifies the intensity of the surface tension-induced force,
    enabling the tuning of the fluid's surface tension properties within the simulation.
 
-# Reference:
+# References
 - Nadir Akinci, Gizem Akinci, Matthias Teschner.
   "Versatile Surface Tension and Adhesion for SPH Fluids".
   In: ACM Transactions on Graphics 32.6 (2013).
@@ -27,7 +27,7 @@ struct CohesionForceAkinci{ELTYPE} <: AkinciTypeSurfaceTension
 end
 
 @doc raw"""
-SurfaceTensionAkinci(surface_tension_coefficient=1.0)
+    SurfaceTensionAkinci(surface_tension_coefficient=1.0)
 
 Implements a model for simulating surface tension and adhesion effects drawing upon the
 principles outlined by Akinci et al. This model is instrumental in capturing the nuanced
@@ -39,7 +39,7 @@ separation, by utilizing intra-particle forces.
    surface tension forces, facilitating the fine-tuning of how surface tension phenomena
    are represented in the simulation.
 
-# Reference:
+# References
 - Nadir Akinci, Gizem Akinci, Matthias Teschner.
   "Versatile Surface Tension and Adhesion for SPH Fluids".
   In: ACM Transactions on Graphics 32.6 (2013).
@@ -53,19 +53,6 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     end
 end
 
-# function (surface_tension::Union{CohesionForceAkinci, SurfaceTensionAkinci})(smoothing_length,
-#                                                                              m_b, pos_diff,
-#                                                                              distance)
-#     return cohesion_force_akinci(surface_tension, smoothing_length, m_b, pos_diff, distance)
-# end
-
-# function (surface_tension::SurfaceTensionAkinci)(support_radius, m_b, na, nb, pos_diff,
-#                                                  distance)
-#     (; surface_tension_coefficient) = surface_tension
-#     return cohesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
-#                                  distance) .- (surface_tension_coefficient * (na - nb))
-# end
-
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
@@ -78,7 +65,7 @@ end
     (; surface_tension_coefficient) = surface_tension
 
     # Eq. 2
-    # We only reach this function when distance > eps and `distance < support_radius`
+    # We only reach this function when `sqrt(eps()) < distance <= support_radius`
     C = 0
     if distance > 0.5 * support_radius
         # Attractive force
@@ -109,7 +96,7 @@ end
     end
 
     # Eq. 6 in acceleration form with `m_b`` being the boundary mass calculated as
-    # `m_b=rho_0 * volume`` (Akinci boundary condition treatment)
+    # `m_b = rho_0 * volume`` (Akinci boundary condition treatment)
     adhesion_force = -adhesion_coefficient * m_b * A * pos_diff / distance
 
     return adhesion_force

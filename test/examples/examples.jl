@@ -164,10 +164,10 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/dam_break_2d_surface_tension.jl" begin
+        @trixi_testset "fluid/wetting_water_spheres_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "dam_break_2d_surface_tension.jl"),
+                                                    "wetting_water_spheres_2d.jl"),
                                            tspan=(0.0, 0.1))
         end
 
