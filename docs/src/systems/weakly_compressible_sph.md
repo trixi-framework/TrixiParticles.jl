@@ -151,15 +151,15 @@ Pages = [joinpath("general", "corrections.jl")]
 
 ## [Surface Tension](@id surface_tension)
 
-### Akinci based intra-particle force surface tension and wall adhesion model
+### Akinci-based intra-particle force surface tension and wall adhesion model
 The work by Akinci proposes three forces:
 - a cohesion force
-- a surface normal force
+- a surface area minimization force
 - a wall adhesion force
 
 The classical model is composed of the curvature minimization and cohesion force.
 
-#### Cohesion Force
+#### Cohesion force
 The model calculates the cohesion force based on the distance between particles and the smoothing length.
 This force is determined using two distinct regimes within the support radius:
 - For particles closer than half the support radius,
@@ -175,17 +175,35 @@ where:
 - ``\sigma`` represents the surface tension coefficient, adjusting the overall strength of the cohesion effect.
 - ``C`` is a scalar function of the distance between particles.
 
-#### Curvature Minimization Force
-To model the minimization of the surface curvature of the fluid a curvature force is used which is calculated
+The Cohesion Kernel ``C`` is defined as 
 ```math
-F_{\text{surf_min}} = -\sigma (n_a - n_b)
+\mathbf{C(r)}=\frac{32}{\pi h^9}
+\begin{cases}
+(h-r)^3 r^3, & \text{if } 2r > h \\
+2(h-r)^3 r^3 - \frac{h^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h \\
+0, & \text{otherwise}
+\end{cases}
+```
+
+#### Surface area minimization force
+To model the minimization of the surface area and curvature of the fluid a curvature force is used which is calculated
+```math
+F_{\text{curvature}} = -\sigma (n_a - n_b)
 ```
 
 #### Wall Adhesion Force
 The wall adhesion model proposed by Akinci et al. is based on a kernel function which is 0 from 0.0 to 0.5 support radiia with a maximum at 0.75.
-With the force calculated with a adhesion coefficient ``\beta``: 
+With the force calculated with an adhesion coefficient ``\beta`` as 
 ```math
-F_{\text{adhesion}} = -\beta m_b C \frac{r}{\Vert r \Vert},
+F_{\text{adhesion}} = -\beta m_b A \frac{r}{\Vert r \Vert},
+```
+with ``A`` being the adhesion kernel defined as
+```math
+\mathbf{A}(r)= \frac{0.007}{h^{3.25}}
+\begin{cases}
+\sqrt[4]{- \frac{4r^2}{h} + 6r - 2h}, & \text{if } 2r > h \text{ and } r \leq h \\
+0, & \text{otherwise.}
+\end{cases}
 ```
 
 ```@autodocs
