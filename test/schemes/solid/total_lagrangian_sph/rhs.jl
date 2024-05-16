@@ -85,7 +85,7 @@
                 each_moving_particle
             end
             TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
-            TrixiParticles.eachneighbor(_, ::Val{:nhs}) = eachneighbor
+            TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
 
             function Base.getproperty(::Val{:nhs}, f::Symbol)
                 if f === :search_radius
