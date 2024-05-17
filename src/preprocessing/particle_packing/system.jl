@@ -1,4 +1,4 @@
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, N} <: FluidSystem{NDIMS}
     initial_condition   :: InitialCondition{ELTYPE}
     boundary            :: B
     smoothing_kernel    :: K
@@ -10,12 +10,14 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
     distances           :: Vector{ELTYPE}
     signed_distances    :: Vector{ELTYPE} # TODO: Remove this (only for debugging)
     precalculate_sdf    :: Bool
-    nhs_faces           :: Union{TrivialNeighborhoodSearch, FaceNeighborhoodSearch}
+    neighborhood_search :: N
 
     function ParticlePackingSystem(initial_condition;
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
                                    smoothing_length=1.2initial_condition.particle_spacing,
                                    precalculate_sdf=false,
+                                   max_signed_distance=compact_support(smoothing_kernel,
+                                                                       smoothing_length),
                                    neighborhood_search=true,
                                    background_pressure, boundary, tlsph=false)
         NDIMS = ndims(initial_condition)
@@ -25,25 +27,31 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K} <: FluidSystem{NDIMS}
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        sd_positions = Vector{SVector{NDIMS, ELTYPE}}()
-        normals = Vector{SVector{NDIMS, ELTYPE}}()
-        distances = Vector{ELTYPE}()
-
         signed_distances = fill(NaN, nparticles(initial_condition))
 
-        if neighborhood_search
-            nhs_faces = FaceNeighborhoodSearch{NDIMS}(compact_support(smoothing_kernel,
-                                                                      smoothing_length))
+        normals = Vector{SVector{NDIMS, ELTYPE}}()
+        distances = Vector{ELTYPE}()
+        sd_positions = Vector{SVector{NDIMS, ELTYPE}}()
+
+        search_radius = compact_support(smoothing_kernel, smoothing_length)
+        if neighborhood_search && !(precalculate_sdf)
+            nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
+            initialize!(nhs, boundary)
+        elseif precalculate_sdf
+            nhs_faces = FaceNeighborhoodSearch{NDIMS}(max_signed_distance)
+            initialize!(nhs_faces, boundary)
+            nhs, sd_positions, normals, distances = calculate_signed_distance(nhs_faces,
+                                                                              search_radius,
+                                                                              boundary,
+                                                                              initial_condition)
         else
-            nhs_faces = TrivialNeighborhoodSearch{NDIMS}(1.0, eachface(boundary))
+            nhs = TrivialNeighborhoodSearch{NDIMS}(search_radius, eachface(boundary))
         end
 
-        return new{NDIMS, ELTYPE, typeof(boundary),
-                   typeof(smoothing_kernel)}(initial_condition, boundary, smoothing_kernel,
-                                             smoothing_length, background_pressure, tlsph,
-                                             sd_positions, normals, distances,
-                                             signed_distances, precalculate_sdf,
-                                             nhs_faces)
+        return new{NDIMS, ELTYPE, typeof(boundary), typeof(smoothing_kernel),
+                   typeof(nhs)}(initial_condition, boundary, smoothing_kernel,
+                                smoothing_length, background_pressure, tlsph, sd_positions,
+                                normals, distances, signed_distances, precalculate_sdf, nhs)
     end
 end
 
@@ -62,7 +70,8 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         show(io, system)
     else
         summary_header(io, "ParticlePackingSystem{$(ndims(system))}")
-        summary_line(io, "neighborhood search", system.nhs_faces |> typeof |> nameof)
+        summary_line(io, "neighborhood search",
+                     system.neighborhood_search |> typeof |> nameof)
         summary_line(io, "#particles", nparticles(system))
         summary_line(io, "#faces", nfaces(system.boundary))
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
@@ -75,9 +84,9 @@ end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     if write_meta_data
-        vtk["n_neigboring_faces"] = [length(eachneighborface(current_coords(u, system,
-                                                                            particle),
-                                                             system.nhs_faces))
+        vtk["n_neigboring_faces"] = [length(collect(eachneighbor(current_coords(u, system,
+                                                                                particle),
+                                                                 system.neighborhood_search)))
                                      for particle in eachparticle(system)]
         vtk["signed_distances"] = system.signed_distances
     end
@@ -108,7 +117,7 @@ end
 
 # TODO: Naming not really creative
 function update_position_1!(u, system::ParticlePackingSystem)
-    (; boundary, initial_condition, nhs_faces, signed_distances) = system
+    (; boundary, initial_condition, neighborhood_search, signed_distances) = system
     (; particle_spacing) = initial_condition
 
     shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
@@ -121,7 +130,7 @@ function update_position_1!(u, system::ParticlePackingSystem)
         normal_vector = fill(0.0, SVector{ndims(system), eltype(system)})
 
         # Calculate minimum unsigned distance to boundary
-        for face in eachneighborface(particle_position, nhs_faces)
+        for face in eachneighbor(particle_position, neighborhood_search)
             new_distance_sign, new_distance2, n = signed_point_face_distance(particle_position,
                                                                              boundary, face)
 
@@ -147,7 +156,7 @@ function update_position_1!(u, system::ParticlePackingSystem)
 end
 
 function update_poisition_2!(u, system::ParticlePackingSystem)
-    (; initial_condition, nhs_faces, distances, normals, sd_positions) = system
+    (; initial_condition, neighborhood_search, distances, normals, sd_positions) = system
     (; particle_spacing) = initial_condition
 
     search_radius2 = compact_support(system, system)^2
@@ -161,7 +170,7 @@ function update_poisition_2!(u, system::ParticlePackingSystem)
         distance_signed = zero(eltype(system))
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
-        for neighbor in eachneighbor(particle_position, nhs_faces)
+        for neighbor in eachneighbor(particle_position, neighborhood_search)
             pos_diff = sd_positions[neighbor] - particle_position
             distance2 = dot(pos_diff, pos_diff)
             distance2 > search_radius2 && continue
@@ -219,16 +228,18 @@ end
     return du
 end
 
-function calculate_signed_distance!(system::ParticlePackingSystem)
-    (; boundary, initial_condition, nhs_faces,
-    sd_positions, normals, distances) = system
+function calculate_signed_distance(nhs, search_radius, boundary, initial_condition)
     (; particle_spacing, coordinates) = initial_condition
-    (; hashtable_sdf, cell_size) = nhs_faces
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    max_signed_distance = first(nhs.cell_size)
 
-    empty!(hashtable_sdf)
+    normals = Vector{SVector{NDIMS, ELTYPE}}()
+    distances = Vector{ELTYPE}()
+    sd_positions = Vector{SVector{NDIMS, ELTYPE}}()
 
-    min_corner = (minimum(coordinates[i, :]) - 5particle_spacing for i in 1:ndims(system))
-    max_corner = (maximum(coordinates[i, :]) + 5particle_spacing for i in 1:ndims(system))
+    min_corner = (minimum(coordinates[i, :]) - 5particle_spacing for i in 1:NDIMS)
+    max_corner = (maximum(coordinates[i, :]) + 5particle_spacing for i in 1:NDIMS)
 
     point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
 
@@ -237,39 +248,32 @@ function calculate_signed_distance!(system::ParticlePackingSystem)
     resize!(sd_positions, length(point_grid))
 
     fill!(distances, Inf)
-    fill!(normals, SVector(ntuple(dim -> Inf, ndims(system)...)))
-    fill!(sd_positions, SVector(ntuple(dim -> Inf, ndims(system)...)))
+    fill!(normals, SVector(ntuple(dim -> Inf, NDIMS)))
+    fill!(sd_positions, SVector(ntuple(dim -> Inf, NDIMS)))
 
     for (point, point_coords) in enumerate(point_grid)
         point_coords_ = SVector(point_coords...)
 
-        for face in eachneighborface(point_coords_, nhs_faces)
+        for face in eachneighbor(point_coords_, nhs)
+            # `sdf = (sign, distance, normal)`
             sdf = signed_point_face_distance(point_coords_, boundary, face)
 
-            if sdf[2] <= (4particle_spacing)^2 && sdf[2] < distances[point]^2
-                sd_positions[point] = point_coords_
+            if sdf[2] <= (max_signed_distance)^2 && sdf[2] < distances[point]^2
                 distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
-                # TODO: Calculate normals with n = ∇ϕ/|∇ϕ|
-                # TODO: Is it possible to calulate n with distances * gradW ?
                 normals[point] = sdf[3]
+                sd_positions[point] = point_coords_
             end
         end
     end
 
-    filter!(isfinite ∘ sum, sd_positions)
     filter!(isfinite ∘ sum, distances)
     filter!(isfinite ∘ sum, normals)
+    filter!(isfinite ∘ sum, sd_positions)
 
-    for point in eachindex(sd_positions)
-        cell = cell_coords(sd_positions[point], nothing, cell_size)
+    new_nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
 
-        # Add particle to corresponding cell or create cell if it does not exist
-        if haskey(hashtable_sdf, cell)
-            append!(hashtable_sdf[cell], point)
-        else
-            hashtable_sdf[cell] = [point]
-        end
-    end
+    # Initialize new neighborhood search
+    initialize!(new_nhs, stack(sd_positions))
 
     file = "out/rigid_system"
     points = stack(sd_positions)
@@ -281,5 +285,5 @@ function calculate_signed_distance!(system::ParticlePackingSystem)
         vtk["normals"] = stack(normals)
     end
 
-    return system
+    return new_nhs, sd_positions, normals, distances
 end

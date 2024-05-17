@@ -107,6 +107,16 @@ end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.normals_face)
 
+@inline face_normal(triangle, shape::TriangleMesh) = shape.normals_face[triangle]
+
+@inline function face_vertices(triangle, shape::TriangleMesh)
+    v1 = shape.face_vertices[triangle][1]
+    v2 = shape.face_vertices[triangle][2]
+    v3 = shape.face_vertices[triangle][3]
+
+    return v1, v2, v3
+end
+
 function incident_angles(triangle_points)
     a = triangle_points[1]
     b = triangle_points[2]

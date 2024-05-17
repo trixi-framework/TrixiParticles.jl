@@ -1,7 +1,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-particle_spacing = 0.01
+particle_spacing = 0.02
 density = 1000.0
 tspan = (0, 10.0)
 

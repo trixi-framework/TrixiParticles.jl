@@ -91,3 +91,12 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.normals_edge)
+
+@inline function face_vertices(triangle, shape::Polygon)
+    v1 = shape.edge_vertices[triangle][1]
+    v2 = shape.edge_vertices[triangle][2]
+
+    return v1, v2
+end
+
+@inline face_normal(edge, shape::Polygon) = shape.normals_edge[edge]

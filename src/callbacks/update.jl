@@ -52,15 +52,7 @@ function initial_update!(cb, u, t, integrator)
     initial_update!(cb.affect!, u, t, integrator)
 end
 
-function initial_update!(cb::UpdateCallback, u, t, integrator)
-    semi = integrator.p
-
-    @trixi_timeit timer() "initialize face-nhs" foreach_system(semi) do system
-        initialize!(system.nhs_faces, system)
-    end
-
-    return cb(integrator)
-end
+initial_update!(cb::UpdateCallback, u, t, integrator) = cb(integrator)
 
 # `condition`
 function (update_callback!::UpdateCallback)(u, t, integrator)
