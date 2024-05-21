@@ -66,7 +66,7 @@ end
 @inline function activate_next_particle(system)
     (; active_particle) = system.buffer
 
-    next_particle = findfirst(active_particle)
+    next_particle = findfirst(x -> !x, active_particle)
 
     if isnothing(next_particle)
         error("0 out of $(system.buffer.buffer_size) buffer particles available")

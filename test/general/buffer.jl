@@ -57,7 +57,7 @@
         @testset "Illegal Input" begin
             ic = rectangular_patch(0.1, (3, 3))
             buffer = TrixiParticles.SystemBuffer(9, 7)
-            error_str = "`density` needs to be constant when using `SystemBuffer`"
+            error_str = "`initial_condition.density` needs to be constant when using `SystemBuffer`"
             @test_throws ArgumentError(error_str) TrixiParticles.allocate_buffer(ic, buffer)
         end
     end
