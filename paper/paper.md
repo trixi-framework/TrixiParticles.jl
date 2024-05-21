@@ -40,25 +40,36 @@ bibliography: paper.bib
 # Summary
 
 TrixiParticles.jl, part of the Trixi Framework [@schlottkelakemper2020trixi], is an innovative Julia-based open-source software designed for particle-based multiphysics simulations.
-In this sense, we distinguish two approaches: Particles are either treated as physical particles or as mathematical interpolation points.
-The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979].
-Whereas the latter case refers to the smoothed particle hydrodynamics (SPH) which is a numerical discretization method for solving continuum mechanic problems.
-SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate computational fluid dynamics, structural mechanics and even heat conduction problems.
+It aims to handle complex geometries and specialized applications, such as computational fluid dynamics (CFD) and structural dynamics,
+by offering a versatile platform for particle-based methods.
+To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
+Coupling of different particle systems is very user friendly, thus, e.g. fluid-structure interaction (FSI) can be set up very quickly.
+This is further complemented by allowing simulations to be configured directly with Julia code.
+This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping,
+establishing TrixiParticles.jl as a versatile and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
 
 Here, we give a brief overview of the software package TrixiParticles.jl, starting with a description of the scientific background before going on to describe the functionality and benefit in more detail.
 Finally, a few exemplary results and implemented features are briefly presented.
 
 # Statement of need
 
-Numerical simulations, such as computational fluid dynamics, structural mechanics, thermodynamics, or magnetohydrodynamics pose several challenges, especially when simulating real-world problems.
+Numerical simulations, such as CFD, structural mechanics, thermodynamics, or magnetohydrodynamics pose several challenges, especially when simulating real-world problems.
 These simulations involve challenges such as dealing with complex geometries, free surfaces,
 deformable boundaries and moving material interfaces as well as the coupling of different physics disciplines.
 
-The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles, thus eliminating the need for a mesh to discretize the simulation domain.
-This mesh-free approach not only simplifies the preprocessing, making it particularly suitable for simulating complex geometries, but it also facilitates simulations of large deformations and movements.
+One way to ease these challenges is to use particle-based methods.
+These methods offer two different approaches: the particles are either treated as physical particles or as mathematical interpolation points.
+The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979].
+Whereas the latter case refers to the smoothed particle hydrodynamics (SPH) which is a numerical discretization method for solving continuum mechanic problems.
+SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate computational fluid dynamics, structural mechanics and even heat conduction problems.
+
+The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles,
+thus eliminating the need for a mesh to discretize the simulation domain.
+This mesh-free approach not only simplifies the preprocessing, making it particularly suitable for simulating complex geometries,
+but it also facilitates simulations of large deformations and movements.
+By representing each material with its own set of particles,
+coupling of different single-phyiscs into a multiphysics system is straightforward.
 In addition, particle-based methods are inherently suited to simulating free surfaces, material interfaces and challenges involving moving boundaries.
-Facilitating the transition from continuum to fragmentation becomes straightforward by representing each material with its own set of particles, effectively addressing material interface issues.
-This also simplifies the coupling of different singlephysics into a multiphysics system.
 
 There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender] and SPHinXsys [@Zhang:2021],
 written in C++, and  PySPH [@Ramachandran:2021], written in Python.
@@ -74,7 +85,7 @@ Another aspect is the ability to add custom methods or particle interactions wit
 In TrixiParticles.jl, particles of a single particle-based method are grouped into what we refer to as a \emph{system}.
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to add new methods and different physics.
 
-![Particles of two different systems in a simulation domain. The black and gray dashed circles represent the search radii for neighboring particles of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
+![Particles of two different systems in a simulation domain. The black and gray dashed circles represent the search radii for neighbors of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} depicts particles within a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
@@ -90,7 +101,7 @@ where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density and p
 
 \autoref{fig:structure} depicts the basic building blocks of TrixiParticles.jl. A simulation essentially consists of spatial discretization (left block) and time integration (center block). For the latter, the Julia package [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) is used. The callbacks (right block) provide additional functionality and communicate with the time integration method during the simulation.
 
-The semidiscretization couples the systems of a simulation and also manage the corresponding neighborhood searches for each system.
+The semidiscretization couples the systems of a simulation and also manages the corresponding neighborhood searches for each system.
 The resulting ordinary differential equation (ODE) problem is then fed into the time integrator and is solved by an appropriate numerical time integration scheme.
 
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
@@ -104,7 +115,7 @@ So far, the following feature highlights have been implemented:
 
 * *Fluid Systems*
     + Weakly compressible SPH (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
-    + Entropically damped artificial compressible (EDAC) SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
+    + Entropically damped artificial compressibility (EDAC) for SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
 
 * *Structure Systems*
     + Total lagrangian SPH (TLSPH): Method to simulate elastic structures where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
@@ -125,7 +136,7 @@ So far, the following feature highlights have been implemented:
   + GPU support
 
 Validation can be performed, for example, by quantitatively comparing results using a post-process callback.
-\autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl (on the left) and [@O_Connor:2021] (on the right) compared against a reference value of [@Turek:2007].
+\autoref{fig:beam_y_deflection} shows simulation results of TrixiParticles.jl and [@O_Connor:2021] compared against a reference value of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021].
 
