@@ -13,7 +13,7 @@
 
         @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
 
-        particle_ID = TrixiParticles.available_particle(system_buffer)
+        particle_ID = TrixiParticles.activate_next_particle(system_buffer)
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer)
 

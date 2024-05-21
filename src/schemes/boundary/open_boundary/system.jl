@@ -97,7 +97,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, S,
     reference_pressure       :: RP
     reference_density        :: RD
     buffer                   :: B
-    callback_used            :: Ref{Bool}
+    update_callback_used     :: Ref{Bool}
 
     function OpenBoundarySPHSystem(plane_points, boundary_zone::Union{InFlow, OutFlow},
                                    sound_speed;
@@ -232,7 +232,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-callback_used!(system::OpenBoundarySPHSystem) = system.callback_used[] = true
+update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
 @inline source_terms(system::OpenBoundarySPHSystem) = nothing
 
@@ -296,7 +296,7 @@ end
 end
 
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    if t > 0.0 && !(system.callback_used[])
+    if t > 0.0 && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end
 
@@ -557,7 +557,7 @@ end
 end
 
 @inline function activate_particle!(system_new, particle_old, v_new, u_new, v_old, u_old)
-    particle_new = available_particle(system_new)
+    particle_new = activate_next_particle(system_new)
 
     # Exchange integrated quantities
     for i in axes(u_new, 1)

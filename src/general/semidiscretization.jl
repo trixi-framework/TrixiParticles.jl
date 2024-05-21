@@ -647,7 +647,7 @@ function update_nhs!(neighborhood_search,
     # The current coordinates of fluids and open boundaries change over time.
 
     # TODO: Update only `active_coordinates` of open boundaries.
-    # Problem: Removing inactive particles from neigboring lists is necessary.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
     PointNeighbors.update!(neighborhood_search,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
@@ -660,7 +660,7 @@ function update_nhs!(neighborhood_search,
     # The current coordinates of  open boundaries and fluids change over time.
 
     # TODO: Update only `active_coordinates` of open boundaries.
-    # Problem: Removing inactive particles from neigboring lists is necessary.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
     PointNeighbors.update!(neighborhood_search,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),

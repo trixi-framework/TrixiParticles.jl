@@ -57,7 +57,7 @@ function initial_update!(cb::UpdateCallback, u, t, integrator)
 
     # Tell systems that `UpdateCallback` is used
     foreach_system(semi) do system
-        callback_used!(system)
+        update_callback_used!(system)
     end
 
     return cb(integrator)
@@ -134,4 +134,4 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-callback_used!(system) = system
+update_callback_used!(system) = system
