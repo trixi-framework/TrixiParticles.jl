@@ -61,7 +61,7 @@ One way to ease these challenges is to use particle-based methods.
 These methods offer two different approaches: the particles are either treated as physical particles or as mathematical interpolation points.
 The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979].
 Whereas the latter case refers to the smoothed particle hydrodynamics (SPH) which is a numerical discretization method for solving continuum mechanic problems.
-SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate computational fluid dynamics, structural mechanics and even heat conduction problems.
+SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate CFD, structural mechanics and even heat conduction problems.
 
 The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles,
 thus eliminating the need for a mesh to discretize the simulation domain.
