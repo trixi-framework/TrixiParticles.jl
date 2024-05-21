@@ -507,7 +507,7 @@ function check_fluid_domain!(system, fluid_system::FluidSystem, particle,
     end
 
     # Check fluid neighbors
-    for neighbor in eachneighbor(particle_coords, neighborhood_search)
+    for neighbor in PointNeighbors.eachneighbor(particle_coords, neighborhood_search)
         fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
 
         # Check if neighbor position is in boundary zone
