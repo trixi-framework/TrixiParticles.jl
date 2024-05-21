@@ -45,8 +45,7 @@ by offering a versatile platform for particle-based methods.
 To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
 Coupling of different particle systems is very user friendly, thus multiphysics simulations such as fluid-structure interaction (FSI) can be set up very quickly.
 This is further complemented by allowing simulations to be configured directly with Julia code.
-This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping,
-establishing TrixiParticles.jl as a versatile and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
+This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping.
 
 Here, we give a brief overview of the software package TrixiParticles.jl, starting with a description of the scientific background before going on to describe the functionality and benefit in more detail.
 Finally, a few exemplary results and implemented features are briefly presented.
@@ -60,7 +59,7 @@ deformable boundaries and moving material interfaces as well as the coupling of 
 One way to ease these challenges is to use particle-based methods.
 These methods offer two different approaches: the particles are either treated as physical particles or as mathematical interpolation points.
 The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979].
-Whereas the latter case refers to the smoothed particle hydrodynamics (SPH) which is a numerical discretization method for solving continuum mechanic problems.
+Whereas the latter case refers to methods such as Smoothed Particle Hydrodynamics (SPH), which is a numerical discretization method for solving problems in continuum mechanics.
 SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate CFD, structural mechanics and even heat conduction problems.
 
 The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles,
