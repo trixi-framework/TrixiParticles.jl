@@ -67,7 +67,7 @@ thus eliminating the need for a mesh to discretize the simulation domain.
 This mesh-free approach not only simplifies the preprocessing, making it particularly suitable for simulating complex geometries,
 but it also facilitates simulations of large deformations and movements.
 By representing each material with its own set of particles,
-coupling of different single-phyiscs into a multiphysics system is straightforward.
+coupling of different physical systems into a multiphysics setup is straightforward.
 In addition, particle-based methods are inherently suited to simulating free surfaces, material interfaces and challenges involving moving boundaries.
 
 There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender] and SPHinXsys [@Zhang:2021],
