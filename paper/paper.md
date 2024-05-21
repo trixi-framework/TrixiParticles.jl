@@ -43,7 +43,7 @@ TrixiParticles.jl, part of the Trixi Framework [@schlottkelakemper2020trixi], is
 It aims to handle complex geometries and specialized applications, such as computational fluid dynamics (CFD) and structural dynamics,
 by offering a versatile platform for particle-based methods.
 To increase flexibility, TrixiParticles.jl facilitates the easy addition of new particle systems and their interactions.
-Coupling of different particle systems is very user friendly, thus, e.g. fluid-structure interaction (FSI) can be set up very quickly.
+Coupling of different particle systems is very user friendly, thus multiphysics simulations such as fluid-structure interaction (FSI) can be set up very quickly.
 This is further complemented by allowing simulations to be configured directly with Julia code.
 This feature not only simplifies the integration of custom functionalities but also promotes rapid prototyping,
 establishing TrixiParticles.jl as a versatile and adaptable tool for advancing multiphysics simulations in various scientific and engineering fields.
@@ -73,7 +73,7 @@ In addition, particle-based methods are inherently suited to simulating free sur
 
 There are several open-source software projects specialized for SPH methods, including DualSPHysics [@Dominguez:2021], SPlisHSPlasH [@Bender] and SPHinXsys [@Zhang:2021],
 written in C++, and  PySPH [@Ramachandran:2021], written in Python.
-These softwares reflect the advantages of the SPH methods by simulating problems such as fluid-structure interaction (FSI) and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
+These softwares reflect the advantages of the SPH methods by simulating problems such as FSI and free surfaces [@O_Connor:2021] or complex geometries [@Laha:2024].
 
 TrixiParticles.jl is written in Julia and thus combines the advantage of easy and rapid prototyping with the ability of high performance computing using multicore parallelization and hardware accelerators.
 The software package provides support for developing and testing new SPH methods and also for simulating and coupling other particle-based methods such as DEM.
@@ -106,7 +106,7 @@ The resulting ordinary differential equation (ODE) problem is then fed into the 
 
 ![Main building blocks of TrixiParticles.jl \label{fig:structure}](structure.png){width=100%}
 
-TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluid flows, structure mechanics, or fluid-structure interaction.
+TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) explaining how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluid flows, structure mechanics, or FSI.
 A collection of simulation setups to get started with can be found in the examples directory.
 
 ## Feature highlights
