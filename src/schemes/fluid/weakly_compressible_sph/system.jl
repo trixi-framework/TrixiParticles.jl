@@ -295,10 +295,8 @@ end
 end
 
 function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[end, particle] = system.initial_condition.density[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.density
 
     return v0
 end
