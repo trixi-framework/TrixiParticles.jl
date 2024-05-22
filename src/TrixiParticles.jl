@@ -9,7 +9,9 @@ using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
+using GPUArrays: AbstractGPUArray
 using JSON: JSON
+using KernelAbstractions: KernelAbstractions, @kernel
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
@@ -26,7 +28,9 @@ using TrixiBase: trixi_include
 using PointNeighbors: PointNeighbors, for_particle_neighbor
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
-# util needs to be first because of macro @trixi_timeit
+# `util.jl` depends on the `GPUSystem` type defined in `system.jl`
+include("general/system.jl")
+# `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")

@@ -32,3 +32,7 @@ end
 function Adapt.adapt_structure(to::typeof(Array), range::UnitRange)
     return range
 end
+
+KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
+KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
+KernelAbstractions.get_backend(system::BoundarySPHSystem) = KernelAbstractions.get_backend(system.coordinates)

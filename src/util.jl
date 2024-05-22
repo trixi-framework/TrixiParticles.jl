@@ -89,35 +89,74 @@ and
 
 Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 """
-macro threaded(expr)
-    # Use `esc(quote ... end)` for nested macro calls as suggested in
-    # https://github.com/JuliaLang/julia/issues/23221
-    #
-    # The following code is a simple version using only `Threads.@threads` from the
-    # standard library with an additional check whether only a single thread is used
-    # to reduce some overhead (and allocations) for serial execution.
-    #
-    # return esc(quote
-    #   let
-    #     if Threads.nthreads() == 1
-    #       $(expr)
-    #     else
-    #       Threads.@threads $(expr)
-    #     end
-    #   end
-    # end)
-    #
-    # However, the code below using `@batch` from Polyester.jl is more efficient,
-    # since this packages provides threads with less overhead. Since it is written
-    # by Chris Elrod, the author of LoopVectorization.jl, we expect this package
-    # to provide the most efficient and useful implementation of threads (as we use
-    # them) available in Julia.
-    # !!! danger "Heisenbug"
-    #     Look at the comments for `wrap_array` when considering to change this macro.
+# macro threaded(expr)
+#     # Use `esc(quote ... end)` for nested macro calls as suggested in
+#     # https://github.com/JuliaLang/julia/issues/23221
+#     #
+#     # The following code is a simple version using only `Threads.@threads` from the
+#     # standard library with an additional check whether only a single thread is used
+#     # to reduce some overhead (and allocations) for serial execution.
+#     #
+#     # return esc(quote
+#     #   let
+#     #     if Threads.nthreads() == 1
+#     #       $(expr)
+#     #     else
+#     #       Threads.@threads $(expr)
+#     #     end
+#     #   end
+#     # end)
+#     #
+#     # However, the code below using `@batch` from Polyester.jl is more efficient,
+#     # since this packages provides threads with less overhead. Since it is written
+#     # by Chris Elrod, the author of LoopVectorization.jl, we expect this package
+#     # to provide the most efficient and useful implementation of threads (as we use
+#     # them) available in Julia.
+#     # !!! danger "Heisenbug"
+#     #     Look at the comments for `wrap_array` when considering to change this macro.
+
+#     return esc(quote
+#                    TrixiParticles.@batch $(expr)
+#                end)
+# end
+
+@inline function parallel_for(f, system, iterator)
+    Polyester.@batch for i in iterator
+        @inline f(i)
+    end
+end
+
+@kernel function generic_kernel(f)
+    i = KernelAbstractions.@index(Global)
+    @inline f(i)
+end
+
+@inline function parallel_for(f, system::Union{GPUSystem, AbstractGPUArray}, iterator)
+    indices = eachindex(iterator)
+    ndrange = length(indices)
+
+    # Skip empty iterations
+    ndrange == 0 && return
+
+    backend = KernelAbstractions.get_backend(system)
+
+    generic_kernel(backend)(ndrange=ndrange) do i
+        @inline f(iterator[indices[i]])
+    end
+
+    KernelAbstractions.synchronize(backend)
+end
+
+macro threaded(system, expr)
+    iterator = expr.args[1].args[2]
+    i = expr.args[1].args[1]
+    inner_loop = expr.args[2]
 
     return esc(quote
-                   TrixiParticles.@batch $(expr)
-               end)
+        TrixiParticles.parallel_for($system, $iterator) do $i
+            $inner_loop
+        end
+    end)
 end
 
 @doc raw"""

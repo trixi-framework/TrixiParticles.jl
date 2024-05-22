@@ -1,3 +1,25 @@
+# Abstract supertype for all system types. We additionally store the type of the system's
+# initial condition, which is `Nothing` when using KernelAbstractions.jl.
+abstract type System{NDIMS, IC} end
+
+# When using KernelAbstractions.jl, the initial condition has been replaced by `nothing`
+GPUSystem = System{NDIMS, Nothing} where {NDIMS}
+
+abstract type FluidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+timer_name(::FluidSystem) = "fluid"
+
+abstract type SolidSystem{NDIMS, IC} <: System{NDIMS, IC} end
+timer_name(::SolidSystem) = "solid"
+
+abstract type BoundarySystem{NDIMS, IC} <: System{NDIMS, IC} end
+timer_name(::BoundarySystem) = "boundary"
+
+@inline function set_zero!(du)
+    du .= zero(eltype(du))
+
+    return du
+end
+
 initialize!(system, neighborhood_search) = system
 
 @inline Base.ndims(::System{NDIMS}) where {NDIMS} = NDIMS
