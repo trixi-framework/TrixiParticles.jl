@@ -10,22 +10,13 @@ function PointNeighbors.for_particle_neighbor(f, system, neighbor_system,
                           particles=particles, parallel=parallel)
 end
 
-@inline function PointNeighbors.for_particle_neighbor(f, system_coords, neighbor_coords,
-                                       neighborhood_search, particles, parallel::Val{true})
-    @threaded system_coords for particle in particles
-        PointNeighbors.for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
-                                    particle)
+function PointNeighbors.for_particle_neighbor(f, system::GPUSystem, neighbor_system,
+                                              system_coords, neighbor_coords,
+                                              neighborhood_search;
+                                              particles=each_moving_particle(system),
+                                              parallel=true)
+    @threaded system for particle in particles
+        PointNeighbors.for_particle_neighbor_inner(f, system_coords, neighbor_coords,
+                                                   neighborhood_search, particle)
     end
-
-    return nothing
-end
-
-@inline function PointNeighbors.for_particle_neighbor(f, system_coords, neighbor_coords,
-                                       neighborhood_search, particles, parallel::Val{false})
-    for particle in particles
-        PointNeighbors.for_particle_neighbor_inner(f, system_coords, neighbor_coords, neighborhood_search,
-                                    particle)
-    end
-
-    return nothing
 end
