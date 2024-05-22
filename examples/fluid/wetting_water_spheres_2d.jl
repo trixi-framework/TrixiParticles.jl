@@ -13,14 +13,14 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.5)
+tspan = (0.0, 5.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
 tank_size = (0.05, 0.01)
 
 fluid_density = 1000.0
-sound_speed = 120
+sound_speed = 50
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -43,24 +43,24 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 # fluid_smoothing_length = 1.2 * fluid_particle_spacing
 # fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-fluid_smoothing_length = 3.0 * fluid_particle_spacing
+fluid_smoothing_length = 2.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
-fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
+fluid_smoothing_length_2 = 2.5 * fluid_particle_spacing
 fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
 # water at 20C
-#nu=0.0089
-nu = 0.0003
+#nu=0.00089
+nu = 0.00089
 # too much 0.00089 -> 0.00045 -> 0.0002 -> 0.0001
 # no impact 0.00005
 
 # the following term only holds for 2d sims
 # alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ViscosityAdami(nu=nu)
-density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
+# density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 # with increased smoothing length surface_tension is too small
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
@@ -68,7 +68,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.075),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.0125),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # 0.001
@@ -153,6 +153,57 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # adh = 1.5, surft=0.10, nu=0.0003, h=3.0, x=1.4, y=2.4
 # adh = 1.5, surft=0.05, nu=0.0003, h=3.0, x=3.5, y=2.0
 # adh = 1.4, surft=0.075, nu=0.0003, h=3.0, x=3, y=2.0
+# adh = 1.4, surft=0.075, nu=0.0003, h=2.0, x=3, y=2.0 crap
+# adh = 1.4, surft=0.05, nu=0.0003, h=2.0, x=3, y=2.0 crap
+# adh = 1.4, surft=0.01, nu=0.0003, h=2.0, x=3, y=2.0 crap
+# adh = 1.4, surft=0.01, nu=0.0001, h=2.0, x=3, y=2.0 crap
+# adh = 1.4, surft=0.001, nu=0.00089, h=2.0, x=3, y=2.0 crap
+# adh = 1.2, surft=0.002, nu=0.00089, h=2.0, x=3, y=2.0 crap
+# adh = 1.2, surft=0.002, nu=0.00089, h=2.5, x=2.5, y=1.4 close but too much adh
+# adh = 0.6, surft=0.002, nu=0.00089, h=2.5, x=2.7, y=1.3 close but too much adh
+# adh = 0.3, surft=0.002, nu=0.00089, h=2.5, x=2.8, y=1.2
+# adh = 0.15, surft=0.002, nu=0.00089, h=2.5, x=2.8, y=1.2
+# adh = 0.075, surft=0.002, nu=0.00089, h=2.5, x=3.4, y=1.2
+# adh = 0.075, surft=0.004, nu=0.00089, h=2.5, x=2.8, y=1.4
+# adh = 0.075, surft=0.01, nu=0.00089, h=2.5, x=2.2, y=1.7
+# adh = 0.075, surft=0.007, nu=0.00089, h=2.5, x=2.6, y=1.4 <- okish but form needs more adh
+# adh = 0.075, surft=0.008, nu=0.00089, h=2.5, x=2.6, y=1.4
+# adh = 0.1, surft=0.01, nu=0.00089, h=2.5, x=2.4, y=1.6 <- okish but form needs more adh
+# adh = 0.15, surft=0.01, nu=0.00089, wall_nu=0.00089, h=2.5, x=2.4, y=1.8
+# adh = 0.15, surft=0.01, nu=0.00089, h=2.5, wall_nu=0.5*0.00089, x=2.2, y=1.7 <-lower wall viscosity
+# adh = 0.15, surft=0.01, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.6, y=1.6 <-lower wall viscosity
+# adh = 0.15, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.2, y=1.8
+# adh = 0.2, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.2, y=1.8
+# adh = 0.2, surft=0.0125, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.6, y=1.7
+# adh = 0.25, surft=0.014, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.4, y=1.6
+# adh = 0.25, surft=0.014, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.8, y=1.5 diverged for up to 3s
+# adh = 0.25, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.5, y=1.6 diverged at 2.722 <----
+# adh = 0.25, surft=0.016, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.5, y=1.6
+# adh = 0.1, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2.2, y=1.7 <- 75d
+# adh = 0.15, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2.2, y=1.7
+# adh = 0.15, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.3, y=1.7
+# adh = 0.2, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.6, y=1.6
+# adh = 0.15, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=0.00089, x=2.6, y=1.5
+# adh = 0.15, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=5 * 0.00089, x=2.4, y=1.6
+
+
+# 75deg (x-axis: 2.2mm, y-axis: 1.6mm)
+# adh = 0.20, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.5, y=1.6
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2, y=1.7 <- 90d
+# adh = 0.1, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2.2, y=1.7
+# adh = 0.1, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.6
+
+# 90deg (x-axis: 2mm, y-axis: 1.8mm)
+# adh = 0.15, surft=0.015, nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.5, y=1.6
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=0.25*0.00089, x=2.2, y=1.7 after capallariy test
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=0.4*0.00089, x=2.2, y=1.6
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=0.00089, x=2.2, y=1.6
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=2*0.00089, x=2.2, y=1.7
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=4*0.00089, x=2.2, y=1.7
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7
+# adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2, y=1.7 <- does not work in capallariy test
+# adh = 0.04, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.1, y=1.7
+
 
 
 # sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
@@ -169,11 +220,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel_2,
                                              fluid_smoothing_length_2,
-                                             viscosity=ViscosityAdami(nu=nu))
+                                             viscosity=ViscosityAdami(nu=10 * nu))
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.4)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.04)
 
 # ==========================================================================================
 # ==== Simulation
@@ -190,5 +241,5 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-5, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
-            dt=1e-4,
+            dt=1e-4, maxiters=1E12,
             save_everystep=false, callback=callbacks);
