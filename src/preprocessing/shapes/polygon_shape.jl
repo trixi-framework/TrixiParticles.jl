@@ -91,3 +91,20 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
 end
 
 @inline nfaces(mesh::Polygon) = length(mesh.normals_edge)
+
+@inline function face_vertices(triangle, shape::Polygon)
+    v1 = shape.edge_vertices[triangle][1]
+    v2 = shape.edge_vertices[triangle][2]
+
+    return v1, v2
+end
+
+@inline face_normal(edge, shape::Polygon) = shape.normals_edge[edge]
+
+function remove_faces!(shape::Polygon, face_indices)
+    setdiff!(shape.edge_vertices, shape.edge_vertices[face_indices])
+    setdiff!(shape.normals_vertex, shape.normals_vertex[face_indices])
+    setdiff!(shape.normals_edge, shape.normals_edge[face_indices])
+
+    return shape
+end

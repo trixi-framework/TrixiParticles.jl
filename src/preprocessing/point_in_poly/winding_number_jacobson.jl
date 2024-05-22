@@ -23,10 +23,14 @@ struct WindingNumberJacobson{ELTYPE}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points)
+function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points;
+                                                store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
     inpoly = falses(size(points, 2))
+
+    winding_numbers = Float64[]
+    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
     @threaded for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
@@ -35,19 +39,26 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points)
 
         winding_number /= 4pi
 
+        store_winding_number && (winding_numbers[query_point] = winding_number)
+
         # `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
     end
 
-    return inpoly
+    return inpoly, winding_numbers
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points)
+function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
+                                                store_winding_number=false)
     (; winding_number_factor) = point_in_poly
     (; edge_vertices) = mesh
+
     inpoly = falses(size(points, 2))
+
+    winding_numbers = Float64[]
+    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
     @threaded for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
@@ -61,13 +72,15 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points)
 
         winding_number /= 2pi
 
+        store_winding_number && (winding_numbers[query_point] = winding_number)
+
         # `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
     end
 
-    return inpoly
+    return inpoly, winding_numbers
 end
 
 @inline function (winding::NaiveWinding)(mesh, query_point)
