@@ -59,10 +59,12 @@ The interaction between fluid and boundary particles is specified by the boundar
     This is an experimental feature and may change in a future releases.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
-    coordinates      :: ARRAY2D # [dimension, particle]
-    radius           :: ARRAY1D # [particle]
-    normal_stiffness :: ELTYPE
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D} <:
+       BoundarySystem{NDIMS, IC}
+    initial_condition :: IC
+    coordinates       :: ARRAY2D # [dimension, particle]
+    radius            :: ARRAY1D # [particle]
+    normal_stiffness  :: ELTYPE
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
@@ -70,9 +72,10 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySys
                  ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,
-                                                                                    radius,
-                                                                                    normal_stiffness)
+        return new{NDIMS, eltype(coordinates),
+                   typeof(initial_condition),
+                   typeof(radius), typeof(coordinates)}(initial_condition, coordinates,
+                                                        radius, normal_stiffness)
     end
 end
 
