@@ -63,7 +63,6 @@ end
 
     # Eq. 2
     # We only reach this function when `sqrt(eps()) < distance <= support_radius`
-    C = 0
     if distance > 0.5 * support_radius
         # Attractive force
         C = (support_radius - distance)^3 * distance^3
@@ -85,15 +84,13 @@ end
     # Eq. 7
     # We only reach this function when `distance > eps`
     A = 0
-    if distance < support_radius
-        if distance > 0.5 * support_radius
-            A = 0.007 / support_radius^3.25 *
-                (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
-        end
+    if distance < support_radius && distance > 0.5 * support_radius
+        A = 0.007 / support_radius^3.25 *
+            (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
     end
 
-    # Eq. 6 in acceleration form with `m_b`` being the boundary mass calculated as
-    # `m_b = rho_0 * volume`` (Akinci boundary condition treatment)
+    # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
+    # `m_b = rho_0 * volume` (Akinci boundary condition treatment)
     adhesion_force = -adhesion_coefficient * m_b * A * pos_diff / distance
 
     return adhesion_force
@@ -139,6 +136,7 @@ end
     (; smoothing_length) = particle_system
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
+
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel, smoothing_length)
 
@@ -155,6 +153,7 @@ end
 
     # No surface tension with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
+
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(surface_tension_a, particle_system, particle)
     n_b = surface_normal(surface_tension_b, neighbor_system, neighbor)
