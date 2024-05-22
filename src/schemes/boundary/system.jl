@@ -27,8 +27,7 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS, 
             typeof(initial_condition), typeof(coordinates),
             typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
                                                                coordinates, boundary_model,
-                                                               movement,
-                                                               ismoving, cache)
+                                                               movement, ismoving, cache)
     end
 end
 
