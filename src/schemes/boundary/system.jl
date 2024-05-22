@@ -255,11 +255,11 @@ end
         return extract_svector(cache.velocity, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_velocity(v, system, movement::Nothing, particle)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
@@ -273,11 +273,11 @@ end
         return extract_svector(cache.acceleration, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_acceleration(system, movement::Nothing, particle)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
