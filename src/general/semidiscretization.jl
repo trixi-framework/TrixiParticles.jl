@@ -350,7 +350,7 @@ end
 
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_u(u_ode, system, semi)
+@inline function wrap_u(u_ode::Array, system, semi)
     (; ranges_u) = semi
 
     range = ranges_u[system_indices(system, semi)]
@@ -364,7 +364,7 @@ end
                     (StaticInt(u_nvariables(system)), n_moving_particles(system)))
 end
 
-@inline function wrap_v(v_ode, system, semi)
+@inline function wrap_v(v_ode::Array, system, semi)
     (; ranges_v) = semi
 
     range = ranges_v[system_indices(system, semi)]
@@ -373,6 +373,29 @@ end
 
     return PtrArray(pointer(view(v_ode, range)),
                     (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+# For non-`Array`s (typically GPU arrays), just reshape. Calling the `PtrArray` code above
+# for a `CuArray` yields another `CuArray` (instead of a `PtrArray`) and is 8 times slower
+# with double the allocations.
+@inline function wrap_u(u_ode, system, semi)
+    (; ranges_u) = semi
+
+    range = ranges_u[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+
+    return reshape(view(u_ode, range), (u_nvariables(system), n_moving_particles(system)))
+end
+
+@inline function wrap_v(v_ode, system, semi)
+    (; ranges_v) = semi
+
+    range = ranges_v[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
+
+    return reshape(view(v_ode, range), (v_nvariables(system), n_moving_particles(system)))
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
