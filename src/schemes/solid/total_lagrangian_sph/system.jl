@@ -258,7 +258,7 @@ end
 
     calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         F_particle = deformation_gradient(system, particle)
         pk1_particle = pk1_stress_tensor(F_particle, system)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
@@ -395,7 +395,7 @@ end
 function von_mises_stress(system::TotalLagrangianSPHSystem)
     von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
 
-    @threaded for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         von_mises_stress_vector[particle] = von_mises_stress(system, particle)
     end
 
@@ -428,7 +428,7 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
                                   nparticles(system))
 
-    @threaded for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         F = deformation_gradient(system, particle)
         J = det(F)
         P = pk1_corrected(system, particle)

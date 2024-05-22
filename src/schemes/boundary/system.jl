@@ -208,7 +208,7 @@ function (movement::BoundaryMovement)(system, t)
 
     is_moving(t) || return system
 
-    @threaded for particle in moving_particles
+    @threaded system for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
