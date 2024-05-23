@@ -1,18 +1,21 @@
 function ComplexShape(shape::Shapes; particle_spacing, density, velocity=nothing,
-                      pressure=0.0,
-                      point_in_shape_algorithm=WindingNumberJacobson(), seed=nothing,
-                      hierarchical_winding=false,
-                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e7))
+                      pressure=0.0, point_in_shape_algorithm=WindingNumberJacobson(),
+                      hierarchical_winding=false, winding_number_factor=sqrt(eps()),
+                      seed=nothing,
+                      store_winding_number=false,
+                      pad_initial_particle_grid=2particle_spacing,
+                      max_nparticles=Int(1e7))
     if point_in_shape_algorithm isa WindingNumberJacobson && hierarchical_winding
         bbox = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
 
         directed_edges = zeros(Int, length(shape.normals_edge))
         construct_hierarchy!(bbox, shape, directed_edges)
 
-        point_in_shape_algorithm = WindingNumberJacobson(;
+        point_in_shape_algorithm = WindingNumberJacobson(; winding_number_factor,
                                                          winding=HierarchicalWinding(bbox))
     elseif point_in_shape_algorithm isa WindingNumberJacobson
-        point_in_shape_algorithm = WindingNumberJacobson(; winding=NaiveWinding())
+        point_in_shape_algorithm = WindingNumberJacobson(; winding_number_factor,
+                                                         winding=NaiveWinding())
     end
 
     if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
@@ -24,19 +27,26 @@ function ComplexShape(shape::Shapes; particle_spacing, density, velocity=nothing
     end
 
     return sample(shape; particle_spacing, density, velocity, point_in_shape_algorithm,
-                  pressure, seed, pad=pad_initial_particle_grid, max_nparticles)
+                  pressure, seed, pad=pad_initial_particle_grid, max_nparticles,
+                  store_winding_number)
 end
 
 function sample(shape::Shapes; particle_spacing, density, velocity=zeros(ndims(shape)),
                 pressure=0.0, point_in_shape_algorithm=WindingNumberJacobson(),
-                pad=2particle_spacing, seed=nothing, max_nparticles=Int(1e6))
+                pad=2particle_spacing, seed=nothing, max_nparticles=Int(1e6),
+                store_winding_number=false)
     grid = particle_grid(shape, particle_spacing; pad, seed, max_nparticles)
 
-    inpoly = point_in_shape_algorithm(shape, grid)
+    inpoly, winding_numbers = point_in_shape_algorithm(shape, grid; store_winding_number)
     coordinates = grid[:, inpoly]
 
-    return InitialCondition(; coordinates, density, velocity, pressure,
-                            particle_spacing=particle_spacing)
+    ic = InitialCondition(; coordinates, density, velocity, pressure, particle_spacing)
+
+    if store_winding_number
+        return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
+    end
+
+    return ic
 end
 
 function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing, seed=nothing,
