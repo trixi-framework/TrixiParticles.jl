@@ -489,12 +489,3 @@ end
 
     return corr_matrix
 end
-
-@inline function pseudo_inverse(L, system)
-    return pinv(L)
-end
-
-@inline function pseudo_inverse(L, system::GPUSystem)
-    # TODO `pinv` doesn't work on GPUs?
-    return inv(L)
-end
