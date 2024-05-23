@@ -39,16 +39,13 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
 
     empty!(hashtable)
 
-    min_cell = cell_coords(mesh.min_corner, neighborhood_search) .- pad
-    max_cell = cell_coords(mesh.max_corner, neighborhood_search) .+ pad
-
     # Fill cells with intersecting faces
-    for cell in meshgrid(min_cell, max_cell)
-        for face in eachface(mesh)
-            # Check if any face intersects a cell in the face-embedding cell grid
+    for face in eachface(mesh)
+
+        # Check if any face intersects a cell in the face-embedding cell grid
+        for cell in cell_grid(face, mesh, neighborhood_search)
             if cell_intersection(face, mesh, cell, neighborhood_search)
                 if haskey(hashtable, cell) && !(face in hashtable[cell])
-
                     # Add face to corresponding cell
                     append!(hashtable[cell], face)
                 else
@@ -59,17 +56,21 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
         end
     end
 
-    # Merge all lists of faces in the neighboring cells into one iterator
-    for cell in meshgrid(min_cell, max_cell)
-        iterator_runner = unique(Iterators.flatten(faces_in_cell(neighbor,
-                                                                 neighborhood_search)
-                                                   for neighbor in neighboring_cells(cell)))
+    empty!(neighbor_iterator)
 
-        if isempty(iterator_runner)
+    min_cell = cell_coords(mesh.min_corner, neighborhood_search) .- pad
+    max_cell = cell_coords(mesh.max_corner, neighborhood_search) .+ pad
+
+    # Merge all lists of faces in the neighboring cells into one iterator
+    for cell_runner in meshgrid(min_cell, max_cell)
+        itr = unique(Iterators.flatten(faces_in_cell(neighbor, neighborhood_search)
+                                       for neighbor in neighboring_cells(cell_runner)))
+
+        if isempty(itr)
             continue
         end
 
-        neighbor_iterator[cell] = iterator_runner
+        neighbor_iterator[cell_runner] = itr
     end
 end
 
@@ -205,6 +206,33 @@ function triangle_plane_intersection(point, plane_normal, min_corner, max_corner
 
     # All edge vertices are on one side of the plane
     return false
+end
+
+# 2D
+@inline function cell_grid(edge, shape, neighborhood_search::FaceNeighborhoodSearch{2})
+    v1, v2 = face_vertices(edge, shape)
+
+    cell1 = cell_coords(v1, neighborhood_search)
+    cell2 = cell_coords(v2, neighborhood_search)
+
+    mins = min.(cell1, cell2)
+    maxs = max.(cell1, cell2)
+
+    return meshgrid(mins, maxs)
+end
+
+# 3D
+@inline function cell_grid(triangle, shape, neighborhood_search::FaceNeighborhoodSearch{3})
+    v1, v2, v3 = face_vertices(triangle, shape)
+
+    cell1 = cell_coords(v1, neighborhood_search)
+    cell2 = cell_coords(v2, neighborhood_search)
+    cell3 = cell_coords(v3, neighborhood_search)
+
+    mins = min.(cell1, cell2, cell3)
+    maxs = max.(cell1, cell2, cell3)
+
+    return meshgrid(mins, maxs)
 end
 
 @inline function meshgrid(min_corner, max_corner; increment=1)
