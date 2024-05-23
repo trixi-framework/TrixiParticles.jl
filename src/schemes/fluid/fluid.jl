@@ -14,23 +14,17 @@ end
 function write_u0!(u0, system::FluidSystem)
     (; initial_condition) = system
 
-    for particle in eachparticle(system)
-        # Write particle coordinates
-        for dim in 1:ndims(system)
-            u0[dim, particle] = initial_condition.coordinates[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices(initial_condition.coordinates)
+    copyto!(u0, indices, initial_condition.coordinates, indices)
 
     return u0
 end
 
 function write_v0!(v0, system::FluidSystem)
-    for particle in eachparticle(system)
-        # Write particle velocities
-        for dim in 1:ndims(system)
-            v0[dim, particle] = system.initial_condition.velocity[dim, particle]
-        end
-    end
+    # This is as fast as a loop with `@inbounds`, but it's GPU-compatible
+    indices = CartesianIndices(system.initial_condition.velocity)
+    copyto!(v0, indices, system.initial_condition.velocity, indices)
 
     write_v0!(v0, system, system.density_calculator)
 
