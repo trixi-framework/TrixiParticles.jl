@@ -302,7 +302,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 2, 0)
+    boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 2, 0)
 
     # Counts the global index of the particles
     index = 0
@@ -433,7 +433,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 3, 0)
+    boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 3, 0)
 
     # Counts the global index of the particles
     index = 0
