@@ -16,7 +16,12 @@ packing_system = ParticlePackingSystem(shape_sampled; tlsph=true,
                                        precalculate_sdf=true, neighborhood_search=true,
                                        boundary=shape, background_pressure=100.0)
 
-semi = Semidiscretization(packing_system)
+boundary_system = ParticlePackingSystem(shape_sampled; tlsph=true,
+                                        is_boundary=true, neighborhood_search=true,
+                                        offset_surface=5particle_spacing,
+                                        boundary=shape, background_pressure=100.0)
+
+semi = Semidiscretization(packing_system, boundary_system)
 
 ode = semidiscretize(semi, tspan)
 
@@ -29,3 +34,4 @@ sol = solve(ode, RK4();
             save_everystep=false, maxiters=200, callback=callbacks, dtmax=1e-2)
 
 packed_ic = InitialCondition(sol, packing_system, semi);
+packed_boundary_ic = InitialCondition(sol, boundary_system, semi);
