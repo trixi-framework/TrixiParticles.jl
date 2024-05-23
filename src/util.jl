@@ -127,7 +127,7 @@ Copied from [Trixi.jl](https://github.com/trixi-framework/Trixi.jl).
 end
 
 @kernel function generic_kernel(f)
-    i = KernelAbstractions.@index(Global)
+    i = @index(Global)
     @inline f(i)
 end
 

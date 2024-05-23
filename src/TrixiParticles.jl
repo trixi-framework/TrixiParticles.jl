@@ -11,7 +11,7 @@ using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using GPUArrays: AbstractGPUArray
 using JSON: JSON
-using KernelAbstractions: KernelAbstractions, @kernel
+using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
