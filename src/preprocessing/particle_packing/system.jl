@@ -26,27 +26,23 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        # Search radius for the corresponding neighborhood search.
-        # A boundary needs a larger radius, since constraining the boundary particles to the
-        # surface needs at least a `search_radius` of the thickness of the boundary.
-        search_radius = if is_boundary
-            signed_distance_field.max_signed_distance
-        else
-            compact_support(smoothing_kernel, smoothing_length)
-        end
-
         # Sample boundary
         if is_boundary
             if isnothing(signed_distance_field)
-                throw(ArgumentError("`ParticlePackingSystem` needs a `SignedDistanceField` " *
-                                    "when `is_boundary=true` to sample the shell of `boundary`"))
+                sdf = SignedDistanceField(boundary, particle_spacing;
+                                          use_for_boundary_packing=false)
+            else
+                sdf = signed_distance_field
             end
 
-            (; positions, distances) = signed_distance_field
+            (; positions, distances, max_signed_distance) = sdf
 
             shift_condition = tlsph ? 0.5particle_spacing : particle_spacing
 
-            boundary_coordinates = stack(positions[distances .> shift_condition])
+            # Delete unnecessary large signed distance field
+            keep_indices = (shift_condition .< distances .< max_signed_distance)
+
+            boundary_coordinates = stack(positions[keep_indices])
 
             ic = InitialCondition(; coordinates=boundary_coordinates,
                                   density=first(density), particle_spacing)
@@ -54,28 +50,41 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
             ic = initial_condition
         end
 
+        search_radius = compact_support(smoothing_kernel, smoothing_length)
+
         # Create neighborhood search
-        if neighborhood_search && (is_boundary || isnothing(signed_distance_field))
+        if neighborhood_search && isnothing(signed_distance_field)
+
+            # Search radius for the corresponding neighborhood search.
+            # A boundary needs a larger radius, since constraining the boundary particles to the
+            # surface needs at least a `search_radius` of the thickness of the boundary.
+            search_radius = if is_boundary
+                sdf.max_signed_distance
+            else
+                search_radius
+            end
+
             nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
             initialize!(nhs, boundary)
 
         elseif signed_distance_field isa SignedDistanceField
-            nhs = GridNeighborhoodSearch{NDIMS}(search_radius,
-                                                length(signed_distance_field.distances))
+            (; distances, positions) = signed_distance_field
+
+            nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
 
             # Initialize neighborhood search with signed distances
-            initialize!(nhs, stack(signed_distance_field.positions))
+            initialize!(nhs, stack(positions))
         else
             nhs = TrivialNeighborhoodSearch{NDIMS}(search_radius, eachface(boundary))
         end
 
         shift_condition = if is_boundary
-            -signed_distance_field.max_signed_distance
+            -sdf.max_signed_distance
         else
             tlsph ? zero(ELTYPE) : 0.5particle_spacing
         end
 
-        constrain_particles_on_surface = if is_boundary || isnothing(signed_distance_field)
+        constrain_particles_on_surface = if isnothing(signed_distance_field)
             constrain_particles_on_surface_1!
         else
             constrain_particles_on_surface_2!
@@ -124,7 +133,6 @@ function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data
                                                                                 particle),
                                                                  system.neighborhood_search)))
                                      for particle in eachparticle(system)]
-        # vtk["signed_distances"] = system.signed_distances
     end
 end
 
@@ -192,7 +200,7 @@ function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
         if system.is_boundary
             shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
             if distance <= shift_condition2
-                # Constrain outside particles onto surface
+                # Constrain inside particles onto surface
                 shift = (distance - shift_condition2) * normal_vector
 
                 for dim in 1:ndims(system)
@@ -206,6 +214,7 @@ end
 function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
     (; neighborhood_search, signed_distance_field, shift_condition) = system
     (; positions, distances, normals) = signed_distance_field
+    (; particle_spacing) = system.initial_condition
 
     search_radius2 = compact_support(system, system)^2
 
@@ -240,6 +249,18 @@ function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
 
                 for dim in 1:ndims(system)
                     u[dim, particle] -= shift[dim]
+                end
+            end
+
+            if system.is_boundary
+                shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
+                if distance_signed <= shift_condition2
+                    # Constrain inside particles onto surface
+                    shift = (distance_signed - shift_condition2) * normal_vector
+
+                    for dim in 1:ndims(system)
+                        u[dim, particle] -= shift[dim]
+                    end
                 end
             end
         end

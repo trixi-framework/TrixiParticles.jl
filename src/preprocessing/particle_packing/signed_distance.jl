@@ -6,19 +6,22 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
     function SignedDistanceField(boundary, particle_spacing;
                                  max_signed_distance=4particle_spacing,
+                                 use_for_boundary_packing=true,
                                  neighborhood_search=true, pad=max_signed_distance)
         NDIMS = ndims(boundary)
         ELTYPE = eltype(max_signed_distance)
 
+        sdf_factor = use_for_boundary_packing ? 2 : 1
+
         if neighborhood_search
-            nhs = FaceNeighborhoodSearch{NDIMS}(max_signed_distance)
+            nhs = FaceNeighborhoodSearch{NDIMS}(sdf_factor * max_signed_distance)
             initialize!(nhs, boundary)
         else
             nhs = TrivialNeighborhoodSearch{NDIMS}(max_signed_distance, eachface(boundary))
         end
 
-        min_corner = boundary.min_corner .- pad
-        max_corner = boundary.max_corner .+ pad
+        min_corner = boundary.min_corner .- sdf_factor .* pad
+        max_corner = boundary.max_corner .+ sdf_factor .* pad
         point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
 
         positions = vec([SVector(position) for position in point_grid])
@@ -32,7 +35,16 @@ struct SignedDistanceField{NDIMS, ELTYPE}
                 # `sdf = (sign, distance, normal)`
                 sdf = signed_point_face_distance(point_coords, boundary, face)
 
-                if sdf[2] <= (max_signed_distance)^2 && sdf[2] < distances[point]^2
+                # Store "larger" signed distance field outside `boundary` to guarantee
+                # compact support for boundary particles.
+
+                # outside (positive sign): `sdf_factor * max_signed_distance`
+                cond_1 = !(sdf[1]) && sdf[2] <= (sdf_factor * max_signed_distance)^2
+
+                # inside (negative sign): `1 * max_signed_distance`
+                cond_2 = sdf[1] && sdf[2] <= max_signed_distance^2
+
+                if sdf[2] < distances[point]^2 && (cond_1 || cond_2)
                     distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
                     normals[point] = sdf[3]
                 end

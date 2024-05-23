@@ -29,7 +29,7 @@ boundary_system = ParticlePackingSystem(shape_sampled; tlsph=true,
                                         is_boundary=true, neighborhood_search=true,
                                         boundary=shape, background_pressure)
 
-semi = Semidiscretization(packing_system)
+semi = Semidiscretization(packing_system, boundary_system)
 
 ode = semidiscretize(semi, tspan)
 
