@@ -175,9 +175,9 @@ where:
 - ``\sigma`` represents the surface tension coefficient, adjusting the overall strength of the cohesion effect.
 - ``C`` is a scalar function of the distance between particles.
 
-The Cohesion Kernel ``C`` is defined as 
+The cohesion kernel ``C`` is defined as 
 ```math
-\mathbf{C(r)}=\frac{32}{\pi h_c^9}
+C(r)=\frac{32}{\pi h_c^9}
 \begin{cases}
 (h_c-r)^3 r^3, & \text{if } 2r > h_c \\
 2(h_c-r)^3 r^3 - \frac{h^6}{64}, & \text{if } r > 0 \text{ and } 2r \leq h_c \\
@@ -191,7 +191,7 @@ To model the minimization of the surface area and curvature of the fluid, a curv
 F_{\text{curvature}} = -\sigma (n_a - n_b)
 ```
 
-#### Wall adhesion Force
+#### Wall adhesion force
 The wall adhesion model proposed by Akinci et al. is based on a kernel function which is 0 from 0.0 to 0.5 support radiia with a maximum at 0.75.
 With the force calculated with an adhesion coefficient ``\beta`` as 
 ```math
@@ -199,7 +199,7 @@ F_{\text{adhesion}} = -\beta m_b A(r) \frac{r}{\Vert r \Vert},
 ```
 with ``A`` being the adhesion kernel defined as
 ```math
-\mathbf{A}(r)= \frac{0.007}{h_c^{3.25}}
+A(r)= \frac{0.007}{h_c^{3.25}}
 \begin{cases}
 \sqrt[4]{- \frac{4r^2}{h_c} + 6r - 2h_c}, & \text{if } 2r > h_c \text{ and } r \leq h_c \\
 0, & \text{otherwise.}

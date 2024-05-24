@@ -81,13 +81,20 @@ end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
                                        distance, adhesion_coefficient)
+
+    # The neighborhood search has an `<=` check, but for `distance == support_radius`
+    # the term inside the parentheses might be very slightly negative, causing an error with `^0.25`.
+    # TODO Change this in the neighborhood search?
+    # See https://github.com/trixi-framework/PointNeighbors.jl/issues/19
+    distance >= support_radius && return zero(pos_diff)
+
+
+    distance <= 0.5 * support_radius && return zero(pos_diff)
+
     # Eq. 7
-    # We only reach this function when `distance > eps`
-    A = 0
-    if distance < support_radius && distance > 0.5 * support_radius
-        A = 0.007 / support_radius^3.25 *
+    A = 0.007 / support_radius^3.25 *
             (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
-    end
+
 
     # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
     # `m_b = rho_0 * volume` (Akinci boundary condition treatment)
