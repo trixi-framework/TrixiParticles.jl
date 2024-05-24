@@ -210,10 +210,12 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 # adh = 0.05, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=20*0.00089, x=2, y=1.7 <- does not work in capallariy test
 # adh = 0.04, surft=0.0125,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.1, y=1.7 <- further testing showed surface tension is about 10-20% too high
 # adh = 0.04, surft=0.011,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7
-# adh = 0.03, surft=0.011,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7 ****
+# adh = 0.03, surft=0.011,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7 **** <- seems to be still too high
 # adh = 0.02, surft=0.011,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.8
 # adh = 0.02, surft=0.011,  nu=0.00089, h=2.5, wall_nu=15*0.00089, x=2.2, y=1.7
 # adh = 0.01, surft=0.011,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7
+# adh = 0.02, surft=0.008,  nu=0.00089, h=2.5, wall_nu=10*0.00089, x=2.2, y=1.7
+
 
 # sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 #                                      state_equation, fluid_smoothing_kernel_2,
@@ -229,11 +231,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel_2,
                                              fluid_smoothing_length_2,
-                                             viscosity=ViscosityAdami(nu=5 * nu))
+                                             viscosity=ViscosityAdami(nu=10 * nu))
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.07)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.02)
 
 # ==========================================================================================
 # ==== Simulation
