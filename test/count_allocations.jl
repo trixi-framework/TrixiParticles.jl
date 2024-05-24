@@ -27,7 +27,11 @@ end
 end
 
 # No update
-@inline TrixiParticles.update!(search::NoUpdateNeighborhoodSearch, coords_fun) = search
+@inline function TrixiParticles.PointNeighbors.update!(search::NoUpdateNeighborhoodSearch,
+                                                       x, y;
+                                                       particles_moving=(true, true))
+    return search
+end
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
 function count_rhs_allocations(sol, semi)

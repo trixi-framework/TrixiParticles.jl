@@ -74,6 +74,7 @@ function construct_hierarchy!(bounding_box, mesh, directed_edges)
     return bounding_box
 end
 
+# This only works when all `vertices` are unique
 function determine_closure!(bounding_box, mesh::Shapes{3}, faces, count_directed_edge)
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
     (; min_corner, max_corner) = bounding_box

@@ -1,9 +1,8 @@
 function ComplexShape(shape::Shapes; particle_spacing, density, velocity=nothing,
                       pressure=0.0, point_in_shape_algorithm=WindingNumberJacobson(),
                       hierarchical_winding=false, winding_number_factor=sqrt(eps()),
-                      store_winding_number=false,
-                      seed=nothing,
-                      max_nparticles=Int(1e7))
+                      store_winding_number=false, seed=nothing,
+                      pad_initial_particle_grid=2particle_spacing, max_nparticles=Int(1e7))
     if point_in_shape_algorithm isa WindingNumberJacobson && hierarchical_winding
         bbox = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
 
@@ -33,7 +32,6 @@ end
 function sample(shape::Shapes; particle_spacing, density, velocity=zeros(ndims(shape)),
                 pressure=0.0, point_in_shape_algorithm=WindingNumberJacobson(),
                 pad=2particle_spacing, seed=nothing, max_nparticles=Int(1e6),
-                pad=2particle_spacing, seed=nothing, max_nparticles=Int(1e6))
                 store_winding_number=false)
     grid = particle_grid(shape, particle_spacing; pad, seed, max_nparticles)
 

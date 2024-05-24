@@ -2,8 +2,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
     edge_vertices  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_vertex :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_edge   :: Vector{SVector{NDIMS, ELTYPE}}
-    min_box        :: SVector{NDIMS, ELTYPE}
-    max_box        :: SVector{NDIMS, ELTYPE}
+    min_corner     :: SVector{NDIMS, ELTYPE}
+    max_corner     :: SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices_)
         NDIMS = size(vertices_, 1)
@@ -20,8 +20,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
             vertices = vertices_
         end
 
-        min_box = SVector([minimum(vertices[i, :]) for i in 1:NDIMS]...)
-        max_box = SVector([maximum(vertices[i, :]) for i in 1:NDIMS]...)
+        min_corner = SVector([minimum(vertices[i, :]) for i in 1:NDIMS]...)
+        max_corner = SVector([maximum(vertices[i, :]) for i in 1:NDIMS]...)
 
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
@@ -86,7 +86,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         end
 
         return new{NDIMS, ELTYPE}(edge_vertices, normals_vertex, normals_edge,
-                                  min_box, max_box)
+                                  min_corner, max_corner)
     end
 end
 
@@ -100,11 +100,3 @@ end
 end
 
 @inline face_normal(edge, shape::Polygon) = shape.normals_edge[edge]
-
-function remove_faces!(shape::Polygon, face_indices)
-    setdiff!(shape.edge_vertices, shape.edge_vertices[face_indices])
-    setdiff!(shape.normals_vertex, shape.normals_vertex[face_indices])
-    setdiff!(shape.normals_edge, shape.normals_edge[face_indices])
-
-    return shape
-end
