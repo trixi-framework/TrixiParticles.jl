@@ -276,9 +276,9 @@ end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
 function write_postprocess_callback(pp::PostprocessCallback)
-    if isempty(pp.data)
-        return
-    end
+    isempty(pp.data) && return
+
+    mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
     write_meta_data!(data)
