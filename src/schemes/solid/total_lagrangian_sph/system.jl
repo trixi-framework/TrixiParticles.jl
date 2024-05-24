@@ -182,7 +182,7 @@ end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
     if particle > n_moving_particles(system)
-        return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+        return zero(SVector{ndims(system), eltype(system)})
     end
 
     return extract_svector(v, system, particle)

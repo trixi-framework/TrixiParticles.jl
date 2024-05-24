@@ -244,23 +244,39 @@ end
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
+    return current_velocity(v, system, system.movement, particle)
+end
+
+@inline function current_velocity(v, system, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
         return extract_svector(cache.velocity, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_velocity(v, system, movement::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
+    return current_acceleration(system, system.movement, particle)
+end
+
+@inline function current_acceleration(system, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
         return extract_svector(cache.acceleration, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_acceleration(system, movement::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
