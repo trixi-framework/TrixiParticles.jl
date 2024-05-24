@@ -22,16 +22,19 @@ struct FaceNeighborhoodSearch{NDIMS, ELTYPE, PB}
     end
 end
 
-@inline function eachneighbor(coords, neighborhood_search::FaceNeighborhoodSearch)
+@inline function PointNeighbors.eachneighbor(coords,
+                                             neighborhood_search::FaceNeighborhoodSearch)
     (; neighbor_iterator, empty_vector) = neighborhood_search
-    cell = cell_coords(coords, neighborhood_search)
+    cell = PointNeighbors.cell_coords(coords, neighborhood_search)
 
     haskey(neighbor_iterator, cell) && return neighbor_iterator[cell]
 
     return empty_vector
 end
 
-faces_in_cell(cell, neighborhood_search) = particles_in_cell(cell, neighborhood_search)
+function faces_in_cell(cell, neighborhood_search)
+    return PointNeighbors.particles_in_cell(cell, neighborhood_search)
+end
 
 function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
                      pad=ntuple(_ -> 1, ndims(mesh)))
@@ -58,8 +61,8 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
 
     empty!(neighbor_iterator)
 
-    min_cell = cell_coords(mesh.min_corner, neighborhood_search) .- pad
-    max_cell = cell_coords(mesh.max_corner, neighborhood_search) .+ pad
+    min_cell = PointNeighbors.cell_coords(mesh.min_corner, neighborhood_search) .- pad
+    max_cell = PointNeighbors.cell_coords(mesh.max_corner, neighborhood_search) .+ pad
 
     # Merge all lists of faces in the neighboring cells into one iterator
     for cell_runner in meshgrid(min_cell, max_cell)
@@ -81,8 +84,8 @@ function cell_intersection(edge, shape, cell,
     v1, v2 = face_vertices(edge, shape)
 
     # Check if one of the vertices is inside cell
-    cell == cell_coords(v1, neighborhood_search) && return true
-    cell == cell_coords(v2, neighborhood_search) && return true
+    cell == PointNeighbors.cell_coords(v1, neighborhood_search) && return true
+    cell == PointNeighbors.cell_coords(v2, neighborhood_search) && return true
 
     # Check if line segment intersects cell
     min_corner = SVector(cell .* cell_size...)
@@ -100,9 +103,9 @@ function cell_intersection(triangle, shape, cell,
     v1, v2, v3 = face_vertices(triangle, shape)
 
     # Check if one of the vertices is inside cell
-    cell == cell_coords(v1, neighborhood_search) && return true
-    cell == cell_coords(v2, neighborhood_search) && return true
-    cell == cell_coords(v3, neighborhood_search) && return true
+    cell == PointNeighbors.cell_coords(v1, neighborhood_search) && return true
+    cell == PointNeighbors.cell_coords(v2, neighborhood_search) && return true
+    cell == PointNeighbors.cell_coords(v3, neighborhood_search) && return true
 
     # Check if line segment intersects cell
     min_corner = SVector(cell .* cell_size...)
@@ -212,8 +215,8 @@ end
 @inline function cell_grid(edge, shape, neighborhood_search::FaceNeighborhoodSearch{2})
     v1, v2 = face_vertices(edge, shape)
 
-    cell1 = cell_coords(v1, neighborhood_search)
-    cell2 = cell_coords(v2, neighborhood_search)
+    cell1 = PointNeighbors.cell_coords(v1, neighborhood_search)
+    cell2 = PointNeighbors.cell_coords(v2, neighborhood_search)
 
     mins = min.(cell1, cell2)
     maxs = max.(cell1, cell2)
@@ -225,9 +228,9 @@ end
 @inline function cell_grid(triangle, shape, neighborhood_search::FaceNeighborhoodSearch{3})
     v1, v2, v3 = face_vertices(triangle, shape)
 
-    cell1 = cell_coords(v1, neighborhood_search)
-    cell2 = cell_coords(v2, neighborhood_search)
-    cell3 = cell_coords(v3, neighborhood_search)
+    cell1 = PointNeighbors.cell_coords(v1, neighborhood_search)
+    cell2 = PointNeighbors.cell_coords(v2, neighborhood_search)
+    cell3 = PointNeighbors.cell_coords(v3, neighborhood_search)
 
     mins = min.(cell1, cell2, cell3)
     maxs = max.(cell1, cell2, cell3)
@@ -242,4 +245,22 @@ end
     ranges = ntuple(dim -> (min_[dim]:increment:max_[dim]), length(min_corner))
 
     return Iterators.product(ranges...)
+end
+
+@inline function neighboring_cells(cell::NTuple{1})
+    x = cell[1]
+    # Generator of all neighboring cells to consider
+    return ((x + i) for i in -1:1)
+end
+
+@inline function neighboring_cells(cell::NTuple{2})
+    x, y = cell
+    # Generator of all neighboring cells to consider
+    return ((x + i, y + j) for i in -1:1, j in -1:1)
+end
+
+@inline function neighboring_cells(cell::NTuple{3})
+    x, y, z = cell
+    # Generator of all neighboring cells to consider
+    return ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
 end

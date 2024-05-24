@@ -31,7 +31,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
         @threaded for point in eachindex(positions)
             point_coords = positions[point]
 
-            for face in eachneighbor(point_coords, nhs)
+            for face in PointNeighbors.eachneighbor(point_coords, nhs)
                 # `sdf = (sign, distance, normal)`
                 sdf = signed_point_face_distance(point_coords, boundary, face)
 

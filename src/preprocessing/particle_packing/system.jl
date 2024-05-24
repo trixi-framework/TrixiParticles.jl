@@ -73,7 +73,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
             nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
 
             # Initialize neighborhood search with signed distances
-            initialize!(nhs, stack(positions))
+            PointNeighbors.initialize_grid!(nhs, stack(positions))
         else
             nhs = TrivialNeighborhoodSearch{NDIMS}(search_radius, eachface(boundary))
         end
@@ -129,7 +129,7 @@ end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     if write_meta_data
-        vtk["n_neigboring_faces"] = [length(collect(eachneighbor(current_coords(u, system,
+        vtk["n_neigboring_faces"] = [length(collect(PointNeighbors.eachneighbor(current_coords(u, system,
                                                                                 particle),
                                                                  system.neighborhood_search)))
                                      for particle in eachparticle(system)]
@@ -175,7 +175,7 @@ function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
         normal_vector = fill(0.0, SVector{ndims(system), eltype(system)})
 
         # Calculate minimum unsigned distance to boundary
-        for face in eachneighbor(particle_position, neighborhood_search)
+        for face in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
             new_distance_sign, new_distance2, n = signed_point_face_distance(particle_position,
                                                                              boundary, face)
 
@@ -225,7 +225,7 @@ function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
         distance_signed = zero(eltype(system))
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
-        for neighbor in eachneighbor(particle_position, neighborhood_search)
+        for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
             pos_diff = positions[neighbor] - particle_position
             distance2 = dot(pos_diff, pos_diff)
             distance2 > search_radius2 && continue
