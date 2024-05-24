@@ -35,6 +35,16 @@ end
     return v[end, particle]
 end
 
+# *Note* that these functions are intended to internally set the density for buffer particles
+# and density correction. It cannot be used to set up an initial condition,
+# as the particle density depends on the particle positions.
+
+@inline set_particle_density(particle, v, ::SummationDensity, system, density) = system
+
+@inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
+    v[end, particle] = density
+end
+
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)

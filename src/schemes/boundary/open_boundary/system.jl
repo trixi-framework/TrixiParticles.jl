@@ -534,7 +534,7 @@ end
     (; spanning_set) = system
 
     # Activate a new particle in simulation domain
-    activate_particle!(fluid_system, particle, v_fluid, u_fluid, v, u)
+    activate_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -548,7 +548,7 @@ end
 @inline function transform_particle!(fluid_system::FluidSystem, system,
                                      boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
-    activate_particle!(system, particle, v, u, v_fluid, u_fluid)
+    activate_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
@@ -556,14 +556,25 @@ end
     return fluid_system
 end
 
-@inline function activate_particle!(system_new, particle_old, v_new, u_new, v_old, u_old)
+@inline function activate_particle!(system_new, system_old, particle_old,
+                                    v_new, u_new, v_old, u_old)
     particle_new = activate_next_particle(system_new)
 
-    # Exchange integrated quantities
-    for i in axes(u_new, 1)
-        u_new[i, particle_new] = u_old[i, particle_old]
-        v_new[i, particle_new] = v_old[i, particle_old]
+    # Exchange densities
+    density = particle_density(v_old, system_old, particle_old)
+    set_particle_density(particle_new, v_new, system_new, density)
+
+    # Exchange pressure
+    pressure = particle_pressure(v_old, system_old, particle_old)
+    set_particle_pressure(particle_new, v_new, system_new, pressure)
+
+    # Exchange position and velocity
+    for dim in 1:ndims(system_new)
+        u_new[dim, particle_new] = u_old[dim, particle_old]
+        v_new[dim, particle_new] = v_old[dim, particle_old]
     end
+
+    # TODO: Only when using TVF: set tvf
 
     return system_new
 end

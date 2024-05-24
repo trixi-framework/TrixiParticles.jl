@@ -156,6 +156,11 @@ end
     return v[end, particle]
 end
 
+@inline function set_particle_pressure(particle, v, system::EntropicallyDampedSPHSystem,
+                                       pressure)
+    return v[end, particle] = pressure
+end
+
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed
 
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
