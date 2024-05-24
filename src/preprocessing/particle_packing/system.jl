@@ -10,6 +10,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
     shift_condition                :: ELTYPE
     constrain_particles_on_surface :: C
     neighborhood_search            :: N
+    signed_distances               :: Vector{ELTYPE} # Only for visualization
 
     function ParticlePackingSystem(initial_condition;
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
@@ -85,9 +86,9 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
         end
 
         constrain_particles_on_surface = if isnothing(signed_distance_field)
-            constrain_particles_on_surface_1!
+            direct_particle_face_distance!
         else
-            constrain_particles_on_surface_2!
+            interpolate_particle_face_distance!
         end
 
         return new{NDIMS, ELTYPE, typeof(boundary), typeof(smoothing_kernel),
@@ -96,7 +97,8 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
                    typeof(nhs)}(ic, boundary, smoothing_kernel, smoothing_length,
                                 background_pressure, tlsph, signed_distance_field,
                                 is_boundary, shift_condition,
-                                constrain_particles_on_surface, nhs)
+                                constrain_particles_on_surface, nhs,
+                                fill(zero(ELTYPE), nparticles(ic)))
     end
 end
 
@@ -129,11 +131,7 @@ end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     if write_meta_data
-        vtk["n_neigboring_faces"] = [length(collect(PointNeighbors.eachneighbor(current_coords(u,
-                                                                                               system,
-                                                                                               particle),
-                                                                                system.neighborhood_search)))
-                                     for particle in eachparticle(system)]
+        vtk["signed_distances"] = system.signed_distances
     end
 end
 
@@ -163,8 +161,7 @@ function update_position!(u, system::ParticlePackingSystem)
     return u
 end
 
-# TODO: Naming not really creative
-function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
+function direct_particle_face_distance!(u, system::ParticlePackingSystem)
     (; boundary, shift_condition, neighborhood_search, initial_condition) = system
     (; particle_spacing) = initial_condition
 
@@ -188,6 +185,7 @@ function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
         end
 
         distance = distance_sign ? -sqrt(distance2) : sqrt(distance2)
+        system.signed_distances[particle] = distance
 
         if distance >= -shift_condition
             # Constrain outside particles onto surface
@@ -212,7 +210,7 @@ function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
     end
 end
 
-function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
+function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
     (; neighborhood_search, signed_distance_field, shift_condition) = system
     (; positions, distances, normals) = signed_distance_field
     (; particle_spacing) = system.initial_condition
@@ -244,6 +242,9 @@ function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
         if volume > eps()
             distance_signed /= volume
             normal_vector /= volume
+
+            system.signed_distances[particle] = distance_signed
+
             if distance_signed >= -shift_condition
                 # Constrain outside particles onto surface
                 shift = (distance_signed + shift_condition) * normal_vector
