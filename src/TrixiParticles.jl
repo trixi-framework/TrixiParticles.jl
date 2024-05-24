@@ -11,7 +11,6 @@ using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
 using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, det
-using Morton: cartesian2morton
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
