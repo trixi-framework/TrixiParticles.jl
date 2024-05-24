@@ -63,7 +63,6 @@ end
 
     # Eq. 2
     # We only reach this function when `sqrt(eps()) < distance <= support_radius`
-    C = 0
     if distance > 0.5 * support_radius
         # Attractive force
         C = (support_radius - distance)^3 * distance^3
@@ -82,18 +81,21 @@ end
 
 @inline function adhesion_force_akinci(surface_tension, support_radius, m_b, pos_diff,
                                        distance, adhesion_coefficient)
-    # Eq. 7
-    # We only reach this function when `distance > eps`
-    A = 0
-    if distance < support_radius
-        if distance > 0.5 * support_radius
-            A = 0.007 / support_radius^3.25 *
-                (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
-        end
-    end
 
-    # Eq. 6 in acceleration form with `m_b`` being the boundary mass calculated as
-    # `m_b = rho_0 * volume`` (Akinci boundary condition treatment)
+    # The neighborhood search has an `<=` check, but for `distance == support_radius`
+    # the term inside the parentheses might be very slightly negative, causing an error with `^0.25`.
+    # TODO Change this in the neighborhood search?
+    # See https://github.com/trixi-framework/PointNeighbors.jl/issues/19
+    distance >= support_radius && return zero(pos_diff)
+
+    distance <= 0.5 * support_radius && return zero(pos_diff)
+
+    # Eq. 7
+    A = 0.007 / support_radius^3.25 *
+        (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
+
+    # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
+    # `m_b = rho_0 * volume` (Akinci boundary condition treatment)
     adhesion_force = -adhesion_coefficient * m_b * A * pos_diff / distance
 
     return adhesion_force
@@ -139,6 +141,7 @@ end
     (; smoothing_length) = particle_system
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
+
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     support_radius = compact_support(smoothing_kernel, smoothing_length)
 
@@ -155,6 +158,7 @@ end
 
     # No surface tension with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
+
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(surface_tension_a, particle_system, particle)
     n_b = surface_normal(surface_tension_b, neighbor_system, neighbor)

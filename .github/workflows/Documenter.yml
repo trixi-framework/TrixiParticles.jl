@@ -8,10 +8,12 @@ on:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   pull_request:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   workflow_dispatch:
 
 concurrency:
