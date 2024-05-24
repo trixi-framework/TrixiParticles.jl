@@ -35,12 +35,7 @@ end
 
 @inline update_system_buffer!(buffer::Nothing) = buffer
 
-# `view(eachindex(buffer.active_particle), buffer.active_particle)` is a allocation
-# (but thread supporting) version of:
-# `(i for i in eachindex(buffer.active_particle) if buffer.active_particle[i])`
-# TODO: Find a non-allocation version
-
-# This is also a allocation version but only in every `update!(buffer)` call
+# TODO `resize` allocates. Find a non-allocating version
 @inline function update_system_buffer!(buffer::SystemBuffer)
     (; active_particle) = buffer
 

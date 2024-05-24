@@ -657,7 +657,7 @@ end
 function update_nhs!(neighborhood_search,
                      system::OpenBoundarySPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
-    # The current coordinates of  open boundaries and fluids change over time.
+    # The current coordinates of both open boundaries and fluids change over time.
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.

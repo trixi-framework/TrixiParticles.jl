@@ -1,4 +1,4 @@
-# Interaction of boundary  with other systems
+# Interaction of boundary with other systems
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::Union{BoundarySystem, OpenBoundarySPHSystem},

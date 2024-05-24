@@ -28,7 +28,8 @@ struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
             typeof(initial_condition), typeof(coordinates),
             typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
                                                                coordinates, boundary_model,
-                                                               movement, ismoving, cache)
+                                                               movement, ismoving, cache,
+                                                               nothing)
     end
 end
 
@@ -71,9 +72,8 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySys
                  ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,
-                                                                                    radius,
-                                                                                    normal_stiffness)
+        return new{NDIMS, eltype(coordinates), typeof(radius),
+                   typeof(coordinates)}(coordinates, radius, normal_stiffness, nothing)
     end
 end
 

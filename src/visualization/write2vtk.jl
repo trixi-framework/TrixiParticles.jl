@@ -182,11 +182,11 @@ end
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["velocity"] = [current_velocity(v, system, particle)
-                       for particle in each_moving_particle(system)]
+                       for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
-                      for particle in each_moving_particle(system)]
+                      for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in each_moving_particle(system)]
+                       for particle in active_particles(system)]
 
     if write_meta_data
         vtk["acceleration"] = system.acceleration
@@ -265,11 +265,11 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     (; reference_velocity, reference_pressure, reference_density) = system
 
     vtk["velocity"] = [current_velocity(v, system, particle)
-                       for particle in each_moving_particle(system)]
+                       for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
-                      for particle in each_moving_particle(system)]
+                      for particle in active_particles(system)]
     vtk["pressure"] = [particle_pressure(v, system, particle)
-                       for particle in each_moving_particle(system)]
+                       for particle in active_particles(system)]
 
     NDIMS = ndims(system)
     ELTYPE = eltype(system)

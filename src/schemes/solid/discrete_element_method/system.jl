@@ -57,7 +57,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
         return new{NDIMS, ELTYPE, typeof(mass),
                    typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
                                          poissons_ratio, normal_stiffness,
-                                         damping_coefficient, acceleration_, source_terms)
+                                         damping_coefficient, acceleration_, source_terms,
+                                         nothing)
     end
 end
 

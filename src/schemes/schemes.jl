@@ -1,9 +1,6 @@
-# Include open boundary system first,
-# since this system should not depend on specific systems.
-include("boundary/open_boundary/system.jl")
-
 # Include all schemes without rhs first. The rhs depends on the systems to define
 # interactions between the different system types.
+include("boundary/open_boundary/system.jl")
 include("fluid/fluid.jl")
 include("boundary/boundary.jl")
 include("solid/total_lagrangian_sph/total_lagrangian_sph.jl")
