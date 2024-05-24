@@ -6,7 +6,7 @@ include("io.jl")
 
 @inline Base.ndims(::Shapes{NDIMS}) where {NDIMS} = NDIMS
 
-@inline Base.eltype(shape::Shapes) = eltype(first(first(shape.min_box)))
+@inline Base.eltype(shape::Shapes) = eltype(first(first(shape.min_corner)))
 
 @inline eachface(mesh) = Base.OneTo(nfaces(mesh))
 
