@@ -88,13 +88,11 @@ end
     # See https://github.com/trixi-framework/PointNeighbors.jl/issues/19
     distance >= support_radius && return zero(pos_diff)
 
-
     distance <= 0.5 * support_radius && return zero(pos_diff)
 
     # Eq. 7
     A = 0.007 / support_radius^3.25 *
-            (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
-
+        (-4 * distance^2 / support_radius + 6 * distance - 2 * support_radius)^0.25
 
     # Eq. 6 in acceleration form with `m_b` being the boundary mass calculated as
     # `m_b = rho_0 * volume` (Akinci boundary condition treatment)
