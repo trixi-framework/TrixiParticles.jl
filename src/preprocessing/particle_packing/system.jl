@@ -1,25 +1,24 @@
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, N} <: FluidSystem{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    boundary            :: B
-    smoothing_kernel    :: K
-    smoothing_length    :: ELTYPE
-    background_pressure :: ELTYPE
-    tlsph               :: Bool
-    sd_positions        :: Vector{SVector{NDIMS, ELTYPE}}
-    normals             :: Vector{SVector{NDIMS, ELTYPE}}
-    distances           :: Vector{ELTYPE}
-    signed_distances    :: Vector{ELTYPE} # TODO: Remove this (only for debugging)
-    precalculate_sdf    :: Bool
-    neighborhood_search :: N
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSystem{NDIMS}
+    initial_condition              :: InitialCondition{ELTYPE}
+    boundary                       :: B
+    smoothing_kernel               :: K
+    smoothing_length               :: ELTYPE
+    background_pressure            :: ELTYPE
+    tlsph                          :: Bool
+    signed_distance_field          :: S
+    is_boundary                    :: Bool
+    shift_condition                :: ELTYPE
+    constrain_particles_on_surface :: C
+    neighborhood_search            :: N
 
     function ParticlePackingSystem(initial_condition;
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
                                    smoothing_length=1.2initial_condition.particle_spacing,
-                                   precalculate_sdf=false,
-                                   max_signed_distance=compact_support(smoothing_kernel,
-                                                                       smoothing_length),
+                                   signed_distance_field=nothing,
+                                   is_boundary=false,
                                    neighborhood_search=true,
                                    background_pressure, boundary, tlsph=false)
+        (; particle_spacing, density) = initial_condition
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -27,31 +26,77 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, N} <: FluidSystem{NDIM
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        signed_distances = fill(NaN, nparticles(initial_condition))
+        # Sample boundary
+        if is_boundary
+            if isnothing(signed_distance_field)
+                sdf = SignedDistanceField(boundary, particle_spacing;
+                                          use_for_boundary_packing=false)
+            else
+                sdf = signed_distance_field
+            end
 
-        normals = Vector{SVector{NDIMS, ELTYPE}}()
-        distances = Vector{ELTYPE}()
-        sd_positions = Vector{SVector{NDIMS, ELTYPE}}()
+            (; positions, distances, max_signed_distance) = sdf
+
+            shift_condition = tlsph ? 0.5particle_spacing : particle_spacing
+
+            # Delete unnecessary large signed distance field
+            keep_indices = (shift_condition .< distances .< max_signed_distance)
+
+            boundary_coordinates = stack(positions[keep_indices])
+
+            ic = InitialCondition(; coordinates=boundary_coordinates,
+                                  density=first(density), particle_spacing)
+        else
+            ic = initial_condition
+        end
 
         search_radius = compact_support(smoothing_kernel, smoothing_length)
-        if neighborhood_search && !(precalculate_sdf)
+
+        # Create neighborhood search
+        if neighborhood_search && isnothing(signed_distance_field)
+
+            # Search radius for the corresponding neighborhood search.
+            # A boundary needs a larger radius, since constraining the boundary particles to the
+            # surface needs at least a `search_radius` of the thickness of the boundary.
+            search_radius = if is_boundary
+                sdf.max_signed_distance
+            else
+                search_radius
+            end
+
             nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
             initialize!(nhs, boundary)
-        elseif precalculate_sdf
-            nhs_faces = FaceNeighborhoodSearch{NDIMS}(max_signed_distance)
-            initialize!(nhs_faces, boundary)
-            nhs, sd_positions, normals, distances = calculate_signed_distance(nhs_faces,
-                                                                              search_radius,
-                                                                              boundary,
-                                                                              initial_condition)
+
+        elseif signed_distance_field isa SignedDistanceField
+            (; distances, positions) = signed_distance_field
+
+            nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
+
+            # Initialize neighborhood search with signed distances
+            PointNeighbors.initialize_grid!(nhs, stack(positions))
         else
             nhs = TrivialNeighborhoodSearch{NDIMS}(search_radius, eachface(boundary))
         end
 
+        shift_condition = if is_boundary
+            -sdf.max_signed_distance
+        else
+            tlsph ? zero(ELTYPE) : 0.5particle_spacing
+        end
+
+        constrain_particles_on_surface = if isnothing(signed_distance_field)
+            constrain_particles_on_surface_1!
+        else
+            constrain_particles_on_surface_2!
+        end
+
         return new{NDIMS, ELTYPE, typeof(boundary), typeof(smoothing_kernel),
-                   typeof(nhs)}(initial_condition, boundary, smoothing_kernel,
-                                smoothing_length, background_pressure, tlsph, sd_positions,
-                                normals, distances, signed_distances, precalculate_sdf, nhs)
+                   typeof(signed_distance_field),
+                   typeof(constrain_particles_on_surface),
+                   typeof(nhs)}(ic, boundary, smoothing_kernel, smoothing_length,
+                                background_pressure, tlsph, signed_distance_field,
+                                is_boundary, shift_condition,
+                                constrain_particles_on_surface, nhs)
     end
 end
 
@@ -77,18 +122,18 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "mesh", system.boundary |> typeof |> nameof)
         summary_line(io, "tlsph", system.tlsph ? "yes" : "no")
-        summary_line(io, "precalculate sdf", system.precalculate_sdf ? "yes" : "no")
+        summary_line(io, "boundary", system.is_boundary ? "yes" : "no")
         summary_footer(io)
     end
 end
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     if write_meta_data
-        vtk["n_neigboring_faces"] = [length(collect(PointNeighbors.eachneighbor(current_coords(u, system,
-                                                                                particle),
-                                                                 system.neighborhood_search)))
+        vtk["n_neigboring_faces"] = [length(collect(PointNeighbors.eachneighbor(current_coords(u,
+                                                                                               system,
+                                                                                               particle),
+                                                                                system.neighborhood_search)))
                                      for particle in eachparticle(system)]
-        vtk["signed_distances"] = system.signed_distances
     end
 end
 
@@ -104,23 +149,24 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)
 
-    @trixi_timeit timer() "bounding method" update_position!(u, system)
+    update_position!(u, system)
 
     update_transport_velocity!(system, v_ode, semi)
 end
 
 function update_position!(u, system::ParticlePackingSystem)
-    system.precalculate_sdf && return update_poisition_2!(u, system)
+    (; constrain_particles_on_surface) = system
 
-    return update_position_1!(u, system)
+    func_name = "$(constrain_particles_on_surface)"
+    @trixi_timeit timer() func_name constrain_particles_on_surface(u, system)
+
+    return u
 end
 
 # TODO: Naming not really creative
-function update_position_1!(u, system::ParticlePackingSystem)
-    (; boundary, initial_condition, neighborhood_search, signed_distances) = system
+function constrain_particles_on_surface_1!(u, system::ParticlePackingSystem)
+    (; boundary, shift_condition, neighborhood_search, initial_condition) = system
     (; particle_spacing) = initial_condition
-
-    shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
 
     @threaded for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
@@ -144,7 +190,6 @@ function update_position_1!(u, system::ParticlePackingSystem)
         distance = distance_sign ? -sqrt(distance2) : sqrt(distance2)
 
         if distance >= -shift_condition
-            signed_distances[particle] = distance
             # Constrain outside particles onto surface
             shift = (distance + shift_condition) * normal_vector
 
@@ -152,16 +197,27 @@ function update_position_1!(u, system::ParticlePackingSystem)
                 u[dim, particle] -= shift[dim]
             end
         end
+
+        if system.is_boundary
+            shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
+            if distance <= shift_condition2
+                # Constrain inside particles onto surface
+                shift = (distance - shift_condition2) * normal_vector
+
+                for dim in 1:ndims(system)
+                    u[dim, particle] -= shift[dim]
+                end
+            end
+        end
     end
 end
 
-function update_poisition_2!(u, system::ParticlePackingSystem)
-    (; initial_condition, neighborhood_search, distances, normals, sd_positions) = system
-    (; particle_spacing) = initial_condition
+function constrain_particles_on_surface_2!(u, system::ParticlePackingSystem)
+    (; neighborhood_search, signed_distance_field, shift_condition) = system
+    (; positions, distances, normals) = signed_distance_field
+    (; particle_spacing) = system.initial_condition
 
     search_radius2 = compact_support(system, system)^2
-
-    shift_condition = system.tlsph ? zero(eltype(system)) : 0.5particle_spacing
 
     @threaded for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
@@ -171,7 +227,7 @@ function update_poisition_2!(u, system::ParticlePackingSystem)
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
         for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
-            pos_diff = sd_positions[neighbor] - particle_position
+            pos_diff = positions[neighbor] - particle_position
             distance2 = dot(pos_diff, pos_diff)
             distance2 > search_radius2 && continue
 
@@ -188,13 +244,24 @@ function update_poisition_2!(u, system::ParticlePackingSystem)
         if volume > eps()
             distance_signed /= volume
             normal_vector /= volume
-            system.signed_distances[particle] = distance_signed
             if distance_signed >= -shift_condition
                 # Constrain outside particles onto surface
                 shift = (distance_signed + shift_condition) * normal_vector
 
                 for dim in 1:ndims(system)
                     u[dim, particle] -= shift[dim]
+                end
+            end
+
+            if system.is_boundary
+                shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
+                if distance_signed <= shift_condition2
+                    # Constrain inside particles onto surface
+                    shift = (distance_signed - shift_condition2) * normal_vector
+
+                    for dim in 1:ndims(system)
+                        u[dim, particle] -= shift[dim]
+                    end
                 end
             end
         end
@@ -226,64 +293,4 @@ end
     end
 
     return du
-end
-
-function calculate_signed_distance(nhs, search_radius, boundary, initial_condition)
-    (; particle_spacing, coordinates) = initial_condition
-    NDIMS = ndims(initial_condition)
-    ELTYPE = eltype(initial_condition)
-    max_signed_distance = first(nhs.cell_size)
-
-    normals = Vector{SVector{NDIMS, ELTYPE}}()
-    distances = Vector{ELTYPE}()
-    sd_positions = Vector{SVector{NDIMS, ELTYPE}}()
-
-    min_corner = (minimum(coordinates[i, :]) - 5particle_spacing for i in 1:NDIMS)
-    max_corner = (maximum(coordinates[i, :]) + 5particle_spacing for i in 1:NDIMS)
-
-    point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
-
-    resize!(normals, length(point_grid))
-    resize!(distances, length(point_grid))
-    resize!(sd_positions, length(point_grid))
-
-    fill!(distances, Inf)
-    fill!(normals, SVector(ntuple(dim -> Inf, NDIMS)))
-    fill!(sd_positions, SVector(ntuple(dim -> Inf, NDIMS)))
-
-    for (point, point_coords) in enumerate(point_grid)
-        point_coords_ = SVector(point_coords...)
-
-        for face in PointNeighbors.eachneighbor(point_coords_, nhs)
-            # `sdf = (sign, distance, normal)`
-            sdf = signed_point_face_distance(point_coords_, boundary, face)
-
-            if sdf[2] <= (max_signed_distance)^2 && sdf[2] < distances[point]^2
-                distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
-                normals[point] = sdf[3]
-                sd_positions[point] = point_coords_
-            end
-        end
-    end
-
-    filter!(isfinite ∘ sum, distances)
-    filter!(isfinite ∘ sum, normals)
-    filter!(isfinite ∘ sum, sd_positions)
-
-    new_nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
-
-    # Initialize new neighborhood search
-    initialize!(new_nhs, stack(sd_positions))
-
-    file = "out/rigid_system"
-    points = stack(sd_positions)
-    cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
-    vtk_grid(file, points, cells) do vtk
-        # Store particle index
-        vtk["index"] = 1:length(distances)
-        vtk["signed_distances"] = distances
-        vtk["normals"] = stack(normals)
-    end
-
-    return new_nhs, sd_positions, normals, distances
 end

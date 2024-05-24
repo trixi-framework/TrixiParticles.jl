@@ -92,9 +92,9 @@ end
 
 @inline nfaces(mesh::Polygon) = length(mesh.normals_edge)
 
-@inline function face_vertices(triangle, shape::Polygon)
-    v1 = shape.edge_vertices[triangle][1]
-    v2 = shape.edge_vertices[triangle][2]
+@inline function face_vertices(edge, shape::Polygon)
+    v1 = shape.edge_vertices[edge][1]
+    v2 = shape.edge_vertices[edge][2]
 
     return v1, v2
 end
