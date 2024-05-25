@@ -70,18 +70,17 @@ function velocity_function(pos, t)
     return SVector(prescribed_velocity, 0.0) # SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
 end
 
-open_boundary_in = OpenBoundarySPHSystem(([0.0, 0.0], [0.0, domain_size[2]]), InFlow(),
-                                         sound_speed; particle_spacing,
-                                         flow_direction, open_boundary_layers,
-                                         density=fluid_density, buffer=n_buffer_particles,
+inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
+                open_boundary_layers, density=fluid_density, particle_spacing)
+
+open_boundary_in = OpenBoundarySPHSystem(inflow, sound_speed; buffer=n_buffer_particles,
                                          reference_pressure=pressure,
                                          reference_velocity=velocity_function)
 
-open_boundary_out = OpenBoundarySPHSystem(([domain_size[1], 0.0],
-                                           [domain_size[1], domain_size[2]]), OutFlow(),
-                                          sound_speed; particle_spacing,
-                                          flow_direction, open_boundary_layers,
-                                          density=fluid_density, buffer=n_buffer_particles,
+outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
+                  flow_direction, open_boundary_layers, density=fluid_density,
+                  particle_spacing)
+open_boundary_out = OpenBoundarySPHSystem(outflow, sound_speed; buffer=n_buffer_particles,
                                           reference_pressure=pressure,
                                           reference_velocity=velocity_function)
 
