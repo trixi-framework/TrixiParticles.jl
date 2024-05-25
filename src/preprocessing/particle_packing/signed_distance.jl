@@ -6,7 +6,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
 
     function SignedDistanceField(boundary, particle_spacing;
                                  max_signed_distance=4particle_spacing,
-                                 use_for_boundary_packing=true,
+                                 use_for_boundary_packing=false,
                                  neighborhood_search=true, pad=max_signed_distance)
         NDIMS = ndims(boundary)
         ELTYPE = eltype(max_signed_distance)

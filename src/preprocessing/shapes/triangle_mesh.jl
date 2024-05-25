@@ -31,6 +31,7 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]
 
+            # TODO: This part is about 90% of the runtime
             vertex_id1 = findfirst(x -> v1 == x, vertices)
             vertex_id2 = findfirst(x -> v2 == x, vertices)
             vertex_id3 = findfirst(x -> v3 == x, vertices)
@@ -125,9 +126,17 @@ function incident_angles(triangle_points)
     sbc = dot(b - c, b - c)
     sac = dot(c - a, c - a)
 
-    alpha = acos(clamp((sab + sac - sbc) / (2 * sqrt(sab * sac)), -1, 1))
-    beta = acos(clamp((sbc + sab - sac) / (2 * sqrt(sbc * sab)), -1, 1))
-    gamma = acos(clamp((sac + sbc - sab) / (2 * sqrt(sac * sbc)), -1, 1))
+    alpha_ = (sab + sac - sbc) / (2 * sqrt(sab * sac))
+    beta_ = (sbc + sab - sac) / (2 * sqrt(sbc * sab))
+    gamma_ = (sac + sbc - sab) / (2 * sqrt(sac * sbc))
+
+    alpha_ = isfinite(alpha_) ? clamp(alpha_, -1, 1) : zero(eltype(sab))
+    beta_ = isfinite(beta_) ? clamp(beta_, -1, 1) : zero(eltype(sab))
+    gamma_ = isfinite(gamma_) ? clamp(gamma_, -1, 1) : zero(eltype(sab))
+
+    alpha = acos(alpha_)
+    beta = acos(beta_)
+    gamma = acos(gamma_)
 
     return alpha, beta, gamma
 end
