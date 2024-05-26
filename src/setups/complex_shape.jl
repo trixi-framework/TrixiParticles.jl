@@ -44,9 +44,6 @@ function sample(shape::Shapes; particle_spacing, density, velocity=zeros(ndims(s
         return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
     end
 
-    return InitialCondition(; coordinates, density, velocity, pressure,
-                            particle_spacing=particle_spacing)
-
     return ic
 end
 
