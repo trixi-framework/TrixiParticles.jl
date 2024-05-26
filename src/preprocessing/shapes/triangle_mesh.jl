@@ -12,19 +12,10 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
     function TriangleMesh(face_vertices, normals_face, vertices)
         NDIMS = 3
+        ELTYPE = eltype(first(normals_face))
         n_faces = length(normals_face)
 
-        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
-        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
-
-        ELTYPE = eltype(first(normals_face))
-
-        face_vertices_ids = [(0, 0, 0) for _ in 1:n_faces]
-        face_edges_ids = [(0, 0, 0) for _ in 1:n_faces]
-
-        _edges = Dict{NTuple{2, Int}, Int}()
-
-        normals_vertex = [fill(zero(ELTYPE), SVector{NDIMS}) for _ in 1:length(vertices)]
+        face_vertices_ids = fill((0, 0, 0), n_faces)
 
         @threaded for i in 1:n_faces
             v1 = face_vertices[i][1]
@@ -40,7 +31,9 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
         end
 
         _edges = Dict{NTuple{2, Int}, Int}()
-        normals_edge = [fill(zero(ELTYPE), SVector{NDIMS}) for _ in 1:(3n_faces)]
+        face_edges_ids = fill((0, 0, 0), n_faces)
+        normals_edge = fill(fill(zero(ELTYPE), SVector{NDIMS}), 3n_faces)
+        normals_vertex = fill(fill(zero(ELTYPE), SVector{NDIMS}), length(vertices))
         edge_vertices_ids = fill((0, 0), 3n_faces)
 
         # Not thread supported (yet)
@@ -98,6 +91,9 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
         resize!(normals_edge, length(_edges))
         resize!(edge_vertices_ids, length(_edges))
+
+        min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
+        max_corner = SVector([maximum(v[i] for v in vertices) for i in 1:NDIMS]...)
 
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
