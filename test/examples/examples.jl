@@ -126,7 +126,7 @@
         @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "deformation_sphere_2d.jl"))
+                                                    "sphere_surface_tension_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -134,7 +134,7 @@
         @trixi_testset "fluid/sphere_surface_tension_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "deformation_sphere_3d.jl"))
+                                                    "sphere_surface_tension_3d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end
@@ -160,10 +160,10 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/wetting_water_spheres_2d.jl" begin
+        @trixi_testset "fluid/static_sphere_shape.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "wetting_water_spheres_2d.jl"))
+                                                    "static_sphere_shape.jl"))
         end
 
         @trixi_testset "fluid/moving_wall_2d.jl" begin

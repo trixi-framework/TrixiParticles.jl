@@ -17,7 +17,7 @@ tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 0.1)
+tank_size = (1.0, 0.1)
 
 fluid_density = 1000.0
 sound_speed = 120.0
@@ -31,20 +31,15 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, sphere_radius + 0.5 * fluid_particle_spacing)
-sphere2_center = (1.5, sphere_radius - 0.5 * fluid_particle_spacing)
+sphere1_center = (0.5, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
-sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
-                      fluid_density, sphere_type=VoxelSphere())
+
 
 # ==========================================================================================
 # ==== Fluid
 fluid_smoothing_length = 1.0 * fluid_particle_spacing
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-fluid_smoothing_length_2 = 3.0 * fluid_particle_spacing
-fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -65,12 +60,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
-
-sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-                                     state_equation, fluid_smoothing_kernel_2,
-                                     fluid_smoothing_length_2, viscosity=viscosity,
-                                     density_diffusion=density_diffusion,
-                                     acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary

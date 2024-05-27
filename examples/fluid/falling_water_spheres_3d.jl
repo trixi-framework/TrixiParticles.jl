@@ -21,7 +21,7 @@ sphere1 = SphereShape(fluid_particle_spacing, sphere1_radius, sphere1_center,
 sphere2 = SphereShape(fluid_particle_spacing, sphere1_radius, sphere2_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, 0.0, -2.0))
 
-# `compact_support` needs to be 2.0 * particle_spacing to be correct
+# `compact_support` needs to be `2.0 * particle_spacing` to be correct
 fluid_smoothing_length = 2.0 * fluid_particle_spacing
 
 trixi_include(@__MODULE__,

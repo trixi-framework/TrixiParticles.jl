@@ -6,7 +6,10 @@ using OrdinaryDiffEq
 fluid_density = 1000.0
 
 particle_spacing = 0.1
-square_size = 0.5
+
+# Note: Only square shapes will result in a sphere.
+# Furthermore, changes of the coefficients might be necessary for higher resolutions or larger squares.
+fluid_size = (0.5, 0.5)
 
 sound_speed = 20.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
@@ -20,10 +23,9 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.025
-no_square_particles = round(Int, square_size / particle_spacing)
-fluid = RectangularShape(particle_spacing, (no_square_particles, no_square_particles),
-                         (0.0, 0.0),
-                         density=fluid_density)
+
+fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
+                         zeros(length(fluid_size)), density=fluid_density)
 
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
@@ -39,7 +41,6 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
 
 # ==========================================================================================
 # ==== Simulation
-
 semi = Semidiscretization(fluid_system)
 
 tspan = (0.0, 5.0)
@@ -47,7 +48,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-# For overwriting via trixi_include
+# For overwriting via `trixi_include`
 saving_interval = 0.02
 saving_callback = SolutionSavingCallback(dt=saving_interval)
 
