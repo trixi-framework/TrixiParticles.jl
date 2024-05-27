@@ -162,7 +162,7 @@ end
 # DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
 # outside of callbacks.
 @inline function set_particle_pressure!(v, system::EntropicallyDampedSPHSystem, particle,
-                                       pressure)
+                                        pressure)
     v[end, particle] = pressure
 
     return v
