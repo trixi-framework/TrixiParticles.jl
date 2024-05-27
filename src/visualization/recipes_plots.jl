@@ -12,7 +12,6 @@ end
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
                                size=(600, 400)) # Default size
     systems_data = map(semi.systems) do system
-
         u = wrap_u(u_ode, system, semi)
         coordinates = active_coordinates(u, system)
         x = collect(coordinates[1, :])
