@@ -652,10 +652,15 @@ function update_nhs!(neighborhood_search,
     return neighborhood_search
 end
 
-function update_nhs!(neighborhood_search, system::RigidSPHSystem, neighbor::RigidSPHSystem,
+function update_nhs!(neighborhood_search,
+    system::RigidSPHSystem,
+    neighbor::Union{FluidSystem, TotalLagrangianSPHSystem, RigidSPHSystem},
     u_system, u_neighbor)
-# Don't update. Neighborhood search works on the initial coordinates, which don't change.
-return neighborhood_search
+# The current coordinates of fluids and solids change over time
+PointNeighbors.update!(neighborhood_search,
+          current_coordinates(u_system, system),
+          current_coordinates(u_neighbor, neighbor),
+          particles_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
