@@ -35,7 +35,6 @@ sphere1_center = (0.5, sphere_radius)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
 
-
 # ==========================================================================================
 # ==== Fluid
 fluid_smoothing_length = 1.0 * fluid_particle_spacing

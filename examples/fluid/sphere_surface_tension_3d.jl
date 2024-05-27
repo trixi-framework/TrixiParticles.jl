@@ -22,4 +22,5 @@ trixi_include(@__MODULE__,
               alpha=10 * nu / (smoothing_length * sound_speed),
               smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               particle_spacing=particle_spacing, sound_speed=sound_speed,
-              fluid_density=fluid_density, acceleration=(0.0, 0.0, 0.0), fluid_size=fluid_size)
+              fluid_density=fluid_density, acceleration=(0.0, 0.0, 0.0),
+              fluid_size=fluid_size)
