@@ -438,7 +438,7 @@ end
 end
 
 @inline function transfer_particle!(system_new, system_old, particle_old,
-                                      v_new, u_new, v_old, u_old)
+                                    v_new, u_new, v_old, u_old)
     particle_new = activate_next_particle(system_new)
 
     # Transfer densities
