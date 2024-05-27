@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.0025
 
-boundary_layers = 5
+boundary_layers = 4
 spacing_ratio = 1
 
 # ==========================================================================================
@@ -20,7 +20,7 @@ initial_fluid_size = (0.0, 0.0)
 tank_size = (2.0, 0.1)
 
 fluid_density = 1000.0
-sound_speed = 120
+sound_speed = 120.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
