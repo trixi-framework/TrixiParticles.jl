@@ -1,0 +1,275 @@
+"""
+    InFlow(; plane, flow_direction, density, particle_spacing,
+           initial_condition=nothing, extrude_geometry=nothing,
+           open_boundary_layers::Integer=0)
+
+Inflow boundary zone for [`OpenBoundarySPHSystem`](@ref)
+
+# Keywords
+- `plane`: Points defining the boundary zones front plane.
+           The points must either span a rectangular plane in 3D or a line in 2D.
+- `flow_direction`: Vector defining the flow direction.
+- `open_boundary_layers`: Number of particle layers in upstream direction.
+- `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
+- `density`: Particle density (see [`InitialCondition`](@ref)).
+- `initial_condition=nothing`: `InitialCondition` for boundary zone (optional).
+                               Particles outside the boundary zone will be removed.
+- `extrude_geometry=nothing`: Extrude a geometry inside the boundary zone (optional).
+                              For further information see [`extrude_geometry`](@ref).
+
+# Examples
+```julia
+# 2D
+plane_points = ([0.0, 0.0], [0.0, 1.0])
+flow_direction=[1.0, 0.0]
+
+inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                open_boundary_layers=4)
+
+# 3D
+plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+flow_direction=[0.0, 0.0, 1.0]
+
+inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                open_boundary_layers=4)
+
+# 3D particles sampled as cylinder
+circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
+
+inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                extrude_geometry=circle, open_boundary_layers=4)
+```
+"""
+struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
+    initial_condition :: IC
+    spanning_set      :: S
+    zone_origin       :: ZO
+    zone_width        :: ZW
+    flow_direction    :: FD
+
+    function InFlow(; plane, flow_direction, density, particle_spacing,
+                    initial_condition=nothing, extrude_geometry=nothing,
+                    open_boundary_layers::Integer=0)
+        if open_boundary_layers < sqrt(eps())
+            throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
+        end
+
+        # Unit vector pointing in downstream direction.
+        flow_direction_ = normalize(SVector(flow_direction...))
+
+        # Sample particles in boundary zone.
+        if isnothing(initial_condition) && isnothing(extrude_geometry)
+            initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
+                                                                density,
+                                                                direction=-flow_direction_,
+                                                                n_extrude=open_boundary_layers)
+        elseif !isnothing(extrude_geometry)
+            initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
+                                                                particle_spacing,
+                                                                density,
+                                                                direction=-flow_direction_,
+                                                                n_extrude=open_boundary_layers)
+        end
+
+        NDIMS = ndims(initial_condition)
+        ELTYPE = eltype(initial_condition)
+
+        zone_width = open_boundary_layers * initial_condition.particle_spacing
+
+        # Vectors spanning the boundary zone/box.
+        spanning_set, zone_origin = calculate_spanning_vectors(plane, zone_width)
+
+        # First vector of `spanning_vectors` is normal to the inflow plane.
+        # The normal vector must point in upstream direction for an inflow boundary.
+        dot_ = dot(normalize(spanning_set[:, 1]), flow_direction_)
+
+        if !isapprox(abs(dot_), 1.0, atol=1e-7)
+            throw(ArgumentError("flow direction and normal vector of " *
+                                "inflow-plane do not correspond"))
+        else
+            # Flip the inflow vector correspondingly
+            spanning_set[:, 1] .*= -dot_
+        end
+
+        spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+
+        # Remove paricles outside the boundary zone.
+        # This check is only necessary when custom `initial_condition` are passed.
+        ic = remove_outside_particles(initial_condition, spanning_set_, zone_origin)
+
+        return new{NDIMS, typeof(ic), typeof(spanning_set_), typeof(zone_origin),
+                   typeof(zone_width),
+                   typeof(flow_direction_)}(ic, spanning_set_, zone_origin, zone_width,
+                                            flow_direction_)
+    end
+end
+
+"""
+    OutFlow(; plane, flow_direction, density, particle_spacing,
+            initial_condition=nothing, extrude_geometry=nothing,
+            open_boundary_layers::Integer=0)
+
+Outflow boundary zone for [`OpenBoundarySPHSystem`](@ref)
+
+# Keywords
+- `plane`: Points defining the boundary zones front plane.
+           The points must either span a rectangular plane in 3D or a line in 2D.
+- `flow_direction`: Vector defining the flow direction.
+- `open_boundary_layers`: Number of particle layers in upstream direction.
+- `particle_spacing`: The spacing between the particles (see [`InitialCondition`](@ref)).
+- `density`: Particle density (see [`InitialCondition`](@ref)).
+- `initial_condition=nothing`: `InitialCondition` for boundary zone (optional).
+                              Particles outside the boundary zone will be removed.
+- `extrude_geometry=nothing`: Extrude a geometry inside the boundary zone (optional).
+                              For further information see [`extrude_geometry`](@ref).
+
+# Examples
+```julia
+# 2D
+plane_points = ([0.0, 0.0], [0.0, 1.0])
+flow_direction = [1.0, 0.0]
+
+outflow = OutFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                  open_boundary_layers=4)
+
+# 3D
+plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
+flow_direction = [0.0, 0.0, 1.0]
+
+outflow = OutFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                  open_boundary_layers=4)
+
+# 3D particles sampled as cylinder
+circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
+
+outflow = OutFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
+                  extrude_geometry=circle, open_boundary_layers=4)
+```
+"""
+struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
+    initial_condition :: IC
+    spanning_set      :: S
+    zone_origin       :: ZO
+    zone_width        :: ZW
+    flow_direction    :: FD
+
+    function OutFlow(; plane, flow_direction, density, particle_spacing,
+                     initial_condition=nothing, extrude_geometry=nothing,
+                     open_boundary_layers::Integer=0)
+        if open_boundary_layers < sqrt(eps())
+            throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
+        end
+
+        # Unit vector pointing in downstream direction.
+        flow_direction_ = normalize(SVector(flow_direction...))
+
+        # Sample particles in boundary zone.
+        if isnothing(initial_condition) && isnothing(extrude_geometry)
+            initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
+                                                                density,
+                                                                direction=flow_direction_,
+                                                                n_extrude=open_boundary_layers)
+        elseif !isnothing(extrude_geometry)
+            initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
+                                                                particle_spacing, density,
+                                                                direction=-flow_direction_,
+                                                                n_extrude=open_boundary_layers)
+        end
+
+        NDIMS = ndims(initial_condition)
+        ELTYPE = eltype(initial_condition)
+
+        zone_width = open_boundary_layers * initial_condition.particle_spacing
+
+        # Vectors spanning the boundary zone/box.
+        spanning_set, zone_origin = calculate_spanning_vectors(plane, zone_width)
+
+        # First vector of `spanning_vectors` is normal to the outflow plane.
+        # The normal vector must point in downstream direction for an outflow boundary.
+        dot_ = dot(normalize(spanning_set[:, 1]), flow_direction_)
+
+        if !isapprox(abs(dot_), 1.0, atol=1e-7)
+            throw(ArgumentError("flow direction and normal vector of " *
+                                "outflow-plane do not correspond"))
+        else
+            # Flip the inflow vector correspondingly
+            spanning_set[:, 1] .*= dot_
+        end
+
+        spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+
+        # Remove paricles outside the boundary zone.
+        # This check is only necessary when custom `initial_condition` are passed.
+        ic = remove_outside_particles(initial_condition, spanning_set_, zone_origin)
+
+        return new{NDIMS, typeof(ic), typeof(spanning_set_), typeof(zone_origin),
+                   typeof(zone_width),
+                   typeof(flow_direction_)}(ic, spanning_set_, zone_origin, zone_width,
+                                            flow_direction_)
+    end
+end
+
+@inline Base.ndims(::Union{InFlow{NDIMS}, OutFlow{NDIMS}}) where {NDIMS} = NDIMS
+
+# function calculate_spanning_vectors(plane::Shapes, zone_width)
+#     # TODO: Handle differently
+# end
+
+function calculate_spanning_vectors(plane, zone_width)
+    return spanning_vectors(plane, zone_width), SVector(plane[1]...)
+end
+
+function spanning_vectors(plane_points, zone_width)
+
+    # Convert to tuple
+    return spanning_vectors(tuple(plane_points...), zone_width)
+end
+
+function spanning_vectors(plane_points::NTuple{2}, zone_width)
+    plane_size = plane_points[2] - plane_points[1]
+
+    # Calculate normal vector of plane
+    b = Vector(normalize([-plane_size[2]; plane_size[1]]) * zone_width)
+
+    return hcat(b, plane_size)
+end
+
+function spanning_vectors(plane_points::NTuple{3}, zone_width)
+    # Vectors spanning the plane
+    edge1 = plane_points[2] - plane_points[1]
+    edge2 = plane_points[3] - plane_points[1]
+
+    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
+        throw(ArgumentError("the provided points do not span a rectangular plane"))
+    end
+
+    # Calculate normal vector of plane
+    c = Vector(normalize(cross(edge2, edge1)) * zone_width)
+
+    return hcat(c, edge1, edge2)
+end
+
+function remove_outside_particles(initial_condition, spanning_set, zone_origin)
+    (; coordinates, density, particle_spacing) = initial_condition
+
+    in_zone = trues(nparticles(initial_condition))
+
+    for particle in eachparticle(initial_condition)
+        current_position = current_coords(coordinates, initial_condition, particle)
+        particle_position = current_position - zone_origin
+
+        for dim in 1:ndims(initial_condition)
+            span_dim = spanning_set[dim]
+            # Checks whether the projection of the particle position
+            # falls within the range of the zone.
+            if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
+
+                # Particle is not in boundary zone.
+                in_zone[particle] = false
+            end
+        end
+    end
+
+    return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
+                            particle_spacing)
+end
