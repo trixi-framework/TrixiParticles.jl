@@ -309,10 +309,8 @@ end
 end
 
 function write_v0!(v0, system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    for particle in eachparticle(system)
-        # Set particle densities
-        v0[end, particle] = system.initial_condition.density[particle]
-    end
+    # Note that `.=` is very slightly faster, but not GPU-compatible
+    v0[end, :] = system.initial_condition.density
 
     return v0
 end
@@ -365,8 +363,8 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
     return system
 end
 
-@inline function surface_normal(particle, particle_system::FluidSystem,
-                                ::SurfaceTensionAkinci)
+@inline function surface_normal(::SurfaceTensionAkinci, particle_system::FluidSystem,
+                                particle)
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
