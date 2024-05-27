@@ -12,10 +12,9 @@ end
 RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
                                size=(600, 400)) # Default size
     systems_data = map(semi.systems) do system
-        (; initial_condition) = system
 
         u = wrap_u(u_ode, system, semi)
-        coordinates = current_coordinates(u, system)
+        coordinates = active_coordinates(u, system)
         x = collect(coordinates[1, :])
         y = collect(coordinates[2, :])
 
@@ -24,8 +23,8 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
             particle_spacing = 0.0
         end
 
-        x_min, y_min = minimum(initial_condition.coordinates, dims=2) .- 0.5particle_spacing
-        x_max, y_max = maximum(initial_condition.coordinates, dims=2) .+ 0.5particle_spacing
+        x_min, y_min = minimum(coordinates, dims=2) .- 0.5particle_spacing
+        x_max, y_max = maximum(coordinates, dims=2) .+ 0.5particle_spacing
 
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
                 label=timer_name(system))
