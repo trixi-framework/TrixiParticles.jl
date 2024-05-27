@@ -123,7 +123,7 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/deformation_sphere_2d.jl" begin
+        @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "deformation_sphere_2d.jl"))
@@ -131,7 +131,7 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/deformation_sphere_3d.jl" begin
+        @trixi_testset "fluid/sphere_surface_tension_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "deformation_sphere_3d.jl"))
