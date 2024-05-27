@@ -6,14 +6,17 @@ using OrdinaryDiffEq
 fluid_density = 1000.0
 
 particle_spacing = 0.1
+cube_size = 0.9
 
 sound_speed = 20
 
 # For all surface tension simulations, we need a compact support of `2 * particle_spacing`
 smoothing_length = 1.0 * particle_spacing
 
-fluid = RectangularShape(particle_spacing, (9, 9, 9), (0.0, 0.0, 0.0),
-                         density=fluid_density)
+no_cube_particles = round(Int, cube_size / particle_spacing)
+fluid = RectangularShape(particle_spacing,
+                         (no_cube_particles, no_cube_particles, no_cube_particles),
+                         (0.0, 0.0, 0.0), density=fluid_density)
 
 nu = 0.01
 

@@ -6,6 +6,7 @@ using OrdinaryDiffEq
 fluid_density = 1000.0
 
 particle_spacing = 0.1
+square_size = 0.5
 
 sound_speed = 20.0
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
@@ -19,8 +20,9 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.025
-
-fluid = RectangularShape(particle_spacing, (5, 5), (0.0, 0.0),
+no_square_particles = round(Int, square_size / particle_spacing)
+fluid = RectangularShape(particle_spacing, (no_square_particles, no_square_particles),
+                         (0.0, 0.0),
                          density=fluid_density)
 
 alpha = 8 * nu / (smoothing_length * sound_speed)
