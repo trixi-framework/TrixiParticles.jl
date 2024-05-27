@@ -44,7 +44,10 @@ tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
-saving_callback = SolutionSavingCallback(dt=0.02)
+
+# For overwriting via trixi_include
+saving_interval = 0.02
+saving_callback = SolutionSavingCallback(dt=saving_interval)
 
 stepsize_callback = StepsizeCallback(cfl=1.0)
 
