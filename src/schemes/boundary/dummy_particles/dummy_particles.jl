@@ -398,7 +398,7 @@ end
 
 @inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
                                   neighbor, system::BoundarySystem)
-    if system.ismoving[1]
+    if system.ismoving[]
         return 0.5 * density_neighbor *
                norm(current_velocity(v, system, particle) -
                     v_neighbor_system[1:ndims(system), neighbor])^2
