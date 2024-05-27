@@ -73,9 +73,9 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline set_particle_density(particle, v, system, density) = system
+@inline set_particle_density!(v, system, particle, density) = v
 
-@inline set_particle_pressure(particle, v, system, pressure) = system
+@inline set_particle_pressure!(v, system, particle, pressure) = v
 
 @inline function smoothing_kernel(system, distance)
     (; smoothing_kernel, smoothing_length) = system

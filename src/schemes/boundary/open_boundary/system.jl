@@ -562,11 +562,11 @@ end
 
     # Exchange densities
     density = particle_density(v_old, system_old, particle_old)
-    set_particle_density(particle_new, v_new, system_new, density)
+    set_particle_density!(v_new, system_new, particle_new, density)
 
     # Exchange pressure
     pressure = particle_pressure(v_old, system_old, particle_old)
-    set_particle_pressure(particle_new, v_new, system_new, pressure)
+    set_particle_pressure!(v_new, system_new, particle_new, pressure)
 
     # Exchange position and velocity
     for dim in 1:ndims(system_new)

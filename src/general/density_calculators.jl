@@ -35,14 +35,17 @@ end
     return v[end, particle]
 end
 
-# *Note* that these functions are intended to internally set the density for buffer particles
-# and density correction. It cannot be used to set up an initial condition,
-# as the particle density depends on the particle positions.
+# WARNING!
+# These functions are intended to be used internally to set the density
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline set_particle_density!(v, system, ::SummationDensity, particle, density) = v
 
-@inline set_particle_density(particle, v, ::SummationDensity, system, density) = system
-
-@inline function set_particle_density(particle, v, ::ContinuityDensity, system, density)
+@inline function set_particle_density!(v, system, ::ContinuityDensity, particle, density)
     v[end, particle] = density
+
+    return v
 end
 
 function summation_density!(system, semi, u, u_ode, density;
