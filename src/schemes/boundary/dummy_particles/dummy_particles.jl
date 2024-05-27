@@ -458,7 +458,7 @@ end
                                                              pos_diff, distance
         adami_pressure_inner!(boundary_model, system, neighbor_system, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
-                              distance, viscosity, cache, pressure)
+                              distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
