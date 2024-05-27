@@ -13,11 +13,11 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 1.5)
+tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 2.0)
+tank_size = (2.0, 0.1)
 
 fluid_density = 1000.0
 sound_speed = 120

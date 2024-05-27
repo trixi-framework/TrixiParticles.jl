@@ -13,11 +13,11 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.75)
+tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 2.0)
+tank_size = (2.0, 0.5)
 
 fluid_density = 1000.0
 sound_speed = 100
@@ -31,12 +31,12 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, 0.8)
-sphere2_center = (1.5, 0.8)
+sphere1_center = (0.5, 0.2)
+sphere2_center = (1.5, 0.2)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
-                      fluid_density, sphere_type=VoxelSphere())
+                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
-                      fluid_density, sphere_type=VoxelSphere())
+                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -3.0))
 
 # ==========================================================================================
 # ==== Fluid
