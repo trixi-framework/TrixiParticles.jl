@@ -415,7 +415,7 @@ end
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
-    transfer_quantities!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
+    transfer_particle!(fluid_system, system, particle, v_fluid, u_fluid, v, u)
 
     # Reset position of boundary particle
     for dim in 1:ndims(system)
@@ -429,7 +429,7 @@ end
 @inline function transform_particle!(fluid_system::FluidSystem, system,
                                      boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
-    transfer_quantities!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
+    transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 
     # Deactivate particle in interior domain
     deactivate_particle!(fluid_system, particle, u_fluid)
@@ -437,7 +437,7 @@ end
     return fluid_system
 end
 
-@inline function transfer_quantities!(system_new, system_old, particle_old,
+@inline function transfer_particle!(system_new, system_old, particle_old,
                                       v_new, u_new, v_old, u_old)
     particle_new = activate_next_particle(system_new)
 
