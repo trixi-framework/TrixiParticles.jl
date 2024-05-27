@@ -138,7 +138,7 @@ function Base.show(io::IO, system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "OpenBoundarySPHSystem{", ndims(system), "}(")
-    print(io, system.boundary_zone)
+    print(io, type2string(system.boundary_zone))
     print(io, ") with ", nparticles(system), " particles")
 end
 

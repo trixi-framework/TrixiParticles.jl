@@ -1,6 +1,5 @@
 @testset verbose=true "Characteristic Variables" begin
     particle_spacing = 0.1
-    boundary_zones = [InFlow(), OutFlow()]
 
     # Number of boundary particles in the influence of fluid particles
     influenced_particles = [20, 52, 26]
@@ -19,29 +18,37 @@
     reference_density = (pos, t) -> 1000.0 * t
 
     # Plane points of open boundary
-    point1s = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
-    point2s = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
+    plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
+    plane_points_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
 
-    @testset "$boundary_zone" for boundary_zone in boundary_zones
-        @testset "Points $(i)" for i in eachindex(point1s)
-            n_influenced = influenced_particles[i]
+    @testset "Points $(i)" for i in eachindex(plane_points_1)
+        n_influenced = influenced_particles[i]
 
-            plane_points = [point1s[i], point2s[i]]
+        plane_points = [plane_points_1[i], plane_points_2[i]]
 
-            plane_size = plane_points[2] - plane_points[1]
-            flow_directions = [
-                normalize([-plane_size[2], plane_size[1]]),
-                -normalize([-plane_size[2], plane_size[1]]),
+        plane_size = plane_points[2] - plane_points[1]
+        flow_directions = [
+            normalize([-plane_size[2], plane_size[1]]),
+            -normalize([-plane_size[2], plane_size[1]]),
+        ]
+
+        @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
+            flow_direction = flow_directions[j]
+            inflow = InFlow(; plane=plane_points, particle_spacing, density,
+                            flow_direction, open_boundary_layers)
+            outflow = OutFlow(; plane=plane_points, particle_spacing, density,
+                              flow_direction, open_boundary_layers)
+
+            boundary_zones = [
+                inflow,
+                outflow,
             ]
 
-            @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
-                flow_direction = flow_directions[j]
-
-                inlet_system = OpenBoundarySPHSystem(plane_points, boundary_zone,
-                                                     sound_speed; flow_direction,
-                                                     particle_spacing, open_boundary_layers,
-                                                     density, reference_velocity,
-                                                     reference_pressure, reference_density)
+            @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
+                boundary_system = OpenBoundarySPHSystem(boundary_zone, sound_speed;
+                                                        reference_velocity,
+                                                        reference_pressure,
+                                                        reference_density)
 
                 sign_ = (boundary_zone isa InFlow) ? 1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
@@ -52,13 +59,13 @@
                                                            density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
 
-                semi = Semidiscretization(fluid_system, inlet_system)
+                semi = Semidiscretization(fluid_system, boundary_system)
 
                 ode = semidiscretize(semi, (0.0, 5.0))
 
                 v0_ode, u0_ode = ode.u0.x
-                v = TrixiParticles.wrap_v(v0_ode, inlet_system, semi)
-                u = TrixiParticles.wrap_u(u0_ode, inlet_system, semi)
+                v = TrixiParticles.wrap_v(v0_ode, boundary_system, semi)
+                u = TrixiParticles.wrap_u(u0_ode, boundary_system, semi)
 
                 # ==== Characteristic Variables
                 # `J1 = -sound_speed^2 * (rho - rho_ref) + (p - p_ref)`
@@ -82,9 +89,9 @@
                 # First evaluation
                 # Particles not influenced by the fluid have zero values
                 t1 = 2.0
-                TrixiParticles.evaluate_characteristics!(inlet_system,
+                TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t1)
-                evaluated_vars1 = inlet_system.characteristics
+                evaluated_vars1 = boundary_system.characteristics
 
                 if boundary_zone isa InFlow
                     @test all(isapprox.(evaluated_vars1[1, :], 0.0))
@@ -102,9 +109,9 @@
                 # Second evaluation
                 # Particles not influenced by the fluid have previous values
                 t2 = 3.0
-                TrixiParticles.evaluate_characteristics!(inlet_system,
+                TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t2)
-                evaluated_vars2 = inlet_system.characteristics
+                evaluated_vars2 = boundary_system.characteristics
 
                 if boundary_zone isa InFlow
                     @test all(isapprox.(evaluated_vars2[1, :], 0.0))
