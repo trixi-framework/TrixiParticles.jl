@@ -14,7 +14,7 @@
 
             flow_directions = [
                 normalize([-plane_size[2], plane_size[1]]),
-                -normalize([-plane_size[2], plane_size[1]])
+                -normalize([-plane_size[2], plane_size[1]]),
             ]
 
             @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
@@ -27,7 +27,7 @@
 
                 boundary_zones = [
                     inflow,
-                    outflow
+                    outflow,
                 ]
 
                 @testset "$boundary_zone" for boundary_zone in boundary_zones
@@ -52,15 +52,15 @@
 
         plane_points_1 = [
             [0.0, 0.0, 0.0],
-            [0.3113730847835541, 0.19079485535621643, -0.440864622592926]
+            [0.3113730847835541, 0.19079485535621643, -0.440864622592926],
         ]
         plane_points_2 = [
             [1.0, 0.0, 0.0],
-            [-0.10468611121177673, 0.252103328704834, -0.44965094327926636]
+            [-0.10468611121177673, 0.252103328704834, -0.44965094327926636],
         ]
         plane_points_3 = [
             [0.0, 1.0, 0.0],
-            [0.3113730847835541, 0.25057315826416016, -0.02374829351902008]
+            [0.3113730847835541, 0.25057315826416016, -0.02374829351902008],
         ]
 
         @testset "Points $(i)" for i in eachindex(plane_points_1)
@@ -73,7 +73,7 @@
 
             flow_directions = [
                 normalize(cross(edge1, edge2)),
-                -normalize(cross(edge1, edge2))
+                -normalize(cross(edge1, edge2)),
             ]
 
             @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
@@ -86,7 +86,7 @@
 
                 boundary_zones = [
                     inflow,
-                    outflow
+                    outflow,
                 ]
 
                 @testset "$boundary_zone" for boundary_zone in boundary_zones
@@ -120,7 +120,7 @@
 
         boundary_zones = [
             inflow,
-            outflow
+            outflow,
         ]
 
         @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
@@ -161,7 +161,7 @@
 
         boundary_zones = [
             inflow,
-            outflow
+            outflow,
         ]
 
         @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones

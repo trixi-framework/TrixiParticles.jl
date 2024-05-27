@@ -30,30 +30,6 @@ about the method see [Open Boundary System](@ref open_boundary).
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
                        Density is constant zero by default.
-
-# Examples
-```julia
-# 2D inflow
-plane_points = ([0.0, 0.0], [0.0, 1.0])
-flow_direction=[1.0, 0.0]
-
-system = OpenBoundarySPHSystem(plane_points, InFlow(), 10.0; particle_spacing=0.1,
-                               open_boundary_layers=4, density=1.0, flow_direction)
-
-# 3D outflow
-plane_points = ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0])
-flow_direction=[0.0, 0.0, 1.0]
-
-system = OpenBoundarySPHSystem(plane_points, OutFlow(), 10.0; particle_spacing=0.1,
-                               open_boundary_layers=4, density=1.0, flow_direction)
-
-# 3D particles sampled as cylinder
-circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
-
-system = OpenBoundarySPHSystem(plane_points, InFlow(), 10.0; particle_spacing=0.1,
-                               sample_geometry=circle,
-                               open_boundary_layers=4, density=1.0, flow_direction)
-```
 """
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV, RP,
                              RD, B} <: System{NDIMS}
