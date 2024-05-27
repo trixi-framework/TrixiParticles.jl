@@ -14,7 +14,7 @@ surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.025)
 # `density_diffusion` is deactivated since the interaction with the surface tension model can
 # cause stability problems.
 # `adhesion_coefficient` needs to be set to a value so that the fluid doesn't separate
-# from the boundary
+# from the boundary.
 # Note: The surface tension model leads to an increase in compressibility of the fluid,
 #       which needs to be rectified by an increase of the `sound_speed`.
 # Note: The Wendland Kernels don't work very well here since the `SurfaceTensionAkinci`

@@ -11,9 +11,10 @@ sound_speed = 20
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=7, clip_negative_pressure=true)
 
-# For all surface tension simulations needs to be smoothing_length = 4r
-smoothing_length = 2.0 * particle_spacing
-smoothing_kernel = WendlandC2Kernel{3}()
+# For all surface tension simulations, we need a compact support of `2 * particle_spacing`
+smoothing_length = 1.0 * particle_spacing
+smoothing_kernel = SchoenbergCubicSplineKernel{3}()
+nu = 0.025
 
 fluid = RectangularShape(particle_spacing, (9, 9, 9), (0.0, 0.0, 0.0),
                          density=fluid_density)
@@ -36,7 +37,7 @@ tspan = (0.0, 10.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=1000)
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.1)
 
 stepsize_callback = StepsizeCallback(cfl=1.2)
 

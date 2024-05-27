@@ -1,5 +1,5 @@
-# In this example two circles of water drop to the floor demonstrating the difference
-# between the behavior with and without surface tension modelling.
+# In this example we try to approach the static shape of a water droplet on a horizontal plane.
+# The shape of a static droplet can be calculated from the Young-Laplace equation.
 using TrixiParticles
 using OrdinaryDiffEq
 
