@@ -155,6 +155,8 @@
                 r"└ New tank length in x-direction.*\n",
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n",
+                r"┌ Info: The desired tank length in z-direction .*\n",
+                r"└ New tank length in z-direction.*\n",
             ]
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0

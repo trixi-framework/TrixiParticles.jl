@@ -49,7 +49,6 @@ nu = 0.00025
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
-density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
                                                      state_equation, fluid_smoothing_kernel,
@@ -66,8 +65,8 @@ boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-                                             fluid_smoothing_kernel_2,
-                                             fluid_smoothing_length_2,
+                                             fluid_smoothing_kernel,
+                                             fluid_smoothing_length,
                                              viscosity=ViscosityAdami(nu=2.0 * nu))
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
@@ -76,7 +75,7 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coef
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(boundary_system, sphere_surface_tension, sphere)
+semi = Semidiscretization(boundary_system, sphere_surface_tension)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
