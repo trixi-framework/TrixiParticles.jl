@@ -245,7 +245,7 @@
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
                                                     "n_body_benchmark_trixi.jl")) [
-                r"WARNING: replacing module*\n",
+                r"WARNING: Method definition interact!.*\n",
             ]
         end
 
