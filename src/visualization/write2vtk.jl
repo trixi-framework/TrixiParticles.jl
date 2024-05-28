@@ -188,7 +188,8 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
                        for particle in eachparticle(system)]
 
     if system.surface_normal !== nothing
-        vtk["surf_normal"] = [surface_normal(system, particle) for particle in eachparticle(system)]
+        vtk["surf_normal"] = [surface_normal(system, particle)
+                              for particle in eachparticle(system)]
     end
 
     if write_meta_data

@@ -145,7 +145,8 @@ end
 
 function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
     surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-    return (; surface_normal)
+    neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
+    return (; surface_normal, neighbor_count)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -355,6 +356,7 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
 
     # Reset surface normal
     set_zero!(cache.surface_normal)
+    set_zero!(cache.neighbor_count)
 
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -363,6 +365,7 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
 
         calc_normal_akinci!(system, neighbor_system, surface_tension, u, v_neighbor_system,
                             u_neighbor_system, nhs)
+        remove_invalid_normals!(system, surface_tension)
     end
     return system
 end
