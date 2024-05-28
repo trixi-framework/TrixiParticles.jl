@@ -33,8 +33,8 @@ fluid_smoothing_length = 1.0 * fluid_particle_spacing
 nu = 0.001
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-# `adhesion_coefficient = 1.0` and `surface_tension_coefficient=0.01` for perfect wetting
-# `adhesion_coefficient = 0.001` and `surface_tension_coefficient=2.0` for no wetting
+# `adhesion_coefficient = 1.0` and `surface_tension_coefficient = 0.01` for perfect wetting
+# `adhesion_coefficient = 0.001` and `surface_tension_coefficient = 2.0` for no wetting
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
               sphere=nothing, sphere1=sphere1, adhesion_coefficient=0.001,
