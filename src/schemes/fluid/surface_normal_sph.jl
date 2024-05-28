@@ -8,7 +8,8 @@ function AkinciSurfaceNormal(; smoothing_kernel, smoothing_length)
 end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
-# Note: most of the time this only leads to an approximation of the surface normal
+# Note: This is the simplest form of normal approximation commonly used in SPH and comes
+# with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
 function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                              surface_tension::SurfaceTensionAkinci, u_system,
                              v_neighbor_system, u_neighbor_system,
@@ -47,7 +48,7 @@ end
 function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTensionAkinci)
     (; cache) = system
 
-    # We remove invalid normals (too few neighbors) to reduce the impact of undefined normals
+    # We remove invalid normals (too few neighbors) to reduce the impact of underdefined normals
     for particle in each_moving_particle(system)
         # A corner has that many neighbors assuming a regular 2 * r distribution and a compact_support of 4r
         if cache.neighbor_count[particle] < 2^ndims(system)+1
