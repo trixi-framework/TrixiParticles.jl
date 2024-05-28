@@ -40,8 +40,8 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 2.0 * fluid_particle_spacing
-fluid_smoothing_kernel = WendlandC2Kernel{2}()
+fluid_smoothing_length = 1.0 * fluid_particle_spacing
+fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
@@ -55,7 +55,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
@@ -67,11 +67,12 @@ sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
+wall_viscosity = nu
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=nu))
+                                             viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     adhesion_coefficient=0.001)
@@ -91,4 +92,5 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
+            dt=1e-5,
             save_everystep=false, callback=callbacks);
