@@ -92,5 +92,4 @@ callbacks = CallbackSet(info_callback, saving_callback)
 sol = solve(ode, RDPK3SpFSAL35(),
             abstol=1e-6, # Default abstol is 1e-6
             reltol=1e-4, # Default reltol is 1e-3
-            dt=1e-5,
             save_everystep=false, callback=callbacks);
