@@ -13,7 +13,7 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-tspan = (0.0, 0.3)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
@@ -43,9 +43,9 @@ fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 # for perfect wetting
-nu = 0.00025
+# nu = 0.0005
 # for no wetting
-# nu = 0.001
+nu = 0.001
 
 alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
@@ -56,7 +56,7 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      viscosity=viscosity,
                                                      density_diffusion=nothing,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.01),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=2.0),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # ==========================================================================================
@@ -71,7 +71,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=1.0)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.001)
 
 # ==========================================================================================
 # ==== Simulation

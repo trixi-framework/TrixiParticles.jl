@@ -8,7 +8,7 @@ fluid_density = 1000.0
 particle_spacing = 0.1
 fluid_size = (0.9, 0.9, 0.9)
 
-sound_speed = 20
+sound_speed = 20.0
 
 # For all surface tension simulations, we need a compact support of `2 * particle_spacing`
 smoothing_length = 1.0 * particle_spacing
@@ -22,5 +22,4 @@ trixi_include(@__MODULE__,
               alpha=10 * nu / (smoothing_length * sound_speed),
               smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               particle_spacing=particle_spacing, sound_speed=sound_speed,
-              fluid_density=fluid_density, acceleration=(0.0, 0.0, 0.0),
-              fluid_size=fluid_size)
+              fluid_density=fluid_density, fluid_size=fluid_size)

@@ -34,4 +34,4 @@ trixi_include(@__MODULE__,
               fluid_smoothing_length=fluid_smoothing_length,
               fluid_smoothing_kernel=WendlandC2Kernel{3}(),
               nu=nu, alpha=10 * nu / (fluid_smoothing_length * sound_speed),
-              surface_tension_coefficient=1.0)
+              surface_tension_coefficient=1.0, adhesion_coefficient=0.5)

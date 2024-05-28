@@ -162,10 +162,10 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/static_sphere_shape.jl" begin
+        @trixi_testset "fluid/sphere_surface_tension_wall_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "static_sphere_shape.jl"))
+                                                    "sphere_surface_tension_wall_2d.jl"))
         end
 
         @trixi_testset "fluid/moving_wall_2d.jl" begin
