@@ -6,8 +6,11 @@ function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
                    particle_system::WeaklyCompressibleSPHSystem,
                    neighbor_system)
-    (; density_calculator, state_equation, correction) = particle_system
+    (; density_calculator, state_equation, correction, surface_tension) = particle_system
     (; sound_speed) = state_equation
+
+    surface_tension_a = surface_tension_model(particle_system)
+    surface_tension_b = surface_tension_model(neighbor_system)
 
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
@@ -25,9 +28,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         rho_mean = 0.5 * (rho_a + rho_b)
 
         # Determine correction values
-        viscosity_correction, pressure_correction = free_surface_correction(correction,
-                                                                            particle_system,
-                                                                            rho_mean)
+        viscosity_correction, pressure_correction, surface_tension_correction = free_surface_correction(correction,
+                                                                                                        particle_system,
+                                                                                                        rho_mean)
 
         grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance, particle)
 
@@ -55,8 +58,17 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      particle, neighbor, pos_diff, distance,
                                      sound_speed, m_a, m_b, rho_mean)
 
-        for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i]
+        dv_surface_tension = surface_tension_correction *
+                             surface_tension_force(surface_tension_a, surface_tension_b,
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
+
+        dv_adhesion = adhesion_force(surface_tension, particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance)
+
+        @inbounds for i in 1:ndims(particle_system)
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
+                               dv_adhesion[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -102,38 +114,6 @@ end
     density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
                        particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                        particle_system, neighbor_system, grad_kernel)
-end
-
-@inline function density_diffusion!(dv, density_diffusion::DensityDiffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system::WeaklyCompressibleSPHSystem,
-                                    neighbor_system::WeaklyCompressibleSPHSystem,
-                                    grad_kernel)
-    # Density diffusion terms are all zero for distance zero
-    distance < sqrt(eps()) && return
-
-    (; delta) = density_diffusion
-    (; smoothing_length, state_equation) = particle_system
-    (; sound_speed) = state_equation
-
-    volume_b = m_b / rho_b
-
-    psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
-                                particle_system, particle, neighbor)
-    density_diffusion_term = dot(psi, grad_kernel) * volume_b
-
-    dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term
-end
-
-# Density diffusion `nothing` or interaction other than fluid-fluid
-@inline function density_diffusion!(dv, density_diffusion,
-                                    v_particle_system, v_neighbor_system,
-                                    particle, neighbor, pos_diff, distance,
-                                    m_b, rho_a, rho_b,
-                                    particle_system, neighbor_system, grad_kernel)
-    return dv
 end
 
 @inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,

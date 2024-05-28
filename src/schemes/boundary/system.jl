@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing)
+    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -10,30 +10,38 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
+   Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
-    initial_condition :: IC
-    coordinates       :: CO # Array{ELTYPE, 2}
-    boundary_model    :: BM
-    movement          :: M
-    ismoving          :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
-    cache             :: CA
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, CA} <:
+       BoundarySystem{NDIMS}
+    initial_condition    :: IC
+    coordinates          :: CO # Array{ELTYPE, 2}
+    boundary_model       :: BM
+    movement             :: M
+    ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    adhesion_coefficient :: ELTYPE
+    cache                :: CA
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, cache)
-        new{typeof(boundary_model), size(coordinates, 1),
+                               ismoving, adhesion_coefficient, cache)
+        ELTYPE = eltype(coordinates)
+
+        new{typeof(boundary_model), size(coordinates, 1), ELTYPE,
             typeof(initial_condition), typeof(coordinates),
             typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
                                                                coordinates, boundary_model,
-                                                               movement,
-                                                               ismoving, cache)
+                                                               movement, ismoving,
+                                                               adhesion_coefficient, cache)
     end
 end
 
-function BoundarySPHSystem(initial_condition, model; movement=nothing)
+function BoundarySPHSystem(initial_condition, model; movement=nothing,
+                           adhesion_coefficient=0.0)
     coordinates = copy(initial_condition.coordinates)
+
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
@@ -45,8 +53,9 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing)
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
-    return BoundarySPHSystem(initial_condition, coordinates, model,
-                             movement, ismoving, cache)
+    # Because of dispatches boundary model needs to be first!
+    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
+                             ismoving, adhesion_coefficient, cache)
 end
 
 """
@@ -156,6 +165,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, "BoundarySPHSystem{", ndims(system), "}(")
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
+    print(io, ", ", system.adhesion_coefficient)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -171,6 +181,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_line(io, "movement function",
                      isnothing(system.movement) ? "nothing" :
                      string(system.movement.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_footer(io)
     end
 end
