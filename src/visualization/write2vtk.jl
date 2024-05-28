@@ -85,7 +85,8 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     # Reset the collection when the iteration is 0
     pvd = paraview_collection(collection_file; append=iter > 0)
 
-    points = periodic_coords(current_coordinates(u, system), periodic_box)
+    points = PointNeighbors.periodic_coords(current_coordinates(u, system),
+                                            periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
@@ -98,6 +99,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
     end
 
     vtk_grid(file, points, cells) do vtk
+        # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
         # Store particle index
@@ -170,6 +172,12 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     end
 
     return file
+end
+
+function write2vtk!(vtk, v, u, t, system; write_meta_data=true)
+    vtk["velocity"] = view(v, 1:ndims(system), :)
+
+    return vtk
 end
 
 function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)

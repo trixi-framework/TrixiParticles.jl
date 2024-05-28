@@ -5,6 +5,7 @@ TrixiParticles.jl is a numerical simulation framework designed for particle-base
 ## Features
 - Incompressible Navier-Stokes
   - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
+  - Models: Surface Tension
 - Solid-body mechanics
   - Methods: Total Lagrangian SPH (TLSPH)
 - Fluid-Structure Interaction
