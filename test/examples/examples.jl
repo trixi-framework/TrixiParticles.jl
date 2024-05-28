@@ -190,7 +190,9 @@
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
-                                                    "n_body_benchmark_trixi.jl"))
+                                                    "n_body_benchmark_trixi.jl"))[
+                r"WARNING: Method definition interact!*\n",
+                ]
         end
 
         @trixi_testset "n_body/n_body_benchmark_reference.jl" begin
