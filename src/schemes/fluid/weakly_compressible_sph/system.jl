@@ -356,9 +356,8 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         nhs = get_neighborhood_search(system, semi)
 
-        calc_normal_akinci!(system, surface_tension, u, v_neighbor_system,
-                            u_neighbor_system, nhs,
-                            neighbor_system)
+        calc_normal_akinci!(system, neighbor_system, surface_tension, u, v_neighbor_system,
+                            u_neighbor_system, nhs)
     end
     return system
 end
