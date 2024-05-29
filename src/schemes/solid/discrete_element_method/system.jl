@@ -53,9 +53,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE,
-                   typeof(initial_condition),
-                   typeof(mass),
+        return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                    typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
                                          poissons_ratio, normal_stiffness,
                                          damping_coefficient, acceleration_, source_terms)
