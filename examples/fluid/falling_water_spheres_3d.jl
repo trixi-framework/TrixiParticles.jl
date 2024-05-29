@@ -22,7 +22,7 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere1_radius, sphere2_center,
                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, 0.0, -2.0))
 
 # `compact_support` needs to be `2.0 * particle_spacing` to be correct
-fluid_smoothing_length = 2.0 * fluid_particle_spacing
+fluid_smoothing_length = 1.0 * fluid_particle_spacing
 
 trixi_include(@__MODULE__,
               joinpath(examples_dir(), "fluid", "falling_water_spheres_2d.jl"),
@@ -32,6 +32,6 @@ trixi_include(@__MODULE__,
               faces=(true, true, true, true, true, false),
               acceleration=(0.0, 0.0, -gravity), sphere1=sphere1, sphere2=sphere2,
               fluid_smoothing_length=fluid_smoothing_length,
-              fluid_smoothing_kernel=WendlandC2Kernel{3}(),
+              fluid_smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               nu=nu, alpha=10 * nu / (fluid_smoothing_length * sound_speed),
-              surface_tension_coefficient=1.0)
+              surface_tension_coefficient=1.5, adhesion_coefficient=0.5)

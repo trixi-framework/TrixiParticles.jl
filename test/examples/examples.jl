@@ -162,10 +162,10 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/static_sphere_shape.jl" begin
+        @trixi_testset "fluid/sphere_surface_tension_wall_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
-                                                    "static_sphere_shape.jl"))
+                                                    "sphere_surface_tension_wall_2d.jl"))
         end
 
         @trixi_testset "fluid/moving_wall_2d.jl" begin
@@ -244,7 +244,9 @@
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
-                                                    "n_body_benchmark_trixi.jl"))
+                                                    "n_body_benchmark_trixi.jl")) [
+                r"WARNING: Method definition interact!.*\n",
+            ]
         end
 
         @trixi_testset "n_body/n_body_benchmark_reference.jl" begin

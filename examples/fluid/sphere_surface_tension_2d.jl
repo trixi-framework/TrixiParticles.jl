@@ -34,7 +34,6 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            smoothing_length,
                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
                                                                                  beta=0.0),
-                                           acceleration=(0.0, 0.0),
                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
                                            source_terms=source_terms)
@@ -43,14 +42,13 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
 # ==== Simulation
 semi = Semidiscretization(fluid_system)
 
-tspan = (0.0, 5.0)
+tspan = (0.0, 3.0)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
 # For overwriting via `trixi_include`
-saving_interval = 0.02
-saving_callback = SolutionSavingCallback(dt=saving_interval)
+saving_callback = SolutionSavingCallback(dt=0.02)
 
 stepsize_callback = StepsizeCallback(cfl=1.0)
 
