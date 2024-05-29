@@ -148,7 +148,6 @@ Modules = [TrixiParticles]
 Pages = [joinpath("general", "corrections.jl")]
 ```
 
-
 ## [Surface Tension](@id surface_tension)
 
 ### Akinci-based intra-particle force surface tension and wall adhesion model

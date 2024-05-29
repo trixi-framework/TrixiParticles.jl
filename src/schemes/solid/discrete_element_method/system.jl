@@ -26,8 +26,8 @@ specified material properties and contact mechanics.
  !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
 """
-struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
+struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
+    initial_condition   :: IC
     mass                :: ARRAY1D               # [particle]
     radius              :: ARRAY1D               # [particle]
     elastic_modulus     :: ELTYPE
@@ -53,7 +53,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ST} <: SolidSystem{NDIMS}
             throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
 
-        return new{NDIMS, ELTYPE, typeof(mass),
+        return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                    typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
                                          poissons_ratio, normal_stiffness,
                                          damping_coefficient, acceleration_, source_terms)

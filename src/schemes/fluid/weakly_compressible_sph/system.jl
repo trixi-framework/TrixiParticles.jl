@@ -42,7 +42,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, SRFT, C} <: FluidSystem{NDIMS}
+                                   V, DD, COR, PF, ST, SRFT, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -349,16 +349,15 @@ function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, 
     (; cache) = system
 
     # Reset surface normal
-    cache.surface_normal .= zero(eltype(cache.surface_normal))
+    set_zero!(cache.surface_normal)
 
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
         nhs = get_neighborhood_search(system, semi)
 
-        calc_normal_akinci!(system, surface_tension, u, v_neighbor_system,
-                            u_neighbor_system, nhs,
-                            neighbor_system)
+        calc_normal_akinci!(system, neighbor_system, surface_tension, u, v_neighbor_system,
+                            u_neighbor_system, nhs)
     end
     return system
 end
