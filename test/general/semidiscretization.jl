@@ -90,7 +90,7 @@
                                                        kernel, 1.0)
 
             error_str = "`WeaklyCompressibleSPHSystem` cannot be used without setting a " *
-                        "`state_equation` for all boundary systems"
+                        "`state_equation` for all boundary models"
             @test_throws ArgumentError(error_str) Semidiscretization(fluid_system,
                                                                      boundary_system)
         end

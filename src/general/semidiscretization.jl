@@ -741,7 +741,7 @@ function check_configuration(boundary_system::BoundarySPHSystem, systems)
            boundary_model isa BoundaryModelDummyParticles &&
            isnothing(boundary_model.state_equation)
             throw(ArgumentError("`WeaklyCompressibleSPHSystem` cannot be used without " *
-                                "setting a `state_equation` for all boundary systems"))
+                                "setting a `state_equation` for all boundary models"))
         end
     end
 end

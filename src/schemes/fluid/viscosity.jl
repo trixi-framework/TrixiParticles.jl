@@ -190,6 +190,7 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
+    # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     eta_a = nu * rho_a
     eta_b = nu * rho_b
 
