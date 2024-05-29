@@ -17,16 +17,15 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 
 ## Version 0.1.2
 
+### Added
+A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids" (2013) was added to WCSPH
+
+## Version 0.1.1
+
 ### Highlights
 
 #### Discrete Element Method
 A basic implementation of the discrete element method was added.
-
-
-## Version 0.1.1
-
-### Added
-A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids", 2013 was added to WCSPH
 
 # Pre Initial Release (v0.1.0)
 This section summarizes the initial features that TrixiParticles.jl was released with.
