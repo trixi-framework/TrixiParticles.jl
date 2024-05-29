@@ -71,5 +71,6 @@ end
 include("pressure_acceleration.jl")
 include("viscosity.jl")
 include("surface_tension.jl")
+include("surface_normal_sph.jl")
 include("weakly_compressible_sph/weakly_compressible_sph.jl")
 include("entropically_damped_sph/entropically_damped_sph.jl")
