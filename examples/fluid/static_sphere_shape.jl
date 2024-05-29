@@ -13,7 +13,6 @@ spacing_ratio = 1
 # ==========================================================================================
 # ==== Experiment Setup
 gravity = 9.81
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
 tspan = (0.0, 5.0)
 
 # Boundary geometry and initial fluid particle positions
@@ -22,16 +21,7 @@ tank_size = (0.05, 0.01)
 
 fluid_density = 1000.0
 sound_speed = 50
-=======
-tspan = (0.0, 0.3)
 
-# Boundary geometry and initial fluid particle positions
-initial_fluid_size = (0.0, 0.0)
-tank_size = (1.0, 0.1)
-
-fluid_density = 1000.0
-sound_speed = 120.0
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
                                    exponent=1)
 
@@ -42,12 +32,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.0015
 
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
-sphere1_center = (0.025, sphere_radius + 0.5 * fluid_particle_spacing)
-sphere2_center = (1.5, sphere_radius - 0.5 * fluid_particle_spacing)
-=======
+
 sphere1_center = (0.5, sphere_radius)
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
                       fluid_density, sphere_type=VoxelSphere())
 
@@ -56,15 +42,12 @@ sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
 # fluid_smoothing_length = 1.2 * fluid_particle_spacing
 # fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
 fluid_smoothing_length = 2.5 * fluid_particle_spacing
 fluid_smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_smoothing_length_2 = 2.5 * fluid_particle_spacing
 fluid_smoothing_kernel_2 = WendlandC2Kernel{2}()
 
-=======
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 fluid_density_calculator = ContinuityDensity()
 
 # water at 20C
@@ -73,15 +56,10 @@ nu = 0.00089
 # too much 0.00089 -> 0.00045 -> 0.0002 -> 0.0001
 # no impact 0.00005
 
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
 # the following term only holds for 2d sims
 # alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ViscosityAdami(nu=nu)
 # density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
-=======
-alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
-viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 
 # with increased smoothing length surface_tension is too small
 sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
@@ -92,7 +70,6 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.008),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
 # 0.001
 # 0.2 > 90
 # 0.15 > 90
@@ -245,23 +222,15 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
 #                                      density_diffusion=density_diffusion,
 #                                      acceleration=(0.0, -gravity))
 
-=======
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 # ==========================================================================================
 # ==== Boundary
 boundary_density_calculator = AdamiPressureExtrapolation()
 boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
                                              state_equation=state_equation,
                                              boundary_density_calculator,
-<<<<<<< HEAD:examples/fluid/wetting_water_spheres_2d.jl
                                              fluid_smoothing_kernel_2,
                                              fluid_smoothing_length_2,
                                              viscosity=ViscosityAdami(nu=10 * nu))
-=======
-                                             fluid_smoothing_kernel,
-                                             fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=2.0 * nu))
->>>>>>> generalize_surface_normal_calc:examples/fluid/static_sphere_shape.jl
 
 # adhesion_coefficient = 1.0 and surface_tension_coefficient=0.01 for perfect wetting
 # adhesion_coefficient = 0.001 and surface_tension_coefficient=2.0 for no wetting
