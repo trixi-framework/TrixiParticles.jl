@@ -54,8 +54,8 @@ water = union(sphere1, sphere2, sphere3, sphere4)
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 2.5 * fluid_particle_spacing
-fluid_smoothing_kernel = WendlandC2Kernel{2}()
+fluid_smoothing_length = 1.0 * fluid_particle_spacing
+fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
