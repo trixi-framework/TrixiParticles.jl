@@ -187,6 +187,11 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in eachparticle(system)]
 
+    if system.surface_normal !== nothing
+        vtk["surf_normal"] = [surface_normal(system, particle)
+                              for particle in eachparticle(system)]
+    end
+
     if write_meta_data
         vtk["acceleration"] = system.acceleration
         vtk["viscosity"] = type2string(system.viscosity)
