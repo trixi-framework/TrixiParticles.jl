@@ -93,7 +93,7 @@ extra_callback = nothing
 
 # Example on how interpolated planes can be saved using the postprocessing callback.
 function save_interpolated_plane(v, u, t, system)
-    # size of the patch to be interpolated
+    # Size of the patch to be interpolated
     interpolation_start = [0.0, 0.0]
     interpolation_end = [tank_size[1], tank_size[2]]
 
