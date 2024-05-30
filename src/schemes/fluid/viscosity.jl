@@ -25,7 +25,7 @@ function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
                       sound_speed, m_a, m_b, rho_mean)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+    return zero(pos_diff)
 end
 
 @doc raw"""
@@ -100,7 +100,7 @@ end
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, smoothing_length)
 
     if pi_ab < eps()
-        return SVector(ntuple(_ -> 0.0, Val(ndims(particle_system))))
+        return zero(pos_diff)
     end
 
     return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
@@ -190,6 +190,7 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
+    # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     eta_a = nu * rho_a
     eta_b = nu * rho_b
 

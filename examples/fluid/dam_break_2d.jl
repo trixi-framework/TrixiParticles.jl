@@ -57,8 +57,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity),
-                                           correction=nothing)
+                                           acceleration=(0.0, -gravity), correction=nothing,
+                                           surface_tension=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -69,7 +69,7 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
