@@ -29,8 +29,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        faces=(true, true, true, false),
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-
-box = RectangularShape(fluid_particle_spacing, (300, 125), (0.485, 0.0), density=fluid_density)
+box = RectangularShape(fluid_particle_spacing, (300, 125), (0.485, 0.0),
+                       density=fluid_density)
 
 # box = SphereShape(fluid_particle_spacing, 1.0, (0.5, 0.0),
 #                       fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, 0.0))
@@ -60,7 +60,7 @@ fluid_smoothing_kernel = WendlandC2Kernel{2}()
 fluid_density_calculator = ContinuityDensity()
 
 nu = 0.00089
-alpha = 0.75*8 * nu / (fluid_smoothing_length * sound_speed)
+alpha = 0.75 * 8 * nu / (fluid_smoothing_length * sound_speed)
 # viscosity = ViscosityAdami(nu=nu)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
@@ -71,7 +71,8 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(water, fluid_density_calcul
                                                      fluid_smoothing_length,
                                                      viscosity=viscosity,
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1*0.011),
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.1 *
+                                                                                                                      0.011),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # sphere_surface_tension = WeaklyCompressibleSPHSystem(water, fluid_density_calculator,
@@ -103,19 +104,20 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              state_equation=state_equation,
                                              boundary_density_calculator,
                                              fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=0.5*nu))
+                                             viscosity=ViscosityAdami(nu=0.5 * nu))
 
 boundary_model_box = BoundaryModelDummyParticles(box.density, box.mass,
-                                             state_equation=state_equation,
-                                             boundary_density_calculator,
-                                             fluid_smoothing_kernel, fluid_smoothing_length,
-                                             viscosity=ViscosityAdami(nu=0.5*nu))
+                                                 state_equation=state_equation,
+                                                 boundary_density_calculator,
+                                                 fluid_smoothing_kernel,
+                                                 fluid_smoothing_length,
+                                                 viscosity=ViscosityAdami(nu=0.5 * nu))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
                                     adhesion_coefficient=0.01)
 
 boundary_system2 = BoundarySPHSystem(box, boundary_model_box,
-                                    adhesion_coefficient=0.01)
+                                     adhesion_coefficient=0.01)
 
 # boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 

@@ -71,5 +71,6 @@ export kinetic_energy, total_mass, max_pressure, min_pressure, avg_pressure,
 export interpolate_line, interpolate_point, interpolate_plane_3d, interpolate_plane_2d,
        interpolate_plane_2d_vtk
 export SurfaceTensionAkinci, CohesionForceAkinci
+export AkinciSurfaceNormal
 
 end # module

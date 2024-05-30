@@ -83,8 +83,8 @@ semi = Semidiscretization(boundary_system, sphere_surface_tension, sphere)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out", prefix="",
-                                         write_meta_data=true)
+saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
+                                         prefix="", write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 
