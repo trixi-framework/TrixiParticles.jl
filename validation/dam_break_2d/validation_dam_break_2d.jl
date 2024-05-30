@@ -105,6 +105,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
               fluid_system=fluid_system_edac, tank=tank_edac,
+              save_interpolation_cb=nothing,
               threaded_nhs_update=false) # To get the same results with different thread numbers
 
 reference_file_edac_name = joinpath(validation_dir(), "dam_break_2d",
@@ -140,6 +141,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
+              save_interpolation_cb=nothing,
               threaded_nhs_update=false) # To get the same results with different thread numbers
 
 reference_file_wcsph_name = joinpath(validation_dir(), "dam_break_2d",

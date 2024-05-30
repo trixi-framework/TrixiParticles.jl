@@ -93,17 +93,20 @@ extra_callback = nothing
 
 # Example on how interpolated planes can be saved using the postprocessing callback.
 function save_interpolated_plane(v, u, t, system)
+    # size of the patch to be interpolated
     interpolation_start = [0.0, 0.0]
-    interpolation_end = [tank_size[1], 3.0]
-    resolution = 0.005
-    file_id = Int(ceil(t * 10000))
+    interpolation_end = [tank_size[1], tank_size[2]]
 
+    # The resolution the plane is interpolated to. In this case twice the original resolution.
+    resolution = 0.5 * fluid_particle_spacing
+
+    file_id = Int(ceil(t * 10000))
     interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
                              semi, system, v, u, filename="plane_$file_id.vti")
     return nothing
 end
 
-save_interpolation_cb = PostprocessCallback(; dt=0.005, write_file_interval=0,
+save_interpolation_cb = PostprocessCallback(; dt=0.1, write_file_interval=0,
                                             save_interpolated_plane)
 
 use_reinit = false
