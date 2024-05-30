@@ -48,15 +48,16 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     ```
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSystem{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    mass                :: Array{ELTYPE, 1} # [particle]
-    correction_matrix   :: Array{ELTYPE, 3} # [i, j, particle]
-    pk1_corrected       :: Array{ELTYPE, 3} # [i, j, particle]
-    deformation_grad    :: Array{ELTYPE, 3} # [i, j, particle]
-    material_density    :: Array{ELTYPE, 1} # [particle]
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
+                                K, PF, ST} <: SolidSystem{NDIMS, IC}
+    initial_condition   :: IC
+    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix   :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_moving_particles  :: Int64
     young_modulus       :: ELTYPE
     poisson_ratio       :: ELTYPE
@@ -105,7 +106,9 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF, ST} <: SolidSy
         lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
 
         return new{typeof(boundary_model), NDIMS, ELTYPE,
-                   typeof(smoothing_kernel),
+                   typeof(initial_condition),
+                   typeof(mass), typeof(initial_coordinates),
+                   typeof(deformation_grad), typeof(smoothing_kernel),
                    typeof(penalty_force),
                    typeof(source_terms)}(initial_condition, initial_coordinates,
                                          current_coordinates, mass, correction_matrix,
@@ -178,7 +181,7 @@ end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
     if particle > n_moving_particles(system)
-        return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+        return zero(SVector{ndims(system), eltype(system)})
     end
 
     return extract_svector(v, system, particle)

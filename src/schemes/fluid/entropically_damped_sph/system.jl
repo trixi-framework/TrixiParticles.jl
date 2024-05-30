@@ -39,10 +39,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
-                                   PF, ST, C} <: FluidSystem{NDIMS}
-    initial_condition                 :: InitialCondition{ELTYPE}
-    mass                              :: Array{ELTYPE, 1} # [particle]
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
+                                   PF, ST, C} <: FluidSystem{NDIMS, IC}
+    initial_condition                 :: IC
+    mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
@@ -86,7 +86,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
 
-        new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
+        new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
+            typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                            smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
