@@ -2,6 +2,7 @@
 # interactions between the different system types.
 include("fluid/fluid.jl")
 include("boundary/boundary.jl")
+include("solid/rigid_body_sph/rigid_body_sph.jl")
 include("solid/total_lagrangian_sph/total_lagrangian_sph.jl")
 include("solid/discrete_element_method/discrete_element_method.jl")
 # Monaghan-Kajtar repulsive boundary particles require the `BoundarySPHSystem`
@@ -14,3 +15,4 @@ include("fluid/entropically_damped_sph/rhs.jl")
 include("boundary/rhs.jl")
 include("solid/total_lagrangian_sph/rhs.jl")
 include("solid/discrete_element_method/rhs.jl")
+include("solid/rigid_body_sph/rhs.jl")
