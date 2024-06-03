@@ -188,7 +188,7 @@
         no_rectangular_plane = [[0.2, 0.3, -0.5], [-1.0, 1.5, 0.2], [-0.2, 2.0, -0.5]]
         flow_direction = [0.0, 0.0, 1.0]
 
-        error_str = "the provided points do not span a rectangular plane"
+        error_str = "the vectors `AB` and `AC` for the provided points `A`, `B`, `C` must be orthogonal"
 
         @test_throws ArgumentError(error_str) InFlow(; plane=no_rectangular_plane,
                                                      particle_spacing=0.1,
@@ -202,16 +202,14 @@
         rectangular_plane = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
         flow_direction = [0.0, 1.0, 0.0]
 
-        error_str = "flow direction and normal vector of " *
-                    "inflow-plane do not correspond"
+        error_str = "`flow_direction` is not normal to inflow plane"
 
         @test_throws ArgumentError(error_str) InFlow(; plane=rectangular_plane,
                                                      particle_spacing=0.1,
                                                      flow_direction, density=1.0,
                                                      open_boundary_layers=2)
 
-        error_str = "flow direction and normal vector of " *
-                    "outflow-plane do not correspond"
+        error_str = "`flow_direction` is not normal to outflow plane"
 
         @test_throws ArgumentError(error_str) OutFlow(; plane=rectangular_plane,
                                                       particle_spacing=0.1,

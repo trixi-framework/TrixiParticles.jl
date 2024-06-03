@@ -1,5 +1,6 @@
 # Include all schemes without rhs first. The rhs depends on the systems to define
 # interactions between the different system types.
+# Viscosity requires the open boundary system.
 include("boundary/open_boundary/system.jl")
 include("fluid/fluid.jl")
 include("boundary/boundary.jl")

@@ -1,12 +1,12 @@
 include("boundary_zones.jl")
 
 """
-    OpenBoundarySPHSystem(plane_points, boundary_zone::Union{InFlow, OutFlow},
-                          sound_speed;
-                          sample_geometry=plane_points, particle_spacing,
-                          flow_direction, open_boundary_layers::Integer=0, density,
-                          buffer=nothing, reference_velocity=zero(flow_direction),
-                          reference_pressure=0.0, reference_density=density)
+    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
+                          buffer=nothing,
+                          reference_velocity=zeros(ndims(boundary_zone)),
+                          reference_pressure=0.0,
+                          reference_density=first(boundary_zone.initial_condition.density))
+
 Open boundary system for in- and outflow particles.
 These open boundaries use the characteristic variables to propagate the appropriate values
 to the outlet or inlet and has been proposed by Lastiwka et al (2009). For more information
@@ -32,7 +32,7 @@ about the method see [Open Boundary System](@ref open_boundary).
                        Density is constant zero by default.
 """
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV, RP,
-                             RD, B} <: System{NDIMS}
+                             RD, B} <: System{NDIMS, IC}
     initial_condition        :: IC
     mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     density                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
