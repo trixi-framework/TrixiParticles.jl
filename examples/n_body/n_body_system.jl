@@ -1,7 +1,7 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
+struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, Nothing}
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE

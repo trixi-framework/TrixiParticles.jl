@@ -49,7 +49,7 @@ See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
     where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
 struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
-                                K, PF, ST} <: SolidSystem{NDIMS}
+                                K, PF, ST} <: SolidSystem{NDIMS, IC}
     initial_condition   :: IC
     initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
     current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
