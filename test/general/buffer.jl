@@ -2,7 +2,7 @@
     inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.2,
                     open_boundary_layers=2, density=1.0, flow_direction=[1.0, 0.0])
     system = OpenBoundarySPHSystem(inflow, 1.0)
-    system_buffer = OpenBoundarySPHSystem(inflow, 1.0; buffer=5)
+    system_buffer = OpenBoundarySPHSystem(inflow, 1.0; buffer_size=5)
 
     n_particles = nparticles(system)
 

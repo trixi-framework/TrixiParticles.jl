@@ -66,13 +66,15 @@ end
 function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
-                                     pressure_acceleration=nothing, buffer=nothing,
+                                     pressure_acceleration=nothing, buffer_size=0,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing)
-    (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+    buffer = buffer_size > 0 ?
+             SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+
     initial_condition = allocate_buffer(initial_condition, buffer)
 
     NDIMS = ndims(initial_condition)

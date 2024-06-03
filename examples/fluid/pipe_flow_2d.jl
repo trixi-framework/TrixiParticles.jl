@@ -62,7 +62,7 @@ viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           buffer=n_buffer_particles)
+                                           buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Open Boundary
@@ -73,14 +73,16 @@ end
 inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
                 open_boundary_layers, density=fluid_density, particle_spacing)
 
-open_boundary_in = OpenBoundarySPHSystem(inflow, sound_speed; buffer=n_buffer_particles,
+open_boundary_in = OpenBoundarySPHSystem(inflow, sound_speed;
+                                         buffer_size=n_buffer_particles,
                                          reference_pressure=pressure,
                                          reference_velocity=velocity_function)
 
 outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2]]),
                   flow_direction, open_boundary_layers, density=fluid_density,
                   particle_spacing)
-open_boundary_out = OpenBoundarySPHSystem(outflow, sound_speed; buffer=n_buffer_particles,
+open_boundary_out = OpenBoundarySPHSystem(outflow, sound_speed;
+                                          buffer_size=n_buffer_particles,
                                           reference_pressure=pressure,
                                           reference_velocity=velocity_function)
 

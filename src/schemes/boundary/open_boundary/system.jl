@@ -17,7 +17,7 @@ about the method see [Open Boundary System](@ref open_boundary).
 - `sound_speed`: Speed of sound.
 
 # Keywords
-- `buffer`: Number of buffer particles.
+- `buffer_size`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
                         and time to its velocity, an array where the ``i``-th column holds
                         the velocity of particle ``i`` or, for a constant fluid velocity,
@@ -50,13 +50,15 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
     update_callback_used     :: Ref{Bool}
 
     function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                                   buffer=nothing,
+                                   buffer_size=0,
                                    reference_velocity=zeros(ndims(boundary_zone)),
                                    reference_pressure=0.0,
                                    reference_density=first(boundary_zone.initial_condition.density))
         (; initial_condition) = boundary_zone
 
-        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+        buffer = buffer_size > 0 ?
+                 SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+
         initial_condition = allocate_buffer(initial_condition, buffer)
 
         NDIMS = ndims(initial_condition)

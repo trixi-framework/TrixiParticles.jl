@@ -63,8 +63,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         source_terms=nothing, buffer=nothing)
-        (buffer ≠ nothing) && (buffer = SystemBuffer(nparticles(initial_condition), buffer))
+                                         source_terms=nothing, buffer_size=0)
+        buffer = buffer_size > 0 ?
+                 SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+
         initial_condition = allocate_buffer(initial_condition, buffer)
 
         NDIMS = ndims(initial_condition)
