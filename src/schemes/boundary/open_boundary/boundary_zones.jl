@@ -6,7 +6,7 @@
 Inflow boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
 The specified plane (line in 2D or rectangle in 3D) will be extruded in upstream
-direction to create a box for the boundary zone.
+direction (the direction opposite to `flow_direction`) to create a box for the boundary zone.
 There are three ways to specify the actual shape of the inflow:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
    be filled with inflow particles.
@@ -65,6 +65,9 @@ circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 inflow = InFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
                 extrude_geometry=circle, open_boundary_layers=4)
 ```
+
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in any future releases.
 """
 struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
     initial_condition :: IC
@@ -134,10 +137,10 @@ end
             initial_condition=nothing, extrude_geometry=nothing,
             open_boundary_layers::Integer)
 
-Outflow boundary zone for [`OpenBoundarySPHSystem`](@ref)
+Outflow boundary zone for [`OpenBoundarySPHSystem`](@ref).
 
 The specified plane (line in 2D or rectangle in 3D) will be extruded in downstream
-direction to create a box for the boundary zone.
+direction (the direction in `flow_direction`) to create a box for the boundary zone.
 There are three ways to specify the actual shape of the outflow:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
    be filled with outflow particles.
@@ -196,6 +199,9 @@ circle = SphereShape(0.1, 0.5, (0.5, 0.5), 1.0, sphere_type=RoundSphere())
 outflow = OutFlow(; plane=plane_points, particle_spacing=0.1, flow_direction, density=1.0,
                   extrude_geometry=circle, open_boundary_layers=4)
 ```
+
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in any future releases.
 """
 struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
     initial_condition :: IC
@@ -260,10 +266,6 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
 end
 
 @inline Base.ndims(::Union{InFlow{NDIMS}, OutFlow{NDIMS}}) where {NDIMS} = NDIMS
-
-# function calculate_spanning_vectors(plane::Shapes, zone_width)
-#     # TODO: Handle differently
-# end
 
 function calculate_spanning_vectors(plane, zone_width)
     return spanning_vectors(Tuple(plane), zone_width), SVector(plane[1]...)

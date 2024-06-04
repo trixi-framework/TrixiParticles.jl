@@ -2,7 +2,7 @@ include("boundary_zones.jl")
 
 """
     OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                          buffer=nothing,
+                          buffer_size=0,
                           reference_velocity=zeros(ndims(boundary_zone)),
                           reference_pressure=0.0,
                           reference_density=first(boundary_zone.initial_condition.density))
@@ -30,6 +30,9 @@ about the method see [Open Boundary System](@ref open_boundary).
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
                        Density is constant zero by default.
+
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in any future releases.
 """
 struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV, RP,
                              RD, B} <: System{NDIMS, IC}
