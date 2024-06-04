@@ -78,7 +78,7 @@ In TrixiParticles.jl, particles of a single particle-based method are grouped in
 The interaction between two particles is defined by the types of their systems. This approach makes it easy to support new methods and different physics
 by adding a new system and defining its pairwise interaction wth other systems.
 
-![Particles of two different systems $\mathcal{S}_1}$ and $\mathcal{S}_2}$ in a simulation domain. The black and gray dashed circles represent the search radii for neighbors of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
+![Particles of two different systems $\mathcal{S}_1$ and $\mathcal{S}_2$ in a simulation domain. The black and gray dashed circles represent the search radii for neighbors of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
 
 To illustrate this, \autoref{fig:systems} depicts particles within a simulation domain. The black particles belong to system $\mathcal{S}_1$ and the gray particles belong to system $\mathcal{S}_2$.
 In general, the force $f_a$ experienced by a particle $a$ is calculated as
