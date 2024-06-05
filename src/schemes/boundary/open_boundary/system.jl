@@ -1,6 +1,6 @@
 """
     OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                          buffer_size=0,
+                          buffer_size::Integer=0,
                           reference_velocity=zeros(ndims(boundary_zone)),
                           reference_pressure=0.0,
                           reference_density=first(boundary_zone.initial_condition.density))
@@ -51,14 +51,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
     update_callback_used     :: Ref{Bool}
 
     function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                                   buffer_size=0,
+                                   buffer_size::Integer=0,
                                    reference_velocity=zeros(ndims(boundary_zone)),
                                    reference_pressure=0.0,
                                    reference_density=first(boundary_zone.initial_condition.density))
         (; initial_condition) = boundary_zone
 
-        buffer = buffer_size > 0 ?
-                 SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+        buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
 
         initial_condition = allocate_buffer(initial_condition, buffer)
 
@@ -339,40 +338,48 @@ end
 end
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    # TODO: Is a thread supported version possible?
+    (; boundary_zone) = system
+
+    # Find next fluid system with a `SystemBuffer`
+    next_system = next_fluid_system(semi)
+
+    u_fluid = wrap_u(u_ode, next_system, semi)
+    v_fluid = wrap_v(v_ode, next_system, semi)
+
     for particle in each_moving_particle(system)
-        foreach_system(semi) do fluid_system
-            check_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
+        particle_coords = current_coords(u, system, particle)
+
+        # Check if the particle position is outside the boundary zone
+        if !is_in_boundary_zone(boundary_zone, particle_coords)
+            transform_particle!(system, next_system, boundary_zone, particle,
+                                v, u, v_fluid, u_fluid)
         end
+    end
+
+    # Check all the other fluid systems
+    foreach_system(semi) do fluid_system
+        check_domain!(system, fluid_system, v, u, v_ode, u_ode, semi)
     end
 end
 
-function check_domain!(system, neighbor_system, particle, v, u, v_ode, u_ode, semi)
+function check_domain!(system, neighbor_system, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function check_domain!(system, fluid_system::FluidSystem, particle, v, u, v_ode, u_ode,
-                       semi)
+function check_domain!(system, fluid_system::FluidSystem, v, u, v_ode, u_ode, semi)
     (; boundary_zone) = system
-
-    particle_coords = current_coords(u, system, particle)
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
 
     neighborhood_search = get_neighborhood_search(system, fluid_system, semi)
 
-    # Check if the particle position is outside the boundary zone
-    if !is_in_boundary_zone(boundary_zone, particle_coords)
-        transform_particle!(system, fluid_system, boundary_zone, particle,
-                            v, u, v_fluid, u_fluid)
-    end
-
-    # Check fluid neighbors
-    for neighbor in PointNeighbors.eachneighbor(particle_coords, neighborhood_search)
+    # Loop over all pairs of particles and neighbors within the kernel cutoff
+    for_particle_neighbor(system, fluid_system, u, u_fluid, neighborhood_search,
+                          parallel=false) do particle, neighbor, pos_diff, distance
         fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
 
-        # Check if neighbor position is in boundary zone
+        # Check if neighboring fluid particle is in boundary zone
         if is_in_boundary_zone(boundary_zone, fluid_coords)
             transform_particle!(fluid_system, system, boundary_zone, neighbor,
                                 v, u, v_fluid, u_fluid)
@@ -483,4 +490,17 @@ end
 # Name the function so that the summary box does know which kind of function this is
 function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
+end
+
+@inline function next_fluid_system(semi)
+    (; systems) = semi
+
+    for system_index in eachindex(systems)
+        system = systems[system_index]
+        if system isa FluidSystem && system.buffer isa SystemBuffer
+            return system
+        end
+    end
+
+    return throw(ArgumentError("No `FluidSystem` in `Semidiscretization`"))
 end
