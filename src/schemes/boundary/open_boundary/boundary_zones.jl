@@ -295,6 +295,30 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
     return hcat(c, edge1, edge2)
 end
 
+@inline function is_in_boundary_zone(boundary_zone::Union{InFlow, OutFlow}, particle_coords)
+    (; zone_origin, spanning_set) = boundary_zone
+    particle_position = particle_coords - zone_origin
+
+    return is_in_boundary_zone(spanning_set, particle_position)
+end
+
+@inline function is_in_boundary_zone(spanning_set::AbstractArray,
+                                     particle_position::SVector{NDIMS}) where {NDIMS}
+    for dim in 1:NDIMS
+        span_dim = spanning_set[dim]
+        # Checks whether the projection of the particle position
+        # falls within the range of the zone
+        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
+
+            # Particle is not in boundary zone
+            return false
+        end
+    end
+
+    # Particle is in boundary zone
+    return true
+end
+
 function remove_outside_particles(initial_condition, spanning_set, zone_origin)
     (; coordinates, density, particle_spacing) = initial_condition
 
@@ -304,16 +328,7 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
         current_position = current_coords(coordinates, initial_condition, particle)
         particle_position = current_position - zone_origin
 
-        for dim in 1:ndims(initial_condition)
-            span_dim = spanning_set[dim]
-            # Checks whether the projection of the particle position
-            # falls within the range of the zone.
-            if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
-
-                # Particle is not in boundary zone.
-                in_zone[particle] = false
-            end
-        end
+        in_zone[particle] = is_in_boundary_zone(spanning_set, particle_position)
     end
 
     return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),

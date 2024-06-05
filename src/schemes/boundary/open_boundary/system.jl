@@ -1,5 +1,3 @@
-include("boundary_zones.jl")
-
 """
     OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
                           buffer_size=0,
@@ -9,7 +7,7 @@ include("boundary_zones.jl")
 
 Open boundary system for in- and outflow particles.
 These open boundaries use the characteristic variables to propagate the appropriate values
-to the outlet or inlet and has been proposed by Lastiwka et al (2009). For more information
+to the outlet or inlet and have been proposed by Lastiwka et al (2009). For more information
 about the method see [Open Boundary System](@ref open_boundary).
 
 # Arguments
@@ -29,7 +27,7 @@ about the method see [Open Boundary System](@ref open_boundary).
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
-                       Density is constant zero by default.
+                       Density is the density of the first particle in the initial condition by default.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
@@ -41,8 +39,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
     density                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     pressure                 :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    characteristics          :: ARRAY2D # Array{ELTYPE, 2}: [characteristics, particle]
-    previous_characteristics :: ARRAY2D # Array{ELTYPE, 2}: [characteristics, particle]
+    characteristics          :: ARRAY2D # Array{ELTYPE, 2}: [characteristic, particle]
+    previous_characteristics :: ARRAY2D # Array{ELTYPE, 2}: [characteristic, particle]
     sound_speed              :: ELTYPE
     boundary_zone            :: BZ
     flow_direction           :: SVector{NDIMS, ELTYPE}
@@ -160,25 +158,6 @@ end
     return system.pressure[particle]
 end
 
-@inline function (boundary_zone::Union{InFlow, OutFlow})(particle_coords)
-    (; zone_origin, spanning_set) = boundary_zone
-    particle_position = particle_coords - zone_origin
-
-    for dim in 1:ndims(boundary_zone)
-        span_dim = spanning_set[dim]
-        # Checks whether the projection of the particle position
-        # falls within the range of the zone.
-        if !(0 <= dot(particle_position, span_dim) <= dot(span_dim, span_dim))
-
-            # Particle is not in boundary zone.
-            return false
-        end
-    end
-
-    # Particle is in boundary zone.
-    return true
-end
-
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
     if t > 0.0 && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
@@ -282,26 +261,25 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    # Loop over all fluid neighbors within the kernel cutoff.
+    # Loop over all fluid neighbors within the kernel cutoff
     for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                           nhs) do particle, neighbor, pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
-        rho = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_ref = reference_density(neighbor_position, t)
 
-        p = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
+        p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
         p_ref = reference_pressure(neighbor_position, t)
 
-        v_neighbor = current_velocity(v_neighbor_system, neighbor_system, neighbor)
+        v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
         v_neighbor_ref = reference_velocity(neighbor_position, t)
 
         # Determine characteristic variables
-        density_term = -sound_speed^2 * (rho - rho_ref)
-        pressure_term = p - p_ref
-        velocity_term = rho * sound_speed *
-                        (dot(v_neighbor - v_neighbor_ref, flow_direction))
+        density_term = -sound_speed^2 * (rho_b - rho_ref)
+        pressure_term = p_b - p_ref
+        velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
 
         kernel_ = smoothing_kernel(neighbor_system, distance)
 
@@ -364,17 +342,17 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     # TODO: Is a thread supported version possible?
     for particle in each_moving_particle(system)
         foreach_system(semi) do fluid_system
-            check_fluid_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
+            check_domain!(system, fluid_system, particle, v, u, v_ode, u_ode, semi)
         end
     end
 end
 
-function check_fluid_domain!(system, neighbor_system, particle, v, u, v_ode, u_ode, semi)
+function check_domain!(system, neighbor_system, particle, v, u, v_ode, u_ode, semi)
     return system
 end
 
-function check_fluid_domain!(system, fluid_system::FluidSystem, particle,
-                             v, u, v_ode, u_ode, semi)
+function check_domain!(system, fluid_system::FluidSystem, particle, v, u, v_ode, u_ode,
+                       semi)
     (; boundary_zone) = system
 
     particle_coords = current_coords(u, system, particle)
@@ -384,8 +362,8 @@ function check_fluid_domain!(system, fluid_system::FluidSystem, particle,
 
     neighborhood_search = get_neighborhood_search(system, fluid_system, semi)
 
-    # Check if the particle position is outside the boundary zone.
-    if !boundary_zone(particle_coords)
+    # Check if the particle position is outside the boundary zone
+    if !is_in_boundary_zone(boundary_zone, particle_coords)
         transform_particle!(system, fluid_system, boundary_zone, particle,
                             v, u, v_fluid, u_fluid)
     end
@@ -395,7 +373,7 @@ function check_fluid_domain!(system, fluid_system::FluidSystem, particle,
         fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
 
         # Check if neighbor position is in boundary zone
-        if boundary_zone(fluid_coords)
+        if is_in_boundary_zone(boundary_zone, fluid_coords)
             transform_particle!(fluid_system, system, boundary_zone, neighbor,
                                 v, u, v_fluid, u_fluid)
         end
