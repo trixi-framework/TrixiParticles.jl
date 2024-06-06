@@ -116,6 +116,6 @@ function update_pressure!(system, v, u, v_ode, u_ode, semi, t)
     return system
 end
 
-function update_final!(system, v, u, v_ode, u_ode, semi, t)
+function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
 end

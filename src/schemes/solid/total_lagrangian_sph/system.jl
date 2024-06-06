@@ -247,7 +247,8 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
     return system
 end
 
-function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
     (; boundary_model) = system
 
     # Only update boundary model

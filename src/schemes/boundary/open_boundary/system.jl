@@ -160,8 +160,9 @@ end
     return system.pressure[particle]
 end
 
-function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
-    if t > 0.0 && !(system.update_callback_used[])
+function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    if !update_from_callback && !(system.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end
 
@@ -170,7 +171,7 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
                                                                                semi, t)
 end
 
-# This function is called by the `UpdateCallback`, as the integrator arrray might be modified
+# This function is called by the `UpdateCallback`, as the integrator array might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
                                         semi, t)
     u = wrap_u(u_ode, system, semi)

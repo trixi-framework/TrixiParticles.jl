@@ -441,7 +441,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 # Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
+function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=false)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
     foreach_system(semi) do system
@@ -478,7 +478,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t)
+        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
     end
 end
 

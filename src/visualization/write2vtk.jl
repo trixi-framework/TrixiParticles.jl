@@ -45,7 +45,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
     filenames = system_names(systems)
 
