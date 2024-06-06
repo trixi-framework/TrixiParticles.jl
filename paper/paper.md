@@ -136,7 +136,7 @@ The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] near
 
 \autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
 
-![Simulation of an elastic sphere falling into a water tank with TrixiParticles.jl. Left: Results rendered with blender. Right: Underlying particle representation. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
+![TrixiParticles.jl simulation of an elastic sphere falling into a water tank. Left: Results rendered with blender. Right: Underlying particle representation. \label{fig:falling_sphere}](falling_sphere_combined_nonstick_4k_178.png){width=100%}
 
 # Acknowledgements
 
