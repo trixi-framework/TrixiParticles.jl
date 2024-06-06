@@ -52,7 +52,7 @@ deformable boundaries, and moving material interfaces, as well as the coupling o
 
 One way to address these challenges is to use particle-based methods, in which the particles either represent physical particles or mathematical interpolation points.
 The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979],
-the latter case refers to methods such as Smoothed Particle Hydrodynamics (SPH), which is a numerical discretization method for solving problems in continuum mechanics.
+whereas the latter case refers to methods such as Smoothed Particle Hydrodynamics (SPH), which is a numerical discretization method for solving problems in continuum mechanics.
 SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate CFD, structural mechanics, and even heat conduction problems.
 
 The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles,
@@ -74,8 +74,8 @@ Since simulations are configured and set up using only Julia code, custom method
 
 # Overview of particle-based simulation
 
-In TrixiParticles.jl, particles of a single particle-based method are grouped into a \emph{system}.
-The interaction between two particles is defined by the types of their systems. This approach makes it easy to support new methods and different physics
+In TrixiParticles.jl, particles of a single particle-based method, e.g. SPH or DEM, are grouped into a \emph{system}.
+The interaction between two particles is defined entirely by the types of their systems. This approach makes it easy to support new methods and different physics
 by adding a new system and defining its pairwise interaction wth other systems.
 
 ![Particles of two different systems $\mathcal{S}_1$ and $\mathcal{S}_2$ in a simulation domain. The black and gray dashed circles represent the search radii for neighbors of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=40%}
@@ -128,8 +128,7 @@ At the time of writing, the following feature highlights are available in TrixiP
   + Highly optimized neighborhood search providing various approaches
   + GPU support
 
-Validation can be performed, for example, by quantitatively comparing results using a post-process callback.
-\autoref{fig:beam_y_deflection} compares simulation results of TrixiParticles.jl and [@O_Connor:2021] against reference values of [@Turek:2007].
+As a validation example, \autoref{fig:beam_y_deflection} compares simulation results of TrixiParticles.jl and [@O_Connor:2021] against the benchmark finite element method (FEM) data of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] nearly perfectly.
 
