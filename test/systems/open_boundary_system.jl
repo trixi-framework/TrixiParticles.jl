@@ -12,7 +12,8 @@
                     "or, for a constant fluid velocity, a vector of length 2 for a 2D problem holding this velocity"
 
         reference_velocity = 1.0
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow, 1.0;
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0;
+                                                                    fluid_system=FluidSystemMock(),
                                                                     reference_velocity)
 
         error_str = "`reference_pressure` must be either a function mapping " *
@@ -20,7 +21,8 @@
                     "a vector holding the pressure of each particle, or a scalar"
 
         reference_pressure = [1.0, 1.0]
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow, 1.0;
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0;
+                                                                    fluid_system=FluidSystemMock(),
                                                                     reference_pressure)
 
         error_str = "`reference_density` must be either a function mapping " *
@@ -28,13 +30,15 @@
                     "a vector holding the density of each particle, or a scalar"
 
         reference_density = [1.0, 1.0]
-        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow, 1.0;
+        @test_throws ArgumentError(error_str) OpenBoundarySPHSystem(inflow; sound_speed=1.0;
+                                                                    fluid_system=FluidSystemMock(),
                                                                     reference_density)
     end
     @testset "show" begin
         inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                         flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
-        system = OpenBoundarySPHSystem(inflow, 1.0)
+        system = OpenBoundarySPHSystem(inflow; sound_speed=1.0,
+                                       fluid_system=FluidSystemMock())
 
         show_compact = "OpenBoundarySPHSystem{2}(InFlow) with 80 particles"
         @test repr(system) == show_compact
@@ -55,7 +59,8 @@
 
         outflow = OutFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                           flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
-        system = OpenBoundarySPHSystem(outflow, 1.0)
+        system = OpenBoundarySPHSystem(outflow; sound_speed=1.0,
+                                       fluid_system=FluidSystemMock())
 
         show_compact = "OpenBoundarySPHSystem{2}(OutFlow) with 80 particles"
         @test repr(system) == show_compact

@@ -1,9 +1,9 @@
 @doc raw"""
-    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                          buffer_size::Integer=0,
-                          reference_velocity=zeros(ndims(boundary_zone)),
-                          reference_pressure=0.0,
-                          reference_density=first(boundary_zone.initial_condition.density))
+	OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
+						  buffer_size::Integer=0,
+						  reference_velocity=zeros(ndims(boundary_zone)),
+						  reference_pressure=0.0,
+						  reference_density=first(boundary_zone.initial_condition.density))
 
 Open boundary system for in- and outflow particles.
 These open boundaries use the characteristic variables to propagate the appropriate values
@@ -12,29 +12,31 @@ about the method see [Open Boundary System](@ref open_boundary).
 
 # Arguments
 - `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
-- `sound_speed`: Speed of sound.
 
 # Keywords
+- `sound_speed`: Speed of sound.
+- `fluid_system`: The corresponding fluid system
 - `buffer_size`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
-                        and time to its velocity, an array where the ``i``-th column holds
-                        the velocity of particle ``i`` or, for a constant fluid velocity,
-                        a vector holding this velocity. Velocity is constant zero by default.
+						and time to its velocity, an array where the ``i``-th column holds
+						the velocity of particle ``i`` or, for a constant fluid velocity,
+						a vector holding this velocity. Velocity is constant zero by default.
 - `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
-                        and time to its pressure, a vector holding the pressure of each particle,
-                        or a scalar for a constant pressure over all particles.
-                        Pressure is constant zero by default.
+						and time to its pressure, a vector holding the pressure of each particle,
+						or a scalar for a constant pressure over all particles.
+						Pressure is constant zero by default.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
-                       and time to its density, a vector holding the density of each particle,
-                       or a scalar for a constant density over all particles.
-                       Density is the density of the first particle in the initial condition by default.
+					   and time to its density, a vector holding the density of each particle,
+					   or a scalar for a constant density over all particles.
+					   Density is the density of the first particle in the initial condition by default.
 
 !!! warning "Experimental Implementation"
-    This is an experimental feature and may change in any future releases.
+	This is an experimental feature and may change in any future releases.
 """
-struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV, RP,
+struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D, RV, RP,
                              RD, B} <: System{NDIMS, IC}
     initial_condition        :: IC
+    fluid_system             :: FS
     mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     density                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -50,8 +52,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
     buffer                   :: B
     update_callback_used     :: Ref{Bool}
 
-    function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
-                                   buffer_size::Integer=0,
+    function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
+                                   fluid_system::FluidSystem, buffer_size::Integer=0,
                                    reference_velocity=zeros(ndims(boundary_zone)),
                                    reference_pressure=0.0,
                                    reference_density=first(boundary_zone.initial_condition.density))
@@ -102,13 +104,14 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
         flow_direction_ = boundary_zone.flow_direction
 
         return new{typeof(boundary_zone), NDIMS, ELTYPE, typeof(initial_condition),
-                   typeof(mass), typeof(characteristics),
+                   typeof(fluid_system), typeof(mass), typeof(characteristics),
                    typeof(reference_velocity_), typeof(reference_pressure_),
                    typeof(reference_density_),
-                   typeof(buffer)}(initial_condition, mass, density, volume, pressure,
-                                   characteristics, previous_characteristics, sound_speed,
-                                   boundary_zone, flow_direction_, reference_velocity_,
-                                   reference_pressure_, reference_density_, buffer, false)
+                   typeof(buffer)}(initial_condition, fluid_system, mass, density, volume,
+                                   pressure, characteristics, previous_characteristics,
+                                   sound_speed, boundary_zone, flow_direction_,
+                                   reference_velocity_, reference_pressure_,
+                                   reference_density_, buffer, false)
     end
 end
 
@@ -130,12 +133,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         show(io, system)
     else
         summary_header(io, "OpenBoundarySPHSystem{$(ndims(system))}")
-        if system.buffer isa SystemBuffer
-            summary_line(io, "#particles", nparticles(system))
-            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
-        else
-            summary_line(io, "#particles", nparticles(system))
-        end
+        summary_line(io, "#particles", nparticles(system))
+        summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary", type2string(system.boundary_zone))
         summary_line(io, "flow direction", system.flow_direction)
         summary_line(io, "prescribed velocity", string(nameof(system.reference_velocity)))
@@ -183,9 +183,9 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    @trixi_timeit timer() "update buffer" foreach_system(semi) do system
-        update_system_buffer!(system.buffer)
-    end
+    # Update buffer
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(system.fluid_system.buffer)
 end
 
 update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
@@ -206,10 +206,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     set_zero!(characteristics)
     set_zero!(volume)
 
-    # Use all other systems for the characteristics
-    foreach_system(semi) do neighbor_system
-        evaluate_characteristics!(system, neighbor_system, v, u, v_ode, u_ode, semi, t)
-    end
+    # Evaluate the characteristic variables with the fluid system
+    evaluate_characteristics!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
 
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we find the characteristics for the particle which are outside the influence
@@ -251,8 +249,6 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
 
     return system
 end
-
-evaluate_characteristics!(system, neighbor_system, v, u, v_ode, u_ode, semi, t) = system
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
@@ -345,51 +341,31 @@ end
 end
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
-    (; boundary_zone) = system
-
-    # Find next fluid system with a `SystemBuffer`
-    next_system = next_fluid_system(semi.systems)
-
-    u_fluid = wrap_u(u_ode, next_system, semi)
-    v_fluid = wrap_v(v_ode, next_system, semi)
-
-    for particle in each_moving_particle(system)
-        particle_coords = current_coords(u, system, particle)
-
-        # Check if the particle position is outside the boundary zone
-        if !is_in_boundary_zone(boundary_zone, particle_coords)
-            transform_particle!(system, next_system, boundary_zone, particle,
-                                v, u, v_fluid, u_fluid)
-        end
-    end
-
-    # Check all the other fluid systems
-    foreach_system(semi) do fluid_system
-        check_domain!(system, fluid_system, v, u, v_ode, u_ode, semi)
-    end
-end
-
-function check_domain!(system, neighbor_system, v, u, v_ode, u_ode, semi)
-    return system
-end
-
-function check_domain!(system, fluid_system::FluidSystem, v, u, v_ode, u_ode, semi)
-    (; boundary_zone) = system
+    (; boundary_zone, fluid_system) = system
 
     u_fluid = wrap_u(u_ode, fluid_system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
 
     neighborhood_search = get_neighborhood_search(system, fluid_system, semi)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff
-    for_particle_neighbor(system, fluid_system, u, u_fluid, neighborhood_search,
-                          parallel=false) do particle, neighbor, pos_diff, distance
-        fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
+    for particle in each_moving_particle(system)
+        particle_coords = current_coords(u, system, particle)
 
-        # Check if neighboring fluid particle is in boundary zone
-        if is_in_boundary_zone(boundary_zone, fluid_coords)
-            transform_particle!(fluid_system, system, boundary_zone, neighbor,
+        # Check if boundary particle is outside the boundary zone
+        if !is_in_boundary_zone(boundary_zone, particle_coords)
+            transform_particle!(system, fluid_system, boundary_zone, particle,
                                 v, u, v_fluid, u_fluid)
+        end
+
+        # Check the neighboring fluid particles whether they're entering the boundary zone
+        for neighbor in PointNeighbors.eachneighbor(particle_coords, neighborhood_search)
+            fluid_coords = current_coords(u_fluid, fluid_system, neighbor)
+
+            # Check if neighboring fluid particle is in boundary zone
+            if is_in_boundary_zone(boundary_zone, fluid_coords)
+                transform_particle!(fluid_system, system, boundary_zone, neighbor,
+                                    v, u, v_fluid, u_fluid)
+            end
         end
     end
 
@@ -497,15 +473,4 @@ end
 # Name the function so that the summary box does know which kind of function this is
 function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
-end
-
-@inline function next_fluid_system(systems)
-    for system_index in eachindex(systems)
-        system = systems[system_index]
-        if system isa FluidSystem && system.buffer isa SystemBuffer
-            return system
-        end
-    end
-
-    return throw(ArgumentError("When simulating with `OpenBoundarySPHSystem`, a `FluidSystem` with a `SystemBuffer` is needed"))
 end
