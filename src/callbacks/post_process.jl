@@ -333,7 +333,7 @@ end
 
 function write_meta_data!(data)
     meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => get_git_hash(),
+                     "solver_version" => git_hash(),
                      "julia_version" => string(VERSION))
 
     data["meta"] = meta_data

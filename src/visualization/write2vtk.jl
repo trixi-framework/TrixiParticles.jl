@@ -1,3 +1,13 @@
+function system_names(systems)
+    # Add `_i` to each system name, where `i` is the index of the corresponding
+    # system type.
+    # `["fluid", "boundary", "boundary"]` becomes `["fluid_1", "boundary_1", "boundary_2"]`.
+    cnames = vtkname.(systems)
+    filenames = [string(cnames[i], "_", count(==(cnames[i]), cnames[1:i]))
+                 for i in eachindex(cnames)]
+    return filenames
+end
+
 """
     trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
               write_meta_data=true, max_coordinates=Inf, custom_quantities...)
@@ -45,7 +55,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
     # Update quantities that are stored in the systems. These quantities (e.g. pressure)
     # still have the values from the last stage of the previous step if not updated here.
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    @trixi_timeit timer() "update systems" update_systems_and_nhs(v_ode, u_ode, semi, t)
 
     filenames = system_names(systems)
 
@@ -98,7 +108,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         end
     end
 
-    vtk_grid(file, points, cells) do vtk
+    @trixi_timeit timer() "write to vtk" vtk_grid(file, points, cells) do vtk
         # dispatches based on the different system types e.g. FluidSystem, TotalLagrangianSPHSystem
         write2vtk!(vtk, v, u, t, system, write_meta_data=write_meta_data)
 
@@ -107,7 +117,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         vtk["time"] = t
 
         if write_meta_data
-            vtk["solver_version"] = get_git_hash()
+            vtk["solver_version"] = git_hash()
             vtk["julia_version"] = string(VERSION)
         end
 
