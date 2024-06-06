@@ -45,11 +45,6 @@
             ]
 
             @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
-                boundary_system = OpenBoundarySPHSystem(boundary_zone, sound_speed;
-                                                        reference_velocity,
-                                                        reference_pressure,
-                                                        reference_density)
-
                 sign_ = (boundary_zone isa InFlow) ? 1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
                                          density, pressure,
@@ -59,6 +54,12 @@
                                                            buffer_size=0,
                                                            density_calculator=ContinuityDensity(),
                                                            smoothing_length, sound_speed)
+
+                boundary_system = OpenBoundarySPHSystem(boundary_zone; sound_speed,
+                                                        fluid_system,
+                                                        reference_velocity,
+                                                        reference_pressure,
+                                                        reference_density)
 
                 semi = Semidiscretization(fluid_system, boundary_system)
 
