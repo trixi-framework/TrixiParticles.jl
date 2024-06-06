@@ -49,7 +49,8 @@ trixi2vtk(sol.u[end], semi, 0.0, iter=1, my_custom_quantity=kinetic_energy)
 ```
 """
 function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix="",
-                   write_meta_data=true, max_coordinates=Inf, custom_quantities...)
+                   write_meta_data=true, git_hash=compute_git_hash(),
+                   max_coordinates=Inf, custom_quantities...)
     (; systems) = semi
     v_ode, u_ode = vu_ode.x
 
@@ -67,17 +68,15 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
         periodic_box = get_neighborhood_search(system, semi).periodic_box
 
         trixi2vtk(v, u, t, system, periodic_box;
-                  output_directory=output_directory,
-                  system_name=filenames[system_index], iter=iter, prefix=prefix,
-                  write_meta_data=write_meta_data, max_coordinates=max_coordinates,
-                  custom_quantities...)
+                  system_name=filenames[system_index], output_directory, iter, prefix,
+                  write_meta_data, max_coordinates, custom_quantities...)
     end
 end
 
 # Convert data for a single TrixiParticle system to VTK format
 function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
                    iter=nothing, system_name=vtkname(system), write_meta_data=true,
-                   max_coordinates=Inf,
+                   max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
     mkpath(output_directory)
 
@@ -117,7 +116,7 @@ function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix
         vtk["time"] = t
 
         if write_meta_data
-            vtk["solver_version"] = git_hash()
+            vtk["solver_version"] = git_hash
             vtk["julia_version"] = string(VERSION)
         end
 

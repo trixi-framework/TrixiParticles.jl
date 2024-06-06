@@ -224,6 +224,3 @@ function compute_git_hash()
         return "UnknownVersion"
     end
 end
-
-const git_hash_ = compute_git_hash()
-git_hash() = git_hash_

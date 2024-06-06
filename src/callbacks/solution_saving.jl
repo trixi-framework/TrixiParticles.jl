@@ -77,6 +77,7 @@ mutable struct SolutionSavingCallback{I, CQ}
     max_coordinates       :: Float64
     custom_quantities     :: CQ
     latest_saved_iter     :: Int
+    git_hash              :: Ref{String}
 end
 
 function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
@@ -102,7 +103,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               -1)
+                                               -1, "UnknownVersion")
 
     if length(save_times) > 0
         # See the large comment below for an explanation why we use `finalize` here
@@ -131,6 +132,7 @@ end
 function initialize_save_cb!(solution_callback::SolutionSavingCallback, u, t, integrator)
     # Reset `latest_saved_iter`
     solution_callback.latest_saved_iter = -1
+    solution_callback.git_hash[] = compute_git_hash()
 
     # Save initial solution
     if solution_callback.save_initial_solution
@@ -156,7 +158,7 @@ end
 
 # `affect!`
 function (solution_callback::SolutionSavingCallback)(integrator)
-    (; interval, output_directory, custom_quantities, write_meta_data,
+    (; interval, output_directory, custom_quantities, write_meta_data, git_hash,
     verbose, prefix, latest_saved_iter, max_coordinates) = solution_callback
 
     vu_ode = integrator.u
@@ -178,12 +180,10 @@ function (solution_callback::SolutionSavingCallback)(integrator)
         println("Writing solution to $output_directory at t = $(integrator.t)")
     end
 
-    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t; iter=iter,
-                                                    output_directory=output_directory,
-                                                    prefix=prefix,
-                                                    write_meta_data=write_meta_data,
-                                                    max_coordinates=max_coordinates,
-                                                    custom_quantities...)
+    @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
+                                                    iter, output_directory, prefix,
+                                                    write_meta_data, git_hash[],
+                                                    max_coordinates, custom_quantities...)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
