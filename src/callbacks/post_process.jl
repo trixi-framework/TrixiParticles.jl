@@ -96,7 +96,7 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
                                         append_timestamp, write_csv, write_json,
-                                        "UnknownVersion")
+                                        Ref("UnknownVersion"))
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,

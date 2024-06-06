@@ -69,7 +69,7 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 
         trixi2vtk(v, u, t, system, periodic_box;
                   system_name=filenames[system_index], output_directory, iter, prefix,
-                  write_meta_data, max_coordinates, custom_quantities...)
+                  write_meta_data, git_hash, max_coordinates, custom_quantities...)
     end
 end
 

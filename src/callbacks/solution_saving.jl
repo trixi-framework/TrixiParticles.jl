@@ -103,7 +103,7 @@ function SolutionSavingCallback(; interval::Integer=0, dt=0.0,
                                                save_initial_solution, save_final_solution,
                                                write_meta_data, verbose, output_directory,
                                                prefix, max_coordinates, custom_quantities,
-                                               -1, "UnknownVersion")
+                                               -1, Ref("UnknownVersion"))
 
     if length(save_times) > 0
         # See the large comment below for an explanation why we use `finalize` here
@@ -182,7 +182,7 @@ function (solution_callback::SolutionSavingCallback)(integrator)
 
     @trixi_timeit timer() "save solution" trixi2vtk(vu_ode, semi, integrator.t;
                                                     iter, output_directory, prefix,
-                                                    write_meta_data, git_hash[],
+                                                    write_meta_data, git_hash=git_hash[],
                                                     max_coordinates, custom_quantities...)
 
     # Tell OrdinaryDiffEq that `u` has not been modified
