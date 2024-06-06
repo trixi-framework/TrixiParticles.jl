@@ -141,7 +141,7 @@
                 (particle_position, evaluation) = query_points[k]
 
                 @test evaluation ==
-                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position .± eps())
             end
         end
     end
@@ -179,7 +179,7 @@
                 (particle_position, evaluation) = query_points[k]
 
                 @test evaluation ==
-                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position .± eps())
             end
         end
     end
