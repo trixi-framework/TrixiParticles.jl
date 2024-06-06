@@ -67,22 +67,25 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, RV
         if !(reference_velocity isa Function ||
              (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
             throw(ArgumentError("`reference_velocity` must be either a function mapping " *
-                                "each particle's coordinates and time to its velocity or a " *
-                                "vector of length $NDIMS for a $(NDIMS)D problem"))
+                                "each particle's coordinates and time to its velocity, " *
+                                "an array where the ``i``-th column holds the velocity of particle ``i`` " *
+                                "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
         else
             reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
         end
 
         if !(reference_pressure isa Function || reference_pressure isa Real)
             throw(ArgumentError("`reference_pressure` must be either a function mapping " *
-                                "each particle's coordinates and time to its pressure or a scalar"))
+                                "each particle's coordinates and time to its pressure, " *
+                                "a vector holding the pressure of each particle, or a scalar"))
         else
             reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
         end
 
         if !(reference_density isa Function || reference_density isa Real)
             throw(ArgumentError("`reference_density` must be either a function mapping " *
-                                "each particle's coordinates and time to its density or a scalar"))
+                                "each particle's coordinates and time to its density, " *
+                                "a vector holding the density of each particle, or a scalar"))
         else
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
@@ -496,7 +499,6 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
 end
 
 @inline function next_fluid_system(systems)
-
     for system_index in eachindex(systems)
         system = systems[system_index]
         if system isa FluidSystem && system.buffer isa SystemBuffer
