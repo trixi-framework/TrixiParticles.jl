@@ -1,4 +1,4 @@
-"""
+@doc raw"""
     OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}, sound_speed;
                           buffer_size::Integer=0,
                           reference_velocity=zeros(ndims(boundary_zone)),
