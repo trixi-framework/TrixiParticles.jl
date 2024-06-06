@@ -124,7 +124,7 @@
         ]
 
         @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
-            perturb_ = boundary_zone isa InFlow ? eps() : -eps()
+            perturb_ = boundary_zone isa InFlow ? sqrt(eps()) : -sqrt(eps())
 
             point_3 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
 
@@ -142,7 +142,7 @@
 
                 @test evaluation ==
                       TrixiParticles.is_in_boundary_zone(boundary_zone,
-                                                         particle_position .± eps())
+                                                         particle_position .± sqrt(eps()))
             end
         end
     end
@@ -165,7 +165,7 @@
         ]
 
         @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
-            perturb_ = boundary_zone isa InFlow ? eps() : -eps()
+            perturb_ = boundary_zone isa InFlow ? sqrt(eps()) : -sqrt(eps())
             query_points = Dict(
                 "Behind" => ([-1.0, -1.0, 1.2], false),
                 "Before" => ([2.0, 2.0, -1.2], false),
@@ -181,7 +181,7 @@
 
                 @test evaluation ==
                       TrixiParticles.is_in_boundary_zone(boundary_zone,
-                                                         particle_position .± eps())
+                                                         particle_position .± sqrt(eps()))
             end
         end
     end
