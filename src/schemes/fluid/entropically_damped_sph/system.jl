@@ -4,7 +4,7 @@
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 alpha=0.5, viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                acceleration=ntuple(_ -> 0.0, NDIMS), buffer_size=nothing,
                                 source_terms=nothing)
 
 System for particles of a fluid.
@@ -28,6 +28,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         When set to `nothing`, the pressure acceleration formulation for the
                         corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
+- `buffer_size`:    Number of buffer particles.
+                    This is only needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
@@ -63,9 +65,9 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
-                                         source_terms=nothing, buffer_size=0)
-        buffer = buffer_size > 0 ?
-                 SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+                                         source_terms=nothing, buffer_size=nothing)
+        buffer = isnothing(buffer_size) ? nothing :
+                 SystemBuffer(nparticles(initial_condition), buffer_size)
 
         initial_condition = allocate_buffer(initial_condition, buffer)
 

@@ -167,13 +167,14 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
                                                                                semi, t)
 end
 
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
-
+# This function is called by the `UpdateCallback`, as the integrator arrray might be modified
 function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
                                         semi, t)
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
+    # Update density, pressure and velocity depending on the characteristic variables.
+    # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, t)
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
@@ -182,6 +183,8 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
         update_system_buffer!(system.buffer)
     end
 end
+
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.
@@ -207,7 +210,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
     # Thus, we find the characteristics for the particle which are outside the influence
     # using the average of the values of the previous time step.
-    # Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
+    # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of fluid particles
@@ -341,7 +344,7 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone) = system
 
     # Find next fluid system with a `SystemBuffer`
-    next_system = next_fluid_system(semi)
+    next_system = next_fluid_system(semi.systems)
 
     u_fluid = wrap_u(u_ode, next_system, semi)
     v_fluid = wrap_v(v_ode, next_system, semi)
@@ -492,8 +495,7 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
 
-@inline function next_fluid_system(semi)
-    (; systems) = semi
+@inline function next_fluid_system(systems)
 
     for system_index in eachindex(systems)
         system = systems[system_index]
@@ -502,5 +504,5 @@ end
         end
     end
 
-    return throw(ArgumentError("No `FluidSystem` in `Semidiscretization`"))
+    return throw(ArgumentError("When simulating with `OpenBoundarySPHSystem`, a `FluidSystem` with a `SystemBuffer` is needed"))
 end

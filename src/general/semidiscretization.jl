@@ -808,3 +808,6 @@ function check_configuration(system::TotalLagrangianSPHSystem, systems)
                             "`ContinuityDensity` is not yet supported for a `TotalLagrangianSPHSystem`"))
     end
 end
+
+# Check if a fluid system with `SystemBuffer` exists
+check_configuration(system::OpenBoundarySPHSystem, systems) = next_fluid_system(systems)

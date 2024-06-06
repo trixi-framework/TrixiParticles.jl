@@ -4,6 +4,7 @@
                                 smoothing_kernel, smoothing_length;
                                 viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
+                                buffer_size=nothing,
                                 correction=nothing, source_terms=nothing)
 
 System for particles of a fluid.
@@ -26,6 +27,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                     See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `buffer_size`:    Number of buffer particles.
+                    This is only needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
@@ -66,14 +69,15 @@ end
 function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
-                                     pressure_acceleration=nothing, buffer_size=0,
+                                     pressure_acceleration=nothing,
+                                     buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing)
-    buffer = buffer_size > 0 ?
-             SystemBuffer(nparticles(initial_condition), buffer_size) : nothing
+    buffer = isnothing(buffer_size) ? nothing :
+             SystemBuffer(nparticles(initial_condition), buffer_size)
 
     initial_condition = allocate_buffer(initial_condition, buffer)
 
