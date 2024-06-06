@@ -137,12 +137,11 @@
                 "Closely On Point 1" => (plane_points[1] .+ perturb_ * flow_direction,
                                          false))
 
-            TrixiParticles.@autoinfiltrate
-
             @testset "$k" for k in keys(query_points)
                 (particle_position, evaluation) = query_points[k]
 
-                @test evaluation == boundary_zone(particle_position)
+                @test evaluation ==
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
             end
         end
     end
@@ -179,7 +178,8 @@
             @testset "$k" for k in keys(query_points)
                 (particle_position, evaluation) = query_points[k]
 
-                @test evaluation == boundary_zone(particle_position)
+                @test evaluation ==
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
             end
         end
     end
