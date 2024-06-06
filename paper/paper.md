@@ -128,7 +128,7 @@ At the time of writing, the following feature highlights are available in TrixiP
   + Highly optimized neighborhood search providing various approaches
   + GPU support
 
-As a validation example, \autoref{fig:beam_y_deflection} compares simulation results of TrixiParticles.jl and [@O_Connor:2021] against the benchmark finite element method (FEM) data of [@Turek:2007].
+As a validation example, \autoref{fig:beam_y_deflection} compares SPH results of TrixiParticles.jl and [@O_Connor:2021] against benchmark data from the finite element simulation of [@Turek:2007].
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
 The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] nearly perfectly.
 
