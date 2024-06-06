@@ -76,7 +76,7 @@ Since simulations are configured and set up using only Julia code, custom method
 
 In TrixiParticles.jl, particles of a single particle-based method, e.g. SPH or DEM, are grouped into a \emph{system}.
 The interaction between two particles is defined entirely by the types of their systems. This approach makes it easy to support new methods and different physics
-by adding a new system and defining its pairwise interaction wth other systems.
+by adding a new system and defining its pairwise interaction with other systems.
 
 ![Particles of two different systems $\mathcal{S}_1$ and $\mathcal{S}_2$ in a simulation domain. The black and gray dashed circles represent the search radii for neighbors of particles $a$ and $b$, respectively.\label{fig:systems}](systems.png){width=30%}
 
