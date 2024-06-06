@@ -43,6 +43,7 @@
         │ OpenBoundarySPHSystem{2}                                                                         │
         │ ════════════════════════                                                                         │
         │ #particles: ………………………………………………… 80                                                               │
+        │ #buffer_particles: ……………………………… 0                                                                │
         │ boundary: ……………………………………………………… InFlow                                                           │
         │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
         │ prescribed velocity: ………………………… constant_vector                                                  │
@@ -63,6 +64,7 @@
         │ OpenBoundarySPHSystem{2}                                                                         │
         │ ════════════════════════                                                                         │
         │ #particles: ………………………………………………… 80                                                               │
+        │ #buffer_particles: ……………………………… 0                                                                │
         │ boundary: ……………………………………………………… OutFlow                                                          │
         │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
         │ prescribed velocity: ………………………… constant_vector                                                  │
