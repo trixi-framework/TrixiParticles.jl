@@ -28,7 +28,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
 - `buffer_size`:    Number of buffer particles.
-                    This is only needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`

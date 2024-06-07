@@ -16,7 +16,7 @@ about the method see [Open Boundary System](@ref open_boundary).
 # Keywords
 - `sound_speed`: Speed of sound.
 - `fluid_system`: The corresponding fluid system
-- `buffer_size`: Number of buffer particles.
+- `buffer_size=0`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
 						and time to its velocity, an array where the ``i``-th column holds
 						the velocity of particle ``i`` or, for a constant fluid velocity,
@@ -53,7 +53,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
     update_callback_used     :: Ref{Bool}
 
     function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
-                                   fluid_system::FluidSystem, buffer_size::Integer=0,
+                                   fluid_system::FluidSystem, buffer_size::Integer,
                                    reference_velocity=zeros(ndims(boundary_zone)),
                                    reference_pressure=0.0,
                                    reference_density=first(boundary_zone.initial_condition.density))
@@ -177,13 +177,13 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     u = wrap_u(u_ode, system, semi)
     v = wrap_v(v_ode, system, semi)
 
-    # Update density, pressure and velocity depending on the characteristic variables.
+    # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, t)
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-    # Update buffer
+    # Update buffers
     update_system_buffer!(system.buffer)
     update_system_buffer!(system.fluid_system.buffer)
 end
@@ -210,8 +210,8 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     evaluate_characteristics!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
 
     # Only some of the in-/outlet particles are in the influence of the fluid particles.
-    # Thus, we find the characteristics for the particle which are outside the influence
-    # using the average of the values of the previous time step.
+    # Thus, we compute the characteristics for the particles that are outside the influence
+    # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
     @threaded for particle in each_moving_particle(system)
 
@@ -315,6 +315,7 @@ end
     (; density, pressure, characteristics, flow_direction, sound_speed,
     reference_velocity, reference_pressure, reference_density) = system
 
+    # Update quantities based on the characteristic variables
     @threaded for particle in each_moving_particle(system)
         particle_position = current_coords(u, system, particle)
 
@@ -353,8 +354,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
         # Check if boundary particle is outside the boundary zone
         if !is_in_boundary_zone(boundary_zone, particle_coords)
-            transform_particle!(system, fluid_system, boundary_zone, particle,
-                                v, u, v_fluid, u_fluid)
+            convert_particle!(system, fluid_system, boundary_zone, particle,
+                              v, u, v_fluid, u_fluid)
         end
 
         # Check the neighboring fluid particles whether they're entering the boundary zone
@@ -363,8 +364,8 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 
             # Check if neighboring fluid particle is in boundary zone
             if is_in_boundary_zone(boundary_zone, fluid_coords)
-                transform_particle!(fluid_system, system, boundary_zone, neighbor,
-                                    v, u, v_fluid, u_fluid)
+                convert_particle!(fluid_system, system, boundary_zone, neighbor,
+                                  v, u, v_fluid, u_fluid)
             end
         end
     end
@@ -373,18 +374,18 @@ function check_domain!(system, v, u, v_ode, u_ode, semi)
 end
 
 # Outflow particle is outside the boundary zone
-@inline function transform_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                     boundary_zone::OutFlow, particle, v, u,
-                                     v_fluid, u_fluid)
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::OutFlow, particle, v, u,
+                                   v_fluid, u_fluid)
     deactivate_particle!(system, particle, u)
 
     return system
 end
 
 # Inflow particle is outside the boundary zone
-@inline function transform_particle!(system::OpenBoundarySPHSystem, fluid_system,
-                                     boundary_zone::InFlow, particle, v, u,
-                                     v_fluid, u_fluid)
+@inline function convert_particle!(system::OpenBoundarySPHSystem, fluid_system,
+                                   boundary_zone::InFlow, particle, v, u,
+                                   v_fluid, u_fluid)
     (; spanning_set) = boundary_zone
 
     # Activate a new particle in simulation domain
@@ -399,8 +400,8 @@ end
 end
 
 # Fluid particle is in boundary zone
-@inline function transform_particle!(fluid_system::FluidSystem, system,
-                                     boundary_zone, particle, v, u, v_fluid, u_fluid)
+@inline function convert_particle!(fluid_system::FluidSystem, system,
+                                   boundary_zone, particle, v, u, v_fluid, u_fluid)
     # Activate particle in boundary zone
     transfer_particle!(system, fluid_system, particle, v, u, v_fluid, u_fluid)
 

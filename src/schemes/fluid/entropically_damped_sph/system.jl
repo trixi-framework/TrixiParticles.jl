@@ -29,7 +29,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
 - `buffer_size`:    Number of buffer particles.
-                    This is only needed when simulating with [`OpenBoundarySPHSystem`](@ref).
+                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
