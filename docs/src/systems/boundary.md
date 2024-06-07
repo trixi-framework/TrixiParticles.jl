@@ -235,9 +235,18 @@ Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl"
   In: Journal of Computational Physics 300 (2015), pages 5–19.
   [doi: 10.1016/J.JCP.2015.07.033](https://doi.org/10.1016/J.JCP.2015.07.033)
 
-# [Open Boundary System](@id open_boundary)
+# [Open Boundaries](@id open_boundary)
 
-TODO: Make the entire doc nicer and clearer
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "system.jl")]
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
+```
+
 The difficulty in non-reflecting boundary conditions, also called open boundaries, is to determine
 the appropriate boundary values of the exact characteristics of the Euler equations.
 Assuming the flow near the boundaries is normal to the boundary
@@ -262,7 +271,7 @@ where the subscript "ref" denotes the reference flow near the boundaries, which 
 Specifying the reference variables is **not** equivalent to prescription of ``\rho``, ``v`` and ``p``
 directly, since the perturbation from the reference flow is allowed.
 
-Lastiwka et al (2009) applied the method of characteristic to SPH and determine the number of variables that should be
+Lastiwka et al. (2009) applied the method of characteristic to SPH and determine the number of variables that should be
 **prescribed** at the boundary and the number which should be **propagated** from the fluid domain to the boundary:
 
 Flow enters the domain through an
@@ -279,7 +288,7 @@ domain, or in other words, to carry the information of the fluid to the boundari
 ```math
 f_i = \frac{\sum_j^N f_j W_{ij}}{\sum_j^N W_{ij}},
 ```
-where the ``i``th particle is a boundary particle, ``f`` is either  ``J_1``, ``J_2`` or ``J_3`` and ``N`` is the set of
+where the ``i``-th particle is a boundary particle, ``f`` is either  ``J_1``, ``J_2`` or ``J_3`` and ``N`` is the set of
 neighboring fluid particles.
 
 To express pressure ``p``, density ``\rho`` and velocity ``v`` as functions of the characteristic variables, the system of equations
@@ -295,19 +304,9 @@ p - p_{\text{ref}} = \frac{1}{2} \left( J_2 + J_3 \right).
 ```
 Thus, determined ``J_1``, ``J_2`` and ``J_3``, we can easily solve for the actual variables for each particle.
 
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
-```
-
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("schemes", "boundary", "open_boundary", "system.jl")]
-```
-
 ### References
-- M. B. Giles "Nonreflecting boundary conditions for Euler equation calculations".
-  In: AIAA Journal , Vol. 28, No. 12 pages 2050--2058
+- M. B. Giles. "Nonreflecting boundary conditions for Euler equation calculations".
+  In: AIAA Journal , 28.12 pages 2050--2058.
   [doi: 10.2514/3.10521](https://doi.org/10.2514/3.10521)
 - M. Lastiwka, M. Basa, N. J. Quinlan.
   "Permeable and non-reflecting boundary conditions in SPH".

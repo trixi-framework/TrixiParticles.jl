@@ -18,17 +18,17 @@ about the method see [Open Boundary System](@ref open_boundary).
 - `fluid_system`: The corresponding fluid system
 - `buffer_size`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
-						and time to its velocity, an array where the ``i``-th column holds
-						the velocity of particle ``i`` or, for a constant fluid velocity,
-						a vector holding this velocity. Velocity is constant zero by default.
+                        and time to its velocity, an array where the ``i``-th column holds
+                        the velocity of particle ``i`` or, for a constant fluid velocity,
+                        a vector holding this velocity. Velocity is constant zero by default.
 - `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
-						and time to its pressure, a vector holding the pressure of each particle,
-						or a scalar for a constant pressure over all particles.
-						Pressure is constant zero by default.
+                        and time to its pressure, a vector holding the pressure of each particle,
+                        or a scalar for a constant pressure over all particles.
+                        Pressure is constant zero by default.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
-					   and time to its density, a vector holding the density of each particle,
-					   or a scalar for a constant density over all particles.
-					   Density is the density of the first particle in the initial condition by default.
+                       and time to its density, a vector holding the density of each particle,
+                       or a scalar for a constant density over all particles.
+                       Density is the density of the first particle in the initial condition by default.
 
 !!! warning "Experimental Implementation"
 	This is an experimental feature and may change in any future releases.
