@@ -56,7 +56,7 @@
                                                            smoothing_length, sound_speed)
 
                 boundary_system = OpenBoundarySPHSystem(boundary_zone; sound_speed,
-                                                        fluid_system,
+                                                        fluid_system, buffer_size=0,
                                                         reference_velocity,
                                                         reference_pressure,
                                                         reference_density)
