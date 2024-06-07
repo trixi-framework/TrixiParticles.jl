@@ -252,11 +252,11 @@ Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 The difficulty in non-reflecting boundary conditions, also called open boundaries, is to determine
 the appropriate boundary values of the exact characteristics of the Euler equations.
 Assuming the flow near the boundaries is normal to the boundary
-and free of shock waves and significant viscous effects, it can be shown that three characteristics variables exist:
+and free of shock waves and significant viscous effects, it can be shown that three characteristic variables exist:
 
 - ``J_1``, associated with convection of entropy and propagates at flow velocity,
 - ``J_2``, downstream-running characteristics,
-- ``J_3``, Upstream-running characteristics.
+- ``J_3``, upstream-running characteristics.
 
 Giles (1990) derived those variables based on a linearized set of governing equations:
 ```math
