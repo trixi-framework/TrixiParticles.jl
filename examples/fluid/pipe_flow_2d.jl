@@ -1,13 +1,14 @@
-# TODO: Description
+# 2D channel flow simulation with open boundaries.
+
 using TrixiParticles
 using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-domain_length_factor = 0.05
+particle_spacing = 0.05
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 4
+boundary_layers = 3
 
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
@@ -26,12 +27,13 @@ flow_direction = [1.0, 0.0]
 reynolds_number = 100
 const prescribed_velocity = 2.0
 
-particle_spacing = domain_length_factor * domain_size[1]
-
 boundary_size = (domain_size[1] + 2 * particle_spacing * open_boundary_layers,
                  domain_size[2])
 
 fluid_density = 1000.0
+
+# For this particular example, it is necessary to have a background pressure.
+# Otherwise the suction at the outflow is to big and the simulation becomes unstable.
 pressure = 1000.0
 
 sound_speed = 10 * prescribed_velocity
@@ -53,8 +55,8 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]
 smoothing_length = 3.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-nu = prescribed_velocity * domain_size[2] / reynolds_number
-alpha = 8 * nu / (smoothing_length * sound_speed)
+kinematic_viscosity = prescribed_velocity * domain_size[2] / reynolds_number
+alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
@@ -67,7 +69,10 @@ fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
 # ==========================================================================================
 # ==== Open Boundary
 function velocity_function(pos, t)
-    return SVector(prescribed_velocity, 0.0) # SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
+    # Use this for a time-dependent inflow velocity
+    # return SVector(0.5prescribed_velocity * sin(2pi * t) + prescribed_velocity, 0)
+
+    return SVector(prescribed_velocity, 0.0)
 end
 
 inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
@@ -100,11 +105,8 @@ boundary_system = BoundarySPHSystem(pipe.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system,
-                          open_boundary_in,
-                          open_boundary_out,
-                          boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(fluid_system, open_boundary_in, open_boundary_out,
+                          boundary_system, neighborhood_search=GridNeighborhoodSearch)
 
 ode = semidiscretize(semi, tspan)
 
