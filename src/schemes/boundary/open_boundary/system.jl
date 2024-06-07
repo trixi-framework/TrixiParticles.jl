@@ -160,6 +160,36 @@ end
     return system.pressure[particle]
 end
 
+@inline function update_quantities!(system::OpenBoundarySPHSystem, v, u, t)
+    (; density, pressure, characteristics, flow_direction, sound_speed,
+    reference_velocity, reference_pressure, reference_density) = system
+
+    # Update quantities based on the characteristic variables
+    @threaded for particle in each_moving_particle(system)
+        particle_position = current_coords(u, system, particle)
+
+        J1 = characteristics[1, particle]
+        J2 = characteristics[2, particle]
+        J3 = characteristics[3, particle]
+
+        rho_ref = reference_density(particle_position, t)
+        density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
+
+        p_ref = reference_pressure(particle_position, t)
+        pressure[particle] = p_ref + 0.5 * (J2 + J3)
+
+        v_ref = reference_velocity(particle_position, t)
+        rho = density[particle]
+        v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
+
+        for dim in 1:ndims(system)
+            v[dim, particle] = v_[dim]
+        end
+    end
+
+    return system
+end
+
 function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
                        update_from_callback=false)
     if !update_from_callback && !(system.update_callback_used[])
@@ -170,25 +200,6 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
                                                                                v_ode, u_ode,
                                                                                semi, t)
 end
-
-# This function is called by the `UpdateCallback`, as the integrator array might be modified
-function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
-                                        semi, t)
-    u = wrap_u(u_ode, system, semi)
-    v = wrap_v(v_ode, system, semi)
-
-    # Update density, pressure and velocity based on the characteristic variables.
-    # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
-    @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, t)
-
-    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
-
-    # Update buffers
-    update_system_buffer!(system.buffer)
-    update_system_buffer!(system.fluid_system.buffer)
-end
-
-update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
 # ==== Characteristics
 # J1: Associated with convection and entropy and propagates at flow velocity.
@@ -311,35 +322,24 @@ end
     return characteristics
 end
 
-@inline function update_quantities!(system::OpenBoundarySPHSystem, v, u, t)
-    (; density, pressure, characteristics, flow_direction, sound_speed,
-    reference_velocity, reference_pressure, reference_density) = system
+# This function is called by the `UpdateCallback`, as the integrator array might be modified
+function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_ode,
+                                        semi, t)
+    u = wrap_u(u_ode, system, semi)
+    v = wrap_v(v_ode, system, semi)
 
-    # Update quantities based on the characteristic variables
-    @threaded for particle in each_moving_particle(system)
-        particle_position = current_coords(u, system, particle)
+    # Update density, pressure and velocity based on the characteristic variables.
+    # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
+    @trixi_timeit timer() "update quantities" update_quantities!(system, v, u, t)
 
-        J1 = characteristics[1, particle]
-        J2 = characteristics[2, particle]
-        J3 = characteristics[3, particle]
+    @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
-        rho_ref = reference_density(particle_position, t)
-        density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
-
-        p_ref = reference_pressure(particle_position, t)
-        pressure[particle] = p_ref + 0.5 * (J2 + J3)
-
-        v_ref = reference_velocity(particle_position, t)
-        rho = density[particle]
-        v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
-
-        for dim in 1:ndims(system)
-            v[dim, particle] = v_[dim]
-        end
-    end
-
-    return system
+    # Update buffers
+    update_system_buffer!(system.buffer)
+    update_system_buffer!(system.fluid_system.buffer)
 end
+
+update_open_boundary_eachstep!(system, v_ode, u_ode, semi, t) = system
 
 function check_domain!(system, v, u, v_ode, u_ode, semi)
     (; boundary_zone, fluid_system) = system
