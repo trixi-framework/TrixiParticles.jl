@@ -247,6 +247,8 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "boundary", "open_boundary", "boundary_zones.jl")]
 ```
 
+### [Method of characteristics](@id method_of_characteristics)
+
 The difficulty in non-reflecting boundary conditions, also called open boundaries, is to determine
 the appropriate boundary values of the exact characteristics of the Euler equations.
 Assuming the flow near the boundaries is normal to the boundary

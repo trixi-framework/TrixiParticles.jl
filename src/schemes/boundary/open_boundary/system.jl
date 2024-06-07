@@ -7,8 +7,8 @@
 
 Open boundary system for in- and outflow particles.
 These open boundaries use the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al (2009). For more information
-about the method see [Open Boundary System](@ref open_boundary).
+to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
+about the method see [description below](@ref method_of_characteristics).
 
 # Arguments
 - `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
