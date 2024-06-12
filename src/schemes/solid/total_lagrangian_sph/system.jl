@@ -69,55 +69,50 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     boundary_model      :: BM
     penalty_force       :: PF
     source_terms        :: ST
+end
 
-    function TotalLagrangianSPHSystem(initial_condition,
-                                      smoothing_kernel, smoothing_length,
-                                      young_modulus, poisson_ratio;
-                                      n_fixed_particles=0, boundary_model=nothing,
-                                      acceleration=ntuple(_ -> 0.0,
-                                                          ndims(smoothing_kernel)),
-                                      penalty_force=nothing, source_terms=nothing)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-        n_particles = nparticles(initial_condition)
+function TotalLagrangianSPHSystem(initial_condition,
+                                  smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio;
+                                  n_fixed_particles=0, boundary_model=nothing,
+                                  acceleration=ntuple(_ -> 0.0,
+                                                      ndims(smoothing_kernel)),
+                                  penalty_force=nothing, source_terms=nothing)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    n_particles = nparticles(initial_condition)
 
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        # Make acceleration an SVector
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        initial_coordinates = copy(initial_condition.coordinates)
-        current_coordinates = copy(initial_condition.coordinates)
-        mass = copy(initial_condition.mass)
-        material_density = copy(initial_condition.density)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-
-        n_moving_particles = n_particles - n_fixed_particles
-
-        lame_lambda = young_modulus * poisson_ratio /
-                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-        lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
-
-        return new{typeof(boundary_model), NDIMS, ELTYPE,
-                   typeof(initial_condition),
-                   typeof(mass), typeof(initial_coordinates),
-                   typeof(deformation_grad), typeof(smoothing_kernel),
-                   typeof(penalty_force),
-                   typeof(source_terms)}(initial_condition, initial_coordinates,
-                                         current_coordinates, mass, correction_matrix,
-                                         pk1_corrected, deformation_grad, material_density,
-                                         n_moving_particles, young_modulus, poisson_ratio,
-                                         lame_lambda, lame_mu, smoothing_kernel,
-                                         smoothing_length, acceleration_, boundary_model,
-                                         penalty_force, source_terms)
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
+
+    # Make acceleration an SVector
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    initial_coordinates = copy(initial_condition.coordinates)
+    current_coordinates = copy(initial_condition.coordinates)
+    mass = copy(initial_condition.mass)
+    material_density = copy(initial_condition.density)
+    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+    pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+    deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+
+    n_moving_particles = n_particles - n_fixed_particles
+
+    lame_lambda = young_modulus * poisson_ratio /
+                  ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
+    lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
+
+    return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
+                                    current_coordinates, mass, correction_matrix,
+                                    pk1_corrected, deformation_grad, material_density,
+                                    n_moving_particles, young_modulus, poisson_ratio,
+                                    lame_lambda, lame_mu, smoothing_kernel,
+                                    smoothing_length, acceleration_, boundary_model,
+                                    penalty_force, source_terms)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)

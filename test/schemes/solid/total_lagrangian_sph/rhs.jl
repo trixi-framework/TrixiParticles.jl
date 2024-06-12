@@ -151,7 +151,7 @@
                 10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0,
             ])
 
-        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
+        @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
             J = deformations[deformation]
             u = zeros(2, 81)
             v = zeros(2, 81)
@@ -187,22 +187,50 @@
 
             semi = Semidiscretization(system)
             tspan = (0.0, 1.0)
-            semidiscretize(semi, tspan)
 
-            # Apply the deformation matrix
-            for particle in axes(u, 2)
-                # Apply deformation
-                u[1:2, particle] = deformations[deformation](coordinates[:, particle])
+            # To make the code below work
+            function TrixiParticles.PtrArray{Float64}(::UndefInitializer, length)
+                TrixiParticles.PtrArray(zeros(length))
             end
 
-            #### Verification for the particle in the middle
-            particle = 41
+            # We can pass the data type `Array` to convert all systems to `GPUSystem`s
+            # and emulate the GPU kernels on the GPU.
+            # But this doesn't test `wrap_v` and `wrap_u` for non-`Array` types.
+            # In order to test this as well, we need a different data type, so we also
+            # pass `PtrArray`.
+            names = ["CPU code", "GPU code with CPU wrapping", "GPU code with GPU wrapping"]
+            data_types = [nothing, Array, TrixiParticles.PtrArray]
+            @testset "$(names[i])" for i in eachindex(names)
+                data_type = data_types[i]
+                ode = semidiscretize(semi, tspan, data_type=data_type)
 
-            dv = zeros(ndims(system), 81)
-            TrixiParticles.kick!(dv, v, u, semi, 0.0)
+                # Apply the deformation matrix
+                for particle in axes(u, 2)
+                    # Apply deformation
+                    u[1:2, particle] = deformations[deformation](coordinates[:, particle])
+                end
 
-            @test isapprox(dv[:, particle], dv_expected_41[deformation],
-                           rtol=sqrt(eps()), atol=sqrt(eps()))
+                v_ode = ode.u0.x[1]
+                if isnothing(data_type)
+                    u_ode = vec(u)
+                else
+                    u_ode = data_type(vec(u))
+                end
+
+                @test typeof(v_ode) == typeof(u_ode)
+                @test length(v_ode) == length(u_ode)
+
+                #### Verification for the particle in the middle
+                particle = 41
+
+                dv_ode = zero(v_ode)
+                TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+                dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+
+                @test isapprox(dv[:, particle], dv_expected_41[deformation],
+                               rtol=sqrt(eps()), atol=sqrt(eps()))
+            end
         end
     end
 end;
