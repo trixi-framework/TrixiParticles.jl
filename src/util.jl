@@ -97,10 +97,10 @@ macro threaded(system, expr)
     # Assemble the for loop again as a call to `parallel_foreach`, using `$i` to use the
     # same loop variable as used in the for loop.
     return esc(quote
-        TrixiParticles.parallel_foreach($iterator, $system) do $i
-            $inner_loop
-        end
-    end)
+                   TrixiParticles.parallel_foreach($iterator, $system) do $i
+                       $inner_loop
+                   end
+               end)
 end
 
 # Use `Polyester.@batch` for low-overhead threading

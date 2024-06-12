@@ -35,4 +35,7 @@ end
 
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
-KernelAbstractions.get_backend(system::BoundarySPHSystem) = KernelAbstractions.get_backend(system.coordinates)
+
+function KernelAbstractions.get_backend(system::BoundarySPHSystem)
+    KernelAbstractions.get_backend(system.coordinates)
+end
