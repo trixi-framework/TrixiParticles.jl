@@ -17,7 +17,8 @@ function copy_semi_with_no_update_nhs(semi)
 end
 
 # Forward `foreach_neighbor` to wrapped neighborhood search
-@inline function TrixiParticles.PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+@inline function TrixiParticles.PointNeighbors.foreach_neighbor(f, system_coords,
+                                                                neighbor_coords,
                                                                 neighborhood_search::NoUpdateNeighborhoodSearch,
                                                                 particle;
                                                                 search_radius=neighborhood_search.nhs.search_radius)
