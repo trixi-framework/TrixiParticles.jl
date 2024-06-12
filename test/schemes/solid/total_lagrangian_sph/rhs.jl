@@ -32,7 +32,7 @@
             [0.0, 0.0],
         ]
 
-        @testset "Test $i" for i in 1:4
+        @testset verbose=true "Test $i" for i in 1:4
             #### Setup
             each_moving_particle = [particle[i]] # Only calculate dv for this one particle
             eachparticle = [particle[i], neighbor[i]]
@@ -53,18 +53,27 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            # Mock the system
-            system = Val{:mock_system_interact}()
-            TrixiParticles.ndims(::Val{:mock_system_interact}) = 2
-            Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
+            # Mock a CPU system to test CPU code
+            struct MockSystemInteractCPU <: TrixiParticles.System{2, String} end
+            system = MockSystemInteractCPU()
 
-            function TrixiParticles.initial_coordinates(::Val{:mock_system_interact})
+            # Mock a GPU system to emulate GPU code on the CPU
+            struct MockSystemInteractGPU <: TrixiParticles.System{2, Nothing} end
+            system_gpu = MockSystemInteractGPU()
+
+            function TrixiParticles.KernelAbstractions.get_backend(::MockSystemInteractGPU)
+                return TrixiParticles.KernelAbstractions.CPU()
+            end
+
+            MockSystemType = Union{MockSystemInteractCPU, MockSystemInteractGPU}
+
+            function TrixiParticles.initial_coordinates(::MockSystemType)
                 return initial_coordinates
             end
 
             # Unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}.
-            function Base.getproperty(::Val{:mock_system_interact}, f::Symbol)
+            function Base.getproperty(::MockSystemType, f::Symbol)
                 if f === :current_coordinates
                     return current_coordinates
                 elseif f === :material_density
@@ -81,10 +90,13 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            function TrixiParticles.each_moving_particle(::Val{:mock_system_interact})
+            function TrixiParticles.each_moving_particle(::MockSystemType)
                 each_moving_particle
             end
-            TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
+            TrixiParticles.eachparticle(::MockSystemType) = eachparticle
+
+            # Mock the neighborhood search
+            nhs = Val{:nhs}()
             TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
 
             function Base.getproperty(::Val{:nhs}, f::Symbol)
@@ -99,26 +111,25 @@
             end
             TrixiParticles.ndims(::Val{:nhs}) = 2
 
-            function TrixiParticles.pk1_corrected(::Val{:mock_system_dv}, particle_)
-                if particle_ == particle[i]
-                    return pk1_particle_corrected[i]
-                end
-                return pk1_neighbor_corrected[i]
-            end
-
-            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_system_interact})
+            function TrixiParticles.add_acceleration!(_, _, ::MockSystemType)
                 nothing
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
             #### Verification
-            dv = zeros(ndims(system), 10)
-            dv_expected = copy(dv)
-            dv_expected[:, particle[i]] = dv_particle_expected[i]
+            systems = [system, system_gpu]
+            names = ["CPU code", "Emulate GPU"]
+            @testset "$(names[j])" for j in eachindex(names)
+                system_ = systems[j]
 
-            TrixiParticles.interact_solid_solid!(dv, Val(:nhs), system, system)
+                dv = zeros(ndims(system_), 10)
+                dv_expected = copy(dv)
+                dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-            @test dv ≈ dv_expected
+                TrixiParticles.interact_solid_solid!(dv, nhs, system_, system_)
+
+                @test dv ≈ dv_expected
+            end
         end
     end
 
@@ -194,4 +205,4 @@
                            rtol=sqrt(eps()), atol=sqrt(eps()))
         end
     end
-end
+end;
