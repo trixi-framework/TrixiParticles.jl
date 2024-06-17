@@ -1,8 +1,8 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
     # Mock systems
-    struct System1 <: TrixiParticles.System{3} end
-    struct System2 <: TrixiParticles.System{3} end
+    struct System1 <: TrixiParticles.System{3, Nothing} end
+    struct System2 <: TrixiParticles.System{3, Nothing} end
 
     system1 = System1()
     system2 = System2()
@@ -39,7 +39,7 @@
             struct BoundaryModelMock end
 
             # Mock fluid system
-            struct FluidSystemMock <: TrixiParticles.FluidSystem{2} end
+            struct FluidSystemMock <: TrixiParticles.FluidSystem{2, Nothing} end
 
             kernel = Val(:smoothing_kernel)
             Base.ndims(::Val{:smoothing_kernel}) = 2
