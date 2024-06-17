@@ -164,3 +164,21 @@ end
 function type2string(type)
     return string(nameof(typeof(type)))
 end
+
+function compute_git_hash()
+    pkg_directory = pkgdir(@__MODULE__)
+    git_directory = joinpath(pkg_directory, ".git")
+
+    # Check if the .git directory exists
+    if !isdir(git_directory)
+        return "UnknownVersion"
+    end
+
+    try
+        git_cmd = Cmd(`git describe --tags --always --first-parent --dirty`,
+                      dir=pkg_directory)
+        return string(readchomp(git_cmd))
+    catch e
+        return "UnknownVersion"
+    end
+end
