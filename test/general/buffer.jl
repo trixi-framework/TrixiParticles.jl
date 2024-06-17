@@ -1,4 +1,4 @@
-@testset verbose=true "SystemBuffer" begin
+@testset verbose=true "`SystemBuffer`" begin
     # Mock fluid system
     struct FluidSystemMock3 <: TrixiParticles.FluidSystem{2, Nothing} end
 
@@ -12,32 +12,31 @@
     n_particles = nparticles(system)
 
     @testset "Iterators" begin
-        @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system)
+        @test TrixiParticles.each_moving_particle(system) == 1:n_particles
 
-        @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
+        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
 
-        particle_ID = TrixiParticles.activate_next_particle(system_buffer)
-
-        TrixiParticles.update_system_buffer!(system_buffer.buffer)
-
-        @test Base.OneTo(n_particles + 1) ==
-              TrixiParticles.each_moving_particle(system_buffer)
-
-        TrixiParticles.deactivate_particle!(system_buffer, particle_ID,
-                                            ones(2, particle_ID))
+        particle_id = TrixiParticles.activate_next_particle(system_buffer)
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
-        @test Base.OneTo(n_particles) == TrixiParticles.each_moving_particle(system_buffer)
+        @test TrixiParticles.each_moving_particle(system_buffer) == 1:(n_particles + 1)
 
-        particle_ID = 5
-        TrixiParticles.deactivate_particle!(system_buffer, particle_ID,
-                                            ones(2, particle_ID))
+        TrixiParticles.deactivate_particle!(system_buffer, particle_id,
+                                            ones(2, particle_id))
 
         TrixiParticles.update_system_buffer!(system_buffer.buffer)
 
-        @test setdiff(Base.OneTo(n_particles), particle_ID) ==
-              TrixiParticles.each_moving_particle(system_buffer)
+        @test TrixiParticles.each_moving_particle(system_buffer) == 1:n_particles
+
+        particle_id = 5
+        TrixiParticles.deactivate_particle!(system_buffer, particle_id,
+                                            ones(2, particle_id))
+
+        TrixiParticles.update_system_buffer!(system_buffer.buffer)
+
+        @test TrixiParticles.each_moving_particle(system_buffer) ==
+              setdiff(1:n_particles, particle_id)
     end
 
     @testset "Allocate Buffer" begin
@@ -46,7 +45,7 @@
 
         ic_with_buffer = TrixiParticles.allocate_buffer(initial_condition, buffer)
 
-        @test nparticles(initial_condition) + 7 == nparticles(ic_with_buffer)
+        @test nparticles(ic_with_buffer) == nparticles(initial_condition) + 7
 
         masses = initial_condition.mass[1] .* ones(nparticles(ic_with_buffer))
         @test masses == ic_with_buffer.mass
@@ -58,8 +57,10 @@
         @test pressures == ic_with_buffer.pressure
 
         @testset "Illegal Input" begin
+            # The rectangular patch has a perturbed, non-constant density
             ic = rectangular_patch(0.1, (3, 3))
             buffer = TrixiParticles.SystemBuffer(9, 7)
+
             error_str = "`initial_condition.density` needs to be constant when using `SystemBuffer`"
             @test_throws ArgumentError(error_str) TrixiParticles.allocate_buffer(ic, buffer)
         end

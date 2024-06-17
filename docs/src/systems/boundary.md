@@ -308,7 +308,7 @@ Thus, determined ``J_1``, ``J_2`` and ``J_3``, we can easily solve for the actua
 
 ### References
 - M. B. Giles. "Nonreflecting boundary conditions for Euler equation calculations".
-  In: AIAA Journal , 28.12 pages 2050--2058.
+  In: AIAA Journal, 28.12 pages 2050--2058.
   [doi: 10.2514/3.10521](https://doi.org/10.2514/3.10521)
 - M. Lastiwka, M. Basa, N. J. Quinlan.
   "Permeable and non-reflecting boundary conditions in SPH".
@@ -316,5 +316,5 @@ Thus, determined ``J_1``, ``J_2`` and ``J_3``, we can easily solve for the actua
   [doi: 10.1002/fld.1971](https://doi.org/10.1002/fld.1971)
 - P. Negi, P. Ramachandran, A. Haftu.
   "An improved non-reflecting outlet boundary condition for weakly-compressible SPH".
-  In: Computer Methods in Applied Mechanics and Engineering 367, (2020), pages 113119.
+  In: Computer Methods in Applied Mechanics and Engineering 367, (2020), pages 113--119.
   [doi: 10.1016/j.cma.2020.113119](https://doi.org/10.1016/j.cma.2020.113119)

@@ -1,4 +1,4 @@
-@testset verbose=true "OpenBoundarySPHSystem" begin
+@testset verbose=true "`OpenBoundarySPHSystem`" begin
     @testset verbose=true "Illegal Inputs" begin
         plane = ([0.0, 0.0], [0.0, 1.0])
         flow_direction = (1.0, 0.0)
@@ -40,7 +40,7 @@
                                                                     fluid_system=FluidSystemMock2(),
                                                                     reference_density)
     end
-    @testset "show" begin
+    @testset "`show`" begin
         inflow = InFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                         flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
         system = OpenBoundarySPHSystem(inflow; sound_speed=1.0, buffer_size=0,
