@@ -37,10 +37,12 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                     [`BoundaryModelDummyParticles`](@ref) and [`AdamiPressureExtrapolation`](@ref).
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
+- `surface_tension`:   Surface tension model used for this SPH system. (default: no surface tension)
+
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, C} <: FluidSystem{NDIMS}
+                                   V, DD, COR, PF, ST, SRFT, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -54,6 +56,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     correction                        :: COR
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
+    surface_tension                   :: SRFT
     cache                             :: C
 end
 
@@ -66,7 +69,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
-                                     correction=nothing, source_terms=nothing)
+                                     correction=nothing, source_terms=nothing,
+                                     surface_tension=nothing)
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -98,14 +102,16 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     cache = (;
              create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                 n_particles)..., cache...)
+    cache = (;
+             create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
+             cache...)
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length,
-                                       acceleration_, viscosity,
-                                       density_diffusion, correction,
-                                       pressure_acceleration,
-                                       source_terms, cache)
+                                       smoothing_kernel, smoothing_length, acceleration_,
+                                       viscosity, density_diffusion, correction,
+                                       pressure_acceleration, source_terms, surface_tension,
+                                       cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
@@ -132,6 +138,11 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
 end
 
+function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
+    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+    return (; surface_normal)
+end
+
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     @nospecialize system # reduce precompilation time
 
@@ -142,6 +153,7 @@ function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
     print(io, ", ", system.smoothing_kernel)
     print(io, ", ", system.viscosity)
     print(io, ", ", system.density_diffusion)
+    print(io, ", ", system.surface_tension)
     print(io, ", ", system.acceleration)
     print(io, ", ", system.source_terms)
     print(io, ") with ", nparticles(system), " particles")
@@ -163,6 +175,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity)
         summary_line(io, "density diffusion", system.density_diffusion)
+        summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
         summary_footer(io)
@@ -201,7 +214,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction) = system
+    (; density_calculator, correction, surface_tension) = system
 
     compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
@@ -211,6 +224,7 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
+    compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
 
     return system
 end
@@ -324,4 +338,40 @@ end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
+end
+
+function compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+function compute_surface_normal!(system, surface_tension::SurfaceTensionAkinci, v, u, v_ode,
+                                 u_ode, semi, t)
+    (; cache) = system
+
+    # Reset surface normal
+    set_zero!(cache.surface_normal)
+
+    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
+        u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
+        v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
+        nhs = get_neighborhood_search(system, semi)
+
+        calc_normal_akinci!(system, neighbor_system, surface_tension, u, v_neighbor_system,
+                            u_neighbor_system, nhs)
+    end
+    return system
+end
+
+@inline function surface_normal(::SurfaceTensionAkinci, particle_system::FluidSystem,
+                                particle)
+    (; cache) = particle_system
+    return extract_svector(cache.surface_normal, particle_system, particle)
+end
+
+@inline function surface_tension_model(system::WeaklyCompressibleSPHSystem)
+    return system.surface_tension
+end
+
+@inline function surface_tension_model(system)
+    return nothing
 end
