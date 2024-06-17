@@ -60,6 +60,8 @@ struct Semidiscretization{S, RU, RV, NS}
     end
 end
 
+GPUSemidiscretization = Semidiscretization{<:NTuple{<:Any, GPUSystem}}
+
 function Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
                             periodic_box_min_corner=nothing,
                             periodic_box_max_corner=nothing, threaded_nhs_update=true)
