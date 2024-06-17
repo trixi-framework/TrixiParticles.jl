@@ -1,4 +1,4 @@
-function load_shape(filename; scale_factor=nothing, ELTYPE=Float32, skipstart=1)
+function load_shape(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
@@ -38,7 +38,7 @@ function load(fn::File{format}; element_types...) where {format}
     end
 end
 
-function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float32)
+function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
@@ -51,11 +51,12 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float32)
 
     i = 0
     while !eof(io)
-        normals[i + 1] = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
+        normals[i + 1] = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32),
+                                            read(io, Float32))
 
-        v1 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
-        v2 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
-        v3 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
+        v1 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v2 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v3 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
 
         face_vertices[i + 1] = (v1, v2, v3)
 
@@ -94,11 +95,11 @@ function save(f::Stream{format"STL_BINARY"}, mesh::TriangleMesh; faces)
 
     write(io, UInt32(length(faces))) # write triangle count
     for i in faces
-        n = normals[i]
+        n = SVector{3, Float32}(normals[i])
         triangle = points[i]
         foreach(j -> write(io, n[j]), 1:3)
         for point in triangle
-            foreach(p -> write(io, p), point)
+            foreach(p -> write(io, p), SVector{3, Float32}(point))
         end
         write(io, 0x0000) # write 16bit empty bit
     end
