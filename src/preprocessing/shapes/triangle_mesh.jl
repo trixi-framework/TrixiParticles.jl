@@ -104,6 +104,16 @@ end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.normals_face)
 
+@inline face_normal(triangle, shape::TriangleMesh) = shape.normals_face[triangle]
+
+@inline function face_vertices(triangle, shape::TriangleMesh)
+    v1 = shape.face_vertices[triangle][1]
+    v2 = shape.face_vertices[triangle][2]
+    v3 = shape.face_vertices[triangle][3]
+
+    return v1, v2, v3
+end
+
 function incident_angles(triangle_points)
     a = triangle_points[1]
     b = triangle_points[2]
@@ -112,9 +122,17 @@ function incident_angles(triangle_points)
     sbc = dot(b - c, b - c)
     sac = dot(c - a, c - a)
 
-    alpha = acos(clamp((sab + sac - sbc) / (2 * sqrt(sab * sac)), -1, 1))
-    beta = acos(clamp((sbc + sab - sac) / (2 * sqrt(sbc * sab)), -1, 1))
-    gamma = acos(clamp((sac + sbc - sab) / (2 * sqrt(sac * sbc)), -1, 1))
+    alpha_ = (sab + sac - sbc) / (2 * sqrt(sab * sac))
+    beta_ = (sbc + sab - sac) / (2 * sqrt(sbc * sab))
+    gamma_ = (sac + sbc - sab) / (2 * sqrt(sac * sbc))
+
+    alpha_ = isfinite(alpha_) ? clamp(alpha_, -1, 1) : zero(eltype(sab))
+    beta_ = isfinite(beta_) ? clamp(beta_, -1, 1) : zero(eltype(sab))
+    gamma_ = isfinite(gamma_) ? clamp(gamma_, -1, 1) : zero(eltype(sab))
+
+    alpha = acos(alpha_)
+    beta = acos(beta_)
+    gamma = acos(gamma_)
 
     return alpha, beta, gamma
 end
