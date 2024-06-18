@@ -1,9 +1,9 @@
 @doc raw"""
-	OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
-						  buffer_size::Integer,
-						  reference_velocity=zeros(ndims(boundary_zone)),
-						  reference_pressure=0.0,
-						  reference_density=first(boundary_zone.initial_condition.density))
+    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
+                          fluid_system::FluidSystem, buffer_size::Integer,
+                          reference_velocity=zeros(ndims(boundary_zone)),
+                          reference_pressure=0.0,
+                          reference_density=first(boundary_zone.initial_condition.density))
 
 Open boundary system for in- and outflow particles.
 These open boundaries use the characteristic variables to propagate the appropriate values

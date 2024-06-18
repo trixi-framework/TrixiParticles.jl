@@ -12,8 +12,8 @@ boundary_layers = 3
 
 # Make sure that the kernel support of fluid particles at an open boundary is always
 # fully sampled.
-# Due to the dynamics at the inlets and outlets, it is recommended to use
-# `open_boundary_layers > boundary_layers`
+# Note: Due to the dynamics at the inlets and outlets of open boundaries,
+# it is recommended to use `open_boundary_layers > boundary_layers`
 open_boundary_layers = 6
 
 # ==========================================================================================

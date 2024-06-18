@@ -273,20 +273,19 @@ where the subscript "ref" denotes the reference flow near the boundaries, which 
 Specifying the reference variables is **not** equivalent to prescription of ``\rho``, ``v`` and ``p``
 directly, since the perturbation from the reference flow is allowed.
 
-Lastiwka et al. (2009) applied the method of characteristic to SPH and determine the number of variables that should be
+Lastiwka et al. (2009) applied the method of characteristic to SPH and determined the number of variables that should be
 **prescribed** at the boundary and the number which should be **propagated** from the fluid domain to the boundary:
 
-Flow enters the domain through an
-- **inflow** boundary:
+- For an **inflow** boundary:
     - Prescribe *downstream*-running characteristics ``J_1`` and ``J_2``
     - Transmit ``J_3`` from the fluid domain (allow ``J_3`` to propagate upstream to the boundary).
 
-- **outflow** boundary:
+- For an **outflow** boundary:
     - Prescribe *upstream*-running characteristic ``J_3``
     - Transmit ``J_1`` and ``J_2`` from the fluid domain.
 
 Prescribing is done by simply setting the characteristics to zero. To transmit the characteristics from the fluid
-domain, or in other words, to carry the information of the fluid to the boundaries, Negi (2020) use a Shepard Interpolation
+domain, or in other words, to carry the information of the fluid to the boundaries, Negi et al. (2020) use a Shepard Interpolation
 ```math
 f_i = \frac{\sum_j^N f_j W_{ij}}{\sum_j^N W_{ij}},
 ```
@@ -304,7 +303,7 @@ u - u_{\text{ref}}= \frac{1}{2\rho c_s} \left( J_2 - J_3 \right),
 ```math
 p - p_{\text{ref}} = \frac{1}{2} \left( J_2 + J_3 \right).
 ```
-Thus, determined ``J_1``, ``J_2`` and ``J_3``, we can easily solve for the actual variables for each particle.
+With ``J_1``, ``J_2`` and ``J_3`` determined, we can easily solve for the actual variables for each particle.
 
 ### References
 - M. B. Giles. "Nonreflecting boundary conditions for Euler equation calculations".
