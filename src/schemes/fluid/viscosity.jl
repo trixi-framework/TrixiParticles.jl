@@ -31,15 +31,6 @@ end
 @doc raw"""
     ArtificialViscosityMonaghan(; alpha, beta=0.0, epsilon=0.01)
 
-# Keywords
-- `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
-           kinematic viscosity, see description below.
-- `beta=0.0`: A value of `0.0` works well for most fluid simulations and simulations
-          with shocks of moderate strength. In simulations where the Mach number can be
-          very high, eg. astrophysical calculation, good results can be obtained by
-          choosing a value of `beta=2` and `alpha=1`.
-- `epsilon=0.01`: Parameter to prevent singularities.
-
 Artificial viscosity by Monaghan (Monaghan 1992, Monaghan 1989), given by
 ```math
 \Pi_{ab} =
@@ -63,6 +54,15 @@ To do so, Monaghan (Monaghan 2005) defined an equivalent effective physical kine
     \nu = \frac{\alpha h c }{2d + 4},
 ```
 where ``d`` is the dimension.
+
+# Keywords
+- `alpha`: A value of `0.02` is usually used for most simulations. For a relation with the
+           kinematic viscosity, see description below.
+- `beta=0.0`: A value of `0.0` works well for most fluid simulations and simulations
+              with shocks of moderate strength. In simulations where the Mach number can be
+              very high, eg. astrophysical calculation, good results can be obtained by
+              choosing a value of `beta=2.0` and `alpha=1.0`.
+- `epsilon=0.01`: Parameter to prevent singularities.
 
 ## References
 - Joseph J. Monaghan. "Smoothed Particle Hydrodynamics".
@@ -188,7 +188,6 @@ end
     rho_a = particle_density(v_particle_system, particle_system, particle)
     rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
-
     # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     eta_a = nu * rho_a
     eta_b = nu * rho_b
@@ -222,37 +221,39 @@ function kinematic_viscosity(system, viscosity::ViscosityAdami)
 end
 
 @doc raw"""
-    ViscosityMoris(; nu, epsilon=0.01)
+    ViscosityMorris(; nu, epsilon=0.01)
 
 Viscosity by Moris (Moris et al. 1997).
 ```math
 f_{ab} = \sum_w \frac{m_b(eta_a+eta_b)}{||r_{ab}||^2+(\epsilon h_{ab})^2}  \nabla W_{ab} \cdot r_{ab}\cdot v_{ab},
 ```
-where ``\eta_a = \rho_a \nu_a`` with ``\nu`` as the kinematic viscosity.
+where ``\eta_a = \rho_a \nu`` and ``\eta_b = \rho_b \nu`` denote the dynamic viscosity
+of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity.
 
 # Keywords
 - `nu`: Kinematic viscosity
 - `epsilon=0.01`: Parameter to prevent singularities
 
 ## References
-- J. Morris et al., "Modeling Low Reynolds Number Incompressible Flows Using SPH",
-  In: Journal of Computational Physics, Volume 136, Issue 1, 1997, Pages 214-226.
+- Joseph P. Morris, Patrick J. Fox, Yi Zhu.
+  "Modeling Low Reynolds Number Incompressible Flows Using SPH".
+  In: Journal of Computational Physics, Volume 136, Issue 1 (1997), pages 214--226.
   [doi: doi.org/10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
-- G. Fourtakas et al., "Local uniform stencil (LUST) boundary condition for arbitrary
-  3-D boundaries in parallel smoothed particle hydrodynamics (SPH) models",
-  In: Computers & Fluids, 2019.
-  [doi: doi.org/10.1016/j.compfluid.2019.06.009](https://doi.org/10.1016/j.compfluid.2019.06.009)
+- Georgios Fourtakas, Jose M. Dominguez, Renato Vacondio, Benedict D. Rogers.
+  "Local uniform stencil (LUST) boundary condition for arbitrary
+  3-D boundaries in parallel smoothed particle hydrodynamics (SPH) models".
+  In: Computers & Fluids, Volume 190 (2019), pages 346--361.
 """
-struct ViscosityMoris{ELTYPE}
+struct ViscosityMorris{ELTYPE}
     nu::ELTYPE
     epsilon::ELTYPE
 
-    function ViscosityMoris(; nu, epsilon=0.01)
+    function ViscosityMorris(; nu, epsilon=0.01)
         new{typeof(nu)}(nu, epsilon)
     end
 end
 
-@inline function (viscosity::ViscosityMoris)(particle_system, neighbor_system,
+@inline function (viscosity::ViscosityMorris)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
                                              distance, sound_speed, m_a, m_b, rho_mean)
@@ -279,7 +280,7 @@ end
     return visc
 end
 
-function kinematic_viscosity(system, viscosity::ViscosityMoris)
+function kinematic_viscosity(system, viscosity::ViscosityMorris)
     return viscosity.nu
 end
 

@@ -312,10 +312,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
     vtk["pressure"] = model.pressure
     vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
 
-    if write_meta_data && viscosity isa ViscosityAdami
-        vtk["viscosity_model"] = "ViscosityAdami"
-    else
-        vtk["viscosity_model"] = "ViscosityMoris"
+    if write_meta_data
+        vtk["viscosity_model"] = viscosity |> typeof |> nameof
     end
 
     return vtk
