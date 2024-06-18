@@ -97,7 +97,6 @@ plot_3d = Plots.plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
 combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
                            size=(1000, 1500), margin=3mm)
 
-
 # If we want to save planes at regular intervals, we can use the postprocessing callback.
 function save_interpolated_plane(v, u, t, system)
     # Size of the patch to be interpolated
