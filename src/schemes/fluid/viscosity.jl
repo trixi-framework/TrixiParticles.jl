@@ -147,12 +147,14 @@ end
 
     grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-    pi_ab = viscosity(sound_speed, v_diff, vr, distance, rho_mean, rho_a, rho_b, smoothing_length, grad_kernel)
+    pi_ab = viscosity(sound_speed, v_diff, vr, distance, rho_mean, rho_a, rho_b,
+                      smoothing_length, grad_kernel)
 
     return -m_b * pi_ab
 end
 
-@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, vr, distance, rho_mean, rho_a,
+@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, vr, distance, rho_mean,
+                                                          rho_a,
                                                           rho_b, h, grad_kernel)
     (; alpha, beta, epsilon) = viscosity
 
@@ -168,14 +170,16 @@ end
     return zero(v_diff)
 end
 
-@inline function (viscosity::ViscosityMorris)(c, v_diff, vr, distance, rho_mean, rho_a, rho_b, h, grad_kernel)
+@inline function (viscosity::ViscosityMorris)(c, v_diff, vr, distance, rho_mean, rho_a,
+                                              rho_b, h, grad_kernel)
     (; epsilon, nu) = viscosity
 
     # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     mu_a = nu * rho_a
     mu_b = nu * rho_b
 
-    return (mu_a + mu_b) / (rho_a * rho_b) * dot(v_diff, grad_kernel)/(distance + epsilon * h)
+    return (mu_a + mu_b) / (rho_a * rho_b) * dot(v_diff, grad_kernel) /
+           (distance + epsilon * h)
 end
 
 # See, e.g.,
