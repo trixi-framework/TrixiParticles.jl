@@ -55,16 +55,25 @@ n_buffer_particles = 4 * pipe.n_particles_per_dimension[2]
 smoothing_length = 3.0 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
-kinematic_viscosity = prescribed_velocity * domain_size[2] / reynolds_number
-alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
-
 fluid_density_calculator = ContinuityDensity()
-viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
 
-fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=viscosity,
+kinematic_viscosity = prescribed_velocity * domain_size[2] / reynolds_number
+
+viscosity = ViscosityAdami(nu=kinematic_viscosity)
+
+fluid_system = EntropicallyDampedSPHSystem(pipe.fluid, smoothing_kernel, smoothing_length,
+                                           sound_speed, viscosity=viscosity,
+                                           density_calculator=fluid_density_calculator,
                                            buffer_size=n_buffer_particles)
+
+# Alternatively the WCSPH scheme can be used
+# alpha = 8 * kinematic_viscosity / (smoothing_length * sound_speed)
+# viscosity = ArtificialViscosityMonaghan(; alpha, beta=0.0)
+
+# fluid_system = WeaklyCompressibleSPHSystem(pipe.fluid, fluid_density_calculator,
+#                                            state_equation, smoothing_kernel,
+#                                            smoothing_length, viscosity=viscosity,
+#                                            buffer_size=n_buffer_particles)
 
 # ==========================================================================================
 # ==== Open Boundary
