@@ -21,7 +21,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 # nu = 0.01
 
 smoothing_length = 1.0 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.025
 
 fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
@@ -30,13 +30,16 @@ fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_sp
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-                                           state_equation, smoothing_kernel,
+                                           state_equation, fluid_smoothing_kernel,
                                            smoothing_length,
                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
                                                                                  beta=0.0),
                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
-                                           source_terms=source_terms)
+                                           source_terms=source_terms,
+                                           surface_normal_method=AkinciSurfaceNormal(smoothing_kernel=WendlandC6Kernel{3}(),
+                                                                                     smoothing_length=3.0 *
+                                                                                                      particle_spacing))
 
 # ==========================================================================================
 # ==== Simulation
@@ -48,7 +51,7 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 # For overwriting via `trixi_include`
-saving_callback = SolutionSavingCallback(dt=0.02)
+saving_callback = SolutionSavingCallback(dt=0.02, prefix="wendland")
 
 stepsize_callback = StepsizeCallback(cfl=1.0)
 
