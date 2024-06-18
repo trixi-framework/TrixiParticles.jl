@@ -45,7 +45,7 @@ function count_rhs_allocations(sol, semi)
 
     try
         # Disable timers, which cause extra allocations
-        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+        TrixiParticles.disable_debug_timings()
 
         # Disable multithreading, which causes extra allocations
         return disable_polyester_threads() do
@@ -57,7 +57,7 @@ function count_rhs_allocations(sol, semi)
         end
     finally
         # Enable timers again
-        @invokelatest TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+        @invokelatest TrixiParticles.enable_debug_timings()
     end
 end
 

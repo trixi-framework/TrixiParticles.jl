@@ -7,12 +7,15 @@ GPUSystem = System{NDIMS, Nothing} where {NDIMS}
 
 abstract type FluidSystem{NDIMS, IC} <: System{NDIMS, IC} end
 timer_name(::FluidSystem) = "fluid"
+vtkname(system::FluidSystem) = "fluid"
 
 abstract type SolidSystem{NDIMS, IC} <: System{NDIMS, IC} end
 timer_name(::SolidSystem) = "solid"
+vtkname(system::SolidSystem) = "solid"
 
 abstract type BoundarySystem{NDIMS, IC} <: System{NDIMS, IC} end
 timer_name(::BoundarySystem) = "boundary"
+vtkname(system::BoundarySystem) = "boundary"
 
 @inline function set_zero!(du)
     du .= zero(eltype(du))
@@ -30,6 +33,5 @@ include("initial_condition.jl")
 include("buffer.jl")
 include("system.jl")
 include("interpolation.jl")
-include("file_system.jl")
 include("custom_quantities.jl")
 include("neighborhood_search.jl")

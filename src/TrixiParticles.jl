@@ -21,7 +21,8 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using TrixiBase: trixi_include
+using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
+                 disable_debug_timings, enable_debug_timings
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
 using PointNeighbors: PointNeighbors, for_particle_neighbor
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
