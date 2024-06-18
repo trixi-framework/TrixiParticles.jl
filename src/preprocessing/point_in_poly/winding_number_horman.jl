@@ -5,11 +5,16 @@
 struct WindingNumberHorman end
 
 # Only for 2D yet.
-# About 3 times faster than `WindingNumberJacobson` for 2D (without optimization) but not as robust as `WindingNumberJacobson`
-function (point_in_poly::WindingNumberHorman)(shape, points)
+# Faster than `WindingNumberJacobson` (without optimization)
+# but not as robust as `WindingNumberJacobson` for open or inverted shapes.
+# `WindingNumberHorman` handles edge cases a bit better.
+function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_number=false)
     (; edge_vertices) = shape
 
     inpoly = falses(size(points, 2))
+
+    winding_numbers = Float64[]
+    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
     h_unit = SVector(1.0, 0.0)
     v_unit = SVector(0.0, 1.0)
@@ -51,10 +56,12 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
             end
         end
 
+        store_winding_number && (winding_numbers[query_point] = winding_number)
+
         !(winding_number == 0) && (inpoly[query_point] = true)
     end
 
-    return inpoly
+    return inpoly, winding_numbers
 end
 
 function positive_determinant(v1, v2, v_query)

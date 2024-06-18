@@ -62,7 +62,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
     @threaded for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
-        winding_number = sum(edge_vertices) do edge
+        winding_number = sum(edge_vertices, init=0.0) do edge
             a = edge[1] - p
             b = edge[2] - p
 

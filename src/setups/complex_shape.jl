@@ -50,20 +50,20 @@ end
 function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing, seed=nothing,
                        max_nparticles=Int(1e6))
     NDIMS = ndims(shape)
-    (; min_corner, max_corner) = shape
 
-    if seed !== nothing
-        if seed isa AbstractVector && length(seed) == NDIMS
-            min_corner_ = seed
-        else
-            throw(ArgumentError("`seed` must be of type $AbstractVector and " *
-                                "of length $NDIMS for a $(NDIMS)D problem"))
+    if !isnothing(seed)
+        if !(seed isa AbstractVector)
+            throw(ArgumentError("`seed` must be of type `AbstractVector`"))
+        elseif !(length(seed) == NDIMS)
+            throw(ArgumentError("`seed` must be of length $NDIMS for a $(NDIMS)D problem"))
         end
-    else
-        min_corner_ = min_corner .- pad
     end
 
-    ranges(dim) = min_corner_[dim]:particle_spacing:(max_corner .+ pad)[dim]
+    (; min_corner, max_corner) = shape
+
+    min_corner = isnothing(seed) ? min_corner : seed
+
+    ranges(dim) = (min_corner .- pad)[dim]:particle_spacing:(max_corner .+ pad)[dim]
 
     ranges_ = ntuple(dim -> ranges(dim), NDIMS)
 

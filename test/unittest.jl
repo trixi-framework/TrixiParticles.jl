@@ -6,4 +6,5 @@
     include("setups/setups.jl")
     include("systems/systems.jl")
     include("schemes/schemes.jl")
+    include("preprocessing/preprocessing.jl")
 end;
