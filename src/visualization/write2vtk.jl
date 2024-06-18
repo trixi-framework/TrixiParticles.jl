@@ -218,7 +218,7 @@ end
 
 write2vtk!(vtk, viscosity::Nothing) = vtk
 
-function write2vtk!(vtk, viscosity::Union{ViscosityAdami, ViscosityMoris})
+function write2vtk!(vtk, viscosity::Union{ViscosityAdami, ViscosityMorris})
     vtk["viscosity_nu"] = viscosity.nu
     vtk["viscosity_epsilon"] = viscosity.epsilon
 end
@@ -305,7 +305,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, viscosity,
 end
 
 function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
-                    viscosity::Union{ViscosityAdami, ViscosityMoris}, system;
+                    viscosity::ViscosityAdami, system;
                     write_meta_data=true)
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
@@ -313,7 +313,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles,
     vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
 
     if write_meta_data
-        vtk["viscosity_model"] = viscosity |> typeof |> nameof
+        vtk["viscosity_model"] = type2string(viscosity)
     end
 
     return vtk
