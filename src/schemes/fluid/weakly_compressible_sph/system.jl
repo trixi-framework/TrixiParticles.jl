@@ -354,7 +354,7 @@ end
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
 
-@inline function surface_tension_model(system::WeaklyCompressibleSPHSystem)
+@inline function surface_tension_model(system::FluidSystem)
     return system.surface_tension
 end
 

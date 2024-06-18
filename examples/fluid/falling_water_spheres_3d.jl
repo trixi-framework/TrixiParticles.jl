@@ -3,7 +3,7 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.008
+fluid_particle_spacing = 0.0025
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -34,4 +34,4 @@ trixi_include(@__MODULE__,
               fluid_smoothing_length=fluid_smoothing_length,
               fluid_smoothing_kernel=SchoenbergCubicSplineKernel{3}(),
               nu=nu, alpha=10 * nu / (fluid_smoothing_length * sound_speed),
-              surface_tension_coefficient=1.5, adhesion_coefficient=0.25)
+              surface_tension_coefficient=3, adhesion_coefficient=0.25)

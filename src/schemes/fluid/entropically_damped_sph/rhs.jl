@@ -40,14 +40,15 @@ function interact!(dv, v_particle_system, u_particle_system,
                                      sound_speed, m_a, m_b, rho_mean)
 
         dv_surface_tension = surface_tension_force(surface_tension_a, surface_tension_b,
-                                                           particle_system, neighbor_system,
-                                                           particle, neighbor, pos_diff, distance)
+                                                   particle_system, neighbor_system,
+                                                   particle, neighbor, pos_diff, distance)
 
-        dv_adhesion = adhesion_force(surface_tension, particle_system, neighbor_system,
-                                             particle, neighbor, pos_diff, distance)
+        dv_adhesion = adhesion_force(surface_tension_a, particle_system, neighbor_system,
+                                     particle, neighbor, pos_diff, distance)
 
         for i in 1:ndims(particle_system)
-            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] + dv_adhesion[i]
+            dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
+                               dv_adhesion[i]
         end
 
         v_diff = current_velocity(v_particle_system, particle_system, particle) -

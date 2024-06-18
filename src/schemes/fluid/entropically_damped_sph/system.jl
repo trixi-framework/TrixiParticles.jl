@@ -70,6 +70,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
         ELTYPE = eltype(initial_condition)
 
         mass = copy(initial_condition.mass)
+        n_particles = length(initial_condition.mass)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -93,8 +94,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
-        create_cache_edac(surface_tension, ELTYPE, NDIMS, n_particles)...,
-        cache...)
+                 create_cache_edac(surface_tension, ELTYPE, NDIMS, n_particles)...,
+                 cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel),
@@ -105,6 +106,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                            nothing, pressure_acceleration, source_terms,
                            surface_tension, surface_normal_method, cache)
     end
+end
+
+function create_cache_edac(surface_tension_model, ELTYPE, NDIMS, nparticles)
+    return (;)
 end
 
 function create_cache_edac(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
