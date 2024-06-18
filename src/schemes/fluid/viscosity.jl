@@ -145,17 +145,15 @@ end
     # v_ab ⋅ r_ab
     vr = dot(v_diff, pos_diff)
 
-    pi_ab = viscosity(sound_speed, vr, distance, rho_mean, rho_a, rho_b, smoothing_length)
+    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
-    if pi_ab < eps()
-        return zero(pos_diff)
-    end
+    pi_ab = viscosity(sound_speed, v_diff, vr, distance, rho_mean, rho_a, rho_b, smoothing_length, grad_kernel)
 
-    return -m_b * pi_ab * smoothing_kernel_grad(particle_system, pos_diff, distance)
+    return -m_b * pi_ab
 end
 
-@inline function (viscosity::ArtificialViscosityMonaghan)(c, vr, distance, rho_mean, rho_a,
-                                                          rho_b, h)
+@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, vr, distance, rho_mean, rho_a,
+                                                          rho_b, h, grad_kernel)
     (; alpha, beta, epsilon) = viscosity
 
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
@@ -164,20 +162,20 @@ end
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
         mu = h * vr / (distance^2 + epsilon * h^2)
-        return -(alpha * c * mu + beta * mu^2) / rho_mean
+        return -(alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
     end
 
-    return 0.0
+    return zero(v_diff)
 end
 
-@inline function (viscosity::ViscosityMorris)(c, vr, distance, rho_mean, rho_a, rho_b, h)
+@inline function (viscosity::ViscosityMorris)(c, v_diff, vr, distance, rho_mean, rho_a, rho_b, h, grad_kernel)
     (; epsilon, nu) = viscosity
 
     # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     mu_a = nu * rho_a
     mu_b = nu * rho_b
 
-    return (mu_a + mu_b) / (rho_a * rho_b * (distance^2 + epsilon * h^2)) * vr
+    return (mu_a + mu_b) / (rho_a * rho_b) * dot(v_diff, grad_kernel)/(distance + epsilon * h)
 end
 
 # See, e.g.,
