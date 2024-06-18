@@ -1,8 +1,8 @@
-function load_shape(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
+function load_shape(filename; ELTYPE=Float64, skipstart=1)
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        shape = load_ascii(filename; scale_factor, ELTYPE, skipstart)
+        shape = load_ascii(filename; ELTYPE, skipstart)
     elseif file_extension == ".stl"
         shape = load(query(filename); ELTYPE)
     else
@@ -12,7 +12,7 @@ function load_shape(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
     return shape
 end
 
-function load_ascii(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
+function load_ascii(filename; ELTYPE=Float64, skipstart=1)
 
     # Read in the ASCII file as an Tuple containing the coordinates of the points and the
     # header.
@@ -20,11 +20,6 @@ function load_ascii(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
     # Either `header=true` which returns a tuple `(data_cells, header_cells)`
     # or ignoring the corresponding number of lines from the input with `skipstart`
     points = readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
-    if scale_factor isa ELTYPE
-        points .*= scale_factor
-    elseif scale_factor !== nothing
-        throw(ArgumentError("`scale_factor` must be of type $ELTYPE"))
-    end
 
     return Polygon(copy(points'))
 end

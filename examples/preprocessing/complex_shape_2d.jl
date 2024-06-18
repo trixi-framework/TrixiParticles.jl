@@ -1,8 +1,8 @@
 using TrixiParticles
 
-particle_spacing = 0.5
+particle_spacing = 0.05
 
-filename = joinpath("out_preprocessing", "hexagon.asc")
+filename = joinpath("examples", "preprocessing", "inverted_open_curve.asc")
 
 # Returns `Shape`
 shape = load_shape(filename)

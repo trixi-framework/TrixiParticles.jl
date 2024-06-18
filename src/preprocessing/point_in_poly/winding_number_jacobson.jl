@@ -11,7 +11,6 @@ end
 # Robust inside-outside segmentation using generalized winding numbers.
 # ACM Trans. Graph. 32, 4, Article 33 (July 2013), 12 pages.
 # https://doi.org/10.1145/2461912.2461916
-
 struct WindingNumberJacobson{ELTYPE}
     winding_number_factor :: ELTYPE
     winding               :: Union{NaiveWinding, HierarchicalWinding}
