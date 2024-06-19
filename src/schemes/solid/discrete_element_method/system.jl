@@ -36,6 +36,7 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
     damping_coefficient :: ELTYPE
     acceleration        :: SVector{NDIMS, ELTYPE}
     source_terms        :: ST
+    buffer              :: Nothing
 
     function DEMSystem(initial_condition, normal_stiffness, elastic_modulus, poissons_ratio;
                        damping_coefficient=0.0001,
@@ -56,7 +57,8 @@ struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, I
         return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
                    typeof(source_terms)}(initial_condition, mass, radius, elastic_modulus,
                                          poissons_ratio, normal_stiffness,
-                                         damping_coefficient, acceleration_, source_terms)
+                                         damping_coefficient, acceleration_, source_terms,
+                                         nothing)
     end
 end
 

@@ -1,3 +1,7 @@
+@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+    set_particle_density!(v, system, system.density_calculator, particle, density)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 

@@ -9,8 +9,10 @@ Returns an [`InitialCondition`](@ref).
 # Arguments
 - `geometry`:           Either particle coordinates or an [`InitialCondition`](@ref)
                         defining a 2D shape to extrude to a 3D volume, or two 2D points
-                        defining a line to extrude to a plane in 2D, or three 3D points defining
-                        a parallelogram to extrude to a parallelepiped.
+                        ``(A, B)`` defining the interval ``[A, B]`` to extrude to a plane
+                        in 2D, or three 3D points ``(A, B, C)`` defining the parallelogram
+                        spanned by the vectors ``\widehat{AB}`` and ``\widehat {AC}`` to extrude
+                        to a parallelepiped.
 
 # Keywords
 - `particle_spacing`:   Spacing between the particles. Can be omitted when `geometry` is an
