@@ -1,8 +1,8 @@
 # Changelog
 
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
-used in the Julia ecosystem. Notable changes will be documented in this file for human readability. 
-We aim at 3 to 4 month between major release versions and about 2 weeks between minor versions. 
+used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
+We aim at 3 to 4 month between major release versions and about 2 weeks between minor versions.
 
 ## Version 0.2.x
 
@@ -14,11 +14,15 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 
 ### Deprecated
 
+## Version 0.1.3
+
+### Added
+Open boundaries using the method of characteristics based on the work of Lastiwka et al., "Permeable and non-reflecting boundary conditions in SPH" (2009) was added for WCSPH and EDAC.
 
 ## Version 0.1.2
 
 ### Added
-A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids" (2013) was added to WCSPH
+A surface tension and adhesion model based on the work by Akinci et al., "Versatile Surface Tension and Adhesion for SPH Fluids" (2013) was added to WCSPH.
 
 ## Version 0.1.1
 
