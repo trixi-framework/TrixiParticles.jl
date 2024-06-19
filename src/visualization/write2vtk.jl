@@ -187,10 +187,10 @@ end
     trixi2vtk(initial_condition::InitialCondition; output_directory="out",
               prefix="", filename="initial_condition", custom_quantities...)
 
-Convert `InitialCondition` data to VTK format.
+Convert [`InitialCondition`](@ref) data to VTK format.
 
 # Arguments
-- `initial_condition::InitialCondition`: [Initial condition](@ref InitialCondition) to be saved.
+- `initial_condition::InitialCondition`: [`InitialCondition`](@ref) to be saved.
 
 # Keywords
 - `output_directory="out"`: Output directory path.
