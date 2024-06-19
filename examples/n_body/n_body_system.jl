@@ -1,7 +1,7 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
+struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, Nothing}
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
@@ -31,9 +31,12 @@ function TrixiParticles.write_v0!(v0, system::NBodySystem)
 end
 
 # NHS update
-function TrixiParticles.nhs_coords(system::NBodySystem,
-                                   neighbor::NBodySystem, u)
-    return u
+function TrixiParticles.update_nhs!(neighborhood_search,
+                                    system::NBodySystem, neighbor::NBodySystem,
+                                    u_system, u_neighbor)
+    TrixiParticles.PointNeighbors.update!(neighborhood_search,
+                                          u_system, u_neighbor,
+                                          particles_moving=(true, true))
 end
 
 function TrixiParticles.compact_support(system::NBodySystem,

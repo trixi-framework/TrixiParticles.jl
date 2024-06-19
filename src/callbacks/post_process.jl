@@ -73,6 +73,7 @@ struct PostprocessCallback{I, F}
     append_timestamp    :: Bool
     write_csv           :: Bool
     write_json          :: Bool
+    git_hash            :: Ref{String}
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
@@ -94,7 +95,8 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json)
+                                        append_timestamp, write_csv, write_json,
+                                        Ref("UnknownVersion"))
     if dt > 0
         # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
@@ -209,9 +211,12 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
+    cb.git_hash[] = compute_git_hash()
+
     # Apply the callback
     cb(integrator)
-    return nothing
+
+    return cb
 end
 
 # `condition` with interval
@@ -276,12 +281,12 @@ end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
 function write_postprocess_callback(pp::PostprocessCallback)
-    if isempty(pp.data)
-        return
-    end
+    isempty(pp.data) && return
+
+    mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data)
+    write_meta_data!(data, pp.git_hash[])
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -331,9 +336,9 @@ function create_series_dict(values, times, system_name="")
                 "time" => times)
 end
 
-function write_meta_data!(data)
+function write_meta_data!(data, git_hash)
     meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => get_git_hash(),
+                     "solver_version" => git_hash,
                      "julia_version" => string(VERSION))
 
     data["meta"] = meta_data
