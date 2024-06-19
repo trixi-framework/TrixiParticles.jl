@@ -17,7 +17,7 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 ## Version 0.1.3
 
 ### Added
-Open boundaries using the method of characteristics based on the work of Lastiwka et al., "Permeable and non-reflecting boundary conditions in SPH" (2009) was added for WCSPH and EDAC.
+Open boundaries using the method of characteristics based on the work of Lastiwka et al., "Permeable and non-reflecting boundary conditions in SPH" (2009) were added for WCSPH and EDAC.
 
 ## Version 0.1.2
 

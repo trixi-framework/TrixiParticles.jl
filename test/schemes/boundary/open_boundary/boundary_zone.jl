@@ -6,7 +6,7 @@
         plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
         plane_points_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
 
-        @testset verbose=true "Points $(i)" for i in eachindex(plane_points_1)
+        @testset verbose=true "Points $i" for i in eachindex(plane_points_1)
             point_1 = plane_points_1[i]
             point_2 = plane_points_2[i]
 
@@ -17,7 +17,7 @@
                 -normalize([-plane_size[2], plane_size[1]]),
             ]
 
-            @testset verbose=true "Flow Direction $(j)" for j in eachindex(flow_directions)
+            @testset verbose=true "Flow Direction $j" for j in eachindex(flow_directions)
                 inflow = InFlow(; plane=(point_1, point_2), particle_spacing,
                                 flow_direction=flow_directions[j], density=1.0,
                                 open_boundary_layers)
@@ -64,7 +64,7 @@
             [0.3113730847835541, 0.25057315826416016, -0.02374829351902008],
         ]
 
-        @testset verbose=true "Points $(i)" for i in eachindex(plane_points_1)
+        @testset verbose=true "Points $i" for i in eachindex(plane_points_1)
             point_1 = plane_points_1[i]
             point_2 = plane_points_2[i]
             point_3 = plane_points_3[i]
@@ -77,7 +77,7 @@
                 -normalize(cross(edge1, edge2)),
             ]
 
-            @testset verbose=true "Flow Direction $(j)" for j in eachindex(flow_directions)
+            @testset verbose=true "Flow Direction $j" for j in eachindex(flow_directions)
                 inflow = InFlow(; plane=(point_1, point_2, point_3), particle_spacing,
                                 flow_direction=flow_directions[j], density=1.0,
                                 open_boundary_layers)

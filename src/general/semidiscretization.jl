@@ -295,7 +295,7 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
             initialize!(system, neighborhood_search)
 
             # Only for systems requiring a mandatory callback
-            initial_callback_flag!(system)
+            reset_callback_flag(system)
         end
     end
 
@@ -360,7 +360,7 @@ function restart_with!(semi, sol; reset_threads=true)
         restart_with!(system, v, u)
 
         # Only for systems requiring a mandatory callback
-        initial_callback_flag!(system)
+        reset_callback_flag(system)
     end
 
     return semi
