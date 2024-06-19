@@ -119,3 +119,6 @@ end
 function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
 end
+
+# Only for systems requiring a mandatory callback
+initial_callback_flag!(system) = system

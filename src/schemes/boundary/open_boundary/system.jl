@@ -146,6 +146,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
+function initial_callback_flag!(system::OpenBoundarySPHSystem)
+    system.update_callback_used[] = false
+
+    return system
+end
+
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
 @inline source_terms(system::OpenBoundarySPHSystem) = nothing
