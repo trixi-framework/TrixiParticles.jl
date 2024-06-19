@@ -121,4 +121,4 @@ function update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback
 end
 
 # Only for systems requiring a mandatory callback
-reset_callback_flag(system) = system
+reset_callback_flag!(system) = system
