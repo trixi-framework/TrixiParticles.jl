@@ -183,6 +183,32 @@ function trixi2vtk(coordinates; output_directory="out", prefix="", filename="coo
     return file
 end
 
+"""
+    trixi2vtk(initial_condition::InitialCondition; output_directory="out",
+              prefix="", filename="coordinates", custom_quantities...)
+
+Convert `InitialCondition` data to VTK format.
+
+# Arguments
+- `initial_condition::InitialCondition`: [Initial condition](@ref InitialCondition) to be saved.
+
+# Keywords
+- `output_directory="out"`: Output directory path.
+- `prefix=""`:              Prefix for the output file.
+- `filename="coordinates"`: Name of the output file.
+
+# Returns
+- `file::AbstractString`: Path to the generated VTK file.
+"""
+function trixi2vtk(initial_condition::InitialCondition; output_directory="out",
+                   prefix="", filename="coordinates", custom_quantities...)
+    (; coordinates, velocity, density, mass, pressure) = initial_condition
+
+    return trixi2vtk(coordinates; output_directory, prefix, filename="initial_condition",
+                     density=density, initial_velocity=velocity, mass=mass,
+                     pressure=pressure)
+end
+
 function write2vtk!(vtk, v, u, t, system; write_meta_data=true)
     vtk["velocity"] = view(v, 1:ndims(system), :)
 
