@@ -1,7 +1,15 @@
 """
     load_shape(filename; element_type=Float64)
 
-TODO
+Load file and return corresponding `Shape` type for [`ComplexShape`](@ref).
+Supported file formats are `.stl` and `.asc`.
+
+# Arguments
+- `filename`: Name of the file to be loaded.
+
+# Keywords
+- `element_type`: Element type (default is `Float64`)
+
 """
 function load_shape(filename; element_type=Float64)
     ELTYPE = element_type

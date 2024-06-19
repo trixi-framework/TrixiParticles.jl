@@ -11,6 +11,7 @@
         particle_spacing))" for point_in_shape_algorithm in point_in_shape_algorithms,
                                 shift in shifts,
                                 particle_spacing in particle_spacings
+
             points_rectangular = [[0.0, 0.0] [1.0, 0.0] [1.0, 0.5] [0.0, 0.5]] .+ shift
 
             shape = TrixiParticles.Polygon(points_rectangular)

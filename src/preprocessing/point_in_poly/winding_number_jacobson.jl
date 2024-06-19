@@ -14,15 +14,18 @@ struct HierarchicalWinding{BB}
     end
 end
 
-# Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung. 2013.
-# Robust inside-outside segmentation using generalized winding numbers.
-# ACM Trans. Graph. 32, 4, Article 33 (July 2013), 12 pages.
-# https://doi.org/10.1145/2461912.2461916
 """
     WindingNumberJacobson(; shape=nothing, winding_number_factor=sqrt(eps()),
                           hierarchical_winding=false)
+Algorithm for inside-outside segmentation of a complex shape proposed by Jacobson et al. (2013).
 
-TODO
+# Keywords
+- `shape`: Complex shape returned by [`load_shape`](@ref) and is only required when using
+           `hierarchical_winding=true`.
+- `hierarchical_winding`: If set to `true`, an optimised hierarchical approach will be used
+                          which gives a significant speedup.
+                          It is only supported for 3D shapes yet.
+- `winding_number_factor`: For leaky shapes, a factor of `0.4` will give a better inside-outside segmentation.
 """
 struct WindingNumberJacobson{ELTYPE}
     winding_number_factor :: ELTYPE
