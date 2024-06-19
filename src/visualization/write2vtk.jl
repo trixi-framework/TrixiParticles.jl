@@ -190,7 +190,7 @@ end
 Convert [`InitialCondition`](@ref) data to VTK format.
 
 # Arguments
-- `initial_condition::InitialCondition`: [`InitialCondition`](@ref) to be saved.
+- `initial_condition`: [`InitialCondition`](@ref) to be saved.
 
 # Keywords
 - `output_directory="out"`: Output directory path.
