@@ -1,7 +1,7 @@
-# Interaction of boundary  with other systems
+# Interaction of boundary with other systems
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySystem,
+                   particle_system::Union{BoundarySystem, OpenBoundarySPHSystem},
                    neighbor_system)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
