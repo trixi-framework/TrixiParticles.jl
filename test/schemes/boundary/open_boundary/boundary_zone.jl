@@ -6,7 +6,7 @@
         plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
         plane_points_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
 
-        @testset "Points $(i)" for i in eachindex(plane_points_1)
+        @testset verbose=true "Points $(i)" for i in eachindex(plane_points_1)
             point_1 = plane_points_1[i]
             point_2 = plane_points_2[i]
 
@@ -17,7 +17,7 @@
                 -normalize([-plane_size[2], plane_size[1]]),
             ]
 
-            @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
+            @testset verbose=true "Flow Direction $(j)" for j in eachindex(flow_directions)
                 inflow = InFlow(; plane=(point_1, point_2), particle_spacing,
                                 flow_direction=flow_directions[j], density=1.0,
                                 open_boundary_layers)
@@ -30,7 +30,7 @@
                     outflow,
                 ]
 
-                @testset "$boundary_zone" for boundary_zone in boundary_zones
+                @testset verbose=true "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
                     sign_ = (boundary_zone isa InFlow) ? -1 : 1
@@ -38,9 +38,10 @@
                     @test plane_points_1[i] == boundary_zone.zone_origin
                     @test plane_points_2[i] - boundary_zone.zone_origin ==
                           boundary_zone.spanning_set[2]
-                    @test sign_ * flow_directions[j] ≈
-                          normalize(boundary_zone.spanning_set[1])
-                    @test zone_width ≈ norm(boundary_zone.spanning_set[1])
+                    @test isapprox(sign_ * flow_directions[j],
+                                   normalize(boundary_zone.spanning_set[1]), atol=1e-14)
+                    @test isapprox(zone_width, norm(boundary_zone.spanning_set[1]),
+                                   atol=1e-14)
                 end
             end
         end
@@ -63,7 +64,7 @@
             [0.3113730847835541, 0.25057315826416016, -0.02374829351902008],
         ]
 
-        @testset "Points $(i)" for i in eachindex(plane_points_1)
+        @testset verbose=true "Points $(i)" for i in eachindex(plane_points_1)
             point_1 = plane_points_1[i]
             point_2 = plane_points_2[i]
             point_3 = plane_points_3[i]
@@ -76,7 +77,7 @@
                 -normalize(cross(edge1, edge2)),
             ]
 
-            @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
+            @testset verbose=true "Flow Direction $(j)" for j in eachindex(flow_directions)
                 inflow = InFlow(; plane=(point_1, point_2, point_3), particle_spacing,
                                 flow_direction=flow_directions[j], density=1.0,
                                 open_boundary_layers)
@@ -89,7 +90,7 @@
                     outflow,
                 ]
 
-                @testset "$boundary_zone" for boundary_zone in boundary_zones
+                @testset verbose=true "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
                     zone_width = open_boundary_layers *
                                  boundary_zone.initial_condition.particle_spacing
                     sign_ = (boundary_zone isa InFlow) ? -1 : 1
@@ -99,9 +100,10 @@
                           boundary_zone.spanning_set[2]
                     @test plane_points_3[i] - boundary_zone.zone_origin ==
                           boundary_zone.spanning_set[3]
-                    @test sign_ * flow_directions[j] ≈
-                          normalize(boundary_zone.spanning_set[1])
-                    @test zone_width ≈ norm(boundary_zone.spanning_set[1])
+                    @test isapprox(sign_ * flow_directions[j],
+                                   normalize(boundary_zone.spanning_set[1]), atol=1e-14)
+                    @test isapprox(zone_width, norm(boundary_zone.spanning_set[1]),
+                                   atol=1e-14)
                 end
             end
         end
@@ -123,26 +125,25 @@
             outflow,
         ]
 
-        @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
-            perturb_ = boundary_zone isa InFlow ? eps() : -eps()
+        @testset verbose=true "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
+            perturb_ = boundary_zone isa InFlow ? sqrt(eps()) : -sqrt(eps())
 
-            point_3 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
+            point1 = plane_points[1]
+            point2 = plane_points[2]
+            point3 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
 
             query_points = Dict(
                 "Behind" => ([-1.0, -1.0], false),
                 "Before" => ([2.0, 2.0], false),
-                "On Point 1" => (plane_points[1], true),
-                "On Point 2" => (plane_points[2], true),
-                "On Point 3" => (point_3, true),
-                "Closely On Point 1" => (plane_points[1] .+ perturb_ * flow_direction,
-                                         false))
+                "Closely On Point 1" => (point1 + perturb_ * flow_direction, false),
+                "Closely On Point 2" => (point2 + perturb_ * flow_direction, false),
+                "Closely On Point 3" => (point3 - perturb_ * flow_direction, false))
 
-            @testset "$k" for k in keys(query_points)
+            @testset verbose=true "$k" for k in keys(query_points)
                 (particle_position, evaluation) = query_points[k]
 
                 @test evaluation ==
-                      TrixiParticles.is_in_boundary_zone(boundary_zone,
-                                                         particle_position .± eps())
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
             end
         end
     end
@@ -164,24 +165,23 @@
             outflow,
         ]
 
-        @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
+        @testset verbose=true "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
             perturb_ = boundary_zone isa InFlow ? eps() : -eps()
+            point4 = boundary_zone.spanning_set[1] + boundary_zone.zone_origin
+
             query_points = Dict(
                 "Behind" => ([-1.0, -1.0, 1.2], false),
                 "Before" => ([2.0, 2.0, -1.2], false),
-                "On Point 1" => (point1, true),
-                "On Point 2" => (point2, true),
-                "On Point 3" => (point3, true),
-                "On Point 4" => (boundary_zone.spanning_set[1] + boundary_zone.zone_origin,
-                                 true),
-                "Closely On Point 1" => (point1 .+ perturb_ * flow_direction, false))
+                "Closely On Point 1" => (point1 + perturb_ * flow_direction, false),
+                "Closely On Point 2" => (point2 + perturb_ * flow_direction, false),
+                "Closely On Point 3" => (point3 + perturb_ * flow_direction, false),
+                "Closely On Point 4" => (point4 - perturb_ * flow_direction, false))
 
-            @testset "$k" for k in keys(query_points)
+            @testset verbose=true "$k" for k in keys(query_points)
                 (particle_position, evaluation) = query_points[k]
 
                 @test evaluation ==
-                      TrixiParticles.is_in_boundary_zone(boundary_zone,
-                                                         particle_position .± eps())
+                      TrixiParticles.is_in_boundary_zone(boundary_zone, particle_position)
             end
         end
     end

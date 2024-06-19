@@ -7,7 +7,6 @@ using DataFrames: DataFrame
 using JSON: JSON
 using QuadGK: quadgk # For integration in smoothing kernel tests
 using Random: Random # For rectangular patch
-using Measurements: ±
 using Polyester: disable_polyester_threads # For `count_rhs_allocations`
 
 """
