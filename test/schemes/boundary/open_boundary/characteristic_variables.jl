@@ -13,7 +13,7 @@
     smoothing_length = 1.2particle_spacing
 
     # Prescribed quantities
-    reference_velocity = (pos, t) -> [1.0, 0.0] * t
+    reference_velocity = (pos, t) -> SVector(t, 0.0)
     reference_pressure = (pos, t) -> 50_000.0 * t
     reference_density = (pos, t) -> 1000.0 * t
 
@@ -21,7 +21,7 @@
     plane_points_1 = [[0.0, 0.0], [0.5, -0.5], [1.0, 0.5]]
     plane_points_2 = [[0.0, 1.0], [0.2, 2.0], [2.3, 0.5]]
 
-    @testset "Points $(i)" for i in eachindex(plane_points_1)
+    @testset "Points $i" for i in eachindex(plane_points_1)
         n_influenced = influenced_particles[i]
 
         plane_points = [plane_points_1[i], plane_points_2[i]]
@@ -32,7 +32,7 @@
             -normalize([-plane_size[2], plane_size[1]]),
         ]
 
-        @testset "Flow Direction $(j)" for j in eachindex(flow_directions)
+        @testset "Flow Direction $j" for j in eachindex(flow_directions)
             flow_direction = flow_directions[j]
             inflow = InFlow(; plane=plane_points, particle_spacing, density,
                             flow_direction, open_boundary_layers)
@@ -44,7 +44,7 @@
                 outflow,
             ]
 
-            @testset "$(nameof(typeof(boundary_zone)))" for boundary_zone in boundary_zones
+            @testset "`$(nameof(typeof(boundary_zone)))`" for boundary_zone in boundary_zones
                 sign_ = (boundary_zone isa InFlow) ? 1 : -1
                 fluid = extrude_geometry(plane_points; particle_spacing, n_extrude=4,
                                          density, pressure,
@@ -88,8 +88,8 @@
                            (pressure - reference_pressure(0, t))
                 end
 
-                # First evaluation
-                # Particles not influenced by the fluid have zero values
+                # First evaluation.
+                # Particles not influenced by the fluid have zero values.
                 t1 = 2.0
                 TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t1)
@@ -108,8 +108,8 @@
                     @test all(isapprox.(evaluated_vars1[3, :], 0.0))
                 end
 
-                # Second evaluation
-                # Particles not influenced by the fluid have previous values
+                # Second evaluation.
+                # Particles not influenced by the fluid have previous values.
                 t2 = 3.0
                 TrixiParticles.evaluate_characteristics!(boundary_system,
                                                          v, u, v0_ode, u0_ode, semi, t2)
