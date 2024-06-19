@@ -1,10 +1,15 @@
-function load_shape(filename; element_type=Float64, skipstart=1)
+"""
+    load_shape(filename; element_type=Float64)
+
+TODO
+"""
+function load_shape(filename; element_type=Float64)
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        shape = load_ascii(filename; ELTYPE, skipstart)
+        shape = load_ascii(filename; ELTYPE, skipstart=1)
     elseif file_extension == ".stl"
         shape = load(query(filename); ELTYPE)
     else

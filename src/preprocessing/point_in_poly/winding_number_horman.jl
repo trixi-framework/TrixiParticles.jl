@@ -8,6 +8,11 @@ struct WindingNumberHorman end
 # Faster than `WindingNumberJacobson` (without optimization)
 # but not as robust as `WindingNumberJacobson` for open or inverted shapes.
 # `WindingNumberHorman` handles edge cases a bit better.
+"""
+    WindingNumberHorman()
+
+TODO
+"""
 function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_number=false)
     (; edge_vertices) = shape
 

@@ -2,7 +2,14 @@ struct NaiveWinding end
 
 struct HierarchicalWinding{BB}
     bounding_box::BB
-    function HierarchicalWinding(bounding_box)
+
+    function HierarchicalWinding(shape)
+        bounding_box = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
+
+        directed_edges = zeros(Int, length(shape.normals_edge))
+
+        construct_hierarchy!(bounding_box, shape, directed_edges)
+
         return new{typeof(bounding_box)}(bounding_box)
     end
 end
@@ -11,14 +18,25 @@ end
 # Robust inside-outside segmentation using generalized winding numbers.
 # ACM Trans. Graph. 32, 4, Article 33 (July 2013), 12 pages.
 # https://doi.org/10.1145/2461912.2461916
+"""
+    WindingNumberJacobson(; shape=nothing, winding_number_factor=sqrt(eps()),
+                          hierarchical_winding=false)
+
+TODO
+"""
 struct WindingNumberJacobson{ELTYPE}
     winding_number_factor :: ELTYPE
     winding               :: Union{NaiveWinding, HierarchicalWinding}
 
-    function WindingNumberJacobson(; winding_number_factor=sqrt(eps()),
-                                   winding=NaiveWinding())
-        ELTYPE = typeof(winding_number_factor)
-        return new{ELTYPE}(winding_number_factor, winding)
+    function WindingNumberJacobson(; shape=nothing, winding_number_factor=sqrt(eps()),
+                                   hierarchical_winding=false)
+        if hierarchical_winding && shape isa Nothing
+            throw(ArgumentError("`shape` must be of type `Shapes` when using hierarchical winding"))
+        end
+
+        winding = hierarchical_winding ? HierarchicalWinding(shape) : NaiveWinding()
+
+        return new{typeof(winding_number_factor)}(winding_number_factor, winding)
     end
 end
 
@@ -40,7 +58,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points;
 
         store_winding_number && (winding_numbers[query_point] = winding_number)
 
-        # `(winding_number != 0.0)`
+        # Relaxed restriction of `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
@@ -73,7 +91,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
 
         store_winding_number && (winding_numbers[query_point] = winding_number)
 
-        # `(winding_number != 0.0)`
+        # Relaxed restriction of `(winding_number != 0.0)`
         if !(-winding_number_factor < winding_number < winding_number_factor)
             inpoly[query_point] = true
         end
@@ -113,6 +131,9 @@ end
 
     return winding_number
 end
+
+# The following functions distinguish between actual triangles and reconstructed triangles
+# in the hierarchical winding approach
 
 # `face` holds the coordinates of each vertex
 @inline face_vertex(mesh, face, index) = face[index]
