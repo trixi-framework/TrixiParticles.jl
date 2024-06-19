@@ -16,4 +16,4 @@ shape_sampled = ComplexShape(shape; particle_spacing, density=1.0,
                              point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                             hierarchical_winding=true))
 
-trixi2vtk(shape_sampled.coordinates, filename="coords");
+trixi2vtk(shape_sampled)
