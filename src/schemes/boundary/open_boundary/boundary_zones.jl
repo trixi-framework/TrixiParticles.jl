@@ -9,17 +9,17 @@ The specified plane (line in 2D or rectangle in 3D) will be extruded in upstream
 direction (the direction opposite to `flow_direction`) to create a box for the boundary zone.
 There are three ways to specify the actual shape of the inflow:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
-   be filled with inflow particles.
-2. Pass a 1D shape in 2D or a 2D shape in 3D, which is then extruded in upstream direction
-   to create the inflow particles.
+   be filled with inflow particles (default).
+2. Specify `extrude_geometry` by passing a 1D shape in 2D or a 2D shape in 3D,
+   which is then extruded in upstream direction to create the inflow particles.
    - In 2D, the shape must be either an initial condition with 2D coordinates, which lies
      on the line specified by `plane`, or an initial condition with 1D coordinates, which lies
      on the line specified by `plane` when a y-coordinate of `0` is added.
    - In 3D, the shape must be either an initial condition with 3D coordinates, which lies
      in the rectangle specified by `plane`, or an initial condition with 2D coordinates,
      which lies in the rectangle specified by `plane` when a z-coordinate of `0` is added.
-3. Pass a 2D initial condition in 2D or a 3D initial condition in 3D, which will be used
-   for the inflow particles.
+3. Specify `initial_condition` by passing a 2D initial condition in 2D or a 3D initial condition in 3D,
+   which will be used for the inflow particles.
 
 !!! note "Note"
     Particles outside the boundary zone box will be removed.
@@ -145,17 +145,17 @@ The specified plane (line in 2D or rectangle in 3D) will be extruded in downstre
 direction (the direction in `flow_direction`) to create a box for the boundary zone.
 There are three ways to specify the actual shape of the outflow:
 1. Don't pass `initial_condition` or `extrude_geometry`. The boundary zone box will then
-   be filled with outflow particles.
-2. Pass a 1D shape in 2D or a 2D shape in 3D, which is then extruded in downstream direction
-   to create the outflow particles.
+   be filled with outflow particles (default).
+2. Specify `extrude_geometry` by passing a 1D shape in 2D or a 2D shape in 3D,
+   which is then extruded in downstream direction to create the outflow particles.
     - In 2D, the shape must be either an initial condition with 2D coordinates, which lies
       on the line specified by `plane`, or an initial condition with 1D coordinates, which lies
       on the line specified by `plane` when a y-coordinate of `0` is added.
     -  In 3D, the shape must be either an initial condition with 3D coordinates, which lies
       in the rectangle specified by `plane`, or an initial condition with 2D coordinates,
       which lies in the rectangle specified by `plane` when a z-coordinate of `0` is added.
-3. Pass a 2D initial condition in 2D or a 3D initial condition in 3D, which will be used
-   for the outflow particles.
+3. Specify `initial_condition` by passing a 2D initial condition in 2D or a 3D initial condition in 3D,
+   which will be used for the outflow particles.
 
 !!! note "Note"
     Particles outside the boundary zone box will be removed.
