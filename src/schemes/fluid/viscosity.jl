@@ -1,5 +1,5 @@
 
-# Function to unpack the neighboring systems viscosity and handle through dispatch
+# Unpack the neighboring systems viscosity to dispatch on the viscosity type
 function dv_viscosity(particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
@@ -94,7 +94,7 @@ Viscosity by Morris et al. (1997).
 To the force ``f_{ab}`` between two particles ``a`` and ``b`` due to pressure gradients,
 an additional force term ``\tilde{f}_{ab}`` is added with
 ```math
-f_{ab} = \sum_w \frac{m_b(mu_a+mu_b)}{||r_{ab}||^2+(\epsilon h_{ab})^2}  \nabla W_{ab} \cdot r_{ab}\cdot v_{ab},
+\tilde{f}_{ab} = m_a m_b \frac{(\mu_a + \mu_b) r_{ab} \cdot \nabla W_{ab}}{\rho_a \rho_b (\Vert r_{ab} \Vert^2 + \epsilon h^2)} v_{ab},
 ```
 where ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` denote the dynamic viscosity
 of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity.

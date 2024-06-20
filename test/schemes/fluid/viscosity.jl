@@ -1,8 +1,6 @@
-include("../../test_util.jl")
-
 @testset verbose=true "Viscosity" begin
     particle_spacing = 0.2
-    smoothing_length = 1.2 * 0.5 * particle_spacing
+    smoothing_length = 1.2 * particle_spacing
     smoothing_kernel = SchoenbergCubicSplineKernel{2}()
     sound_speed = 10 * sqrt(9.81 * 0.9)
 
@@ -36,7 +34,7 @@ include("../../test_util.jl")
         @test isapprox(dv[2], 0.08488618966193576, atol=6e-15)
 
     end
-    @testset verbose=true "`ViscosityAdami`" begin
+    @testset verbose=true "`ViscosityMorris`" begin
         viscosity = ViscosityMorris(nu=7e-3)
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
@@ -46,4 +44,14 @@ include("../../test_util.jl")
         @test isapprox(dv[1], -0.00294750186361511, atol=6e-15)
         @test isapprox(dv[2], 0.022106263977113322, atol=6e-15)
     end
+    @testset verbose=true "`ViscosityAdami`" begin
+    viscosity = ViscosityAdami(nu=7e-3)
+
+    dv = viscosity(sound_speed, v_diff, pos_diff, distance,
+        rho_mean, rho_a, rho_b, smoothing_length,
+        grad_kernel)
+
+    @test isapprox(dv[1], -0.00294750186361511, atol=6e-15)
+    @test isapprox(dv[2], 0.022106263977113322, atol=6e-15)
+end
 end

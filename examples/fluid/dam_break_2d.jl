@@ -81,7 +81,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-solution_prefix = "morris"
+solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
