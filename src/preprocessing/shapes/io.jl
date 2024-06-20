@@ -1,8 +1,22 @@
-function load_shape(filename; scale_factor=nothing, ELTYPE=Float32, skipstart=1)
+"""
+    load_shape(filename; element_type=Float64)
+
+Load file and return corresponding `Shape` type for [`ComplexShape`](@ref).
+Supported file formats are `.stl` and `.asc`.
+
+# Arguments
+- `filename`: Name of the file to be loaded.
+
+# Keywords
+- `element_type`: Element type (default is `Float64`)
+"""
+function load_shape(filename; element_type=Float64)
+    ELTYPE = element_type
+
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        shape = load_ascii(filename; scale_factor, ELTYPE, skipstart)
+        shape = load_ascii(filename; ELTYPE, skipstart=1)
     elseif file_extension == ".stl"
         shape = load(query(filename); ELTYPE)
     else
@@ -12,7 +26,7 @@ function load_shape(filename; scale_factor=nothing, ELTYPE=Float32, skipstart=1)
     return shape
 end
 
-function load_ascii(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
+function load_ascii(filename; ELTYPE=Float64, skipstart=1)
 
     # Read in the ASCII file as an Tuple containing the coordinates of the points and the
     # header.
@@ -20,11 +34,6 @@ function load_ascii(filename; scale_factor=nothing, ELTYPE=Float64, skipstart=1)
     # Either `header=true` which returns a tuple `(data_cells, header_cells)`
     # or ignoring the corresponding number of lines from the input with `skipstart`
     points = readdlm(filename, ' ', ELTYPE, '\n'; skipstart)[:, 1:2]
-    if scale_factor isa ELTYPE
-        points .*= scale_factor
-    elseif scale_factor !== nothing
-        throw(ArgumentError("`scale_factor` must be of type $ELTYPE"))
-    end
 
     return Polygon(copy(points'))
 end
@@ -38,7 +47,7 @@ function load(fn::File{format}; element_types...) where {format}
     end
 end
 
-function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float32)
+function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
     io = stream(fs)
@@ -51,11 +60,12 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float32)
 
     i = 0
     while !eof(io)
-        normals[i + 1] = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
+        normals[i + 1] = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32),
+                                            read(io, Float32))
 
-        v1 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
-        v2 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
-        v3 = SVector(read(io, Float32), read(io, Float32), read(io, Float32))
+        v1 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v2 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
+        v3 = SVector{3, ELTYPE}(read(io, Float32), read(io, Float32), read(io, Float32))
 
         face_vertices[i + 1] = (v1, v2, v3)
 
@@ -71,6 +81,9 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float32)
 
     return TriangleMesh(face_vertices, normals, vertices)
 end
+
+# ==========================================================================================
+# ==== The following functions are only used for debugging yet
 
 function save(filename, mesh; faces=eachface(mesh))
     save(File{format"STL_BINARY"}(filename), mesh; faces)
@@ -94,12 +107,29 @@ function save(f::Stream{format"STL_BINARY"}, mesh::TriangleMesh; faces)
 
     write(io, UInt32(length(faces))) # write triangle count
     for i in faces
-        n = normals[i]
+        n = SVector{3, Float32}(normals[i])
         triangle = points[i]
         foreach(j -> write(io, n[j]), 1:3)
         for point in triangle
-            foreach(p -> write(io, p), point)
+            foreach(p -> write(io, p), SVector{3, Float32}(point))
         end
         write(io, 0x0000) # write 16bit empty bit
     end
+end
+
+function trixi2vtk(shape::Shapes{2}; output_directory="out", prefix="",
+                   filename="points", custom_quantities...)
+    normals_vertex = stack([shape.normals_vertex[edge][1] for edge in eachface(shape)])
+
+    return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
+                     normals_vertex=normals_vertex)
+end
+
+function trixi2vtk(shape::Shapes{3}; output_directory="out", prefix="",
+                   filename="points", custom_quantities...)
+    normals_vertex = stack([shape.normals_vertex[face]
+                            for face in eachindex(shape.vertices)])
+
+    return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
+                     normals_vertex=normals_vertex)
 end

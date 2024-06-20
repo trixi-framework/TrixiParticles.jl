@@ -22,7 +22,8 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]
 
-            # TODO: This part is about 90% of the runtime
+            # TODO: This part is about 90% of the runtime.
+            # Vertex IDs are only needed for the hierarchical winding.
             vertex_id1 = findfirst(x -> v1 == x, vertices)
             vertex_id2 = findfirst(x -> v2 == x, vertices)
             vertex_id3 = findfirst(x -> v3 == x, vertices)

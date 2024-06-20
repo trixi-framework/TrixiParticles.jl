@@ -11,6 +11,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
     constrain_particles_on_surface :: C
     neighborhood_search            :: N
     signed_distances               :: Vector{ELTYPE} # Only for visualization
+    update_callback_used           :: Ref{Bool}
 
     function ParticlePackingSystem(initial_condition;
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
@@ -98,7 +99,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
                                 background_pressure, tlsph, signed_distance_field,
                                 is_boundary, shift_condition,
                                 constrain_particles_on_surface, nhs,
-                                fill(zero(ELTYPE), nparticles(ic)))
+                                fill(zero(ELTYPE), nparticles(ic)), false)
     end
 end
 
@@ -128,6 +129,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_footer(io)
     end
 end
+
+function reset_callback_flag(system::ParticlePackingSystem)
+    system.update_callback_used[] = false
+
+    return system
+end
+
+update_callback_used!(system::ParticlePackingSystem) = system.update_callback_used[] = true
 
 function write2vtk!(vtk, v, u, t, system::ParticlePackingSystem; write_meta_data=true)
     if write_meta_data
@@ -161,6 +170,14 @@ function update_position!(u, system::ParticlePackingSystem)
     return u
 end
 
+function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    if !update_from_callback && !(system.update_callback_used[])
+        throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
+    end
+
+    return system
+end
 function direct_particle_face_distance!(u, system::ParticlePackingSystem)
     (; boundary, shift_condition, neighborhood_search, initial_condition) = system
     (; particle_spacing) = initial_condition

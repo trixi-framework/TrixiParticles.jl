@@ -6,10 +6,10 @@ using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
-using FileIO: FileIO, File, query, skipmagic, @format_str, Stream, stream
 using DelimitedFiles: readdlm
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
+using FileIO: FileIO, File, query, skipmagic, @format_str, Stream, stream
 using ForwardDiff: ForwardDiff
 using JSON: JSON
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
@@ -23,7 +23,8 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using TrixiBase: trixi_include
+using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
+                 disable_debug_timings, enable_debug_timings
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
 using PointNeighbors: PointNeighbors, for_particle_neighbor
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
@@ -47,7 +48,8 @@ include("preprocessing/particle_packing/particle_packing.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem
+       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, InFlow,
+       OutFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity

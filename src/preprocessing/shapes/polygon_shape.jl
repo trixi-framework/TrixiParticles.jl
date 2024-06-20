@@ -1,4 +1,5 @@
 struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
+    vertices       :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_vertex :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
     normals_edge   :: Vector{SVector{NDIMS, ELTYPE}}
@@ -26,7 +27,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
 
-        # Sum over all the edges and determine if the vertices are in counter-clockwise order
+        # Sum over all the edges and determine if the vertices are in clockwise order
         # to make sure that all normals pointing outwards
         counter = 0.0
         for i in 1:(n_vertices - 1)
@@ -36,7 +37,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
         end
 
         if counter < 0.0
-            # Curve is clockwise
+            # Curve is counter-clockwise
             reverse!(vertices, dims=2)
             reverse!(vertices_x)
             reverse!(vertices_y)
@@ -79,13 +80,15 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
                 edge_normal_3 = normals_edge[i + 1]
             end
 
-            vortex_normal_1 = edge_normal_1 + edge_normal_2
-            vortex_normal_2 = edge_normal_2 + edge_normal_3
+            vortex_normal_1 = normalize(edge_normal_1 + edge_normal_2)
+            vortex_normal_2 = normalize(edge_normal_2 + edge_normal_3)
 
             push!(normals_vertex, [vortex_normal_1, vortex_normal_2])
         end
 
-        return new{NDIMS, ELTYPE}(edge_vertices, normals_vertex, normals_edge,
+        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices[:, 1:(end - 1)])
+
+        return new{NDIMS, ELTYPE}(vertices, edge_vertices, normals_vertex, normals_edge,
                                   min_corner, max_corner)
     end
 end

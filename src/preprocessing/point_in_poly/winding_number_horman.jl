@@ -1,15 +1,20 @@
-# Kai Horman, Alexander Agathos
-# The point in polygon problem for arbitrary polygons
-# Computational Geometry 2001
-# doi: 10.1016/s0925-7721(01)00012-8
+"""
+    WindingNumberHorman()
+
+Algorithm for inside-outside segmentation of a complex shape proposed by Horman et al. (2001).
+It is only supported for 2D shapes.
+[`WindingNumberHorman`](@rerf) might handle edge cases a bit better, since the winding number is an integer value.
+Also, it is faster than [`WindingNumberJacobson`](@ref) for 2D shapes with about more than 100 edges.
+"""
 struct WindingNumberHorman end
 
-# Only for 2D yet.
-# About 3 times faster than `WindingNumberJacobson` for 2D (without optimization) but not as robust as `WindingNumberJacobson`
-function (point_in_poly::WindingNumberHorman)(shape, points)
+function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_number=false)
     (; edge_vertices) = shape
 
     inpoly = falses(size(points, 2))
+
+    winding_numbers = Float64[]
+    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
     h_unit = SVector(1.0, 0.0)
     v_unit = SVector(0.0, 1.0)
@@ -51,10 +56,12 @@ function (point_in_poly::WindingNumberHorman)(shape, points)
             end
         end
 
+        store_winding_number && (winding_numbers[query_point] = winding_number)
+
         !(winding_number == 0) && (inpoly[query_point] = true)
     end
 
-    return inpoly
+    return inpoly, winding_numbers
 end
 
 function positive_determinant(v1, v2, v_query)

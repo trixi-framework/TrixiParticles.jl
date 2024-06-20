@@ -5,12 +5,13 @@ struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, Nothin
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
+    buffer            :: Nothing
 
     function NBodySystem(initial_condition, G)
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G)
+            eltype(mass)}(initial_condition, mass, G, nothing)
     end
 end
 

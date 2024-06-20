@@ -4,12 +4,15 @@
                      mass=nothing, density=nothing, pressure=0.0)
 
 Extrude either a line, a plane or a shape along a specific direction.
+Returns an [`InitialCondition`](@ref).
 
 # Arguments
 - `geometry`:           Either particle coordinates or an [`InitialCondition`](@ref)
                         defining a 2D shape to extrude to a 3D volume, or two 2D points
-                        defining a line to extrude to a plane in 2D, or three 3D points defining
-                        a parallelogram to extrude to a parallelepiped.
+                        ``(A, B)`` defining the interval ``[A, B]`` to extrude to a plane
+                        in 2D, or three 3D points ``(A, B, C)`` defining the parallelogram
+                        spanned by the vectors ``\widehat{AB}`` and ``\widehat {AC}`` to extrude
+                        to a parallelepiped.
 
 # Keywords
 - `particle_spacing`:   Spacing between the particles. Can be omitted when `geometry` is an
@@ -24,12 +27,9 @@ Extrude either a line, a plane or a shape along a specific direction.
                         or a scalar for a constant mass over all particles.
 - `density`:            Either a function mapping each particle's coordinates to its density,
                         or a scalar for a constant density over all particles.
-                        Obligatory when not using a state equation. Cannot be used together with
-                        `state_equation`.
 - `pressure`:           Scalar to set the pressure of all particles to this value.
                         This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                         will be overwritten when using an initial pressure function in the system.
-                        Cannot be used together with hydrostatic pressure gradient.
 - `tlsph`:              With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
                         on the boundary of the shape and not one particle radius away, as for fluids.
                         When `tlsph=true`, particles will be placed on the boundary of the shape.
