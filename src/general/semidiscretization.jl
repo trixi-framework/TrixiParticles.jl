@@ -368,7 +368,7 @@ end
 
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_v(v_ode::Array, system, semi)
+@inline function wrap_v(v_ode, system, semi)
     (; ranges_v) = semi
 
     range = ranges_v[system_indices(system, semi)]
@@ -379,7 +379,7 @@ end
                       (StaticInt(v_nvariables(system)), n_moving_particles(system)))
 end
 
-@inline function wrap_u(u_ode::Array, system, semi)
+@inline function wrap_u(u_ode, system, semi)
     (; ranges_u) = semi
 
     range = ranges_u[system_indices(system, semi)]
