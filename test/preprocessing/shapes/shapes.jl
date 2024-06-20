@@ -11,8 +11,6 @@
             points_rectangular_clockwise = [v1 v2 v3 v4]
             points_rectangular_counter_clockwise = [v1 v4 v3 v2]
 
-            shape = TrixiParticles.Polygon(points_rectangular_counter_clockwise)
-
             edge_vertices = [[v1, v2], [v2, v3], [v3, v4], [v4, v1]]
 
             normals_edge = [
@@ -29,9 +27,15 @@
                 rot([[√2 / 2, -√2 / 2], [-√2 / 2, -√2 / 2]], rot_angle), # edge 4
             ]
 
-            @test all(shape.edge_vertices .≈ edge_vertices)
-            @test all(shape.normals_edge .≈ normals_edge)
-            @test all(shape.normals_vertex .≈ normals_vertex)
+            shape_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
+            @test all(isapprox(shape_clockwise.edge_vertices, edge_vertices, atol=1e-14))
+            @test all(isapprox(shape_clockwise.normals_edge, normals_edge, atol=1e-14))
+            @test all(isapprox(shape_clockwise.normals_vertex, normals_vertex, atol=1e-14))
+
+            shape_cclockwise = TrixiParticles.Polygon(points_rectangular_counter_clockwise)
+            @test all(isapprox(shape_cclockwise.edge_vertices, edge_vertices, atol=1e-14))
+            @test all(isapprox(shape_cclockwise.normals_edge, normals_edge, atol=1e-14))
+            @test all(isapprox(shape_cclockwise.normals_vertex, normals_vertex, atol=1e-14))
         end
     end
 
@@ -49,8 +53,7 @@
                 normals_vertex = vcat((data.var"normals_vertex:0")',
                                       (data.var"normals_vertex:1")')
 
-                points = vcat((data.var"Points:0")',
-                              (data.var"Points:1")')
+                points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
                 shape = load_shape(joinpath("examples", "preprocessing", files[i] * ".asc"))
 
