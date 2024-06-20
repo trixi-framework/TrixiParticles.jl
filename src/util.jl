@@ -33,7 +33,7 @@ Run either a threaded CPU loop or launch a kernel on the GPU, depending on the t
 Semantically the same as `Threads.@threads` when iterating over a `AbstractUnitRange`
 but without guarantee that the underlying implementation uses `Threads.@threads`
 or works for more general `for` loops.
-The second argument must either be a particle system or an array from which can be derived
+The first argument must either be a particle system or an array from which can be derived
 if the loop has to be run threaded on the CPU or launched as a kernel on the GPU.
 
 In particular, the underlying threading capabilities might be provided by other packages
