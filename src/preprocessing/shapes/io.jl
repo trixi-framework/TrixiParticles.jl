@@ -9,7 +9,6 @@ Supported file formats are `.stl` and `.asc`.
 
 # Keywords
 - `element_type`: Element type (default is `Float64`)
-
 """
 function load_shape(filename; element_type=Float64)
     ELTYPE = element_type
