@@ -1,30 +1,31 @@
 
+# Function to unpack the neighboring systems viscosity and handle through dispatch
 function dv_viscosity(particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_mean)
+                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     viscosity = viscosity_model(neighbor_system)
 
     return dv_viscosity(viscosity, particle_system, neighbor_system,
                         v_particle_system, v_neighbor_system,
                         particle, neighbor, pos_diff, distance,
-                        sound_speed, m_a, m_b, rho_mean)
+                        sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
 function dv_viscosity(viscosity, particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_mean)
+                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return viscosity(particle_system, neighbor_system,
                      v_particle_system, v_neighbor_system,
                      particle, neighbor, pos_diff, distance,
-                     sound_speed, m_a, m_b, rho_mean)
+                     sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
 function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_mean)
+                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return zero(pos_diff)
 end
 
@@ -88,11 +89,14 @@ end
 @doc raw"""
     ViscosityMorris(; nu, epsilon=0.01)
 
-Viscosity by Moris (Moris et al. 1997).
+Viscosity by Morris et al. (1997).
+
+To the force ``f_{ab}`` between two particles ``a`` and ``b`` due to pressure gradients,
+an additional force term ``\tilde{f}_{ab}`` is added with
 ```math
-f_{ab} = \sum_w \frac{m_b(eta_a+eta_b)}{||r_{ab}||^2+(\epsilon h_{ab})^2}  \nabla W_{ab} \cdot r_{ab}\cdot v_{ab},
+f_{ab} = \sum_w \frac{m_b(mu_a+mu_b)}{||r_{ab}||^2+(\epsilon h_{ab})^2}  \nabla W_{ab} \cdot r_{ab}\cdot v_{ab},
 ```
-where ``\eta_a = \rho_a \nu`` and ``\eta_b = \rho_b \nu`` denote the dynamic viscosity
+where ``\mu_a = \rho_a \nu`` and ``\mu_b = \rho_b \nu`` denote the dynamic viscosity
 of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity.
 
 # Keywords
@@ -108,6 +112,7 @@ of particle ``a`` and ``b`` respectively, and ``\nu`` is the kinematic viscosity
   "Local uniform stencil (LUST) boundary condition for arbitrary
   3-D boundaries in parallel smoothed particle hydrodynamics (SPH) models".
   In: Computers & Fluids, Volume 190 (2019), pages 346--361.
+  [doi: 10.1016/j.compfluid.2019.06.009](https://doi.org/10.1016/j.compfluid.2019.06.009)
 """
 struct ViscosityMorris{ELTYPE}
     nu::ELTYPE
@@ -122,41 +127,33 @@ function kinematic_viscosity(system, viscosity::ViscosityMorris)
     return viscosity.nu
 end
 
-@inline function (viscosity::Union{ArtificialViscosityMonaghan, ViscosityMorris})(particle_system,
-                                                                                  neighbor_system,
-                                                                                  v_particle_system,
-                                                                                  v_neighbor_system,
-                                                                                  particle,
-                                                                                  neighbor,
-                                                                                  pos_diff,
-                                                                                  distance,
-                                                                                  sound_speed,
-                                                                                  m_a, m_b,
-                                                                                  rho_mean)
+@inline function (viscosity::Union{ArtificialViscosityMonaghan,
+                                   ViscosityMorris})(particle_system, neighbor_system,
+                                                     v_particle_system, v_neighbor_system,
+                                                     particle, neighbor, pos_diff,
+                                                     distance, sound_speed, m_a, m_b,
+                                                     rho_a, rho_b, grad_kernel)
     (; smoothing_length) = particle_system
 
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+    rho_mean = 0.5 * (rho_a + rho_b)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
 
-    # v_ab ⋅ r_ab
-    vr = dot(v_diff, pos_diff)
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
-
-    pi_ab = viscosity(sound_speed, v_diff, vr, distance, rho_mean, rho_a, rho_b,
+    pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
                       smoothing_length, grad_kernel)
 
-    return -m_b * pi_ab
+    return m_b * pi_ab
 end
 
-@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, vr, distance, rho_mean,
-                                                          rho_a,
-                                                          rho_b, h, grad_kernel)
+@inline function (viscosity::ArtificialViscosityMonaghan)(c, v_diff, pos_diff, distance,
+                                                          rho_mean, rho_a, rho_b, h,
+                                                          grad_kernel)
     (; alpha, beta, epsilon) = viscosity
+
+    # v_ab ⋅ r_ab
+    vr = dot(v_diff, pos_diff)
 
     # Monaghan 2005 p. 1741 (doi: 10.1088/0034-4885/68/8/r01):
     # "In the case of shock tube problems, it is usual to turn the viscosity on for
@@ -164,22 +161,22 @@ end
     # viscosity is used for shocks and not rarefactions."
     if vr < 0
         mu = h * vr / (distance^2 + epsilon * h^2)
-        return -(alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
+        return (alpha * c * mu + beta * mu^2) / rho_mean * grad_kernel
     end
 
     return zero(v_diff)
 end
 
-@inline function (viscosity::ViscosityMorris)(c, v_diff, vr, distance, rho_mean, rho_a,
-                                              rho_b, h, grad_kernel)
+@inline function (viscosity::ViscosityMorris)(c, v_diff, pos_diff, distance, rho_mean,
+                                              rho_a, rho_b, h, grad_kernel)
     (; epsilon, nu) = viscosity
 
     # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     mu_a = nu * rho_a
     mu_b = nu * rho_b
 
-    return (mu_a + mu_b) / (rho_a * rho_b) * dot(v_diff, grad_kernel) /
-           (distance + epsilon * h)
+    return (mu_a + mu_b) / (rho_a * rho_b) * dot(pos_diff, grad_kernel) /
+           (distance^2 + epsilon * h^2) * v_diff
 end
 
 # See, e.g.,
@@ -235,16 +232,14 @@ end
 @inline function (viscosity::ViscosityAdami)(particle_system, neighbor_system,
                                              v_particle_system, v_neighbor_system,
                                              particle, neighbor, pos_diff,
-                                             distance, sound_speed, m_a, m_b, rho_mean)
+                                             distance, sound_speed, m_a, m_b,
+                                             rho_a, rho_b, grad_kernel)
     (; epsilon, nu) = viscosity
     (; smoothing_length) = particle_system
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
     v_diff = v_a - v_b
-
-    rho_a = particle_density(v_particle_system, particle_system, particle)
-    rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
 
     # TODO This is not correct for two different fluids. It should be `nu_a` and `nu_b`.
     eta_a = nu * rho_a
@@ -257,8 +252,6 @@ end
 
     volume_a = m_a / rho_a
     volume_b = m_b / rho_b
-
-    grad_kernel = smoothing_kernel_grad(particle_system, pos_diff, distance)
 
     # This formulation was introduced by Hu and Adams (2006). https://doi.org/10.1016/j.jcp.2005.09.001
     # They argued that the formulation is more flexible because of the possibility to formulate

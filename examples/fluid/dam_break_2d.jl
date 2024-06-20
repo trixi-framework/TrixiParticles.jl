@@ -48,7 +48,9 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-# viscosity = ViscosityMorris(nu=0.000001)
+# nu = 0.02 * smoothing_length * sound_speed/8
+# viscosity = ViscosityMorris(nu=nu)
+# viscosity = ViscosityAdami(nu=nu)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
@@ -79,7 +81,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
 
-solution_prefix = ""
+solution_prefix = "morris"
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
 # Save at certain timepoints which allows comparison to the results of Marrone et al.,
