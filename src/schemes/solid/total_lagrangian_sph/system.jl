@@ -70,6 +70,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     penalty_force       :: PF
     source_terms        :: ST
     buffer              :: Nothing
+end
 
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
