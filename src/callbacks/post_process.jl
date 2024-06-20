@@ -236,7 +236,7 @@ function (pp::PostprocessCallback)(integrator)
     new_data = false
 
     # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary

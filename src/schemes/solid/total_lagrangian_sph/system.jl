@@ -69,7 +69,7 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D,
     boundary_model      :: BM
     penalty_force       :: PF
     source_terms        :: ST
-end
+    buffer              :: Nothing
 
 function TotalLagrangianSPHSystem(initial_condition,
                                   smoothing_kernel, smoothing_length,
@@ -112,7 +112,7 @@ function TotalLagrangianSPHSystem(initial_condition,
                                     n_moving_particles, young_modulus, poisson_ratio,
                                     lame_lambda, lame_mu, smoothing_kernel,
                                     smoothing_length, acceleration_, boundary_model,
-                                    penalty_force, source_terms)
+                                    penalty_force, source_terms, nothing)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -241,7 +241,8 @@ function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode
     return system
 end
 
-function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
     (; boundary_model) = system
 
     # Only update boundary model

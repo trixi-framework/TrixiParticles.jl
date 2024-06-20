@@ -137,6 +137,9 @@
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
 
+        # Avoid `SystemBuffer` barrier
+        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
+
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
 
         dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)
