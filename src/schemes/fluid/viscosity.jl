@@ -12,6 +12,19 @@ function dv_viscosity(particle_system, neighbor_system,
                         sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
+function dv_viscosity(particle_system, neighbor_system::OpenBoundarySPHSystem,
+                      v_particle_system, v_neighbor_system,
+                      particle, neighbor, pos_diff, distance,
+                      sound_speed, m_a, m_b, rho_mean)
+    # No viscosity in the open boundary system. Use viscosity of the fluid system.
+    viscosity = viscosity_model(particle_system)
+
+    return dv_viscosity(viscosity, particle_system, neighbor_system,
+                        v_particle_system, v_neighbor_system,
+                        particle, neighbor, pos_diff, distance,
+                        sound_speed, m_a, m_b, rho_mean)
+end
+
 function dv_viscosity(viscosity, particle_system, neighbor_system,
                       v_particle_system, v_neighbor_system,
                       particle, neighbor, pos_diff, distance,
