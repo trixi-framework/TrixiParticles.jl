@@ -121,10 +121,8 @@
 
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
 
-        semi_no_boundary = Semidiscretization(fluid_system,
-                                              neighborhood_search=GridNeighborhoodSearch)
-        semi_boundary = Semidiscretization(fluid_system, boundary_system,
-                                           neighborhood_search=GridNeighborhoodSearch)
+        semi_no_boundary = Semidiscretization(fluid_system)
+        semi_boundary = Semidiscretization(fluid_system, boundary_system)
 
         # some simple results
         expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y],
@@ -827,10 +825,8 @@
 
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
 
-        semi_no_boundary = Semidiscretization(fluid_system,
-                                              neighborhood_search=GridNeighborhoodSearch)
-        semi_boundary = Semidiscretization(fluid_system, boundary_system,
-                                           neighborhood_search=GridNeighborhoodSearch)
+        semi_no_boundary = Semidiscretization(fluid_system)
+        semi_boundary = Semidiscretization(fluid_system, boundary_system)
 
         # some simple results
         expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y, 0.0],

@@ -1,7 +1,5 @@
 """
-    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch,
-                       periodic_box_min_corner=nothing, periodic_box_max_corner=nothing,
-                       threaded_nhs_update=true)
+    Semidiscretization(systems...; neighborhood_search=GridNeighborhoodSearch{NDIMS}())
 
 The semidiscretization couples the passed systems to one simulation.
 
