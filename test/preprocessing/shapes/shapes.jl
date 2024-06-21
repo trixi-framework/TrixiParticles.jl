@@ -40,13 +40,15 @@
     end
 
     @testset verbose=true "Real World Data" begin
+        data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
             n_edges = [6, 63, 241]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(shape)`
-                data = TrixiParticles.CSV.read(joinpath("test", "preprocessing", "data",
+                data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
@@ -55,7 +57,7 @@
 
                 points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                shape = load_shape(joinpath("examples", "preprocessing", files[i] * ".asc"))
+                shape = load_shape(joinpath(data_dir, files[i] * ".asc"))
 
                 @test TrixiParticles.nfaces(shape) == n_edges[i]
 
@@ -75,7 +77,7 @@
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(shape)`
-                data = TrixiParticles.CSV.read(joinpath("test", "preprocessing", "data",
+                data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
@@ -87,7 +89,7 @@
                               (data.var"Points:1")',
                               (data.var"Points:2")')
 
-                shape = load_shape(joinpath("examples", "preprocessing", files[i] * ".stl"))
+                shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
                 @test TrixiParticles.nfaces(shape) == n_faces[i]
                 @test length(shape.vertices) == n_vertices[i]

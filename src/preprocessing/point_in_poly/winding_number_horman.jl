@@ -26,7 +26,7 @@ function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_numbe
         (dot_v < 0.0 && dot_h >= 0.0) && return 3
     end
 
-    @threaded for query_point in axes(points, 2)
+    @threaded points for query_point in axes(points, 2)
         winding_number = 0
         v_query = point_position(points, shape, query_point)
 

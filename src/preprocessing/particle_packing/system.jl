@@ -1,5 +1,6 @@
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSystem{NDIMS}
-    initial_condition              :: InitialCondition{ELTYPE}
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
+                             C, N} <: FluidSystem{NDIMS, IC}
+    initial_condition              :: IC
     boundary                       :: B
     smoothing_kernel               :: K
     smoothing_length               :: ELTYPE
@@ -11,6 +12,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
     constrain_particles_on_surface :: C
     neighborhood_search            :: N
     signed_distances               :: Vector{ELTYPE} # Only for visualization
+    buffer                         :: Nothing
     update_callback_used           :: Ref{Bool}
 
     function ParticlePackingSystem(initial_condition;
@@ -30,10 +32,17 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
 
         # Sample boundary
         if is_boundary
+            # Generate a signed distance field and use the particles outside the object as boundary particles.
             if isnothing(signed_distance_field)
+                # It is not necessary to set `use_for_boundary_packing=true`,
+                # since we calculate the signed distance on the fly if `signed_distance_field=nothing`
                 sdf = SignedDistanceField(boundary, particle_spacing;
                                           use_for_boundary_packing=false)
             else
+                if !(signed_distance_field.boundary_packing)
+                    throw(ArgumentError("`SignedDistanceField` must be generated with " *
+                                        "`use_for_boundary_packing = true` when `is_boundary = true`"))
+                end
                 sdf = signed_distance_field
             end
 
@@ -56,12 +65,13 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
 
         # Create neighborhood search
         if neighborhood_search && isnothing(signed_distance_field)
+            # Calculate signed distance on the fly using a face nhs
 
             # Search radius for the corresponding neighborhood search.
             # A boundary needs a larger radius, since constraining the boundary particles to the
             # surface needs at least a `search_radius` of the thickness of the boundary.
             search_radius = if is_boundary
-                sdf.max_signed_distance
+                2 * sdf.max_signed_distance
             else
                 search_radius
             end
@@ -70,6 +80,8 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
             initialize!(nhs, boundary)
 
         elseif signed_distance_field isa SignedDistanceField
+            # Use precalculated signed distance field and interpolate the distances to the particles
+            # using a grid nhs
             (; distances, positions) = signed_distance_field
 
             nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
@@ -92,14 +104,14 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, B, K, S, C, N} <: FluidSyste
             interpolate_particle_face_distance!
         end
 
-        return new{NDIMS, ELTYPE, typeof(boundary), typeof(smoothing_kernel),
+        return new{NDIMS, ELTYPE, typeof(ic), typeof(boundary), typeof(smoothing_kernel),
                    typeof(signed_distance_field),
                    typeof(constrain_particles_on_surface),
                    typeof(nhs)}(ic, boundary, smoothing_kernel, smoothing_length,
                                 background_pressure, tlsph, signed_distance_field,
                                 is_boundary, shift_condition,
                                 constrain_particles_on_surface, nhs,
-                                fill(zero(ELTYPE), nparticles(ic)), false)
+                                fill(zero(ELTYPE), nparticles(ic)), nothing, false)
     end
 end
 
@@ -173,7 +185,7 @@ end
 function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, t;
                        update_from_callback=false)
     if !update_from_callback && !(system.update_callback_used[])
-        throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
+        throw(ArgumentError("`UpdateCallback` is required when using `ParticlePackingSystem`"))
     end
 
     return system
@@ -182,12 +194,12 @@ function direct_particle_face_distance!(u, system::ParticlePackingSystem)
     (; boundary, shift_condition, neighborhood_search, initial_condition) = system
     (; particle_spacing) = initial_condition
 
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
         distance2 = Inf
         distance_sign = true
-        normal_vector = fill(0.0, SVector{ndims(system), eltype(system)})
+        normal_vector = fill(zero(eltype(system)), SVector{ndims(system), eltype(system)})
 
         # Calculate minimum unsigned distance to boundary
         for face in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
@@ -199,6 +211,10 @@ function direct_particle_face_distance!(u, system::ParticlePackingSystem)
                 distance_sign = new_distance_sign
                 normal_vector = n
             end
+        end
+
+        if !isfinite(distance2)
+            error("no faces in the neighborhood of particle $particle")
         end
 
         distance = distance_sign ? -sqrt(distance2) : sqrt(distance2)
@@ -225,6 +241,8 @@ function direct_particle_face_distance!(u, system::ParticlePackingSystem)
             end
         end
     end
+
+    return u
 end
 
 function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
@@ -234,7 +252,7 @@ function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
 
     search_radius2 = compact_support(system, system)^2
 
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
 
         volume = zero(eltype(system))

@@ -3,6 +3,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     normals             :: Vector{SVector{NDIMS, ELTYPE}}
     distances           :: Vector{ELTYPE}
     max_signed_distance :: ELTYPE
+    boundary_packing    :: Bool
 
     function SignedDistanceField(boundary, particle_spacing;
                                  max_signed_distance=4particle_spacing,
@@ -28,7 +29,7 @@ struct SignedDistanceField{NDIMS, ELTYPE}
         normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(point_grid))
         distances = fill(Inf, length(point_grid))
 
-        @threaded for point in eachindex(positions)
+        @threaded positions for point in eachindex(positions)
             point_coords = positions[point]
 
             for face in PointNeighbors.eachneighbor(point_coords, nhs)
@@ -57,7 +58,8 @@ struct SignedDistanceField{NDIMS, ELTYPE}
         deleteat!(normals, reject_indices)
         deleteat!(positions, reject_indices)
 
-        return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance)
+        return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
+                                  use_for_boundary_packing)
     end
 end
 

@@ -17,7 +17,7 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
         face_vertices_ids = fill((0, 0, 0), n_faces)
 
-        @threaded for i in 1:n_faces
+        @threaded face_vertices for i in 1:n_faces
             v1 = face_vertices[i][1]
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]

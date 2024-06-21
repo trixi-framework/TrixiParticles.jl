@@ -1,5 +1,5 @@
 @testset verbose=true "Complex Shapes" begin
-    data_dir = joinpath("test", "preprocessing", "data")
+    data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
     @testset verbose=true "Complex Shapes 2D" begin
         @testset verbose=true "Rectangular Shifted" begin
@@ -50,8 +50,7 @@
 
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    shape = load_shape(joinpath("examples", "preprocessing",
-                                                files[j] * ".asc"))
+                    shape = load_shape(joinpath(data_dir, files[j] * ".asc"))
 
                     shape_sampled = ComplexShape(shape; particle_spacing=0.05, density=1.0,
                                                  point_in_shape_algorithm=algorithms[i])
@@ -65,6 +64,7 @@
     @testset verbose=true "Complex Shapes 3D" begin
         @testset verbose=true "Real World Data" begin
             files = ["sphere", "bar"]
+            particle_spacings = [0.1, 0.18]
 
             @testset verbose=true "Naive Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
@@ -79,7 +79,10 @@
 
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0)
+                    shape_sampled = ComplexShape(shape;
+                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 particle_spacing=particle_spacings[i],
+                                                 density=1.0)
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end
@@ -96,9 +99,13 @@
 
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0,
+                    shape_sampled = ComplexShape(shape;
+                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 particle_spacing=particle_spacings[i],
+                                                 density=1.0,
                                                  point_in_shape_algorithm=WindingNumberJacobson(;
                                                                                                 shape,
+                                                                                                winding_number_factor=0.1,
                                                                                                 hierarchical_winding=true))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end

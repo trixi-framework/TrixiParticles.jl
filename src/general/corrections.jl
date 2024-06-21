@@ -440,7 +440,7 @@ function compute_gradient_correction_matrix!(corr_matrix::AbstractArray, system,
 end
 
 function correction_matrix_inversion_step!(corr_matrix, system)
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         L = extract_smatrix(corr_matrix, system, particle)
 
         # The matrix `L` only becomes singular when the particle and all neighbors

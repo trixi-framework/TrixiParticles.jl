@@ -1,21 +1,18 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-particle_spacing = 0.02
+particle_spacing = 0.1
 density = 1000.0
 tspan = (0, 10.0)
 
-dir = joinpath("Data", "stl-files", "examples")
-filename = joinpath(expanduser("~/") * dir, "aorta.stl")
+file = "sphere"
 
-# Returns `Shape`
-shape = load_shape(filename)
-
-# Returns `InitialCondition`.
-shape_sampled = ComplexShape(shape; particle_spacing, density, hierarchical_winding=true)
+trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), file=file,
+              density=density, particle_spacing=particle_spacing)
 
 signed_distance_field = SignedDistanceField(shape, particle_spacing;
                                             max_signed_distance=4particle_spacing,
+                                            use_for_boundary_packing=true,
                                             neighborhood_search=true)
 
 background_pressure = 1e8 * particle_spacing^3
@@ -33,8 +30,8 @@ semi = Semidiscretization(packing_system, boundary_system)
 
 ode = semidiscretize(semi, tspan)
 
-info_callback = InfoCallback(interval=50)
-saving_callback = SolutionSavingCallback(dt=0.02, prefix="")
+info_callback = InfoCallback(interval=10)
+saving_callback = SolutionSavingCallback(interval=10, prefix="")
 
 callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback)
 
