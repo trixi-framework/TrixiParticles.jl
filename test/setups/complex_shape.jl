@@ -78,7 +78,10 @@
 
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0)
+                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0,
+                                                 point_in_shape_algorithm=WindingNumberJacobson(;
+                                                                                                shape,
+                                                                                                winding_number_factor=0.1))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end
@@ -98,6 +101,7 @@
                     shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0,
                                                  point_in_shape_algorithm=WindingNumberJacobson(;
                                                                                                 shape,
+                                                                                                winding_number_factor=0.1,
                                                                                                 hierarchical_winding=true))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
