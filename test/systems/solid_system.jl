@@ -216,8 +216,8 @@
                 initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                   smoothing_length, 1.0, 1.0)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
-                                                                  TrixiParticles.eachparticle(system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
+                                                                  eachpoint=TrixiParticles.eachparticle(system))
 
                 TrixiParticles.initialize!(system, nhs)
 

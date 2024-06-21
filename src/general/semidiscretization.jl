@@ -265,14 +265,7 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
         Polyester.reset_threads!()
     end
 
-    # Initialize neighborhood searches
-    foreach_system(semi) do system
-        foreach_system(semi) do neighbor
-            PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
-                                       initial_coordinates(system),
-                                       initial_coordinates(neighbor))
-        end
-    end
+    initialize_neighborhood_searches!(semi)
 
     # Initialize all particle systems
     foreach_system(semi) do system
@@ -340,14 +333,7 @@ function restart_with!(semi, sol; reset_threads=true)
         Polyester.reset_threads!()
     end
 
-    # Initialize neighborhood searches
-    foreach_system(semi) do system
-        foreach_system(semi) do neighbor
-            PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
-                                       initial_coordinates(system),
-                                       initial_coordinates(neighbor))
-        end
-    end
+    initialize_neighborhood_searches!(semi)
 
     foreach_system(semi) do system
         v = wrap_v(sol.u[end].x[1], system, semi)
@@ -357,6 +343,18 @@ function restart_with!(semi, sol; reset_threads=true)
 
         # Only for systems requiring a mandatory callback
         reset_callback_flag!(system)
+    end
+
+    return semi
+end
+
+function initialize_neighborhood_searches!(semi)
+    foreach_system(semi) do system
+        foreach_system(semi) do neighbor
+            PointNeighbors.initialize!(get_neighborhood_search(system, neighbor, semi),
+                                       initial_coordinates(system),
+                                       initial_coordinates(neighbor))
+        end
     end
 
     return semi

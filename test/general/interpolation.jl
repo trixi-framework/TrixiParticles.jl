@@ -122,7 +122,9 @@
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
 
         semi_no_boundary = Semidiscretization(fluid_system)
+        TrixiParticles.initialize_neighborhood_searches!(semi_no_boundary)
         semi_boundary = Semidiscretization(fluid_system, boundary_system)
+        TrixiParticles.initialize_neighborhood_searches!(semi_boundary)
 
         # some simple results
         expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y],
@@ -826,7 +828,9 @@
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
 
         semi_no_boundary = Semidiscretization(fluid_system)
+        TrixiParticles.initialize_neighborhood_searches!(semi_no_boundary)
         semi_boundary = Semidiscretization(fluid_system, boundary_system)
+        TrixiParticles.initialize_neighborhood_searches!(semi_boundary)
 
         # some simple results
         expected_zero(y) = (density=NaN, neighbor_count=0, coord=[0.0, y, 0.0],
