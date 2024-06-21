@@ -57,7 +57,7 @@
 
                 points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                shape = load_shape(joinpath("examples", "preprocessing", files[i] * ".asc"))
+                shape = load_shape(joinpath(data_dir, files[i] * ".asc"))
 
                 @test TrixiParticles.nfaces(shape) == n_edges[i]
 
@@ -89,7 +89,7 @@
                               (data.var"Points:1")',
                               (data.var"Points:2")')
 
-                shape = load_shape(joinpath("examples", "preprocessing", files[i] * ".stl"))
+                shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
                 @test TrixiParticles.nfaces(shape) == n_faces[i]
                 @test length(shape.vertices) == n_vertices[i]
