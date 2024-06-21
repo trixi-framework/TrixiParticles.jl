@@ -1,5 +1,5 @@
 @testset verbose=true "Complex Shapes" begin
-    data_dir = joinpath("test", "preprocessing", "data")
+    data_dir = joinpath("..", "test", "preprocessing", "data")
 
     @testset verbose=true "Complex Shapes 2D" begin
         @testset verbose=true "Rectangular Shifted" begin

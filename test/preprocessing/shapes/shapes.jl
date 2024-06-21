@@ -40,13 +40,15 @@
     end
 
     @testset verbose=true "Real World Data" begin
+        data_dir = joinpath("..", "test", "preprocessing", "data")
+
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
             n_edges = [6, 63, 241]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(shape)`
-                data = TrixiParticles.CSV.read(joinpath("test", "preprocessing", "data",
+                data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
@@ -75,7 +77,7 @@
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(shape)`
-                data = TrixiParticles.CSV.read(joinpath("test", "preprocessing", "data",
+                data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
