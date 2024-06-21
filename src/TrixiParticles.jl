@@ -26,7 +26,7 @@ using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
-using PointNeighbors: PointNeighbors, foreach_point_neighbor
+using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
