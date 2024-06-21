@@ -294,7 +294,7 @@ function find_too_close_particles(coords1, coords2, max_distance)
     PointNeighbors.initialize!(nhs, coords1, coords2)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    for_particle_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
+    foreach_point_neighbor(coords1, coords2, nhs, parallel=false) do particle, _, _, _
         if !(particle in result)
             append!(result, particle)
         end

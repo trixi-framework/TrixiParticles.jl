@@ -534,7 +534,7 @@ end
 
         system_coords = current_coordinates(u, system)
 
-        # This is basically `for_particle_neighbor` unrolled
+        # This is basically `foreach_point_neighbor` unrolled
         for particle in PointNeighbors.eachneighbor(point_coords, nhs)
             coords = extract_svector(system_coords, Val(ndims(system)), particle)
 

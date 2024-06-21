@@ -393,12 +393,9 @@ end
                                                         neighborhood_search)
     (; pressure, cache, viscosity) = boundary_model
 
-    for_particle_neighbor(neighbor_system, system,
-                          neighbor_coords, system_coords,
-                          neighborhood_search;
-                          particles=eachparticle(neighbor_system),
-                          parallel=false) do neighbor, particle,
-                                             pos_diff, distance
+    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
+                           neighborhood_search; particles=eachparticle(neighbor_system),
+                           parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem,
@@ -422,11 +419,10 @@ end
     (; pressure, cache, viscosity) = boundary_model
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             pos_diff, distance
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search;
+                           particles=eachparticle(system)) do particle, neighbor,
+                                                              pos_diff, distance
         adami_pressure_inner!(boundary_model, system, neighbor_system,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)

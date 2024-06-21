@@ -62,8 +62,9 @@ function summation_density!(system, semi, u, u_ode, density;
         nhs = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
-                              particles=particles) do particle, neighbor, pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords, nhs,
+                               particles=particles) do particle, neighbor,
+                                                       pos_diff, distance
             mass = hydrodynamic_mass(neighbor_system, neighbor)
             density[particle] += mass * smoothing_kernel(system, distance)
         end
