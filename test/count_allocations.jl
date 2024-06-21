@@ -30,7 +30,7 @@ end
 # No update
 @inline function TrixiParticles.PointNeighbors.update!(search::NoUpdateNeighborhoodSearch,
                                                        x, y;
-                                                       particles_moving=(true, true))
+                                                       points_moving=(true, true))
     return search
 end
 
