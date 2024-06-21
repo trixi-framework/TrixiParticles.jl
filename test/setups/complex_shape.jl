@@ -64,6 +64,7 @@
     @testset verbose=true "Complex Shapes 3D" begin
         @testset verbose=true "Real World Data" begin
             files = ["sphere", "bar"]
+            particle_spacings = [0.1, 0.18]
 
             @testset verbose=true "Naive Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
@@ -78,10 +79,10 @@
 
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0,
-                                                 point_in_shape_algorithm=WindingNumberJacobson(;
-                                                                                                shape,
-                                                                                                winding_number_factor=0.1))
+                    shape_sampled = ComplexShape(shape;
+                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 particle_spacing=particle_spacings[i],
+                                                 density=1.0)
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end
@@ -98,7 +99,10 @@
 
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.2, density=1.0,
+                    shape_sampled = ComplexShape(shape;
+                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 particle_spacing=particle_spacings[i],
+                                                 density=1.0,
                                                  point_in_shape_algorithm=WindingNumberJacobson(;
                                                                                                 shape,
                                                                                                 winding_number_factor=0.1,

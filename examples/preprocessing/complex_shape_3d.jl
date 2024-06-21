@@ -2,7 +2,8 @@ using TrixiParticles
 
 particle_spacing = 0.05
 
-filename = joinpath("examples", "preprocessing", "sphere.stl")
+file = "sphere"
+filename = joinpath("examples", "preprocessing", file * ".stl")
 
 # The following triangle mesh is corrupt.
 # For more robustness, use `winding_number_factor=0.4`.
