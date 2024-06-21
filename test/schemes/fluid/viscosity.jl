@@ -1,4 +1,3 @@
-include("../../test_util.jl")
 @testset verbose=true "Viscosity" begin
     particle_spacing = 0.2
     smoothing_length = 1.2 * particle_spacing
