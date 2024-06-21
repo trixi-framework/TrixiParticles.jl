@@ -13,6 +13,7 @@ Adapt.@adapt_structure DensityDiffusionAntuono
 Adapt.@adapt_structure BoundarySPHSystem
 Adapt.@adapt_structure BoundaryModelDummyParticles
 Adapt.@adapt_structure BoundaryModelMonaghanKajtar
+Adapt.@adapt_structure TotalLagrangianSPHSystem
 
 # The initial conditions are only used for initialization, which happens before `adapt`ing
 # the semidiscretization, so we don't need to store `InitialCondition`s on the GPU.
@@ -31,4 +32,11 @@ end
 # We don't want to change the type of the `UnitRange` here.
 function Adapt.adapt_structure(to::typeof(Array), range::UnitRange)
     return range
+end
+
+KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
+KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
+
+function KernelAbstractions.get_backend(system::BoundarySPHSystem)
+    KernelAbstractions.get_backend(system.coordinates)
 end

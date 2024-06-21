@@ -9,3 +9,14 @@ function PointNeighbors.for_particle_neighbor(f, system, neighbor_system,
     for_particle_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
                           particles=particles, parallel=parallel)
 end
+
+function PointNeighbors.for_particle_neighbor(f, system::GPUSystem, neighbor_system,
+                                              system_coords, neighbor_coords,
+                                              neighborhood_search;
+                                              particles=each_moving_particle(system),
+                                              parallel=true)
+    @threaded system for particle in particles
+        PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                        neighborhood_search, particle)
+    end
+end

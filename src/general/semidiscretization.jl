@@ -368,20 +368,6 @@ end
 
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_u(u_ode, system, semi)
-    (; ranges_u) = semi
-
-    range = ranges_u[system_indices(system, semi)]
-
-    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
-
-    # This is a non-allocating version of:
-    # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
-    #                    (u_nvariables(system), n_moving_particles(system)))
-    return PtrArray(pointer(view(u_ode, range)),
-                    (StaticInt(u_nvariables(system)), n_moving_particles(system)))
-end
-
 @inline function wrap_v(v_ode, system, semi)
     (; ranges_v) = semi
 
@@ -389,8 +375,34 @@ end
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
-    return PtrArray(pointer(view(v_ode, range)),
-                    (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+    return wrap_array(v_ode, range,
+                      (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+@inline function wrap_u(u_ode, system, semi)
+    (; ranges_u) = semi
+
+    range = ranges_u[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+
+    return wrap_array(u_ode, range,
+                      (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+end
+
+@inline function wrap_array(array::Array, range, size)
+    # This is a non-allocating version of:
+    # return unsafe_wrap(Array{eltype(array), 2}, pointer(view(array, range)), size)
+    return PtrArray(pointer(view(array, range)), size)
+end
+
+@inline function wrap_array(array, range, size)
+    # For non-`Array`s (typically GPU arrays), just reshape. Calling the `PtrArray` code
+    # above for a `CuArray` yields another `CuArray` (instead of a `PtrArray`)
+    # and is 8 times slower with double the allocations.
+    #
+    # Note that `size` might contain `StaticInt`s, so convert to `Int` first.
+    return reshape(view(array, range), Int.(size))
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
@@ -409,7 +421,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded for particle in each_moving_particle(system)
+                @threaded system for particle in each_moving_particle(system)
                     # This can be dispatched per system
                     add_velocity!(du, v, particle, system)
                 end
@@ -508,7 +520,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @threaded for particle in each_moving_particle(system)
+        @threaded system for particle in each_moving_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
