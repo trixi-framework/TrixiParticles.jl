@@ -311,7 +311,7 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(system, v)
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
 end

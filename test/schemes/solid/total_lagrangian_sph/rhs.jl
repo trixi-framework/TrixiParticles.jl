@@ -32,7 +32,7 @@
             [0.0, 0.0],
         ]
 
-        @testset "Test $i" for i in 1:4
+        @testset verbose=true "Test $i" for i in 1:4
             #### Setup
             each_moving_particle = [particle[i]] # Only calculate dv for this one particle
             eachparticle = [particle[i], neighbor[i]]
@@ -53,18 +53,27 @@
             kernel_deriv = 1.0
 
             #### Mocking
-            # Mock the system
-            system = Val{:mock_system_interact}()
-            TrixiParticles.ndims(::Val{:mock_system_interact}) = 2
-            Base.ntuple(f, ::Symbol) = ntuple(f, 2) # Make `extract_svector` work
+            # Mock a CPU system to test CPU code
+            struct MockSystemInteractCPU <: TrixiParticles.System{2, String} end
+            system = MockSystemInteractCPU()
 
-            function TrixiParticles.initial_coordinates(::Val{:mock_system_interact})
+            # Mock a GPU system to emulate GPU code on the CPU
+            struct MockSystemInteractGPU <: TrixiParticles.System{2, Nothing} end
+            system_gpu = MockSystemInteractGPU()
+
+            function TrixiParticles.KernelAbstractions.get_backend(::MockSystemInteractGPU)
+                return TrixiParticles.KernelAbstractions.CPU()
+            end
+
+            MockSystemType = Union{MockSystemInteractCPU, MockSystemInteractGPU}
+
+            function TrixiParticles.initial_coordinates(::MockSystemType)
                 return initial_coordinates
             end
 
             # Unpack calls should return predefined values or
             # another mock object of the type Val{:mock_property_name}.
-            function Base.getproperty(::Val{:mock_system_interact}, f::Symbol)
+            function Base.getproperty(::MockSystemType, f::Symbol)
                 if f === :current_coordinates
                     return current_coordinates
                 elseif f === :material_density
@@ -81,10 +90,13 @@
                 return Val(Symbol("mock_" * string(f)))
             end
 
-            function TrixiParticles.each_moving_particle(::Val{:mock_system_interact})
+            function TrixiParticles.each_moving_particle(::MockSystemType)
                 each_moving_particle
             end
-            TrixiParticles.eachparticle(::Val{:mock_system_interact}) = eachparticle
+            TrixiParticles.eachparticle(::MockSystemType) = eachparticle
+
+            # Mock the neighborhood search
+            nhs = Val{:nhs}()
             TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
 
             function Base.getproperty(::Val{:nhs}, f::Symbol)
@@ -99,26 +111,25 @@
             end
             TrixiParticles.ndims(::Val{:nhs}) = 2
 
-            function TrixiParticles.pk1_corrected(::Val{:mock_system_dv}, particle_)
-                if particle_ == particle[i]
-                    return pk1_particle_corrected[i]
-                end
-                return pk1_neighbor_corrected[i]
-            end
-
-            function TrixiParticles.add_acceleration!(_, _, ::Val{:mock_system_interact})
+            function TrixiParticles.add_acceleration!(_, _, ::MockSystemType)
                 nothing
             end
             TrixiParticles.kernel_deriv(::Val{:mock_smoothing_kernel}, _, _) = kernel_deriv
 
             #### Verification
-            dv = zeros(ndims(system), 10)
-            dv_expected = copy(dv)
-            dv_expected[:, particle[i]] = dv_particle_expected[i]
+            systems = [system, system_gpu]
+            names = ["CPU code", "Emulate GPU"]
+            @testset "$(names[j])" for j in eachindex(names)
+                system_ = systems[j]
 
-            TrixiParticles.interact_solid_solid!(dv, Val(:nhs), system, system)
+                dv = zeros(ndims(system_), 10)
+                dv_expected = copy(dv)
+                dv_expected[:, particle[i]] = dv_particle_expected[i]
 
-            @test dv ≈ dv_expected
+                TrixiParticles.interact_solid_solid!(dv, nhs, system_, system_)
+
+                @test dv ≈ dv_expected
+            end
         end
     end
 
@@ -140,7 +151,7 @@
                 10 / 1000^2 * 1.5400218087591082 * 324.67072684047224 * 1.224, 0.0,
             ])
 
-        @testset "Deformation Function: $deformation" for deformation in keys(deformations)
+        @testset verbose=true "Deformation Function: $deformation" for deformation in keys(deformations)
             J = deformations[deformation]
             u = zeros(2, 81)
             v = zeros(2, 81)
@@ -176,22 +187,50 @@
 
             semi = Semidiscretization(system)
             tspan = (0.0, 1.0)
-            semidiscretize(semi, tspan)
 
-            # Apply the deformation matrix
-            for particle in axes(u, 2)
-                # Apply deformation
-                u[1:2, particle] = deformations[deformation](coordinates[:, particle])
+            # To make the code below work
+            function TrixiParticles.PtrArray{Float64}(::UndefInitializer, length)
+                TrixiParticles.PtrArray(zeros(length))
             end
 
-            #### Verification for the particle in the middle
-            particle = 41
+            # We can pass the data type `Array` to convert all systems to `GPUSystem`s
+            # and emulate the GPU kernels on the GPU.
+            # But this doesn't test `wrap_v` and `wrap_u` for non-`Array` types.
+            # In order to test this as well, we need a different data type, so we also
+            # pass `PtrArray`.
+            names = ["CPU code", "GPU code with CPU wrapping", "GPU code with GPU wrapping"]
+            data_types = [nothing, Array, TrixiParticles.PtrArray]
+            @testset "$(names[i])" for i in eachindex(names)
+                data_type = data_types[i]
+                ode = semidiscretize(semi, tspan, data_type=data_type)
 
-            dv = zeros(ndims(system), 81)
-            TrixiParticles.kick!(dv, v, u, semi, 0.0)
+                # Apply the deformation matrix
+                for particle in axes(u, 2)
+                    # Apply deformation
+                    u[1:2, particle] = deformations[deformation](coordinates[:, particle])
+                end
 
-            @test isapprox(dv[:, particle], dv_expected_41[deformation],
-                           rtol=sqrt(eps()), atol=sqrt(eps()))
+                v_ode = ode.u0.x[1]
+                if isnothing(data_type)
+                    u_ode = vec(u)
+                else
+                    u_ode = data_type(vec(u))
+                end
+
+                @test typeof(v_ode) == typeof(u_ode)
+                @test length(v_ode) == length(u_ode)
+
+                #### Verification for the particle in the middle
+                particle = 41
+
+                dv_ode = zero(v_ode)
+                TrixiParticles.kick!(dv_ode, v_ode, u_ode, ode.p, 0.0)
+
+                dv = TrixiParticles.wrap_v(dv_ode, system, semi)
+
+                @test isapprox(dv[:, particle], dv_expected_41[deformation],
+                               rtol=sqrt(eps()), atol=sqrt(eps()))
+            end
         end
     end
-end
+end;

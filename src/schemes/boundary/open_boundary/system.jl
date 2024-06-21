@@ -171,7 +171,7 @@ end
     reference_velocity, reference_pressure, reference_density) = system
 
     # Update quantities based on the characteristic variables
-    @threaded for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         particle_position = current_coords(u, system, particle)
 
         J1 = characteristics[1, particle]
@@ -230,7 +230,7 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     # Thus, we compute the characteristics for the particles that are outside the influence
     # of fluid particles by using the average of the values of the previous time step.
     # See eq. 27 in Negi (2020) https://doi.org/10.1016/j.cma.2020.113119
-    @threaded for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
 
         # Particle is outside of the influence of fluid particles
         if isapprox(volume[particle], 0.0)
