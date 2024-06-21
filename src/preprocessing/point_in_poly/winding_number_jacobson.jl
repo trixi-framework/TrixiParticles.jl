@@ -52,7 +52,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points;
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
-    @threaded for query_point in axes(points, 2)
+    Threads.@threads for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
         winding_number = winding(mesh, p)
@@ -80,7 +80,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
-    @threaded for query_point in axes(points, 2)
+    Threads.@threads for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
         winding_number = sum(edge_vertices, init=0.0) do edge

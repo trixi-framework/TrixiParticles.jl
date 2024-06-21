@@ -40,7 +40,7 @@
     end
 
     @testset verbose=true "Real World Data" begin
-        data_dir = joinpath("..", "test", "preprocessing", "data")
+        data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
