@@ -79,9 +79,8 @@ function Semidiscretization(systems...;
 
     # Create a tuple of n neighborhood searches for each of the n systems.
     # We will need one neighborhood search for each pair of systems.
-    searches = Tuple(Tuple(copy_neighborhood_search(neighborhood_search,
-                                                    compact_support(system, neighbor),
-                                                    nparticles(neighbor))
+    searches = Tuple(Tuple(create_neighborhood_search(neighborhood_search,
+                                                      system, neighbor)
                            for neighbor in systems)
                      for system in systems)
 
@@ -116,6 +115,17 @@ function Base.show(io::IO, ::MIME"text/plain", semi::Semidiscretization)
         summary_line(io, "total #particles", sum(nparticles.(semi.systems)))
         summary_footer(io)
     end
+end
+
+function create_neighborhood_search(::Nothing, system, neighbor)
+    nhs = TrivialNeighborhoodSearch{ndims(system)}()
+
+    return create_neighborhood_search(nhs, system, neighbor)
+end
+
+function create_neighborhood_search(neighborhood_search, system, neighbor)
+    return copy_neighborhood_search(neighborhood_search, compact_support(system, neighbor),
+                                    nparticles(neighbor))
 end
 
 @inline function compact_support(system, neighbor)
