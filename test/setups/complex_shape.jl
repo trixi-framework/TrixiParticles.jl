@@ -50,8 +50,7 @@
 
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    shape = load_shape(joinpath("examples", "preprocessing",
-                                                files[j] * ".asc"))
+                    shape = load_shape(joinpath(data_dir, files[j] * ".asc"))
 
                     shape_sampled = ComplexShape(shape; particle_spacing=0.05, density=1.0,
                                                  point_in_shape_algorithm=algorithms[i])
