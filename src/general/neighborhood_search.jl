@@ -4,19 +4,19 @@
 function PointNeighbors.foreach_point_neighbor(f, system, neighbor_system,
                                                system_coords, neighbor_coords,
                                                neighborhood_search;
-                                               particles=each_moving_particle(system),
+                                               points=each_moving_particle(system),
                                                parallel=true)
-    foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search,
-                           particles=particles, parallel=parallel)
+    foreach_point_neighbor(f, system_coords, neighbor_coords, neighborhood_search;
+                           points, parallel)
 end
 
 function PointNeighbors.foreach_point_neighbor(f, system::GPUSystem, neighbor_system,
                                                system_coords, neighbor_coords,
                                                neighborhood_search;
-                                               particles=each_moving_particle(system),
+                                               points=each_moving_particle(system),
                                                parallel=true)
-    @threaded system for particle in particles
+    @threaded system for point in points
         PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
-                                        neighborhood_search, particle)
+                                        neighborhood_search, point)
     end
 end

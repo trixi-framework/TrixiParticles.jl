@@ -421,8 +421,8 @@ end
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
                            neighborhood_search;
-                           particles=eachparticle(system)) do particle, neighbor,
-                                                              pos_diff, distance
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         adami_pressure_inner!(boundary_model, system, neighbor_system,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure)
