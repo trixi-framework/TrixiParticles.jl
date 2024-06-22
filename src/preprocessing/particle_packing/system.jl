@@ -48,7 +48,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
 
             (; positions, distances, max_signed_distance) = sdf
 
-            shift_condition = tlsph ? 0.5particle_spacing : particle_spacing
+            shift_condition = tlsph ? particle_spacing : 0.5particle_spacing
 
             # Delete unnecessary large signed distance field
             keep_indices = (shift_condition .< distances .< max_signed_distance)
