@@ -13,7 +13,7 @@ tspan = (0.0, 8.0 / sqrt(gravity / H))
 # `particle_spacing` in this case is set relative to `H`, the initial height of the fluid.
 # Use H / 80, H / 320 for validation.
 # Note: H / 320 takes a few hours!
-particle_spacing = H / 320
+particle_spacing = H / 40
 smoothing_length = 3.5 * particle_spacing
 smoothing_kernel = WendlandC2Kernel{2}()
 
