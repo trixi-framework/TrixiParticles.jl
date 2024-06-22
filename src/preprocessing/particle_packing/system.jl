@@ -1,3 +1,39 @@
+"""
+    ParticlePackingSystem(initial_condition;
+                          boundary, tlsph=false, signed_distance_field=nothing, is_boundary=false,
+                          smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
+                          smoothing_length=1.2initial_condition.particle_spacing,
+                          neighborhood_search=true, background_pressure)
+System to generate body fitted particles for complex shapes.
+For more information about the methods, see desription below.
+
+# Arguments
+- `initial_condition`: [`InitialCondition`](@ref) to be packed.
+
+# Keywords
+- `boundary`: Shape returned by [`load_shape`](@ref).
+- `background_pressure`: Constant background pressure to physically pack the particles.
+                         A large `background_pressure` can cause high accelerations which requires a properly adjusted time-step criterion.
+- `tlsph`: With the [`TotalLagrangianSPHSystem`](@ref), particles need to be placed
+           on the boundary of the shape and not one particle radius away, as for fluids.
+           When `tlsph=true`, particles will be placed on the boundary of the shape.
+- `is_boundary`: When `is_boundary=true`, boundary particles will be sampled and packed in an offset surface of the `boundary`.
+                 The thickness of the boundary is specified by passing the [`SignedDistanceField`](@ref) of `boundary` with:
+                    - `use_for_boundary_packing=true`
+                    - `max_signed_distance=boundary_thickness`
+- `signed_distance_field`: To constrain particles onto the surface, the information about
+                          the signed distance from a particle to a face is required.
+                          - (Recommended) If specified with the [`SignedDistanceField`](@ref) of the boundary,
+                            the precalculated signed distances will be interpolated to each particle.
+                          - If set to `nothing` the signed distance from a particle to a face is calculated directly on the fly
+                            which is only recommended when the number of faces are significantly less than the number of particles.
+                          Note when `is_boundary=true`, the [`SignedDistanceField`](@ref) of the boundary is mandatory.
+- `neighborhood_search`: If set to `true` an internaly generated neighborhood search is used to increase performance.
+- `smoothing_kernel`: Smoothing kernel to be used for this system.
+                      See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`: Smoothing length to be used for this system.
+                      See [Smoothing Kernels](@ref smoothing_kernel).
+"""
 struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
                              C, N} <: FluidSystem{NDIMS, IC}
     initial_condition              :: IC
