@@ -9,7 +9,9 @@ using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
+using GPUArrays: AbstractGPUArray
 using JSON: JSON
+using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
 using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
@@ -23,12 +25,15 @@ using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
-using TrixiBase: trixi_include
+using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
+                 disable_debug_timings, enable_debug_timings
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
 using PointNeighbors: PointNeighbors, for_particle_neighbor
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
-# util needs to be first because of macro @trixi_timeit
+# `util.jl` depends on the `GPUSystem` type defined in `system.jl`
+include("general/system.jl")
+# `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
@@ -45,7 +50,8 @@ include("visualization/recipes_plots.jl")
 export Semidiscretization, semidiscretize, restart_with!
 export InitialCondition
 export WeaklyCompressibleSPHSystem, EntropicallyDampedSPHSystem, TotalLagrangianSPHSystem,
-       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem
+       BoundarySPHSystem, DEMSystem, BoundaryDEMSystem, OpenBoundarySPHSystem, InFlow,
+       OutFlow
 export InfoCallback, SolutionSavingCallback, DensityReinitializationCallback,
        PostprocessCallback, StepsizeCallback, UpdateCallback
 export ContinuityDensity, SummationDensity

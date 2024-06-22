@@ -139,8 +139,7 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02,
                                          L1v=compute_L1v_error,
                                          L1p=compute_L1p_error,
-                                         diff_p_loc_p_avg=diff_p_loc_p_avg,
-                                         t=time_vector)
+                                         diff_p_loc_p_avg=diff_p_loc_p_avg)
 
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 

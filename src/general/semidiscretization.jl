@@ -153,7 +153,19 @@ end
     return compact_support(smoothing_kernel, smoothing_length)
 end
 
+@inline function compact_support(system::OpenBoundarySPHSystem, neighbor)
+    # Use the compact support of the fluid
+    return compact_support(neighbor, system)
+end
+
+@inline function compact_support(system::OpenBoundarySPHSystem,
+                                 neighbor::OpenBoundarySPHSystem)
+    # This NHS is never used
+    return 0.0
+end
+
 @inline function compact_support(system::BoundaryDEMSystem, neighbor::BoundaryDEMSystem)
+    # This NHS is never used
     return 0.0
 end
 
@@ -281,6 +293,9 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
 
             # Initialize this system
             initialize!(system, neighborhood_search)
+
+            # Only for systems requiring a mandatory callback
+            reset_callback_flag!(system)
         end
     end
 
@@ -343,6 +358,9 @@ function restart_with!(semi, sol; reset_threads=true)
         u = wrap_u(sol.u[end].x[2], system, semi)
 
         restart_with!(system, v, u)
+
+        # Only for systems requiring a mandatory callback
+        reset_callback_flag!(system)
     end
 
     return semi
@@ -350,20 +368,6 @@ end
 
 # We have to pass `system` here for type stability,
 # since the type of `system` determines the return type.
-@inline function wrap_u(u_ode, system, semi)
-    (; ranges_u) = semi
-
-    range = ranges_u[system_indices(system, semi)]
-
-    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
-
-    # This is a non-allocating version of:
-    # return unsafe_wrap(Array{eltype(u_ode), 2}, pointer(view(u_ode, range)),
-    #                    (u_nvariables(system), n_moving_particles(system)))
-    return PtrArray(pointer(view(u_ode, range)),
-                    (StaticInt(u_nvariables(system)), n_moving_particles(system)))
-end
-
 @inline function wrap_v(v_ode, system, semi)
     (; ranges_v) = semi
 
@@ -371,8 +375,34 @@ end
 
     @boundscheck @assert length(range) == v_nvariables(system) * n_moving_particles(system)
 
-    return PtrArray(pointer(view(v_ode, range)),
-                    (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+    return wrap_array(v_ode, range,
+                      (StaticInt(v_nvariables(system)), n_moving_particles(system)))
+end
+
+@inline function wrap_u(u_ode, system, semi)
+    (; ranges_u) = semi
+
+    range = ranges_u[system_indices(system, semi)]
+
+    @boundscheck @assert length(range) == u_nvariables(system) * n_moving_particles(system)
+
+    return wrap_array(u_ode, range,
+                      (StaticInt(u_nvariables(system)), n_moving_particles(system)))
+end
+
+@inline function wrap_array(array::Array, range, size)
+    # This is a non-allocating version of:
+    # return unsafe_wrap(Array{eltype(array), 2}, pointer(view(array, range)), size)
+    return PtrArray(pointer(view(array, range)), size)
+end
+
+@inline function wrap_array(array, range, size)
+    # For non-`Array`s (typically GPU arrays), just reshape. Calling the `PtrArray` code
+    # above for a `CuArray` yields another `CuArray` (instead of a `PtrArray`)
+    # and is 8 times slower with double the allocations.
+    #
+    # Note that `size` might contain `StaticInt`s, so convert to `Int` first.
+    return reshape(view(array, range), Int.(size))
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, semi::Semidiscretization)
@@ -391,7 +421,7 @@ function drift!(du_ode, v_ode, u_ode, semi, t)
                 du = wrap_u(du_ode, system, semi)
                 v = wrap_v(v_ode, system, semi)
 
-                @threaded for particle in each_moving_particle(system)
+                @threaded system for particle in each_moving_particle(system)
                     # This can be dispatched per system
                     add_velocity!(du, v, particle, system)
                 end
@@ -429,7 +459,7 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
 end
 
 # Update the systems and neighborhood searches (NHS) for a simulation before calling `interact!` to compute forces
-function update_systems_and_nhs(v_ode, u_ode, semi, t)
+function update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=false)
     # First update step before updating the NHS
     # (for example for writing the current coordinates in the solid system)
     foreach_system(semi) do system
@@ -466,7 +496,7 @@ function update_systems_and_nhs(v_ode, u_ode, semi, t)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        update_final!(system, v, u, v_ode, u_ode, semi, t)
+        update_final!(system, v, u, v_ode, u_ode, semi, t; update_from_callback)
     end
 end
 
@@ -490,7 +520,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
         v = wrap_v(v_ode, system, semi)
         u = wrap_u(u_ode, system, semi)
 
-        @threaded for particle in each_moving_particle(system)
+        @threaded system for particle in each_moving_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
             add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
@@ -632,6 +662,32 @@ function update_nhs!(neighborhood_search,
 end
 
 function update_nhs!(neighborhood_search,
+                     system::FluidSystem, neighbor::OpenBoundarySPHSystem,
+                     u_system, u_neighbor)
+    # The current coordinates of fluids and open boundaries change over time.
+
+    # TODO: Update only `active_coordinates` of open boundaries.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
+    PointNeighbors.update!(neighborhood_search,
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, true))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::OpenBoundarySPHSystem, neighbor::FluidSystem,
+                     u_system, u_neighbor)
+    # The current coordinates of both open boundaries and fluids change over time.
+
+    # TODO: Update only `active_coordinates` of open boundaries.
+    # Problem: Removing inactive particles from neighboring lists is necessary.
+    PointNeighbors.update!(neighborhood_search,
+                           current_coordinates(u_system, system),
+                           current_coordinates(u_neighbor, neighbor),
+                           particles_moving=(true, true))
+end
+
+function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
@@ -720,6 +776,14 @@ end
 function update_nhs!(neighborhood_search,
                      system::BoundaryDEMSystem,
                      neighbor::Union{DEMSystem, BoundaryDEMSystem},
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
+end
+
+function update_nhs!(neighborhood_search,
+                     system::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
+                     neighbor::Union{BoundarySPHSystem, OpenBoundarySPHSystem},
                      u_system, u_neighbor)
     # Don't update. This NHS is never used.
     return neighborhood_search
