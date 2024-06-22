@@ -32,21 +32,16 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
 
         # Sample boundary
         if is_boundary
-            # Generate a signed distance field and use the particles outside the object as boundary particles.
             if isnothing(signed_distance_field)
-                # It is not necessary to set `use_for_boundary_packing=true`,
-                # since we calculate the signed distance on the fly if `signed_distance_field=nothing`
-                sdf = SignedDistanceField(boundary, particle_spacing;
-                                          use_for_boundary_packing=false)
-            else
-                if !(signed_distance_field.boundary_packing)
-                    throw(ArgumentError("`SignedDistanceField` must be generated with " *
-                                        "`use_for_boundary_packing = true` when `is_boundary = true`"))
-                end
-                sdf = signed_distance_field
+                throw(ArgumentError("`SignedDistanceField` must be passed when `is_boundary=true`"))
+
+            elseif !(signed_distance_field.boundary_packing)
+                throw(ArgumentError("`SignedDistanceField` must be generated with " *
+                                    "`use_for_boundary_packing=true` when `is_boundary=true`"))
             end
 
-            (; positions, distances, max_signed_distance) = sdf
+            # Use the particles outside the object as boundary particles.
+            (; positions, distances, max_signed_distance) = signed_distance_field
 
             shift_condition = tlsph ? particle_spacing : 0.5particle_spacing
 
@@ -67,15 +62,6 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
         if neighborhood_search && isnothing(signed_distance_field)
             # Calculate signed distance on the fly using a face nhs
 
-            # Search radius for the corresponding neighborhood search.
-            # A boundary needs a larger radius, since constraining the boundary particles to the
-            # surface needs at least a `search_radius` of the thickness of the boundary.
-            search_radius = if is_boundary
-                2 * sdf.max_signed_distance
-            else
-                search_radius
-            end
-
             nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
             initialize!(nhs, boundary)
 
@@ -93,7 +79,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
         end
 
         shift_condition = if is_boundary
-            -sdf.max_signed_distance
+            -signed_distance_field.max_signed_distance
         else
             tlsph ? zero(ELTYPE) : 0.5particle_spacing
         end
@@ -190,9 +176,9 @@ function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, 
 
     return system
 end
+
 function direct_particle_face_distance!(u, system::ParticlePackingSystem)
-    (; boundary, shift_condition, neighborhood_search, initial_condition) = system
-    (; particle_spacing) = initial_condition
+    (; boundary, neighborhood_search) = system
 
     @threaded system for particle in eachparticle(system)
         particle_position = current_coords(u, system, particle)
@@ -213,42 +199,20 @@ function direct_particle_face_distance!(u, system::ParticlePackingSystem)
             end
         end
 
-        if !isfinite(distance2)
-            error("no faces in the neighborhood of particle $particle")
-        end
-
         distance = distance_sign ? -sqrt(distance2) : sqrt(distance2)
+
+        # Store signed distance for visualization
         system.signed_distances[particle] = distance
 
-        if distance >= -shift_condition
-            # Constrain outside particles onto surface
-            shift = (distance + shift_condition) * normal_vector
-
-            for dim in 1:ndims(system)
-                u[dim, particle] -= shift[dim]
-            end
-        end
-
-        if system.is_boundary
-            shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
-            if distance <= shift_condition2
-                # Constrain inside particles onto surface
-                shift = (distance - shift_condition2) * normal_vector
-
-                for dim in 1:ndims(system)
-                    u[dim, particle] -= shift[dim]
-                end
-            end
-        end
+        constrain_particles!(u, system, particle, distance, normal_vector)
     end
 
     return u
 end
 
 function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
-    (; neighborhood_search, signed_distance_field, shift_condition) = system
+    (; neighborhood_search, signed_distance_field) = system
     (; positions, distances, normals) = signed_distance_field
-    (; particle_spacing) = system.initial_condition
 
     search_radius2 = compact_support(system, system)^2
 
@@ -259,6 +223,7 @@ function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
         distance_signed = zero(eltype(system))
         normal_vector = fill(volume, SVector{ndims(system), eltype(system)})
 
+        # Interpolate signed distances and normals
         for neighbor in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
             pos_diff = positions[neighbor] - particle_position
             distance2 = dot(pos_diff, pos_diff)
@@ -278,28 +243,25 @@ function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
             distance_signed /= volume
             normal_vector /= volume
 
+            # Store signed distance for visualization
             system.signed_distances[particle] = distance_signed
 
-            if distance_signed >= -shift_condition
-                # Constrain outside particles onto surface
-                shift = (distance_signed + shift_condition) * normal_vector
+            constrain_particles!(u, system, particle, distance_signed, normal_vector)
+        end
+    end
 
-                for dim in 1:ndims(system)
-                    u[dim, particle] -= shift[dim]
-                end
-            end
+    return u
+end
 
-            if system.is_boundary
-                shift_condition2 = system.tlsph ? particle_spacing : 0.5particle_spacing
-                if distance_signed <= shift_condition2
-                    # Constrain inside particles onto surface
-                    shift = (distance_signed - shift_condition2) * normal_vector
+function constrain_particles!(u, system, particle, distance_signed, normal_vector)
+    (; shift_condition) = system
 
-                    for dim in 1:ndims(system)
-                        u[dim, particle] -= shift[dim]
-                    end
-                end
-            end
+    if distance_signed >= -shift_condition
+        # Constrain outside particles onto surface
+        shift = (distance_signed + shift_condition) * normal_vector
+
+        for dim in 1:ndims(system)
+            u[dim, particle] -= shift[dim]
         end
     end
 

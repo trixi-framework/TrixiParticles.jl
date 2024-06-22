@@ -13,6 +13,11 @@ save_intervals = false
 # ==== Resolution
 particle_spacing = 0.03
 
+# The following depends on the sampling of the particles. In this case `boundary_thickness`
+# means literally the thickness of the boundary packed with boundary particles and *not*
+# how many rows of boundary particles will be sampled.
+boundary_thickness = 5particle_spacing
+
 # ==========================================================================================
 # ==== Load complex shape
 density = 1000.0
@@ -29,7 +34,7 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_2d.jl"), 
 background_pressure = 1e6 * particle_spacing^2
 
 signed_distance_field = SignedDistanceField(shape, particle_spacing;
-                                            max_signed_distance=5particle_spacing,
+                                            max_signed_distance=boundary_thickness,
                                             use_for_boundary_packing=true,
                                             neighborhood_search=true)
 

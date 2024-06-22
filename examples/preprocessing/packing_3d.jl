@@ -13,6 +13,11 @@ save_intervals = false
 # ==== Resolution
 particle_spacing = 0.1
 
+# The following depends on the sampling of the particles. In this case `boundary_thickness`
+# means literally the thickness of the boundary packed with boundary particles and *not*
+# how many rows of boundary particles will be sampled.
+boundary_thickness = 4particle_spacing
+
 # ==========================================================================================
 # ==== Load complex shape
 density = 1000.0
@@ -29,7 +34,7 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), 
 background_pressure = 1e8 * particle_spacing^3
 
 signed_distance_field = SignedDistanceField(shape, particle_spacing;
-                                            max_signed_distance=4particle_spacing,
+                                            max_signed_distance=boundary_thickness,
                                             use_for_boundary_packing=true,
                                             neighborhood_search=true)
 
@@ -57,6 +62,9 @@ callbacks = CallbackSet(UpdateCallback(), saving_callback, info_callback)
 
 sol = solve(ode, RK4();
             save_everystep=false, maxiters=maxiters, callback=callbacks, dtmax=1e-2)
+
+packed_ic = InitialCondition(sol, packing_system, semi)
+packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
 
 trixi2vtk(packed_ic)
 trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary")
