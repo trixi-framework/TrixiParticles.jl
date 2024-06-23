@@ -51,34 +51,8 @@ struct SignedDistanceField{NDIMS, ELTYPE}
         normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(point_grid))
         distances = fill(Inf, length(point_grid))
 
-        @threaded positions for point in eachindex(positions)
-            point_coords = positions[point]
-
-            for face in PointNeighbors.eachneighbor(point_coords, nhs)
-                # `sdf = (sign, distance, normal)`
-                sdf = signed_point_face_distance(point_coords, boundary, face)
-
-                # Store "larger" signed distance field outside `boundary` to guarantee
-                # compact support for boundary particles.
-
-                # outside (positive sign): `sdf_factor * max_signed_distance`
-                cond_1 = !(sdf[1]) && sdf[2] <= (sdf_factor * max_signed_distance)^2
-
-                # inside (negative sign): `1 * max_signed_distance`
-                cond_2 = sdf[1] && sdf[2] <= max_signed_distance^2
-
-                if sdf[2] < distances[point]^2 && (cond_1 || cond_2)
-                    distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
-                    normals[point] = sdf[3]
-                end
-            end
-        end
-
-        reject_indices = distances .== Inf
-
-        deleteat!(distances, reject_indices)
-        deleteat!(normals, reject_indices)
-        deleteat!(positions, reject_indices)
+        calculate_signed_distances!(positions, distances, normals,
+                                    boundary, sdf_factor, max_signed_distance, nhs)
 
         return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
                                   use_for_boundary_packing)
@@ -104,6 +78,40 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
         summary_line(io, "max signed distance", system.max_signed_distance)
         summary_footer(io)
     end
+end
+
+function calculate_signed_distances!(positions, distances, normals,
+                                     boundary, sdf_factor, max_signed_distance, nhs)
+    @threaded positions for point in eachindex(positions)
+        point_coords = positions[point]
+
+        for face in PointNeighbors.eachneighbor(point_coords, nhs)
+            # `sdf = (sign, distance, normal)`
+            sdf = signed_point_face_distance(point_coords, boundary, face)
+
+            # Store "larger" signed distance field outside `boundary` to guarantee
+            # compact support for boundary particles.
+
+            # outside (positive sign): `sdf_factor * max_signed_distance`
+            cond_1 = !(sdf[1]) && sdf[2] <= (sdf_factor * max_signed_distance)^2
+
+            # inside (negative sign): `1 * max_signed_distance`
+            cond_2 = sdf[1] && sdf[2] <= max_signed_distance^2
+
+            if sdf[2] < distances[point]^2 && (cond_1 || cond_2)
+                distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
+                normals[point] = sdf[3]
+            end
+        end
+    end
+
+    reject_indices = distances .== Inf
+
+    deleteat!(distances, reject_indices)
+    deleteat!(normals, reject_indices)
+    deleteat!(positions, reject_indices)
+
+    return positions
 end
 
 function signed_point_face_distance(p::SVector{2}, boundary, edge_index)
