@@ -21,7 +21,7 @@ end
                                                                 neighbor_coords,
                                                                 neighborhood_search::NoUpdateNeighborhoodSearch,
                                                                 particle;
-                                                                search_radius=neighborhood_search.nhs.search_radius)
+                                                                search_radius=search_radius(neighborhood_search.nhs))
     TrixiParticles.PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
                                                    neighborhood_search.nhs, particle,
                                                    search_radius=search_radius)
