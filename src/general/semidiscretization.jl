@@ -3,17 +3,16 @@
 
 The semidiscretization couples the passed systems to one simulation.
 
-The type of neighborhood search to be used in the simulation can be specified with
-the keyword argument `neighborhood_search`. A value of `nothing` means no neighborhood search.
-
 # Arguments
 - `systems`: Systems to be coupled in this semidiscretization
 
 # Keywords
-- `neighborhood_search`:    The type of neighborhood search to be used in the simulation.
+- `neighborhood_search`:    The neighborhood search to be used in the simulation.
                             By default, the `GridNeighborhoodSearch` is used.
-                            Use `TrivialNeighborhoodSearch` or `nothing` to loop
-                            over all particles (no neighborhood search).
+                            Use `nothing` to loop over all particles (no neighborhood search).
+                            To use other neighborhood search implementations, pass a template
+                            of a neighborhood search. See [`copy_neighborhood_search`](@ref)
+                            and the examples below for more details.
 - `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
                                 coordinates of the domain corner in negative coordinate
                                 directions.
@@ -29,7 +28,13 @@ the keyword argument `neighborhood_search`. A value of `nothing` means no neighb
 semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=TrivialNeighborhoodSearch)
+                          neighborhood_search=GridNeighborhoodSearch{2}(threaded_update=false))
+
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=PrecomputedNeighborhoodSearch{2}())
+
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=nothing)
 
 # output
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
