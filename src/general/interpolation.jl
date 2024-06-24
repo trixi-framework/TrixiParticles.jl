@@ -497,7 +497,7 @@ function process_neighborhood_searches(semi, u_ode, ref_system, smoothing_length
             nhs = PointNeighbors.copy_neighborhood_search(old_nhs, search_radius,
                                                           nparticles(system))
             PointNeighbors.initialize!(nhs, system_coords, system_coords)
-            
+
             return nhs
         end
     end
