@@ -8,6 +8,7 @@ file = "sphere"
 tlsph = true
 maxiters = 100
 save_intervals = false
+pack_boundary = false
 
 # ==========================================================================================
 # ==== Resolution
@@ -25,6 +26,7 @@ density = 1000.0
 trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), file=file,
               density=density, particle_spacing=particle_spacing)
 
+trixi2vtk(shape_sampled)
 # ==========================================================================================
 # ==== Packing
 
@@ -41,15 +43,17 @@ signed_distance_field = SignedDistanceField(shape, particle_spacing;
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
                                        signed_distance_field, neighborhood_search=true,
                                        boundary=shape, background_pressure)
-
-boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                        signed_distance_field,
-                                        is_boundary=true, neighborhood_search=true,
-                                        boundary=shape, background_pressure)
+if pack_boundary
+    boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
+                                            signed_distance_field,
+                                            is_boundary=true, neighborhood_search=true,
+                                            boundary=shape, background_pressure)
+end
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(packing_system, boundary_system)
+semi = pack_boundary ? Semidiscretization(packing_system, boundary_system) :
+       Semidiscretization(packing_system)
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)
@@ -64,7 +68,9 @@ sol = solve(ode, RK4();
             save_everystep=false, maxiters=maxiters, callback=callbacks, dtmax=1e-2)
 
 packed_ic = InitialCondition(sol, packing_system, semi)
-packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
+trixi2vtk(packed_ic, filename="initial_condition_packed")
 
-trixi2vtk(packed_ic)
-trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary")
+if pack_boundary
+    packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
+    trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary")
+end
