@@ -32,7 +32,7 @@ A surface tension and adhesion model based on the work by Akinci et al., "Versat
 #### Support for Open Boundaries
 Open boundaries using the method of characteristics based on the work of Lastiwka et al., "Permeable and non-reflecting boundary conditions in SPH" (2009) were added for WCSPH and EDAC.
 
-# Pre Initial Release (v0.1.0)
+## Pre Initial Release (v0.1.0)
 This section summarizes the initial features that TrixiParticles.jl was released with.
 
 ## Highlights
