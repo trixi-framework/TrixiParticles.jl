@@ -146,7 +146,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     end
 end
 
-function reset_callback_flag(system::OpenBoundarySPHSystem)
+function reset_callback_flag!(system::OpenBoundarySPHSystem)
     system.update_callback_used[] = false
 
     return system
