@@ -1,48 +1,122 @@
-# TrixiParticles.jl
+# TrixiParticles.jl API
 
-TrixiParticles.jl is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in Julia. A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing. Its features include:
+## Callbacks
 
-## Features
-- Incompressible Navier-Stokes
-  - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
-  - Models: Surface Tension
-- Solid-body mechanics
-  - Methods: Total Lagrangian SPH (TLSPH)
-- Fluid-Structure Interaction
-- Output formats:
-  - VTK
-
-## Examples
-```@raw html
-<table align="center" border="0">
-  <tr>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/683e9363-5705-49cc-9a5c-3b47d73ea4b8" style="width: 80% !important;"/><br><figcaption>2D Dam Break</figcaption>
-    </td>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/c10faddf-0400-47c9-b225-f5d286a8ecb8" style="width: 80% !important;"/><br><figcaption>Moving Wall</figcaption>
-    </td>
-  </tr>
-  <tr>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/e05ace63-e330-441a-a391-eda3d2764074" style="width: 80% !important;"/><br><figcaption>Oscillating Beam</figcaption>
-    </td>
-    <td align="center">
-      <img src="https://github.com/trixi-framework/TrixiParticles.jl/assets/10238714/ada0d554-e0ba-44ed-923d-2b77ef252258" style="width: 80% !important;"/><br><figcaption>Dam Break with Elastic Plate</figcaption>
-    </td>
-  </tr>
-</table>
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("callbacks", file), readdir(joinpath("..", "src", "callbacks")))
 ```
 
-## Quickstart
-1. [Installation](@ref installation)
-2. [Getting started](@ref getting_started)
+## General
 
-If you have any questions concerning **TrixiParticles.jl** you can join our community [on Slack](https://join.slack.com/t/trixi-framework/shared_invite/zt-sgkc6ppw-6OXJqZAD5SPjBYqLd8MU~g) or open an issue with your question.
+### File density_calculators.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "density_calculators.jl")]
+```
 
-## Start with development
-To get started with development have a look at these pages:
+### File initial_condition.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "initial_condition.jl")]
+```
 
-1. [Installation](@ref installation)
-2. [Development](@ref development)
-3. [Contributing](@ref)
+### File neighborhood_search.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "neighborhood_search.jl")]
+```
+
+### File semidiscretization.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "semidiscretization.jl")]
+```
+
+### File smoothing_kernels.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("general", "smoothing_kernels.jl")]
+```
+
+## Schemes
+
+### Boundary
+
+#### File system.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = map(file -> joinpath("boundary", file), readdir(joinpath("..", "src", "schemes", "boundary")))
+```
+
+#### File dummy_particles.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "dummy_particles", "dummy_particles.jl")]
+```
+#### File monaghan_kajtar.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "boundary", "monaghan_kajtar", "monaghan_kajtar.jl")]
+```
+
+### Weakly Compressible SPH
+
+#### File system.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
+```
+
+#### File state_equations.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
+```
+
+#### File viscosity.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "viscosity.jl")]
+```
+
+### Total Lagrangian SPH
+
+#### File system.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "system.jl")]
+```
+
+#### File penalty_force.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("schemes", "solid", "total_lagrangian_sph", "penalty_force.jl")]
+```
+
+## Setups
+
+### File rectangular_tank.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("setups", "rectangular_tank.jl")]
+```
+
+### File rectangular_shape.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("setups", "rectangular_shape.jl")]
+```
+
+### File circular_shape.jl
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("setups", "circular_shape.jl")]
+```
+
+## Util
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = ["util.jl"]
+```

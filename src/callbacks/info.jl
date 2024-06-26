@@ -32,22 +32,17 @@ Create and return a callback that prints a human-readable summary of the simulat
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
 """
-function InfoCallback(; interval=0, reset_threads=true)
+function InfoCallback(; interval=0)
     info_callback = InfoCallback(0.0, interval)
-
-    function initialize(cb, u, t, integrator)
-        initialize_info_callback(cb, u, t, integrator;
-                                 reset_threads)
-    end
 
     DiscreteCallback(info_callback, info_callback,
                      save_positions=(false, false),
-                     initialize=initialize)
+                     initialize=initialize_info_callback)
 end
 
 # condition
 function (info_callback::InfoCallback)(u, t, integrator)
-    (; interval) = info_callback
+    @unpack interval = info_callback
 
     return interval != 0 &&
            integrator.stats.naccept % interval == 0 ||
@@ -70,15 +65,9 @@ function (info_callback::InfoCallback)(integrator)
                     allocations=true, linechars=:unicode, compact=false)
         println()
     else
-        t = integrator.t
-        t_initial = first(integrator.sol.prob.tspan)
-        t_final = last(integrator.sol.prob.tspan)
-        sim_time_percentage = (t - t_initial) / (t_final - t_initial) * 100
         runtime_absolute = 1.0e-9 * (time_ns() - info_callback.start_time)
-        println(rpad(@sprintf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e (%5.3f%%)",
-                              integrator.stats.naccept, integrator.dt, t,
-                              sim_time_percentage), 71) *
-                @sprintf("│ run time: %.4e s", runtime_absolute))
+        @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
+                integrator.stats.naccept, integrator.dt, integrator.t, runtime_absolute)
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
@@ -87,18 +76,18 @@ function (info_callback::InfoCallback)(integrator)
     return nothing
 end
 
+@inline function isfinished(integrator)
+    # Checking for floating point equality is OK here as `DifferentialEquations.jl`
+    # sets the time exactly to the final time in the last iteration
+    return integrator.t == last(integrator.sol.prob.tspan) ||
+           isempty(integrator.opts.tstops) ||
+           integrator.iter == integrator.opts.maxiters
+end
+
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
-function initialize_info_callback(discrete_callback, u, t, integrator;
-                                  reset_threads=true)
+function initialize_info_callback(discrete_callback, u, t, integrator)
     info_callback = discrete_callback.affect!
-
-    # Optionally reset Polyester.jl threads. See
-    # https://github.com/trixi-framework/Trixi.jl/issues/1583
-    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
-    if reset_threads
-        Polyester.reset_threads!()
-    end
 
     print_startup_message()
 
@@ -112,7 +101,8 @@ function initialize_info_callback(discrete_callback, u, t, integrator;
     semi = integrator.p
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
-    foreach_system(semi) do system
+    systems = semi.systems
+    for system in systems
         show(io_context, MIME"text/plain"(), system)
         println(io, "\n")
     end

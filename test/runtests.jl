@@ -9,6 +9,5 @@ const TRIXIPARTICLES_TEST = lowercase(get(ENV, "TRIXIPARTICLES_TEST", "all"))
 
     if TRIXIPARTICLES_TEST in ("all", "examples")
         include("examples/examples.jl")
-        include("validation/validation.jl")
     end
 end;
