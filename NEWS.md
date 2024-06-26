@@ -36,12 +36,12 @@ Open boundaries using the method of characteristics based on the work of Lastiwk
 ## Pre Initial Release (v0.1.0)
 This section summarizes the initial features that TrixiParticles.jl was released with.
 
-## Highlights
-### EDAC
+### Highlights
+#### EDAC
 An implementation of EDAC (Entropically Damped Artificial Compressibility) was added,
 which allows for more stable simulations compared to basic WCSPH and reduces spurious pressure oscillations.
 
-### WCSPH
+#### WCSPH
 An implementation of WCSPH (Weakly Compressible Smoothed Particle Hydrodynamics), which is the classical SPH approach.
 
 Features:
@@ -53,5 +53,5 @@ Features:
 - Density diffusion based on the models by Molteni & Colagrossi (2009), Ferrari et al. (2009) and Antuono et al. (2010).
 
 
-### TLSPH
+#### TLSPH
 An implementation of TLSPH (Total Lagrangian Smoothed Particle Hydrodynamics) for solid bodies enabling FSI (Fluid Structure Interactions).
