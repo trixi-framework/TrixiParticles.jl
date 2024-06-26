@@ -291,7 +291,7 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         apply_state_equation!(boundary_model, particle_density(v, boundary_model,
                                                                particle), particle)
     end
@@ -346,14 +346,15 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                           system_coords, neighbor_coords,
                                           v_neighbor_system, nhs)
         end
-        for particle in eachparticle(system)
+
+        @threaded system for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
             # boundary particles at free surfaces (sticking artifacts).
             pressure[particle] = max(pressure[particle], 0.0)
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded system for particle in eachparticle(system)
         compute_adami_density!(boundary_model, system, system_coords, particle)
     end
 end

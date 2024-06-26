@@ -4,6 +4,7 @@
                                 smoothing_kernel, smoothing_length;
                                 viscosity=nothing, density_diffusion=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
+                                buffer_size=nothing,
                                 correction=nothing, source_terms=nothing)
 
 System for particles of a fluid.
@@ -26,6 +27,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
                     See [`ArtificialViscosityMonaghan`](@ref) or [`ViscosityAdami`](@ref).
 - `density_diffusion`: Density diffusion terms for this system. See [`DensityDiffusion`](@ref).
 - `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `buffer_size`:    Number of buffer particles.
+                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `correction`:     Correction method used for this system. (default: no correction, see [Corrections](@ref corrections))
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
@@ -42,7 +45,7 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 """
 struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, SRFT, C} <: FluidSystem{NDIMS, IC}
+                                   V, DD, COR, PF, ST, B, SRFT, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -57,6 +60,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
     surface_tension                   :: SRFT
+    buffer                            :: B
     cache                             :: C
 end
 
@@ -66,11 +70,17 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
                                      pressure_acceleration=nothing,
+                                     buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing)
+    buffer = isnothing(buffer_size) ? nothing :
+             SystemBuffer(nparticles(initial_condition), buffer_size)
+
+    initial_condition = allocate_buffer(initial_condition, buffer)
+
     NDIMS = ndims(initial_condition)
     ELTYPE = eltype(initial_condition)
     n_particles = nparticles(initial_condition)
@@ -108,10 +118,11 @@ function WeaklyCompressibleSPHSystem(initial_condition,
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
                                        density_calculator, state_equation,
-                                       smoothing_kernel, smoothing_length, acceleration_,
-                                       viscosity, density_diffusion, correction,
-                                       pressure_acceleration, source_terms, surface_tension,
-                                       cache)
+                                       smoothing_kernel, smoothing_length,
+                                       acceleration_, viscosity,
+                                       density_diffusion, correction,
+                                       pressure_acceleration,
+                                       source_terms, surface_tension, buffer, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
@@ -166,7 +177,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         show(io, system)
     else
         summary_header(io, "WeaklyCompressibleSPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
+        if system.buffer isa SystemBuffer
+            summary_line(io, "#particles", nparticles(system))
+            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        else
+            summary_line(io, "#particles", nparticles(system))
+        end
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
         summary_line(io, "correction method",
@@ -295,7 +311,7 @@ function reinit_density!(system, v, u, v_ode, u_ode, semi)
 end
 
 function compute_pressure!(system, v)
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         apply_state_equation!(system, particle_density(v, system, particle), particle)
     end
 end

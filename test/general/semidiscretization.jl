@@ -1,8 +1,14 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
-    # Mock systems
-    struct System1 <: TrixiParticles.System{3, Nothing} end
+    # Mock systems. `System1` will use the CPU backend, `System2` is a `GPUSystem`, using
+    # the GPU backend (emulated on the CPU).
+    struct System1 <: TrixiParticles.System{3, String} end
     struct System2 <: TrixiParticles.System{3, Nothing} end
+
+    # `System2` has no field `mass`, so we have to manually define the backend
+    function TrixiParticles.KernelAbstractions.get_backend(::System2)
+        return TrixiParticles.KernelAbstractions.CPU()
+    end
 
     system1 = System1()
     system2 = System2()
@@ -130,6 +136,9 @@
               5.0 6.0]
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
+
+        # Avoid `SystemBuffer` barrier
+        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
 
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
 

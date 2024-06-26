@@ -13,7 +13,8 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS, IC}
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+                         CA} <: BoundarySystem{NDIMS, IC}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
     boundary_model       :: BM
@@ -21,19 +22,18 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE, IC, CO, M, IM, CA} <: BoundarySystem
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
     cache                :: CA
+    buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache)
+                               ismoving, adhesion_coefficient, cache, buffer)
         ELTYPE = eltype(coordinates)
 
-        new{typeof(boundary_model), size(coordinates, 1), ELTYPE,
-            typeof(initial_condition), typeof(coordinates),
-            typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
-                                                               coordinates, boundary_model,
-                                                               movement, ismoving,
-                                                               adhesion_coefficient, cache)
+        new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
+            typeof(coordinates), typeof(movement), typeof(ismoving),
+            typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
+                           ismoving, adhesion_coefficient, cache, buffer)
     end
 end
 
@@ -54,7 +54,7 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache)
+                             ismoving, adhesion_coefficient, cache, nothing)
 end
 
 """
@@ -73,6 +73,7 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
     coordinates       :: ARRAY2D # [dimension, particle]
     radius            :: ARRAY1D # [particle]
     normal_stiffness  :: ELTYPE
+    buffer            :: Nothing
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
@@ -80,9 +81,9 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
                  ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(initial_condition),
-                   typeof(radius), typeof(coordinates)}(initial_condition, coordinates,
-                                                        radius, normal_stiffness)
+        return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
+                   typeof(coordinates)}(initial_condition, coordinates, radius,
+                                        normal_stiffness, nothing)
     end
 end
 
@@ -208,7 +209,7 @@ function (movement::BoundaryMovement)(system, t)
 
     is_moving(t) || return system
 
-    @threaded for particle in moving_particles
+    @threaded system for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
@@ -335,7 +336,8 @@ end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
     (; boundary_model) = system
 
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
