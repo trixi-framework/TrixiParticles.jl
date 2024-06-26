@@ -8,17 +8,13 @@ The semidiscretization couples the passed systems to one simulation.
 
 # Keywords
 - `neighborhood_search`:    The neighborhood search to be used in the simulation.
-                            By default, the `GridNeighborhoodSearch` is used.
+                            By default, the [`GridNeighborhoodSearch`](@ref) is used.
                             Use `nothing` to loop over all particles (no neighborhood search).
                             To use other neighborhood search implementations, pass a template
                             of a neighborhood search. See [`copy_neighborhood_search`](@ref)
                             and the examples below for more details.
-- `periodic_box_min_corner`:    In order to use a (rectangular) periodic domain, pass the
-                                coordinates of the domain corner in negative coordinate
-                                directions.
-- `periodic_box_max_corner`:    In order to use a (rectangular) periodic domain, pass the
-                                coordinates of the domain corner in positive coordinate
-                                directions.
+                            To use a periodic domain, pass a [`PeriodicBox`](@ref) to the
+                            neighborhood search.
 - `threaded_nhs_update=true`:   Can be used to deactivate thread parallelization in the neighborhood search update.
                                 This can be one of the largest sources of variations between simulations
                                 with different thread numbers due to particle ordering changes.
@@ -29,6 +25,10 @@ semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(threaded_update=false))
+
+periodic_box = PeriodicBox(min_corner = [0.0, 0.0], max_corner = [1.0, 1.0])
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch{2}(; periodic_box))
 
 semi = Semidiscretization(fluid_system, boundary_system,
                           neighborhood_search=PrecomputedNeighborhoodSearch{2}())
