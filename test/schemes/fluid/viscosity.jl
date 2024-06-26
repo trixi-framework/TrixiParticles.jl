@@ -21,10 +21,9 @@
     grad_kernel = TrixiParticles.smoothing_kernel_grad(system_wcsph, pos_diff,
                                                        distance)
 
+    # We only test here that the values don't change
     @testset verbose=true "`ArtificialViscosityMonaghan`" begin
         viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
-
-        vr = dot(v_diff, pos_diff)
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
                        rho_mean, rho_a, rho_b, smoothing_length,
@@ -51,10 +50,10 @@
         m_a = 0.01
         m_b = 0.01
 
-        v[1] = v_diff[1]
-        v[2] = v_diff[2]
-        v[3] = 0.0
-        v[4] = 0.0
+        v[1, 1] = v_diff[1]
+        v[2, 1] = v_diff[2]
+        v[1, 2] = 0.0
+        v[2, 2] = 0.0
 
         dv = viscosity(system_wcsph, system_wcsph,
                        v, v, 1, 2, pos_diff, distance,
