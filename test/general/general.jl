@@ -1,2 +1,6 @@
-include("neighborhood_search.jl")
 include("initial_condition.jl")
+include("smoothing_kernels.jl")
+include("density_calculator.jl")
+include("semidiscretization.jl")
+include("interpolation.jl")
+include("buffer.jl")

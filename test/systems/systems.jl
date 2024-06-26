@@ -1,2 +1,6 @@
-include("fluid_system.jl")
+include("wcsph_system.jl")
+include("edac_system.jl")
 include("solid_system.jl")
+include("boundary_system.jl")
+include("open_boundary_system.jl")
+include("dem_system.jl")

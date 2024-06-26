@@ -1,3 +1,3 @@
 include("state_equations.jl")
-include("viscosity.jl")
+include("density_diffusion.jl")
 include("system.jl")

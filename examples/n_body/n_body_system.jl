@@ -1,24 +1,25 @@
 using TrixiParticles
 using LinearAlgebra
 
-struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS}
+# The second type parameter of `System` can't be `Nothing`, or TrixiParticles will launch
+# GPU kernel for `for_particle_neighbor` loops.
+struct NBodySystem{NDIMS, ELTYPE <: Real} <: TrixiParticles.System{NDIMS, 0}
     initial_condition :: InitialCondition{ELTYPE}
     mass              :: Array{ELTYPE, 1} # [particle]
     G                 :: ELTYPE
+    buffer            :: Nothing
 
     function NBodySystem(initial_condition, G)
         mass = copy(initial_condition.mass)
 
         new{size(initial_condition.coordinates, 1),
-            eltype(mass)}(initial_condition, mass, G)
+            eltype(mass)}(initial_condition, mass, G, nothing)
     end
 end
 
-@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
+TrixiParticles.timer_name(::NBodySystem) = "nbody"
 
-@inline function TrixiParticles.add_acceleration!(dv, particle, system::NBodySystem)
-    return dv
-end
+@inline Base.eltype(system::NBodySystem) = eltype(system.initial_condition.coordinates)
 
 function TrixiParticles.write_u0!(u0, system::NBodySystem)
     u0 .= system.initial_condition.coordinates
@@ -33,9 +34,12 @@ function TrixiParticles.write_v0!(v0, system::NBodySystem)
 end
 
 # NHS update
-function TrixiParticles.nhs_coords(system::NBodySystem,
-                                   neighbor::NBodySystem, u)
-    return u
+function TrixiParticles.update_nhs!(neighborhood_search,
+                                    system::NBodySystem, neighbor::NBodySystem,
+                                    u_system, u_neighbor)
+    TrixiParticles.PointNeighbors.update!(neighborhood_search,
+                                          u_system, u_neighbor,
+                                          particles_moving=(true, true))
 end
 
 function TrixiParticles.compact_support(system::NBodySystem,
@@ -49,13 +53,10 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
                                   neighborhood_search,
                                   particle_system::NBodySystem,
                                   neighbor_system::NBodySystem)
-    @unpack mass, G = neighbor_system
+    (; mass, G) = neighbor_system
 
-    system_coords = TrixiParticles.current_coordinates(u_particle_system,
-                                                       particle_system)
-
-    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system,
-                                                         neighbor_system)
+    system_coords = TrixiParticles.current_coordinates(u_particle_system, particle_system)
+    neighbor_coords = TrixiParticles.current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     TrixiParticles.for_particle_neighbor(particle_system, neighbor_system,
@@ -81,12 +82,12 @@ function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
 end
 
 function energy(v_ode, u_ode, system, semi)
-    @unpack mass = system
+    (; mass) = system
 
     e = zero(eltype(system))
 
-    v = TrixiParticles.wrap_v(v_ode, 1, system, semi)
-    u = TrixiParticles.wrap_u(u_ode, 1, system, semi)
+    v = TrixiParticles.wrap_v(v_ode, system, semi)
+    u = TrixiParticles.wrap_u(u_ode, system, semi)
 
     for particle in TrixiParticles.eachparticle(system)
         e += 0.5 * mass[particle] *
@@ -108,8 +109,8 @@ end
 
 TrixiParticles.vtkname(system::NBodySystem) = "n-body"
 
-function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem)
-    @unpack mass = system
+function TrixiParticles.write2vtk!(vtk, v, u, t, system::NBodySystem; write_meta_data=true)
+    (; mass) = system
 
     vtk["velocity"] = v
     vtk["mass"] = mass

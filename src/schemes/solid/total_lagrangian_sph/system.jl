@@ -1,89 +1,63 @@
 @doc raw"""
     TotalLagrangianSPHSystem(initial_condition,
                              smoothing_kernel, smoothing_length,
-                             young_modulus, poisson_ratio, boundary_model;
-                             n_fixed_particles=0,
+                             young_modulus, poisson_ratio;
+                             n_fixed_particles=0, boundary_model=nothing,
                              acceleration=ntuple(_ -> 0.0, NDIMS),
-                             penalty_force=nothing)
+                             penalty_force=nothing, source_terms=nothing)
 
-System for particles of an elastic solid.
+System for particles of an elastic structure.
 
-A Total Lagrangian framework is used wherein the governing equations are forumlated such that
+A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
 initial configuration (O’Connor & Rogers 2021, Belytschko et al. 2000).
-The governing equations with respect to the initial configuration are given by:
-```math
-\frac{\mathrm{D}\bm{v}}{\mathrm{D}t} = \frac{1}{\rho_0} \nabla_0 \cdot \bm{P} + \bm{g},
-```
-where the zero subscript denotes a derivative with respect to the initial configuration
-and $\bm{P}$ is the first Piola-Kirchhoff (PK1) stress tensor.
+See [Total Lagrangian SPH](@ref tlsph) for more details on the method.
 
-The discretized version of this equation is given by (O’Connor & Rogers 2021):
-```math
-\frac{\mathrm{d}\bm{v}_a}{\mathrm{d}t} = \sum_b m_{0b}
-    \left( \frac{\bm{P}_a \bm{L}_{0a}}{\rho_{0a}^2} + \frac{\bm{P}_b \bm{L}_{0b}}{\rho_{0b}^2} \right)
-    \nabla_{0a} W(\bm{X}_{ab}) + \frac{\bm{f}_a^{PF}}{m_{0a}} + \bm{g},
-```
-with
-```math
-\bm{L}_{0a} := \left( \sum_{b} \frac{m_{0b}}{\rho_{0b}} \nabla_{0a} W(\bm{X}_{ab}) \bm{X}_{ab}^T \right)^{-1} \in \R^{d \times d}.
-```
-The subscripts $a$ and $b$ denote quantities of particle $a$ and $b$, respectively.
-The zero subscript on quantities denotes that the quantity is to be measured in the initial configuration.
-The difference in the initial coordinates is denoted by $\bm{X}_{ab} = \bm{X}_a - \bm{X}_b$,
-the difference in the current coordinates is denoted by $\bm{x}_{ab} = \bm{x}_a - \bm{x}_b$.
+# Arguments
+- `initial_condition`:  Initial condition representing the system's particles.
+- `young_modulus`:      Young's modulus.
+- `poisson_ratio`:      Poisson ratio.
+- `smoothing_kernel`:   Smoothing kernel to be used for this system.
+                        See [Smoothing Kernels](@ref smoothing_kernel).
+- `smoothing_length`:   Smoothing length to be used for this system.
+                        See [Smoothing Kernels](@ref smoothing_kernel).
 
-For the computation of the PK1 stress tensor, the deformation gradient $\bm{J}$ is computed per particle as
-```math
-\bm{J}_a = \sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ba} (\bm{L}_{0a}\nabla_{0a} W(\bm{X}_{ab}))^T \\
-    \qquad  = -\left(\sum_b \frac{m_{0b}}{\rho_{0b}} \bm{x}_{ab} (\nabla_{0a} W(\bm{X}_{ab}))^T \right) \bm{L}_{0a}^T
-```
-with $1 \leq i,j \leq d$.
-From the deformation gradient, the Green-Lagrange strain
-```math
-\bm{E} = \frac{1}{2}(\bm{J}^T\bm{J} - \bm{I})
-```
-and the second Piola-Kirchhoff stress tensor
-```math
-\bm{S} = \lambda \operatorname{tr}(\bm{E}) \bm{I} + 2\mu \bm{E}
-```
-are computed to obtain the PK1 stress tensor as
-```math
-\bm{P} = \bm{J}\bm{S}.
-```
+# Keyword Arguments
+- `n_fixed_particles`:  Number of fixed particles which are used to clamp the structure
+                        particles. Note that the fixed particles must be the **last**
+                        particles in the `InitialCondition`. See the info box below.
+- `boundary_model`: Boundary model to compute the hydrodynamic density and pressure for
+                    fluid-structure interaction (see [Boundary Models](@ref boundary_models)).
+- `penalty_force`:  Penalty force to ensure regular particle position under large deformations
+                    (see [`PenaltyForceGanzenmueller`](@ref)).
+- `acceleration`:   Acceleration vector for the system. (default: zero vector)
+- `source_terms`:   Additional source terms for this system. Has to be either `nothing`
+                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (which are the quantities of a single particle), returning a `Tuple`
+                    or `SVector` that is to be added to the acceleration of that particle.
+                    See, for example, [`SourceTermDamping`](@ref).
 
-Here,
-```math
-\mu = \frac{E}{2(1 + \nu)}
-```
-and
-```math
-\lambda = \frac{E\nu}{(1 + \nu)(1 - 2\nu)}
-```
-are the Lamé coefficients, where $E$ is the Young's modulus and $\nu$ is the Poisson ratio.
+!!! note
+    The fixed particles must be the **last** particles in the `InitialCondition`.
+    To do so, e.g. use the `union` function:
+    ```jldoctest; output = false, filter = r"InitialCondition{Float64}.*", setup = :(fixed_particles = RectangularShape(0.1, (1, 4), (0.0, 0.0), density=1.0); beam = RectangularShape(0.1, (3, 4), (0.1, 0.0), density=1.0))
+    solid = union(beam, fixed_particles)
 
-The term $\bm{f}_a^{PF}$ is an optional penalty force. See e.g. [`PenaltyForceGanzenmueller`](@ref).
-
-## References:
-- Joseph O’Connor, Benedict D. Rogers.
-  "A fluid–structure interaction model for free-surface flows and flexible structures using
-  smoothed particle hydrodynamics on a GPU".
-  In: Journal of Fluids and Structures 104 (2021).
-  [doi: 10.1016/J.JFLUIDSTRUCTS.2021.103312](https://doi.org/10.1016/J.JFLUIDSTRUCTS.2021.103312)
-- Ted Belytschko, Yong Guo, Wing Kam Liu, Shao Ping Xiao.
-  "A unified stability analysis of meshless particle methods".
-  In: International Journal for Numerical Methods in Engineering 48 (2000), pages 1359–1400.
-  [doi: 10.1002/1097-0207](https://doi.org/10.1002/1097-0207)
+    # output
+    InitialCondition{Float64}(...) *the rest of this line is ignored by filter*
+    ```
+    where `beam` and `fixed_particles` are of type `InitialCondition`.
 """
-struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIMS}
-    initial_condition   :: InitialCondition{ELTYPE}
-    initial_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    current_coordinates :: Array{ELTYPE, 2} # [dimension, particle]
-    mass                :: Array{ELTYPE, 1} # [particle]
-    correction_matrix   :: Array{ELTYPE, 3} # [i, j, particle]
-    pk1_corrected       :: Array{ELTYPE, 3} # [i, j, particle]
-    deformation_grad    :: Array{ELTYPE, 3} # [i, j, particle]
-    material_density    :: Array{ELTYPE, 1} # [particle]
+struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, IC, ARRAY1D, ARRAY2D, ARRAY3D,
+                                K, PF, ST} <: SolidSystem{NDIMS, IC}
+    initial_condition   :: IC
+    initial_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    current_coordinates :: ARRAY2D # Array{ELTYPE, 2}: [dimension, particle]
+    mass                :: ARRAY1D # Array{ELTYPE, 1}: [particle]
+    correction_matrix   :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    pk1_corrected       :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    deformation_grad    :: ARRAY3D # Array{ELTYPE, 3}: [i, j, particle]
+    material_density    :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     n_moving_particles  :: Int64
     young_modulus       :: ELTYPE
     poisson_ratio       :: ELTYPE
@@ -94,54 +68,52 @@ struct TotalLagrangianSPHSystem{BM, NDIMS, ELTYPE <: Real, K, PF} <: System{NDIM
     acceleration        :: SVector{NDIMS, ELTYPE}
     boundary_model      :: BM
     penalty_force       :: PF
+    source_terms        :: ST
+    buffer              :: Nothing
+end
 
-    function TotalLagrangianSPHSystem(initial_condition,
-                                      smoothing_kernel, smoothing_length,
-                                      young_modulus, poisson_ratio, boundary_model;
-                                      n_fixed_particles=0,
-                                      acceleration=ntuple(_ -> 0.0,
-                                                          ndims(smoothing_kernel)),
-                                      penalty_force=nothing)
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-        n_particles = nparticles(initial_condition)
+function TotalLagrangianSPHSystem(initial_condition,
+                                  smoothing_kernel, smoothing_length,
+                                  young_modulus, poisson_ratio;
+                                  n_fixed_particles=0, boundary_model=nothing,
+                                  acceleration=ntuple(_ -> 0.0,
+                                                      ndims(smoothing_kernel)),
+                                  penalty_force=nothing, source_terms=nothing)
+    NDIMS = ndims(initial_condition)
+    ELTYPE = eltype(initial_condition)
+    n_particles = nparticles(initial_condition)
 
-        if ndims(smoothing_kernel) != NDIMS
-            throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        # Make acceleration an SVector
-        acceleration_ = SVector(acceleration...)
-        if length(acceleration_) != NDIMS
-            throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        initial_coordinates = copy(initial_condition.coordinates)
-        current_coordinates = copy(initial_condition.coordinates)
-        mass = copy(initial_condition.mass)
-        material_density = copy(initial_condition.density)
-        correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-        pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-        deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
-
-        n_moving_particles = n_particles - n_fixed_particles
-
-        lame_lambda = young_modulus * poisson_ratio /
-                      ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
-        lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
-
-        return new{typeof(boundary_model),
-                   NDIMS, ELTYPE,
-                   typeof(smoothing_kernel),
-                   typeof(penalty_force)}(initial_condition, initial_coordinates,
-                                          current_coordinates, mass,
-                                          correction_matrix, pk1_corrected,
-                                          deformation_grad, material_density,
-                                          n_moving_particles, young_modulus, poisson_ratio,
-                                          lame_lambda, lame_mu,
-                                          smoothing_kernel, smoothing_length,
-                                          acceleration_, boundary_model, penalty_force)
+    if ndims(smoothing_kernel) != NDIMS
+        throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
     end
+
+    # Make acceleration an SVector
+    acceleration_ = SVector(acceleration...)
+    if length(acceleration_) != NDIMS
+        throw(ArgumentError("`acceleration` must be of length $NDIMS for a $(NDIMS)D problem"))
+    end
+
+    initial_coordinates = copy(initial_condition.coordinates)
+    current_coordinates = copy(initial_condition.coordinates)
+    mass = copy(initial_condition.mass)
+    material_density = copy(initial_condition.density)
+    correction_matrix = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+    pk1_corrected = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+    deformation_grad = Array{ELTYPE, 3}(undef, NDIMS, NDIMS, n_particles)
+
+    n_moving_particles = n_particles - n_fixed_particles
+
+    lame_lambda = young_modulus * poisson_ratio /
+                  ((1 + poisson_ratio) * (1 - 2 * poisson_ratio))
+    lame_mu = 0.5 * young_modulus / (1 + poisson_ratio)
+
+    return TotalLagrangianSPHSystem(initial_condition, initial_coordinates,
+                                    current_coordinates, mass, correction_matrix,
+                                    pk1_corrected, deformation_grad, material_density,
+                                    n_moving_particles, young_modulus, poisson_ratio,
+                                    lame_lambda, lame_mu, smoothing_kernel,
+                                    smoothing_length, acceleration_, boundary_model,
+                                    penalty_force, source_terms, nothing)
 end
 
 function Base.show(io::IO, system::TotalLagrangianSPHSystem)
@@ -178,23 +150,11 @@ function Base.show(io::IO, ::MIME"text/plain", system::TotalLagrangianSPHSystem)
     end
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelMonaghanKajtar
-                                                               })
+@inline function v_nvariables(system::TotalLagrangianSPHSystem)
     return ndims(system)
 end
 
-@inline function v_nvariables(system::TotalLagrangianSPHSystem{
-                                                               <:BoundaryModelDummyParticles
-                                                               })
-    return v_nvariables(system, system.boundary_model.density_calculator)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, density_calculator)
-    return ndims(system)
-end
-
-@inline function v_nvariables(system::TotalLagrangianSPHSystem, ::ContinuityDensity)
+@inline function v_nvariables(system::TotalLagrangianSPHSystem{<:BoundaryModelDummyParticles{ContinuityDensity}})
     return ndims(system) + 1
 end
 
@@ -217,14 +177,24 @@ end
 
 @inline function current_velocity(v, system::TotalLagrangianSPHSystem, particle)
     if particle > n_moving_particles(system)
-        return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+        return zero(SVector{ndims(system), eltype(system)})
     end
 
     return extract_svector(v, system, particle)
 end
 
+@inline function viscous_velocity(v, system::TotalLagrangianSPHSystem, particle)
+    return extract_svector(system.boundary_model.cache.wall_velocity, system, particle)
+end
+
 @inline function particle_density(v, system::TotalLagrangianSPHSystem, particle)
     return particle_density(v, system.boundary_model, system, particle)
+end
+
+# In fluid-solid interaction, use the "hydrodynamic pressure" of the solid particles
+# corresponding to the chosen boundary model.
+@inline function particle_pressure(v, system::TotalLagrangianSPHSystem, particle)
+    return particle_pressure(v, system.boundary_model, system, particle)
 end
 
 @inline function hydrodynamic_mass(system::TotalLagrangianSPHSystem, particle)
@@ -234,6 +204,7 @@ end
 @inline function correction_matrix(system, particle)
     extract_smatrix(system.correction_matrix, system, particle)
 end
+
 @inline function deformation_gradient(system, particle)
     extract_smatrix(system.deformation_grad, system, particle)
 end
@@ -242,70 +213,19 @@ end
 end
 
 function initialize!(system::TotalLagrangianSPHSystem, neighborhood_search)
-    @unpack correction_matrix = system
+    (; correction_matrix) = system
 
-    # Calculate kernel correction matrix
-    calc_correction_matrix!(correction_matrix, neighborhood_search, system)
-end
-
-function calc_correction_matrix!(corr_matrix, neighborhood_search, system)
-    @unpack mass, material_density = system
-
-    set_zero!(corr_matrix)
-
-    # Calculate kernel correction matrix
     initial_coords = initial_coordinates(system)
 
-    # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, system,
-                          initial_coords, initial_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             initial_pos_diff,
-                                                             initial_distance
-        # Only consider particles with a distance > 0.
-        initial_distance < sqrt(eps()) && return
+    density_fun(particle) = system.material_density[particle]
 
-        volume = mass[neighbor] / material_density[neighbor]
-
-        grad_kernel = smoothing_kernel_grad(system, initial_pos_diff,
-                                            initial_distance)
-        result = volume * grad_kernel * initial_pos_diff'
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] -= result[i, j]
-        end
-    end
-
-    @threaded for particle in eachparticle(system)
-        L = correction_matrix(system, particle)
-        result = inv(L)
-
-        @inbounds for j in 1:ndims(system), i in 1:ndims(system)
-            corr_matrix[i, j, particle] = result[i, j]
-        end
-    end
-
-    return corr_matrix
+    # Calculate correction matrix
+    compute_gradient_correction_matrix!(correction_matrix, neighborhood_search, system,
+                                        initial_coords, density_fun)
 end
 
-function update!(system::TotalLagrangianSPHSystem, system_index, v, u, v_ode, u_ode,
-                 semi, t)
-    @unpack neighborhood_searches = semi
-
-    # Update current coordinates
-    update_current_coordinates(u, system)
-
-    # Precompute PK1 stress tensor
-    neighborhood_search = neighborhood_searches[system_index][system_index]
-    @trixi_timeit timer() "precompute pk1" compute_pk1_corrected(neighborhood_search,
-                                                                 system)
-
-    return system
-end
-
-@inline function update_current_coordinates(u, system)
-    @unpack current_coordinates = system
+function update_positions!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
+    (; current_coordinates) = system
 
     for particle in each_moving_particle(system)
         for i in 1:ndims(system)
@@ -314,14 +234,30 @@ end
     end
 end
 
+function update_quantities!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t)
+    # Precompute PK1 stress tensor
+    nhs = get_neighborhood_search(system, semi)
+    @trixi_timeit timer() "stress tensor" compute_pk1_corrected(nhs, system)
+
+    return system
+end
+
+function update_final!(system::TotalLagrangianSPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    (; boundary_model) = system
+
+    # Only update boundary model
+    update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)
+end
+
 @inline function compute_pk1_corrected(neighborhood_search, system)
-    @unpack deformation_grad = system
+    (; deformation_grad) = system
 
     calc_deformation_grad!(deformation_grad, neighborhood_search, system)
 
-    @threaded for particle in eachparticle(system)
-        J_particle = deformation_gradient(system, particle)
-        pk1_particle = pk1_stress_tensor(J_particle, system)
+    @threaded system for particle in eachparticle(system)
+        F_particle = deformation_gradient(system, particle)
+        pk1_particle = pk1_stress_tensor(F_particle, system)
         pk1_particle_corrected = pk1_particle * correction_matrix(system, particle)
 
         @inbounds for j in 1:ndims(system), i in 1:ndims(system)
@@ -331,7 +267,7 @@ end
 end
 
 @inline function calc_deformation_grad!(deformation_grad, neighborhood_search, system)
-    @unpack mass, material_density = system
+    (; mass, material_density) = system
 
     # Reset deformation gradient
     set_zero!(deformation_grad)
@@ -367,29 +303,30 @@ end
 end
 
 # First Piola-Kirchhoff stress tensor
-@inline function pk1_stress_tensor(J, system)
-    S = pk2_stress_tensor(J, system)
+@inline function pk1_stress_tensor(F, system)
+    S = pk2_stress_tensor(F, system)
 
-    return J * S
+    return F * S
 end
 
 # Second Piola-Kirchhoff stress tensor
-@inline function pk2_stress_tensor(J, system)
-    @unpack lame_lambda, lame_mu = system
+@inline function pk2_stress_tensor(F, system)
+    (; lame_lambda, lame_mu) = system
 
     # Compute the Green-Lagrange strain
-    E = 0.5 * (transpose(J) * J - I)
+    E = 0.5 * (transpose(F) * F - I)
 
     return lame_lambda * tr(E) * I + 2 * lame_mu * E
 end
 
 @inline function calc_penalty_force!(dv, particle, neighbor, initial_pos_diff,
-                                     initial_distance, system, ::Nothing)
+                                     initial_distance, system, m_a, m_b, rho_a, rho_b,
+                                     ::Nothing)
     return dv
 end
 
 function write_u0!(u0, system::TotalLagrangianSPHSystem)
-    @unpack initial_condition = system
+    (; initial_condition) = system
 
     for particle in each_moving_particle(system)
         # Write particle coordinates
@@ -402,7 +339,7 @@ function write_u0!(u0, system::TotalLagrangianSPHSystem)
 end
 
 function write_v0!(v0, system::TotalLagrangianSPHSystem)
-    @unpack initial_condition, boundary_model = system
+    (; initial_condition, boundary_model) = system
 
     for particle in each_moving_particle(system)
         # Write particle velocities
@@ -416,23 +353,14 @@ function write_v0!(v0, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelMonaghanKajtar, system::TotalLagrangianSPHSystem)
+function write_v0!(v0, model, system::TotalLagrangianSPHSystem)
     return v0
 end
 
-function write_v0!(v0, ::BoundaryModelDummyParticles, system::TotalLagrangianSPHSystem)
-    @unpack density_calculator = system.boundary_model
-
-    write_v0!(v0, density_calculator, system)
-end
-
-function write_v0!(v0, density_calculator, system::TotalLagrangianSPHSystem)
-    return v0
-end
-
-function write_v0!(v0, ::ContinuityDensity, system::TotalLagrangianSPHSystem)
-    @unpack cache = system.boundary_model
-    @unpack initial_density = cache
+function write_v0!(v0, ::BoundaryModelDummyParticles{ContinuityDensity},
+                   system::TotalLagrangianSPHSystem)
+    (; cache) = system.boundary_model
+    (; initial_density) = cache
 
     for particle in each_moving_particle(system)
         # Set particle densities
@@ -450,4 +378,60 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
 
     # This is dispatched in the boundary system.jl file
     restart_with!(system, system.boundary_model, v, u)
+end
+
+function viscosity_model(system::TotalLagrangianSPHSystem)
+    return system.boundary_model.viscosity
+end
+
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here below Equation 5.3.21 for the equation for the equivalent stress.
+# The von-Mises stress is one form of equivalent stress, where sigma is the deviatoric stress.
+# See pages 32 and 123.
+function von_mises_stress(system::TotalLagrangianSPHSystem)
+    von_mises_stress_vector = zeros(eltype(system.pk1_corrected), nparticles(system))
+
+    @threaded system for particle in each_moving_particle(system)
+        von_mises_stress_vector[particle] = von_mises_stress(system, particle)
+    end
+
+    return von_mises_stress_vector
+end
+
+# Use this function barrier and unpack inside to avoid passing closures to Polyester.jl
+# with `@batch` (`@threaded`).
+# Otherwise, `@threaded` does not work here with Julia ARM on macOS.
+# See https://github.com/JuliaSIMD/Polyester.jl/issues/88.
+@inline function von_mises_stress(system, particle)
+    F = deformation_gradient(system, particle)
+    J = det(F)
+    P = pk1_corrected(system, particle)
+    sigma = (1.0 / J) * P * F'
+
+    # Calculate deviatoric stress tensor
+    s = sigma - (1.0 / 3.0) * tr(sigma) * I
+
+    return sqrt(3.0 / 2.0 * sum(s .^ 2))
+end
+
+# An explanation of these equation can be found in
+# J. Lubliner, 2008. Plasticity theory.
+# See here page 473 for the relation between the `pk1`, the first Piola-Kirchhoff tensor,
+# and the Cauchy stress.
+function cauchy_stress(system::TotalLagrangianSPHSystem)
+    NDIMS = ndims(system)
+
+    cauchy_stress_tensors = zeros(eltype(system.pk1_corrected), NDIMS, NDIMS,
+                                  nparticles(system))
+
+    @threaded system for particle in each_moving_particle(system)
+        F = deformation_gradient(system, particle)
+        J = det(F)
+        P = pk1_corrected(system, particle)
+        sigma = (1.0 / J) * P * F'
+        cauchy_stress_tensors[:, :, particle] = sigma
+    end
+
+    return cauchy_stress_tensors
 end
