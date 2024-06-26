@@ -154,11 +154,10 @@
                 end
 
                 TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
+                TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = Inf
 
                 function Base.getproperty(::Val{:nhs}, f::Symbol)
-                    if f === :search_radius
-                        return Inf
-                    elseif f === :periodic_box_size
+                    if f === :periodic_box
                         return nothing
                     end
 
