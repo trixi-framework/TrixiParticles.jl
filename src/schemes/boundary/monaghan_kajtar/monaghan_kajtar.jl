@@ -1,6 +1,5 @@
 @doc raw"""
-    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                viscosity=nothing)
+    BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
 
 `boundary_model` for `BoundarySPHSystem`.
 
@@ -9,26 +8,19 @@
 - `beta`: Ratio of fluid particle spacing to boundary particle spacing.
 - `boundary_particle_spacing`: Boundary particle spacing.
 - `mass`: Vector holding the mass of each boundary particle.
-
-# Keywords
-- `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
-                information.
 """
-struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR, V}
+struct BoundaryModelMonaghanKajtar{ELTYPE <: Real, VECTOR}
     K                         :: ELTYPE
     beta                      :: ELTYPE
     boundary_particle_spacing :: ELTYPE
     hydrodynamic_mass         :: VECTOR # Vector{ELTYPE}
-    viscosity                 :: V
 end
 
 # The default constructor needs to be accessible for Adapt.jl to work with this struct.
 # See the comments in general/gpu.jl for more details.
-function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
-                                     viscosity=nothing)
+function BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass)
     return BoundaryModelMonaghanKajtar(K, convert(typeof(K), beta),
-                                       boundary_particle_spacing,
-                                       mass, viscosity)
+                                       boundary_particle_spacing, mass)
 end
 
 function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
@@ -38,8 +30,6 @@ function Base.show(io::IO, model::BoundaryModelMonaghanKajtar)
     print(io, model.K)
     print(io, ", ")
     print(io, model.beta)
-    print(io, ", ")
-    print(io, model.viscosity |> typeof |> nameof)
     print(io, ")")
 end
 

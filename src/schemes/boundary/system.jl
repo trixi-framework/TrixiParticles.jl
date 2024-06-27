@@ -1,5 +1,6 @@
 """
-    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
+    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0,
+                      viscosity=nothing, smoothing_kernel=nothing, smoothing_length=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -12,8 +13,10 @@ The interaction between fluid and boundary particles is specified by the boundar
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
 - `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
    Note: currently it is assumed that all fluids have the same adhesion coefficient.
+- `viscosity`:  Free-slip (default) or no-slip condition. See description above for further
+                information.
 """
-struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM, V,
                          CA} <: BoundarySystem{NDIMS, IC}
     initial_condition    :: IC
     coordinates          :: CO # Array{ELTYPE, 2}
@@ -21,40 +24,45 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
     movement             :: M
     ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
     adhesion_coefficient :: ELTYPE
+    viscosity            :: V
     cache                :: CA
     buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, adhesion_coefficient, cache, buffer)
+                               ismoving, adhesion_coefficient, viscosity, cache, buffer)
         ELTYPE = eltype(coordinates)
 
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
-            typeof(coordinates), typeof(movement), typeof(ismoving),
+            typeof(coordinates), typeof(movement), typeof(ismoving), typeof(viscosity),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
-                           ismoving, adhesion_coefficient, cache, buffer)
+                           ismoving, adhesion_coefficient, viscosity, cache, buffer)
     end
 end
 
 function BoundarySPHSystem(initial_condition, model; movement=nothing,
-                           adhesion_coefficient=0.0)
+                           adhesion_coefficient=0.0, viscosity=nothing)
+    NDIMS = ndims(initial_condition)
+    n_particles = nparticles(initial_condition)
+
     coordinates = copy(initial_condition.coordinates)
 
     ismoving = Ref(!isnothing(movement))
 
-    cache = create_cache_boundary(movement, initial_condition)
+    cache =(; create_cache_model(viscosity, n_particles, NDIMS)...,
+              create_cache_boundary(movement, initial_condition)...)
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
         # instantiating `BoundaryMovement`.
-        resize!(movement.moving_particles, nparticles(initial_condition))
-        movement.moving_particles .= collect(1:nparticles(initial_condition))
+        resize!(movement.moving_particles, n_particles)
+        movement.moving_particles .= collect(1:n_particles)
     end
 
     # Because of dispatches boundary model needs to be first!
     return BoundarySPHSystem(initial_condition, coordinates, model, movement,
-                             ismoving, adhesion_coefficient, cache, nothing)
+                             ismoving, adhesion_coefficient, viscosity, cache, nothing)
 end
 
 """
@@ -161,6 +169,16 @@ function create_cache_boundary(::BoundaryMovement, initial_condition)
     return (; velocity, acceleration)
 end
 
+create_cache_model(viscosity, n_particles, n_dims) = (;)
+
+function create_cache_model(viscosity::ViscosityAdami, n_particles, n_dims)
+    ELTYPE = eltype(viscosity.epsilon)
+
+    wall_velocity = zeros(ELTYPE, n_dims, n_particles)
+
+    return (; wall_velocity)
+end
+
 function Base.show(io::IO, system::BoundarySPHSystem)
     @nospecialize system # reduce precompilation time
 
@@ -168,6 +186,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
     print(io, ", ", system.adhesion_coefficient)
+    print(io, ", ", model.viscosity |> typeof |> nameof)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -381,10 +400,6 @@ function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{C
     end
 
     return system
-end
-
-function viscosity_model(system::BoundarySPHSystem)
-    return system.boundary_model.viscosity
 end
 
 function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)

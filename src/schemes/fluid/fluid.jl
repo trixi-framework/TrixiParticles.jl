@@ -37,8 +37,6 @@ end
 
 write_v0!(v0, system, density_calculator) = v0
 
-@inline viscosity_model(system::FluidSystem) = system.viscosity
-
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
     return system
