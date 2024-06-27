@@ -74,7 +74,7 @@ function initialize_reinit_cb!(cb::DensityReinitializationCallback, u, t, integr
         # Update systems to compute quantities like density and pressure.
         semi = integrator.p
         v_ode, u_ode = u.x
-        update_systems_and_nhs(v_ode, u_ode, semi, t)
+        update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
         # Apply the callback.
         cb(integrator)
@@ -89,13 +89,7 @@ end
 function (reinit_callback::DensityReinitializationCallback{Int})(u, t, integrator)
     (; interval) = reinit_callback
 
-    # With error-based step size control, some steps can be rejected. Thus,
-    #   `integrator.iter >= integrator.stats.naccept`
-    #    (total #steps)       (#accepted steps)
-    # We need to check the number of accepted steps since callbacks are not
-    # activated after a rejected step.
-    return interval > 0 && ((integrator.stats.naccept % interval == 0) &&
-            !(integrator.stats.naccept == 0 && integrator.iter > 0))
+    return condition_integrator_interval(integrator, interval, save_final_solution=false)
 end
 
 # condition with dt

@@ -1,5 +1,5 @@
 """
-    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing)
+    BoundarySPHSystem(initial_condition, boundary_model; movement=nothing, adhesion_coefficient=0.0)
 
 System for boundaries modeled by boundary particles.
 The interaction between fluid and boundary particles is specified by the boundary model.
@@ -10,30 +10,37 @@ The interaction between fluid and boundary particles is specified by the boundar
 
 # Keyword Arguments
 - `movement`: For moving boundaries, a [`BoundaryMovement`](@ref) can be passed.
+- `adhesion_coefficient`: Coefficient specifying the adhesion of a fluid to the surface.
+   Note: currently it is assumed that all fluids have the same adhesion coefficient.
 """
-struct BoundarySPHSystem{BM, NDIMS, IC, CO, M, IM, CA} <: BoundarySystem{NDIMS}
-    initial_condition :: IC
-    coordinates       :: CO # Array{ELTYPE, 2}
-    boundary_model    :: BM
-    movement          :: M
-    ismoving          :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
-    cache             :: CA
+struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
+                         CA} <: BoundarySystem{NDIMS, IC}
+    initial_condition    :: IC
+    coordinates          :: CO # Array{ELTYPE, 2}
+    boundary_model       :: BM
+    movement             :: M
+    ismoving             :: IM # Ref{Bool} (to make a mutable field compatible with GPUs)
+    adhesion_coefficient :: ELTYPE
+    cache                :: CA
+    buffer               :: Nothing
 
     # This constructor is necessary for Adapt.jl to work with this struct.
     # See the comments in general/gpu.jl for more details.
     function BoundarySPHSystem(initial_condition, coordinates, boundary_model, movement,
-                               ismoving, cache)
-        new{typeof(boundary_model), size(coordinates, 1),
-            typeof(initial_condition), typeof(coordinates),
-            typeof(movement), typeof(ismoving), typeof(cache)}(initial_condition,
-                                                               coordinates, boundary_model,
-                                                               movement,
-                                                               ismoving, cache)
+                               ismoving, adhesion_coefficient, cache, buffer)
+        ELTYPE = eltype(coordinates)
+
+        new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
+            typeof(coordinates), typeof(movement), typeof(ismoving),
+            typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
+                           ismoving, adhesion_coefficient, cache, buffer)
     end
 end
 
-function BoundarySPHSystem(initial_condition, model; movement=nothing)
+function BoundarySPHSystem(initial_condition, model; movement=nothing,
+                           adhesion_coefficient=0.0)
     coordinates = copy(initial_condition.coordinates)
+
     ismoving = Ref(!isnothing(movement))
 
     cache = create_cache_boundary(movement, initial_condition)
@@ -45,8 +52,9 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing)
         movement.moving_particles .= collect(1:nparticles(initial_condition))
     end
 
-    return BoundarySPHSystem(initial_condition, coordinates, model,
-                             movement, ismoving, cache)
+    # Because of dispatches boundary model needs to be first!
+    return BoundarySPHSystem(initial_condition, coordinates, model, movement,
+                             ismoving, adhesion_coefficient, cache, nothing)
 end
 
 """
@@ -59,10 +67,13 @@ The interaction between fluid and boundary particles is specified by the boundar
     This is an experimental feature and may change in a future releases.
 
 """
-struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS}
-    coordinates      :: ARRAY2D # [dimension, particle]
-    radius           :: ARRAY1D # [particle]
-    normal_stiffness :: ELTYPE
+struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, IC,
+                         ARRAY1D, ARRAY2D} <: BoundarySystem{NDIMS, IC}
+    initial_condition :: IC
+    coordinates       :: ARRAY2D # [dimension, particle]
+    radius            :: ARRAY1D # [particle]
+    normal_stiffness  :: ELTYPE
+    buffer            :: Nothing
 
     function BoundaryDEMSystem(initial_condition, normal_stiffness)
         coordinates = initial_condition.coordinates
@@ -70,9 +81,9 @@ struct BoundaryDEMSystem{NDIMS, ELTYPE <: Real, ARRAY1D, ARRAY2D} <: BoundarySys
                  ones(length(initial_condition.mass))
         NDIMS = size(coordinates, 1)
 
-        return new{NDIMS, eltype(coordinates), typeof(radius), typeof(coordinates)}(coordinates,
-                                                                                    radius,
-                                                                                    normal_stiffness)
+        return new{NDIMS, eltype(coordinates), typeof(initial_condition), typeof(radius),
+                   typeof(coordinates)}(initial_condition, coordinates, radius,
+                                        normal_stiffness, nothing)
     end
 end
 
@@ -156,6 +167,7 @@ function Base.show(io::IO, system::BoundarySPHSystem)
     print(io, "BoundarySPHSystem{", ndims(system), "}(")
     print(io, system.boundary_model)
     print(io, ", ", system.movement)
+    print(io, ", ", system.adhesion_coefficient)
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -171,6 +183,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::BoundarySPHSystem)
         summary_line(io, "movement function",
                      isnothing(system.movement) ? "nothing" :
                      string(system.movement.movement_function))
+        summary_line(io, "adhesion coefficient", system.adhesion_coefficient)
         summary_footer(io)
     end
 end
@@ -196,7 +209,7 @@ function (movement::BoundaryMovement)(system, t)
 
     is_moving(t) || return system
 
-    @threaded for particle in moving_particles
+    @threaded system for particle in moving_particles
         pos_new = initial_coords(system, particle) + movement_function(t)
         vel = ForwardDiff.derivative(movement_function, t)
         acc = ForwardDiff.derivative(t_ -> ForwardDiff.derivative(movement_function, t_), t)
@@ -243,23 +256,39 @@ end
 end
 
 @inline function current_velocity(v, system::BoundarySPHSystem, particle)
+    return current_velocity(v, system, system.movement, particle)
+end
+
+@inline function current_velocity(v, system, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
         return extract_svector(cache.velocity, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_velocity(v, system, movement::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function current_acceleration(system::BoundarySPHSystem, particle)
+    return current_acceleration(system, system.movement, particle)
+end
+
+@inline function current_acceleration(system, movement, particle)
     (; cache, ismoving) = system
 
     if ismoving[]
         return extract_svector(cache.acceleration, system, particle)
     end
 
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(SVector{ndims(system), eltype(system)})
+end
+
+@inline function current_acceleration(system, movement::Nothing, particle)
+    return zero(SVector{ndims(system), eltype(system)})
 end
 
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
@@ -307,7 +336,8 @@ end
 
 # This update depends on the computed quantities of the fluid system and therefore
 # has to be in `update_final!` after `update_quantities!`.
-function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t)
+function update_final!(system::BoundarySPHSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
     (; boundary_model) = system
 
     update_pressure!(boundary_model, system, v, u, v_ode, u_ode, semi)

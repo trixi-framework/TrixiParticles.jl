@@ -111,7 +111,7 @@
 
         system = BoundarySPHSystem(initial_condition, model)
 
-        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing) with 2 particles"
+        show_compact = "BoundarySPHSystem{2}((hydrodynamic_mass = 3,), nothing, 0.0) with 2 particles"
         @test repr(system) == show_compact
 
         show_box = """
@@ -121,6 +121,7 @@
         │ #particles: ………………………………………………… 2                                                                │
         │ boundary model: ……………………………………… (hydrodynamic_mass = 3,)                                         │
         │ movement function: ……………………………… nothing                                                          │
+        │ adhesion coefficient: ……………………… 0.0                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
         @test repr("text/plain", system) == show_box
     end
