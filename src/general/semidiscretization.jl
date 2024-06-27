@@ -644,7 +644,7 @@ function update_nhs!(neighborhood_search,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, true))
@@ -654,7 +654,7 @@ function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, neighbor.ismoving[]))
@@ -667,7 +667,7 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, true))
@@ -680,7 +680,7 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, true))
@@ -690,7 +690,7 @@ function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, true))
@@ -708,7 +708,7 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # The current coordinates of solids change over time.
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, neighbor.ismoving[]))
@@ -734,7 +734,7 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and solids change over time.
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(system.ismoving[], true))
@@ -746,7 +746,7 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # `system` coordinates only change over time when `system.ismoving[]`.
     # `neighbor` coordinates only change over time when `neighbor.ismoving[]`.
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(system.ismoving[], neighbor.ismoving[]))
@@ -756,7 +756,7 @@ function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
                      u_system, u_neighbor)
     # Both coordinates change over time
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, true))
@@ -766,7 +766,7 @@ function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::BoundaryDEMSystem,
                      u_system, u_neighbor)
     # DEM coordinates change over time, the boundary coordinates don't
-    PointNeighbors.update!(neighborhood_search,
+    update!(neighborhood_search, system,
                            current_coordinates(u_system, system),
                            current_coordinates(u_neighbor, neighbor),
                            points_moving=(true, false))
@@ -786,6 +786,18 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # Don't update. This NHS is never used.
     return neighborhood_search
+end
+
+# Forward to PointNeighbors.jl
+function update!(neighborhood_search, system, x, y; points_moving=(true, false))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving)
+end
+
+# For `GPUSystem`s, explicitly pass the backend, so that with a `GPUSystem` with CPU
+# backend, it will actually launch the KernelAbstractions.jl kernels on the CPU.
+function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving,
+                           parallelization_backend = KernelAbstractions.get_backend(system))
 end
 
 function check_configuration(systems)
