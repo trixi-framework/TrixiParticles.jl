@@ -58,38 +58,12 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
                                    is_boundary=false,
                                    neighborhood_search=true,
                                    background_pressure, boundary, tlsph=false)
-        (; particle_spacing, density) = initial_condition
+        (; particle_spacing) = initial_condition
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
-        end
-
-        # Sample boundary
-        if is_boundary
-            if isnothing(signed_distance_field)
-                throw(ArgumentError("`SignedDistanceField` must be passed when `is_boundary=true`"))
-
-            elseif !(signed_distance_field.boundary_packing)
-                throw(ArgumentError("`SignedDistanceField` must be generated with " *
-                                    "`use_for_boundary_packing=true` when `is_boundary=true`"))
-            end
-
-            # Use the particles outside the object as boundary particles.
-            (; positions, distances, max_signed_distance) = signed_distance_field
-
-            shift_condition = tlsph ? particle_spacing : 0.5particle_spacing
-
-            # Delete unnecessary large signed distance field
-            keep_indices = (shift_condition .< distances .< max_signed_distance)
-
-            boundary_coordinates = stack(positions[keep_indices])
-
-            ic = InitialCondition(; coordinates=boundary_coordinates,
-                                  density=first(density), particle_spacing)
-        else
-            ic = initial_condition
         end
 
         search_radius = compact_support(smoothing_kernel, smoothing_length)
@@ -126,14 +100,15 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
             interpolate_particle_face_distance!
         end
 
-        return new{NDIMS, ELTYPE, typeof(ic), typeof(boundary), typeof(smoothing_kernel),
-                   typeof(signed_distance_field),
+        return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(boundary),
+                   typeof(smoothing_kernel), typeof(signed_distance_field),
                    typeof(constrain_particles_on_surface),
-                   typeof(nhs)}(ic, boundary, smoothing_kernel, smoothing_length,
-                                background_pressure, tlsph, signed_distance_field,
-                                is_boundary, shift_condition,
+                   typeof(nhs)}(initial_condition, boundary, smoothing_kernel,
+                                smoothing_length, background_pressure, tlsph,
+                                signed_distance_field, is_boundary, shift_condition,
                                 constrain_particles_on_surface, nhs,
-                                fill(zero(ELTYPE), nparticles(ic)), nothing, false)
+                                fill(zero(ELTYPE), nparticles(initial_condition)), nothing,
+                                false)
     end
 end
 

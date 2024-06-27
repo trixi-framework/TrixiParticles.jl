@@ -8,7 +8,7 @@ file = "sphere"
 tlsph = true
 maxiters = 100
 save_intervals = false
-pack_boundary = false
+pack_boundary = true
 
 # ==========================================================================================
 # ==== Resolution
@@ -24,9 +24,9 @@ boundary_thickness = 4particle_spacing
 density = 1000.0
 
 trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), file=file,
-              density=density, particle_spacing=particle_spacing)
+              density=density, particle_spacing=particle_spacing,
+              boundary_thickness=boundary_thickness, sample_boundary=pack_boundary)
 
-trixi2vtk(shape_sampled)
 # ==========================================================================================
 # ==== Packing
 
@@ -35,25 +35,24 @@ trixi2vtk(shape_sampled)
 # `background_pressure` result in apropiate time-stepsizes.
 background_pressure = 1e8 * particle_spacing^3
 
-signed_distance_field = SignedDistanceField(shape, particle_spacing;
-                                            max_signed_distance=boundary_thickness,
-                                            use_for_boundary_packing=true,
-                                            neighborhood_search=true)
+if pack_boundary
+    boundary_system = ParticlePackingSystem(shape_sampled.boundary; tlsph=tlsph,
+                                            signed_distance_field,
+                                            is_boundary=true, neighborhood_search=true,
+                                            boundary=shape, background_pressure)
+else
+    boundary_system = nothing
+end
+
+shape_sampled = pack_boundary ? shape_sampled.fluid : shape_sampled
 
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
                                        signed_distance_field, neighborhood_search=true,
                                        boundary=shape, background_pressure)
-if pack_boundary
-    boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                            signed_distance_field,
-                                            is_boundary=true, neighborhood_search=true,
-                                            boundary=shape, background_pressure)
-end
 
 # ==========================================================================================
 # ==== Simulation
-semi = pack_boundary ? Semidiscretization(packing_system, boundary_system) :
-       Semidiscretization(packing_system)
+semi = Semidiscretization(packing_system, boundary_system)
 
 # Use a high `tspan` to guarantee that the simulation runs at least for `maxiters`
 tspan = (0, 10.0)
@@ -72,5 +71,5 @@ trixi2vtk(packed_ic, filename="initial_condition_packed")
 
 if pack_boundary
     packed_boundary_ic = InitialCondition(sol, boundary_system, semi)
-    trixi2vtk(packed_boundary_ic, filename="initial_condition_boundary")
+    trixi2vtk(packed_boundary_ic, filename="initial_condition_packed_boundary")
 end
