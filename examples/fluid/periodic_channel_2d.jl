@@ -56,9 +56,10 @@ boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system,
-                          periodic_box_min_corner=[0.0, -0.25],
-                          periodic_box_max_corner=[1.0, 0.75])
+periodic_box = PeriodicBox(min_corner=[0.0, -0.25], max_corner=[1.0, 0.75])
+neighborhood_search = GridNeighborhoodSearch{2}(; periodic_box)
+
+semi = Semidiscretization(fluid_system, boundary_system; neighborhood_search)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=100)
