@@ -56,7 +56,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(initial_density, density_calculator)...,
-               create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
@@ -360,8 +360,9 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
 end
 
 @inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
-    neighbor_system, system_coords, neighbor_coords, v_neighbor_system,
-    neighborhood_search)
+                                                        neighbor_system, system_coords,
+                                                        neighbor_coords, v_neighbor_system,
+                                                        neighborhood_search)
     return boundary_model
 end
 
@@ -385,7 +386,8 @@ end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-    system_coords, neighbor_coords, v_neighbor_system, neighborhood_search)
+                                               system_coords, neighbor_coords,
+                                               v_neighbor_system, neighborhood_search)
     return boundary_model
 end
 
@@ -404,8 +406,6 @@ end
                               distance)
     end
 end
-
-
 
 @inline function adami_pressure_inner!(boundary_model, system, neighbor_system,
                                        v_neighbor_system, particle, neighbor, pos_diff,
@@ -426,7 +426,8 @@ end
 
     cache.volume[particle] += kernel_weight
 
-    compute_smoothed_velocity!(system.cache, system.viscosity, neighbor_system, v_neighbor_system,
+    compute_smoothed_velocity!(system.cache, system.viscosity, neighbor_system,
+                               v_neighbor_system,
                                kernel_weight, particle, neighbor)
 end
 

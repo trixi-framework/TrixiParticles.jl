@@ -50,8 +50,8 @@ function BoundarySPHSystem(initial_condition, model; movement=nothing,
 
     ismoving = Ref(!isnothing(movement))
 
-    cache =(; create_cache_model(viscosity, n_particles, NDIMS)...,
-              create_cache_boundary(movement, initial_condition)...)
+    cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
+             create_cache_boundary(movement, initial_condition)...)
 
     if movement !== nothing && isempty(movement.moving_particles)
         # Default is an empty vector, since the number of particles is not known when
