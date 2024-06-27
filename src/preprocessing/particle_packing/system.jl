@@ -186,6 +186,10 @@ write_v0!(v0, system::ParticlePackingSystem) = v0 .= zero(eltype(system))
 # Number of particles in the system
 @inline nparticles(system::ParticlePackingSystem) = length(system.initial_condition.mass)
 
+@inline function hydrodynamic_mass(system::ParticlePackingSystem, particle)
+    return system.initial_condition.mass[particle]
+end
+
 function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
                                  semi, integrator)
     u = wrap_u(u_ode, system, semi)

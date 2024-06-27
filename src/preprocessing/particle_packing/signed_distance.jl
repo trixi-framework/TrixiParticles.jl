@@ -80,6 +80,14 @@ function Base.show(io::IO, ::MIME"text/plain", system::SignedDistanceField)
     end
 end
 
+function trixi2vtk(signed_distance_field::SignedDistanceField)
+    (; positions, distances, normals) = signed_distance_field
+    positions = stack(signed_distance_field.positions)
+
+    trixi2vtk(positions, signed_distances=distances, normals=normals,
+              filename="signed_distance_field")
+end
+
 function calculate_signed_distances!(positions, distances, normals,
                                      boundary, sdf_factor, max_signed_distance, nhs)
     @threaded positions for point in eachindex(positions)
