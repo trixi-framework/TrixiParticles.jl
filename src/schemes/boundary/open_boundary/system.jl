@@ -481,3 +481,6 @@ end
 function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
+
+@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySPHSystem) = neighbor_system.boundary_model.viscosity
