@@ -48,6 +48,9 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+# nu = 0.02 * smoothing_length * sound_speed/8
+# viscosity = ViscosityMorris(nu=nu)
+# viscosity = ViscosityAdami(nu=nu)
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
 # density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
@@ -57,8 +60,8 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity),
-                                           correction=nothing)
+                                           acceleration=(0.0, -gravity), correction=nothing,
+                                           surface_tension=nothing)
 
 # ==========================================================================================
 # ==== Boundary
@@ -69,12 +72,14 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
 
-boundary_system = BoundarySPHSystem(tank.boundary, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(fluid_system, boundary_system, threaded_nhs_update=true)
-ode = semidiscretize(semi, tspan)
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch,
+                          threaded_nhs_update=true)
+ode = semidiscretize(semi, tspan, data_type=nothing)
 
 info_callback = InfoCallback(interval=100)
 
