@@ -39,7 +39,7 @@ info_callback = InfoCallback(interval=2500)
 callbacks = CallbackSet(info_callback, pp_callback)
 
 sol = solve(ode, RDPK3SpFSAL49(), abstol=1e-8, reltol=1e-6, dt=1e-5,
-            save_everystep=false, callback=callbacks))
+            save_everystep=false, callback=callbacks)
 
 reference_file_name = joinpath(validation_dir(), "oscillating_beam_2d",
                                "validation_reference_$n_particles_beam_y.json")
