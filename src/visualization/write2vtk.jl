@@ -353,7 +353,7 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
         vtk["smoothing_length"] = system.boundary_model.smoothing_length
         vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
         vtk["state_equation"] = type2string(system.boundary_model.state_equation)
-        vtk["viscosity_model"] = type2string(viscosity)
+        vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
