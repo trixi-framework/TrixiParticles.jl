@@ -17,7 +17,6 @@ function interact!(dv, v_particle_system, u_particle_system,
 
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_mean = 0.5 * (rho_a + rho_b)
 
         p_a = particle_pressure(v_particle_system, particle_system, particle)
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
@@ -40,7 +39,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_viscosity_ = dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
-                                     sound_speed, m_a, m_b, rho_mean)
+                                     sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         # Add convection term when using `TransportVelocityAdami`
         dv_convection = momentum_convection(particle_system, neighbor_system,
