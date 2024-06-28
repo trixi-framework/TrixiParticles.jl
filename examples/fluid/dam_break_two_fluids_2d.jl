@@ -39,7 +39,8 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
                        n_layers=boundary_layers, spacing_ratio=spacing_ratio,
                        acceleration=(0.0, -gravity), state_equation=state_equation)
 
-oil = RectangularShape(fluid_particle_spacing, round.(Int, oil_size ./ fluid_particle_spacing),
+oil = RectangularShape(fluid_particle_spacing,
+                       round.(Int, oil_size ./ fluid_particle_spacing),
                        zeros(length(oil_size)), density=oil_density)
 
 # move on top of the water
@@ -54,10 +55,9 @@ smoothing_kernel = WendlandC2Kernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
 
-
-nu = 0.02 * smoothing_length * sound_speed/8
+nu = 0.02 * smoothing_length * sound_speed / 8
 viscosity = ViscosityMorris(nu=nu)
-oil_viscosity = ViscosityMorris(nu=10*nu)
+oil_viscosity = ViscosityMorris(nu=10 * nu)
 
 # Alternatively the density diffusion model by Molteni & Colagrossi can be used,
 # which will run faster.
@@ -73,12 +73,12 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            surface_tension=nothing)
 
 oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
-                                           state_equation, smoothing_kernel,
-                                           smoothing_length, viscosity=oil_viscosity,
-                                           density_diffusion=density_diffusion,
-                                           acceleration=(0.0, -gravity),
-                                           surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-                                           correction=AkinciFreeSurfaceCorrection(oil_density))
+                                         state_equation, smoothing_kernel,
+                                         smoothing_length, viscosity=oil_viscosity,
+                                         density_diffusion=density_diffusion,
+                                         acceleration=(0.0, -gravity),
+                                         surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
+                                         correction=AkinciFreeSurfaceCorrection(oil_density))
 
 # ==========================================================================================
 # ==== Boundary
