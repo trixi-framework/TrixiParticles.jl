@@ -193,7 +193,7 @@
                                              smoothing_length,
                                              density_diffusion=density_diffusion)
 
-        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), [0.0, 0.0], nothing, nothing) with 2 particles"
+        show_compact = "WeaklyCompressibleSPHSystem{2}(SummationDensity(), nothing, Val{:state_equation}(), Val{:smoothing_kernel}(), nothing, Val{:density_diffusion}(), nothing, [0.0, 0.0], nothing, nothing) with 2 particles"
         @test repr(system) == show_compact
         show_box = """
         ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -206,6 +206,7 @@
         │ smoothing kernel: ………………………………… Val                                                              │
         │ viscosity: …………………………………………………… nothing                                                          │
         │ density diffusion: ……………………………… Val{:density_diffusion}()                                        │
+        │ surface tension: …………………………………… nothing                                                          │
         │ acceleration: …………………………………………… [0.0, 0.0]                                                       │
         │ source terms: …………………………………………… Nothing                                                          │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""

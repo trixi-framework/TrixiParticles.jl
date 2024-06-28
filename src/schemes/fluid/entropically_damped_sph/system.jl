@@ -4,7 +4,7 @@
                                 pressure_acceleration=inter_particle_averaged_pressure,
                                 density_calculator=SummationDensity(),
                                 alpha=0.5, viscosity=nothing,
-                                acceleration=ntuple(_ -> 0.0, NDIMS),
+                                acceleration=ntuple(_ -> 0.0, NDIMS), buffer_size=nothing,
                                 source_terms=nothing)
 
 System for particles of a fluid.
@@ -28,6 +28,8 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                         When set to `nothing`, the pressure acceleration formulation for the
                         corresponding [density calculator](@ref density_calculator) is chosen.
 - `density_calculator`: [Density calculator](@ref density_calculator) (default: [`SummationDensity`](@ref))
+- `buffer_size`:    Number of buffer particles.
+                    This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
                     (by default), or a function of `(coords, velocity, density, pressure)`
                     (which are the quantities of a single particle), returning a `Tuple`
@@ -39,10 +41,10 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     The keyword argument `acceleration` should be used instead for
                     gravity-like source terms.
 """
-struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
-                                   PF, ST, PR, PC, C} <: FluidSystem{NDIMS}
-    initial_condition                 :: InitialCondition{ELTYPE}
-    mass                              :: Array{ELTYPE, 1} # [particle]
+struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
+                                   PF, ST, B, PR, PC, C} <: FluidSystem{NDIMS, IC}
+    initial_condition                 :: IC
+    mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
@@ -53,6 +55,7 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
     correction                        :: Nothing
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
+    buffer                            :: B
     particle_refinement               :: PR
     particle_coarsening               :: PC
     cache                             :: C
@@ -66,7 +69,12 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
                                                              ndims(smoothing_kernel)),
                                          particle_refinement=nothing,
                                          particle_coarsening=nothing,
-                                         source_terms=nothing)
+                                         source_terms=nothing, buffer_size=nothing)
+        buffer = isnothing(buffer_size) ? nothing :
+                 SystemBuffer(nparticles(initial_condition), buffer_size)
+
+        initial_condition = allocate_buffer(initial_condition, buffer)
+
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
@@ -90,13 +98,14 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
 
-        new{NDIMS, ELTYPE, typeof(density_calculator), typeof(smoothing_kernel),
-            typeof(viscosity), typeof(pressure_acceleration),
-            typeof(source_terms), typeof(particle_refinement), typeof(particle_coarsening),
+        new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
+            typeof(density_calculator), typeof(smoothing_kernel),
+            typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
+            typeof(buffer), typeof(particle_refinement), typeof(particle_coarsening),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-                           smoothing_length, sound_speed, viscosity, nu_edac, acceleration_,
-                           nothing, pressure_acceleration, source_terms,
-                           particle_refinement, particle_coarsening, cache)
+                           smoothing_length, sound_speed, viscosity, nu_edac,
+                           acceleration_, nothing, pressure_acceleration, source_terms,
+                           buffer, particle_refinement, particle_coarsening, cache)
     end
 end
 
@@ -118,7 +127,12 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         show(io, system)
     else
         summary_header(io, "EntropicallyDampedSPHSystem{$(ndims(system))}")
-        summary_line(io, "#particles", nparticles(system))
+        if system.buffer isa SystemBuffer
+            summary_line(io, "#particles", nparticles(system))
+            summary_line(io, "#buffer_particles", system.buffer.buffer_size)
+        else
+            summary_line(io, "#particles", nparticles(system))
+        end
         summary_line(io, "density calculator",
                      system.density_calculator |> typeof |> nameof)
         summary_line(io, "viscosity", system.viscosity |> typeof |> nameof)
@@ -155,6 +169,18 @@ end
 
 @inline function particle_pressure(v, system::EntropicallyDampedSPHSystem, particle)
     return v[end, particle]
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the pressure
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline function set_particle_pressure!(v, system::EntropicallyDampedSPHSystem, particle,
+                                        pressure)
+    v[end, particle] = pressure
+
+    return v
 end
 
 @inline system_sound_speed(system::EntropicallyDampedSPHSystem) = system.sound_speed

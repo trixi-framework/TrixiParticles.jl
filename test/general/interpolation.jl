@@ -115,15 +115,11 @@
         # Density is integrated with `ContinuityDensity`
         v_no_bnd = vcat(fluid.velocity, fluid.density')
 
-        sol_no_boundary = (; u=[(; x=(v_no_bnd, u_no_bnd))])
-
         u_bnd = hcat(fluid.coordinates, bnd.coordinates)
         v_bnd_velocity = hcat(fluid.velocity, bnd.velocity)
         v_bnd_density = vcat(fluid.density, bnd.density)
 
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
-
-        sol_boundary = (; u=[(; x=(v_bnd, u_bnd))])
 
         semi_no_boundary = Semidiscretization(fluid_system,
                                               neighborhood_search=GridNeighborhoodSearch)
@@ -139,7 +135,8 @@
                 interpolation_walldistance(y) = TrixiParticles.interpolate_point([0.0, y],
                                                                                  semi_no_boundary,
                                                                                  fluid_system,
-                                                                                 sol_no_boundary,
+                                                                                 v_no_bnd,
+                                                                                 u_no_bnd,
                                                                                  cut_off_bnd=cut_off_bnd)
 
                 # top outside
@@ -205,7 +202,7 @@
                 result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
                                                                      semi_no_boundary,
                                                                      fluid_system,
-                                                                     sol_no_boundary,
+                                                                     v_no_bnd, u_no_bnd,
                                                                      cut_off_bnd=cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0000000000001, 666.0],
@@ -224,13 +221,13 @@
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_no_boundary,
                                                                   fluid_system,
-                                                                  sol_no_boundary,
+                                                                  v_no_bnd, u_no_bnd,
                                                                   endpoint=true,
                                                                   cut_off_bnd=cut_off_bnd)
 
                 result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                          5, semi_no_boundary,
-                                                         fluid_system, sol_no_boundary,
+                                                         fluid_system, v_no_bnd, u_no_bnd,
                                                          endpoint=false,
                                                          cut_off_bnd=cut_off_bnd)
 
@@ -282,7 +279,7 @@
 
                 result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi_no_boundary,
-                                              fluid_system, sol_no_boundary)
+                                              fluid_system, v_no_bnd, u_no_bnd)
 
                 expected_res = (density=[
                                     666.0, 666.0, 666.0, 666.0, 666.0, 666.0, 666.0,
@@ -403,7 +400,7 @@
 
                 result = interpolate_plane_2d(interpolation_start, interpolation_end,
                                               resolution, semi_no_boundary, fluid_system,
-                                              sol_no_boundary,
+                                              v_no_bnd, u_no_bnd,
                                               smoothing_length=0.5 * smoothing_length)
                 expected_res = (density=[
                                     666.0, 666.0, 666.0, 666.0, 666.0, 666.0, 666.0, 666.0,
@@ -490,7 +487,8 @@
                 interpolation_walldistance(y) = TrixiParticles.interpolate_point([0.0, y],
                                                                                  semi_boundary,
                                                                                  fluid_system,
-                                                                                 sol_boundary,
+                                                                                 v_bnd,
+                                                                                 u_bnd,
                                                                                  cut_off_bnd=cut_off_bnd)
 
                 # top outside
@@ -578,7 +576,7 @@
                 result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
                                                                      semi_boundary,
                                                                      fluid_system,
-                                                                     sol_boundary,
+                                                                     v_bnd, u_bnd,
                                                                      cut_off_bnd=cut_off_bnd)
                 if cut_off_bnd
                     expected_multi = (density=[666.0, 666.0000000000001, 666.0],
@@ -618,13 +616,13 @@
                 result_endpoint = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                                   5, semi_boundary,
                                                                   fluid_system,
-                                                                  sol_boundary,
+                                                                  v_bnd, u_bnd,
                                                                   endpoint=true,
                                                                   cut_off_bnd=cut_off_bnd)
 
                 result = TrixiParticles.interpolate_line([1.0, -0.05], [1.0, 1.0],
                                                          5, semi_no_boundary,
-                                                         fluid_system, sol_no_boundary,
+                                                         fluid_system, v_no_bnd, u_no_bnd,
                                                          endpoint=false,
                                                          cut_off_bnd=cut_off_bnd)
                 if cut_off_bnd
@@ -823,15 +821,11 @@
         # Density is integrated with `ContinuityDensity`
         v_no_bnd = vcat(fluid.velocity, fluid.density')
 
-        sol_no_boundary = (; u=[(; x=(v_no_bnd, u_no_bnd))])
-
         u_bnd = hcat(fluid.coordinates, bnd.coordinates)
         v_bnd_velocity = hcat(fluid.velocity, bnd.velocity)
         v_bnd_density = vcat(fluid.density, bnd.density)
 
         v_bnd = vcat(v_bnd_velocity, v_bnd_density')
-
-        sol_boundary = (; u=[(; x=(v_bnd, u_bnd))])
 
         semi_no_boundary = Semidiscretization(fluid_system,
                                               neighborhood_search=GridNeighborhoodSearch)
@@ -851,7 +845,8 @@
                                                                                  ],
                                                                                  semi_no_boundary,
                                                                                  fluid_system,
-                                                                                 sol_no_boundary,
+                                                                                 v_no_bnd,
+                                                                                 u_no_bnd,
                                                                                  cut_off_bnd=cut_off_bnd)
 
                 # top outside
@@ -920,7 +915,7 @@
                 result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
                                                                      semi_no_boundary,
                                                                      fluid_system,
-                                                                     sol_no_boundary,
+                                                                     v_no_bnd, u_no_bnd,
                                                                      cut_off_bnd=cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
@@ -944,7 +939,8 @@
                                                                                  ],
                                                                                  semi_boundary,
                                                                                  fluid_system,
-                                                                                 sol_boundary,
+                                                                                 v_no_bnd,
+                                                                                 u_no_bnd,
                                                                                  cut_off_bnd=cut_off_bnd)
 
                 # top outside
@@ -1031,7 +1027,7 @@
                 result_multipoint = TrixiParticles.interpolate_point(multi_point_coords,
                                                                      semi_no_boundary,
                                                                      fluid_system,
-                                                                     sol_no_boundary,
+                                                                     v_no_bnd, u_no_bnd,
                                                                      cut_off_bnd=cut_off_bnd)
 
                 expected_multi = (density=[666.0, 666.0, 666.0], neighbor_count=[4, 4, 9],
@@ -1053,7 +1049,7 @@
 
                 result = interpolate_plane_3d(p1, p2, p3,
                                               resolution, semi_no_boundary,
-                                              fluid_system, sol_no_boundary)
+                                              fluid_system, v_no_bnd, u_no_bnd)
 
                 expected_res = (density=[
                                     666.0,
