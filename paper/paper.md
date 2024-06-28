@@ -99,7 +99,7 @@ The resulting ordinary differential equation (ODE) problem is then fed into the 
 
 ![Main building blocks of TrixiParticles.jl. \label{fig:structure}](structure.png){width=100%}
 
-## Feature highlights
+## Features
 
 At the time of writing, the following feature highlights are available in TrixiParticles.jl:
 
