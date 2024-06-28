@@ -56,7 +56,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                         dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
-                                     sound_speed, m_a, m_b, rho_mean)
+                                     sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,

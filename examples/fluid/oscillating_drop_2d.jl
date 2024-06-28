@@ -89,5 +89,5 @@ exact_solution_ode = ODEProblem(exact_solution_rhs, exact_u0, tspan)
 sol_exact = solve(exact_solution_ode, RDPK3SpFSAL49(), save_everystep=false)
 
 # Error in the semi-major axis of the elliptical drop
-error_A = maximum(sol.u[end].x[2]) + 0.5fluid_particle_spacing -
+error_A = maximum(sol.u[end].x[2]) + 0.5 * fluid_particle_spacing -
           maximum(sol_exact.u[end][2:3])
