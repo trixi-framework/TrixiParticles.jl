@@ -24,7 +24,7 @@ The semidiscretization couples the passed systems to one simulation.
 semi = Semidiscretization(fluid_system, boundary_system)
 
 semi = Semidiscretization(fluid_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=:serial))
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=SerialUpdate()))
 
 periodic_box = PeriodicBox(min_corner = [0.0, 0.0], max_corner = [1.0, 1.0])
 semi = Semidiscretization(fluid_system, boundary_system,
