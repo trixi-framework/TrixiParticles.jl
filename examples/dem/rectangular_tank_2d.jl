@@ -30,8 +30,7 @@ boundary_system = BoundaryDEMSystem(tank.boundary, 10e7)
 # ==========================================================================================
 # ==== Simulation
 
-semi = Semidiscretization(rock_system, boundary_system,
-                          neighborhood_search=GridNeighborhoodSearch)
+semi = Semidiscretization(rock_system, boundary_system)
 
 tspan = (0.0, 5.0)
 ode = semidiscretize(semi, tspan)

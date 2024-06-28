@@ -1,4 +1,4 @@
-# Wrapper for any neighborhood search that forwards `for_particle_neighbor` to the wrapped
+# Wrapper for any neighborhood search that forwards `foreach_point_neighbor` to the wrapped
 # neighborhood search, but doesn't do anything in the update step.
 # This is used in the example tests to test for zero allocations in the `kick!` function.
 struct NoUpdateNeighborhoodSearch{NHS}
@@ -30,7 +30,7 @@ end
 # No update
 @inline function TrixiParticles.PointNeighbors.update!(search::NoUpdateNeighborhoodSearch,
                                                        x, y;
-                                                       particles_moving=(true, true))
+                                                       points_moving=(true, true))
     return search
 end
 
