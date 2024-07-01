@@ -141,6 +141,6 @@ The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] well
 # Acknowledgements
 
 Sven Berger acknowledges funding from [hereon](https://www.hereon.de/) and [HiRSE](https://www.helmholtz-hirse.de/).
-Michael Schlottke-Lakemper and Gregor Gassner receive funding through the [DFG research unit FOR 5409](https://verwaltung.uni-koeln.de/forschungsmanagement/content/large_scale_projects/coordinated_dfg_programmes/research_units/ru_5409/index_eng.html) "Structure-Preserving Numerical Methods for Bulk- and Interface Coupling of Heterogeneous Models (SNuBIC)" (project number 463312734).
+Michael Schlottke-Lakemper and Gregor Gassner receive funding through the [DFG research unit FOR 5409](https://gepris.dfg.de/gepris/projekt/463312734) "Structure-Preserving Numerical Methods for Bulk- and Interface Coupling of Heterogeneous Models (SNuBIC)" (project number 463312734).
 
 # References
