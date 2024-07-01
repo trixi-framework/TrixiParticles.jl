@@ -78,7 +78,7 @@ struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
     zone_width        :: ZW
     flow_direction    :: FD
 
-    function InFlow(; plane, flow_direction, density, particle_spacing,
+    function InFlow(; plane, flow_direction, density, particle_spacing, pressure=0.0,
                     initial_condition=nothing, extrude_geometry=nothing,
                     open_boundary_layers::Integer)
         if open_boundary_layers <= 0
@@ -91,13 +91,13 @@ struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
         # Sample particles in boundary zone
         if isnothing(initial_condition) && isnothing(extrude_geometry)
             initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
-                                                                density,
+                                                                density, pressure,
                                                                 direction=-flow_direction_,
                                                                 n_extrude=open_boundary_layers)
         elseif !isnothing(extrude_geometry)
             initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                                 particle_spacing,
-                                                                density,
+                                                                density, pressure,
                                                                 direction=-flow_direction_,
                                                                 n_extrude=open_boundary_layers)
         end
@@ -214,7 +214,7 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
     zone_width        :: ZW
     flow_direction    :: FD
 
-    function OutFlow(; plane, flow_direction, density, particle_spacing,
+    function OutFlow(; plane, flow_direction, density, particle_spacing, pressure=0.0,
                      initial_condition=nothing, extrude_geometry=nothing,
                      open_boundary_layers::Integer)
         if open_boundary_layers <= 0
@@ -227,11 +227,11 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
         # Sample particles in boundary zone
         if isnothing(initial_condition) && isnothing(extrude_geometry)
             initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
-                                                                density,
+                                                                density, pressure,
                                                                 direction=flow_direction_,
                                                                 n_extrude=open_boundary_layers)
         elseif !isnothing(extrude_geometry)
-            initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
+            initial_condition = TrixiParticles.extrude_geometry(extrude_geometry; pressure,
                                                                 particle_spacing, density,
                                                                 direction=-flow_direction_,
                                                                 n_extrude=open_boundary_layers)

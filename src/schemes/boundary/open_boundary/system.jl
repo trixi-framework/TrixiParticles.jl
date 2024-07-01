@@ -37,6 +37,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
                              RD, B} <: System{NDIMS, IC}
     initial_condition        :: IC
     fluid_system             :: FS
+    smoothing_length         :: ELTYPE
     mass                     :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     density                  :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume                   :: ARRAY1D # Array{ELTYPE, 1}: [particle]
@@ -54,9 +55,9 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
 
     function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
                                    fluid_system::FluidSystem, buffer_size::Integer,
-                                   reference_velocity=zeros(ndims(boundary_zone)),
-                                   reference_pressure=0.0,
-                                   reference_density=first(boundary_zone.initial_condition.density))
+                                   reference_velocity=nothing,
+                                   reference_pressure=nothing,
+                                   reference_density=nothing)
         (; initial_condition) = boundary_zone
 
         buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -66,7 +67,7 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
-        if !(reference_velocity isa Function ||
+        if !(reference_velocity isa Function || isnothing(reference_velocity) ||
              (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
             throw(ArgumentError("`reference_velocity` must be either a function mapping " *
                                 "each particle's coordinates and time to its velocity, " *
@@ -76,7 +77,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
             reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
         end
 
-        if !(reference_pressure isa Function || reference_pressure isa Real)
+        if !(reference_pressure isa Function || reference_pressure isa Real ||
+             isnothing(reference_pressure))
             throw(ArgumentError("`reference_pressure` must be either a function mapping " *
                                 "each particle's coordinates and time to its pressure, " *
                                 "a vector holding the pressure of each particle, or a scalar"))
@@ -84,7 +86,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
             reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
         end
 
-        if !(reference_density isa Function || reference_density isa Real)
+        if !(reference_density isa Function || reference_density isa Real ||
+             isnothing(reference_density))
             throw(ArgumentError("`reference_density` must be either a function mapping " *
                                 "each particle's coordinates and time to its density, " *
                                 "a vector holding the density of each particle, or a scalar"))
@@ -92,9 +95,13 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
 
+        if isnothing(reference_pressure)
+            pressure = copy(initial_condition.pressure)
+        else
+            pressure = [reference_pressure_(initial_condition.coordinates[:, i], 0.0)
+                        for i in eachparticle(initial_condition)]
+        end
         mass = copy(initial_condition.mass)
-        pressure = [reference_pressure_(initial_condition.coordinates[:, i], 0.0)
-                    for i in eachparticle(initial_condition)]
         density = copy(initial_condition.density)
         volume = similar(initial_condition.density)
 
@@ -107,7 +114,8 @@ struct OpenBoundarySPHSystem{BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, ARRAY2D
                    typeof(fluid_system), typeof(mass), typeof(characteristics),
                    typeof(reference_velocity_), typeof(reference_pressure_),
                    typeof(reference_density_),
-                   typeof(buffer)}(initial_condition, fluid_system, mass, density, volume,
+                   typeof(buffer)}(initial_condition, fluid_system,
+                                   fluid_system.smoothing_length, mass, density, volume,
                                    pressure, characteristics, previous_characteristics,
                                    sound_speed, boundary_zone, flow_direction_,
                                    reference_velocity_, reference_pressure_,
@@ -128,6 +136,10 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time
+    (; reference_velocity, reference_pressure, reference_density) = system
+    v_ref = isnothing(reference_velocity(0, 0)) ? "-" : string(nameof(reference_velocity))
+    p_ref = isnothing(reference_pressure(0, 0)) ? "-" : string(nameof(reference_pressure))
+    rho_ref = isnothing(reference_density(0, 0)) ? "-" : string(nameof(reference_density))
 
     if get(io, :compact, false)
         show(io, system)
@@ -138,12 +150,16 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary", type2string(system.boundary_zone))
         summary_line(io, "flow direction", system.flow_direction)
-        summary_line(io, "prescribed velocity", string(nameof(system.reference_velocity)))
-        summary_line(io, "prescribed pressure", string(nameof(system.reference_pressure)))
-        summary_line(io, "prescribed density", string(nameof(system.reference_density)))
+        summary_line(io, "prescribed velocity", v_ref)
+        summary_line(io, "prescribed pressure", p_ref)
+        summary_line(io, "prescribed density", rho_ref)
         summary_line(io, "width", round(system.boundary_zone.zone_width, digits=3))
         summary_footer(io)
     end
+end
+
+@inline function smoothing_kernel(system::OpenBoundarySPHSystem, distance)
+    smoothing_kernel(system.fluid_system, distance)
 end
 
 function reset_callback_flag!(system::OpenBoundarySPHSystem)
@@ -167,8 +183,7 @@ end
 end
 
 @inline function update_quantities!(system::OpenBoundarySPHSystem, v, u, t)
-    (; density, pressure, characteristics, flow_direction, sound_speed,
-    reference_velocity, reference_pressure, reference_density) = system
+    (; density, pressure, characteristics, flow_direction, sound_speed) = system
 
     # Update quantities based on the characteristic variables
     @threaded system for particle in each_moving_particle(system)
@@ -178,13 +193,12 @@ end
         J2 = characteristics[2, particle]
         J3 = characteristics[3, particle]
 
-        rho_ref = reference_density(particle_position, t)
+        rho_ref, p_ref, v_ref = reference_values(v, system, particle, particle_position, t)
+
         density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
 
-        p_ref = reference_pressure(particle_position, t)
         pressure[particle] = p_ref + 0.5 * (J2 + J3)
 
-        v_ref = reference_velocity(particle_position, t)
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
 
@@ -269,8 +283,7 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, sound_speed, characteristics, flow_direction,
-    reference_velocity, reference_pressure, reference_density) = system
+    (; volume, sound_speed, characteristics, flow_direction) = system
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -287,18 +300,17 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
         # Determine current and prescribed quantities
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_density(neighbor_position, t)
 
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_pressure(neighbor_position, t)
 
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_neighbor_ref = reference_velocity(neighbor_position, t)
+
+        rho_ref, p_ref, v_ref = reference_values(v, system, particle, neighbor_position, t)
 
         # Determine characteristic variables
         density_term = -sound_speed^2 * (rho_b - rho_ref)
         pressure_term = p_b - p_ref
-        velocity_term = rho_b * sound_speed * (dot(v_b - v_neighbor_ref, flow_direction))
+        velocity_term = rho_b * sound_speed * (dot(v_b - v_ref, flow_direction))
 
         kernel_ = smoothing_kernel(neighbor_system, distance)
 
@@ -464,6 +476,31 @@ function write_u0!(u0, system::OpenBoundarySPHSystem)
     end
 
     return u0
+end
+
+function reference_values(v, system, particle, position, t)
+    (; reference_velocity, reference_pressure, reference_density,
+    initial_condition) = system
+
+    rho_ref = reference_density(position, t)
+    p_ref = reference_pressure(position, t)
+    v_ref = reference_velocity(position, t)
+
+    if isnothing(rho_ref)
+        rho_ref = initial_condition.density[particle]
+    end
+    if isnothing(p_ref)
+        p_ref = initial_condition.pressure[particle]
+    end
+    if isnothing(v_ref)
+        v_ref = current_velocity(v, system, particle)
+    end
+
+    return rho_ref, p_ref, v_ref
+end
+
+function wrap_reference_function(::Nothing, ::Val)
+    return (coords, t) -> nothing
 end
 
 function wrap_reference_function(function_::Function, ::Val)

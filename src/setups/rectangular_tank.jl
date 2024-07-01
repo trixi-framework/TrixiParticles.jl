@@ -150,7 +150,7 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               n_particles_per_dim)
 
         boundary = InitialCondition(coordinates=boundary_coordinates,
-                                    velocity=boundary_velocities,
+                                    velocity=boundary_velocities, pressure=first(pressure),
                                     mass=boundary_masses, density=boundary_densities,
                                     particle_spacing=boundary_spacing)
 
