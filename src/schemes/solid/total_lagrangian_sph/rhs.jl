@@ -107,7 +107,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
                                      neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_mean)
+                                     sound_speed, m_b, m_a, rho_a, rho_b, grad_kernel)
 
         dv_particle = dv_boundary + dv_viscosity_
 
