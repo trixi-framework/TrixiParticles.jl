@@ -36,19 +36,16 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), 
 background_pressure = 1e8 * particle_spacing^3
 
 if pack_boundary
-    boundary_system = ParticlePackingSystem(shape_sampled.boundary; tlsph=tlsph,
-                                            signed_distance_field,
+    boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
                                             is_boundary=true, neighborhood_search=true,
-                                            boundary=shape, background_pressure)
+                                            background_pressure)
 else
     boundary_system = nothing
 end
 
-shape_sampled = pack_boundary ? shape_sampled.fluid : shape_sampled
-
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                       signed_distance_field, neighborhood_search=true,
-                                       boundary=shape, background_pressure)
+                                       neighborhood_search=true,
+                                       background_pressure)
 
 # ==========================================================================================
 # ==== Simulation

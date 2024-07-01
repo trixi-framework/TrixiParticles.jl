@@ -40,70 +40,78 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
+struct ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}
+    shape                      :: S
+    initial_condition          :: IC
+    initial_condition_boundary :: ICB
+    signed_distance_field      :: SDF
+    initial_grid               :: IG
+    winding_number             :: WN
+    particle_spacing           :: ELTYPE
+end
+
+Base.ndims(cs::ComplexShape) = ndims(cs.initial_condition)
+Base.eltype(cs::ComplexShape) = eltype(cs.initial_condition)
+
 function ComplexShape(shape::Shapes; particle_spacing, density, pressure=0.0, mass=nothing,
                       velocity=zeros(ndims(shape)),
-                      sample_boundary=false, signed_distance_field=nothing,
+                      sample_boundary=false, boundary_thickness=6particle_spacing,
                       point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                      hierarchical_winding=false,
                                                                      winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, seed=shape.min_corner,
-                      max_nparticles=Int(1e7), pad_initial_particle_grid=2particle_spacing)
+                      store_winding_number=false, seed=shape.min_corner .- sqrt(eps()),
+                      max_nparticles=Int(1e7))
     if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
         throw(ArgumentError("`WindingNumberHorman` only supports 2D shapes"))
     end
 
+    pad = sample_boundary ? 2boundary_thickness : 4particle_spacing
+    grid = particle_grid(shape, particle_spacing; pad, seed, max_nparticles)
+
+    inpoly, winding_numbers = point_in_shape_algorithm(shape, grid; store_winding_number)
+    coordinates = stack(grid[inpoly])
+
+    initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
+                                         particle_spacing)
+
+    signed_distance_field = SignedDistanceField(shape, particle_spacing; point_grid=grid,
+                                                max_signed_distance=boundary_thickness,
+                                                use_for_boundary_packing=sample_boundary)
+
     if sample_boundary
-        if isnothing(signed_distance_field)
-            throw(ArgumentError("`SignedDistanceField` must be passed when `sample_boundary=true`"))
-
-        elseif !(signed_distance_field.boundary_packing)
-            throw(ArgumentError("`SignedDistanceField` must be generated with " *
-                                "`use_for_boundary_packing=true` when `sample_boundary=true`"))
-        end
-
         # Use the particles outside the object as boundary particles.
         (; positions, distances, max_signed_distance) = signed_distance_field
 
         # Delete unnecessary large signed distance field
-        keep_indices = (particle_spacing .< distances .< max_signed_distance)
+        keep_indices = (particle_spacing .< distances .<= max_signed_distance)
 
         boundary_coordinates = stack(positions[keep_indices])
-        boundary = InitialCondition(; coordinates=boundary_coordinates, density,
-                                    particle_spacing)
-
-        fluid = sample(shape; particle_spacing, density, pressure, mass, velocity,
-                       point_in_shape_algorithm, store_winding_number, seed, max_nparticles,
-                       pad=pad_initial_particle_grid)
-
-        return (fluid=fluid, boundary=boundary)
+        initial_condition_boundary = InitialCondition(; coordinates=boundary_coordinates,
+                                                      density, particle_spacing)
+    else
+        initial_condition_boundary = nothing
     end
-
-    return sample(shape; particle_spacing, density, pressure, mass, velocity,
-                  point_in_shape_algorithm, store_winding_number, seed, max_nparticles,
-                  pad=pad_initial_particle_grid)
-end
-
-function sample(shape::Shapes; particle_spacing, density, pressure=0.0, mass=nothing,
-                velocity=zeros(ndims(shape)),
-                point_in_shape_algorithm=WindingNumberJacobson(; shape,
-                                                               hierarchical_winding=false,
-                                                               winding_number_factor=sqrt(eps())),
-                store_winding_number=false, seed=shape.min_corner, max_nparticles=Int(1e7),
-                pad=2particle_spacing)
-    grid = particle_grid(shape, particle_spacing; pad, seed, max_nparticles)
-
-    inpoly, winding_numbers = point_in_shape_algorithm(shape, grid; store_winding_number)
-    coordinates = grid[:, inpoly]
-
-    ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
-                          particle_spacing)
 
     # This is most probably only for debugging
     if store_winding_number
-        return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
+        initial_grid = stack(grid)
+    else
+        initial_grid = nothing
     end
 
-    return ic
+    IC = typeof(initial_condition)
+    ICB = typeof(initial_condition_boundary)
+    IG = typeof(initial_grid)
+    WN = typeof(winding_numbers)
+    SDF = typeof(signed_distance_field)
+    S = typeof(shape)
+    ELTYPE = eltype(initial_condition)
+
+    return ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}(shape, initial_condition,
+                                                         initial_condition_boundary,
+                                                         signed_distance_field,
+                                                         initial_grid, winding_numbers,
+                                                         particle_spacing)
 end
 
 function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing,
@@ -131,5 +139,7 @@ function particle_grid(shape::Shapes, particle_spacing; pad=2particle_spacing,
                             "# particles ($n_particles) > `max_nparticles` ($max_nparticles)"))
     end
 
-    return hcat(collect.(Iterators.product(ranges_...))...)
+    point_grid = Iterators.product(ranges_...)
+
+    return [SVector(position) for position in point_grid]
 end

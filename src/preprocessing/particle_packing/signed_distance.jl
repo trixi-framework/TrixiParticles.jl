@@ -2,7 +2,7 @@
     SignedDistanceField(boundary, particle_spacing;
                         max_signed_distance=4particle_spacing,
                         use_for_boundary_packing=false,
-                        neighborhood_search=true, pad=max_signed_distance)
+                        neighborhood_search=true)
 
 Generate particles along a surface of a complex shape holding the signed distances and normals
 to this surface.
@@ -15,10 +15,12 @@ to this surface.
 - `max_signed_distance`: Maximum signed distance to be stored. That is, only particles with a
                          distance of `abs(max_signed_distance)` to the surface of the shape
                          will be sampled.
+- `point_grid`: Point grid in which the signed distance field is computed.
+                When set to `nothing`, the bounding box of the shape will be sampled
+                with a cartesian point grid.
 - `use_for_boundary_packing`: Set to `true` if [`SignedDistanceField`] is used to pack
                               a boundary [`ParticlePackingSystem`](@ref).
 - `neighborhood_search`: If set to `true` an internally generated face neighborhood search is used.
-- `pad`: Padding of the initial point grid for sampling particles.
 """
 struct SignedDistanceField{NDIMS, ELTYPE}
     positions           :: Vector{SVector{NDIMS, ELTYPE}}
@@ -28,9 +30,10 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     boundary_packing    :: Bool
 
     function SignedDistanceField(boundary, particle_spacing;
+                                 point_grid=nothing,
                                  max_signed_distance=4particle_spacing,
                                  use_for_boundary_packing=false,
-                                 neighborhood_search=true, pad=max_signed_distance)
+                                 neighborhood_search=true)
         NDIMS = ndims(boundary)
         ELTYPE = eltype(max_signed_distance)
 
@@ -43,9 +46,11 @@ struct SignedDistanceField{NDIMS, ELTYPE}
             nhs = TrivialNeighborhoodSearch{NDIMS}(max_signed_distance, eachface(boundary))
         end
 
-        min_corner = boundary.min_corner .- sdf_factor .* pad
-        max_corner = boundary.max_corner .+ sdf_factor .* pad
-        point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
+        if isnothing(point_grid)
+            min_corner = boundary.min_corner .- sdf_factor .* max_signed_distance
+            max_corner = boundary.max_corner .+ sdf_factor .* max_signed_distance
+            point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
+        end
 
         positions = vec([SVector(position) for position in point_grid])
         normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(point_grid))

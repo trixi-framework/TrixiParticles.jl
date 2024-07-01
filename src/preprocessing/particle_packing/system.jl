@@ -8,7 +8,7 @@ System to generate body fitted particles for complex shapes.
 For more information about the methods, see desription below.
 
 # Arguments
-- `initial_condition`: [`InitialCondition`](@ref) to be packed.
+- `initial_condition`: [`InitialCondition`](@ref) or [`ComplexShape`](@ref) to be packed.
 
 # Keywords
 - `boundary`: Shape returned by [`load_shape`](@ref).
@@ -51,16 +51,16 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
     buffer                         :: Nothing
     update_callback_used           :: Ref{Bool}
 
-    function ParticlePackingSystem(initial_condition;
-                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(initial_condition)}(),
-                                   smoothing_length=1.2initial_condition.particle_spacing,
-                                   signed_distance_field=nothing,
-                                   is_boundary=false,
+    function ParticlePackingSystem(complex_shape;
+                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(complex_shape)}(),
+                                   smoothing_length=1.2complex_shape.particle_spacing,
+                                   signed_distance_field=complex_shape.signed_distance_field,
+                                   is_boundary=false, boundary=complex_shape.shape,
                                    neighborhood_search=true,
-                                   background_pressure, boundary, tlsph=false)
-        (; particle_spacing) = initial_condition
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
+                                   background_pressure, tlsph=false)
+        (; particle_spacing) = complex_shape
+        NDIMS = ndims(complex_shape)
+        ELTYPE = eltype(complex_shape)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -100,6 +100,8 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
             interpolate_particle_face_distance!
         end
 
+        initial_condition = InitialCondition(complex_shape; is_boundary)
+
         return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(boundary),
                    typeof(smoothing_kernel), typeof(signed_distance_field),
                    typeof(constrain_particles_on_surface),
@@ -138,6 +140,16 @@ function Base.show(io::IO, ::MIME"text/plain", system::ParticlePackingSystem)
         summary_footer(io)
     end
 end
+
+function InitialCondition(ic::ComplexShape; is_boundary=false)
+    if is_boundary
+        return ic.initial_condition_boundary
+    end
+
+    return ic.initial_condition
+end
+
+InitialCondition(ic::InitialCondition; is_boundary=false) = ic
 
 function reset_callback_flag(system::ParticlePackingSystem)
     system.update_callback_used[] = false

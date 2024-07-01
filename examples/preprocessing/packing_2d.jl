@@ -1,7 +1,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-file = "circle"
+file = "hexagon"
 
 # ==========================================================================================
 # ==== Packing parameters
@@ -23,7 +23,8 @@ boundary_thickness = 5particle_spacing
 density = 1000.0
 
 trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_2d.jl"), file=file,
-              particle_spacing=particle_spacing, density=density)
+              particle_spacing=particle_spacing, density=density, sample_boundary=true,
+              boundary_thickness=8particle_spacing)
 
 # ==========================================================================================
 # ==== Packing
@@ -33,21 +34,14 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_2d.jl"), 
 # `background_pressure` result in apropiate time-stepsizes.
 background_pressure = 1e6 * particle_spacing^2
 
-signed_distance_field = SignedDistanceField(shape, particle_spacing;
-                                            max_signed_distance=boundary_thickness,
-                                            use_for_boundary_packing=true,
-                                            neighborhood_search=true)
-
 packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                       signed_distance_field,
                                        neighborhood_search=true,
-                                       boundary=shape, background_pressure)
+                                       background_pressure)
 
 boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
                                         is_boundary=true,
-                                        signed_distance_field,
                                         neighborhood_search=true,
-                                        boundary=shape, background_pressure)
+                                        background_pressure)
 
 # ==========================================================================================
 # ==== Simulation
