@@ -3,7 +3,6 @@
 @testset verbose=true "Unit Tests" begin
     include("callbacks/callbacks.jl")
     include("general/general.jl")
-    include("neighborhood_search/neighborhood_search.jl")
     include("setups/setups.jl")
     include("systems/systems.jl")
     include("schemes/schemes.jl")

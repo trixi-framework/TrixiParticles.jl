@@ -77,7 +77,7 @@ function RectangularShape(particle_spacing, n_particles_per_dimension, min_coord
         throw(ArgumentError("`min_coordinates` must be of length $NDIMS for a $(NDIMS)D problem"))
     end
 
-    if density !== nothing && density < eps()
+    if density !== nothing && any(density .< eps())
         throw(ArgumentError("`density` needs to be positive and larger than $(eps())"))
     end
 

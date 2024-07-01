@@ -35,6 +35,19 @@ end
     return v[end, particle]
 end
 
+# WARNING!
+# These functions are intended to be used internally to set the density
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+@inline set_particle_density!(v, system, ::SummationDensity, particle, density) = v
+
+@inline function set_particle_density!(v, system, ::ContinuityDensity, particle, density)
+    v[end, particle] = density
+
+    return v
+end
+
 function summation_density!(system, semi, u, u_ode, density;
                             particles=each_moving_particle(system))
     set_zero!(density)

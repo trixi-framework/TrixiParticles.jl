@@ -153,7 +153,7 @@
                     return Val(Symbol("mock_" * string(f)))
                 end
 
-                TrixiParticles.eachneighbor(_, ::Val{:nhs}) = neighbors
+                TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
 
                 function Base.getproperty(::Val{:nhs}, f::Symbol)
                     if f === :search_radius

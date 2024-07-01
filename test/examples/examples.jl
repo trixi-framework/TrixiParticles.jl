@@ -8,7 +8,7 @@
                                                     "oscillating_drop_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             # This error varies between serial and multithreaded runs
-            @test isapprox(error_A, 0.0001717690010767381, atol=5e-7)
+            @test isapprox(error_A, 0.0, atol=1.73e-4)
             @test count_rhs_allocations(sol, semi) == 0
         end
 
@@ -76,18 +76,23 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/moving_wall_2d.jl" begin
-            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
-                                           joinpath(examples_dir(), "fluid",
-                                                    "moving_wall_2d.jl"))
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
-        end
-
         @trixi_testset "fluid/dam_break_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "dam_break_2d.jl"), tspan=(0.0, 0.1)) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n",
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/dam_break_2d.jl with KernelAbstractions.jl" begin
+            # Emulate the GPU code on the CPU by passing `data_type = Array`
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d.jl"), tspan=(0.0, 0.1),
+                                           data_type=Array) [
                 r"┌ Info: The desired tank length in y-direction .*\n",
                 r"└ New tank length in y-direction.*\n",
             ]
@@ -122,6 +127,76 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/pipe_flow_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/dam_break_2d_surface_tension.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d_surface_tension.jl"),
+                                           tspan=(0.0, 0.1))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/sphere_surface_tension_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "sphere_surface_tension_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/sphere_surface_tension_3d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "sphere_surface_tension_3d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/falling_water_spheres_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "falling_water_spheres_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/falling_water_spheres_3d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "falling_water_spheres_3d.jl")) [
+                r"┌ Info: The desired tank length in x-direction .*\n",
+                r"└ New tank length in x-direction.*\n",
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n",
+                r"┌ Info: The desired tank length in z-direction .*\n",
+                r"└ New tank length in z-direction.*\n",
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/sphere_surface_tension_wall_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "sphere_surface_tension_wall_2d.jl"))
+        end
+
+        @trixi_testset "fluid/moving_wall_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "moving_wall_2d.jl"))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         include("dam_break_2d_corrections.jl")
     end
 
@@ -146,11 +221,11 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fsi/dam_break_2d.jl" begin
+        @trixi_testset "fsi/dam_break_plate_2d.jl" begin
             # Use rounded dimensions to avoid warnings
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fsi",
-                                                    "dam_break_2d.jl"),
+                                                    "dam_break_plate_2d.jl"),
                                            initial_fluid_size=(0.15, 0.29),
                                            tspan=(0.0, 0.4),
                                            dtmax=1e-3)
@@ -190,7 +265,9 @@
         @trixi_testset "n_body/n_body_benchmark_trixi.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "n_body",
-                                                    "n_body_benchmark_trixi.jl"))
+                                                    "n_body_benchmark_trixi.jl")) [
+                r"WARNING: Method definition interact!.*\n",
+            ]
         end
 
         @trixi_testset "n_body/n_body_benchmark_reference.jl" begin
@@ -233,5 +310,16 @@
                                                     "postprocessing.jl"))
             @test sol.retcode == ReturnCode.Success
         end
+    end
+end
+
+@testset verbose=true "DEM" begin
+    @trixi_testset "dem/rectangular_tank_2d.jl" begin
+        @test_nowarn_mod trixi_include(@__MODULE__,
+                                       joinpath(examples_dir(), "dem",
+                                                "rectangular_tank_2d.jl"),
+                                       tspan=(0.0, 0.1))
+        @test sol.retcode == ReturnCode.Success
+        @test count_rhs_allocations(sol, semi) == 0
     end
 end

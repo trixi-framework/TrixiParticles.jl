@@ -65,10 +65,9 @@ function max_x_coord(v, u, t, system)
 end
 
 function interpolated_pressure(coord_top, coord_bottom, v, u, t, system)
-    sol = (; u=[(; x=(v, u))])
     n_interpolation_points = 10
     interpolated_values = interpolate_line(coord_top, coord_bottom,
-                                           n_interpolation_points, semi, system, sol,
+                                           n_interpolation_points, semi, system, v, u,
                                            smoothing_length=2.0 * system.smoothing_length,
                                            clip_negative_pressure=true)
     return sum(map(x -> isnan(x) ? 0.0 : x, interpolated_values.pressure)) /
