@@ -435,7 +435,8 @@ end
         v_new[dim, particle_new] = v_old[dim, particle_old]
     end
 
-    # TODO: Only when using TVF: set tvf
+    # Only when using TVF
+    set_transport_velocity!(system_new, particle_new, particle_old, v_new, v_old)
 
     return system_new
 end
