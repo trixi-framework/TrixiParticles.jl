@@ -44,8 +44,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, C} <: FluidSystem{NDIMS, IC}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
+                                   PF, ST, B, SRFT, PR, PC, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -61,6 +61,8 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     source_terms                      :: ST
     surface_tension                   :: SRFT
     buffer                            :: B
+    particle_refinement               :: PR
+    particle_coarsening               :: PC
     cache                             :: C
 end
 
@@ -74,6 +76,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
                                                          ndims(smoothing_kernel)),
+                                     particle_refinement=nothing,
+                                     particle_coarsening=nothing,
                                      correction=nothing, source_terms=nothing,
                                      surface_tension=nothing)
     buffer = isnothing(buffer_size) ? nothing :
@@ -121,8 +125,9 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        smoothing_kernel, smoothing_length,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
-                                       pressure_acceleration,
-                                       source_terms, surface_tension, buffer, cache)
+                                       pressure_acceleration, source_terms, surface_tension,
+                                       buffer, particle_refinement,
+                                       particle_coarsening, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
@@ -194,6 +199,13 @@ function Base.show(io::IO, ::MIME"text/plain", system::WeaklyCompressibleSPHSyst
         summary_line(io, "surface tension", system.surface_tension)
         summary_line(io, "acceleration", system.acceleration)
         summary_line(io, "source terms", system.source_terms |> typeof |> nameof)
+        if !isnothing(system.particle_refinement)
+            summary_line(io, "refinement level",
+                         refinement_level(system.particle_refinement))
+        end
+        if !isnothing(system.particle_coarsening)
+            summary_line(io, "particle coarsening", "yes")
+        end
         summary_footer(io)
     end
 end
