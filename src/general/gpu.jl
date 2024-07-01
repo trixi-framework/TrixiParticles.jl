@@ -40,3 +40,8 @@ KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(
 function KernelAbstractions.get_backend(system::BoundarySPHSystem)
     KernelAbstractions.get_backend(system.coordinates)
 end
+
+# On GPUs, execute `f` inside a GPU kernel with KernelAbstractions.jl
+@inline function PointNeighbors.parallel_foreach(f, iterator, system::GPUSystem)
+    PointNeighbors.parallel_foreach(f, iterator, KernelAbstractions.get_backend(system))
+end
