@@ -103,6 +103,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
+             "Preprocessing" => "preprocessing.md",
              "Components" => [
                  "Overview" => "overview.md",
                  "General" => [

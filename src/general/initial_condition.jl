@@ -8,6 +8,8 @@ The following setups return `InitialCondition`s for commonly used setups:
 - [`RectangularShape`](@ref)
 - [`SphereShape`](@ref)
 - [`RectangularTank`](@ref)
+- [`ComplexShape`](@ref)
+- [`extrude_geometry`](@ref)
 
 `InitialCondition`s support the set operations `union`, `setdiff` and `intersect` in order
 to build more complex geometries.
