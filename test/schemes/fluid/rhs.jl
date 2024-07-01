@@ -151,8 +151,8 @@
                         end
                     end
 
-                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                      TrixiParticles.eachparticle(system))
+                    nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                                      eachpoint=TrixiParticles.eachparticle(system))
 
                     # Result
                     dv = zero(v)

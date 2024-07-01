@@ -201,8 +201,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     # Compute normalized density gradient
     set_zero!(normalized_density_gradient)
 
-    for_particle_neighbor(system, system, system_coords, system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(system, system, system_coords, system_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 

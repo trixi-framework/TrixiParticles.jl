@@ -44,8 +44,8 @@
         v_neighbor = zeros(0, TrixiParticles.nparticles(boundary_system))
         u_neighbor = boundary.coordinates
 
-        nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                          TrixiParticles.eachparticle(boundary_system))
+        nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                          eachpoint=TrixiParticles.eachparticle(boundary_system))
 
         # Result
         dv = zero(fluid.velocity)
