@@ -216,9 +216,90 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end
 
+    interpolate_reference_values!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
+
     @trixi_timeit timer() "evaluate characteristics" evaluate_characteristics!(system, v, u,
                                                                                v_ode, u_ode,
                                                                                semi, t)
+end
+
+# DualSPHysics (Tafuni et al.) interpolate the boundary values directly from the interior
+# fluid domain to the boundary particles by mirroring the boundary particles into
+# the fluid domain with ghost nodes.
+# Thus, they have to do a taylor series approximation `f_0 = f_k + (r_0 - r_k) ⋅ ∇f_k`,
+# where `∇f_k` is the corrected gradient calculated at the ghost nodes.
+#
+# The method of characteristic do not calculated the boundary values directly but evaluate
+# the characteristic variables with reference values `rho_ref`, `v_ref` and `p_ref`.
+# Thus, it should be possible to interpolate the `ref` values directly at the ghost node position
+# without any corrections.
+#
+# Tafuni et al. (2018)
+# "A versatile algorithm for the treatment of open boundary conditions in Smoothed particle hydrodynamics GPU models"
+# https://doi.org/10.1016/j.cma.2018.08.004
+#
+function interpolate_reference_values!(system, fluid_system::FluidSystem,
+                                       v, u, v_ode, u_ode, semi, t)
+    (; volume, initial_condition, boundary_zone) = system
+    (; density, pressure, velocity) = initial_condition
+
+    set_zero!(volume)
+    set_zero!(density)
+    set_zero!(pressure)
+    set_zero!(velocity)
+
+    v_fluid_system = wrap_v(v_ode, fluid_system, semi)
+    u_fluid_system = wrap_u(u_ode, fluid_system, semi)
+
+    fluid_coords = current_coordinates(u_fluid_system, fluid_system)
+    nhs = get_neighborhood_search(system, fluid_system, semi)
+
+    for particle in each_moving_particle(system)
+        particle_coords = current_coords(u, system, particle)
+
+        ghost_node_position = mirror_position(particle_coords, boundary_zone)
+
+        # Check the neighboring fluid particles whether they're entering the boundary zone
+        for neighbor in PointNeighbors.eachneighbor(ghost_node_position, nhs)
+            fluid_coords = current_coords(u_fluid_system, fluid_system, neighbor)
+
+            pos_diff = ghost_node_position - fluid_coords
+            distance2 = dot(pos_diff, pos_diff)
+            if distance2 <= nhs.search_radius^2
+                distance = sqrt(distance2)
+                rho_b = particle_density(v_fluid_system, fluid_system, neighbor)
+
+                p_b = particle_pressure(v_fluid_system, fluid_system, neighbor)
+
+                v_fluid = current_velocity(v_fluid_system, fluid_system, neighbor)
+
+                kernel_weight = smoothing_kernel(fluid_system, distance)
+
+                pressure[particle] += p_b * kernel_weight
+
+                density[particle] += rho_b * kernel_weight
+
+                for dim in 1:ndims(system)
+                    velocity[dim, particle] += v_fluid[dim] * kernel_weight
+                end
+
+                volume[particle] += kernel_weight
+            end
+        end
+
+    end
+
+    for particle in each_moving_particle(system)
+        if volume[particle] > eps()
+            pressure[particle] /= volume[particle]
+            density[particle] /= volume[particle]
+            for dim in 1:ndims(system)
+                velocity[dim, particle] /= volume[particle]
+            end
+        end
+    end
+
+    return system
 end
 
 # ==== Characteristics
@@ -493,10 +574,17 @@ function reference_values(v, system, particle, position, t)
         p_ref = initial_condition.pressure[particle]
     end
     if isnothing(v_ref)
-        v_ref = current_velocity(v, system, particle)
+        v_ref = current_velocity(initial_condition.velocity, system, particle)
     end
 
     return rho_ref, p_ref, v_ref
+end
+
+function mirror_position(particle_coords, boundary_zone)
+    particle_position = particle_coords - boundary_zone.zone_origin
+    dist = dot(particle_position, boundary_zone.flow_direction)
+
+    return particle_coords - 2 * dist * boundary_zone.flow_direction
 end
 
 function wrap_reference_function(::Nothing, ::Val)

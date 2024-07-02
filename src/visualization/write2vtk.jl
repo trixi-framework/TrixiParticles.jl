@@ -308,7 +308,7 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
-    for particle in eachparticle(system)
+    for particle in active_particles(system)
         particle_coords = current_coords(u, system, particle)
         rho_ref, p_ref, v_ref = reference_values(v, system, particle, particle_coords, t)
 
