@@ -2,6 +2,7 @@
 # interactions between the different system types.
 # Viscosity requires the open boundary system.
 include("boundary/open_boundary/boundary_zones.jl")
+include("boundary/open_boundary/tafuni.jl")
 include("boundary/open_boundary/lastiwka.jl")
 include("boundary/open_boundary/system.jl")
 include("fluid/fluid.jl")

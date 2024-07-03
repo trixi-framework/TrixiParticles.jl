@@ -310,14 +310,6 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
-    NDIMS = ndims(system)
-    ELTYPE = eltype(system)
-    coords = reinterpret(reshape, SVector{NDIMS, ELTYPE}, active_coordinates(u, system))
-
-    vtk["prescribed_velocity"] = stack(reference_velocity.(coords, t))
-    vtk["prescribed_density"] = reference_density.(coords, t)
-    vtk["prescribed_pressure"] = reference_pressure.(coords, t)
-
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
         vtk["sound_speed"] = system.sound_speed
