@@ -174,7 +174,7 @@ end
     epsilon = viscosity.epsilon
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(particle_system, neighbor_system))
-    nu_b = viscosity.nu
+    nu_b = kinematic_viscosity(neighbor_system, viscosity)
 
     mu_a = nu_a * rho_a
     mu_b = nu_b * rho_b
@@ -243,7 +243,7 @@ end
     epsilon = viscosity.epsilon
     nu_a = kinematic_viscosity(particle_system,
                                viscosity_model(particle_system, neighbor_system))
-    nu_b = viscosity.nu
+    nu_b = kinematic_viscosity(neighbor_system, viscosity)
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)

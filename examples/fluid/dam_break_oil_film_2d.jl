@@ -103,24 +103,12 @@ info_callback = InfoCallback(interval=100)
 solution_prefix = ""
 saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
-# Save at certain timepoints which allows comparison to the results of Marrone et al.,
-# i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
-# Please note that the images in Marrone et al. are obtained at a particle_spacing = H/320,
-# which takes between 2 and 4 hours.
-saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],
-                                      prefix="marrone_times")
-
 # This can be overwritten with `trixi_include`
 extra_callback = nothing
 
-use_reinit = false
-density_reinit_cb = use_reinit ?
-                    DensityReinitializationCallback(semi.systems[1], interval=10) :
-                    nothing
 stepsize_callback = StepsizeCallback(cfl=0.9)
 
-callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
-                        density_reinit_cb, saving_paper)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback)
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
             dt=1.0, # This is overwritten by the stepsize callback
