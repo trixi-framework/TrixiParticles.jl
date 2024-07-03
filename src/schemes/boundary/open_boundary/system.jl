@@ -216,7 +216,7 @@ function update_final!(system::OpenBoundarySPHSystem, v, u, v_ode, u_ode, semi, 
         throw(ArgumentError("`UpdateCallback` is required when using `OpenBoundarySPHSystem`"))
     end
 
-    interpolate_reference_values!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
+    # interpolate_reference_values!(system, system.fluid_system, v, u, v_ode, u_ode, semi, t)
 
     @trixi_timeit timer() "evaluate characteristics" evaluate_characteristics!(system, v, u,
                                                                                v_ode, u_ode,
@@ -574,7 +574,7 @@ function reference_values(v, system, particle, position, t)
         p_ref = initial_condition.pressure[particle]
     end
     if isnothing(v_ref)
-        v_ref = current_velocity(initial_condition.velocity, system, particle)
+        v_ref = current_velocity(v, system, particle)
     end
 
     return rho_ref, p_ref, v_ref
