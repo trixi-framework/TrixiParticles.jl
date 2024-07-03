@@ -37,9 +37,9 @@ boundary_model = BoundaryModelDummyParticles(densities, masses, AdamiPressureExt
 BoundaryModelDummyParticles(AdamiPressureExtrapolation, ViscosityAdami)
 ```
 """
-struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
-    pressure           :: Vector{ELTYPE}
-    hydrodynamic_mass  :: Vector{ELTYPE}
+struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
+    pressure           :: VECTOR # Vector{ELTYPE}
+    hydrodynamic_mass  :: VECTOR # Vector{ELTYPE}
     state_equation     :: SE
     density_calculator :: DC
     smoothing_kernel   :: K
@@ -47,30 +47,26 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, SE, K, V, COR, C}
     viscosity          :: V
     correction         :: COR
     cache              :: C
+end
 
-    function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
-                                         density_calculator, smoothing_kernel,
-                                         smoothing_length; viscosity=nothing,
-                                         state_equation=nothing, correction=nothing)
-        pressure = initial_boundary_pressure(initial_density, density_calculator,
-                                             state_equation)
-        NDIMS = ndims(smoothing_kernel)
+# The default constructor needs to be accessible for Adapt.jl to work with this struct.
+# See the comments in general/gpu.jl for more details.
+function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
+                                     density_calculator, smoothing_kernel,
+                                     smoothing_length; viscosity=nothing,
+                                     state_equation=nothing, correction=nothing)
+    pressure = initial_boundary_pressure(initial_density, density_calculator,
+                                         state_equation)
+    NDIMS = ndims(smoothing_kernel)
+    n_particles = length(initial_density)
 
-        n_particles = length(initial_density)
+    cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
+             create_cache_model(initial_density, density_calculator)...,
+             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
 
-        cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
-                 create_cache_model(initial_density, density_calculator)...)
-        cache = (;
-                 create_cache_model(correction, initial_density, NDIMS,
-                                    n_particles)..., cache...)
-
-        new{typeof(density_calculator), eltype(initial_density),
-            typeof(state_equation), typeof(smoothing_kernel), typeof(viscosity),
-            typeof(correction), typeof(cache)}(pressure, hydrodynamic_mass, state_equation,
-                                               density_calculator,
-                                               smoothing_kernel, smoothing_length,
-                                               viscosity, correction, cache)
-    end
+    return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
+                                       density_calculator, smoothing_kernel,
+                                       smoothing_length, viscosity, correction, cache)
 end
 
 @doc raw"""
@@ -117,7 +113,7 @@ struct PressureMirroring end
 """
 struct PressureZeroing end
 
-create_cache_model(correction, density, NDIMS, nparticles) = (;)
+@inline create_cache_model(correction, density, NDIMS, nparticles) = (;)
 
 function create_cache_model(::ShepardKernelCorrection, density, NDIMS, n_particles)
     return (; kernel_correction_coefficient=similar(density))
@@ -147,9 +143,7 @@ function create_cache_model(initial_density,
     return (; density)
 end
 
-function create_cache_model(initial_density, ::ContinuityDensity)
-    return (; initial_density)
-end
+@inline create_cache_model(initial_density, ::ContinuityDensity) = (; initial_density)
 
 function create_cache_model(initial_density, ::AdamiPressureExtrapolation)
     density = copy(initial_density)
@@ -158,9 +152,7 @@ function create_cache_model(initial_density, ::AdamiPressureExtrapolation)
     return (; density, volume)
 end
 
-function create_cache_model(viscosity::Nothing, n_particles, n_dims)
-    return (;)
-end
+@inline create_cache_model(viscosity::Nothing, n_particles, n_dims) = (;)
 
 function create_cache_model(viscosity, n_particles, n_dims)
     ELTYPE = eltype(viscosity.epsilon)
@@ -303,7 +295,7 @@ function compute_pressure!(boundary_model, ::Union{SummationDensity, ContinuityD
 
     # Limit pressure to be non-negative to avoid attractive forces between fluid and
     # boundary particles at free surfaces (sticking artifacts).
-    @threaded for particle in eachparticle(system)
+    @threaded system for particle in eachparticle(system)
         apply_state_equation!(boundary_model, particle_density(v, boundary_model,
                                                                particle), particle)
     end
@@ -318,10 +310,9 @@ end
     boundary_model.pressure[particle] = max(boundary_model.state_equation(density), 0.0)
 end
 
-function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
-                           system, v, u, v_ode, u_ode, semi)
-    (; pressure, state_equation, cache, viscosity) = boundary_model
-    (; volume, density) = cache
+function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation, system, v, u,
+                           v_ode, u_ode, semi)
+    (; pressure, cache, viscosity) = boundary_model
 
     set_zero!(pressure)
 
@@ -358,14 +349,15 @@ function compute_pressure!(boundary_model, ::AdamiPressureExtrapolation,
                                           system_coords, neighbor_coords, v,
                                           v_neighbor_system, nhs)
         end
-        for particle in eachparticle(system)
+
+        @threaded system for particle in eachparticle(system)
             # Limit pressure to be non-negative to avoid attractive forces between fluid and
             # boundary particles at free surfaces (sticking artifacts).
             pressure[particle] = max(pressure[particle], 0.0)
         end
     end
 
-    @trixi_timeit timer() "inverse state equation" @threaded for particle in eachparticle(system)
+    @trixi_timeit timer() "inverse state equation" @threaded system for particle in eachparticle(system)
         compute_adami_density!(boundary_model, system, system_coords, particle)
     end
 end
@@ -398,6 +390,13 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
 end
 
 @inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                        neighbor_system, system_coords,
+                                                        neighbor_coords, v_neighbor_system,
+                                                        neighborhood_search)
+    return boundary_model
+end
+
+@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
                                                         neighbor_system::FluidSystem,
                                                         system_coords, neighbor_coords, v,
                                                         v_neighbor_system,
@@ -413,17 +412,15 @@ end
                                              pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        adami_pressure_inner!(boundary_model, system, neighbor_system::FluidSystem, v,
+        adami_pressure_inner!(boundary_model, system, neighbor_system, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
-@inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
-                                                        neighbor_system,
-                                                        system_coords, neighbor_coords, v,
-                                                        v_neighbor_system,
-                                                        neighborhood_search)
+@inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
+                                               system_coords, neighbor_coords, v,
+                                               v_neighbor_system, neighborhood_search)
     return boundary_model
 end
 
@@ -464,7 +461,7 @@ end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords, v,
+                                               system_coords, neighbor_coords,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
 end
@@ -542,8 +539,7 @@ end
     return density
 end
 
-@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff,
-                                       distance, particle)
+@inline function smoothing_kernel_grad(system::BoundarySystem, pos_diff, distance, particle)
     (; smoothing_kernel, smoothing_length, correction) = system.boundary_model
 
     return corrected_kernel_grad(smoothing_kernel, pos_diff, distance,
