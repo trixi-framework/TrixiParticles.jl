@@ -13,7 +13,7 @@ docs/src/news.md
 run
 *.json
 !.zenodo.json
-*.png
+#*.png TODO: Find a workaround to deploy images. It doesn't work with a "issue-storage"
 *.jpg
 *.gif
 *.svg

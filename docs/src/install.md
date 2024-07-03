@@ -45,7 +45,7 @@ and always have a reproducible environment at hand to share with others.
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
 - [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results
 
-## Common issues
+## [Common issues](@id installation-issues)
 
 If you followed the [installation instructions for developers](@ref for-developers) and you
 run into any problems with packages when pulling the latest version of TrixiParticles.jl,
