@@ -389,6 +389,23 @@ function compute_pressure!(boundary_model, ::Union{PressureMirroring, PressureZe
     return boundary_model
 end
 
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::BoundarySystem)
+    if system.ismoving[]
+        return 0.5 * density_neighbor *
+               norm(current_velocity(v, system, particle) -
+                    v_neighbor_system[1:ndims(system), neighbor])^2
+    end
+    return 0.0
+end
+
+@inline function dynamic_pressure(density_neighbor, v, v_neighbor_system, particle,
+                                  neighbor, system::SolidSystem)
+    return 0.5 * density_neighbor *
+           norm(current_velocity(v, system, particle) -
+                v_neighbor_system[1:ndims(system), neighbor])^2
+end
+
 @inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
                                                         neighbor_system, system_coords,
                                                         neighbor_coords, v_neighbor_system,
@@ -398,10 +415,11 @@ end
 
 @inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
                                                         neighbor_system::FluidSystem,
-                                                        system_coords, neighbor_coords, v,
+                                                        system_coords, neighbor_coords, v, v,
                                                         v_neighbor_system,
                                                         neighborhood_search)
-    (; pressure, cache, viscosity, density_calculator) = boundary_model
+    (; pressure, cache, viscosity, density_calculator, density_calculator) = boundary_model
+    (; pressure_offset) = density_calculator
     (; pressure_offset) = density_calculator
 
     for_particle_neighbor(neighbor_system, system,
@@ -412,14 +430,14 @@ end
                                              pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        adami_pressure_inner!(boundary_model, system, neighbor_system, v,
+        adami_pressure_inner!(boundary_model, system, neighbor_system, v, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
-                              distance, viscosity, cache, pressure, pressure_offset)
+                              distance, viscosity, cache, pressure, pressure_offset, pressure_offset)
     end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords, v,
+                                               system_coords, neighbor_coords, v, v,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
 end
@@ -461,7 +479,7 @@ end
 end
 
 @inline function adami_pressure_extrapolation!(boundary_model, system, neighbor_system,
-                                               system_coords, neighbor_coords,
+                                               system_coords, neighbor_coords, v,
                                                v_neighbor_system, neighborhood_search)
     return boundary_model
 end

@@ -273,24 +273,6 @@ end
     return zero(SVector{ndims(system), eltype(system)})
 end
 
-@inline function current_acceleration(system::BoundarySPHSystem, particle)
-    return current_acceleration(system, system.movement, particle)
-end
-
-@inline function current_acceleration(system, movement, particle)
-    (; cache, ismoving) = system
-
-    if ismoving[]
-        return extract_svector(cache.acceleration, system, particle)
-    end
-
-    return zero(SVector{ndims(system), eltype(system)})
-end
-
-@inline function current_acceleration(system, movement::Nothing, particle)
-    return zero(SVector{ndims(system), eltype(system)})
-end
-
 @inline function viscous_velocity(v, system::BoundarySPHSystem, particle)
     return viscous_velocity(v, system.boundary_model.viscosity, system, particle)
 end

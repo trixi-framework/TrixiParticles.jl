@@ -93,15 +93,6 @@ end
 
 @inline current_velocity(v, system, particle) = extract_svector(v, system, particle)
 
-@inline function current_acceleration(system, particle)
-    # TODO: Return `dv` of solid particles
-    return zero(SVector{ndims(system), eltype(system)})
-end
-
-@inline set_particle_density!(v, system, particle, density) = v
-
-@inline set_particle_pressure!(v, system, particle, pressure) = v
-
 @inline function smoothing_kernel(system, distance)
     (; smoothing_kernel, smoothing_length) = system
     return kernel(smoothing_kernel, distance, smoothing_length)
