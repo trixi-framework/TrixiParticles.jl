@@ -62,7 +62,7 @@ export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
