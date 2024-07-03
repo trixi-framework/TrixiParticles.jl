@@ -87,7 +87,7 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
-        @trixi_testset "fluid/dam_break_two_fluids_2d.jl" begin
+        @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
                                                     "dam_break_two_fluids_2d.jl"),
