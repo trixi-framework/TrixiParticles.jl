@@ -142,7 +142,7 @@ end
 
 reset_callback_flag!(system, ::Nothing) = system
 
-function reset_callback_flag!(system::FluidSystem, transport_velocity)
+function reset_callback_flag!(system::FluidSystem, ::TransportVelocityAdami)
     system.cache.update_callback_used[] = false
 
     return system
@@ -165,11 +165,11 @@ function update_final!(system::FluidSystem, v, u, v_ode, u_ode, semi, t;
 end
 
 function update_final!(system::FluidSystem, ::Nothing,
-                       v, u, v_ode, u_ode, semi, t)
+                       v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     return system
 end
 
-function update_final!(system::FluidSystem, transport_velocity,
+function update_final!(system::FluidSystem, ::TransportVelocityAdami,
                        v, u, v_ode, u_ode, semi, t; update_from_callback=false)
     if !update_from_callback && !(system.cache.update_callback_used[])
         throw(ArgumentError("`UpdateCallback` is required when using `TransportVelocityAdami`"))
