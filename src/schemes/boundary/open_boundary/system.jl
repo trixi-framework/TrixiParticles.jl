@@ -103,7 +103,8 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
         flow_direction_ = boundary_zone.flow_direction
 
         cache = create_cache_open_boundary(boundary_model, initial_condition,
-                                           reference_velocity, reference_pressure)
+                                           reference_density, reference_velocity,
+                                           reference_pressure)
 
         return new{typeof(boundary_model), typeof(boundary_zone), NDIMS, ELTYPE,
                    typeof(initial_condition), typeof(fluid_system), typeof(mass),
@@ -116,12 +117,20 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     end
 end
 
-function create_cache_open_boundary(::BoundaryModelLastiwka, initial_condition,
-                                    reference_velocity, reference_pressure)
+function create_cache_open_boundary(boundary_model, initial_condition,
+                                    reference_density, reference_velocity,
+                                    reference_pressure)
     ELTYPE = eltype(initial_condition)
 
     prescribed_pressure = isnothing(reference_pressure) ? false : true
     prescribed_velocity = isnothing(reference_velocity) ? false : true
+    prescribed_density = isnothing(reference_density) ? false : true
+
+    if boundary_model isa BoundaryModelTafuni
+        return (; prescribed_pressure=prescribed_pressure,
+                prescribed_density=prescribed_density,
+                prescribed_velocity=prescribed_velocity)
+    end
 
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
@@ -129,16 +138,7 @@ function create_cache_open_boundary(::BoundaryModelLastiwka, initial_condition,
     return (; characteristics=characteristics,
             previous_characteristics=previous_characteristics,
             prescribed_pressure=prescribed_pressure,
-            prescribed_velocity=prescribed_velocity)
-end
-
-function create_cache_open_boundary(::BoundaryModelTafuni, initial_condition,
-                                    reference_velocity, reference_pressure)
-    prescribed_pressure = isnothing(reference_pressure) ? false : true
-    prescribed_velocity = isnothing(reference_velocity) ? false : true
-
-    return (; prescribed_pressure=prescribed_pressure,
-            prescribed_velocity=prescribed_velocity)
+            prescribed_density=prescribed_density, prescribed_velocity=prescribed_velocity)
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"

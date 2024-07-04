@@ -11,11 +11,11 @@ end
     reference_velocity, reference_pressure, reference_density) = system
 
     if boundary_model.extra_polate_reference_values
-        (; prescribed_pressure, prescribed_velocity) = cache
+        (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
 
         @trixi_timeit timer() "interpolate and correct values" begin
             interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_pressure,
-                                prescribed_velocity)
+                                prescribed_velocity, prescribed_density)
         end
     end
 
@@ -49,9 +49,9 @@ end
 end
 
 function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "evaluate characteristics" evaluate_characteristics!(system, v, u,
-                                                                               v_ode, u_ode,
-                                                                               semi, t)
+    @trixi_timeit timer() "evaluate characteristics" begin
+        evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
+    end
 end
 
 # ==== Characteristics

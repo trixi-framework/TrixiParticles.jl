@@ -18,10 +18,12 @@ end
 
 update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
 
-function interpolate_values!(system, v_ode, u_ode, semi, t;
+function interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
     (; pressure, density, fluid_system, boundary_zone,
     reference_velocity, reference_pressure) = system
+
+    state_equation = system_state_equation(system.fluid_system)
 
     svector_(f, system) = SVector(ntuple(@inline(dim->f[dim + 1]), ndims(system)))
 
@@ -46,7 +48,6 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
 
         # Set zero
         correction_matrix = zero_smatrix(system)
-        interpolated_density = zero_svector(system)
         interpolated_pressure = zero_svector(system)
         @inbounds for dim in 1:ndims(system)
             interpolated_velocity[dim] = zero_svector(system)
@@ -73,8 +74,6 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
 
                 correction_matrix += L
 
-                interpolated_density += rho_b * R
-
                 !(prescribed_pressure) && (interpolated_pressure += pressure_b * R)
 
                 !(prescribed_velocity) && @inbounds for dim in 1:ndims(system)
@@ -90,11 +89,6 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
         end
 
         pos_diff = particle_coords - ghost_node_position
-
-        f_rho = L_inv * interpolated_density
-        df_rho = svector_(f_rho, system)
-
-        density[particle] = f_rho[1] + dot(pos_diff, df_rho)
 
         if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure, system,
@@ -119,6 +113,13 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
             end
+        end
+
+        if prescribed_density
+            density[particle] = reference_value(reference_density, density, system,
+                                                particle, particle_coords, t)
+        else
+            inverse_state_equation!(density, state_equation, pressure, particle)
         end
     end
 
