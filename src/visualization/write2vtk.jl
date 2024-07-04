@@ -301,7 +301,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
-    (; reference_velocity, reference_pressure, reference_density) = system
 
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
@@ -315,9 +314,9 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
         vtk["sound_speed"] = system.sound_speed
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
         vtk["flow_direction"] = system.flow_direction
-        vtk["velocity_function"] = string(nameof(system.reference_velocity))
-        vtk["pressure_function"] = string(nameof(system.reference_pressure))
-        vtk["density_function"] = string(nameof(system.reference_density))
+        vtk["velocity_function"] = type2string(system.reference_velocity)
+        vtk["pressure_function"] = type2string(system.reference_velocity)
+        vtk["density_function"] = type2string(system.reference_velocity)
     end
 
     return vtk

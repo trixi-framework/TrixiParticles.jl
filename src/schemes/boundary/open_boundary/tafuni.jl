@@ -11,10 +11,9 @@
 struct BoundaryModelTafuni end
 
 function update_quantities!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t)
-    @trixi_timeit timer() "interpolate and correct values" interpolate_values!(system,
-                                                                               v_ode, u_ode,
-                                                                               semi, t;
-                                                                               system.cache...)
+    @trixi_timeit timer() "interpolate and correct values" begin
+        interpolate_values!(system, v_ode, u_ode, semi, t; system.cache...)
+    end
 end
 
 update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = system
@@ -98,7 +97,8 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
         density[particle] = f_rho[1] + dot(pos_diff, df_rho)
 
         if prescribed_pressure
-            pressure[particle] = reference_pressure(particle_coords, t)
+            pressure[particle] = reference_value(reference_pressure, pressure, system,
+                                                 particle, particle_coords, t)
         else
             f_p = L_inv * interpolated_pressure
             df_p = svector_(f_p, system)
@@ -107,7 +107,8 @@ function interpolate_values!(system, v_ode, u_ode, semi, t;
         end
 
         if prescribed_velocity
-            v_ref = reference_velocity(particle_coords, t)
+            v_ref = reference_value(reference_velocity, v_open_boundary, system,
+                                    particle, particle_coords, t)
             @inbounds for dim in 1:ndims(system)
                 v_open_boundary[dim, particle] = v_ref[dim]
             end

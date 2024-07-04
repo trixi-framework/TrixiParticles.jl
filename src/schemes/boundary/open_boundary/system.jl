@@ -67,6 +67,11 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
         NDIMS = ndims(initial_condition)
         ELTYPE = eltype(initial_condition)
 
+        pressure = copy(initial_condition.pressure)
+        mass = copy(initial_condition.mass)
+        density = copy(initial_condition.density)
+        volume = similar(initial_condition.density)
+
         if !(reference_velocity isa Function || isnothing(reference_velocity) ||
              (reference_velocity isa Vector && length(reference_velocity) == NDIMS))
             throw(ArgumentError("`reference_velocity` must be either a function mapping " *
@@ -95,16 +100,6 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
 
-        if isnothing(reference_pressure)
-            pressure = copy(initial_condition.pressure)
-        else
-            pressure = [reference_pressure_(initial_condition.coordinates[:, i], 0.0)
-                        for i in eachparticle(initial_condition)]
-        end
-        mass = copy(initial_condition.mass)
-        density = copy(initial_condition.density)
-        volume = similar(initial_condition.density)
-
         flow_direction_ = boundary_zone.flow_direction
 
         cache = create_cache_open_boundary(boundary_model, initial_condition,
@@ -125,11 +120,16 @@ function create_cache_open_boundary(::BoundaryModelLastiwka, initial_condition,
                                     reference_velocity, reference_pressure)
     ELTYPE = eltype(initial_condition)
 
+    prescribed_pressure = isnothing(reference_pressure) ? false : true
+    prescribed_velocity = isnothing(reference_velocity) ? false : true
+
     characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics)
+            previous_characteristics=previous_characteristics,
+            prescribed_pressure=prescribed_pressure,
+            prescribed_velocity=prescribed_velocity)
 end
 
 function create_cache_open_boundary(::BoundaryModelTafuni, initial_condition,
@@ -165,9 +165,9 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_line(io, "boundary model", type2string(system.boundary_model))
         summary_line(io, "boundary", type2string(system.boundary_zone))
         summary_line(io, "flow direction", system.flow_direction)
-        summary_line(io, "prescribed velocity", string(nameof(system.reference_velocity)))
-        summary_line(io, "prescribed pressure", string(nameof(system.reference_pressure)))
-        summary_line(io, "prescribed density", string(nameof(system.reference_density)))
+        summary_line(io, "prescribed velocity", type2string(system.reference_velocity))
+        summary_line(io, "prescribed pressure", type2string(system.reference_pressure))
+        summary_line(io, "prescribed density", type2string(system.reference_density))
         summary_line(io, "width", round(system.boundary_zone.zone_width, digits=3))
         summary_footer(io)
     end
@@ -343,6 +343,8 @@ function write_u0!(u0, system::OpenBoundarySPHSystem)
     return u0
 end
 
+wrap_reference_function(::Nothing, ::Val) = nothing
+
 function wrap_reference_function(function_::Function, ::Val)
     # Already a function
     return function_
@@ -357,4 +359,16 @@ end
 # Name the function so that the summary box does know which kind of function this is
 function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
+end
+
+function reference_value(value::Function, quantity, system, particle, position, t)
+    return value(position, t)
+end
+
+function reference_value(value::Nothing, quantity::Vector, system, particle, position, t)
+    return quantity[particle]
+end
+
+function reference_value(value::Nothing, quantity::PtrArray, system, particle, position, t)
+    return current_velocity(quantity, system, particle)
 end
