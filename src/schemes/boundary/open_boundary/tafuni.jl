@@ -70,7 +70,7 @@ function interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                 kernel_value = smoothing_kernel(fluid_system, distance)
                 grad_kernel = smoothing_kernel_grad(fluid_system, pos_diff, distance)
 
-                L, R = correction_arrys(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
+                L, R = correction_arrays(kernel_value, grad_kernel, pos_diff, rho_b, m_b)
 
                 correction_matrix += L
 
@@ -126,7 +126,7 @@ function interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
     return system
 end
 
-function correction_arrys(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
+function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
     x_ab = pos_diff[1]
     y_ab = pos_diff[2]
     z_ab = pos_diff[3]
@@ -147,7 +147,7 @@ function correction_arrys(W_ab, grad_W_ab, pos_diff::SVector{3}, rho_b, m_b)
     return L, R
 end
 
-function correction_arrys(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
+function correction_arrays(W_ab, grad_W_ab, pos_diff::SVector{2}, rho_b, m_b)
     x_ab = pos_diff[1]
     y_ab = pos_diff[2]
 

@@ -1,7 +1,7 @@
 struct BoundaryModelLastiwka
-    extra_polate_reference_values::Bool
-    function BoundaryModelLastiwka(; extra_polate_reference_values::Bool=true)
-        return new{}(extra_polate_reference_values)
+    extrapolate_reference_values::Bool
+    function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=true)
+        return new{}(extrapolate_reference_values)
     end
 end
 
@@ -10,7 +10,7 @@ end
     (; density, pressure, cache, flow_direction, sound_speed,
     reference_velocity, reference_pressure, reference_density) = system
 
-    if boundary_model.extra_polate_reference_values
+    if boundary_model.extrapolate_reference_values
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
 
         @trixi_timeit timer() "interpolate and correct values" begin
