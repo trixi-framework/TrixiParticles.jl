@@ -9,7 +9,7 @@ using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
-using GPUArrays: AbstractGPUArray
+using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
@@ -28,7 +28,8 @@ using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
 @reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
                                 PrecomputedNeighborhoodSearch, PeriodicBox,
                                 ParallelUpdate, SemiParallelUpdate, SerialUpdate
-using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search
+using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
+                      @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
