@@ -274,12 +274,11 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
-    for_particle_neighbor(system, system,
-                          initial_coords, initial_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             initial_pos_diff,
-                                                             initial_distance
+    foreach_point_neighbor(system, system, initial_coords, initial_coords,
+                           neighborhood_search;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           initial_pos_diff,
+                                                           initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
