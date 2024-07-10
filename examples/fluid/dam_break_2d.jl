@@ -5,117 +5,107 @@
 # In: Computer Methods in Applied Mechanics and Engineering, Volume 200, Issues 13–16 (2011), pages 1526–1542.
 # https://doi.org/10.1016/J.CMA.2010.12.016
 
-using Pixie
+using TrixiParticles
 using OrdinaryDiffEq
 
-gravity = -9.81
+# Size parameters
+H = 0.6
+W = 2 * H
+
+# ==========================================================================================
+# ==== Resolution
+fluid_particle_spacing = H / 40
+
+# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+boundary_layers = 4
+spacing_ratio = 1
+
+boundary_particle_spacing = fluid_particle_spacing / spacing_ratio
+
+# ==========================================================================================
+# ==== Experiment Setup
+gravity = 9.81
+
+tspan = (0.0, 5.7 / sqrt(gravity))
+
+# Boundary geometry and initial fluid particle positions
+initial_fluid_size = (W, H)
+tank_size = (floor(5.366 * H / boundary_particle_spacing) * boundary_particle_spacing, 4.0)
+
+fluid_density = 1000.0
+sound_speed = 20 * sqrt(gravity * H)
+state_equation = StateEquationCole(; sound_speed, reference_density=fluid_density,
+                                   exponent=1, clip_negative_pressure=false)
+
+tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
+                       n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                       acceleration=(0.0, -gravity), state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
+smoothing_length = 3.5 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
-particle_spacing = 0.02
+fluid_density_calculator = ContinuityDensity()
+viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+# nu = 0.02 * smoothing_length * sound_speed/8
+# viscosity = ViscosityMorris(nu=nu)
+# viscosity = ViscosityAdami(nu=nu)
+# Alternatively the density diffusion model by Molteni & Colagrossi can be used,
+# which will run faster.
+# density_diffusion = DensityDiffusionMolteniColagrossi(delta=0.1)
+density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 
-# Spacing ratio between fluid and boundary particles
-beta = 1
-boundary_layers = 3
-
-water_width = 2.0
-water_height = 1.0
-water_density = 1000.0
-
-tank_width = floor(5.366 / particle_spacing * beta) * particle_spacing / beta
-tank_height = 4
-
-sound_speed = 20 * sqrt(9.81 * water_height)
-
-smoothing_length = 1.2 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
-
-state_equation = StateEquationCole(sound_speed, 7, water_density, 100000.0,
-                                   background_pressure=100000.0)
-
-viscosity = ArtificialViscosityMonaghan(0.02, 0.0)
-
-setup = RectangularTank(particle_spacing, (water_width, water_height),
-                        (tank_width, tank_height), water_density,
-                        n_layers=boundary_layers, spacing_ratio=beta)
-
-# Move right boundary
-# Recompute the new water column width since the width has been rounded in `RectangularTank`.
-new_wall_position = (setup.n_particles_per_dimension[1] + 1) * particle_spacing
-reset_faces = (false, true, false, false)
-positions = (0, new_wall_position, 0, 0)
-
-reset_wall!(setup, reset_faces, positions)
+fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
+                                           state_equation, smoothing_kernel,
+                                           smoothing_length, viscosity=viscosity,
+                                           density_diffusion=density_diffusion,
+                                           acceleration=(0.0, -gravity), correction=nothing,
+                                           surface_tension=nothing)
 
 # ==========================================================================================
-# ==== Boundary models
+# ==== Boundary
+boundary_density_calculator = AdamiPressureExtrapolation()
+boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundary.mass,
+                                             state_equation=state_equation,
+                                             boundary_density_calculator,
+                                             smoothing_kernel, smoothing_length,
+                                             correction=nothing)
 
-boundary_model = BoundaryModelDummyParticles(setup.boundary_densities,
-                                             setup.boundary_masses, state_equation,
-                                             AdamiPressureExtrapolation(), smoothing_kernel,
-                                             smoothing_length)
-
-# K = 9.81 * water_height
-# boundary_model = BoundaryModelMonaghanKajtar(K, beta, particle_spacing / beta,
-#                                              setup.boundary_masses)
-
-# ==========================================================================================
-# ==== Containers
-
-particle_container = FluidParticleContainer(setup, ContinuityDensity(), state_equation,
-                                            smoothing_kernel, smoothing_length,
-                                            viscosity=viscosity,
-                                            acceleration=(0.0, gravity))
-
-boundary_container = BoundaryParticleContainer(setup.boundary_coordinates, boundary_model)
+boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 
 # ==========================================================================================
 # ==== Simulation
-
-semi = Semidiscretization(particle_container, boundary_container,
-                          neighborhood_search=SpatialHashingSearch,
-                          damping_coefficient=1e-5)
-
-tspan = (0.0, 3.0)
-ode = semidiscretize(semi, tspan)
+# `nothing` will automatically choose the best update strategy. This is only to be able
+# to change this with `trixi_include`.
+semi = Semidiscretization(fluid_system, boundary_system,
+                          neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
+ode = semidiscretize(semi, tspan, data_type=nothing)
 
 info_callback = InfoCallback(interval=100)
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-5, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-3, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
-            save_everystep=false, callback=info_callback);
+solution_prefix = ""
+saving_callback = SolutionSavingCallback(dt=0.02, prefix=solution_prefix)
 
-# Move right boundary
-positions = (0, tank_width, 0, 0)
-reset_wall!(setup, reset_faces, positions)
+# Save at certain timepoints which allows comparison to the results of Marrone et al.,
+# i.e. (1.5, 2.36, 3.0, 5.7, 6.45).
+# Please note that the images in Marrone et al. are obtained at a particle_spacing = H/320,
+# which takes between 2 and 4 hours.
+saving_paper = SolutionSavingCallback(save_times=[0.0, 0.371, 0.584, 0.743, 1.411, 1.597],
+                                      prefix="marrone_times")
 
-# Run full simulation
-tspan = (0.0, 5.7 / sqrt(9.81))
+# This can be overwritten with `trixi_include`
+extra_callback = nothing
 
-# Use solution of the relaxing step as initial coordinates
-restart_with!(semi, sol)
+use_reinit = false
+density_reinit_cb = use_reinit ?
+                    DensityReinitializationCallback(semi.systems[1], interval=10) :
+                    nothing
+stepsize_callback = StepsizeCallback(cfl=0.9)
 
-semi = Semidiscretization(particle_container, boundary_container,
-                          neighborhood_search=SpatialHashingSearch)
-ode = semidiscretize(semi, tspan)
+callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback, extra_callback,
+                        density_reinit_cb, saving_paper)
 
-saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback)
-
-# See above for an explanation of the parameter choice
-sol = solve(ode, RDPK3SpFSAL49(),
-            abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
-            reltol=1e-5, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
-            dtmax=1e-2, # Limit stepsize to prevent crashing
+sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+            dt=1.0, # This is overwritten by the stepsize callback
             save_everystep=false, callback=callbacks);
