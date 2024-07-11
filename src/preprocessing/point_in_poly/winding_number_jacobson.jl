@@ -1,17 +1,29 @@
 struct NaiveWinding end
 
-struct HierarchicalWinding{BB}
-    bounding_box::BB
+@inline function (winding::NaiveWinding)(mesh, query_point)
+    (; face_vertices) = mesh
 
-    function HierarchicalWinding(shape)
-        bounding_box = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
+    return naive_winding(mesh, face_vertices, query_point)
+end
 
-        directed_edges = zeros(Int, length(shape.normals_edge))
+@inline function naive_winding(mesh, faces, query_point)
+    winding_number = sum(faces, init=0.0) do face
 
-        construct_hierarchy!(bounding_box, shape, directed_edges)
+        # A. Van Oosterom 1983,
+        # The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
+        a = face_vertex(mesh, face, 1) - query_point
+        b = face_vertex(mesh, face, 2) - query_point
+        c = face_vertex(mesh, face, 3) - query_point
+        a_ = norm(a)
+        b_ = norm(b)
+        c_ = norm(c)
 
-        return new{typeof(bounding_box)}(bounding_box)
+        divisor = a_ * b_ * c_ + dot(a, b) * c_ + dot(b, c) * a_ + dot(c, a) * b_
+
+        return 2atan(det([a b c]), divisor)
     end
+
+    return winding_number
 end
 
 """
@@ -101,38 +113,6 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
     end
 
     return inpoly, winding_numbers
-end
-
-@inline function (winding::NaiveWinding)(mesh, query_point)
-    (; face_vertices) = mesh
-
-    return naive_winding(mesh, face_vertices, query_point)
-end
-
-@inline function (winding::HierarchicalWinding)(mesh, query_point)
-    (; bounding_box) = winding
-
-    return hierarchical_winding(bounding_box, mesh, query_point)
-end
-
-@inline function naive_winding(mesh, faces, query_point)
-    winding_number = sum(faces, init=0.0) do face
-
-        # A. Van Oosterom 1983,
-        # The Solid Angle of a Plane Triangle (doi: 10.1109/TBME.1983.325207)
-        a = face_vertex(mesh, face, 1) - query_point
-        b = face_vertex(mesh, face, 2) - query_point
-        c = face_vertex(mesh, face, 3) - query_point
-        a_ = norm(a)
-        b_ = norm(b)
-        c_ = norm(c)
-
-        divisor = a_ * b_ * c_ + dot(a, b) * c_ + dot(b, c) * a_ + dot(c, a) * b_
-
-        return 2atan(det([a b c]), divisor)
-    end
-
-    return winding_number
 end
 
 # The following functions distinguish between actual triangles and reconstructed triangles

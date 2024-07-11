@@ -6,10 +6,10 @@ using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
-using DelimitedFiles: readdlm
+using DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
-using FileIO: FileIO, File, query, skipmagic, @format_str, Stream, stream
+using FileIO: FileIO, File, query, @format_str, Stream, stream
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON

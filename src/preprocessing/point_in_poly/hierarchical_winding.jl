@@ -1,3 +1,6 @@
+# This bounding box is used for the hierarchical evaluation of the winding number.
+# It is used for a binary tree and thus stores the left and right child and also the
+# faces and closing faces which are inside the bounding box.
 struct BoundingBoxTree{MC}
     faces         :: Vector{Int}
     min_corner    :: MC
@@ -13,6 +16,26 @@ struct BoundingBoxTree{MC}
         return new{typeof(min_corner)}(faces, min_corner, max_corner, Ref(false),
                                        closing_faces, children)
     end
+end
+
+struct HierarchicalWinding{BB}
+    bounding_box::BB
+
+    function HierarchicalWinding(shape)
+        bounding_box = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
+
+        directed_edges = zeros(Int, length(shape.normals_edge))
+
+        construct_hierarchy!(bounding_box, shape, directed_edges)
+
+        return new{typeof(bounding_box)}(bounding_box)
+    end
+end
+
+@inline function (winding::HierarchicalWinding)(mesh, query_point)
+    (; bounding_box) = winding
+
+    return hierarchical_winding(bounding_box, mesh, query_point)
 end
 
 function hierarchical_winding(bounding_box, mesh, query_point)
@@ -59,8 +82,8 @@ function construct_hierarchy!(bounding_box, mesh, directed_edges)
     max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
     min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
 
-    faces_left = in_bbox(mesh, faces, min_corner, max_corner_left)
-    faces_right = in_bbox(mesh, faces, min_corner_right, max_corner)
+    faces_left = in_bounding_box(mesh, faces, min_corner, max_corner_left)
+    faces_right = in_bounding_box(mesh, faces, min_corner_right, max_corner)
 
     bbox_left = BoundingBoxTree(faces_left, min_corner, max_corner_left)
     bbox_right = BoundingBoxTree(faces_right, min_corner_right, max_corner)
@@ -160,7 +183,7 @@ function determine_closure!(bounding_box, mesh::Shapes{3}, faces, count_directed
     return bounding_box
 end
 
-function in_bbox(mesh, faces, min_corner, max_corner)
+function in_bounding_box(mesh, faces, min_corner, max_corner)
     faces_in_bbox = Int[]
 
     for face in faces

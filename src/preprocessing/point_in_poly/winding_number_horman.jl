@@ -3,7 +3,7 @@
 
 Algorithm for inside-outside segmentation of a complex shape proposed by Horman et al. (2001).
 It is only supported for 2D shapes.
-[`WindingNumberHorman`](@rerf) might handle edge cases a bit better, since the winding number is an integer value.
+[`WindingNumberHorman`](@ref) might handle edge cases a bit better, since the winding number is an integer value.
 Also, it is faster than [`WindingNumberJacobson`](@ref) for 2D shapes with about more than 100 edges.
 """
 struct WindingNumberHorman end
