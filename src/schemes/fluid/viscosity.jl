@@ -142,9 +142,9 @@ end
     v_diff = v_a - v_b
 
     nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(particle_system, neighbor_system))
-    nu_b = kinematic_viscosity(neighbor_system,
                                viscosity_model(neighbor_system, particle_system))
+    nu_b = kinematic_viscosity(neighbor_system,
+                               viscosity_model(particle_system, neighbor_system))
 
     pi_ab = viscosity(sound_speed, v_diff, pos_diff, distance, rho_mean, rho_a, rho_b,
                       smoothing_length, grad_kernel, nu_a, nu_b)
@@ -243,9 +243,9 @@ end
 
     epsilon = viscosity.epsilon
     nu_a = kinematic_viscosity(particle_system,
-                               viscosity_model(particle_system, neighbor_system))
-    nu_b = kinematic_viscosity(neighbor_system,
                                viscosity_model(neighbor_system, particle_system))
+    nu_b = kinematic_viscosity(neighbor_system,
+                               viscosity_model(particle_system, neighbor_system))
 
     v_a = viscous_velocity(v_particle_system, particle_system, particle)
     v_b = viscous_velocity(v_neighbor_system, neighbor_system, neighbor)
