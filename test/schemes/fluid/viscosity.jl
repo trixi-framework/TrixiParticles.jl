@@ -27,13 +27,14 @@
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
                        rho_mean, rho_a, rho_b, smoothing_length,
-                       grad_kernel, system_wcsph, system_wcsph)
+                       grad_kernel, 0.0, 0.0)
 
         @test isapprox(dv[1], -0.007073849138494646, atol=6e-15)
         @test isapprox(dv[2], 0.01061077370774197, atol=6e-15)
     end
     @testset verbose=true "`ViscosityMorris`" begin
-        viscosity = ViscosityMorris(nu=7e-3)
+        nu = 7e-3
+        viscosity = ViscosityMorris(nu=nu)
         system_wcsph = WeaklyCompressibleSPHSystem(fluid, ContinuityDensity(),
                                                    state_equation, smoothing_kernel,
                                                    smoothing_length, viscosity=viscosity)
@@ -43,7 +44,7 @@
 
         dv = viscosity(sound_speed, v_diff, pos_diff, distance,
                        rho_mean, rho_a, rho_b, smoothing_length,
-                       grad_kernel, system_wcsph, system_wcsph)
+                       grad_kernel, nu, nu)
 
         @test isapprox(dv[1], -0.00018421886647594437, atol=6e-15)
         @test isapprox(dv[2], 0.0013816414985695826, atol=6e-15)
