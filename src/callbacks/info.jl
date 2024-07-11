@@ -32,17 +32,22 @@ Create and return a callback that prints a human-readable summary of the simulat
 beginning of a simulation and then resets the timer. When the returned callback is executed
 directly, the current timer values are shown.
 """
-function InfoCallback(; interval=0)
+function InfoCallback(; interval=0, reset_threads=true)
     info_callback = InfoCallback(0.0, interval)
+
+    function initialize(cb, u, t, integrator)
+        initialize_info_callback(cb, u, t, integrator;
+                                 reset_threads)
+    end
 
     DiscreteCallback(info_callback, info_callback,
                      save_positions=(false, false),
-                     initialize=initialize_info_callback)
+                     initialize=initialize)
 end
 
 # condition
 function (info_callback::InfoCallback)(u, t, integrator)
-    @unpack interval = info_callback
+    (; interval) = info_callback
 
     return interval != 0 &&
            integrator.stats.naccept % interval == 0 ||
@@ -53,7 +58,7 @@ end
 function (info_callback::InfoCallback)(integrator)
     if isfinished(integrator)
         println("─"^100)
-        println("Pixie simulation finished.  Final time: ", integrator.t,
+        println("Trixi simulation finished.  Final time: ", integrator.t,
                 "  Time steps: ", integrator.stats.naccept, " (accepted), ",
                 integrator.iter, " (total)")
         println("─"^100)
@@ -61,13 +66,19 @@ function (info_callback::InfoCallback)(integrator)
 
         # Print timer
         TimerOutputs.complement!(timer())
-        print_timer(timer(), title="Pixie.jl",
+        print_timer(timer(), title="TrixiParticles.jl",
                     allocations=true, linechars=:unicode, compact=false)
         println()
     else
+        t = integrator.t
+        t_initial = first(integrator.sol.prob.tspan)
+        t_final = last(integrator.sol.prob.tspan)
+        sim_time_percentage = (t - t_initial) / (t_final - t_initial) * 100
         runtime_absolute = 1.0e-9 * (time_ns() - info_callback.start_time)
-        @printf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e │ run time: %.4e s\n",
-                integrator.stats.naccept, integrator.dt, integrator.t, runtime_absolute)
+        println(rpad(@sprintf("#timesteps: %6d │ Δt: %.4e │ sim. time: %.4e (%5.3f%%)",
+                              integrator.stats.naccept, integrator.dt, t,
+                              sim_time_percentage), 71) *
+                @sprintf("│ run time: %.4e s", runtime_absolute))
     end
 
     # Tell OrdinaryDiffEq that u has not been modified
@@ -76,18 +87,18 @@ function (info_callback::InfoCallback)(integrator)
     return nothing
 end
 
-@inline function isfinished(integrator)
-    # Checking for floating point equality is OK here as `DifferentialEquations.jl`
-    # sets the time exactly to the final time in the last iteration
-    return integrator.t == last(integrator.sol.prob.tspan) ||
-           isempty(integrator.opts.tstops) ||
-           integrator.iter == integrator.opts.maxiters
-end
-
 # Print information about the current simulation setup
 # Note: This is called *after* all initialization is done, but *before* the first time step
-function initialize_info_callback(discrete_callback, u, t, integrator)
+function initialize_info_callback(discrete_callback, u, t, integrator;
+                                  reset_threads=true)
     info_callback = discrete_callback.affect!
+
+    # Optionally reset Polyester.jl threads. See
+    # https://github.com/trixi-framework/Trixi.jl/issues/1583
+    # https://github.com/JuliaSIMD/Polyester.jl/issues/30
+    if reset_threads
+        Polyester.reset_threads!()
+    end
 
     print_startup_message()
 
@@ -101,9 +112,8 @@ function initialize_info_callback(discrete_callback, u, t, integrator)
     semi = integrator.p
     show(io_context, MIME"text/plain"(), semi)
     println(io, "\n")
-    containers = semi.particle_containers
-    for container in containers
-        show(io_context, MIME"text/plain"(), container)
+    foreach_system(semi) do system
+        show(io_context, MIME"text/plain"(), system)
         println(io, "\n")
     end
 
