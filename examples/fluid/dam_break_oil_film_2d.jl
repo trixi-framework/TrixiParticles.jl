@@ -8,6 +8,7 @@ H = 0.6
 W = 2 * H
 
 gravity = 9.81
+tspan = (0.0, 5.7 / sqrt(gravity))
 
 # Resolution
 fluid_particle_spacing = H / 60

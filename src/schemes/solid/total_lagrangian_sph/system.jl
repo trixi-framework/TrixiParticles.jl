@@ -379,10 +379,6 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     restart_with!(system, system.boundary_model, v, u)
 end
 
-function viscosity_model(system::TotalLagrangianSPHSystem)
-    return system.boundary_model.viscosity
-end
-
 # An explanation of these equation can be found in
 # J. Lubliner, 2008. Plasticity theory.
 # See here below Equation 5.3.21 for the equation for the equivalent stress.
@@ -436,3 +432,4 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
 end
 
 @inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = system.boundary_model.viscosity
+@inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
