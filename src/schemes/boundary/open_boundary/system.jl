@@ -484,3 +484,4 @@ end
 
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
+@inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
