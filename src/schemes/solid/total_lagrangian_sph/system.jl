@@ -431,5 +431,5 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     return cauchy_stress_tensors
 end
 
-@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = system.boundary_model.viscosity
+@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity

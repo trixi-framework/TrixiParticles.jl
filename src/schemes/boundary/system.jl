@@ -383,8 +383,6 @@ function restart_with!(system::BoundarySPHSystem{<:BoundaryModelDummyParticles{C
     return system
 end
 
-@inline viscosity_model(system::BoundarySPHSystem, neighbor_system) = system.boundary_model.viscosity
-
 function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
     return Inf
 end
