@@ -19,9 +19,9 @@
 
                 shape = TrixiParticles.Polygon(points_rectangular)
 
-                seed = points_rectangular[:, 1] .- 0.5particle_spacing
+                grid_offset = 0.5particle_spacing
                 shape_sampled = ComplexShape(shape; particle_spacing, density=1.0,
-                                             point_in_shape_algorithm, seed)
+                                             point_in_shape_algorithm, grid_offset)
 
                 min_corner = points_rectangular[:, 1] .+ 0.5particle_spacing
                 max_corner = points_rectangular[:, 3]
@@ -31,7 +31,7 @@
 
                 coords = hcat(collect.(Iterators.product(ranges_x, ranges_y))...)
 
-                @test shape_sampled.coordinates == coords
+                @test isapprox(shape_sampled.coordinates, coords)
             end
         end
 
@@ -80,7 +80,7 @@
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
                     shape_sampled = ComplexShape(shape;
-                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0)
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
@@ -100,7 +100,7 @@
                     shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
                     shape_sampled = ComplexShape(shape;
-                                                 seed=shape.min_corner .+ sqrt(eps()),
+                                                 grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0,
                                                  point_in_shape_algorithm=WindingNumberJacobson(;

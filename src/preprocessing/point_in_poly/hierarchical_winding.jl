@@ -1,5 +1,5 @@
 # This bounding box is used for the hierarchical evaluation of the winding number.
-# It is used for a binary tree and thus stores the left and right child and also the
+# It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
 struct BoundingBoxTree{MC}
     faces         :: Vector{Int}
