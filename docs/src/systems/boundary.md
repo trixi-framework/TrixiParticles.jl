@@ -55,13 +55,17 @@ of the boundary particle ``b``.
 
 ### Hydrodynamic density of dummy particles
 
-We provide five options to compute the boundary density and pressure, determined by the `density_calculator`:
+We provide six options to compute the boundary density and pressure, determined by the `density_calculator`:
 1. (Recommended) With [`AdamiPressureExtrapolation`](@ref), the pressure is extrapolated from the pressure of the
    fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
-2. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
+2. (Only relevant for FSI) With `BernoulliPressureExtrapolation`, the pressure is extrapolated from the 
+   pressure similar to the `AdamiPressureExtrapolation`, but a relative velocity dependent pressure part
+   is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to 
+   penetrations.
+3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
    and the pressure is computed from the density with the state equation.
-3. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
+4. With [`ContinuityDensity`](@ref), the density is integrated from the continuity equation,
    and the pressure is computed from the density with the state equation.
    Note that this causes a gap between fluid and boundary where the boundary is initialized
    without any contact to the fluid. This is due to overestimation of the boundary density
@@ -69,10 +73,10 @@ We provide five options to compute the boundary density and pressure, determined
    contact to the fluid.
    Therefore, in dam break simulations, there is a visible "step", even though the boundary is supposed to be flat.
    See also [dual.sphysics.org/faq/#Q_13](https://dual.sphysics.org/faq/#Q_13).
-4. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
+5. With [`PressureZeroing`](@ref), the density is set to the reference density and the pressure
    is computed from the density with the state equation.
    This option is not recommended. The other options yield significantly better results.
-5. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
+6. With [`PressureMirroring`](@ref), the density is set to the reference density. The pressure
    is not used. Instead, the fluid pressure is mirrored as boundary pressure in the
    momentum equation.
    This option is not recommended due to stability issues. See [`PressureMirroring`](@ref)
