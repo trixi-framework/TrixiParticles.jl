@@ -362,7 +362,7 @@ function compute_pressure!(boundary_model,
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
             # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
-            bnd_pressure_extrapolation_neighbor!(boundary_model, bnd_density_calc, system,
+            bnd_pressure_extrapolation_neighbor!(boundary_model, system,
                                                  neighbor_system,
                                                  system_coords, neighbor_coords, v,
                                                  v_neighbor_system, nhs)
@@ -370,7 +370,7 @@ function compute_pressure!(boundary_model,
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
             # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
-            bnd_pressure_extrapolation!(boundary_model, bnd_density_calc, system,
+            bnd_pressure_extrapolation!(boundary_model, system,
                                         neighbor_system,
                                         system_coords, neighbor_coords, v,
                                         v_neighbor_system, nhs)
@@ -439,8 +439,8 @@ end
     return boundary_model
 end
 
-@inline function bnd_pressure_extrapolation_neighbor!(boundary_model, bnd_density_calc,
-                                                      system, neighbor_system::FluidSystem,
+@inline function bnd_pressure_extrapolation_neighbor!(boundary_model, system,
+                                                      neighbor_system::FluidSystem,
                                                       system_coords, neighbor_coords, v,
                                                       v_neighbor_system,
                                                       neighborhood_search)
@@ -452,20 +452,19 @@ end
                            parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        bnd_pressure_inner!(boundary_model, bnd_density_calc, system, neighbor_system, v,
+        bnd_pressure_inner!(boundary_model, density_calculator, system, neighbor_system, v,
                             v_neighbor_system, particle, neighbor, pos_diff,
                             distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
-@inline function bnd_pressure_extrapolation!(boundary_model, bnd_density_calc, system,
-                                             neighbor_system,
+@inline function bnd_pressure_extrapolation!(boundary_model, system, neighbor_system,
                                              system_coords, neighbor_coords, v,
                                              v_neighbor_system, neighborhood_search)
     return boundary_model
 end
 
-@inline function bnd_pressure_extrapolation!(boundary_model, bnd_density_calc, system,
+@inline function bnd_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system::FluidSystem,
                                              system_coords, neighbor_coords, v,
                                              v_neighbor_system, neighborhood_search)
@@ -477,7 +476,7 @@ end
                            neighborhood_search;
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
-        bnd_pressure_inner!(boundary_model, bnd_density_calc, system, neighbor_system, v,
+        bnd_pressure_inner!(boundary_model, density_calculator, system, neighbor_system, v,
                             v_neighbor_system, particle, neighbor, pos_diff,
                             distance, viscosity, cache, pressure, pressure_offset)
     end
