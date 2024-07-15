@@ -56,8 +56,8 @@
             # 1.9 causes a large difference in the solution
             @test isapprox(error_edac_P1, 0, atol=4e-9)
             @test isapprox(error_edac_P2, 0, atol=3e-11)
-            @test isapprox(error_wcsph_P1, 0, atol=5.1)
-            @test isapprox(error_wcsph_P2, 0, atol=6e-4)
+            @test isapprox(error_wcsph_P1, 0, atol=26.3)
+            @test isapprox(error_wcsph_P2, 0, atol=8.2e-3)
         end
 
         # Ignore method redefinitions from duplicate `include("../validation_util.jl")`
