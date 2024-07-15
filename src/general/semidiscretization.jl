@@ -793,8 +793,8 @@ function update!(neighborhood_search, system, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving)
 end
 
-# For `GPUSystem`s, explicitly pass the backend, so that with a `GPUSystem` with CPU
-# backend, it will actually launch the KernelAbstractions.jl kernels on the CPU.
+# For `GPUSystem`s, explicitly pass the backend, so that a `GPUSystem` with a CPU
+# backend will actually launch the KernelAbstractions.jl kernels on the CPU.
 function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
     PointNeighbors.update!(neighborhood_search, x, y; points_moving,
                            parallelization_backend=KernelAbstractions.get_backend(system))
