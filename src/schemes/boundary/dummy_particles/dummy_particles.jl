@@ -415,7 +415,7 @@ end
 
 @inline function adami_pressure_extrapolation_neighbor!(boundary_model, system,
                                                         neighbor_system::FluidSystem,
-                                                        system_coords, neighbor_coords, v, v,
+                                                        system_coords, neighbor_coords, v,
                                                         v_neighbor_system,
                                                         neighborhood_search)
     (; pressure, cache, viscosity) = boundary_model
@@ -429,7 +429,7 @@ end
         pos_diff = -pos_diff
         adami_pressure_inner!(boundary_model, system, neighbor_system, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
-                              distance, viscosity, cache, pressure, pressure_offset, pressure_offset)
+                              distance, viscosity, cache, pressure, pressure_offset)
     end
 end
 
