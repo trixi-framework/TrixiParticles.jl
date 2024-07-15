@@ -1,3 +1,4 @@
+# This is the data format returned by `load(file)` when used with `.stl` files
 struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{Tuple{SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE}}}

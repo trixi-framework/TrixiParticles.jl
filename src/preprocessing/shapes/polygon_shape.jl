@@ -1,3 +1,4 @@
+# This is the data format returned by `load(file)` when used with `.asc` files
 struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
     vertices       :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
