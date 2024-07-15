@@ -37,8 +37,8 @@ end
 
 write_v0!(v0, system, density_calculator) = v0
 
-# To incorporate the effect at boundaries in the viscosity term of the RHS the neighbor
-# viscosity model has to be used.
+# At the boundary, the viscosity model of the boundary has to be used to incorporate
+# the boundary's impact in the viscosity term of the rhs.
 @inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
