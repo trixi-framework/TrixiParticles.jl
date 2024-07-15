@@ -301,8 +301,6 @@ function write2vtk!(vtk, v, u, t, system::TotalLagrangianSPHSystem; write_meta_d
 end
 
 function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data=true)
-    (; reference_velocity, reference_pressure, reference_density) = system
-
     vtk["velocity"] = [current_velocity(v, system, particle)
                        for particle in active_particles(system)]
     vtk["density"] = [particle_density(v, system, particle)
@@ -310,13 +308,14 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
     vtk["pressure"] = [particle_pressure(v, system, particle)
                        for particle in active_particles(system)]
 
-    NDIMS = ndims(system)
-    ELTYPE = eltype(system)
-    coords = reinterpret(reshape, SVector{NDIMS, ELTYPE}, active_coordinates(u, system))
+    for particle in active_particles(system)
+        particle_coords = current_coords(u, system, particle)
+        rho_ref, p_ref, v_ref = reference_values(v, system, particle, particle_coords, t)
 
-    vtk["prescribed_velocity"] = stack(reference_velocity.(coords, t))
-    vtk["prescribed_density"] = reference_density.(coords, t)
-    vtk["prescribed_pressure"] = reference_pressure.(coords, t)
+        vtk["prescribed_density"] = rho_ref
+        vtk["prescribed_pressure"] = p_ref
+        vtk["prescribed_velocity"] = v_ref
+    end
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
