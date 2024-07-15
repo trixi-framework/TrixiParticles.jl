@@ -482,6 +482,8 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
 
+# The open boundary system either uses the fluids viscosity model or at the boundary the model
+# of the boundary which is the normal behavior to incorporate the boundaries impact in the viscosity term of the rhs.
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
