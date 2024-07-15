@@ -444,7 +444,7 @@ end
                                                       system_coords, neighbor_coords, v,
                                                       v_neighbor_system,
                                                       neighborhood_search)
-    (; pressure, cache, viscosity) = boundary_model
+    (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
 
     foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
