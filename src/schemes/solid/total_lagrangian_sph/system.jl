@@ -274,12 +274,11 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     initial_coords = initial_coordinates(system)
-    for_particle_neighbor(system, system,
-                          initial_coords, initial_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             initial_pos_diff,
-                                                             initial_distance
+    foreach_point_neighbor(system, system, initial_coords, initial_coords,
+                           neighborhood_search;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           initial_pos_diff,
+                                                           initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -380,10 +379,6 @@ function restart_with!(system::TotalLagrangianSPHSystem, v, u)
     restart_with!(system, system.boundary_model, v, u)
 end
 
-function viscosity_model(system::TotalLagrangianSPHSystem)
-    return system.boundary_model.viscosity
-end
-
 # An explanation of these equation can be found in
 # J. Lubliner, 2008. Plasticity theory.
 # See here below Equation 5.3.21 for the equation for the equivalent stress.
@@ -435,3 +430,8 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
 
     return cauchy_stress_tensors
 end
+
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
+@inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
+@inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
