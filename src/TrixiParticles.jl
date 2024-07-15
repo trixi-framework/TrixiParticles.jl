@@ -9,7 +9,7 @@ using DataFrames: DataFrame
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
 using ForwardDiff: ForwardDiff
-using GPUArrays: AbstractGPUArray
+using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
@@ -25,8 +25,11 @@ using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings
-@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
-using PointNeighbors: PointNeighbors, for_particle_neighbor
+@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
+                                PrecomputedNeighborhoodSearch, PeriodicBox,
+                                ParallelUpdate, SemiParallelUpdate, SerialUpdate
+using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
+                      @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
@@ -58,7 +61,7 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole
-export ArtificialViscosityMonaghan, ViscosityAdami
+export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,

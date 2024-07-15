@@ -20,9 +20,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     # debug_array = zeros(ndims(particle_system), nparticles(particle_system))
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(particle_system, neighbor_system,
+                           system_coords, neighbor_system_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         rho_a = particle_density(v_particle_system, particle_system, particle)
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
         rho_mean = 0.5 * (rho_a + rho_b)
@@ -56,7 +56,7 @@ function interact!(dv, v_particle_system, u_particle_system,
                         dv_viscosity(particle_system, neighbor_system,
                                      v_particle_system, v_neighbor_system,
                                      particle, neighbor, pos_diff, distance,
-                                     sound_speed, m_a, m_b, rho_mean)
+                                     sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 
         dv_surface_tension = surface_tension_correction *
                              surface_tension_force(surface_tension_a, surface_tension_b,
