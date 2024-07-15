@@ -281,8 +281,8 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
-    for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                          nhs) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                           nhs) do particle, neighbor, pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities
@@ -482,3 +482,10 @@ end
 function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
+
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
+@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
+# When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
+@inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity

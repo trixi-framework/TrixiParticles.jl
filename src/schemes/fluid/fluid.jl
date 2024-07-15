@@ -38,7 +38,10 @@ end
 
 write_v0!(v0, system::FluidSystem, _) = v0
 
-@inline viscosity_model(system::FluidSystem) = system.viscosity
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
+@inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
