@@ -431,7 +431,7 @@ function cauchy_stress(system::TotalLagrangianSPHSystem)
     return cauchy_stress_tensors
 end
 
-# At the boundary, the viscosity model of the boundary has to be used to incorporate
-# the boundary's impact in the viscosity term of the rhs.
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
 @inline viscosity_model(system::TotalLagrangianSPHSystem, neighbor_system) = neighbor_system.viscosity
 @inline viscosity_model(system::FluidSystem, neighbor_system::TotalLagrangianSPHSystem) = neighbor_system.boundary_model.viscosity
