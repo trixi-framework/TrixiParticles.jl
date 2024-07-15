@@ -13,14 +13,14 @@
 
             edge_vertices = [[v1, v2], [v2, v3], [v3, v4], [v4, v1]]
 
-            normals_edge = [
+            edge_normals = [
                 rot([-1.0, 0.0], rot_angle),
                 rot([0.0, 1.0], rot_angle),
                 rot([1.0, 0.0], rot_angle),
                 rot([0.0, -1.0], rot_angle),
             ]
 
-            normals_vertex = [
+            vertex_normals = [
                 rot([[-√2 / 2, -√2 / 2], [-√2 / 2, √2 / 2]], rot_angle), # edge 1
                 rot([[-√2 / 2, √2 / 2], [√2 / 2, √2 / 2]], rot_angle),   # edge 2
                 rot([[√2 / 2, √2 / 2], [√2 / 2, -√2 / 2]], rot_angle),   # edge 3
@@ -29,13 +29,13 @@
 
             shape_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
             @test all(isapprox(shape_clockwise.edge_vertices, edge_vertices, atol=1e-14))
-            @test all(isapprox(shape_clockwise.normals_edge, normals_edge, atol=1e-14))
-            @test all(isapprox(shape_clockwise.normals_vertex, normals_vertex, atol=1e-14))
+            @test all(isapprox(shape_clockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(shape_clockwise.vertex_normals, vertex_normals, atol=1e-14))
 
             shape_cclockwise = TrixiParticles.Polygon(points_rectangular_counter_clockwise)
             @test all(isapprox(shape_cclockwise.edge_vertices, edge_vertices, atol=1e-14))
-            @test all(isapprox(shape_cclockwise.normals_edge, normals_edge, atol=1e-14))
-            @test all(isapprox(shape_cclockwise.normals_vertex, normals_vertex, atol=1e-14))
+            @test all(isapprox(shape_cclockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(shape_cclockwise.vertex_normals, vertex_normals, atol=1e-14))
         end
     end
 
@@ -52,8 +52,8 @@
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
-                normals_vertex = vcat((data.var"normals_vertex:0")',
-                                      (data.var"normals_vertex:1")')
+                vertex_normals = vcat((data.var"vertex_normals:0")',
+                                      (data.var"vertex_normals:1")')
 
                 points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
@@ -62,7 +62,7 @@
                 @test TrixiParticles.nfaces(shape) == n_edges[i]
 
                 @testset "Normals $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.normals_vertex[j][1], normals_vertex[:, j],
+                    @test isapprox(shape.vertex_normals[j][1], vertex_normals[:, j],
                                    atol=1e-4)
                 end
                 @testset "Points $j" for j in eachindex(shape.vertices)
@@ -81,9 +81,9 @@
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
-                normals_vertex = vcat((data.var"normals_vertex:0")',
-                                      (data.var"normals_vertex:1")',
-                                      (data.var"normals_vertex:2")')
+                vertex_normals = vcat((data.var"vertex_normals:0")',
+                                      (data.var"vertex_normals:1")',
+                                      (data.var"vertex_normals:2")')
 
                 points = vcat((data.var"Points:0")',
                               (data.var"Points:1")',
@@ -95,12 +95,55 @@
                 @test length(shape.vertices) == n_vertices[i]
 
                 @testset "Normals $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.normals_vertex[j], normals_vertex[:, j], atol=1e-5)
+                    @test isapprox(shape.vertex_normals[j], vertex_normals[:, j], atol=1e-5)
                 end
                 @testset "Points $j" for j in eachindex(shape.vertices)
                     @test isapprox(shape.vertices[j], points[:, j], atol=1e-5)
                 end
             end
         end
+    end
+end
+
+# ==========================================================================================
+# ==== The following functions are only used for debugging yet
+
+function save(filename, mesh; faces=eachface(mesh))
+    save(File{format"STL_BINARY"}(filename), mesh; faces)
+end
+
+function save(fn::File{format"STL_BINARY"}, mesh::TriangleMesh; faces=eachface(mesh))
+    open(fn, "w") do s
+        save(s, mesh; faces)
+    end
+end
+
+function save(f::Stream{format"STL_BINARY"}, mesh::TriangleMesh; faces)
+    io = stream(f)
+    points = mesh.face_vertices
+    normals = mesh.face_normals
+
+    # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
+    for i in 1:80 # Write empty header
+        write(io, 0x00)
+    end
+
+    write(io, UInt32(length(faces))) # Write triangle count
+    for i in faces
+        n = SVector{3, Float32}(normals[i])
+        triangle = points[i]
+
+        for j in 1:3
+            write(io, n[j])
+        end
+
+        for point in triangle, p in point
+            write(io, Float32(p))
+        end
+
+        # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
+        # that is the "attribute byte count" – in the standard format, this should be zero
+        # because most software does not understand anything else.
+        write(io, 0x0000) # 16 empty bits
     end
 end

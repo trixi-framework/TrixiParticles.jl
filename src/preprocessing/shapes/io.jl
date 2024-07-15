@@ -82,62 +82,19 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
     return TriangleMesh(face_vertices, normals, vertices)
 end
 
-# ==========================================================================================
-# ==== The following functions are only used for debugging yet
-
-function save(filename, mesh; faces=eachface(mesh))
-    save(File{format"STL_BINARY"}(filename), mesh; faces)
-end
-
-function save(fn::File{format}, mesh::TriangleMesh; faces=eachface(mesh)) where {format}
-    open(fn, "w") do s
-        save(s, mesh; faces)
-    end
-end
-
-function save(f::Stream{format"STL_BINARY"}, mesh::TriangleMesh; faces)
-    io = stream(f)
-    points = mesh.face_vertices
-    normals = mesh.normals_face
-
-    # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-    for i in 1:80 # Write empty header
-        write(io, 0x00)
-    end
-
-    write(io, UInt32(length(faces))) # Write triangle count
-    for i in faces
-        n = SVector{3, Float32}(normals[i])
-        triangle = points[i]
-
-        for j in 1:3
-            write(io, n[j])
-        end
-
-        for point in triangle, p in point
-            write(io, Float32(p))
-        end
-
-        # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
-        # that is the "attribute byte count" – in the standard format, this should be zero
-        # because most software does not understand anything else.
-        write(io, 0x0000) # 16 empty bits
-    end
-end
-
 function trixi2vtk(shape::Shapes{2}; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    normals_vertex = stack([shape.normals_vertex[edge][1] for edge in eachface(shape)])
+    vertex_normals = stack([shape.vertex_normals[edge][1] for edge in eachface(shape)])
 
     return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
-                     normals_vertex=normals_vertex)
+                     vertex_normals=vertex_normals, custom_quantities...)
 end
 
 function trixi2vtk(shape::Shapes{3}; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    normals_vertex = stack([shape.normals_vertex[face]
+    vertex_normals = stack([shape.vertex_normals[face]
                             for face in eachindex(shape.vertices)])
 
     return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
-                     normals_vertex=normals_vertex)
+                     vertex_normals=vertex_normals, custom_quantities...)
 end

@@ -24,7 +24,7 @@ struct HierarchicalWinding{BB}
     function HierarchicalWinding(shape)
         bounding_box = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
 
-        directed_edges = zeros(Int, length(shape.normals_edge))
+        directed_edges = zeros(Int, length(shape.edge_normals))
 
         construct_hierarchy!(bounding_box, shape, directed_edges)
 

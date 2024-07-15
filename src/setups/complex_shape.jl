@@ -4,7 +4,7 @@
                  point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                 hierarchical_winding=false,
                                                                 winding_number_factor=sqrt(eps())),
-                 grid_offset::AbstractFloat=0.0, max_nparticles=10^7,
+                 grid_offset::Real=0.0, max_nparticles=10^7,
                  pad_initial_particle_grid=2particle_spacing)
 
 Complex shape filled with particles. Returns an [`InitialCondition`](@ref).
@@ -32,7 +32,7 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 - `point_in_shape_algorithm`: Algorithm for sampling the complex shape with particles.
                               It basically checks whether a particle is inside an object or not.
                               For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
-- `grid_offset`: Offset of the initial particle grid to the minimum corner of the bounding box of the `shape`.
+- `grid_offset`: Offset of the initial particle grid of the bounding box of the `shape`.
 - `max_nparticles`: Maximum number of particles in the initial particle grid.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
 
@@ -45,7 +45,7 @@ function ComplexShape(shape::Shapes; particle_spacing, density, pressure=0.0, ma
                       point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                      hierarchical_winding=false,
                                                                      winding_number_factor=sqrt(eps())),
-                      store_winding_number=false, grid_offset::AbstractFloat=0.0,
+                      store_winding_number=false, grid_offset::Real=0.0,
                       max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
     if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
         throw(ArgumentError("`WindingNumberHorman` only supports 2D shapes"))

@@ -1,100 +1,97 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
 struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
     vertices       :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_vertices  :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
-    normals_vertex :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
-    normals_edge   :: Vector{SVector{NDIMS, ELTYPE}}
+    edge_vertices  :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
+    vertex_normals :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
+    edge_normals   :: Vector{SVector{NDIMS, ELTYPE}}
     min_corner     :: SVector{NDIMS, ELTYPE}
     max_corner     :: SVector{NDIMS, ELTYPE}
 
-    function Polygon(vertices_)
-        NDIMS = size(vertices_, 1)
+    function Polygon(vertices)
+        NDIMS = size(vertices, 1)
 
-        vertices_x = copy(vertices_[1, :])
-        vertices_y = copy(vertices_[2, :])
-
-        if !isapprox(vertices_[:, end], vertices_[:, 1])
-            push!(vertices_x, vertices_x[1])
-            push!(vertices_y, vertices_y[1])
-
-            vertices = vcat(vertices_x', vertices_y')
-        else
-            vertices = vertices_
+        # Close the polygon if it's open
+        if !isapprox(vertices[:, end], vertices[:, 1])
+            vertices = hcat(vertices, vertices[:, 1])
         end
 
-        min_corner = SVector([minimum(vertices[i, :]) for i in 1:NDIMS]...)
-        max_corner = SVector([maximum(vertices[i, :]) for i in 1:NDIMS]...)
+        min_corner = SVector{NDIMS}(minimum(vertices, dims=2))
+        max_corner = SVector{NDIMS}(maximum(vertices, dims=2))
 
         n_vertices = size(vertices, 2)
         ELTYPE = eltype(vertices)
 
         # Sum over all the edges and determine if the vertices are in clockwise order
-        # to make sure that all normals pointing outwards
-        counter = 0.0
+        # to make sure that all normals pointing outwards.
+        # To do so, we compute the area of the polygon, which can be either positive or
+        # negative. It depends on the order of the vertices.
+        # https://en.wikipedia.org/wiki/Polygon
+        polygon_area = 0.0
         for i in 1:(n_vertices - 1)
-            v1 = SVector(vertices[:, i]...)
-            v2 = SVector(vertices[:, i + 1]...)
-            counter += (v2[1] - v1[1]) * (v2[2] + v1[2])
+            v1 = extract_svector(vertices, Val(NDIMS), i)
+            v2 = extract_svector(vertices, Val(NDIMS), i + 1)
+            polygon_area += (v1[1] * v2[2] - v2[1] * v1[2])
         end
 
-        if counter < 0.0
+        if polygon_area == 0.0
+            throw(ArgumentError("polygon is not correctly defined"))
+        elseif polygon_area > 0.0
             # Curve is counter-clockwise
             reverse!(vertices, dims=2)
-            reverse!(vertices_x)
-            reverse!(vertices_y)
         end
 
-        edge_vertices = Vector{Vector{SVector{NDIMS, ELTYPE}}}()
-        normals_edge = Vector{SVector{NDIMS, ELTYPE}}()
+        edge_vertices = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
+        edge_normals = Vector{SVector{NDIMS, ELTYPE}}()
 
         for i in 1:(n_vertices - 1)
-            v1 = SVector(vertices[:, i]...)
-            v2 = SVector(vertices[:, i + 1]...)
+            v1 = extract_svector(vertices, Val(NDIMS), i)
+            v2 = extract_svector(vertices, Val(NDIMS), i + 1)
             if isapprox(v1, v2)
                 continue
             end
 
             edge = v2 - v1
 
-            edge_normal = SVector(normalize([-edge[2], edge[1]])...)
+            edge_normal = SVector{NDIMS}(normalize([-edge[2], edge[1]]))
 
             push!(edge_vertices, [v1, v2])
-            push!(normals_edge, edge_normal)
+            push!(edge_normals, edge_normal)
         end
 
-        normals_vertex = Vector{Vector{SVector{NDIMS, ELTYPE}}}()
+        vertex_normals = Vector{Vector{SVector{NDIMS, ELTYPE}}}()
 
         # Calculate vertex pseudo-normals
-
+        # A edge is defined with two vertices of which we calculate the pseudo-normals
+        # by averaging the normals of the neighbor edges.
         for i in 1:length(edge_vertices)
             if i == 1
-                edge_normal_1 = normals_edge[end]
+                edge_normal_1 = edge_normals[end]
             else
-                edge_normal_1 = normals_edge[i - 1]
+                edge_normal_1 = edge_normals[i - 1]
             end
 
-            edge_normal_2 = normals_edge[i]
+            edge_normal_2 = edge_normals[i]
 
             if i == length(edge_vertices)
-                edge_normal_3 = normals_edge[1]
+                edge_normal_3 = edge_normals[1]
             else
-                edge_normal_3 = normals_edge[i + 1]
+                edge_normal_3 = edge_normals[i + 1]
             end
 
             vortex_normal_1 = normalize(edge_normal_1 + edge_normal_2)
             vortex_normal_2 = normalize(edge_normal_2 + edge_normal_3)
 
-            push!(normals_vertex, [vortex_normal_1, vortex_normal_2])
+            push!(vertex_normals, [vortex_normal_1, vortex_normal_2])
         end
 
         vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices[:, 1:(end - 1)])
 
-        return new{NDIMS, ELTYPE}(vertices, edge_vertices, normals_vertex, normals_edge,
+        return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   min_corner, max_corner)
     end
 end
 
-@inline nfaces(mesh::Polygon) = length(mesh.normals_edge)
+@inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
 
 @inline function face_vertices(edge, shape::Polygon)
     v1 = shape.edge_vertices[edge][1]

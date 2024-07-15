@@ -1,20 +1,20 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
 struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
-    face_vertices     :: Vector{Tuple{SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE}, SVector{NDIMS, ELTYPE}}}
+    face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
     face_vertices_ids :: Vector{NTuple{3, Int}}
     face_edges_ids    :: Vector{NTuple{3, Int}}
     edge_vertices_ids :: Vector{NTuple{2, Int}}
-    normals_vertex    :: Vector{SVector{NDIMS, ELTYPE}}
-    normals_edge      :: Vector{SVector{NDIMS, ELTYPE}}
-    normals_face      :: Vector{SVector{NDIMS, ELTYPE}}
+    vertex_normals    :: Vector{SVector{NDIMS, ELTYPE}}
+    edge_normals      :: Vector{SVector{NDIMS, ELTYPE}}
+    face_normals      :: Vector{SVector{NDIMS, ELTYPE}}
     min_corner        :: SVector{NDIMS, ELTYPE}
     max_corner        :: SVector{NDIMS, ELTYPE}
 
-    function TriangleMesh(face_vertices, normals_face, vertices)
+    function TriangleMesh(face_vertices, face_normals, vertices)
         NDIMS = 3
-        ELTYPE = eltype(first(normals_face))
-        n_faces = length(normals_face)
+        ELTYPE = eltype(first(face_normals))
+        n_faces = length(face_normals)
 
         face_vertices_ids = fill((0, 0, 0), n_faces)
 
@@ -34,8 +34,8 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
         _edges = Dict{NTuple{2, Int}, Int}()
         face_edges_ids = fill((0, 0, 0), n_faces)
-        normals_edge = fill(fill(zero(ELTYPE), SVector{NDIMS}), 3n_faces)
-        normals_vertex = fill(fill(zero(ELTYPE), SVector{NDIMS}), length(vertices))
+        edge_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), 3n_faces)
+        vertex_normals = fill(fill(zero(ELTYPE), SVector{NDIMS}), length(vertices))
         edge_vertices_ids = fill((0, 0), 3n_faces)
 
         # Not thread supported (yet)
@@ -80,18 +80,18 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
             face_edges_ids[i] = (edge_id_1, edge_id_2, edge_id_3)
 
-            normals_edge[edge_id_1] += normals_face[i]
-            normals_edge[edge_id_2] += normals_face[i]
-            normals_edge[edge_id_3] += normals_face[i]
+            edge_normals[edge_id_1] += face_normals[i]
+            edge_normals[edge_id_2] += face_normals[i]
+            edge_normals[edge_id_3] += face_normals[i]
 
             angles = incident_angles(face_vertices[i])
 
-            normals_vertex[v1] += angles[1] * normals_face[i]
-            normals_vertex[v2] += angles[2] * normals_face[i]
-            normals_vertex[v3] += angles[3] * normals_face[i]
+            vertex_normals[v1] += angles[1] * face_normals[i]
+            vertex_normals[v2] += angles[2] * face_normals[i]
+            vertex_normals[v3] += angles[3] * face_normals[i]
         end
 
-        resize!(normals_edge, length(_edges))
+        resize!(edge_normals, length(_edges))
         resize!(edge_vertices_ids, length(_edges))
 
         min_corner = SVector([minimum(v[i] for v in vertices) for i in 1:NDIMS]...)
@@ -99,12 +99,12 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
         return new{NDIMS, ELTYPE}(vertices, face_vertices, face_vertices_ids,
                                   face_edges_ids, edge_vertices_ids,
-                                  normalize.(normals_vertex), normalize.(normals_edge),
-                                  normals_face, min_corner, max_corner)
+                                  normalize.(vertex_normals), normalize.(edge_normals),
+                                  face_normals, min_corner, max_corner)
     end
 end
 
-@inline nfaces(mesh::TriangleMesh) = length(mesh.normals_face)
+@inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 
 @inline function face_vertices(triangle, shape::TriangleMesh)
     v1 = shape.face_vertices[triangle][1]
