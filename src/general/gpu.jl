@@ -22,21 +22,14 @@ function Adapt.adapt_structure(to, ic::InitialCondition)
     return nothing
 end
 
-# `adapt(CuArray, ::SVector)::SVector`, but `adapt(Array, ::SVector)::Vector`.
-# We don't want to change the type of the `SVector` here.
-function Adapt.adapt_structure(to::typeof(Array), svector::SVector)
-    return svector
-end
-
-# `adapt(CuArray, ::UnitRange)::UnitRange`, but `adapt(Array, ::UnitRange)::Vector`.
-# We don't want to change the type of the `UnitRange` here.
-function Adapt.adapt_structure(to::typeof(Array), range::UnitRange)
-    return range
-end
-
 KernelAbstractions.get_backend(::PtrArray) = KernelAbstractions.CPU()
 KernelAbstractions.get_backend(system::System) = KernelAbstractions.get_backend(system.mass)
 
 function KernelAbstractions.get_backend(system::BoundarySPHSystem)
     KernelAbstractions.get_backend(system.coordinates)
+end
+
+# On GPUs, execute `f` inside a GPU kernel with KernelAbstractions.jl
+@inline function PointNeighbors.parallel_foreach(f, iterator, system::GPUSystem)
+    PointNeighbors.parallel_foreach(f, iterator, KernelAbstractions.get_backend(system))
 end

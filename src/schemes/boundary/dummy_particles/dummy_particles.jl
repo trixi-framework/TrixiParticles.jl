@@ -418,19 +418,16 @@ end
                                                         system_coords, neighbor_coords, v, v,
                                                         v_neighbor_system,
                                                         neighborhood_search)
-    (; pressure, cache, viscosity, density_calculator, density_calculator) = boundary_model
-    (; pressure_offset) = density_calculator
+    (; pressure, cache, viscosity) = boundary_model
     (; pressure_offset) = density_calculator
 
-    for_particle_neighbor(neighbor_system, system,
-                          neighbor_coords, system_coords,
-                          neighborhood_search;
-                          particles=eachparticle(neighbor_system),
-                          parallel=false) do neighbor, particle,
-                                             pos_diff, distance
+
+    foreach_point_neighbor(neighbor_system, system, neighbor_coords, system_coords,
+                           neighborhood_search; points=eachparticle(neighbor_system),
+                           parallel=false) do neighbor, particle, pos_diff, distance
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
-        adami_pressure_inner!(boundary_model, system, neighbor_system, v, v,
+        adami_pressure_inner!(boundary_model, system, neighbor_system, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure, pressure_offset, pressure_offset)
     end
@@ -467,11 +464,10 @@ end
     (; pressure_offset) = density_calculator
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search;
-                          particles=eachparticle(system)) do particle, neighbor,
-                                                             pos_diff, distance
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search;
+                           points=eachparticle(system)) do particle, neighbor,
+                                                           pos_diff, distance
         adami_pressure_inner!(boundary_model, system, neighbor_system, v,
                               v_neighbor_system, particle, neighbor, pos_diff,
                               distance, viscosity, cache, pressure, pressure_offset)

@@ -154,11 +154,10 @@
                 end
 
                 TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = neighbors
+                TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = Inf
 
                 function Base.getproperty(::Val{:nhs}, f::Symbol)
-                    if f === :search_radius
-                        return Inf
-                    elseif f === :periodic_box_size
+                    if f === :periodic_box
                         return nothing
                     end
 
@@ -216,8 +215,8 @@
                 initial_condition = InitialCondition(; coordinates, mass, density)
                 system = TotalLagrangianSPHSystem(initial_condition, smoothing_kernel,
                                                   smoothing_length, 1.0, 1.0)
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(1.0,
-                                                                  TrixiParticles.eachparticle(system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius=1.0,
+                                                                  eachpoint=TrixiParticles.eachparticle(system))
 
                 TrixiParticles.initialize!(system, nhs)
 
