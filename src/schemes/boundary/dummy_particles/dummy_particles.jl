@@ -70,13 +70,13 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset)
+    AdamiPressureExtrapolation(; pressure_offset=0.0)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
-                         to prevent penetration which is possible by increasing this value.
+                         to prevent penetration, which is possible by increasing this value.
 
 """
 struct AdamiPressureExtrapolation{ELTYPE}
