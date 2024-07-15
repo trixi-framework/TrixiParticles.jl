@@ -1,6 +1,6 @@
 @testset verbose=true "Shapes" begin
     @testset verbose=true "Rectangular Analytical" begin
-        rot(vec, α) = [cos(α) -sin(α); sin(α) cos(α)] * vec
+        rot(vec, α) = SVector{2}([cos(α) -sin(α); sin(α) cos(α)] * vec)
 
         @testset "Rotation Angle $(rot_angle)" for rot_angle in 0.0:(π / 8):(2π)
             v1 = rot([0.0, 0.0], rot_angle)
@@ -11,7 +11,7 @@
             points_rectangular_clockwise = [v1 v2 v3 v4]
             points_rectangular_counter_clockwise = [v1 v4 v3 v2]
 
-            edge_vertices = [[v1, v2], [v2, v3], [v3, v4], [v4, v1]]
+            edge_vertices = [(v1, v2), (v2, v3), (v3, v4), (v4, v1)]
 
             edge_normals = [
                 rot([-1.0, 0.0], rot_angle),

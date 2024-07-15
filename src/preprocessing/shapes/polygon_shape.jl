@@ -54,7 +54,7 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
 
             edge_normal = SVector{NDIMS}(normalize([-edge[2], edge[1]]))
 
-            push!(edge_vertices, [v1, v2])
+            push!(edge_vertices, (v1, v2))
             push!(edge_normals, edge_normal)
         end
 
