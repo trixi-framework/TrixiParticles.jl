@@ -73,7 +73,7 @@ function sample(shape::Shapes; particle_spacing, density, pressure=0.0, mass=not
     ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
                           particle_spacing)
 
-     # This is most likely only useful for debugging. Note that this is not public API.
+    # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
         return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
     end
