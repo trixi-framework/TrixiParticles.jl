@@ -33,16 +33,23 @@
                 @test all(isapprox.(shape_clockwise.edge_vertices[edge],
                                     edge_vertices[edge], atol=1e-14))
             end
+            for vertex in eachindex(vertex_normals)
+                @test all(isapprox.(shape_clockwise.vertex_normals[vertex],
+                                    vertex_normals[vertex], atol=1e-14))
+            end
             @test all(isapprox(shape_clockwise.edge_normals, edge_normals, atol=1e-14))
-            @test all(isapprox(shape_clockwise.vertex_normals, vertex_normals, atol=1e-14))
 
-            shape_cclockwise = TrixiParticles.Polygon(points_rectangular_counter_clockwise)
+            shape_cclockwise = TrixiParticles.Polygon(Matrix(points_rectangular_counter_clockwise))
+
             for edge in eachindex(edge_vertices)
-                @test all(isapprox.(shape_clockwise.edge_vertices[edge],
+                @test all(isapprox.(shape_cclockwise.edge_vertices[edge],
                                     edge_vertices[edge], atol=1e-14))
             end
+            for vertex in eachindex(vertex_normals)
+                @test all(isapprox.(shape_cclockwise.vertex_normals[vertex],
+                                    vertex_normals[vertex], atol=1e-14))
+            end
             @test all(isapprox(shape_cclockwise.edge_normals, edge_normals, atol=1e-14))
-            @test all(isapprox(shape_cclockwise.vertex_normals, vertex_normals, atol=1e-14))
         end
     end
 
@@ -115,18 +122,20 @@ end
 # ==========================================================================================
 # ==== The following functions are only used for debugging yet
 
-function save(filename, mesh; faces=eachface(mesh))
-    save(File{format"STL_BINARY"}(filename), mesh; faces)
+function save(filename, mesh; faces=TrixiParticles.eachface(mesh))
+    save(TrixiParticles.File{TrixiParticles.format"STL_BINARY"}(filename), mesh; faces)
 end
 
-function save(fn::File{format"STL_BINARY"}, mesh::TriangleMesh; faces=eachface(mesh))
+function save(fn::TrixiParticles.File{TrixiParticles.format"STL_BINARY"},
+              mesh::TrixiParticles.TriangleMesh; faces=TrixiParticles.eachface(mesh))
     open(fn, "w") do s
         save(s, mesh; faces)
     end
 end
 
-function save(f::Stream{format"STL_BINARY"}, mesh::TriangleMesh; faces)
-    io = stream(f)
+function save(f::TrixiParticles.Stream{TrixiParticles.format"STL_BINARY"},
+              mesh::TrixiParticles.TriangleMesh; faces)
+    io = TrixiParticles.stream(f)
     points = mesh.face_vertices
     normals = mesh.face_normals
 

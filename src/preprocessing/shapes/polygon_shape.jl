@@ -2,37 +2,41 @@
 struct Polygon{NDIMS, ELTYPE}
     vertices       :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices  :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
-    vertex_normals :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
+    vertex_normals :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
     edge_normals   :: Vector{SVector{NDIMS, ELTYPE}}
     min_corner     :: SVector{NDIMS, ELTYPE}
     max_corner     :: SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices)
-        # Make array mutable
-        vertices = Matrix(vertices)
-
         NDIMS = size(vertices, 1)
 
+        return Polygon{NDIMS}(vertices)
+    end
+
+    # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
+    function Polygon{NDIMS}(vertices_) where {NDIMS}
         # Close the polygon if it's open
-        if !isapprox(vertices[:, end], vertices[:, 1])
-            vertices = hcat(vertices, vertices[:, 1])
+        if !isapprox(vertices_[:, end], vertices_[:, 1])
+            vertices_ = hcat(vertices_, vertices_[:, 1])
         end
 
-        min_corner = SVector{NDIMS}(minimum(vertices, dims=2))
-        max_corner = SVector{NDIMS}(maximum(vertices, dims=2))
+        n_vertices = size(vertices_, 2)
+        ELTYPE = eltype(vertices_)
 
-        n_vertices = size(vertices, 2)
-        ELTYPE = eltype(vertices)
+        min_corner = SVector{NDIMS}(minimum(vertices_, dims=2))
+        max_corner = SVector{NDIMS}(maximum(vertices_, dims=2))
+
+        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_)
 
         # Sum over all the edges and determine if the vertices are in clockwise order
         # to make sure that all normals pointing outwards.
-        # To do so, we compute the area of the polygon, which can be either positive or
-        # negative. It depends on the order of the vertices.
+        # To do so, we compute the signed area of the polygon by the shoelace formula, which
+        # is positive for counter-clockwise ordering and negative for clockwise ordering of the vertices.
         # https://en.wikipedia.org/wiki/Polygon
         polygon_area = 0.0
         for i in 1:(n_vertices - 1)
-            v1 = extract_svector(vertices, Val(NDIMS), i)
-            v2 = extract_svector(vertices, Val(NDIMS), i + 1)
+            v1 = vertices[i]
+            v2 = vertices[i + 1]
             polygon_area += (v1[1] * v2[2] - v2[1] * v1[2])
         end
 
@@ -40,15 +44,15 @@ struct Polygon{NDIMS, ELTYPE}
             throw(ArgumentError("polygon is not correctly defined"))
         elseif polygon_area > 0.0
             # Curve is counter-clockwise
-            reverse!(vertices, dims=2)
+            reverse!(vertices)
         end
 
         edge_vertices = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
         edge_normals = Vector{SVector{NDIMS, ELTYPE}}()
 
         for i in 1:(n_vertices - 1)
-            v1 = extract_svector(vertices, Val(NDIMS), i)
-            v2 = extract_svector(vertices, Val(NDIMS), i + 1)
+            v1 = vertices[i]
+            v2 = vertices[i + 1]
             if isapprox(v1, v2)
                 continue
             end
@@ -61,11 +65,11 @@ struct Polygon{NDIMS, ELTYPE}
             push!(edge_normals, edge_normal)
         end
 
-        vertex_normals = Vector{Vector{SVector{NDIMS, ELTYPE}}}()
+        vertex_normals = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
 
-        # Calculate vertex pseudo-normals
-        # A edge is defined with two vertices of which we calculate the pseudo-normals
-        # by averaging the normals of the neighbor edges.
+        # Calculate vertex pseudo-normals.
+        # An edge is defined by two vertices, for which we calculate the pseudo-normals
+        # by averaging the normals of the adjacent edges.
         for i in 1:length(edge_vertices)
             if i == 1
                 edge_normal_1 = edge_normals[end]
@@ -84,10 +88,10 @@ struct Polygon{NDIMS, ELTYPE}
             vortex_normal_1 = normalize(edge_normal_1 + edge_normal_2)
             vortex_normal_2 = normalize(edge_normal_2 + edge_normal_3)
 
-            push!(vertex_normals, [vortex_normal_1, vortex_normal_2])
+            push!(vertex_normals, (vortex_normal_1, vortex_normal_2))
         end
 
-        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices[:, 1:(end - 1)])
+        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_[:, 1:(end - 1)])
 
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   min_corner, max_corner)
