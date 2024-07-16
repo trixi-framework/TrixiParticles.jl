@@ -82,7 +82,7 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
     return TriangleMesh(face_vertices, normals, vertices)
 end
 
-function trixi2vtk(shape::Shapes{2}; output_directory="out", prefix="",
+function trixi2vtk(shape::Polygon; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
     vertex_normals = stack([shape.vertex_normals[edge][1] for edge in eachface(shape)])
 
@@ -90,7 +90,7 @@ function trixi2vtk(shape::Shapes{2}; output_directory="out", prefix="",
                      vertex_normals=vertex_normals, custom_quantities...)
 end
 
-function trixi2vtk(shape::Shapes{3}; output_directory="out", prefix="",
+function trixi2vtk(shape::TriangleMesh; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
     vertex_normals = stack([shape.vertex_normals[face]
                             for face in eachindex(shape.vertices)])

@@ -1,6 +1,6 @@
 """
-    ComplexShape(shape::Shapes; particle_spacing, density, pressure=0.0, mass=nothing,
-                 velocity=zeros(ndims(shape)),
+    ComplexShape(shape::::Union{TriangleMesh, Polygon}; particle_spacing, density,
+                 pressure=0.0, mass=nothing, velocity=zeros(ndims(shape)),
                  point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                 hierarchical_winding=false,
                                                                 winding_number_factor=sqrt(eps())),
@@ -40,8 +40,8 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function ComplexShape(shape::Shapes; particle_spacing, density, pressure=0.0, mass=nothing,
-                      velocity=zeros(ndims(shape)),
+function ComplexShape(shape::Union{TriangleMesh, Polygon}; particle_spacing, density,
+                      pressure=0.0, mass=nothing, velocity=zeros(ndims(shape)),
                       point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                      hierarchical_winding=false,
                                                                      winding_number_factor=sqrt(eps())),
@@ -57,7 +57,7 @@ function ComplexShape(shape::Shapes; particle_spacing, density, pressure=0.0, ma
                   padding=pad_initial_particle_grid)
 end
 
-function sample(shape::Shapes; particle_spacing, density, pressure=0.0, mass=nothing,
+function sample(shape; particle_spacing, density, pressure=0.0, mass=nothing,
                 velocity=zeros(ndims(shape)),
                 point_in_shape_algorithm=WindingNumberJacobson(; shape,
                                                                hierarchical_winding=false,
@@ -81,8 +81,8 @@ function sample(shape::Shapes; particle_spacing, density, pressure=0.0, mass=not
     return ic
 end
 
-function particle_grid(shape::Shapes, particle_spacing; padding=2particle_spacing,
-                       grid_offset=0.0, max_nparticles=10^7)
+function particle_grid(shape, particle_spacing;
+                       padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
     (; max_corner) = shape
 
     NDIMS = ndims(shape)

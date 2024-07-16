@@ -55,7 +55,7 @@ struct WindingNumberJacobson{ELTYPE}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points;
+function (point_in_poly::WindingNumberJacobson)(mesh::TriangleMesh{3}, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
@@ -82,7 +82,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{3}, points;
     return inpoly, winding_numbers
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::Shapes{2}, points;
+function (point_in_poly::WindingNumberJacobson)(mesh::Polygon{2}, points;
                                                 store_winding_number=false)
     (; winding_number_factor) = point_in_poly
     (; edge_vertices) = mesh

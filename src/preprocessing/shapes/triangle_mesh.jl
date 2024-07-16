@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.stl` files
-struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
+struct TriangleMesh{NDIMS, ELTYPE}
     vertices          :: Vector{SVector{NDIMS, ELTYPE}}
     face_vertices     :: Vector{NTuple{3, SVector{NDIMS, ELTYPE}}}
     face_vertices_ids :: Vector{NTuple{3, Int}}
@@ -103,6 +103,8 @@ struct TriangleMesh{NDIMS, ELTYPE} <: Shapes{NDIMS}
                                   face_normals, min_corner, max_corner)
     end
 end
+
+@inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 

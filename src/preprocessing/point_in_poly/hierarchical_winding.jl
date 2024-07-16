@@ -98,7 +98,7 @@ function construct_hierarchy!(bounding_box, mesh, directed_edges)
 end
 
 # This only works when all `vertices` are unique
-function determine_closure!(bounding_box, mesh::Shapes{3}, faces, count_directed_edge)
+function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_directed_edge)
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
     (; min_corner, max_corner) = bounding_box
 
@@ -195,7 +195,7 @@ function in_bounding_box(mesh, faces, min_corner, max_corner)
     return faces_in_bbox
 end
 
-@inline function barycenter(mesh::Shapes{2}, edge)
+@inline function barycenter(mesh::Polygon{2}, edge)
     (; edge_vertices) = mesh
 
     v1 = edge_vertices[edge][1]
@@ -204,7 +204,7 @@ end
     return 0.5(v1 + v2)
 end
 
-@inline function barycenter(mesh::Shapes{3}, face)
+@inline function barycenter(mesh::TriangleMesh{3}, face)
     (; face_vertices) = mesh
 
     v1 = face_vertices[face][1]

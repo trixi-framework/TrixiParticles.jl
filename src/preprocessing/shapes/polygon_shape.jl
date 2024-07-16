@@ -1,5 +1,5 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
-struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
+struct Polygon{NDIMS, ELTYPE}
     vertices       :: Vector{SVector{NDIMS, ELTYPE}}
     edge_vertices  :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
     vertex_normals :: Vector{Vector{SVector{NDIMS, ELTYPE}}}
@@ -90,6 +90,8 @@ struct Polygon{NDIMS, ELTYPE} <: Shapes{NDIMS}
                                   min_corner, max_corner)
     end
 end
+
+@inline Base.ndims(::Polygon{NDIMS}) where {NDIMS} = NDIMS
 
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
 
