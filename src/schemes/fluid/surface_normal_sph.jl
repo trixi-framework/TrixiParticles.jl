@@ -19,18 +19,18 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    nhs = get_neighborhood_search(system, semi)
+    nhs = get_neighborhood_search(system, neighbor_system, semi)
 
     # println("sml ", smoothing_length != system.smoothing_length)
     # println("smk ", smoothing_kernel !== system.smoothing_kernel)
     if smoothing_length != system.smoothing_length ||
        smoothing_kernel !== system.smoothing_kernel
         search_radius = compact_support(smoothing_kernel, smoothing_length)
-        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius,
-                                                      system_coords, neighbor_system_coords)
+        nhs = PointNeighbors.copy_neighborhood_search(nhs, search_radius, nparticles(system))
+        PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
     end
 
-    for_point_neighbor(system, neighbor_system,
+    foreach_point_neighbor(system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           nhs) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
