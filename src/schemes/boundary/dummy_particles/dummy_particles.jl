@@ -434,7 +434,7 @@ end
 
 @inline function bnd_pressure_extrapolation_neighbor!(boundary_model, system,
                                                       neighbor_system, system_coords,
-                                                      neighbor_coords, v_neighbor_system,
+                                                      neighbor_coords, v, v_neighbor_system,
                                                       neighborhood_search)
     return boundary_model
 end
