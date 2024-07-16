@@ -1,8 +1,14 @@
 # Use `@trixi_testset` to isolate the mock functions in a separate namespace
 @trixi_testset "Semidiscretization" begin
-    # Mock systems
-    struct System1 <: TrixiParticles.System{3, Nothing} end
+    # Mock systems. `System1` will use the CPU backend, `System2` is a `GPUSystem`, using
+    # the GPU backend (emulated on the CPU).
+    struct System1 <: TrixiParticles.System{3, String} end
     struct System2 <: TrixiParticles.System{3, Nothing} end
+
+    # `System2` has no field `mass`, so we have to manually define the backend
+    function TrixiParticles.KernelAbstractions.get_backend(::System2)
+        return TrixiParticles.KernelAbstractions.CPU()
+    end
 
     system1 = System1()
     system2 = System2()
@@ -26,10 +32,14 @@
         @test semi.ranges_u == (1:6, 7:18)
         @test semi.ranges_v == (1:6, 7:12)
 
-        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))),
-               (TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(2)),
-                TrixiParticles.TrivialNeighborhoodSearch{3}(0.2, Base.OneTo(3))))
+        nhs = ((TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:3)),
+               (TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:2),
+                TrixiParticles.TrivialNeighborhoodSearch{3}(search_radius=0.2,
+                                                            eachpoint=1:3)))
         @test semi.neighborhood_searches == nhs
     end
 
@@ -130,6 +140,9 @@
               5.0 6.0]
         v2 = zeros(4 * 3)
         v_ode = vcat(vec(v1), v2)
+
+        # Avoid `SystemBuffer` barrier
+        TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
 
         TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
 

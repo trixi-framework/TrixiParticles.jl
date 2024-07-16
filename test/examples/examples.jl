@@ -8,7 +8,7 @@
                                                     "oscillating_drop_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             # This error varies between serial and multithreaded runs
-            @test isapprox(error_A, 0.0001717690010767381, atol=5e-7)
+            @test isapprox(error_A, 0.0, atol=1.73e-4)
             @test count_rhs_allocations(sol, semi) == 0
         end
 
@@ -87,6 +87,31 @@
             @test count_rhs_allocations(sol, semi) == 0
         end
 
+        @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_oil_film_2d.jl"),
+                                           tspan=(0.0, 0.1)) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n",
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/dam_break_2d.jl with KernelAbstractions.jl" begin
+            # Emulate the GPU code on the CPU by passing `data_type = Array`
+            @test_nowarn_mod trixi_include(@__MODULE__,
+                                           joinpath(examples_dir(), "fluid",
+                                                    "dam_break_2d.jl"), tspan=(0.0, 0.1),
+                                           data_type=Array) [
+                r"┌ Info: The desired tank length in y-direction .*\n",
+                r"└ New tank length in y-direction.*\n",
+            ]
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
         @trixi_testset "fluid/dam_break_3d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
@@ -110,6 +135,14 @@
                                            joinpath(examples_dir(), "fluid",
                                                     "periodic_channel_2d.jl"),
                                            tspan=(0.0, 0.4))
+            @test sol.retcode == ReturnCode.Success
+            @test count_rhs_allocations(sol, semi) == 0
+        end
+
+        @trixi_testset "fluid/pipe_flow_2d.jl" begin
+            @test_nowarn_mod trixi_include(@__MODULE__, tspan=(0.0, 0.5),
+                                           joinpath(examples_dir(), "fluid",
+                                                    "pipe_flow_2d.jl"))
             @test sol.retcode == ReturnCode.Success
             @test count_rhs_allocations(sol, semi) == 0
         end

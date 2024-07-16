@@ -17,7 +17,7 @@ Its features include:
 ## Features
 - Incompressible Navier-Stokes
   - Methods: Weakly Compressible Smoothed Particle Hydrodynamics (WCSPH), Entropically Damped Artificial Compressibility (EDAC)
-  - Models: Surface Tension
+  - Models: Surface Tension, Open Boundaries
 - Solid-body mechanics
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
@@ -129,7 +129,7 @@ with the help of TrixiParticles.jl, please cite it as
 ## Authors
 Erik Faulhaber (University of Cologne) and Niklas Neher (HLRS) implemented the foundations
 for TrixiParticles.jl and are principal developers along with Sven Berger (hereon).
-The project was started by Michael Schlottke-Lakemper (RWTH Aachen University/HLRS)
+The project was started by Michael Schlottke-Lakemper (University of Augsburg)
 and Gregor Gassner (University of Cologne), who provide scientific direction and technical advice.
 The full list of contributors can be found in [AUTHORS.md](AUTHORS.md).
 

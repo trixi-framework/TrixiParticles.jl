@@ -1,7 +1,7 @@
-# Interaction of boundary  with other systems
+# Interaction of boundary with other systems
 function interact!(dv, v_particle_system, u_particle_system,
                    v_neighbor_system, u_neighbor_system, neighborhood_search,
-                   particle_system::BoundarySystem,
+                   particle_system::Union{BoundarySystem, OpenBoundarySPHSystem},
                    neighbor_system)
     # TODO Solids and moving boundaries should be considered in the continuity equation
     return dv
@@ -19,9 +19,8 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
 
         rho_a = particle_density(v_particle_system, particle_system, particle)

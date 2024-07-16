@@ -1,3 +1,7 @@
+@inline function set_particle_density!(v, system::FluidSystem, particle, density)
+    set_particle_density!(v, system, system.density_calculator, particle, density)
+end
+
 function create_cache_density(initial_condition, ::SummationDensity)
     density = similar(initial_condition.density)
 
@@ -33,7 +37,10 @@ end
 
 write_v0!(v0, system, density_calculator) = v0
 
-@inline viscosity_model(system::FluidSystem) = system.viscosity
+# To account for boundary effects in the viscosity term of the RHS, use the viscosity model
+# of the neighboring particle systems.
+@inline viscosity_model(system::FluidSystem, neighbor_system::FluidSystem) = neighbor_system.viscosity
+@inline viscosity_model(system::FluidSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 
 function compute_density!(system, u, u_ode, semi, ::ContinuityDensity)
     # No density update with `ContinuityDensity`
