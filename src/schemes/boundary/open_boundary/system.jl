@@ -1,14 +1,12 @@
 @doc raw"""
     OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
                           fluid_system::FluidSystem, buffer_size::Integer,
-                          reference_velocity=zeros(ndims(boundary_zone)),
-                          reference_pressure=0.0,
-                          reference_density=first(boundary_zone.initial_condition.density))
+                          boundary_model,
+                          reference_velocity=nothing,
+                          reference_pressure=nothing,
+                          reference_density=nothing)
 
 Open boundary system for in- and outflow particles.
-These open boundaries use the characteristic variables to propagate the appropriate values
-to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
-about the method see [description below](@ref method_of_characteristics).
 
 # Arguments
 - `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
@@ -16,19 +14,18 @@ about the method see [description below](@ref method_of_characteristics).
 # Keywords
 - `sound_speed`: Speed of sound.
 - `fluid_system`: The corresponding fluid system
+- `boundary_model`: Boundary model (see [BoundaryModelLastiwka](@ref))
 - `buffer_size`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
                         and time to its velocity, an array where the ``i``-th column holds
                         the velocity of particle ``i`` or, for a constant fluid velocity,
-                        a vector holding this velocity. Velocity is constant zero by default.
+                        a vector holding this velocity.
 - `reference_pressure`: Reference pressure is either a function mapping each particle's coordinates
                         and time to its pressure, a vector holding the pressure of each particle,
                         or a scalar for a constant pressure over all particles.
-                        Pressure is constant zero by default.
 - `reference_density`: Reference density is either a function mapping each particle's coordinates
                        and time to its density, a vector holding the density of each particle,
                        or a scalar for a constant density over all particles.
-                       Density is the density of the first particle in the initial condition by default.
 
 !!! warning "Experimental Implementation"
 	This is an experimental feature and may change in any future releases.
@@ -59,6 +56,9 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                    reference_pressure=nothing,
                                    reference_density=nothing)
         (; initial_condition) = boundary_zone
+
+        check_reference_values!(boundary_model, reference_density, reference_pressure,
+                                reference_velocity)
 
         buffer = SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -365,12 +365,30 @@ function reference_value(value::Function, quantity, system, particle, position, 
     return value(position, t)
 end
 
+# These methods are used when extrapolating quantities from the domain
+# instead of using the method of characteristics
 function reference_value(value::Nothing, quantity::Vector, system, particle, position, t)
     return quantity[particle]
 end
 
 function reference_value(value::Nothing, quantity::PtrArray, system, particle, position, t)
     return current_velocity(quantity, system, particle)
+end
+
+function check_reference_values!(boundary_model, reference_density, reference_pressure,
+                                 reference_velocity)
+    return boundary_model
+end
+
+function check_reference_values!(boundary_model::BoundaryModelLastiwka,
+                                 reference_density, reference_pressure, reference_velocity)
+    boundary_model.extrapolate_reference_values && return boundary_model
+
+    if any(isnothing.([reference_density, reference_pressure, reference_velocity]))
+        throw(ArgumentError("for `BoundaryModelLastiwka` all reference values must be specified"))
+    end
+
+    return boundary_model
 end
 
 # To account for boundary effects in the viscosity term of the RHS, use the viscosity model

@@ -1,3 +1,11 @@
+@doc raw"""
+    BoundaryModelLastiwka()
+
+`boundary_model` for `OpenBoundarySPHSystem`.
+This model uses the characteristic variables to propagate the appropriate values
+to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
+about the method see [description below](@ref method_of_characteristics).
+"""
 struct BoundaryModelLastiwka
     extrapolate_reference_values::Bool
     function BoundaryModelLastiwka(; extrapolate_reference_values::Bool=true)
@@ -130,8 +138,8 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
-    for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                          nhs) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                           nhs) do particle, neighbor, pos_diff, distance
         neighbor_position = current_coords(u_neighbor_system, neighbor_system, neighbor)
 
         # Determine current and prescribed quantities

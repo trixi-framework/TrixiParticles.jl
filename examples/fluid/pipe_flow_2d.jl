@@ -18,7 +18,7 @@ open_boundary_layers = 8
 
 # ==========================================================================================
 # ==== Experiment Setup
-tspan = (0.0, 5.0)
+tspan = (0.0, 2.0)
 
 # Boundary geometry and initial fluid particle positions
 domain_size = (1.0, 0.4)
