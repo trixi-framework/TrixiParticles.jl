@@ -30,7 +30,7 @@ function calc_normal_akinci!(system, neighbor_system::FluidSystem,
                                                       system_coords, neighbor_system_coords)
     end
 
-    for_particle_neighbor(system, neighbor_system,
+    for_point_neighbor(system, neighbor_system,
                           system_coords, neighbor_system_coords,
                           nhs) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
