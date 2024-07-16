@@ -85,21 +85,19 @@ function particle_grid(shape, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
     (; max_corner) = shape
 
-    NDIMS = ndims(shape)
-
     min_corner = shape.min_corner .- grid_offset
 
-    ranges(dim) = (min_corner .- padding)[dim]:particle_spacing:(max_corner .+ padding)[dim]
+    n_particles_per_dimension = Tuple(ceil.(Int,
+                                            (max_corner .- min_corner .+ 2padding) ./
+                                            particle_spacing))
 
-    ranges_ = ntuple(dim -> ranges(dim), NDIMS)
-
-    n_particles = prod(length.(ranges_))
+    n_particles = prod(n_particles_per_dimension)
 
     if n_particles > max_nparticles
-        throw(ArgumentError("`particle_spacing` is too small. Initial particle grid: " *
-                            "# particles ($n_particles) > `max_nparticles` ($max_nparticles)"))
+        throw(ArgumentError("Number of particles of the initial grid ($n_particles) exceeds " *
+                            "`max_nparticles` = $max_nparticles"))
     end
 
-    return rectangular_shape_coords(particle_spacing, length.(ranges_), min_corner;
+    return rectangular_shape_coords(particle_spacing, n_particles_per_dimension, min_corner;
                                     tlsph=true)
 end

@@ -13,6 +13,12 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
     function TriangleMesh(face_vertices, face_normals, vertices)
         NDIMS = 3
+
+        return TriangleMesh{NDIMS}(face_vertices, face_normals, vertices)
+    end
+
+    # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
+    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices) where {NDIMS}
         ELTYPE = eltype(first(face_normals))
         n_faces = length(face_normals)
 
