@@ -8,6 +8,9 @@ struct Polygon{NDIMS, ELTYPE}
     max_corner     :: SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices)
+        # Make array mutable
+        vertices = Matrix(vertices)
+
         NDIMS = size(vertices, 1)
 
         # Close the polygon if it's open

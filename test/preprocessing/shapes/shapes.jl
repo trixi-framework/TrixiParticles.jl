@@ -28,12 +28,19 @@
             ]
 
             shape_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
-            @test all(isapprox(shape_clockwise.edge_vertices, edge_vertices, atol=1e-14))
+
+            for edge in eachindex(edge_vertices)
+                @test all(isapprox.(shape_clockwise.edge_vertices[edge],
+                                    edge_vertices[edge], atol=1e-14))
+            end
             @test all(isapprox(shape_clockwise.edge_normals, edge_normals, atol=1e-14))
             @test all(isapprox(shape_clockwise.vertex_normals, vertex_normals, atol=1e-14))
 
             shape_cclockwise = TrixiParticles.Polygon(points_rectangular_counter_clockwise)
-            @test all(isapprox(shape_cclockwise.edge_vertices, edge_vertices, atol=1e-14))
+            for edge in eachindex(edge_vertices)
+                @test all(isapprox.(shape_clockwise.edge_vertices[edge],
+                                    edge_vertices[edge], atol=1e-14))
+            end
             @test all(isapprox(shape_cclockwise.edge_normals, edge_normals, atol=1e-14))
             @test all(isapprox(shape_cclockwise.vertex_normals, vertex_normals, atol=1e-14))
         end
