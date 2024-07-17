@@ -18,7 +18,10 @@ struct TriangleMesh{NDIMS, ELTYPE}
     end
 
     # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
-    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices) where {NDIMS}
+    function TriangleMesh{NDIMS}(face_vertices, face_normals, vertices_) where {NDIMS}
+        # Sort vertices by the first entry of the vector and return only unique vertices
+        vertices = unique_sorted(vertices_)
+
         ELTYPE = eltype(first(face_normals))
         n_faces = length(face_normals)
 
@@ -29,11 +32,23 @@ struct TriangleMesh{NDIMS, ELTYPE}
             v2 = face_vertices[i][2]
             v3 = face_vertices[i][3]
 
-            # TODO: This part is about 90% of the runtime.
-            # Vertex IDs are only needed for the hierarchical winding.
-            vertex_id1 = findfirst(x -> v1 == x, vertices)
-            vertex_id2 = findfirst(x -> v2 == x, vertices)
-            vertex_id3 = findfirst(x -> v3 == x, vertices)
+            # Since it's only sorted by the first entry, `v1` might be one of the following vertices
+            vertex_id1 = searchsortedfirst(vertices, v1 .- 1e-14)
+            while vertex_id1 < length(vertices) && !isapprox(vertices[vertex_id1], v1)
+                vertex_id1 += 1
+            end
+
+            # Since it's only sorted by the first entry, `v2` might be one of the following vertices
+            vertex_id2 = searchsortedfirst(vertices, v2 .- 1e-14)
+            while vertex_id2 < length(vertices) && !isapprox(vertices[vertex_id2], v2)
+                vertex_id2 += 1
+            end
+
+            # Since it's only sorted by the first entry, `v3` might be one of the following vertices
+            vertex_id3 = searchsortedfirst(vertices, v3 .- 1e-14)
+            while vertex_id3 < length(vertices) && !isapprox(vertices[vertex_id3], v3)
+                vertex_id3 += 1
+            end
 
             face_vertices_ids[i] = (vertex_id1, vertex_id2, vertex_id3)
         end
@@ -143,4 +158,25 @@ function incident_angles(triangle_points)
     gamma = acos(gamma_)
 
     return alpha, beta, gamma
+end
+
+function unique_sorted(vertices)
+    # Sort by the first entry of the vectors
+    compare_first_element = (x, y) -> x[1] < y[1]
+    vertices_sorted = sort!(vertices, lt=compare_first_element)
+    keep = trues(length(vertices_sorted))
+
+    PointNeighbors.@threaded vertices_sorted for i in eachindex(vertices_sorted)
+        # We only sorted by the first entry, so we have to check all previous vertices
+        # until the first entry is too far away.
+        j = i - 1
+        while j >= 1 && isapprox(vertices_sorted[j][1], vertices_sorted[i][1], atol=1e-14)
+            if isapprox(vertices_sorted[i], vertices_sorted[j], atol=1e-14)
+                keep[i] = false
+            end
+            j -= 1
+        end
+    end
+
+    return vertices_sorted[keep]
 end

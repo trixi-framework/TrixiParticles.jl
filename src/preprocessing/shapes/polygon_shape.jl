@@ -91,7 +91,7 @@ struct Polygon{NDIMS, ELTYPE}
             push!(vertex_normals, (vortex_normal_1, vortex_normal_2))
         end
 
-        vertices = reinterpret(reshape, SVector{NDIMS, ELTYPE}, vertices_[:, 1:(end - 1)])
+        vertices = vertices[1:(end - 1)]
 
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
                                   min_corner, max_corner)

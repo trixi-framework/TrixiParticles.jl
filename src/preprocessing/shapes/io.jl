@@ -77,8 +77,6 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
         i += 1
     end
 
-    union!(vertices)
-
     return TriangleMesh(face_vertices, normals, vertices)
 end
 
