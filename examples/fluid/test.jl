@@ -75,15 +75,14 @@ viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 #                                                                                                                       0.011),
 #                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
-
 sphere_surface_tension = EntropicallyDampedSPHSystem(water, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
                                                      sound_speed, viscosity=viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.005),
-                                                    surface_normal_method=AkinciSurfaceNormal(smoothing_kernel=WendlandC6Kernel{2}(),
-                                                                                            smoothing_length=4 *
+                                                     surface_normal_method=AkinciSurfaceNormal(smoothing_kernel=WendlandC6Kernel{2}(),
+                                                                                               smoothing_length=4 *
                                                                                                                 fluid_particle_spacing))
 
 # sphere_surface_tension = WeaklyCompressibleSPHSystem(water, fluid_density_calculator,

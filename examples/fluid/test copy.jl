@@ -166,7 +166,6 @@ saving_callback = SolutionSavingCallback(dt=0.005, output_directory="out",
 
 stepsize_callback = StepsizeCallback(cfl=2.5)
 
-
 callbacks = CallbackSet(info_callback, saving_callback, stepsize_callback)
 
 # Use a Runge-Kutta method with automatic (error based) time step size control.
@@ -193,16 +192,15 @@ sol = solve(ode, CKLLSRK54_3M_3R(),
 # sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
 #             dt=1.0, # This is overwritten by the stepsize callback
 #             save_everystep=false, callback=callbacks);
-            #~157-179s to 1%
-            # cfl 2.0 diverged
-            # cfl 1.5 19700s to 100% 750-780s to 5%
-
+#~157-179s to 1%
+# cfl 2.0 diverged
+# cfl 1.5 19700s to 100% 750-780s to 5%
 
 # sol = solve(ode, Tsit5(),
 #             dt=1.0, # This is overwritten by the stepsize callback
 #             save_everystep=false, callback=callbacks);
-            #~219-246s to 1%
-            # cfl 2.0 842-850s to 5%
+#~219-246s to 1%
+# cfl 2.0 842-850s to 5%
 
 # sol = solve(ode, ParsaniKetchesonDeconinck3S32(),
 #             dt=1.0, # This is overwritten by the stepsize callback

@@ -390,3 +390,17 @@ end
 function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
     return Inf
 end
+
+function initialize!(system::BoundarySPHSystem, neighborhood_search)
+    # TODO: dispatch on boundary model
+    system_coords = system.coordinates
+    (; smoothing_kernel, smoothing_length) = system.boundary_model
+
+    foreach_point_neighbor(system, system,
+                            system_coords, system_coords,
+                            neighborhood_search, points=eachparticle(system)) do particle, neighbor, pos_diff, distance
+        system.boundary_model.cache.colorfield[particle] += kernel(smoothing_kernel,
+                                                                   distance,
+                                                                   smoothing_length)
+    end
+end

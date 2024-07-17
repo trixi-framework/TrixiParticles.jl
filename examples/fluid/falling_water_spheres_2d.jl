@@ -58,6 +58,13 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
+                                                    #  sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
+                                                    #  state_equation, fluid_smoothing_kernel,
+                                                    #  fluid_smoothing_length,
+                                                    #  viscosity=viscosity,
+                                                    #  acceleration=(0.0, -gravity),
+                                                    #  correction=AkinciFreeSurfaceCorrection(fluid_density))
+
 # sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
 #                                                      fluid_smoothing_length,
 #                                                      sound_speed, viscosity=viscosity,
@@ -85,11 +92,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=0.001)
+                                    adhesion_coefficient=0.1)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(boundary_system, sphere_surface_tension)
+semi = Semidiscretization(sphere_surface_tension, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)

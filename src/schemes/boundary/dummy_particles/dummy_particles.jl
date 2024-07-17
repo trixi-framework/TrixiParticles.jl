@@ -62,7 +62,8 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
-             create_cache_model(correction, initial_density, NDIMS, n_particles)...)
+             create_cache_model(correction, initial_density, NDIMS, n_particles)...,
+             (; colorfield=zeros(eltype(smoothing_length), n_particles))...)
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,

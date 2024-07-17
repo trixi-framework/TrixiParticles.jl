@@ -128,7 +128,8 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
                                        pressure_acceleration,
-                                       source_terms, surface_tension, surface_normal_method, buffer, cache)
+                                       source_terms, surface_tension, surface_normal_method,
+                                       buffer, cache)
 end
 
 create_cache_wcsph(correction, density, NDIMS, nparticles) = (;)
