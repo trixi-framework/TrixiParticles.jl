@@ -70,6 +70,9 @@ struct Polygon{NDIMS, ELTYPE}
         # Calculate vertex pseudo-normals.
         # An edge is defined by two vertices, for which we calculate the pseudo-normals
         # by averaging the normals of the adjacent edges.
+        # We calculate the distances for a single edge in `calculate_signed_distances!`
+        # and don't look for adjacent edges. Thus, we store the pseudo-normals of the vertices
+        # per edge.
         for i in 1:length(edge_vertices)
             if i == 1
                 edge_normal_1 = edge_normals[end]
