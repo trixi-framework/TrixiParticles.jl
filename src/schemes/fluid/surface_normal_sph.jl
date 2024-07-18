@@ -76,13 +76,15 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
     # TODO: this is only correct for a single fluid
-    colorfield = zeros(eltype(neighbor_system), nparticles(neighbor_system))
+    # colorfield = zeros(eltype(neighbor_system), nparticles(neighbor_system))
     # colorfield_bnd = zeros(eltype(neighbor_system), nparticles(neighbor_system))
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        colorfield[neighbor] += kernel(smoothing_kernel, distance, smoothing_length)
+        neighbor_system.boundary_model.cache.colorfield[neighbor] += kernel(smoothing_kernel,
+                                                                            distance,
+                                                                            smoothing_length)
     end
 
     # foreach_point_neighbor(neighbor_system, neighbor_system,
@@ -93,14 +95,20 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
     # end
 
     # Since we don't want to calculate the unused boundary weight sum we normalize against the maximum value
-    colorfield = colorfield ./ (2.0 * maximum(colorfield))
+    # colorfield = colorfield ./ (2.0 * maximum(colorfield))
+
+    # println(neighbor_system.boundary_model.cache.neighbor_number)
+
+    colorfield_bnd = neighbor_system.boundary_model.cache.colorfield_bnd
+    colorfield = neighbor_system.boundary_model.cache.colorfield
+
+    # println(colorfield)
 
     # foreach_point_neighbor(system, neighbor_system,
     #                        system_coords, neighbor_system_coords,
     #                        nhs) do particle, neighbor, pos_diff, distance
-    #     colorfield[neighbor] = colorfield[neighbor] /
-    #                            (colorfield[neighbor] +
-    #                             neighbor_system.boundary_model.cache.colorfield[neighbor])
+    #     neighbor_system.boundary_model.cache.colorfield[neighbor] = colorfield[neighbor] /
+    #                                                                 (colorfield[neighbor] + colorfield_bnd[neighbor])
     # end
 
     # colorfield = colorfield / (colorfield + neighbor_system.boundary_model.cache.colorfield)

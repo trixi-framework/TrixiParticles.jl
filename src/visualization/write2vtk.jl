@@ -358,16 +358,19 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
                     write_meta_data=true)
     if write_meta_data
         vtk["boundary_model"] = "BoundaryModelDummyParticles"
-        vtk["smoothing_kernel"] = type2string(system.boundary_model.smoothing_kernel)
-        vtk["smoothing_length"] = system.boundary_model.smoothing_length
-        vtk["density_calculator"] = type2string(system.boundary_model.density_calculator)
-        vtk["state_equation"] = type2string(system.boundary_model.state_equation)
+        vtk["smoothing_kernel"] = type2string(model.smoothing_kernel)
+        vtk["smoothing_length"] = model.smoothing_length
+        vtk["density_calculator"] = type2string(model.density_calculator)
+        vtk["state_equation"] = type2string(model.state_equation)
         vtk["viscosity_model"] = type2string(model.viscosity)
     end
 
     vtk["hydrodynamic_density"] = [particle_density(v, system, particle)
                                    for particle in eachparticle(system)]
     vtk["pressure"] = model.pressure
+    vtk["colorfield_bnd"] = model.cache.colorfield_bnd
+    vtk["colorfield"] = model.cache.colorfield
+    vtk["neighbor_count"] = model.cache.neighbor_count
 
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)

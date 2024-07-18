@@ -40,7 +40,7 @@ sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
 
 # ==========================================================================================
 # ==== Fluid
-fluid_smoothing_length = 1.0 * fluid_particle_spacing
+fluid_smoothing_length = 1.0 * fluid_particle_spacing - eps()
 fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
 fluid_density_calculator = ContinuityDensity()
@@ -58,12 +58,12 @@ sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calc
                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
                                                      correction=AkinciFreeSurfaceCorrection(fluid_density))
 
-                                                    #  sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-                                                    #  state_equation, fluid_smoothing_kernel,
-                                                    #  fluid_smoothing_length,
-                                                    #  viscosity=viscosity,
-                                                    #  acceleration=(0.0, -gravity),
-                                                    #  correction=AkinciFreeSurfaceCorrection(fluid_density))
+#  sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
+#  state_equation, fluid_smoothing_kernel,
+#  fluid_smoothing_length,
+#  viscosity=viscosity,
+#  acceleration=(0.0, -gravity),
+#  correction=AkinciFreeSurfaceCorrection(fluid_density))
 
 # sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
 #                                                      fluid_smoothing_length,

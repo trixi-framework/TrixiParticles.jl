@@ -63,11 +63,15 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...,
-             (; colorfield=zeros(eltype(smoothing_length), n_particles))...)
+             (; colorfield_bnd=zeros(eltype(smoothing_length), n_particles),
+              colorfield=zeros(eltype(smoothing_length), n_particles),
+              neighbor_count=zeros(eltype(smoothing_length), n_particles))...,
+             (; neighbor_number=[0.0])...)
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction, cache)
+                                       smoothing_length, viscosity, correction,
+                                       cache)
 end
 
 @doc raw"""
@@ -506,4 +510,13 @@ end
 
 @inline function correction_matrix(system::BoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
+end
+
+function initialize_boundary_model!(boundary_model::BoundaryModelDummyParticles,
+                                    initial_particle_spacing)
+    (; smoothing_kernel, smoothing_length) = boundary_model
+    boundary_model.cache.neighbor_number[1] = neighbor_number(Val(ndims(boundary_model)),
+                                                              initial_particle_spacing,
+                                                              compact_support(smoothing_kernel,
+                                                                              smoothing_length))
 end

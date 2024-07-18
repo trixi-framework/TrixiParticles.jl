@@ -147,3 +147,15 @@ end
 
 # Only for systems requiring a mandatory callback
 reset_callback_flag!(system) = system
+
+function neighbor_number(::Val{D}, initial_particle_spacing, smoothing_length) where {D}
+    throw(ArgumentError("Unsupported dimension: $D"))
+end
+
+@inline function neighbor_number(::Val{2}, initial_particle_spacing, smoothing_length)
+    return pi * smoothing_length^2 / initial_particle_spacing^2
+end
+
+@inline function neighbor_number(::Val{3}, initial_particle_spacing, smoothing_length)
+    return 4.0 / 3.0 * pi * smoothing_length^3 / initial_particle_spacing^3
+end
