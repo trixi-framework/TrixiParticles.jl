@@ -349,15 +349,9 @@ function reference_value(value::Function, quantity, system, particle, position, 
     return value(position, t)
 end
 
-# These methods are used when extrapolating quantities from the domain
+# This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
-function reference_value(value::Nothing, quantity::Vector, system, particle, position, t)
-    return quantity[particle]
-end
-
-function reference_value(value::Nothing, quantity::PtrArray, system, particle, position, t)
-    return current_velocity(quantity, system, particle)
-end
+reference_value(value::Nothing, quantity, system, particle, position, t) = quantity
 
 function check_reference_values!(boundary_model::BoundaryModelLastiwka,
                                  reference_density, reference_pressure, reference_velocity)

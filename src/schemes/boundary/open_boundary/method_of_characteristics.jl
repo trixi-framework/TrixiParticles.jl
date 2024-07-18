@@ -1,7 +1,7 @@
 @doc raw"""
     BoundaryModelLastiwka()
 
-`boundary_model` for `OpenBoundarySPHSystem`.
+Boundary model for `OpenBoundarySPHSystem`.
 This model uses the characteristic variables to propagate the appropriate values
 to the outlet or inlet and have been proposed by Lastiwka et al. (2009). For more information
 about the method see [description below](@ref method_of_characteristics).
@@ -12,6 +12,7 @@ struct BoundaryModelLastiwka end
                                     v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, flow_direction, sound_speed,
     reference_velocity, reference_pressure, reference_density) = system
+    @autoinfiltrate
 
     # Update quantities based on the characteristic variables
     @threaded system for particle in each_moving_particle(system)
@@ -21,15 +22,16 @@ struct BoundaryModelLastiwka end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        rho_ref = reference_value(reference_density, density, system, particle,
+        rho_ref = reference_value(reference_density, density[particle], system, particle,
                                   particle_position, t)
         density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
 
-        p_ref = reference_value(reference_pressure, pressure, system, particle,
+        p_ref = reference_value(reference_pressure, pressure[particle], system, particle,
                                 particle_position, t)
         pressure[particle] = p_ref + 0.5 * (J2 + J3)
 
-        v_ref = reference_value(reference_velocity, v, system, particle,
+        v_current = current_velocity(v, system, particle)
+        v_ref = reference_value(reference_velocity, v_current, system, particle,
                                 particle_position, t)
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction

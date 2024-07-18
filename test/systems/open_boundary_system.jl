@@ -33,10 +33,8 @@
                                                                     buffer_size=0,
                                                                     fluid_system=FluidSystemMock2(),
                                                                     reference_density=0,
-                                                                    reference_velocity=[
-                                                                        1.0,
-                                                                        1.0,
-                                                                    ],
+                                                                    reference_velocity=[1.0,
+                                                                        1.0],
                                                                     reference_pressure)
 
         error_str = "`reference_density` must be either a function mapping " *
@@ -49,10 +47,8 @@
                                                                     buffer_size=0,
                                                                     fluid_system=FluidSystemMock2(),
                                                                     reference_density,
-                                                                    reference_velocity=[
-                                                                        1.0,
-                                                                        1.0,
-                                                                    ],
+                                                                    reference_velocity=[1.0,
+                                                                        1.0],
                                                                     reference_pressure=0)
     end
     @testset "`show`" begin
@@ -81,12 +77,17 @@
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
         │ boundary: ……………………………………………………… InFlow                                                           │
         │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
-        │ prescribed velocity: ………………………… #f3                                                              │
-        │ prescribed pressure: ………………………… #f2                                                              │
-        │ prescribed density: …………………………… #f1                                                              │
+        │ prescribed velocity: ………………………… #f │
+        │ prescribed pressure: ………………………… #f │
+        │ prescribed density: …………………………… #f │
         │ width: ……………………………………………………………… 0.2                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", system) == show_box
+
+        result = repr("text/plain", system)
+        # Remove numbers like `#f1#83`
+        result = replace(result, r"#f\d#.*|" => "#f |")
+
+        @test result == show_box
 
         outflow = OutFlow(; plane=([0.0, 0.0], [0.0, 1.0]), particle_spacing=0.05,
                           flow_direction=(1.0, 0.0), density=1.0, open_boundary_layers=4)
@@ -109,11 +110,16 @@
         │ boundary model: ……………………………………… BoundaryModelLastiwka                                            │
         │ boundary: ……………………………………………………… OutFlow                                                          │
         │ flow direction: ……………………………………… [1.0, 0.0]                                                       │
-        │ prescribed velocity: ………………………… #f3                                                              │
-        │ prescribed pressure: ………………………… #f2                                                              │
-        │ prescribed density: …………………………… #f1                                                              │
+        │ prescribed velocity: ………………………… #f │
+        │ prescribed pressure: ………………………… #f │
+        │ prescribed density: …………………………… #f │
         │ width: ……………………………………………………………… 0.2                                                              │
         └──────────────────────────────────────────────────────────────────────────────────────────────────┘"""
-        @test repr("text/plain", system) == show_box
+
+        result = repr("text/plain", system)
+        # Remove numbers like `#f1#83`
+        result = replace(result, r"#f\d#.*|" => "#f |")
+
+        @test result == show_box
     end
 end
