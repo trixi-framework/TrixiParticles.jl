@@ -12,7 +12,6 @@ struct BoundaryModelLastiwka end
                                     v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, flow_direction, sound_speed,
     reference_velocity, reference_pressure, reference_density) = system
-    @autoinfiltrate
 
     # Update quantities based on the characteristic variables
     @threaded system for particle in each_moving_particle(system)
