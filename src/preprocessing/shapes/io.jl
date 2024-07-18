@@ -1,7 +1,7 @@
 """
     load_shape(filename; element_type=Float64)
 
-Load file and return corresponding `Shape` type for [`ComplexShape`](@ref).
+Load file and return corresponding type for [`ComplexShape`](@ref).
 Supported file formats are `.stl` and `.asc`.
 
 # Arguments
