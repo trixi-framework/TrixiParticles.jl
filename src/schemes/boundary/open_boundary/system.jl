@@ -14,7 +14,7 @@ Open boundary system for in- and outflow particles.
 # Keywords
 - `sound_speed`: Speed of sound.
 - `fluid_system`: The corresponding fluid system
-- `boundary_model`: Boundary model (see [BoundaryModelLastiwka](@ref))
+- `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `buffer_size`: Number of buffer particles.
 - `reference_velocity`: Reference velocity is either a function mapping each particle's coordinates
                         and time to its velocity, an array where the ``i``-th column holds
