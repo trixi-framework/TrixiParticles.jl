@@ -66,6 +66,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
             v2 = face_vertices_ids[i][2]
             v3 = face_vertices_ids[i][3]
 
+            # Make sure that edges are unique
             if haskey(_edges, (v1, v2))
                 edge_id_1 = _edges[(v1, v2)]
             elseif haskey(_edges, (v2, v1))
@@ -101,6 +102,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
             face_edges_ids[i] = (edge_id_1, edge_id_2, edge_id_3)
 
+            # Edge normal is the sum of the normals of the two adjacent faces
             edge_normals[edge_id_1] += face_normals[i]
             edge_normals[edge_id_2] += face_normals[i]
             edge_normals[edge_id_3] += face_normals[i]
@@ -141,21 +143,27 @@ function incident_angles(triangle_points)
     a = triangle_points[1]
     b = triangle_points[2]
     c = triangle_points[3]
-    sab = dot(b - a, b - a)
-    sbc = dot(b - c, b - c)
-    sac = dot(c - a, c - a)
 
-    alpha_ = (sab + sac - sbc) / (2 * sqrt(sab * sac))
-    beta_ = (sbc + sab - sac) / (2 * sqrt(sbc * sab))
-    gamma_ = (sac + sbc - sab) / (2 * sqrt(sac * sbc))
+    # Squares of the lengths of the sides
+    ab2 = dot(b - a, b - a)
+    bc2 = dot(b - c, b - c)
+    ac2 = dot(c - a, c - a)
 
-    alpha_ = isfinite(alpha_) ? clamp(alpha_, -1, 1) : zero(eltype(sab))
-    beta_ = isfinite(beta_) ? clamp(beta_, -1, 1) : zero(eltype(sab))
-    gamma_ = isfinite(gamma_) ? clamp(gamma_, -1, 1) : zero(eltype(sab))
+    # Applying the law of cosines
+    # https://en.wikipedia.org/wiki/Law_of_cosines
+    cos_alpha = (ab2 + ac2 - bc2) / (2 * sqrt(ab2 * ac2))
+    cos_beta = (bc2 + ab2 - ac2) / (2 * sqrt(bc2 * ab2))
+    cos_gamma = (ac2 + bc2 - ab2) / (2 * sqrt(ac2 * bc2))
 
-    alpha = acos(alpha_)
-    beta = acos(beta_)
-    gamma = acos(gamma_)
+    # If one side has length zero, this assures that the two adjacent angles
+    # become pi/2, while the third angle becomes zero.
+    cos_alpha = isfinite(cos_alpha) ? clamp(cos_alpha, -1, 1) : zero(eltype(ab2))
+    cos_beta = isfinite(cos_beta) ? clamp(cos_beta, -1, 1) : zero(eltype(ab2))
+    cos_gamma = isfinite(cos_gamma) ? clamp(cos_gamma, -1, 1) : zero(eltype(ab2))
+
+    alpha = acos(cos_alpha)
+    beta = acos(cos_beta)
+    gamma = acos(cos_gamma)
 
     return alpha, beta, gamma
 end

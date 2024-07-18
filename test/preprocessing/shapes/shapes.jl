@@ -95,27 +95,51 @@
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
-                vertex_normals = vcat((data.var"vertex_normals:0")',
-                                      (data.var"vertex_normals:1")',
-                                      (data.var"vertex_normals:2")')
+                vertex_normals = reinterpret(reshape, SVector{3, Float64},
+                                             vcat((data.var"vertex_normals:0")',
+                                                  (data.var"vertex_normals:1")',
+                                                  (data.var"vertex_normals:2")'))
+                sort!(vertex_normals)
 
-                points = vcat((data.var"Points:0")',
-                              (data.var"Points:1")',
-                              (data.var"Points:2")')
+                points = reinterpret(reshape, SVector{3, Float64},
+                                     vcat((data.var"Points:0")',
+                                          (data.var"Points:1")',
+                                          (data.var"Points:2")'))
+                sort!(points)
 
                 shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
 
                 @test TrixiParticles.nfaces(shape) == n_faces[i]
                 @test length(shape.vertices) == n_vertices[i]
 
+                sort!(shape.vertex_normals)
                 @testset "Normals $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertex_normals[j], vertex_normals[:, j], atol=1e-5)
+                    @test isapprox(shape.vertex_normals[j], vertex_normals[j], atol=1e-5)
                 end
+
+                sort!(shape.vertices)
                 @testset "Points $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertices[j], points[:, j], atol=1e-5)
+                    @test isapprox(shape.vertices[j], points[j], atol=1e-5)
                 end
             end
         end
+    end
+
+    @testset verbose=true "Unique Sort" begin
+        # Fixed seed to ensure reproducibility
+        Random.seed!(1)
+
+        x = rand(SVector{3, Float64}, 10_000)
+
+        # Make sure that `x` is not unique
+        for i in eachindex(x)[2:end]
+            # Create duplicate values
+            if rand(Bool)
+                x[i] = x[i - 1]
+            end
+        end
+
+        @test TrixiParticles.unique_sorted(copy(x)) == sort(unique(x))
     end
 end
 
