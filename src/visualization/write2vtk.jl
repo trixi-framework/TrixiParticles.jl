@@ -314,8 +314,8 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
         vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
-        vtk["pressure_function"] = type2string(system.reference_velocity)
-        vtk["density_function"] = type2string(system.reference_velocity)
+        vtk["pressure_function"] = type2string(system.reference_pressure)
+        vtk["density_function"] = type2string(system.reference_density)
     end
 
     return vtk
