@@ -1,9 +1,9 @@
 
 # Unpack the neighboring systems viscosity to dispatch on the viscosity type
-function dv_viscosity(particle_system, neighbor_system,
-                      v_particle_system, v_neighbor_system,
-                      particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@inline function dv_viscosity(particle_system, neighbor_system,
+                              v_particle_system, v_neighbor_system,
+                              particle, neighbor, pos_diff, distance,
+                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     viscosity = viscosity_model(particle_system, neighbor_system)
 
     return dv_viscosity(viscosity, particle_system, neighbor_system,
@@ -12,20 +12,20 @@ function dv_viscosity(particle_system, neighbor_system,
                         sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-function dv_viscosity(viscosity, particle_system, neighbor_system,
-                      v_particle_system, v_neighbor_system,
-                      particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@inline function dv_viscosity(viscosity, particle_system, neighbor_system,
+                              v_particle_system, v_neighbor_system,
+                              particle, neighbor, pos_diff, distance,
+                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return viscosity(particle_system, neighbor_system,
                      v_particle_system, v_neighbor_system,
                      particle, neighbor, pos_diff, distance,
                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
 end
 
-function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
-                      v_particle_system, v_neighbor_system,
-                      particle, neighbor, pos_diff, distance,
-                      sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
+@inline function dv_viscosity(viscosity::Nothing, particle_system, neighbor_system,
+                              v_particle_system, v_neighbor_system,
+                              particle, neighbor, pos_diff, distance,
+                              sound_speed, m_a, m_b, rho_a, rho_b, grad_kernel)
     return zero(pos_diff)
 end
 
