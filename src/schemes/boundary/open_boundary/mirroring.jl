@@ -42,7 +42,7 @@ function interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
     interpolated_velocity = [zero_svector(system) for _ in 1:ndims(system)]
 
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
