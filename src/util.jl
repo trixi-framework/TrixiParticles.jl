@@ -114,7 +114,7 @@ function type2string(type)
 end
 
 function type2string(type::Function)
-    return nameof(type)
+    return string(nameof(type))
 end
 
 function compute_git_hash()
