@@ -20,7 +20,7 @@ update_final!(system, ::BoundaryModelTafuni, v, u, v_ode, u_ode, semi, t) = syst
 
 function interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=false,
                              prescribed_pressure=false, prescribed_velocity=false)
-    (; pressure, density, fluid_system, boundary_zone,
+    (; pressure, density, fluid_system, boundary_zone, reference_density,
     reference_velocity, reference_pressure) = system
 
     state_equation = system_state_equation(system.fluid_system)
