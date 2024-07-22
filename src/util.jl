@@ -113,6 +113,10 @@ function type2string(type)
     return string(nameof(typeof(type)))
 end
 
+function type2string(type::Function)
+    return string(nameof(type))
+end
+
 function compute_git_hash()
     pkg_directory = pkgdir(@__MODULE__)
     git_directory = joinpath(pkg_directory, ".git")
