@@ -513,8 +513,7 @@ end
     other_density = 0.0
 
     NDIMS = ndims(ref_system)
-    no_interpolation_values = n_interpolated_values(ref_system)
-    interpolation_values = zeros(no_interpolation_values)
+    interpolation_values = zeros(n_interpolation_values(ref_system))
 
     shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
@@ -550,17 +549,17 @@ end
 
             distance = sqrt(distance2)
             m_a = hydrodynamic_mass(system, particle)
-            w_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
+            W_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
             if system_id == ref_id
-                interpolated_density += m_a * w_a
+                interpolated_density += m_a * W_a
                 volume = m_a / particle_density(v, system, particle)
-                shepard_coefficient += volume * w_a
+                shepard_coefficient += volume * W_a
 
-                interpolate_system!(interpolation_values, system, v, particle, volume, w_a,
+                interpolate_system!(interpolation_values, system, v, particle, volume, W_a,
                                     clip_negative_pressure)
             else
-                other_density += m_a * w_a
+                other_density += m_a * W_a
             end
 
             neighbor_count += 1
@@ -572,17 +571,19 @@ end
 
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
+        # Return NaN values that can be filtered out in ParaView
         common_return = (density=NaN,
                          neighbor_count=0,
                          coord=point_coords)
 
         # Replace all values in the named tuple with NaNs
-        system_specific_return = NamedTuple{keys(system_specific_return)}((val isa
-                                                                           AbstractArray ?
-                                                                           fill(NaN,
-                                                                                size(val)) :
-                                                                           NaN
-                                                                           for val in values(system_specific_return)))
+        system_specific_return = map(system_specific_return) do val
+            if val isa AbstractArray
+                return fill(NaN, size(val))
+            else
+                return NaN
+            end
+        end
 
         return merge(common_return, system_specific_return)
     end
@@ -603,39 +604,39 @@ end
 end
 
 @inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle,
-                                     volume, w_a, clip_negative_pressure)
+                                     volume, W_a, clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)
     for i in 1:NDIMS
-        interpolation_values[i] += particle_velocity[i] * (volume * w_a)
+        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
     end
 
     pressure = particle_pressure(v, system, particle)
     if clip_negative_pressure
         pressure = max(0.0, pressure)
     end
-    interpolation_values[NDIMS + 1] += pressure * (volume * w_a)
+    interpolation_values[NDIMS + 1] += pressure * (volume * W_a)
 end
 
-@inline function interpolate_system!(system::SolidSystem, v, particle, volume, w_a,
+@inline function interpolate_system!(system::SolidSystem, v, particle, volume, W_a,
                                      clip_negative_pressure)
     NDIMS = ndims(system)
 
     particle_velocity = current_velocity(v, system, particle)
     for i in 1:NDIMS
-        interpolation_values[i] += particle_velocity[i] * (volume * w_a)
+        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
     end
 
     interpolation_values[NDIMS + 1] = det(deformation_gradient(system, particle)) *
-                                      (volume * w_a)
-    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * w_a)
+                                      (volume * W_a)
+    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * W_a)
 
     sigma = cauchy_stress(system)
     for i in 1:NDIMS
         for j in 1:NDIMS
             interpolation_values[NDIMS + 3 + i * NDIMS + j] = sigma[i, j, particle] *
-                                                              (volume * w_a)
+                                                              (volume * W_a)
         end
     end
 end
