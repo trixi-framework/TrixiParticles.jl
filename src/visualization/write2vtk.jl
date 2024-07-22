@@ -82,9 +82,7 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     mkpath(output_directory)
 
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
-    v = Adapt.adapt(Array, v_)
-    u = Adapt.adapt(Array, u_)
-    system = Adapt.adapt(Array, system_)
+    v, u, system = transfer2cpu(v_, u_, system_)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -138,6 +136,18 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
         pvd[t] = vtk
     end
     vtk_save(pvd)
+end
+
+function transfer2cpu(v_, u_, system_::GPUSystem)
+    v = Adapt.adapt(Array, v_)
+    u = Adapt.adapt(Array, u_)
+    system = Adapt.adapt(Array, system_)
+
+    return v, u, system
+end
+
+function transfer2cpu(v_, u_, system_)
+    return v_, u_, system_
 end
 
 function custom_quantity(quantity::AbstractArray, v, u, t, system)
