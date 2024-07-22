@@ -50,36 +50,18 @@ alpha = 8 * nu / (fluid_smoothing_length * sound_speed)
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 density_diffusion = DensityDiffusionAntuono(sphere2, delta=0.1)
 
-sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-                                                     state_equation, fluid_smoothing_kernel,
+sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
                                                      fluid_smoothing_length,
-                                                     viscosity=viscosity,
+                                                     sound_speed, viscosity=viscosity,
+                                                     density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
-                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
-                                                     correction=AkinciFreeSurfaceCorrection(fluid_density))
+                                                     surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05))
 
-#  sphere_surface_tension = WeaklyCompressibleSPHSystem(sphere1, fluid_density_calculator,
-#  state_equation, fluid_smoothing_kernel,
-#  fluid_smoothing_length,
-#  viscosity=viscosity,
-#  acceleration=(0.0, -gravity),
-#  correction=AkinciFreeSurfaceCorrection(fluid_density))
-
-# sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_kernel,
-#                                                      fluid_smoothing_length,
-#                                                      sound_speed, viscosity=viscosity,
-#                                                      density_calculator=ContinuityDensity(),
-#                                                      acceleration=(0.0, -gravity),
-#                                                      surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.05),
-#                                                     surface_normal_method=AkinciSurfaceNormal(smoothing_kernel=WendlandC6Kernel{3}(),
-#                                                                                             smoothing_length=4 *
-#                                                                                                                 fluid_particle_spacing))
-
-# sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
-#                                      state_equation, fluid_smoothing_kernel,
-#                                      fluid_smoothing_length, viscosity=viscosity,
-#                                      density_diffusion=density_diffusion,
-#                                      acceleration=(0.0, -gravity))
+sphere = WeaklyCompressibleSPHSystem(sphere2, fluid_density_calculator,
+                                     state_equation, fluid_smoothing_kernel,
+                                     fluid_smoothing_length, viscosity=viscosity,
+                                     density_diffusion=density_diffusion,
+                                     acceleration=(0.0, -gravity))
 
 # ==========================================================================================
 # ==== Boundary
@@ -92,11 +74,11 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              viscosity=ViscosityAdami(nu=wall_viscosity))
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model,
-                                    adhesion_coefficient=0.1)
+                                    adhesion_coefficient=1.0)
 
 # ==========================================================================================
 # ==== Simulation
-semi = Semidiscretization(sphere_surface_tension, boundary_system)
+semi = Semidiscretization(sphere, sphere_surface_tension, boundary_system)
 ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)

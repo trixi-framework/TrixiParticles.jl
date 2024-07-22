@@ -54,12 +54,12 @@ end
 function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, v,
                              v_neighbor_system, u_neighbor_system, semi, surfn)
     (; cache) = system
+    (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
     (; smoothing_kernel, smoothing_length) = surfn
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
-    # nhs_bnd = get_neighborhood_search(neighbor_system, neighbor_system, semi)
 
     # if smoothing_length != system.smoothing_length ||
     #    smoothing_kernel !== system.smoothing_kernel
@@ -76,54 +76,26 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
     # First we need to calculate the smoothed colorfield values
     # TODO: move colorfield to extra step
     # TODO: this is only correct for a single fluid
-    # colorfield = zeros(eltype(neighbor_system), nparticles(neighbor_system))
-    # colorfield_bnd = zeros(eltype(neighbor_system), nparticles(neighbor_system))
+    set_zero!(colorfield)
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        neighbor_system.boundary_model.cache.colorfield[neighbor] += kernel(smoothing_kernel,
-                                                                            distance,
-                                                                            smoothing_length)
+                            colorfield[neighbor] += kernel(smoothing_kernel, distance, smoothing_length)
     end
 
-    # foreach_point_neighbor(neighbor_system, neighbor_system,
-    #                        neighbor_system_coords, neighbor_system_coords,
-    #                        nhs_bnd) do particle, neighbor, pos_diff, distance
-    #     println("test")
-    #     colorfield_bnd[particle] += kernel(smoothing_kernel, distance, smoothing_length)
-    # end
 
-    # Since we don't want to calculate the unused boundary weight sum we normalize against the maximum value
-    # colorfield = colorfield ./ (2.0 * maximum(colorfield))
+    @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
+        colorfield[bnd_particle] = colorfield[bnd_particle] / (colorfield[bnd_particle] +
+        colorfield_bnd[bnd_particle])
+    end
 
-    # println(neighbor_system.boundary_model.cache.neighbor_number)
-
-    colorfield_bnd = neighbor_system.boundary_model.cache.colorfield_bnd
-    colorfield = neighbor_system.boundary_model.cache.colorfield
-
-    # println(colorfield)
-
-    # foreach_point_neighbor(system, neighbor_system,
-    #                        system_coords, neighbor_system_coords,
-    #                        nhs) do particle, neighbor, pos_diff, distance
-    #     neighbor_system.boundary_model.cache.colorfield[neighbor] = colorfield[neighbor] /
-    #                                                                 (colorfield[neighbor] + colorfield_bnd[neighbor])
-    # end
-
-    # colorfield = colorfield / (colorfield + neighbor_system.boundary_model.cache.colorfield)
-
-    # for i in 1:nparticles(neighbor_system)
-    #     if colorfield[i] > eps()
-    #         println(colorfield)
-    #         break
-    #     end
-    # end
+    maximum_colorfield = maximum(colorfield)
 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-        if colorfield[neighbor] > 0.05
+        if colorfield[neighbor] / maximum_colorfield > 0.1
             m_b = hydrodynamic_mass(system, particle)
             density_neighbor = particle_density(v, system, particle)
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
@@ -131,10 +103,8 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
             for i in 1:ndims(system)
                 # The `smoothing_length` here is used for scaling
                 # TODO move this to the surface tension model since this is not a general thing
-                # cache.surface_normal[i, particle] += m_b / density_neighbor *
-                #                                      grad_kernel[i] * smoothing_length
-                cache.surface_normal[i, particle] = 0.0
-                # println(m_b / density_neighbor * grad_kernel[i] * smoothing_length)
+                cache.surface_normal[i, particle] += m_b / density_neighbor *
+                                                     grad_kernel[i] * smoothing_length
             end
             cache.neighbor_count[particle] += 1
         end
