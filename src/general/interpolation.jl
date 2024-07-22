@@ -595,11 +595,11 @@ end
     return merge(common_return, system_specific_return)
 end
 
-@inline function n_interpolated_values(system::FluidSystem)
+@inline function n_interpolation_values(system::FluidSystem)
     return ndims(system) + 1
 end
 
-@inline function n_interpolated_values(system::SolidSystem)
+@inline function n_interpolation_values(system::SolidSystem)
     return ndims(system) * ndims(system) + ndims(system) + 2
 end
 
