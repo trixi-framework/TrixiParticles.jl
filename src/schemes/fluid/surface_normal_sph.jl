@@ -81,13 +81,12 @@ function calc_normal_akinci!(system, neighbor_system::BoundarySystem, u_system, 
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
-                            colorfield[neighbor] += kernel(smoothing_kernel, distance, smoothing_length)
+        colorfield[neighbor] += kernel(smoothing_kernel, distance, smoothing_length)
     end
-
 
     @threaded neighbor_system for bnd_particle in eachparticle(neighbor_system)
         colorfield[bnd_particle] = colorfield[bnd_particle] / (colorfield[bnd_particle] +
-        colorfield_bnd[bnd_particle])
+                                    colorfield_bnd[bnd_particle])
     end
 
     maximum_colorfield = maximum(colorfield)

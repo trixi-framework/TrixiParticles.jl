@@ -7,7 +7,7 @@ using OrdinaryDiffEq
 # ==== Resolution
 fluid_particle_spacing = 0.005
 
-boundary_layers = 5
+boundary_layers = 3
 spacing_ratio = 1
 
 # ==========================================================================================
