@@ -4,7 +4,7 @@
                                 smoothing_length; viscosity=nothing,
                                 state_equation=nothing, correction=nothing)
 
-`boundary_model` for `BoundarySPHSystem`.
+Boundary model for `BoundarySPHSystem`.
 
 # Arguments
 - `initial_density`: Vector holding the initial density of each boundary particle.
