@@ -75,11 +75,16 @@ function trixi2vtk(vu_ode, semi, t; iter=nothing, output_directory="out", prefix
 end
 
 # Convert data for a single TrixiParticle system to VTK format
-function trixi2vtk(v, u, t, system, periodic_box; output_directory="out", prefix="",
-                   iter=nothing, system_name=vtkname(system), write_meta_data=true,
+function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", prefix="",
+                   iter=nothing, system_name=vtkname(system_), write_meta_data=true,
                    max_coordinates=Inf, git_hash=compute_git_hash(),
                    custom_quantities...)
     mkpath(output_directory)
+
+    # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
+    v = Adapt.adapt(Array, v_)
+    u = Adapt.adapt(Array, u_)
+    system = Adapt.adapt(Array, system_)
 
     # handle "_" on optional pre/postfix strings
     add_opt_str_pre(str) = (str === "" ? "" : "$(str)_")
@@ -356,4 +361,8 @@ function write2vtk!(vtk, v, u, t, model::BoundaryModelDummyParticles, system;
     if model.viscosity isa ViscosityAdami
         vtk["wall_velocity"] = view(model.cache.wall_velocity, 1:ndims(system), :)
     end
+end
+
+function write2vtk!(vtk, v, u, t, system::BoundaryDEMSystem; write_meta_data=true)
+    return vtk
 end
