@@ -7,7 +7,7 @@ Modules = [TrixiParticles]
 Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src", "preprocessing", "geometries")))
 ```
 
-### References
+### [References](@id references_complex_shape)
 - Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung "Robust inside-outside segmentation using generalized winding numbers".
   In: ACM Transactions on Graphics, 32.4 (2013), pages 1--12.
   [doi: 10.1145/2461912.2461916](https://doi.org/10.1145/2461912.2461916)

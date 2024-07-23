@@ -34,7 +34,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
             # Since it's only sorted by the first entry, `v1` might be one of the following vertices
             vertex_id1 = searchsortedfirst(vertices, v1 .- 1e-14)
-            @inbounds for vertex_id in eachindex(vertices)[vertex_id1:end]
+            for vertex_id in eachindex(vertices)[vertex_id1:end]
                 if isapprox(vertices[vertex_id], v1)
                     vertex_id1 = vertex_id
                     break
@@ -43,7 +43,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
             # Since it's only sorted by the first entry, `v2` might be one of the following vertices
             vertex_id2 = searchsortedfirst(vertices, v2 .- 1e-14)
-            @inbounds for vertex_id in eachindex(vertices)[vertex_id2:end]
+            for vertex_id in eachindex(vertices)[vertex_id2:end]
                 if isapprox(vertices[vertex_id], v2)
                     vertex_id2 = vertex_id
                     break
@@ -52,7 +52,7 @@ struct TriangleMesh{NDIMS, ELTYPE}
 
             # Since it's only sorted by the first entry, `v3` might be one of the following vertices
             vertex_id3 = searchsortedfirst(vertices, v3 .- 1e-14)
-            @inbounds for vertex_id in eachindex(vertices)[vertex_id3:end]
+            for vertex_id in eachindex(vertices)[vertex_id3:end]
                 if isapprox(vertices[vertex_id], v3)
                     vertex_id3 = vertex_id
                     break

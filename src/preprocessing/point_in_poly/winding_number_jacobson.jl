@@ -42,9 +42,9 @@ Algorithm for inside-outside segmentation of a complex geometry proposed by Jaco
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct WindingNumberJacobson{ELTYPE}
+struct WindingNumberJacobson{ELTYPE, W}
     winding_number_factor :: ELTYPE
-    winding               :: Union{NaiveWinding, HierarchicalWinding}
+    winding               :: W
 
     function WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
                                    hierarchical_winding=false)
@@ -54,7 +54,8 @@ struct WindingNumberJacobson{ELTYPE}
 
         winding = hierarchical_winding ? HierarchicalWinding(geometry) : NaiveWinding()
 
-        return new{typeof(winding_number_factor)}(winding_number_factor, winding)
+        return new{typeof(winding_number_factor), typeof(winding)}(winding_number_factor,
+                                                                   winding)
     end
 end
 
