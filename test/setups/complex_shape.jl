@@ -10,18 +10,18 @@
             test_name(algorithm, shift, particle_spacing) = "Algorithm: $(TrixiParticles.type2string(algorithm))" *
                                                             ", Shift: $shift" *
                                                             ", Particle Spacing: $particle_spacing"
-            @testset verbose=true "$(test_name(point_in_shape_algorithm, shift,
-            particle_spacing))" for point_in_shape_algorithm in algorithms,
+            @testset verbose=true "$(test_name(point_in_geometry_algorithm, shift,
+            particle_spacing))" for point_in_geometry_algorithm in algorithms,
                                     shift in shifts,
                                     particle_spacing in particle_spacings
 
                 points_rectangular = [[0.0, 0.0] [1.0, 0.0] [1.0, 0.5] [0.0, 0.5]] .+ shift
 
-                shape = TrixiParticles.Polygon(points_rectangular)
+                geometry = TrixiParticles.Polygon(points_rectangular)
 
                 grid_offset = 0.5particle_spacing
-                shape_sampled = ComplexShape(shape; particle_spacing, density=1.0,
-                                             point_in_shape_algorithm, grid_offset)
+                shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
+                                             point_in_geometry_algorithm, grid_offset)
 
                 min_corner = points_rectangular[:, 1] .+ 0.5particle_spacing
                 max_corner = points_rectangular[:, 3]
@@ -50,10 +50,11 @@
 
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    shape = load_shape(joinpath(data_dir, files[j] * ".asc"))
+                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.05, density=1.0,
-                                                 point_in_shape_algorithm=algorithms[i])
+                    shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
+                                                 density=1.0,
+                                                 point_in_geometry_algorithm=algorithms[i])
 
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
                 end
@@ -77,9 +78,9 @@
                                   (data.var"Points:1")',
                                   (data.var"Points:2")')
 
-                    shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
+                    geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape;
+                    shape_sampled = ComplexShape(geometry;
                                                  grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0)
@@ -97,16 +98,16 @@
                                   (data.var"Points:1")',
                                   (data.var"Points:2")')
 
-                    shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
+                    geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape;
+                    shape_sampled = ComplexShape(geometry;
                                                  grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0,
-                                                 point_in_shape_algorithm=WindingNumberJacobson(;
-                                                                                                shape,
-                                                                                                winding_number_factor=0.1,
-                                                                                                hierarchical_winding=true))
+                                                 point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                                   geometry,
+                                                                                                   winding_number_factor=0.1,
+                                                                                                   hierarchical_winding=true))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end

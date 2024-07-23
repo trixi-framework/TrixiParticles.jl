@@ -1,15 +1,19 @@
 """
     WindingNumberHorman()
 
-Algorithm for inside-outside segmentation of a complex shape proposed by Horman et al. (2001).
-It is only supported for 2D shapes.
+Algorithm for inside-outside segmentation of a complex geometry proposed by Horman et al. (2001).
+It is only supported for 2D geometries.
 [`WindingNumberHorman`](@ref) might handle edge cases a bit better, since the winding number is an integer value.
-Also, it is faster than [`WindingNumberJacobson`](@ref) for 2D shapes with about more than 100 edges.
+Also, it is faster than [`WindingNumberJacobson`](@ref) for 2D geometries with more than about 100 edges.
+
+
+!!! warning "Experimental Implementation"
+    This is an experimental feature and may change in any future releases.
 """
 struct WindingNumberHorman end
 
-function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_number=false)
-    (; edge_vertices) = shape
+function (point_in_poly::WindingNumberHorman)(geometry, points; store_winding_number=false)
+    (; edge_vertices) = geometry
 
     inpoly = falses(size(points, 2))
 
@@ -28,9 +32,9 @@ function (point_in_poly::WindingNumberHorman)(shape, points; store_winding_numbe
 
     @threaded points for query_point in axes(points, 2)
         winding_number = 0
-        v_query = point_position(points, shape, query_point)
+        v_query = point_position(points, geometry, query_point)
 
-        for edge in eachface(shape)
+        for edge in eachface(geometry)
             v1 = edge_vertices[edge][1]
             v2 = edge_vertices[edge][2]
 

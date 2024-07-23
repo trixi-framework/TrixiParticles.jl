@@ -1,4 +1,4 @@
-# This bounding box is used for the hierarchical evaluation of the winding number.
+# This bounding box is used for the hierarchical evaluation of the `WindingNumberJacobsen`.
 # It is implementing a binary tree and thus stores the left and right child and also the
 # faces and closing faces which are inside the bounding box.
 struct BoundingBoxTree{MC}
@@ -21,12 +21,13 @@ end
 struct HierarchicalWinding{BB}
     bounding_box::BB
 
-    function HierarchicalWinding(shape)
-        bounding_box = BoundingBoxTree(eachface(shape), shape.min_corner, shape.max_corner)
+    function HierarchicalWinding(geometry)
+        bounding_box = BoundingBoxTree(eachface(geometry), geometry.min_corner,
+                                       geometry.max_corner)
 
-        directed_edges = zeros(Int, length(shape.edge_normals))
+        directed_edges = zeros(Int, length(geometry.edge_normals))
 
-        construct_hierarchy!(bounding_box, shape, directed_edges)
+        construct_hierarchy!(bounding_box, geometry, directed_edges)
 
         return new{typeof(bounding_box)}(bounding_box)
     end

@@ -1,19 +1,19 @@
 """
-    ComplexShape(shape::::Union{TriangleMesh, Polygon}; particle_spacing, density,
-                 pressure=0.0, mass=nothing, velocity=zeros(ndims(shape)),
-                 point_in_shape_algorithm=WindingNumberJacobson(; shape,
+    ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
+                 pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
+                 point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                 hierarchical_winding=false,
                                                                 winding_number_factor=sqrt(eps())),
                  grid_offset::Real=0.0, max_nparticles=10^7,
                  pad_initial_particle_grid=2particle_spacing)
 
-Complex shape filled with particles. Returns an [`InitialCondition`](@ref).
-Note that an initial particle grid is generated inside the bounding box of the shape.
-An `point_in_shape_algorithm` checks if particles are inside the shape or not.
+Complex geometry filled with particles. Returns an [`InitialCondition`](@ref).
+Note that an initial particle grid is generated inside the bounding box of the geometry.
+An `point_in_geometry_algorithm` checks if particles are inside the geometry or not.
 For more information about the method see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref).
 
 # Arguments
-- `shape`: Complex shape returned by [`load_shape`](@ref).
+- `geometry`: Complex geometry returned by [`load_geometry`](@ref).
 
 # Keywords
 - `particle_spacing`:   Spacing between the particles.
@@ -29,10 +29,10 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                         This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                         will be overwritten when using an initial pressure function in the system.
                         Cannot be used together with hydrostatic pressure gradient.
-- `point_in_shape_algorithm`: Algorithm for sampling the complex shape with particles.
+- `point_in_geometry_algorithm`: Algorithm for sampling the complex geometry with particles.
                               It basically checks whether a particle is inside an object or not.
                               For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
-- `grid_offset`: Offset of the initial particle grid of the bounding box of the `shape`.
+- `grid_offset`: Offset of the initial particle grid of the bounding box of the `geometry`.
 - `max_nparticles`: Maximum number of particles in the initial particle grid.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
 
@@ -40,34 +40,35 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-function ComplexShape(shape::Union{TriangleMesh, Polygon}; particle_spacing, density,
-                      pressure=0.0, mass=nothing, velocity=zeros(ndims(shape)),
-                      point_in_shape_algorithm=WindingNumberJacobson(; shape,
-                                                                     hierarchical_winding=false,
-                                                                     winding_number_factor=sqrt(eps())),
+function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
+                      pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
+                      point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
+                                                                        hierarchical_winding=false,
+                                                                        winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
                       max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
-    if ndims(shape) == 3 && point_in_shape_algorithm isa WindingNumberHorman
-        throw(ArgumentError("`WindingNumberHorman` only supports 2D shapes"))
+    if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHorman
+        throw(ArgumentError("`WindingNumberHorman` only supports 2D geometries"))
     end
 
-    return sample(shape; particle_spacing, density, pressure, mass, velocity,
-                  point_in_shape_algorithm, store_winding_number, grid_offset,
+    return sample(geometry; particle_spacing, density, pressure, mass, velocity,
+                  point_in_geometry_algorithm, store_winding_number, grid_offset,
                   max_nparticles,
                   padding=pad_initial_particle_grid)
 end
 
-function sample(shape; particle_spacing, density, pressure=0.0, mass=nothing,
-                velocity=zeros(ndims(shape)),
-                point_in_shape_algorithm=WindingNumberJacobson(; shape,
-                                                               hierarchical_winding=false,
-                                                               winding_number_factor=sqrt(eps())),
-                store_winding_number=false, grid_offset=shape.min_corner,
+function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
+                velocity=zeros(ndims(geometry)),
+                point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
+                                                                  hierarchical_winding=false,
+                                                                  winding_number_factor=sqrt(eps())),
+                store_winding_number=false, grid_offset=geometry.min_corner,
                 max_nparticles=10^7,
                 padding=2particle_spacing)
-    grid = particle_grid(shape, particle_spacing; padding, grid_offset, max_nparticles)
+    grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
 
-    inpoly, winding_numbers = point_in_shape_algorithm(shape, grid; store_winding_number)
+    inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
+                                                          store_winding_number)
     coordinates = grid[:, inpoly]
 
     ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
@@ -81,11 +82,11 @@ function sample(shape; particle_spacing, density, pressure=0.0, mass=nothing,
     return ic
 end
 
-function particle_grid(shape, particle_spacing;
+function particle_grid(geometry, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
-    (; max_corner) = shape
+    (; max_corner) = geometry
 
-    min_corner = shape.min_corner .- grid_offset
+    min_corner = geometry.min_corner .- grid_offset
 
     n_particles_per_dimension = Tuple(ceil.(Int,
                                             (max_corner .- min_corner .+ 2padding) ./
@@ -98,6 +99,7 @@ function particle_grid(shape, particle_spacing;
                             "`max_nparticles` = $max_nparticles"))
     end
 
-    return rectangular_shape_coords(particle_spacing, n_particles_per_dimension, min_corner;
-                                    tlsph=true)
+    return rectangular_geometry_coords(particle_spacing, n_particles_per_dimension,
+                                       min_corner;
+                                       tlsph=true)
 end

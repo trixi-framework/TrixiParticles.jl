@@ -140,10 +140,10 @@ end
 
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 
-@inline function face_vertices(triangle, shape::TriangleMesh)
-    v1 = shape.face_vertices[triangle][1]
-    v2 = shape.face_vertices[triangle][2]
-    v3 = shape.face_vertices[triangle][3]
+@inline function face_vertices(triangle, geometry::TriangleMesh)
+    v1 = geometry.face_vertices[triangle][1]
+    v2 = geometry.face_vertices[triangle][2]
+    v3 = geometry.face_vertices[triangle][3]
 
     return v1, v2, v3
 end
