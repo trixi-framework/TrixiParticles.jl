@@ -510,21 +510,18 @@ end
                                    smoothing_length=ref_system.smoothing_length,
                                    cut_off_bnd=true, clip_negative_pressure=false)
     interpolated_density = 0.0
-    interpolated_velocity = zero(SVector{ndims(ref_system)})
-    interpolated_pressure = 0.0
+    other_density = 0.0
+
+    NDIMS = ndims(ref_system)
+    interpolation_values = zeros(n_interpolation_values(ref_system))
 
     shepard_coefficient = 0.0
     ref_id = system_indices(ref_system, semi)
     neighbor_count = 0
-    other_density = 0.0
     ref_smoothing_kernel = ref_system.smoothing_kernel
 
-    if cut_off_bnd
-        systems = semi
-    else
-        # Don't loop over other systems
-        systems = (ref_system,)
-    end
+    # if we don't cut at the bnd we only need to iterate the reference system
+    systems = cut_off_bnd ? semi : (ref_system,)
 
     foreach_system(systems) do system
         system_id = system_indices(system, semi)
@@ -538,7 +535,7 @@ end
 
         # This is basically `foreach_point_neighbor` unrolled
         for particle in PointNeighbors.eachneighbor(point_coords, nhs)
-            coords = extract_svector(system_coords, Val(ndims(system)), particle)
+            coords = extract_svector(system_coords, Val(NDIMS), particle)
 
             pos_diff = point_coords - coords
             distance2 = dot(pos_diff, pos_diff)
@@ -551,41 +548,112 @@ end
             end
 
             distance = sqrt(distance2)
-            mass = hydrodynamic_mass(system, particle)
-            kernel_value = kernel(ref_smoothing_kernel, distance, smoothing_length)
-            m_W = mass * kernel_value
+            m_a = hydrodynamic_mass(system, particle)
+            W_a = kernel(ref_smoothing_kernel, distance, smoothing_length)
 
             if system_id == ref_id
-                interpolated_density += m_W
+                interpolated_density += m_a * W_a
+                volume = m_a / particle_density(v, system, particle)
+                shepard_coefficient += volume * W_a
 
-                volume = mass / particle_density(v, system, particle)
-                particle_velocity = current_velocity(v, system, particle)
-                interpolated_velocity += particle_velocity * (volume * kernel_value)
-
-                pressure = particle_pressure(v, system, particle)
-                if clip_negative_pressure
-                    pressure = max(0.0, pressure)
-                end
-
-                interpolated_pressure += pressure * (volume * kernel_value)
-                shepard_coefficient += volume * kernel_value
+                interpolate_system!(interpolation_values, system, v, particle, volume, W_a,
+                                    clip_negative_pressure)
             else
-                other_density += m_W
+                other_density += m_a * W_a
             end
 
             neighbor_count += 1
         end
     end
 
+    system_specific_return = construct_system_properties(ref_system, interpolation_values,
+                                                         NDIMS, shepard_coefficient)
+
     # Point is not within the ref_system
     if other_density > interpolated_density || shepard_coefficient < eps()
         # Return NaN values that can be filtered out in ParaView
-        return (density=NaN, neighbor_count=0, coord=point_coords,
-                velocity=fill(NaN, SVector{ndims(ref_system)}), pressure=NaN)
+        common_return = (density=NaN,
+                         neighbor_count=0,
+                         coord=point_coords)
+
+        # Replace all values in the named tuple with NaNs
+        system_specific_return = map(system_specific_return) do val
+            if val isa AbstractArray
+                return fill(NaN, size(val))
+            else
+                return NaN
+            end
+        end
+
+        return merge(common_return, system_specific_return)
     end
 
-    return (density=interpolated_density / shepard_coefficient,
-            neighbor_count=neighbor_count,
-            coord=point_coords, velocity=interpolated_velocity / shepard_coefficient,
-            pressure=interpolated_pressure / shepard_coefficient)
+    common_return = (density=interpolated_density / shepard_coefficient,
+                     neighbor_count=neighbor_count,
+                     coord=point_coords)
+
+    return merge(common_return, system_specific_return)
+end
+
+@inline function n_interpolation_values(system::FluidSystem)
+    return ndims(system) + 1
+end
+
+@inline function n_interpolation_values(system::SolidSystem)
+    return ndims(system) * ndims(system) + ndims(system) + 2
+end
+
+@inline function interpolate_system!(interpolation_values, system::FluidSystem, v, particle,
+                                     volume, W_a, clip_negative_pressure)
+    NDIMS = ndims(system)
+
+    particle_velocity = current_velocity(v, system, particle)
+    for i in 1:NDIMS
+        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
+    end
+
+    pressure = particle_pressure(v, system, particle)
+    if clip_negative_pressure
+        pressure = max(0.0, pressure)
+    end
+    interpolation_values[NDIMS + 1] += pressure * (volume * W_a)
+end
+
+@inline function interpolate_system!(system::SolidSystem, v, particle, volume, W_a,
+                                     clip_negative_pressure)
+    NDIMS = ndims(system)
+
+    particle_velocity = current_velocity(v, system, particle)
+    for i in 1:NDIMS
+        interpolation_values[i] += particle_velocity[i] * (volume * W_a)
+    end
+
+    interpolation_values[NDIMS + 1] = det(deformation_gradient(system, particle)) *
+                                      (volume * W_a)
+    interpolation_values[NDIMS + 2] = von_mises_stress(system) * (volume * W_a)
+
+    sigma = cauchy_stress(system)
+    for i in 1:NDIMS
+        for j in 1:NDIMS
+            interpolation_values[NDIMS + 3 + i * NDIMS + j] = sigma[i, j, particle] *
+                                                              (volume * W_a)
+        end
+    end
+end
+
+@inline function construct_system_properties(system::FluidSystem, interpolation_values,
+                                             NDIMS, shepard_coefficient)
+    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
+    pressure = interpolation_values[NDIMS + 1] / shepard_coefficient
+    return (velocity=velocity, pressure=pressure)
+end
+
+@inline function construct_system_properties(system::SolidSystem, interpolation_values,
+                                             NDIMS, shepard_coefficient)
+    velocity = interpolation_values[1:NDIMS] / shepard_coefficient
+    jacobian = interpolation_values[NDIMS + 1] / shepard_coefficient
+    von_mises_stress = interpolation_values[NDIMS + 2] / shepard_coefficient
+    cauchy_stress = interpolation_values[(NDIMS + 3):end] / shepard_coefficient
+    return (velocity=velocity, jacobian=jacobian, von_mises_stress=von_mises_stress,
+            cauchy_stress=cauchy_stress)
 end
