@@ -6,7 +6,7 @@ file = "hexagon"
 filename = joinpath("examples", "preprocessing", file * ".asc")
 
 # Returns `Shape`
-geomtery = load_geomtery(filename)
+geometry = load_geometry(filename)
 
 # Returns `InitialCondition`.
 shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0)
