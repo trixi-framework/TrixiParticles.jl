@@ -1,5 +1,5 @@
 """
-    load_shape(filename; element_type=Float64)
+    load_geometry(filename; element_type=Float64)
 
 Load file and return corresponding type for [`ComplexShape`](@ref).
 Supported file formats are `.stl` and `.asc`.
@@ -10,20 +10,20 @@ Supported file formats are `.stl` and `.asc`.
 # Keywords
 - `element_type`: Element type (default is `Float64`)
 """
-function load_shape(filename; element_type=Float64)
+function load_geometry(filename; element_type=Float64)
     ELTYPE = element_type
 
     file_extension = splitext(filename)[end]
 
     if file_extension == ".asc"
-        shape = load_ascii(filename; ELTYPE, skipstart=1)
+        geometry = load_ascii(filename; ELTYPE, skipstart=1)
     elseif file_extension == ".stl"
-        shape = load(query(filename); ELTYPE)
+        geometry = load(query(filename); ELTYPE)
     else
         throw(ArgumentError("Only `.stl` and `.asc` files are supported (yet)."))
     end
 
-    return shape
+    return geometry
 end
 
 function load_ascii(filename; ELTYPE=Float64, skipstart=1)
@@ -80,19 +80,19 @@ function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
     return TriangleMesh(face_vertices, normals, vertices)
 end
 
-function trixi2vtk(shape::Polygon; output_directory="out", prefix="",
+function trixi2vtk(geometry::Polygon; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    vertex_normals = stack([shape.vertex_normals[edge][1] for edge in eachface(shape)])
+    vertex_normals = stack([geometry.vertex_normals[edge][1] for edge in eachface(geometry)])
 
-    return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
+    return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
                      vertex_normals=vertex_normals, custom_quantities...)
 end
 
-function trixi2vtk(shape::TriangleMesh; output_directory="out", prefix="",
+function trixi2vtk(geometry::TriangleMesh; output_directory="out", prefix="",
                    filename="points", custom_quantities...)
-    vertex_normals = stack([shape.vertex_normals[face]
-                            for face in eachindex(shape.vertices)])
+    vertex_normals = stack([geometry.vertex_normals[face]
+                            for face in eachindex(geometry.vertices)])
 
-    return trixi2vtk(stack(shape.vertices); output_directory, filename, prefix,
+    return trixi2vtk(stack(geometry.vertices); output_directory, filename, prefix,
                      vertex_normals=vertex_normals, custom_quantities...)
 end

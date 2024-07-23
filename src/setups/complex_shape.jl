@@ -99,7 +99,6 @@ function particle_grid(geometry, particle_spacing;
                             "`max_nparticles` = $max_nparticles"))
     end
 
-    return rectangular_geometry_coords(particle_spacing, n_particles_per_dimension,
-                                       min_corner;
-                                       tlsph=true)
+    return rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+                                    min_corner; tlsph=true)
 end

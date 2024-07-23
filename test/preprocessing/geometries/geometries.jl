@@ -27,29 +27,29 @@
                 rot([[√2 / 2, -√2 / 2], [-√2 / 2, -√2 / 2]], rot_angle), # edge 4
             ]
 
-            shape_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
+            geometry_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
 
             for edge in eachindex(edge_vertices)
-                @test all(isapprox.(shape_clockwise.edge_vertices[edge],
+                @test all(isapprox.(geometry_clockwise.edge_vertices[edge],
                                     edge_vertices[edge], atol=1e-14))
             end
             for vertex in eachindex(vertex_normals)
-                @test all(isapprox.(shape_clockwise.vertex_normals[vertex],
+                @test all(isapprox.(geometry_clockwise.vertex_normals[vertex],
                                     vertex_normals[vertex], atol=1e-14))
             end
-            @test all(isapprox(shape_clockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(geometry_clockwise.edge_normals, edge_normals, atol=1e-14))
 
-            shape_cclockwise = TrixiParticles.Polygon(Matrix(points_rectangular_counter_clockwise))
+            geometry_cclockwise = TrixiParticles.Polygon(Matrix(points_rectangular_counter_clockwise))
 
             for edge in eachindex(edge_vertices)
-                @test all(isapprox.(shape_cclockwise.edge_vertices[edge],
+                @test all(isapprox.(geometry_cclockwise.edge_vertices[edge],
                                     edge_vertices[edge], atol=1e-14))
             end
             for vertex in eachindex(vertex_normals)
-                @test all(isapprox.(shape_cclockwise.vertex_normals[vertex],
+                @test all(isapprox.(geometry_cclockwise.vertex_normals[vertex],
                                     vertex_normals[vertex], atol=1e-14))
             end
-            @test all(isapprox(shape_cclockwise.edge_normals, edge_normals, atol=1e-14))
+            @test all(isapprox(geometry_cclockwise.edge_normals, edge_normals, atol=1e-14))
         end
     end
 
@@ -61,7 +61,7 @@
             n_edges = [6, 63, 241]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
-                # Checked in ParaView with `trixi2vtk(shape)`
+                # Checked in ParaView with `trixi2vtk(geometry)`
                 data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
@@ -71,16 +71,16 @@
 
                 points = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                shape = load_shape(joinpath(data_dir, files[i] * ".asc"))
+                geometry = load_geometry(joinpath(data_dir, files[i] * ".asc"))
 
-                @test TrixiParticles.nfaces(shape) == n_edges[i]
+                @test TrixiParticles.nfaces(geometry) == n_edges[i]
 
-                @testset "Normals $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertex_normals[j][1], vertex_normals[:, j],
+                @testset "Normals $j" for j in eachindex(geometry.vertices)
+                    @test isapprox(geometry.vertex_normals[j][1], vertex_normals[:, j],
                                    atol=1e-4)
                 end
-                @testset "Points $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertices[j], points[:, j], atol=1e-4)
+                @testset "Points $j" for j in eachindex(geometry.vertices)
+                    @test isapprox(geometry.vertices[j], points[:, j], atol=1e-4)
                 end
             end
         end
@@ -90,7 +90,7 @@
             n_vertices = [98, 8, 696]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
-                # Checked in ParaView with `trixi2vtk(shape)`
+                # Checked in ParaView with `trixi2vtk(geometry)`
                 data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
@@ -107,19 +107,19 @@
                                           (data.var"Points:2")'))
                 sort!(points)
 
-                shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
+                geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                @test TrixiParticles.nfaces(shape) == n_faces[i]
-                @test length(shape.vertices) == n_vertices[i]
+                @test TrixiParticles.nfaces(geometry) == n_faces[i]
+                @test length(geometry.vertices) == n_vertices[i]
 
-                sort!(shape.vertex_normals)
-                @testset "Normals $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertex_normals[j], vertex_normals[j], atol=1e-5)
+                sort!(geometry.vertex_normals)
+                @testset "Normals $j" for j in eachindex(geometry.vertices)
+                    @test isapprox(geometry.vertex_normals[j], vertex_normals[j], atol=1e-5)
                 end
 
-                sort!(shape.vertices)
-                @testset "Points $j" for j in eachindex(shape.vertices)
-                    @test isapprox(shape.vertices[j], points[j], atol=1e-5)
+                sort!(geometry.vertices)
+                @testset "Points $j" for j in eachindex(geometry.vertices)
+                    @test isapprox(geometry.vertices[j], points[j], atol=1e-5)
                 end
             end
         end

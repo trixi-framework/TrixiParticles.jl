@@ -4,7 +4,7 @@ Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src
 ```
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src", "preprocessing", "shapes")))
+Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src", "preprocessing", "geometries")))
 ```
 
 ### References
