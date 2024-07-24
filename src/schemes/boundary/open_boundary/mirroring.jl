@@ -25,7 +25,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
     state_equation = system_state_equation(system.fluid_system)
 
-    svector_(f, system) = SVector(ntuple(@inline(dim->f[dim + 1]), ndims(system)))
+    # Static indices to avoid allocations
+    two_to_end = SVector{ndims(system)}(2:(ndims(system) + 1))
 
     v_open_boundary = wrap_v(v_ode, system, semi)
     v_fluid = wrap_v(v_ode, fluid_system, semi)
@@ -35,9 +36,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
     # Use the fluid-fluid nhs, since the boundary particles are mirrored into the fluid domain
     neighborhood_search = get_neighborhood_search(fluid_system, fluid_system, semi)
 
-    # interpolated_velocity = [zero_svector(system) for _ in 1:ndims(system)]
-
-    for particle in each_moving_particle(system)
+    @threaded system for particle in each_moving_particle(system)
         particle_coords = current_coords(u_open_boundary, system, particle)
         ghost_node_position = mirror_position(particle_coords, boundary_zone)
 
@@ -64,7 +63,9 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                 v_b = current_velocity(v_fluid, fluid_system, neighbor)
 
                 # Project `v_b` to the normal direction of the boundary zone
-                # See https://doi.org/10.1016/j.jcp.2020.110029
+                # See https://doi.org/10.1016/j.jcp.2020.110029 Section 3.3.:
+                # "Because ﬂow from the inlet interface occurs perpendicular to the boundary,
+                # only this component of interpolated velocity is kept [...]"
                 v_b = dot(v_b, boundary_zone.flow_direction) * boundary_zone.flow_direction
 
                 kernel_value = smoothing_kernel(fluid_system, distance)
@@ -99,7 +100,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
                                                  particle, particle_coords, t)
         else
             f_p = L_inv * interpolated_pressure
-            df_p = svector_(f_p, system)
+            df_p = f_p[two_to_end]
 
             pressure[particle] = f_p[1] + dot(pos_diff, df_p)
         end
@@ -113,12 +114,13 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
         else
             @inbounds for dim in 1:ndims(system)
                 f_v = L_inv * interpolated_velocity[dim, :]
-                df_v = svector_(f_v, system)
+                df_v = f_v[two_to_end]
 
                 v_open_boundary[dim, particle] = f_v[1] + dot(pos_diff, df_v)
             end
         end
 
+        # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation.
         if prescribed_density
             density[particle] = reference_value(reference_density, density, system,
                                                 particle, particle_coords, t)
