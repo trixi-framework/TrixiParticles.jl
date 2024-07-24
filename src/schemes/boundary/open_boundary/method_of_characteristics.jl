@@ -22,7 +22,7 @@ end
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
 
         @trixi_timeit timer() "interpolate and correct values" begin
-            interpolate_values!(system, v_ode, u_ode, semi, t; prescribed_pressure,
+            extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_pressure,
                                 prescribed_velocity, prescribed_density)
         end
     end
