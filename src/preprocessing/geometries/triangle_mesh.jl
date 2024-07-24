@@ -138,6 +138,8 @@ end
 
 @inline Base.ndims(::TriangleMesh{NDIMS}) where {NDIMS} = NDIMS
 
+@inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
+
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 
 @inline function face_vertices(triangle, geometry::TriangleMesh)

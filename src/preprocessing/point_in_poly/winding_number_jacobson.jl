@@ -7,7 +7,7 @@ struct NaiveWinding end
 end
 
 @inline function naive_winding(mesh, faces, query_point)
-    winding_number = sum(faces, init=0.0) do face
+    winding_number = sum(faces, init=zero(eltype(mesh))) do face
 
         # Eq. 6 of Jacobsen et al. Based on A. Van Oosterom (1983),
         # "The Solid Angle of a Plane Triangle" (doi: 10.1109/TBME.1983.325207)
@@ -97,7 +97,7 @@ function (point_in_poly::WindingNumberJacobson)(mesh::Polygon{2}, points;
     @threaded points for query_point in axes(points, 2)
         p = point_position(points, mesh, query_point)
 
-        winding_number = sum(edge_vertices, init=0.0) do edge
+        winding_number = sum(edge_vertices, init=zero(eltype(mesh))) do edge
             a = edge[1] - p
             b = edge[2] - p
 

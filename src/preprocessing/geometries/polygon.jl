@@ -103,6 +103,8 @@ end
 
 @inline Base.ndims(::Polygon{NDIMS}) where {NDIMS} = NDIMS
 
+@inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
+
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
 
 @inline function face_vertices(edge, geometry::Polygon)
