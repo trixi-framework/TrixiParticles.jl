@@ -70,20 +70,34 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 end
 
 @doc raw"""
-    AdamiPressureExtrapolation(; pressure_offset=0.0)
+    AdamiPressureExtrapolation(; pressure_offset=0.0, allow_loop_flipping=true)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
                          to prevent penetration, which is possible by increasing this value.
+- `allow_loop_flipping=true`: Allow to flip the loop order for the pressure extrapolation.
+                              Disable to prevent error variations between simulations with
+                              different numbers of threads.
+                              Usually, the first (multithreaded) loop is over the boundary
+                              particles and the second loop over the fluid neighbors.
+                              When the number of boundary particles is larger than
+                              `ceil(0.5 * nthreads())` times the number of fluid particles,
+                              it is usually more efficient to flip the loop order and loop
+                              over the fluid particles first.
+                              The factor depends on the number of threads, as the flipped
+                              loop is not thread parallelizable.
+                              This can cause error variations between simulations with
+                              different numbers of threads.
 
 """
 struct AdamiPressureExtrapolation{ELTYPE}
-    pressure_offset::ELTYPE
+    pressure_offset     :: ELTYPE
+    allow_loop_flipping :: Bool
 
-    function AdamiPressureExtrapolation(; pressure_offset=0.0)
-        return new{eltype(pressure_offset)}(pressure_offset)
+    function AdamiPressureExtrapolation(; pressure_offset=0.0, allow_loop_flipping=true)
+        return new{eltype(pressure_offset)}(pressure_offset, allow_loop_flipping)
     end
 end
 
@@ -339,6 +353,7 @@ function compute_pressure!(boundary_model,
                                    BernoulliPressureExtrapolation},
                            system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
+    (; allow_loop_flipping) = bnd_density_calc
 
     set_zero!(pressure)
 
@@ -355,15 +370,17 @@ function compute_pressure!(boundary_model,
         neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
         # This is an optimization for simulations with large and complex boundaries.
-        # Especially, in 3D simulations with large and/or complex structures outside
+        # Especially in 3D simulations with large and/or complex structures outside
         # of areas with permanent flow.
         # Note: The version iterating neighbors first is not thread parallelizable.
         # The factor is based on the achievable speed-up of the thread parallelizable version.
-        if nparticles(system) >
-           ceil(Int, 0.5 * Threads.nthreads()) * nparticles(neighbor_system)
+        if allow_loop_flipping &&
+           nparticles(system) > div(Threads.nthreads(), 2) * nparticles(neighbor_system)
+
             nhs = get_neighborhood_search(neighbor_system, system, semi)
 
-            # Loop over fluid particles and then the neighboring boundary particles to extrapolate fluid pressure to the boundaries
+            # Loop over fluid particles and then the neighboring boundary particles
+            # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation_neighbor!(boundary_model, system,
                                                       neighbor_system,
                                                       system_coords, neighbor_coords, v,
@@ -371,7 +388,8 @@ function compute_pressure!(boundary_model,
         else
             nhs = get_neighborhood_search(system, neighbor_system, semi)
 
-            # Loop over boundary particles and then the neighboring fluid particles to extrapolate fluid pressure to the boundaries
+            # Loop over boundary particles and then the neighboring fluid particles
+            # to extrapolate fluid pressure to the boundaries.
             boundary_pressure_extrapolation!(boundary_model, system,
                                              neighbor_system,
                                              system_coords, neighbor_coords, v,
