@@ -471,7 +471,7 @@ end
 end
 
 @inline function boundary_pressure_inner!(boundary_model,
-                                          boundary_density_calculator::BernoulliPressureExtrapolation,
+                                          boundary_density_calculator,
                                           system, neighbor_system::FluidSystem, v,
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
