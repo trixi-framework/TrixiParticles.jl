@@ -181,8 +181,6 @@ end
 
 update_callback_used!(system::OpenBoundarySPHSystem) = system.update_callback_used[] = true
 
-@inline source_terms(system::OpenBoundarySPHSystem) = nothing
-
 @inline hydrodynamic_mass(system::OpenBoundarySPHSystem, particle) = system.mass[particle]
 
 @inline function particle_density(v, system::OpenBoundarySPHSystem, particle)
