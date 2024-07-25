@@ -334,9 +334,7 @@ end
 function compute_pressure!(boundary_model,
                            boundary_density_calc::Union{AdamiPressureExtrapolation,
                                                         BernoulliPressureExtrapolation},
-                           system,
-                           v, u,
-                           v_ode, u_ode, semi)
+                           system, v, u, v_ode, u_ode, semi)
     (; pressure, cache, viscosity) = boundary_model
 
     set_zero!(pressure)
@@ -427,8 +425,7 @@ end
 @inline function boundary_pressure_extrapolation_neighbor!(boundary_model, system,
                                                            neighbor_system::FluidSystem,
                                                            system_coords, neighbor_coords,
-                                                           v,
-                                                           v_neighbor_system,
+                                                           v, v_neighbor_system,
                                                            neighborhood_search)
     (; pressure, cache, viscosity, density_calculator) = boundary_model
     (; pressure_offset) = density_calculator
@@ -483,12 +480,14 @@ end
 
     kernel_weight = smoothing_kernel(boundary_model, distance)
 
-    pressure[particle] += (pressure_offset +
+    pressure[particle] += (pressure_offset
+                           +
                            particle_pressure(v_neighbor_system, neighbor_system,
-                                             neighbor) +
+                                             neighbor)
+                           +
                            dynamic_pressure(boundary_density_calculator, density_neighbor,
-                                            v, v_neighbor_system,
-                                            particle, neighbor, system, neighbor_system)
+                                            v, v_neighbor_system, particle, neighbor,
+                                            system, neighbor_system)
                            +
                            dot(resulting_acceleration,
                                density_neighbor * pos_diff)) * kernel_weight
@@ -510,7 +509,7 @@ end
                                   neighbor, system::BoundarySystem, neighbor_system)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) -
-                            current_velocity(v_neighbor, neighbor_system, neighbor)
+                            current_velocity(v_neighbor_system, neighbor_system, neighbor)
         return density_neighbor * dot(relative_velocity, relative_velocity) / 2
     end
     return zero(density_neighbor)
@@ -519,7 +518,7 @@ end
 @inline function dynamic_pressure(::BernoulliPressureExtrapolation, density_neighbor, v,
                                   v_neighbor_system, particle,
                                   neighbor, system::SolidSystem, neighbor_system)
-    relative_velocity = current_velocity(v, system, particle) -
+    relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     return density_neighbor * dot(relative_velocity, relative_velocity) / 2
 end
