@@ -54,7 +54,7 @@
 
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         boundary_system.boundary_model.viscosity)
-            TrixiParticles.bnd_pressure_extrapolation!(boundary_model,
+            TrixiParticles.boundary_pressure_extrapolation!(boundary_model,
                                                        boundary_system,
                                                        fluid_system, boundary.coordinates,
                                                        fluid.coordinates, v_fluid,
@@ -93,7 +93,7 @@
 
             TrixiParticles.reset_cache!(boundary_system.boundary_model.cache,
                                         boundary_system.boundary_model.viscosity)
-            TrixiParticles.bnd_pressure_extrapolation!(boundary_model, boundary_system,
+            TrixiParticles.boundary_pressure_extrapolation!(boundary_model, boundary_system,
                                                        fluid_system, boundary.coordinates,
                                                        fluid.coordinates, v_fluid,
                                                        v_fluid,
