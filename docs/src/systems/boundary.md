@@ -60,7 +60,7 @@ We provide six options to compute the boundary density and pressure, determined 
    fluid according to (Adami et al., 2012), and the density is obtained by applying the inverse of the state equation.
    This option usually yields the best results of the options listed here.
 2. (Only relevant for FSI) With `BernoulliPressureExtrapolation`, the pressure is extrapolated from the 
-   pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity dependent pressure part
+   pressure similar to the [`AdamiPressureExtrapolation`](@ref), but a relative velocity-dependent pressure part
    is calculated between moving solids and fluids, which increases the boundary pressure in areas prone to 
    penetrations.
 3. With [`SummationDensity`](@ref), the density is calculated by summation over the neighboring particles,
@@ -98,6 +98,12 @@ where the sum is over all fluid particles, ``\rho_f`` and ``p_f`` denote the den
 ```
 
 #### 2. [`BernoulliPressureExtrapolation`](@ref)
+Identical to [`AdamiPressureExtrapolation`](@ref) but adds the dynamic pressure part of the Bernoulli equation
+```math
+\frac{1}{2} \rho_f (v_f-v_{body})^2
+```
+to provide a higher boundary pressure for solid bodies moving with a relative velocity to the fluid to prevent penetration.
+
 ```@docs
     BernoulliPressureExtrapolation
 ```
