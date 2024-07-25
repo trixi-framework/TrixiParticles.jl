@@ -144,7 +144,7 @@
         # Avoid `SystemBuffer` barrier
         TrixiParticles.each_moving_particle(system::Union{System1, System2}) = TrixiParticles.eachparticle(system)
 
-        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi)
+        TrixiParticles.add_source_terms!(dv_ode, v_ode, u_ode, semi, 0.0)
 
         dv1 = TrixiParticles.wrap_v(dv_ode, system1, semi)
         @test dv1 == -0.1 * v1
