@@ -361,13 +361,13 @@ function wrap_reference_function(constant_vector_, ::Val{NDIMS}) where {NDIMS}
     return constant_vector(coords, t) = SVector{NDIMS}(constant_vector_)
 end
 
-function reference_value(value::Function, quantity, system, particle, position, t)
+function reference_value(value::Function, quantity, position, t)
     return value(position, t)
 end
 
 # This method is used when extrapolating quantities from the domain
 # instead of using the method of characteristics
-reference_value(value::Nothing, quantity, system, particle, position, t) = quantity
+reference_value(value::Nothing, quantity, position, t) = quantity
 
 function check_reference_values!(boundary_model, reference_density, reference_pressure,
                                  reference_velocity)

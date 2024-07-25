@@ -96,8 +96,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
         #
         # in order to get zero gradient at the oultet interface.
         if prescribed_pressure
-            pressure[particle] = reference_value(reference_pressure, pressure, system,
-                                                 particle, particle_coords, t)
+            pressure[particle] = reference_value(reference_pressure, pressure[particle],
+                                                 particle_coords, t)
         else
             f_p = L_inv * interpolated_pressure
             df_p = f_p[two_to_end]
@@ -106,8 +106,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
         end
 
         if prescribed_velocity
-            v_ref = reference_value(reference_velocity, v_open_boundary, system,
-                                    particle, particle_coords, t)
+            v_particle = current_velocity(v_open_boundary, system, particle)
+            v_ref = reference_value(reference_velocity, v_particle, particle_coords, t)
             @inbounds for dim in 1:ndims(system)
                 v_open_boundary[dim, particle] = v_ref[dim]
             end
@@ -122,8 +122,8 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
 
         # Unlike Tafuni et al. (2018), we calculate the density using the inverse state-equation.
         if prescribed_density
-            density[particle] = reference_value(reference_density, density, system,
-                                                particle, particle_coords, t)
+            density[particle] = reference_value(reference_density, density[particle],
+                                                particle_coords, t)
         else
             inverse_state_equation!(density, state_equation, pressure, particle)
         end

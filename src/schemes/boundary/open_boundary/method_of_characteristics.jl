@@ -21,7 +21,7 @@ end
     if boundary_model.extrapolate_reference_values
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
 
-        @trixi_timeit timer() "interpolate and correct values" begin
+        @trixi_timeit timer() "extrapolate and correct values" begin
             extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_pressure,
                                 prescribed_velocity, prescribed_density)
         end
@@ -35,16 +35,16 @@ end
         J2 = cache.characteristics[2, particle]
         J3 = cache.characteristics[3, particle]
 
-        rho_ref = reference_value(reference_density, density[particle], system, particle,
+        rho_ref = reference_value(reference_density, density[particle],
                                   particle_position, t)
         density[particle] = rho_ref + ((-J1 + 0.5 * (J2 + J3)) / sound_speed^2)
 
-        p_ref = reference_value(reference_pressure, pressure[particle], system, particle,
+        p_ref = reference_value(reference_pressure, pressure[particle],
                                 particle_position, t)
         pressure[particle] = p_ref + 0.5 * (J2 + J3)
 
         v_current = current_velocity(v, system, particle)
-        v_ref = reference_value(reference_velocity, v_current, system, particle,
+        v_ref = reference_value(reference_velocity, v_current,
                                 particle_position, t)
         rho = density[particle]
         v_ = v_ref + ((J2 - J3) / (2 * sound_speed * rho)) * flow_direction
@@ -145,15 +145,16 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
         # Determine current and prescribed quantities
         rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
-        rho_ref = reference_value(reference_density, density, system, particle,
+        rho_ref = reference_value(reference_density, density[particle],
                                   neighbor_position, t)
 
         p_b = particle_pressure(v_neighbor_system, neighbor_system, neighbor)
-        p_ref = reference_value(reference_pressure, pressure, system, particle,
+        p_ref = reference_value(reference_pressure, pressure[particle],
                                 neighbor_position, t)
 
         v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        v_neighbor_ref = reference_value(reference_velocity, v, system, particle,
+        v_particle = current_velocity(v, system, particle)
+        v_neighbor_ref = reference_value(reference_velocity, v_particle,
                                          neighbor_position, t)
 
         # Determine characteristic variables
