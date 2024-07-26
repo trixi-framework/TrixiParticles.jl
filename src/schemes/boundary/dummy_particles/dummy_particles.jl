@@ -16,12 +16,12 @@ Boundary model for `BoundarySPHSystem`.
 - `smoothing_length`: Smoothing length should be the same as for the adjacent fluid system.
 
 # Keywords
-- `state_equation`: This should be the same as for the adjacent fluid system
-                    (see e.g. [`StateEquationCole`](@ref)).
-- `correction`:     Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
-- `viscosity`:      Slip (default) or no-slip condition. See description below for further
-                    information.
-
+- `state_equation`:             This should be the same as for the adjacent fluid system
+                                (see e.g. [`StateEquationCole`](@ref)).
+- `correction`:                 Correction method of the adjacent fluid system (see [Corrections](@ref corrections)).
+- `viscosity`:                  Slip (default) or no-slip condition. See description below for further
+                                information.
+- `reference_particle_spacing`: The reference particle spacing used for weighting values at the boundary.
 # Examples
 ```jldoctest; output = false, setup = :(densities = [1.0, 2.0, 3.0]; masses = [0.1, 0.2, 0.3]; smoothing_kernel = SchoenbergCubicSplineKernel{2}(); smoothing_length = 0.1)
 # Free-slip condition
@@ -44,6 +44,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
+    neighbor_number    :: Int64
     viscosity          :: V
     correction         :: COR
     cache              :: C
@@ -54,24 +55,33 @@ end
 function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
                                      density_calculator, smoothing_kernel,
                                      smoothing_length; viscosity=nothing,
-                                     state_equation=nothing, correction=nothing)
+                                     state_equation=nothing, correction=nothing,
+                                     reference_particle_spacing=0.0)
     pressure = initial_boundary_pressure(initial_density, density_calculator,
                                          state_equation)
     NDIMS = ndims(smoothing_kernel)
+    ELTYPE = eltype(smoothing_length)
     n_particles = length(initial_density)
 
     cache = (; create_cache_model(viscosity, n_particles, NDIMS)...,
              create_cache_model(initial_density, density_calculator)...,
              create_cache_model(correction, initial_density, NDIMS, n_particles)...,
-             (; colorfield_bnd=zeros(eltype(smoothing_length), n_particles),
-              colorfield=zeros(eltype(smoothing_length), n_particles),
-              neighbor_count=zeros(eltype(smoothing_length), n_particles))...,
-             (; neighbor_number=[0.0])...)
+             (; colorfield_bnd=zeros(ELTYPE, n_particles),
+              colorfield=zeros(ELTYPE, n_particles),
+              neighbor_count=zeros(ELTYPE, n_particles))...)
+
+    neighbor_number = 0
+    if reference_particle_spacing > 0.0
+        neighbor_number = neighbor_number(Val(ndims(boundary_model)),
+                                          reference_particle_spacing,
+                                          compact_support(smoothing_kernel,
+                                                          smoothing_length))
+    end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, viscosity, correction,
-                                       cache)
+                                       smoothing_length, neighbor_number, viscosity,
+                                       correction, cache)
 end
 
 @doc raw"""
@@ -510,13 +520,4 @@ end
 
 @inline function correction_matrix(system::BoundarySystem, particle)
     extract_smatrix(system.boundary_model.cache.correction_matrix, system, particle)
-end
-
-function initialize_boundary_model!(boundary_model::BoundaryModelDummyParticles,
-                                    initial_particle_spacing)
-    (; smoothing_kernel, smoothing_length) = boundary_model
-    boundary_model.cache.neighbor_number[1] = neighbor_number(Val(ndims(boundary_model)),
-                                                              initial_particle_spacing,
-                                                              compact_support(smoothing_kernel,
-                                                                              smoothing_length))
 end

@@ -30,8 +30,6 @@ struct BoundarySPHSystem{BM, NDIMS, ELTYPE <: Real, IC, CO, M, IM,
                                ismoving, adhesion_coefficient, cache, buffer)
         ELTYPE = eltype(coordinates)
 
-        initialize_boundary_model!(boundary_model, initial_condition.particle_spacing)
-
         new{typeof(boundary_model), size(coordinates, 1), ELTYPE, typeof(initial_condition),
             typeof(coordinates), typeof(movement), typeof(ismoving),
             typeof(cache)}(initial_condition, coordinates, boundary_model, movement,
@@ -394,7 +392,15 @@ function calculate_dt(v_ode, u_ode, cfl_number, system::BoundarySystem)
 end
 
 function initialize!(system::BoundarySPHSystem, neighborhood_search)
-    # TODO: dispatch on boundary model
+    initialize_colorfield!(system, system.boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, boundary_model, neighborhood_search)
+    return system
+end
+
+function initialize_colorfield!(system, ::BoundaryModelDummyParticles, neighborhood_search)
     system_coords = system.coordinates
     (; smoothing_kernel, smoothing_length) = system.boundary_model
 
@@ -408,6 +414,5 @@ function initialize!(system::BoundarySPHSystem, neighborhood_search)
                                                                        smoothing_length)
         system.boundary_model.cache.neighbor_count[particle] += 1
     end
+    return system
 end
-
-initialize_boundary_model!(boundary_model, initial_particle_spacing) = boundary_model

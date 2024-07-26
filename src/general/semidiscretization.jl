@@ -277,9 +277,6 @@ function semidiscretize(semi, tspan; reset_threads=true, data_type=nothing)
         # Get the neighborhood search for this system
         neighborhood_search = get_neighborhood_search(system, semi)
 
-        PointNeighbors.initialize!(neighborhood_search, initial_coordinates(system),
-                                   initial_coordinates(system))
-
         # Initialize this system
         initialize!(system, neighborhood_search)
 
