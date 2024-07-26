@@ -1,10 +1,10 @@
-struct AkinciSurfaceNormal{ELTYPE, K}
+struct ColorfieldSurfaceNormal{ELTYPE, K}
     smoothing_kernel::K
     smoothing_length::ELTYPE
 end
 
-function AkinciSurfaceNormal(; smoothing_kernel, smoothing_length)
-    return AkinciSurfaceNormal(smoothing_kernel, smoothing_length)
+function ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
+    return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
 end
 
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"

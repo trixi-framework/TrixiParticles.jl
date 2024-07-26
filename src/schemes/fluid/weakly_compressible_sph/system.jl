@@ -106,7 +106,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
     end
 
     if surface_tension !== nothing && surface_normal_method === nothing
-        surface_normal_method = AkinciSurfaceNormal(smoothing_kernel, smoothing_length)
+        surface_normal_method = ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
     end
 
     pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
