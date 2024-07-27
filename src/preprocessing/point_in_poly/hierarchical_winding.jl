@@ -5,16 +5,47 @@ struct BoundingBoxTree{MC}
     faces         :: Vector{Int}
     min_corner    :: MC
     max_corner    :: MC
-    is_leaf       :: Ref{Bool}
+    is_leaf       :: Bool
     closing_faces :: Vector{NTuple{3, Int}}
-    children      :: Vector{BoundingBoxTree}
+    child_left    :: BoundingBoxTree
+    child_right   :: BoundingBoxTree
 
-    function BoundingBoxTree(faces, min_corner, max_corner)
+    function BoundingBoxTree(geometry, faces, directed_edges, min_corner, max_corner)
         closing_faces = Vector{NTuple{3, Int}}()
-        children = Vector{BoundingBoxTree}()
 
-        return new{typeof(min_corner)}(faces, min_corner, max_corner, Ref(false),
-                                       closing_faces, children)
+        if length(faces) < 100
+            return new{typeof(min_corner)}(faces, min_corner, max_corner, true,
+                                           closing_faces)
+        end
+
+        determine_closure!(closing_faces, min_corner, max_corner, geometry, faces,
+                           directed_edges)
+
+        if length(closing_faces) >= length(faces)
+            return new{typeof(min_corner)}(faces, min_corner, max_corner, true,
+                                           closing_faces)
+        end
+
+        # Bisect the box splitting its longest side
+        box_edges = max_corner - min_corner
+
+        split_direction = argmax(box_edges)
+
+        uvec = (1:3) .== split_direction
+
+        max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
+        min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
+
+        faces_left = in_bounding_box(geometry, faces, min_corner, max_corner_left)
+        faces_right = in_bounding_box(geometry, faces, min_corner_right, max_corner)
+
+        child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
+                                     min_corner, max_corner_left)
+        child_right = BoundingBoxTree(geometry, faces_right, directed_edges,
+                                      min_corner_right, max_corner)
+
+        return new{typeof(min_corner)}(faces, min_corner, max_corner, false, closing_faces,
+                                       child_left, child_right)
     end
 end
 
@@ -22,12 +53,13 @@ struct HierarchicalWinding{BB}
     bounding_box::BB
 
     function HierarchicalWinding(geometry)
-        bounding_box = BoundingBoxTree(eachface(geometry), geometry.min_corner,
-                                       geometry.max_corner)
+        min_corner = geometry.min_corner .- sqrt(eps())
+        max_corner = geometry.max_corner .+ sqrt(eps())
 
         directed_edges = zeros(Int, length(geometry.edge_normals))
 
-        construct_hierarchy!(bounding_box, geometry, directed_edges)
+        bounding_box = BoundingBoxTree(geometry, eachface(geometry), directed_edges,
+                                       min_corner, max_corner)
 
         return new{typeof(bounding_box)}(bounding_box)
     end
@@ -42,7 +74,7 @@ end
 function hierarchical_winding(bounding_box, mesh, query_point)
     (; min_corner, max_corner) = bounding_box
 
-    if bounding_box.is_leaf[]
+    if bounding_box.is_leaf
         return naive_winding(mesh, bounding_box.faces, query_point)
 
     elseif !in_bounding_box(query_point, min_corner, max_corner)
@@ -50,60 +82,18 @@ function hierarchical_winding(bounding_box, mesh, query_point)
         return -naive_winding(mesh, bounding_box.closing_faces, query_point)
     end
 
-    winding_number_left = hierarchical_winding(bounding_box.children[1], mesh, query_point)
-    winding_number_right = hierarchical_winding(bounding_box.children[2], mesh, query_point)
+    winding_number_left = hierarchical_winding(bounding_box.child_left, mesh, query_point)
+    winding_number_right = hierarchical_winding(bounding_box.child_right, mesh, query_point)
 
     return winding_number_left + winding_number_right
 end
 
-function construct_hierarchy!(bounding_box, mesh, directed_edges)
-    (; max_corner, min_corner, faces) = bounding_box
-
-    if length(faces) < 100
-        bounding_box.is_leaf[] = true
-
-        return bounding_box
-    end
-
-    determine_closure!(bounding_box, mesh, faces, directed_edges)
-
-    if length(bounding_box.closing_faces) >= length(faces)
-        bounding_box.is_leaf[] = true
-
-        return bounding_box
-    end
-
-    # Bisect the box splitting its longest side
-    box_edges = max_corner - min_corner
-
-    split_direction = argmax(box_edges)
-
-    uvec = (1:3) .== split_direction
-
-    max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
-    min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
-
-    faces_left = in_bounding_box(mesh, faces, min_corner, max_corner_left)
-    faces_right = in_bounding_box(mesh, faces, min_corner_right, max_corner)
-
-    bbox_left = BoundingBoxTree(faces_left, min_corner, max_corner_left)
-    bbox_right = BoundingBoxTree(faces_right, min_corner_right, max_corner)
-
-    push!(bounding_box.children, bbox_left)
-    push!(bounding_box.children, bbox_right)
-
-    construct_hierarchy!(bbox_left, mesh, directed_edges)
-    construct_hierarchy!(bbox_right, mesh, directed_edges)
-
-    return bounding_box
-end
-
 # This only works when all `vertices` are unique
-function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_directed_edge)
+function determine_closure!(closing_faces, min_corner, max_corner, mesh::TriangleMesh{3},
+                            faces, directed_edges)
     (; edge_vertices_ids, face_vertices_ids, face_edges_ids, vertices) = mesh
-    (; min_corner, max_corner) = bounding_box
 
-    count_directed_edge .= 0
+    directed_edges .= 0
     intersecting_faces = Int[]
 
     # Find all exterior edges
@@ -122,19 +112,19 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
             edge3 = face_edges_ids[face][3]
 
             if edge_vertices_ids[edge1] == (v1, v2)
-                count_directed_edge[edge1] += 1
+                directed_edges[edge1] += 1
             else
-                count_directed_edge[edge1] -= 1
+                directed_edges[edge1] -= 1
             end
             if edge_vertices_ids[edge2] == (v2, v3)
-                count_directed_edge[edge2] += 1
+                directed_edges[edge2] += 1
             else
-                count_directed_edge[edge2] -= 1
+                directed_edges[edge2] -= 1
             end
             if edge_vertices_ids[edge3] == (v3, v1)
-                count_directed_edge[edge3] += 1
+                directed_edges[edge3] += 1
             else
-                count_directed_edge[edge3] -= 1
+                directed_edges[edge3] -= 1
             end
 
         else # Face is intersecting the boundaries
@@ -142,8 +132,8 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
         end
     end
 
-    exterior_edges = findall(!iszero, count_directed_edge)
-    resize!(bounding_box.closing_faces, 0)
+    exterior_edges = findall(!iszero, directed_edges)
+    resize!(closing_faces, 0)
 
     if !isempty(exterior_edges)
         closing_vertex = edge_vertices_ids[exterior_edges[1]][2]
@@ -157,13 +147,13 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
             continue
         end
 
-        if count_directed_edge[edge] < 0
-            for _ in 1:abs(count_directed_edge[edge])
-                push!(bounding_box.closing_faces, (v1, v2, closing_vertex))
+        if directed_edges[edge] < 0
+            for _ in 1:abs(directed_edges[edge])
+                push!(closing_faces, (v1, v2, closing_vertex))
             end
-        elseif count_directed_edge[edge] > 0
-            for _ in 1:abs(count_directed_edge[edge])
-                push!(bounding_box.closing_faces, (v2, v1, closing_vertex))
+        elseif directed_edges[edge] > 0
+            for _ in 1:abs(directed_edges[edge])
+                push!(closing_faces, (v2, v1, closing_vertex))
             end
         end
     end
@@ -174,10 +164,10 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
         v3 = face_vertices_ids[face][3]
 
         # Flip order of vertices
-        push!(bounding_box.closing_faces, (v3, v2, v1))
+        push!(closing_faces, (v3, v2, v1))
     end
 
-    return bounding_box
+    return closing_faces
 end
 
 function in_bounding_box(mesh, faces, min_corner, max_corner)
