@@ -76,7 +76,7 @@ function construct_hierarchy!(bounding_box, mesh, directed_edges)
     # Bisect the box splitting its longest side
     box_edges = max_corner - min_corner
 
-    split_direction = findfirst(x -> maximum(box_edges) == x, box_edges)
+    split_direction = argmax(box_edges)
 
     uvec = (1:3) .== split_direction
 
@@ -137,23 +137,19 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
                 count_directed_edge[edge3] -= 1
             end
 
-        elseif !in_bounding_box(vertices[v1], min_corner, max_corner) ||
-               !in_bounding_box(vertices[v2], min_corner, max_corner) ||
-               !in_bounding_box(vertices[v3], min_corner, max_corner)
-            # Face is intersecting the boundaries
-
+        else # Face is intersecting the boundaries
             push!(intersecting_faces, face)
         end
     end
 
-    closing_edges = findall(!iszero, count_directed_edge)
+    exterior_edges = findall(!iszero, count_directed_edge)
     resize!(bounding_box.closing_faces, 0)
 
-    if !isempty(closing_edges)
-        closing_vertex = edge_vertices_ids[closing_edges[1]][2]
+    if !isempty(exterior_edges)
+        closing_vertex = edge_vertices_ids[exterior_edges[1]][2]
     end
 
-    for edge in closing_edges
+    for edge in exterior_edges
         v1 = edge_vertices_ids[edge][1]
         v2 = edge_vertices_ids[edge][2]
 
@@ -162,11 +158,11 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
         end
 
         if count_directed_edge[edge] < 0
-            @inbounds for _ in 1:abs(count_directed_edge[edge])
+            for _ in 1:abs(count_directed_edge[edge])
                 push!(bounding_box.closing_faces, (v1, v2, closing_vertex))
             end
         elseif count_directed_edge[edge] > 0
-            @inbounds for _ in 1:abs(count_directed_edge[edge])
+            for _ in 1:abs(count_directed_edge[edge])
                 push!(bounding_box.closing_faces, (v2, v1, closing_vertex))
             end
         end
@@ -185,15 +181,8 @@ function determine_closure!(bounding_box, mesh::TriangleMesh{3}, faces, count_di
 end
 
 function in_bounding_box(mesh, faces, min_corner, max_corner)
-    faces_in_bbox = Int[]
-
-    for face in faces
-        if in_bounding_box(barycenter(mesh, face), min_corner, max_corner)
-            push!(faces_in_bbox, face)
-        end
-    end
-
-    return faces_in_bbox
+    return filter(face -> in_bounding_box(barycenter(mesh, face), min_corner, max_corner),
+                  faces)
 end
 
 @inline function barycenter(mesh::Polygon{2}, edge)
