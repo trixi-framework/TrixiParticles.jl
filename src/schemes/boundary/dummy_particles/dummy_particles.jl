@@ -508,7 +508,7 @@ end
                                   v_neighbor_system, particle,
                                   neighbor, system::BoundarySystem, neighbor_system)
     if system.ismoving[]
-        relative_velocity = current_velocity(v, system, particle) -
+        relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
         return density_neighbor * dot(relative_velocity, relative_velocity) / 2
     end
