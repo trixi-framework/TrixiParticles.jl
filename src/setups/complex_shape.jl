@@ -62,8 +62,7 @@ function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
                 point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                   hierarchical_winding=false,
                                                                   winding_number_factor=sqrt(eps())),
-                store_winding_number=false, grid_offset=geometry.min_corner,
-                max_nparticles=10^7,
+                store_winding_number=false, grid_offset::Real=0.0, max_nparticles=10^7,
                 padding=2particle_spacing)
     grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
 
@@ -86,7 +85,7 @@ function particle_grid(geometry, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
     (; max_corner) = geometry
 
-    min_corner = geometry.min_corner .- grid_offset
+    min_corner = geometry.min_corner .- grid_offset .- padding
 
     n_particles_per_dimension = Tuple(ceil.(Int,
                                             (max_corner .- min_corner .+ 2padding) ./
