@@ -14,7 +14,7 @@ end
 
 @inline function naive_winding(polygon::Polygon{2}, edges, query_point)
     winding_number = sum(edges, init=zero(eltype(polygon))) do edge
-        a = edge_vertex(polygon, edge, 1)  - query_point
+        a = edge_vertex(polygon, edge, 1) - query_point
         b = edge_vertex(polygon, edge, 2) - query_point
 
         return atan(det([a b]), (dot(a, b)))
@@ -75,7 +75,8 @@ struct WindingNumberJacobson{ELTYPE, W}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(geometry, points; store_winding_number=false)
+function (point_in_poly::WindingNumberJacobson)(geometry, points;
+                                                store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
     inpoly = falses(size(points, 2))
@@ -113,7 +114,6 @@ end
 # `edge` holds the coordinates of each vertex
 @inline edge_vertex(mesh, edge, index) = edge[index]
 
-
 # This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
 # and the query point is outside the bounding box. That is, we use the closure of the box.
 # `face` holds the index of each vertex.
@@ -129,7 +129,6 @@ end
 
     return mesh.vertices[v_id]
 end
-
 
 # This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
 # and the bounding box is a leaf.
