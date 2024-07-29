@@ -76,7 +76,8 @@ struct WindingNumberJacobson{ELTYPE, W}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(geometry, points; store_winding_number=false)
+function (point_in_poly::WindingNumberJacobson)(geometry, points;
+                                                store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
     inpoly = falses(size(points, 2))

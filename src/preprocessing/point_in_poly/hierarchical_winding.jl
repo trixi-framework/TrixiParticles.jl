@@ -36,8 +36,8 @@ struct BoundingBoxTree{MC}
         max_corner_left = max_corner - 0.5box_edges[split_direction] * uvec
         min_corner_right = min_corner + 0.5box_edges[split_direction] * uvec
 
-        faces_left = in_bounding_box(geometry, faces, min_corner, max_corner_left)
-        faces_right = in_bounding_box(geometry, faces, min_corner_right, max_corner)
+        faces_left = is_in_box(geometry, faces, min_corner, max_corner_left)
+        faces_right = is_in_box(geometry, faces, min_corner_right, max_corner)
 
         child_left = BoundingBoxTree(geometry, faces_left, directed_edges,
                                      min_corner, max_corner_left)
@@ -77,7 +77,7 @@ function hierarchical_winding(bounding_box, mesh, query_point)
     if bounding_box.is_leaf
         return naive_winding(mesh, bounding_box.faces, query_point)
 
-    elseif !in_bounding_box(query_point, min_corner, max_corner)
+    elseif !is_in_box(query_point, min_corner, max_corner)
         # `query_point` is outside bounding box
         return -naive_winding(mesh, bounding_box.closing_faces, query_point)
     end
@@ -102,9 +102,9 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
         v2 = face_vertices_ids[face][2]
         v3 = face_vertices_ids[face][3]
 
-        if in_bounding_box(vertices[v1], min_corner, max_corner) &&
-           in_bounding_box(vertices[v2], min_corner, max_corner) &&
-           in_bounding_box(vertices[v3], min_corner, max_corner)
+        if is_in_box(vertices[v1], min_corner, max_corner) &&
+           is_in_box(vertices[v2], min_corner, max_corner) &&
+           is_in_box(vertices[v3], min_corner, max_corner)
             # Face is completely inside the bounding box
 
             edge1 = face_edges_ids[face][1]
@@ -170,9 +170,8 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
     return closing_faces
 end
 
-function in_bounding_box(mesh, faces, min_corner, max_corner)
-    return filter(face -> in_bounding_box(barycenter(mesh, face), min_corner, max_corner),
-                  faces)
+function is_in_box(mesh, faces, min_corner, max_corner)
+    return filter(face -> is_in_box(barycenter(mesh, face), min_corner, max_corner), faces)
 end
 
 @inline function barycenter(mesh::Polygon{2}, edge)
@@ -194,7 +193,7 @@ end
     return (v1 + v2 + v3) / 3
 end
 
-@inline function in_bounding_box(p::SVector{2}, min_corner, max_corner)
+@inline function is_in_box(p::SVector{2}, min_corner, max_corner)
     p[1] < min_corner[1] && return false
     p[1] >= max_corner[1] && return false
 
@@ -204,7 +203,7 @@ end
     return true
 end
 
-@inline function in_bounding_box(p::SVector{3}, min_corner, max_corner)
+@inline function is_in_box(p::SVector{3}, min_corner, max_corner)
     p[1] < min_corner[1] && return false
     p[1] >= max_corner[1] && return false
 
