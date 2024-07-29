@@ -1,12 +1,29 @@
 struct NaiveWinding end
 
-@inline function (winding::NaiveWinding)(mesh, query_point)
+@inline function (winding::NaiveWinding)(mesh::Polygon{2}, query_point)
+    (; edge_vertices) = mesh
+
+    return naive_winding(mesh, edge_vertices, query_point)
+end
+
+@inline function (winding::NaiveWinding)(mesh::TriangleMesh{3}, query_point)
     (; face_vertices) = mesh
 
     return naive_winding(mesh, face_vertices, query_point)
 end
 
-@inline function naive_winding(mesh, faces, query_point)
+@inline function naive_winding(polygon::Polygon{2}, edges, query_point)
+    winding_number = sum(edges, init=zero(eltype(polygon))) do edge
+        a = edge_vertex(polygon, edge, 1)  - query_point
+        b = edge_vertex(polygon, edge, 2) - query_point
+
+        return atan(det([a b]), (dot(a, b)))
+    end
+
+    return winding_number
+end
+
+@inline function naive_winding(mesh::TriangleMesh{3}, faces, query_point)
     winding_number = sum(faces, init=zero(eltype(mesh))) do face
 
         # Eq. 6 of Jacobsen et al. Based on A. Van Oosterom (1983),
@@ -59,8 +76,7 @@ struct WindingNumberJacobson{ELTYPE, W}
     end
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::TriangleMesh{3}, points;
-                                                store_winding_number=false)
+function (point_in_poly::WindingNumberJacobson)(geometry, points; store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
     inpoly = falses(size(points, 2))
@@ -68,10 +84,12 @@ function (point_in_poly::WindingNumberJacobson)(mesh::TriangleMesh{3}, points;
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
 
-    @threaded points for query_point in axes(points, 2)
-        p = point_position(points, mesh, query_point)
+    divisor = ndims(geometry) == 2 ? 2pi : 4pi
 
-        winding_number = winding(mesh, p) / 4pi
+    @threaded points for query_point in axes(points, 2)
+        p = point_position(points, geometry, query_point)
+
+        winding_number = winding(geometry, p) / divisor
 
         store_winding_number && (winding_numbers[query_point] = winding_number)
 
@@ -84,44 +102,14 @@ function (point_in_poly::WindingNumberJacobson)(mesh::TriangleMesh{3}, points;
     return inpoly, winding_numbers
 end
 
-function (point_in_poly::WindingNumberJacobson)(mesh::Polygon{2}, points;
-                                                store_winding_number=false)
-    (; winding_number_factor) = point_in_poly
-    (; edge_vertices) = mesh
-
-    inpoly = falses(size(points, 2))
-
-    winding_numbers = Float64[]
-    store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
-
-    @threaded points for query_point in axes(points, 2)
-        p = point_position(points, mesh, query_point)
-
-        winding_number = sum(edge_vertices, init=zero(eltype(mesh))) do edge
-            a = edge[1] - p
-            b = edge[2] - p
-
-            return atan(det([a b]), (dot(a, b)))
-        end
-
-        winding_number /= 2pi
-
-        store_winding_number && (winding_numbers[query_point] = winding_number)
-
-        # Relaxed restriction of `(winding_number != 0.0)`
-        if !(-winding_number_factor < winding_number < winding_number_factor)
-            inpoly[query_point] = true
-        end
-    end
-
-    return inpoly, winding_numbers
-end
-
-# The following functions distinguish between actual triangles and reconstructed triangles
-# in the hierarchical winding approach.
+# The following functions distinguish between actual triangles (edges)
+# and reconstructed triangles (edges) in the hierarchical winding approach.
 
 # `face` holds the coordinates of each vertex
 @inline face_vertex(mesh, face, index) = face[index]
+
+# `edge` holds the coordinates of each vertex
+@inline edge_vertex(mesh, edge, index) = edge[index]
 
 # `face` holds the index of each vertex
 @inline function face_vertex(mesh, face::NTuple{3, Int}, index)
@@ -130,9 +118,24 @@ end
     return mesh.vertices[v_id]
 end
 
+# `edge` holds the index of each vertex
+@inline function edge_vertex(mesh, edge::NTuple{2, Int}, index)
+    v_id = edge[index]
+
+    return mesh.vertices[v_id]
+end
+
+
 # `face` is the index of the face
 @inline function face_vertex(mesh, face::Int, index)
     (; face_vertices) = mesh
 
     return face_vertices[face][index]
+end
+
+# `edge` is the index of the edge
+@inline function edge_vertex(mesh, edge::Int, index)
+    (; edge_vertices) = mesh
+
+    return edge_vertices[edge][index]
 end
