@@ -170,7 +170,7 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
         end
     end
 
-    # See comment above as to why intersecting faces are treated seperately
+    # See comment above as to why intersecting faces are treated separately
     for face in intersecting_faces
         v1 = face_vertices_ids[face][1]
         v2 = face_vertices_ids[face][2]
