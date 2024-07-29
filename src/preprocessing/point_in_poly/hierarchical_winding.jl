@@ -232,7 +232,7 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
         push!(closing_edges, edge)
     end
 
-    # See comment above as to why intersecting edges are treated seperately
+    # See comment above as to why intersecting edges are treated separately
     for edge in intersecting_edges
         v1 = edge_vertices_ids[edge][1]
         v2 = edge_vertices_ids[edge][2]
