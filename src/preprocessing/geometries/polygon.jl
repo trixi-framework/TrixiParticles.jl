@@ -1,11 +1,12 @@
 # This is the data format returned by `load(file)` when used with `.asc` files
 struct Polygon{NDIMS, ELTYPE}
-    vertices       :: Vector{SVector{NDIMS, ELTYPE}}
-    edge_vertices  :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
-    vertex_normals :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
-    edge_normals   :: Vector{SVector{NDIMS, ELTYPE}}
-    min_corner     :: SVector{NDIMS, ELTYPE}
-    max_corner     :: SVector{NDIMS, ELTYPE}
+    vertices          :: Vector{SVector{NDIMS, ELTYPE}}
+    edge_vertices     :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
+    vertex_normals    :: Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}
+    edge_normals      :: Vector{SVector{NDIMS, ELTYPE}}
+    edge_vertices_ids :: Vector{NTuple{2, Int}}
+    min_corner        :: SVector{NDIMS, ELTYPE}
+    max_corner        :: SVector{NDIMS, ELTYPE}
 
     function Polygon(vertices)
         NDIMS = size(vertices, 1)
@@ -15,11 +16,6 @@ struct Polygon{NDIMS, ELTYPE}
 
     # Function barrier to make `NDIMS` static and therefore `SVector`s type-stable
     function Polygon{NDIMS}(vertices_) where {NDIMS}
-        # Close the polygon if it's open
-        if !isapprox(vertices_[:, end], vertices_[:, 1])
-            vertices_ = hcat(vertices_, vertices_[:, 1])
-        end
-
         n_vertices = size(vertices_, 2)
         ELTYPE = eltype(vertices_)
 
@@ -48,6 +44,7 @@ struct Polygon{NDIMS, ELTYPE}
         end
 
         edge_vertices = Vector{NTuple{2, SVector{NDIMS, ELTYPE}}}()
+        edge_vertices_ids = Vector{NTuple{2, Int}}()
         edge_normals = Vector{SVector{NDIMS, ELTYPE}}()
 
         for i in 1:(n_vertices - 1)
@@ -62,6 +59,7 @@ struct Polygon{NDIMS, ELTYPE}
             edge_normal = SVector{NDIMS}(normalize([-edge[2], edge[1]]))
 
             push!(edge_vertices, (v1, v2))
+            push!(edge_vertices_ids, (i, i+1))
             push!(edge_normals, edge_normal)
         end
 
@@ -94,10 +92,8 @@ struct Polygon{NDIMS, ELTYPE}
             push!(vertex_normals, (vortex_normal_1, vortex_normal_2))
         end
 
-        vertices = vertices[1:(end - 1)]
-
         return new{NDIMS, ELTYPE}(vertices, edge_vertices, vertex_normals, edge_normals,
-                                  min_corner, max_corner)
+                                  edge_vertices_ids, min_corner, max_corner)
     end
 end
 
