@@ -51,9 +51,8 @@ Algorithm for inside-outside segmentation of a complex geometry proposed by Jaco
 # Keywords
 - `geometry`: Complex geometry returned by [`load_geometry`](@ref) and is only required when using
               `hierarchical_winding=true`.
-- `hierarchical_winding`: If set to `true`, an optimized hierarchical approach will be used
+- `hierarchical_winding`: If set to `true`, an optimized hierarchical approach will be used,
                           which gives a significant speedup.
-                          It is only supported for 3D geometries yet.
 - `winding_number_factor`: For leaky geometries, a factor of `0.4` will give a better inside-outside segmentation.
 
 !!! warning "Experimental Implementation"
@@ -104,14 +103,20 @@ end
 
 # The following functions distinguish between actual triangles (edges)
 # and reconstructed triangles (edges) in the hierarchical winding approach.
+# When we reconstruct the triangles then we pass the index of the vertices. Otherwise,
+# we pass the coordinates of the vertices.
 
-# `face` holds the coordinates of each vertex
+# This method is used, when `naive_winding` is called with `(winding::NaiveWinding)`.
+# `face` holds the coordinates of each vertex.
 @inline face_vertex(mesh, face, index) = face[index]
 
 # `edge` holds the coordinates of each vertex
 @inline edge_vertex(mesh, edge, index) = edge[index]
 
-# `face` holds the index of each vertex
+
+# This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
+# and the query point is outside the bounding box. That is, we use the closure of the box.
+# `face` holds the index of each vertex.
 @inline function face_vertex(mesh, face::NTuple{3, Int}, index)
     v_id = face[index]
 
@@ -126,7 +131,9 @@ end
 end
 
 
-# `face` is the index of the face
+# This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
+# and the bounding box is a leaf.
+# `face` is the index of the face.
 @inline function face_vertex(mesh, face::Int, index)
     (; face_vertices) = mesh
 

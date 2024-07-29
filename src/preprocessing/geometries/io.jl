@@ -18,7 +18,7 @@ function load_geometry(filename; element_type=Float64)
     if file_extension == ".asc"
         geometry = load_ascii(filename; ELTYPE, skipstart=1)
     elseif file_extension == ".stl"
-        geometry = load(query(filename); ELTYPE)
+        geometry = load(FileIO.query(filename); ELTYPE)
     else
         throw(ArgumentError("Only `.stl` and `.asc` files are supported (yet)."))
     end
@@ -37,17 +37,17 @@ end
 
 # FileIO.jl docs:
 # https://juliaio.github.io/FileIO.jl/stable/implementing/#All-at-once-I/O:-implementing-load-and-save
-function load(fn::File{format"STL_BINARY"}; element_types...)
+function load(fn::FileIO.File{FileIO.format"STL_BINARY"}; element_types...)
     open(fn) do s
         FileIO.skipmagic(s) # skip over the magic bytes
         load(s; element_types...)
     end
 end
 
-function load(fs::Stream{format"STL_BINARY"}; ELTYPE=Float64)
+function load(fs::FileIO.Stream{FileIO.format"STL_BINARY"}; ELTYPE=Float64)
     # Binary STL
     # https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-    io = stream(fs)
+    io = FileIO.stream(fs)
     read(io, 80) # Throw out 80 bytes header
     n_faces = read(io, UInt32)
 

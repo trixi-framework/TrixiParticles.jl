@@ -7,13 +7,13 @@
                  grid_offset::Real=0.0, max_nparticles=10^7,
                  pad_initial_particle_grid=2particle_spacing)
 
-Complex geometry filled with particles. Returns an [`InitialCondition`](@ref).
+Sample a complex geometry with particles. Returns an [`InitialCondition`](@ref).
 Note that an initial particle grid is generated inside the bounding box of the geometry.
-An `point_in_geometry_algorithm` checks if particles are inside the geometry or not.
+A `point_in_geometry_algorithm` checks if particles are inside the geometry or not.
 For more information about the method see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref).
 
 # Arguments
-- `geometry`: Complex geometry returned by [`load_geometry`](@ref).
+- `geometry`: Geometry returned by [`load_geometry`](@ref).
 
 # Keywords
 - `particle_spacing`:   Spacing between the particles.
@@ -28,7 +28,6 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 - `pressure`:           Scalar to set the pressure of all particles to this value.
                         This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                         will be overwritten when using an initial pressure function in the system.
-                        Cannot be used together with hydrostatic pressure gradient.
 - `point_in_geometry_algorithm`: Algorithm for sampling the complex geometry with particles.
                               It basically checks whether a particle is inside an object or not.
                               For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)

@@ -55,6 +55,7 @@ struct HierarchicalWinding{BB}
     bounding_box::BB
 
     function HierarchicalWinding(geometry)
+        # Note that overlapping bounding boxes are perfectly fine
         min_corner = geometry.min_corner .- sqrt(eps())
         max_corner = geometry.max_corner .+ sqrt(eps())
 
@@ -134,6 +135,11 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
             end
 
         else # Face is intersecting the boundaries
+
+            # Remove intersecting faces in the calculation of the exterior edges.
+            # This way, all exterior edges are inside the bounding box, and so will be the closing surface.
+            # The intersecting faces are later added with opposite orientation,
+            # so that the closing is actually a closing of the exterior plus intersecting faces.
             push!(intersecting_faces, face)
         end
     end
@@ -164,6 +170,7 @@ function determine_closure!(closing_faces, min_corner, max_corner, mesh::Triangl
         end
     end
 
+    # See comment above as to why intersecting faces are treated seperately
     for face in intersecting_faces
         v1 = face_vertices_ids[face][1]
         v2 = face_vertices_ids[face][2]
@@ -189,27 +196,26 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
     for edge in edges
         if is_in_box(edge_vertices[edge][1], min_corner, max_corner) &&
            is_in_box(edge_vertices[edge][2], min_corner, max_corner)
+            # Edge is completely inside the bounding box
+
             v1 = edge_vertices_ids[edge][1]
             v2 = edge_vertices_ids[edge][2]
 
             vertex_count[v1] += 1
             vertex_count[v2] -= 1
-        else
+        else # Edge is intersecting the boundaries
+
+            # Remove intersecting edges in the calculation of the exterior vertices.
+            # This way, all exterior vertices are inside the bounding box,
+            # and so will be the closing surface.
+            # The intersecting edges are later added with opposite orientation,
+            # so that the closing is actually a closing of the exterior plus intersecting edges.
             push!(intersecting_edges, edge)
         end
     end
 
     exterior_vertices = sort(findall(!iszero, vertex_count))
-
     resize!(closing_edges, 0)
-
-    for edge in intersecting_edges
-        v1 = edge_vertices_ids[edge][1]
-        v2 = edge_vertices_ids[edge][2]
-
-        # Flip order of vertices
-        push!(closing_edges, (v2, v1))
-    end
 
     if !isempty(exterior_vertices)
         closing_vertex = first(exterior_vertices)
@@ -224,6 +230,15 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
         edge = vertex_count[v1] > 0 ? (closing_vertex, v1) : (v1, closing_vertex)
 
         push!(closing_edges, edge)
+    end
+
+    # See comment above as to why intersecting edges are treated seperately
+    for edge in intersecting_edges
+        v1 = edge_vertices_ids[edge][1]
+        v2 = edge_vertices_ids[edge][2]
+
+        # Flip order of vertices
+        push!(closing_edges, (v2, v1))
     end
 
     return closing_edges
