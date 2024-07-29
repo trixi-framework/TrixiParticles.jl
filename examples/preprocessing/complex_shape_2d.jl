@@ -1,8 +1,8 @@
 using TrixiParticles
 
-particle_spacing = 0.2
+particle_spacing = 0.05
 
-file = "inverted_curve"
+file = "hexagon"
 filename = joinpath("examples", "preprocessing", file * ".asc")
 
 geometry = load_geometry(filename)

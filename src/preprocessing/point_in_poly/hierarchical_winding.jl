@@ -192,13 +192,8 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
             v1 = edge_vertices_ids[edge][1]
             v2 = edge_vertices_ids[edge][2]
 
-            if edge != nfaces(polygon)
-                vertex_count[v1] += v2 > v1 ? 1 : -1
-                vertex_count[v2] += v2 < v1 ? 1 : -1
-            else
-                vertex_count[v1] += v2 < v1 ? 1 : -1
-                vertex_count[v2] += v2 > v1 ? 1 : -1
-            end
+            vertex_count[v1] += 1
+            vertex_count[v2] -= 1
         else
             push!(intersecting_edges, edge)
         end
@@ -208,22 +203,27 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
 
     resize!(closing_edges, 0)
 
-    for i in eachindex(exterior_vertices)[1:(end - 1)]
-        v1 = exterior_vertices[i]
-        v2 = exterior_vertices[i + 1]
-
-        # Check orientation
-        edge = vertex_count[v1] > 0 ? (v2, v1) : (v1, v2)
-
-        push!(closing_edges, edge)
-    end
-
     for edge in intersecting_edges
         v1 = edge_vertices_ids[edge][1]
         v2 = edge_vertices_ids[edge][2]
 
         # Flip order of vertices
         push!(closing_edges, (v2, v1))
+    end
+
+    if !isempty(exterior_vertices)
+        closing_vertex = first(exterior_vertices)
+    end
+
+    for i in eachindex(exterior_vertices)[2:end]
+        v1 = exterior_vertices[i]
+
+        # Check orientation
+        # `vertex_count[v1] > 0`: `v1` was start-vertex of the edge
+        # `vertex_count[v1] < 0`: `v1` was end-vertex of the edge
+        edge = vertex_count[v1] > 0 ? (closing_vertex, v1) : (v1, closing_vertex)
+
+        push!(closing_edges, edge)
     end
 
     return closing_edges
