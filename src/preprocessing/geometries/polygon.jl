@@ -101,6 +101,16 @@ end
 
 @inline Base.eltype(::Polygon{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
+@inline function Base.deleteat!(polygon::Polygon, indices)
+    (; edge_vertices, edge_normals, edge_vertices_ids) = polygon
+
+    deleteat!(edge_vertices, indices)
+    deleteat!(edge_vertices_ids, indices)
+    deleteat!(edge_normals, indices)
+
+    return polygon
+end
+
 @inline nfaces(mesh::Polygon) = length(mesh.edge_normals)
 
 @inline function face_vertices(edge, geometry::Polygon)

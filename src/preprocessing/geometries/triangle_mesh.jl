@@ -140,6 +140,17 @@ end
 
 @inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
+@inline function Base.deleteat!(mesh::TriangleMesh, indices)
+    (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh
+
+    deleteat!(face_vertices, indices)
+    deleteat!(face_vertices_ids, indices)
+    deleteat!(face_edges_ids, indices)
+    deleteat!(face_normals, indices)
+
+    return mesh
+end
+
 @inline nfaces(mesh::TriangleMesh) = length(mesh.face_normals)
 
 @inline function face_vertices(triangle, geometry::TriangleMesh)
