@@ -1,11 +1,15 @@
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src", "preprocessing", "point_in_poly")))
+Pages = [joinpath("preprocessing", "point_in_poly", "point_in_poly.jl")]
 ```
 ```@autodocs
 Modules = [TrixiParticles]
-Pages = map(file -> joinpath("preprocessing", file), readdir(joinpath("..", "src", "preprocessing", "geometries")))
+Pages = [joinpath("preprocessing", "geometries", "geometries.jl")]
 ```
+# Hierarchical Winding
+
+
+## Bounding Volume Hierarchy
 
 ### [References](@id references_complex_shape)
 - Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung "Robust inside-outside segmentation using generalized winding numbers".

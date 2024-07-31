@@ -104,7 +104,6 @@ makedocs(sitename="TrixiParticles.jl",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
-             "Preprocessing" => "preprocessing.md",
              "Components" => [
                  "Overview" => "overview.md",
                  "General" => [
@@ -116,6 +115,9 @@ makedocs(sitename="TrixiParticles.jl",
                      "Smoothing Kernels" => joinpath("general", "smoothing_kernels.md"),
                      "Neighborhood Search" => joinpath("general", "neighborhood_search.md"),
                      "Util" => joinpath("general", "util.md"),
+                 ],
+                 "preprocessing" => [
+                     "Sample Geometries" => joinpath("preprocessing", "preprocessing.md"),
                  ],
                  "Systems" => [
                      "Discrete Element Method (Solid)" => joinpath("systems",
