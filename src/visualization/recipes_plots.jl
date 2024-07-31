@@ -33,6 +33,7 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
 end
 
 RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
+    idx = 0
     ics = map(initial_conditions) do ic
         x = collect(ic.coordinates[1, :])
         y = collect(ic.coordinates[2, :])
@@ -45,16 +46,17 @@ RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
         x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
         x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
 
+        idx += 1
+
         return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
-                label="initial_condition")
+                label="initial condition " * "$idx")
     end
 
     return (first(initial_conditions), ics...)
 end
 
 RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
-                               data...; zcolor=nothing, size=(600, 400), label=false,
-                               colorbar_title="")
+                               data...; zcolor=nothing, size=(600, 400), colorbar_title="")
     x_min = minimum(obj.x_min for obj in data)
     x_max = maximum(obj.x_max for obj in data)
     y_min = minimum(obj.y_min for obj in data)
