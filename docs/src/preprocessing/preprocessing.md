@@ -1,15 +1,22 @@
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("preprocessing", "point_in_poly", "point_in_poly.jl")]
-```
-```@autodocs
-Modules = [TrixiParticles]
-Pages = [joinpath("preprocessing", "geometries", "geometries.jl")]
-```
-# Hierarchical Winding
+
+TODO
 
 
-## Bounding Volume Hierarchy
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_horman.jl")]
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "point_in_poly", "winding_number_jacobson.jl")]
+```
+
+```@autodocs
+Modules = [TrixiParticles]
+Pages = [joinpath("preprocessing", "geometries", "io.jl")]
+```
+
 
 ### [References](@id references_complex_shape)
 - Alec Jacobson, Ladislav Kavan, and Olga Sorkine-Hornung "Robust inside-outside segmentation using generalized winding numbers".
