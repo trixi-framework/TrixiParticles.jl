@@ -1,5 +1,5 @@
 @testset verbose=true "Complex Shapes" begin
-    data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+    data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
 
     @testset verbose=true "Complex Shapes 2D" begin
         @testset verbose=true "Rectangular Shifted" begin
@@ -51,7 +51,8 @@
                                                                             winding_number_factor=0.4)
                     end
 
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" *
                                                             algorithm_names[i] * "_" *
                                                             files[j] * ".csv"),
@@ -77,7 +78,8 @@
 
             @testset verbose=true "Naive Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)
@@ -97,7 +99,8 @@
             end
             @testset verbose=true "Hierarchical Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)

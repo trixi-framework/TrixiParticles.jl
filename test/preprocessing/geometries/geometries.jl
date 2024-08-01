@@ -17,7 +17,7 @@
                 rot([-1.0, 0.0], rot_angle),
                 rot([0.0, 1.0], rot_angle),
                 rot([1.0, 0.0], rot_angle),
-                rot([0.0, -1.0], rot_angle)
+                rot([0.0, -1.0], rot_angle),
             ]
 
             sqrt2 = sqrt(2)
@@ -25,7 +25,7 @@
                 rot([[-sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, sqrt2 / 2]], rot_angle), # edge 1
                 rot([[-sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, sqrt2 / 2]], rot_angle),   # edge 2
                 rot([[sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, -sqrt2 / 2]], rot_angle),   # edge 3
-                rot([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle) # edge 4
+                rot([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle), # edge 4
             ]
 
             geometry_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
@@ -55,7 +55,7 @@
     end
 
     @testset verbose=true "Real World Data" begin
-        data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+        data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
 
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
@@ -63,7 +63,7 @@
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
-                data = TrixiParticles.CSV.read(joinpath(data_dir,
+                data = TrixiParticles.CSV.read(joinpath(validation_dir(), "preprocessing",
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
@@ -92,7 +92,7 @@
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
-                data = TrixiParticles.CSV.read(joinpath(data_dir,
+                data = TrixiParticles.CSV.read(joinpath(validation_dir(), "preprocessing",
                                                         "normals_" * files[i] * ".csv"),
                                                TrixiParticles.DataFrame)
 
@@ -143,44 +143,44 @@ end
 # ==========================================================================================
 # ==== The following functions are only used for debugging yet
 
-function save(filename, mesh; faces=TrixiParticles.eachface(mesh))
-    save(TrixiParticles.File{TrixiParticles.format"STL_BINARY"}(filename), mesh; faces)
-end
+# function save(filename, mesh; faces=TrixiParticles.eachface(mesh))
+#     save(TrixiParticles.File{TrixiParticles.format"STL_BINARY"}(filename), mesh; faces)
+# end
 
-function save(fn::TrixiParticles.File{TrixiParticles.format"STL_BINARY"},
-              mesh::TrixiParticles.TriangleMesh; faces=TrixiParticles.eachface(mesh))
-    open(fn, "w") do s
-        save(s, mesh; faces)
-    end
-end
+# function save(fn::TrixiParticles.File{TrixiParticles.format"STL_BINARY"},
+#               mesh::TrixiParticles.TriangleMesh; faces=TrixiParticles.eachface(mesh))
+#     open(fn, "w") do s
+#         save(s, mesh; faces)
+#     end
+# end
 
-function save(f::TrixiParticles.Stream{TrixiParticles.format"STL_BINARY"},
-              mesh::TrixiParticles.TriangleMesh; faces)
-    io = TrixiParticles.stream(f)
-    points = mesh.face_vertices
-    normals = mesh.face_normals
+# function save(f::TrixiParticles.Stream{TrixiParticles.format"STL_BINARY"},
+#               mesh::TrixiParticles.TriangleMesh; faces)
+#     io = TrixiParticles.stream(f)
+#     points = mesh.face_vertices
+#     normals = mesh.face_normals
 
-    # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
-    for i in 1:80 # Write empty header
-        write(io, 0x00)
-    end
+#     # Implementation made according to https://en.wikipedia.org/wiki/STL_%28file_format%29#Binary_STL
+#     for i in 1:80 # Write empty header
+#         write(io, 0x00)
+#     end
 
-    write(io, UInt32(length(faces))) # Write triangle count
-    for i in faces
-        n = SVector{3, Float32}(normals[i])
-        triangle = points[i]
+#     write(io, UInt32(length(faces))) # Write triangle count
+#     for i in faces
+#         n = SVector{3, Float32}(normals[i])
+#         triangle = points[i]
 
-        for j in 1:3
-            write(io, n[j])
-        end
+#         for j in 1:3
+#             write(io, n[j])
+#         end
 
-        for point in triangle, p in point
-            write(io, Float32(p))
-        end
+#         for point in triangle, p in point
+#             write(io, Float32(p))
+#         end
 
-        # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
-        # that is the "attribute byte count" – in the standard format, this should be zero
-        # because most software does not understand anything else.
-        write(io, 0x0000) # 16 empty bits
-    end
-end
+#         # After the 48 bytes of the normal and the vertices follows a 2-byte unsigned integer
+#         # that is the "attribute byte count" – in the standard format, this should be zero
+#         # because most software does not understand anything else.
+#         write(io, 0x0000) # 16 empty bits
+#     end
+# end
