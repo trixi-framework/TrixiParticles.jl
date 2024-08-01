@@ -17,6 +17,11 @@ function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, n
     return (; surface_normal, neighbor_count)
 end
 
+@inline function surface_normal(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return extract_svector(cache.surface_normal, particle_system, particle)
+end
+
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
                       u_neighbor_system, semi, surfn)
     # Normal not needed
@@ -51,7 +56,6 @@ function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_syste
                                             neighbor_system, neighbor)
         grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
         for i in 1:ndims(system)
-            # The `smoothing_length` here is used for scaling
             cache.surface_normal[i, particle] += m_b / density_neighbor *
                                                  grad_kernel[i]
         end
@@ -113,7 +117,6 @@ function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_sy
             grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance,
                                       smoothing_length)
             for i in 1:ndims(system)
-                # The `smoothing_length` here is used for scaling
                 cache.surface_normal[i, particle] += m_b / density_neighbor *
                                                      grad_kernel[i]
             end
@@ -143,16 +146,20 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
     return system
 end
 
+# see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTensionMorris)
-    (; cache, smoothing_length) = system
+    (; cache, smoothing_length, smoothing_kernel) = system
+
+    # println("compact_support ", compact_support(smoothing_kernel, smoothing_length))
 
     # We remove invalid normals i.e. they have a small norm (eq. 20)
-    normal_condition2 = (0.01 / smoothing_length)^2
+    normal_condition2 = (0.01 / compact_support(smoothing_kernel, smoothing_length))^2
 
     for particle in each_moving_particle(system)
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
+        # println(norm2, " > ", normal_condition2)
         # see eq. 21
         if norm2 > normal_condition2
             cache.surface_normal[1:ndims(system), particle] = particle_surface_normal /
@@ -161,6 +168,9 @@ function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTe
             cache.surface_normal[1:ndims(system), particle] .= 0
         end
     end
+
+    # println("after removable: ")
+    # println(cache.surface_normal)
 
     return system
 end
@@ -184,9 +194,15 @@ function compute_surface_normal!(system::FluidSystem,
 
         calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
                      u_neighbor_system, semi, surface_normal_method)
-        remove_invalid_normals!(system, surface_tension)
     end
+    remove_invalid_normals!(system, surface_tension)
+
     return system
+end
+
+function calc_curvature!(system, neighbor_system, u_system, v,
+    v_neighbor_system, u_neighbor_system, semi, surfn)
+
 end
 
 # Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
@@ -194,10 +210,12 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
                          v_neighbor_system, u_neighbor_system, semi, surfn)
     (; cache) = system
     (; smoothing_kernel, smoothing_length) = surfn
+    (; curvature) = cache
 
     system_coords = current_coordinates(u_system, system)
     neighbor_system_coords = current_coordinates(u_neighbor_system, neighbor_system)
     nhs = get_neighborhood_search(system, neighbor_system, semi)
+    correction_factor = fill(eps(eltype(system)), n_moving_particles(system))
 
     if smoothing_length != system.smoothing_length ||
        smoothing_kernel !== system.smoothing_kernel
@@ -208,21 +226,41 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
         PointNeighbors.initialize!(nhs, system_coords, neighbor_system_coords)
     end
 
+    no_valid_neighbors = 0
+
     foreach_point_neighbor(system, neighbor_system,
                            system_coords, neighbor_system_coords,
                            nhs) do particle, neighbor, pos_diff, distance
         m_b = hydrodynamic_mass(neighbor_system, neighbor)
-        density_neighbor = particle_density(v_neighbor_system,
-                                            neighbor_system, neighbor)
+        rho_b = particle_density(v_neighbor_system, neighbor_system, neighbor)
+        n_a = surface_normal(system, particle)
+        n_b = surface_normal(neighbor_system, neighbor)
         grad_kernel = kernel_grad(smoothing_kernel, pos_diff, distance, smoothing_length)
-        for i in 1:ndims(system)
-            # The `smoothing_length` here is used for scaling
-            cache.surface_normal[i, particle] += m_b / density_neighbor *
-                                                 grad_kernel[i]
-        end
+        v_b = m_b / rho_b
 
-        cache.neighbor_count[particle] += 1
+        # eq. 22
+        if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
+            # for i in 1:ndims(system)
+                curvature[particle] += v_b * dot((n_b .- n_a), grad_kernel)
+            # end
+            # eq. 24
+            correction_factor[particle] += v_b * kernel(smoothing_kernel, distance, smoothing_length)
+            # prevent NaNs from systems that are entirely skipped
+            no_valid_neighbors +=1
+        end
     end
+
+    # eq. 23
+    if no_valid_neighbors > 0
+        for i in 1:n_moving_particles(system)
+            curvature[i] /= correction_factor[i]
+        end
+    end
+
+    # println("after curvature")
+    # println("surf_norm ", cache.surface_normal)
+    # println("curv ", cache.curvature)
+    # println("C ", correction_factor)
 
     return system
 end
@@ -231,15 +269,14 @@ function compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t
     return system
 end
 
-function compute_curvature!(system::FluidSystem,
-                            surface_tension::ViscosityMorris,
-                            v, u, v_ode, u_ode, semi, t)
-    (; cache, surface_tension) = system
+function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTensionMorris, v, u,
+    v_ode, u_ode, semi, t)
+    (; cache, surface_tension, surface_normal_method) = system
 
     # Reset surface curvature
     set_zero!(cache.curvature)
 
-    @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
+    @trixi_timeit timer() "compute surface curvature" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 

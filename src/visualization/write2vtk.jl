@@ -248,7 +248,7 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["neighbor_count"] = system.cache.neighbor_count
     end
 
-    if system.surface_tension isa ViscosityMorris
+    if system.surface_tension isa SurfaceTensionMorris
         vtk["curvature"] = system.cache.curvature
     end
 
