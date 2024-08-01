@@ -70,7 +70,7 @@ export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
 export RectangularTank, RectangularShape, SphereShape
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, transform!
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

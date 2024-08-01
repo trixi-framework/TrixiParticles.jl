@@ -288,6 +288,43 @@ end
 
 Base.intersect(initial_condition::InitialCondition) = initial_condition
 
+function transform!(initial_condition::InitialCondition;
+                    rotate=nothing, translate=nothing, scale=nothing)
+    (; coordinates) = initial_condition
+
+    NDIMS = ndims(initial_condition)
+
+    if !isnothing(rotate)
+        if isa(rotate, Real)
+            rot = rot_matrix(rotate, Val(NDIMS))
+            for particle in axes(coordinates, 2)
+                particle_position = extract_svector(coordinates, Val(NDIMS), particle)
+                coordinates[:, particle] = rot * particle_position
+            end
+        else
+            throw(ArgumentError("`rotate` must be of type `Real`"))
+        end
+    end
+
+    if !isnothing(scale)
+        if isa(scale, Real)
+            coordinates .*= scale
+        else
+            throw(ArgumentError("`scale` must be of type `Real`"))
+        end
+    end
+
+    if !isnothing(translate)
+        if length(translate) == NDIMS
+            coordinates .+= translate
+        else
+            throw(ArgumentError("`translate` must be of length $NDIMS for a $NDIMS-D problem"))
+        end
+    end
+
+    return initial_condition
+end
+
 # Find particles in `coords1` that are closer than `max_distance` to any particle in `coords2`
 function find_too_close_particles(coords1, coords2, max_distance)
     NDIMS = size(coords1, 1)
@@ -306,3 +343,7 @@ function find_too_close_particles(coords1, coords2, max_distance)
 
     return result
 end
+
+rot_matrix(θ, NDIMS::Val{1}) = 0 < θ <= π ? -1 : 1
+rot_matrix(θ, NDIMS::Val{2}) = @SMatrix [cos(θ) -sin(θ); sin(θ) cos(θ)]
+rot_matrix(θ, NDIMS::Val{3}) = @SMatrix [cos(θ) -sin(θ) 0; sin(θ) cos(θ) 0; 0 0 1]
