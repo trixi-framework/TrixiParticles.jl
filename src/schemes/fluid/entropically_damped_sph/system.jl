@@ -103,7 +103,10 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
-                 create_cache_edac(surface_tension, ELTYPE, NDIMS, n_particles)...,
+                 create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                             n_particles)...,
+                 create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                             n_particles)...,
                  cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
@@ -117,16 +120,6 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                            surface_tension, surface_normal_method,
                            buffer, cache)
     end
-end
-
-function create_cache_edac(surface_tension_model, ELTYPE, NDIMS, nparticles)
-    return (;)
-end
-
-function create_cache_edac(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
-    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-    neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)
@@ -205,7 +198,9 @@ end
 function update_quantities!(system::EntropicallyDampedSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
     compute_density!(system, u, u_ode, semi, system.density_calculator)
-    compute_surface_normal!(system, system.surface_tension, v, u, v_ode, u_ode, semi, t)
+    compute_surface_normal!(system, system.surface_normal_method, v, u, v_ode, u_ode, semi,
+                            t)
+    compute_curvature!(system, system.surface_tension, v, u, v_ode, u_ode, semi, t)
 end
 
 function write_v0!(v0, system::EntropicallyDampedSPHSystem, density_calculator)

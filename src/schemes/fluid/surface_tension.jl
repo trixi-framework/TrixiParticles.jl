@@ -1,4 +1,5 @@
-abstract type AkinciTypeSurfaceTension end
+abstract type SurfaceTensionModel end
+abstract type AkinciTypeSurfaceTension <: SurfaceTensionModel end
 
 @doc raw"""
     CohesionForceAkinci(surface_tension_coefficient=1.0)
@@ -48,6 +49,23 @@ struct SurfaceTensionAkinci{ELTYPE} <: AkinciTypeSurfaceTension
     function SurfaceTensionAkinci(; surface_tension_coefficient=1.0)
         new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
     end
+end
+
+struct SurfaceTensionMorris{ELTYPE} <: SurfaceTensionModel
+    surface_tension_coefficient::ELTYPE
+
+    function SurfaceTensionMorris(; surface_tension_coefficient=1.0)
+        new{typeof(surface_tension_coefficient)}(surface_tension_coefficient)
+    end
+end
+
+function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_surface_tension(::SurfaceTensionMorris, ELTYPE, NDIMS, nparticles)
+    curvature = Array{ELTYPE, 1}(undef, nparticles)
+    return (; curvature)
 end
 
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
@@ -101,11 +119,18 @@ end
     return adhesion_force
 end
 
+# Skip
+@inline function surface_tension_force(surface_tension_a, surface_tension_b,
+                                       particle_system, neighbor_system, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b)
+    return zero(pos_diff)
+end
+
 @inline function surface_tension_force(surface_tension_a::CohesionForceAkinci,
                                        surface_tension_b::CohesionForceAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance)
+                                       pos_diff, distance, rho_a, rho_b)
     (; smoothing_length) = particle_system
     # No cohesion with oneself
     distance < sqrt(eps()) && return zero(pos_diff)
@@ -120,7 +145,7 @@ end
                                        surface_tension_b::SurfaceTensionAkinci,
                                        particle_system::FluidSystem,
                                        neighbor_system::FluidSystem, particle, neighbor,
-                                       pos_diff, distance)
+                                       pos_diff, distance, rho_a, rho_b)
     (; smoothing_length, smoothing_kernel) = particle_system
     (; surface_tension_coefficient) = surface_tension_a
 
@@ -134,14 +159,23 @@ end
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                  pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b))
+           (surface_tension_coefficient * (n_a - n_b) * smoothing_length)
 end
 
-# Skip
-@inline function surface_tension_force(surface_tension_a, surface_tension_b,
-                                       particle_system, neighbor_system, particle, neighbor,
-                                       pos_diff, distance)
-    return zero(pos_diff)
+@inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
+                                       surface_tension_b::SurfaceTensionMorris,
+                                       particle_system::FluidSystem,
+                                       neighbor_system::FluidSystem, particle, neighbor,
+                                       pos_diff, distance, rho_a, rho_b)
+    (; surface_tension_coefficient) = surface_tension_a
+
+    # No surface tension with oneself
+    distance < sqrt(eps()) && return zero(pos_diff)
+
+    n_a = surface_normal(particle_system, particle)
+    curvature_a = curvature(particle_system, particle)
+
+    return surface_tension_coefficient / rho_a * curvature_a * n_a
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,

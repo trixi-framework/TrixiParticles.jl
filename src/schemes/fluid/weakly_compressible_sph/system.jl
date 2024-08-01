@@ -119,7 +119,10 @@ function WeaklyCompressibleSPHSystem(initial_condition,
              create_cache_wcsph(correction, initial_condition.density, NDIMS,
                                 n_particles)..., cache...)
     cache = (;
-             create_cache_wcsph(surface_tension, ELTYPE, NDIMS, n_particles)...,
+             create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                         n_particles)...,
+             create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                         n_particles)...,
              cache...)
 
     return WeaklyCompressibleSPHSystem(initial_condition, mass, pressure,
@@ -154,12 +157,6 @@ function create_cache_wcsph(::MixedKernelGradientCorrection, density, NDIMS, n_p
     correction_matrix = Array{Float64, 3}(undef, NDIMS, NDIMS, n_particles)
 
     return (; kernel_correction_coefficient=similar(density), dw_gamma, correction_matrix)
-end
-
-function create_cache_wcsph(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
-    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-    neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
 end
 
 function Base.show(io::IO, system::WeaklyCompressibleSPHSystem)
@@ -240,7 +237,7 @@ function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
 end
 
 function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_ode, semi, t)
-    (; density_calculator, correction, surface_tension) = system
+    (; density_calculator, correction, surface_normal_method, surface_tension) = system
 
     compute_correction_values!(system, correction, u, v_ode, u_ode, semi)
 
@@ -250,7 +247,8 @@ function update_pressure!(system::WeaklyCompressibleSPHSystem, v, u, v_ode, u_od
     kernel_correct_density!(system, v, u, v_ode, u_ode, semi, correction,
                             density_calculator)
     compute_pressure!(system, v)
-    compute_surface_normal!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
+    compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_ode, semi, t)
+    compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t)
 
     return system
 end
@@ -377,4 +375,9 @@ end
 
 @inline function surface_tension_model(system)
     return nothing
+end
+
+@inline function curvature(particle_system::FluidSystem, particle)
+    (; cache) = particle_system
+    return extract_svector(cache.curvature, particle_system, particle)
 end
