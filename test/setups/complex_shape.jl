@@ -15,7 +15,8 @@
                                     shift in shifts,
                                     particle_spacing in particle_spacings
 
-                points_rectangular = [[0.0, 0.0] [1.0, 0.0] [1.0, 0.5] [0.0, 0.5]] .+ shift
+                points_rectangular = stack([[0.0, 0.0], [1.0, 0.0],
+                                               [1.0, 0.5], [0.0, 0.5], [0.0, 0.0]]) .+ shift
 
                 geometry = TrixiParticles.Polygon(points_rectangular)
 
@@ -42,6 +43,14 @@
 
             @testset verbose=true "Algorithm: $(TrixiParticles.type2string(algorithms[i]))" for i in 1:2
                 @testset verbose=true "Test File `$(files[j])`" for j in eachindex(files)
+                    point_in_geometry_algorithm = algorithms[i]
+
+                    # Relaxed inside-outside segmentation for open geometry
+                    if (i == 2 && j == 3)
+                        point_in_geometry_algorithm = WindingNumberJacobson(;
+                                                                            winding_number_factor=0.4)
+                    end
+
                     data = TrixiParticles.CSV.read(joinpath(data_dir,
                                                             "coordinates_" *
                                                             algorithm_names[i] * "_" *
@@ -53,8 +62,7 @@
                     geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
 
                     shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
-                                                 density=1.0,
-                                                 point_in_geometry_algorithm=algorithms[i])
+                                                 density=1.0, point_in_geometry_algorithm)
 
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
                 end

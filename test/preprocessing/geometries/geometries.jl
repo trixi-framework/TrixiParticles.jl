@@ -2,14 +2,14 @@
     @testset verbose=true "Rectangular Analytical" begin
         rot(vec, α) = SVector{2}([cos(α) -sin(α); sin(α) cos(α)] * vec)
 
-        @testset "Rotation Angle $(rot_angle)" for rot_angle in 0.0:(π / 8):(2π)
+        @testset "Rotation Angle $(rot_angle)" for rot_angle in 0.0:(pi / 8):(2pi)
             v1 = rot([0.0, 0.0], rot_angle)
             v2 = rot([0.0, 0.5], rot_angle)
             v3 = rot([1.0, 0.5], rot_angle)
             v4 = rot([1.0, 0.0], rot_angle)
 
-            points_rectangular_clockwise = [v1 v2 v3 v4]
-            points_rectangular_counter_clockwise = [v1 v4 v3 v2]
+            points_rectangular_clockwise = [v1 v2 v3 v4 v1]
+            points_rectangular_counter_clockwise = [v1 v4 v3 v2 v1]
 
             edge_vertices = [(v1, v2), (v2, v3), (v3, v4), (v4, v1)]
 
@@ -17,7 +17,7 @@
                 rot([-1.0, 0.0], rot_angle),
                 rot([0.0, 1.0], rot_angle),
                 rot([1.0, 0.0], rot_angle),
-                rot([0.0, -1.0], rot_angle),
+                rot([0.0, -1.0], rot_angle)
             ]
 
             sqrt2 = sqrt(2)
@@ -25,7 +25,7 @@
                 rot([[-sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, sqrt2 / 2]], rot_angle), # edge 1
                 rot([[-sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, sqrt2 / 2]], rot_angle),   # edge 2
                 rot([[sqrt2 / 2, sqrt2 / 2], [sqrt2 / 2, -sqrt2 / 2]], rot_angle),   # edge 3
-                rot([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle), # edge 4
+                rot([[sqrt2 / 2, -sqrt2 / 2], [-sqrt2 / 2, -sqrt2 / 2]], rot_angle) # edge 4
             ]
 
             geometry_clockwise = TrixiParticles.Polygon(points_rectangular_clockwise)
@@ -59,7 +59,7 @@
 
         @testset verbose=true "2D" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
-            n_edges = [6, 63, 241]
+            n_edges = [6, 63, 240]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
@@ -76,19 +76,19 @@
 
                 @test TrixiParticles.nfaces(geometry) == n_edges[i]
 
-                @testset "Normals $j" for j in eachindex(geometry.vertices)
+                @testset "Normals $j" for j in eachindex(geometry.vertex_normals)
                     @test isapprox(geometry.vertex_normals[j][1], vertex_normals[:, j],
                                    atol=1e-4)
                 end
-                @testset "Points $j" for j in eachindex(geometry.vertices)
+                @testset "Points $j" for j in eachindex(geometry.vertices)[1:(end - 1)]
                     @test isapprox(geometry.vertices[j], points[:, j], atol=1e-4)
                 end
             end
         end
         @testset verbose=true "3D" begin
-            files = ["sphere", "bar", "drive_gear"]
-            n_faces = [192, 12, 1392]
-            n_vertices = [98, 8, 696]
+            files = ["sphere", "bar", "gear"]
+            n_faces = [192, 12, 12406]
+            n_vertices = [98, 8, 6203]
 
             @testset "Test File `$(files[i])`" for i in eachindex(files)
                 # Checked in ParaView with `trixi2vtk(geometry)`
@@ -100,25 +100,21 @@
                                              vcat((data.var"vertex_normals:0")',
                                                   (data.var"vertex_normals:1")',
                                                   (data.var"vertex_normals:2")'))
-                sort!(vertex_normals)
 
                 points = reinterpret(reshape, SVector{3, Float64},
                                      vcat((data.var"Points:0")',
                                           (data.var"Points:1")',
                                           (data.var"Points:2")'))
-                sort!(points)
 
                 geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
                 @test TrixiParticles.nfaces(geometry) == n_faces[i]
                 @test length(geometry.vertices) == n_vertices[i]
 
-                sort!(geometry.vertex_normals)
                 @testset "Normals $j" for j in eachindex(geometry.vertices)
                     @test isapprox(geometry.vertex_normals[j], vertex_normals[j], atol=1e-5)
                 end
 
-                sort!(geometry.vertices)
                 @testset "Points $j" for j in eachindex(geometry.vertices)
                     @test isapprox(geometry.vertices[j], points[j], atol=1e-5)
                 end
