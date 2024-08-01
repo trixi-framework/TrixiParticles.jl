@@ -91,7 +91,6 @@
                     geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
                     shape_sampled = ComplexShape(geometry;
-                                                 grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0)
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
@@ -112,7 +111,6 @@
                     geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
                     shape_sampled = ComplexShape(geometry;
-                                                 grid_offset=-sqrt(eps()),
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0,
                                                  point_in_geometry_algorithm=WindingNumberJacobson(;
