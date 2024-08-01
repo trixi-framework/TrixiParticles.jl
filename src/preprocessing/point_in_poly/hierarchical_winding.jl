@@ -244,7 +244,7 @@ function determine_closure!(closing_edges, min_corner, max_corner, polygon::Poly
         end
     end
 
-    exterior_vertices = sort(findall(!iszero, vertex_count))
+    exterior_vertices = findall(!iszero, vertex_count)
     resize!(closing_edges, 0)
 
     if !isempty(exterior_vertices)
