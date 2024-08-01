@@ -4,7 +4,7 @@ TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](h
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
 We aim at 3 to 4 month between major release versions and about 2 weeks between minor versions.
 
-## Version 0.3.x
+## Version 0.2.1
 
 ### Highlights
 
