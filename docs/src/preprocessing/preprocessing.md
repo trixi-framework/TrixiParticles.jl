@@ -1,4 +1,5 @@
 # Sample Geometry
+
 Generating the initial configuration of a simulation requires filling volumes (3D) or surfaces (2D) of complex geometries with particles.
 The algorithm to sample a complex geometry should be robust and fast,
 since for large problems (high number of particles) or complex geometries (many geometry-faces),
@@ -15,7 +16,6 @@ We provide the following methods to calculate $w(\mathbf{p})$:
 - Horman et al. (2001) evaluated the winding number combined with an even-odd rule and is only for 2D polygons (see [WindingNumberHorman](@ref)).
 - Naive winding: Jacobson et al. (2013) generalized the winding number so that the algorithm can be applied for 2D and also for 3D geometries (see [WindingNumberJacobson](@ref)).
 - Hierarchical winding: Jacobson et al. (2013) also introduced a fast hierarchical evaluation of the winding number. For further information see description below.
-
 
 ## [Hierarchical Winding](@id hierarchical_winding)
 According to Jacobson et al. (2013) the winding number is the sum of harmonic functions defined for each edge (2D) or face (3D).
@@ -71,6 +71,8 @@ $w_{\mathcal{S}}(\mathbf{p}) = - w_{\bar{\mathcal{S}}}(\mathbf{p}) ,$
 
 regardless of how $\bar{\mathcal{S}}$ is constructed.
 
+### Bounding volume hierarchy
+
 If we construct a bounding volume hierarchy $T$ and evaluate $w$ hierarchical,
 we can perform asymptotically better than the naive winding computing $w$ for the whole geometry as is shown by Jacobson et al. (2013).
 
@@ -79,7 +81,7 @@ The algorithm behind (Jacobson et al., Algorithm 2, p. 5) calls itself recursive
 - if $T$ is a leaf then evaluate the winding number naively $w(\mathbf{p}, T.\mathcal{S})$ where $T.\mathcal{S}$ is the open surface in $T$.
 - else if $\mathbf{p}$ is outside $T$ then evaluate the winding number naively $-w(\mathbf{p}, T.\bar{\mathcal{S}})$ where $T.\bar{\mathcal{S}}$ is the closing surface of $T$.
 
-### Continuos Geometry
+#### Continuous geometry
 
 For an arbitrary continuous geometry, the steps are as follows.
 
@@ -118,7 +120,7 @@ We finally sum up the winding numbers
 
 $w = w_{\text{left}} + w_{\text{right} } = -w_{T_{\text{left}}.\bar{\mathcal{S}}} + w_{T_{\text{right}}.\mathcal{S}}$
 
-### Discrete Geometry
+#### Discrete geometry
 
 ```@raw html
 <figure>
