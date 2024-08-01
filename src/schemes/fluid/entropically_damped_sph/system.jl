@@ -42,7 +42,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
                     gravity-like source terms.
 """
 struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
-                                   PF, ST, B, C} <: FluidSystem{NDIMS, IC}
+                                   PF, ST, B, PR, PC, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: M # Vector{ELTYPE}: [particle]
     density_calculator                :: DC
@@ -56,6 +56,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
     pressure_acceleration_formulation :: PF
     source_terms                      :: ST
     buffer                            :: B
+    particle_refinement               :: PR
+    particle_coarsening               :: PC
     cache                             :: C
 
     function EntropicallyDampedSPHSystem(initial_condition, smoothing_kernel,
@@ -65,6 +67,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                          alpha=0.5, viscosity=nothing,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
+                                         particle_refinement=nothing,
+                                         particle_coarsening=nothing,
                                          source_terms=nothing, buffer_size=nothing)
         buffer = isnothing(buffer_size) ? nothing :
                  SystemBuffer(nparticles(initial_condition), buffer_size)
@@ -97,11 +101,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel),
             typeof(viscosity), typeof(pressure_acceleration), typeof(source_terms),
-            typeof(buffer),
+            typeof(buffer), typeof(particle_refinement), typeof(particle_coarsening),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
                            smoothing_length, sound_speed, viscosity, nu_edac,
                            acceleration_, nothing, pressure_acceleration, source_terms,
-                           buffer, cache)
+                           buffer, particle_refinement, particle_coarsening, cache)
     end
 end
 
@@ -135,6 +139,13 @@ function Base.show(io::IO, ::MIME"text/plain", system::EntropicallyDampedSPHSyst
         summary_line(io, "ν₍EDAC₎", "≈ $(round(system.nu_edac; digits=3))")
         summary_line(io, "smoothing kernel", system.smoothing_kernel |> typeof |> nameof)
         summary_line(io, "acceleration", system.acceleration)
+        if !isnothing(system.particle_refinement)
+            summary_line(io, "refinement level",
+                         refinement_level(system.particle_refinement))
+        end
+        if !isnothing(system.particle_coarsening)
+            summary_line(io, "particle coarsening", "yes")
+        end
         summary_footer(io)
     end
 end
