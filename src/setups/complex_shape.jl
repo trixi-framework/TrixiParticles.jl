@@ -51,7 +51,7 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
     end
 
     if grid_offset < 0.0
-        thorw(ArgumentError("only a positive `grid_offset` is supported"))
+        throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
     return sample(geometry; particle_spacing, density, pressure, mass, velocity,
