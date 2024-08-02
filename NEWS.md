@@ -20,9 +20,10 @@ Particle sampling for complex geometries from `.stl` and `.asc` files.
 ### Highlights
 Particle sampling for complex geometries from `.stl` and `.asc` files.
 
+## Version 0.2.0
+
 ### Removed
 - Use of the internal neighborhood search has been removed and replaced with PointNeighbors.jl.
-
 
 ## Development Cycle 0.1
 
