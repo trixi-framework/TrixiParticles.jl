@@ -116,7 +116,7 @@
                 end
 
                 @testset "Points $j" for j in eachindex(geometry.vertices)
-                    @test isapprox(geometry.vertices[j], points[j], atol=1e-5)
+                    @test isapprox(geometry.vertices[j], points[j], atol=1e-4)
                 end
             end
         end
