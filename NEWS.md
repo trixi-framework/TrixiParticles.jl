@@ -9,7 +9,6 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 ### Highlights
 
 ### Added
-Particle sampling for complex geometries from `.stl` and `.asc` files.
 
 ### Removed
 
