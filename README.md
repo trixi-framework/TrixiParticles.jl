@@ -21,7 +21,8 @@ Its features include:
 - Solid-body mechanics
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
-- Preprocess complex shapes: Support for STL geometries
+- Preprocess complex shapes
+  - support for STL geometries
 - Output formats:
   - VTK
 
