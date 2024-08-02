@@ -451,7 +451,8 @@ function kick!(dv_ode, v_ode, u_ode, semi, t)
         @trixi_timeit timer() "system interaction" system_interaction!(dv_ode, v_ode, u_ode,
                                                                        semi)
 
-        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode, semi)
+        @trixi_timeit timer() "source terms" add_source_terms!(dv_ode, v_ode, u_ode,
+                                                               semi, t)
     end
 
     return dv_ode
@@ -513,7 +514,7 @@ function update_nhs!(semi, u_ode)
     end
 end
 
-function add_source_terms!(dv_ode, v_ode, u_ode, semi)
+function add_source_terms!(dv_ode, v_ode, u_ode, semi, t)
     foreach_system(semi) do system
         dv = wrap_v(dv_ode, system, semi)
         v = wrap_v(v_ode, system, semi)
@@ -522,7 +523,7 @@ function add_source_terms!(dv_ode, v_ode, u_ode, semi)
         @threaded system for particle in each_moving_particle(system)
             # Dispatch by system type to exclude boundary systems
             add_acceleration!(dv, particle, system)
-            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system))
+            add_source_terms_inner!(dv, v, u, particle, system, source_terms(system), t)
         end
     end
 
@@ -544,13 +545,13 @@ end
     return dv
 end
 
-@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_)
+@inline function add_source_terms_inner!(dv, v, u, particle, system, source_terms_, t)
     coords = current_coords(u, system, particle)
     velocity = current_velocity(v, system, particle)
     density = particle_density(v, system, particle)
     pressure = particle_pressure(v, system, particle)
 
-    source = source_terms_(coords, velocity, density, pressure)
+    source = source_terms_(coords, velocity, density, pressure, t)
 
     # Loop over `eachindex(source)`, so that users could also pass source terms for
     # the density when using `ContinuityDensity`.
@@ -561,7 +562,7 @@ end
     return dv
 end
 
-@inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing) = dv
+@inline add_source_terms_inner!(dv, v, u, particle, system, source_terms_::Nothing, t) = dv
 
 @doc raw"""
     SourceTermDamping(; damping_coefficient)
@@ -592,7 +593,7 @@ struct SourceTermDamping{ELTYPE}
     end
 end
 
-@inline function (source_term::SourceTermDamping)(coords, velocity, density, pressure)
+@inline function (source_term::SourceTermDamping)(coords, velocity, density, pressure, t)
     (; damping_coefficient) = source_term
 
     return -damping_coefficient * velocity
@@ -644,20 +645,20 @@ function update_nhs!(neighborhood_search,
                      neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::FluidSystem, neighbor::BoundarySPHSystem,
                      u_system, u_neighbor)
     # Boundary coordinates only change over time when `neighbor.ismoving[]`
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, neighbor.ismoving[]))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -667,10 +668,10 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -680,20 +681,20 @@ function update_nhs!(neighborhood_search,
 
     # TODO: Update only `active_coordinates` of open boundaries.
     # Problem: Removing inactive particles from neighboring lists is necessary.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::TotalLagrangianSPHSystem, neighbor::FluidSystem,
                      u_system, u_neighbor)
     # The current coordinates of fluids and solids change over time
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -708,10 +709,10 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # The current coordinates of solids change over time.
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, neighbor.ismoving[]))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
@@ -734,10 +735,10 @@ function update_nhs!(neighborhood_search,
     #
     # Boundary coordinates only change over time when `neighbor.ismoving[]`.
     # The current coordinates of fluids and solids change over time.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(system.ismoving[], true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(system.ismoving[], true))
 end
 
 function update_nhs!(neighborhood_search,
@@ -746,30 +747,30 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # `system` coordinates only change over time when `system.ismoving[]`.
     # `neighbor` coordinates only change over time when `neighbor.ismoving[]`.
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(system.ismoving[], neighbor.ismoving[]))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(system.ismoving[], neighbor.ismoving[]))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::DEMSystem,
                      u_system, u_neighbor)
     # Both coordinates change over time
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, true))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, true))
 end
 
 function update_nhs!(neighborhood_search,
                      system::DEMSystem, neighbor::BoundaryDEMSystem,
                      u_system, u_neighbor)
     # DEM coordinates change over time, the boundary coordinates don't
-    PointNeighbors.update!(neighborhood_search,
-                           current_coordinates(u_system, system),
-                           current_coordinates(u_neighbor, neighbor),
-                           points_moving=(true, false))
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(true, false))
 end
 
 function update_nhs!(neighborhood_search,
@@ -786,6 +787,18 @@ function update_nhs!(neighborhood_search,
                      u_system, u_neighbor)
     # Don't update. This NHS is never used.
     return neighborhood_search
+end
+
+# Forward to PointNeighbors.jl
+function update!(neighborhood_search, system, x, y; points_moving=(true, false))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving)
+end
+
+# For `GPUSystem`s, explicitly pass the backend, so that a `GPUSystem` with a CPU
+# backend will actually launch the KernelAbstractions.jl kernels on the CPU.
+function update!(neighborhood_search, system::GPUSystem, x, y; points_moving=(true, false))
+    PointNeighbors.update!(neighborhood_search, x, y; points_moving,
+                           parallelization_backend=KernelAbstractions.get_backend(system))
 end
 
 function check_configuration(systems)

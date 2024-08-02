@@ -51,16 +51,16 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
     buffer                         :: Nothing
     update_callback_used           :: Ref{Bool}
 
-    function ParticlePackingSystem(complex_shape;
-                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(complex_shape)}(),
+    function ParticlePackingSystem(shape;
+                                   smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
                                    smoothing_length=1.2complex_shape.particle_spacing,
-                                   signed_distance_field=complex_shape.signed_distance_field,
-                                   is_boundary=false, boundary=complex_shape.shape,
+                                   signed_distance_field=shape.signed_distance_field,
+                                   is_boundary=false, boundary=shape.shape,
                                    neighborhood_search=true,
                                    background_pressure, tlsph=false)
-        (; particle_spacing) = complex_shape
-        NDIMS = ndims(complex_shape)
-        ELTYPE = eltype(complex_shape)
+        (; particle_spacing) = shape
+        NDIMS = ndims(shape)
+        ELTYPE = eltype(shape)
 
         if ndims(smoothing_kernel) != NDIMS
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
@@ -100,7 +100,7 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
             interpolate_particle_face_distance!
         end
 
-        initial_condition = InitialCondition(complex_shape; is_boundary)
+        initial_condition = InitialCondition(shape; is_boundary)
 
         return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(boundary),
                    typeof(smoothing_kernel), typeof(signed_distance_field),

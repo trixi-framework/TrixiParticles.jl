@@ -100,8 +100,11 @@ struct InitialCondition{ELTYPE}
                                zeros(ELTYPE, 0), zeros(ELTYPE, 0), zeros(ELTYPE, 0))
         end
 
-        # SVector of coordinates to pass to functions
-        coordinates_svector = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # SVector of coordinates to pass to functions.
+        # This will return a vector of SVectors in 2D and 3D, but an 1×n matrix in 1D.
+        coordinates_svector_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, coordinates)
+        # In 1D, this will reshape the 1×n matrix to a vector, in 2D/3D it will do nothing
+        coordinates_svector = reshape(coordinates_svector_, length(coordinates_svector_))
 
         if velocity isa AbstractMatrix
             velocities = velocity

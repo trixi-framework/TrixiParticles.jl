@@ -29,10 +29,38 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
                 label=timer_name(system))
     end
 
-    x_min = minimum(data.x_min for data in systems_data)
-    x_max = maximum(data.x_max for data in systems_data)
-    y_min = minimum(data.y_min for data in systems_data)
-    y_max = maximum(data.y_max for data in systems_data)
+    return (semi, systems_data...)
+end
+
+RecipesBase.@recipe function f((initial_conditions::InitialCondition)...)
+    idx = 0
+    ics = map(initial_conditions) do ic
+        x = collect(ic.coordinates[1, :])
+        y = collect(ic.coordinates[2, :])
+
+        particle_spacing = ic.particle_spacing
+        if particle_spacing < 0
+            particle_spacing = 0.0
+        end
+
+        x_min, y_min = minimum(ic.coordinates, dims=2) .- 0.5particle_spacing
+        x_max, y_max = maximum(ic.coordinates, dims=2) .+ 0.5particle_spacing
+
+        idx += 1
+
+        return (; x, y, x_min, x_max, y_min, y_max, particle_spacing,
+                label="initial condition " * "$idx")
+    end
+
+    return (first(initial_conditions), ics...)
+end
+
+RecipesBase.@recipe function f(::Union{InitialCondition, Semidiscretization},
+                               data...; zcolor=nothing, size=(600, 400), colorbar_title="")
+    x_min = minimum(obj.x_min for obj in data)
+    x_max = maximum(obj.x_max for obj in data)
+    y_min = minimum(obj.y_min for obj in data)
+    y_max = maximum(obj.y_max for obj in data)
 
     # Note that this assumes the plot area to be ~10% smaller than `size`,
     # which is the case when showing a single plot with the legend inside.
@@ -47,23 +75,25 @@ RecipesBase.@recipe function f(v_ode, u_ode, semi::Semidiscretization;
     seriestype --> :scatter
     markerstrokewidth --> 0
     grid --> false
+    colorbar_title --> colorbar_title
+    zcolor --> zcolor
 
-    for system_data in systems_data
+    for obj in data
         @series begin
-            if system_data.particle_spacing < eps()
+            if obj.particle_spacing < eps()
                 # Fall back to 1px marker radius
                 markersize --> 1
             else
-                pixels_per_particle = system_data.particle_spacing / pixel_size
+                pixels_per_particle = obj.particle_spacing / pixel_size
 
                 # Marker radius in pixels
                 markersize --> 0.5 * pixels_per_particle
             end
 
-            label --> system_data.label
+            label --> obj.label
 
             # Return data for plotting
-            system_data.x, system_data.y
+            obj.x, obj.y
         end
     end
 end

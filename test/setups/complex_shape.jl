@@ -1,5 +1,5 @@
 @testset verbose=true "Complex Shapes" begin
-    data_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
+    data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
 
     @testset verbose=true "Complex Shapes 2D" begin
         @testset verbose=true "Rectangular Shifted" begin
@@ -10,18 +10,19 @@
             test_name(algorithm, shift, particle_spacing) = "Algorithm: $(TrixiParticles.type2string(algorithm))" *
                                                             ", Shift: $shift" *
                                                             ", Particle Spacing: $particle_spacing"
-            @testset verbose=true "$(test_name(point_in_shape_algorithm, shift,
-            particle_spacing))" for point_in_shape_algorithm in algorithms,
+            @testset verbose=true "$(test_name(point_in_geometry_algorithm, shift,
+            particle_spacing))" for point_in_geometry_algorithm in algorithms,
                                     shift in shifts,
                                     particle_spacing in particle_spacings
 
-                points_rectangular = [[0.0, 0.0] [1.0, 0.0] [1.0, 0.5] [0.0, 0.5]] .+ shift
+                points_rectangular = stack([[0.0, 0.0], [1.0, 0.0],
+                                               [1.0, 0.5], [0.0, 0.5], [0.0, 0.0]]) .+ shift
 
-                shape = TrixiParticles.Polygon(points_rectangular)
+                geometry = TrixiParticles.Polygon(points_rectangular)
 
-                seed = points_rectangular[:, 1] .- 0.5particle_spacing
-                shape_sampled = ComplexShape(shape; particle_spacing, density=1.0,
-                                             point_in_shape_algorithm, seed)
+                grid_offset = 0.5particle_spacing
+                shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
+                                             point_in_geometry_algorithm, grid_offset)
 
                 min_corner = points_rectangular[:, 1] .+ 0.5particle_spacing
                 max_corner = points_rectangular[:, 3]
@@ -31,7 +32,7 @@
 
                 coords = hcat(collect.(Iterators.product(ranges_x, ranges_y))...)
 
-                @test shape_sampled.coordinates == coords
+                @test isapprox(shape_sampled.coordinates, coords)
             end
         end
 
@@ -42,7 +43,16 @@
 
             @testset verbose=true "Algorithm: $(TrixiParticles.type2string(algorithms[i]))" for i in 1:2
                 @testset verbose=true "Test File `$(files[j])`" for j in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    point_in_geometry_algorithm = algorithms[i]
+
+                    # Relaxed inside-outside segmentation for open geometry
+                    if (i == 2 && j == 3)
+                        point_in_geometry_algorithm = WindingNumberJacobson(;
+                                                                            winding_number_factor=0.4)
+                    end
+
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" *
                                                             algorithm_names[i] * "_" *
                                                             files[j] * ".csv"),
@@ -50,10 +60,10 @@
 
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
-                    shape = load_shape(joinpath(data_dir, files[j] * ".asc"))
+                    geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
 
-                    shape_sampled = ComplexShape(shape; particle_spacing=0.05, density=1.0,
-                                                 point_in_shape_algorithm=algorithms[i])
+                    shape_sampled = ComplexShape(geometry; particle_spacing=0.05,
+                                                 density=1.0, point_in_geometry_algorithm)
 
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-2)
                 end
@@ -68,7 +78,8 @@
 
             @testset verbose=true "Naive Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)
@@ -77,10 +88,9 @@
                                   (data.var"Points:1")',
                                   (data.var"Points:2")')
 
-                    shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
+                    geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape;
-                                                 seed=shape.min_corner .+ sqrt(eps()),
+                    shape_sampled = ComplexShape(geometry; grid_offset=0.1,
                                                  particle_spacing=particle_spacings[i],
                                                  density=1.0)
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
@@ -88,7 +98,8 @@
             end
             @testset verbose=true "Hierarchical Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(data_dir,
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
+                                                            "preprocessing",
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)
@@ -97,16 +108,15 @@
                                   (data.var"Points:1")',
                                   (data.var"Points:2")')
 
-                    shape = load_shape(joinpath(data_dir, files[i] * ".stl"))
+                    geometry = load_geometry(joinpath(data_dir, files[i] * ".stl"))
 
-                    shape_sampled = ComplexShape(shape;
-                                                 seed=shape.min_corner .+ sqrt(eps()),
+                    shape_sampled = ComplexShape(geometry;
                                                  particle_spacing=particle_spacings[i],
-                                                 density=1.0,
-                                                 point_in_shape_algorithm=WindingNumberJacobson(;
-                                                                                                shape,
-                                                                                                winding_number_factor=0.1,
-                                                                                                hierarchical_winding=true))
+                                                 density=1.0, grid_offset=0.1,
+                                                 point_in_geometry_algorithm=WindingNumberJacobson(;
+                                                                                                   geometry,
+                                                                                                   winding_number_factor=0.1,
+                                                                                                   hierarchical_winding=true))
                     @test isapprox(shape_sampled.coordinates, coords, atol=1e-3)
                 end
             end

@@ -1,17 +1,29 @@
 using TrixiParticles
+using Plots
 
 particle_spacing = 0.05
 
-file = "hexagon"
-filename = joinpath("examples", "preprocessing", file * ".asc")
+filename = "inverted_open_curve"
+file = joinpath("examples", "preprocessing", "data", filename * ".asc")
 
-# Returns `Shape`
-shape = load_shape(filename)
+geometry = load_geometry(file)
 
-# Returns `InitialCondition`.
-shape_sampled = ComplexShape(shape; sample_boundary=false, particle_spacing, density=1.0,
-                             boundary_thickness=5particle_spacing)
+trixi2vtk(geometry)
 
-trixi2vtk(shape)
-trixi2vtk(shape_sampled.initial_condition; filename="initial_condition_fluid")
-trixi2vtk(shape_sampled.signed_distance_field)
+point_in_geometry_algorithm = WindingNumberJacobson(; geometry,
+                                                    winding_number_factor=0.4,
+                                                    hierarchical_winding=true)
+
+# Returns `InitialCondition`
+shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
+                             store_winding_number=true,
+                             point_in_geometry_algorithm)
+
+trixi2vtk(shape_sampled.initial_condition)
+
+# Plot the winding number field
+plot(InitialCondition(; coordinates=shape_sampled.grid, density=1.0, particle_spacing),
+     zcolor=shape_sampled.winding_numbers)
+
+# trixi2vtk(shape_sampled.signed_distance_field)
+# trixi2vtk(shape_sampled.grid, w=shape_sampled.winding_numbers)

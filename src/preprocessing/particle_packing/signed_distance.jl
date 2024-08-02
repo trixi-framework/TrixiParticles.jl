@@ -118,19 +118,19 @@ function calculate_signed_distances!(positions, distances, normals,
         end
     end
 
-    reject_indices = distances .== Inf
+    delete_indices = distances .== Inf
 
-    deleteat!(distances, reject_indices)
-    deleteat!(normals, reject_indices)
-    deleteat!(positions, reject_indices)
+    deleteat!(distances, delete_indices)
+    deleteat!(normals, delete_indices)
+    deleteat!(positions, delete_indices)
 
     return positions
 end
 
 function signed_point_face_distance(p::SVector{2}, boundary, edge_index)
-    (; edge_vertices, normals_vertex, normals_edge) = boundary
+    (; edge_vertices, vertex_normals, edge_normals) = boundary
 
-    n = normals_edge[edge_index]
+    n = edge_normals[edge_index]
 
     a = edge_vertices[edge_index][1]
     b = edge_vertices[edge_index][2]
@@ -138,8 +138,8 @@ function signed_point_face_distance(p::SVector{2}, boundary, edge_index)
     ab = b - a
     ap = p - a
 
-    na = normals_vertex[edge_index][1]
-    nb = normals_vertex[edge_index][2]
+    na = vertex_normals[edge_index][1]
+    nb = vertex_normals[edge_index][2]
 
     dot1 = dot(ab, ab)
     dot2 = dot(ap, ab)
@@ -173,14 +173,14 @@ end
 #
 # Inspired by https://github.com/embree/embree/blob/master/tutorials/common/math/closest_point.h
 function signed_point_face_distance(p::SVector{3}, boundary, face_index)
-    (; face_vertices, face_vertices_ids, normals_edge,
-    face_edges_ids, normals_face, normals_vertex) = boundary
+    (; face_vertices, face_vertices_ids, edge_normals,
+    face_edges_ids, face_normals, vertex_normals) = boundary
 
     a = face_vertices[face_index][1]
     b = face_vertices[face_index][2]
     c = face_vertices[face_index][3]
 
-    n = normals_face[face_index]
+    n = face_normals[face_index]
 
     v1 = face_vertices_ids[face_index][1]
     v2 = face_vertices_ids[face_index][2]
@@ -190,13 +190,13 @@ function signed_point_face_distance(p::SVector{3}, boundary, face_index)
     e2 = face_edges_ids[face_index][2]
     e3 = face_edges_ids[face_index][3]
 
-    na = normals_vertex[v1]
-    nb = normals_vertex[v2]
-    nc = normals_vertex[v3]
+    na = vertex_normals[v1]
+    nb = vertex_normals[v2]
+    nc = vertex_normals[v3]
 
-    nab = normals_edge[e1]
-    nbc = normals_edge[e2]
-    nac = normals_edge[e3]
+    nab = edge_normals[e1]
+    nbc = edge_normals[e2]
+    nac = edge_normals[e3]
 
     ab = b - a
     ac = c - a

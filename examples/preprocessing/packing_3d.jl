@@ -1,7 +1,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-file = "sphere"
+filename = "sphere"
 
 # ==========================================================================================
 # ==== Packing parameters
@@ -23,8 +23,8 @@ boundary_thickness = 4particle_spacing
 # ==== Load complex shape
 density = 1000.0
 
-trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"), file=file,
-              density=density, particle_spacing=particle_spacing,
+trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"),
+              density=density, particle_spacing=particle_spacing, filename=filename,
               boundary_thickness=boundary_thickness, sample_boundary=pack_boundary)
 
 # ==========================================================================================
