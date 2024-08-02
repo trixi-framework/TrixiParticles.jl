@@ -1,21 +1,24 @@
 struct NaiveWinding end
 
 @inline function (winding::NaiveWinding)(polygon::Polygon{2}, query_point)
-    (; edge_vertices) = polygon
+    (; edge_vertices_ids) = polygon
 
-    return naive_winding(polygon, edge_vertices, query_point)
+    return naive_winding(polygon, edge_vertices_ids, query_point)
 end
 
 @inline function (winding::NaiveWinding)(mesh::TriangleMesh{3}, query_point)
-    (; face_vertices) = mesh
+    (; face_vertices_ids) = mesh
 
-    return naive_winding(mesh, face_vertices, query_point)
+    return naive_winding(mesh, face_vertices_ids, query_point)
 end
 
 @inline function naive_winding(polygon::Polygon{2}, edges, query_point)
     winding_number = sum(edges, init=zero(eltype(polygon))) do edge
-        a = edge_vertex(polygon, edge, 1) - query_point
-        b = edge_vertex(polygon, edge, 2) - query_point
+        v1 = polygon.vertices[edge[1]]
+        v2 = polygon.vertices[edge[2]]
+
+        a = v1 - query_point
+        b = v2 - query_point
 
         return atan(det([a b]), (dot(a, b)))
     end
@@ -25,12 +28,15 @@ end
 
 @inline function naive_winding(mesh::TriangleMesh{3}, faces, query_point)
     winding_number = sum(faces, init=zero(eltype(mesh))) do face
+        v1 = mesh.vertices[face[1]]
+        v2 = mesh.vertices[face[2]]
+        v3 = mesh.vertices[face[3]]
 
         # Eq. 6 of Jacobsen et al. Based on A. Van Oosterom (1983),
         # "The Solid Angle of a Plane Triangle" (doi: 10.1109/TBME.1983.325207)
-        a = face_vertex(mesh, face, 1) - query_point
-        b = face_vertex(mesh, face, 2) - query_point
-        c = face_vertex(mesh, face, 3) - query_point
+        a = v1 - query_point
+        b = v2 - query_point
+        c = v3 - query_point
         a_ = norm(a)
         b_ = norm(b)
         c_ = norm(c)
@@ -100,48 +106,4 @@ function (point_in_poly::WindingNumberJacobson)(geometry, points;
     end
 
     return inpoly, winding_numbers
-end
-
-# The following functions distinguish between actual triangles (edges)
-# and reconstructed triangles (edges) in the hierarchical winding approach.
-# When we reconstruct the triangles then we pass the index of the vertices. Otherwise,
-# we pass the coordinates of the vertices.
-
-# This method is used, when `naive_winding` is called with `(winding::NaiveWinding)`.
-# `face` holds the coordinates of each vertex.
-@inline face_vertex(mesh, face, index) = face[index]
-
-# `edge` holds the coordinates of each vertex
-@inline edge_vertex(mesh, edge, index) = edge[index]
-
-# This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
-# and the query point is outside the bounding box. That is, we use the closure of the box.
-# `face` holds the index of each vertex.
-@inline function face_vertex(mesh, face::NTuple{3, Int}, index)
-    v_id = face[index]
-
-    return mesh.vertices[v_id]
-end
-
-# `edge` holds the index of each vertex
-@inline function edge_vertex(mesh, edge::NTuple{2, Int}, index)
-    v_id = edge[index]
-
-    return mesh.vertices[v_id]
-end
-
-# This method is used, when `naive_winding` is called with `(winding::HierarchicalWinding)`
-# and the bounding box is a leaf.
-# `face` is the index of the face.
-@inline function face_vertex(mesh, face::Int, index)
-    (; face_vertices) = mesh
-
-    return face_vertices[face][index]
-end
-
-# `edge` is the index of the edge
-@inline function edge_vertex(mesh, edge::Int, index)
-    (; edge_vertices) = mesh
-
-    return edge_vertices[edge][index]
 end

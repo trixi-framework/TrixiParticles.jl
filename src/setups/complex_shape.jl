@@ -50,10 +50,13 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
         throw(ArgumentError("`WindingNumberHorman` only supports 2D geometries"))
     end
 
+    if grid_offset < 0.0
+        throw(ArgumentError("only a positive `grid_offset` is supported"))
+    end
+
     return sample(geometry; particle_spacing, density, pressure, mass, velocity,
                   point_in_geometry_algorithm, store_winding_number, grid_offset,
-                  max_nparticles,
-                  padding=pad_initial_particle_grid)
+                  max_nparticles, padding=pad_initial_particle_grid)
 end
 
 function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,

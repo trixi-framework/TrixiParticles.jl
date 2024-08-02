@@ -22,6 +22,7 @@ Its features include:
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
 - Preprocess complex shapes
+  - support for STL geometries
 - Output formats:
   - VTK
 
