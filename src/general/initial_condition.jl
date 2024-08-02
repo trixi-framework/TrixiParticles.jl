@@ -348,12 +348,12 @@ function find_too_close_particles(coords, max_distance)
     NDIMS = size(coords, 1)
     result = Int[]
 
-    nhs = GridNeighborhoodSearch{NDIMS}(max_distance, size(coords, 2))
+    nhs = GridNeighborhoodSearch{NDIMS}(search_radius=max_distance,
+                                        n_points=size(coords, 2))
     TrixiParticles.initialize!(nhs, coords)
 
     # We are modifying the vector `result`, so this cannot be parallel
-    TrixiParticles.for_particle_neighbor(coords, coords, nhs,
-                                         parallel=false) do particle, neighbor, _, _
+    foreach_point_neighbor(coords, coords, nhs, parallel=false) do particle, neighbor, _, _
         if particle != neighbor && !(particle in result) && !(neighbor in result)
             append!(result, particle)
         end

@@ -1,29 +1,30 @@
 struct FaceNeighborhoodSearch{NDIMS, ELTYPE, PB}
-    hashtable         :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
+    cell_list         :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     cell_size         :: NTuple{NDIMS, ELTYPE}
     neighbor_iterator :: Dict{NTuple{NDIMS, Int}, Vector{Int}}
     empty_vector      :: Vector{Int} # Just an empty vector (used in `eachneighbor`)
-    periodic_box      :: PB # TODO
     n_cells           :: NTuple{NDIMS, Int}
+    periodic_box      :: Nothing
 
-    function FaceNeighborhoodSearch{NDIMS}(search_radius; subdivision=1) where {NDIMS}
+    function FaceNeighborhoodSearch{NDIMS}(search_radius) where {NDIMS}
         ELTYPE = eltype(search_radius)
 
-        hashtable = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
+        cell_list = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
         neighbor_iterator = Dict{NTuple{NDIMS, Int}, Vector{Int}}()
 
-        cell_size = ntuple(dim -> search_radius, NDIMS) ./ subdivision
+        cell_size = ntuple(dim -> search_radius, NDIMS)
         empty_vector = Int[]
 
         n_cells = ntuple(_ -> -1, Val(NDIMS))
 
-        new{NDIMS, ELTYPE, Nothing}(hashtable, cell_size, neighbor_iterator, empty_vector,
-                                    nothing, n_cells)
+        new{NDIMS, ELTYPE, Nothing}(cell_list, cell_size, neighbor_iterator, empty_vector,
+                                    n_cells, nothing)
     end
 end
 
-@inline function PointNeighbors.eachneighbor(coords,
-                                             neighborhood_search::FaceNeighborhoodSearch)
+@inline Base.ndims(::FaceNeighborhoodSearch{NDIMS}) where {NDIMS} = NDIMS
+
+@inline function eachneighbor(coords, neighborhood_search::FaceNeighborhoodSearch)
     (; neighbor_iterator, empty_vector) = neighborhood_search
     cell = PointNeighbors.cell_coords(coords, neighborhood_search)
 
@@ -33,27 +34,31 @@ end
 end
 
 function faces_in_cell(cell, neighborhood_search)
-    return PointNeighbors.particles_in_cell(cell, neighborhood_search)
+    (; cell_list, empty_vector) = neighborhood_search
+
+    haskey(cell_list, cell) && return cell_list[cell]
+
+    return empty_vector
 end
 
-function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
-                     pad=ntuple(_ -> 1, ndims(mesh)))
-    (; hashtable, neighbor_iterator) = neighborhood_search
+function initialize!(neighborhood_search::FaceNeighborhoodSearch, geometry;
+                     pad=ntuple(_ -> 1, ndims(geometry)))
+    (; cell_list, neighbor_iterator) = neighborhood_search
 
-    empty!(hashtable)
+    empty!(cell_list)
 
     # Fill cells with intersecting faces
-    for face in eachface(mesh)
+    for face in eachface(geometry)
 
         # Check if any face intersects a cell in the face-embedding cell grid
-        for cell in cell_grid(face, mesh, neighborhood_search)
-            if cell_intersection(face, mesh, cell, neighborhood_search)
-                if haskey(hashtable, cell) && !(face in hashtable[cell])
+        for cell in cell_grid(face, geometry, neighborhood_search)
+            if cell_intersection(face, geometry, cell, neighborhood_search)
+                if haskey(cell_list, cell) && !(face in cell_list[cell])
                     # Add face to corresponding cell
-                    append!(hashtable[cell], face)
+                    append!(cell_list[cell], face)
                 else
                     # Create cell
-                    hashtable[cell] = [face]
+                    cell_list[cell] = [face]
                 end
             end
         end
@@ -61,27 +66,34 @@ function initialize!(neighborhood_search::FaceNeighborhoodSearch, mesh;
 
     empty!(neighbor_iterator)
 
-    min_cell = PointNeighbors.cell_coords(mesh.min_corner, neighborhood_search) .- pad
-    max_cell = PointNeighbors.cell_coords(mesh.max_corner, neighborhood_search) .+ pad
+    min_cell = PointNeighbors.cell_coords(geometry.min_corner, neighborhood_search) .- pad
+    max_cell = PointNeighbors.cell_coords(geometry.max_corner, neighborhood_search) .+ pad
 
     # Merge all lists of faces in the neighboring cells into one iterator
+    face_ids = Int[]
     for cell_runner in meshgrid(min_cell, max_cell)
-        itr = unique(Iterators.flatten(faces_in_cell(neighbor, neighborhood_search)
-                                       for neighbor in neighboring_cells(cell_runner)))
+        resize!(face_ids, 0)
+        for neighbor in PointNeighbors.neighboring_cells(cell_runner, neighborhood_search)
+            append!(face_ids, faces_in_cell(Tuple(neighbor), neighborhood_search))
+        end
 
-        if isempty(itr)
+        unique!(face_ids)
+
+        if isempty(face_ids)
             continue
         end
 
-        neighbor_iterator[cell_runner] = itr
+        neighbor_iterator[cell_runner] = copy(face_ids)
     end
+
+    return neighborhood_search
 end
 
-function cell_intersection(edge, shape, cell,
+function cell_intersection(edge, geometry, cell,
                            neighborhood_search::FaceNeighborhoodSearch{2})
     (; cell_size) = neighborhood_search
 
-    v1, v2 = face_vertices(edge, shape)
+    v1, v2 = face_vertices(edge, geometry)
 
     # Check if one of the vertices is inside cell
     cell == PointNeighbors.cell_coords(v1, neighborhood_search) && return true
@@ -96,11 +108,11 @@ function cell_intersection(edge, shape, cell,
     return ray_intersection(min_corner, max_corner, v1, ray_direction)
 end
 
-function cell_intersection(triangle, shape, cell,
+function cell_intersection(triangle, geometry, cell,
                            neighborhood_search::FaceNeighborhoodSearch{3})
     (; cell_size) = neighborhood_search
 
-    v1, v2, v3 = face_vertices(triangle, shape)
+    v1, v2, v3 = face_vertices(triangle, geometry)
 
     # Check if one of the vertices is inside cell
     cell == PointNeighbors.cell_coords(v1, neighborhood_search) && return true
@@ -120,7 +132,7 @@ function cell_intersection(triangle, shape, cell,
     ray_direction3 = v3 - v1
     ray_intersection(min_corner, max_corner, v1, ray_direction3) && return true
 
-    normal = face_normal(triangle, shape)
+    normal = face_normal(triangle, geometry)
 
     # Check if triangle plane intersects cell (for very large triangles)
     return triangle_plane_intersection(v1, normal, min_corner, max_corner, cell_size)
@@ -212,8 +224,8 @@ function triangle_plane_intersection(point, plane_normal, min_corner, max_corner
 end
 
 # 2D
-@inline function cell_grid(edge, shape, neighborhood_search::FaceNeighborhoodSearch{2})
-    v1, v2 = face_vertices(edge, shape)
+@inline function cell_grid(edge, geometry, neighborhood_search::FaceNeighborhoodSearch{2})
+    v1, v2 = face_vertices(edge, geometry)
 
     cell1 = PointNeighbors.cell_coords(v1, neighborhood_search)
     cell2 = PointNeighbors.cell_coords(v2, neighborhood_search)
@@ -225,8 +237,9 @@ end
 end
 
 # 3D
-@inline function cell_grid(triangle, shape, neighborhood_search::FaceNeighborhoodSearch{3})
-    v1, v2, v3 = face_vertices(triangle, shape)
+@inline function cell_grid(triangle, geometry,
+                           neighborhood_search::FaceNeighborhoodSearch{3})
+    v1, v2, v3 = face_vertices(triangle, geometry)
 
     cell1 = PointNeighbors.cell_coords(v1, neighborhood_search)
     cell2 = PointNeighbors.cell_coords(v2, neighborhood_search)
@@ -245,22 +258,4 @@ end
     ranges = ntuple(dim -> (min_[dim]:increment:max_[dim]), length(min_corner))
 
     return Iterators.product(ranges...)
-end
-
-@inline function neighboring_cells(cell::NTuple{1})
-    x = cell[1]
-    # Generator of all neighboring cells to consider
-    return ((x + i) for i in -1:1)
-end
-
-@inline function neighboring_cells(cell::NTuple{2})
-    x, y = cell
-    # Generator of all neighboring cells to consider
-    return ((x + i, y + j) for i in -1:1, j in -1:1)
-end
-
-@inline function neighboring_cells(cell::NTuple{3})
-    x, y, z = cell
-    # Generator of all neighboring cells to consider
-    return ((x + i, y + j, z + k) for i in -1:1, j in -1:1, k in -1:1)
 end

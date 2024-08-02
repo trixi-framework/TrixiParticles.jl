@@ -37,15 +37,12 @@ background_pressure = 1e8 * particle_spacing^3
 
 if pack_boundary
     boundary_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                            is_boundary=true, neighborhood_search=true,
-                                            background_pressure)
+                                            is_boundary=true, background_pressure)
 else
     boundary_system = nothing
 end
 
-packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph,
-                                       neighborhood_search=true,
-                                       background_pressure)
+packing_system = ParticlePackingSystem(shape_sampled; tlsph=tlsph, background_pressure)
 
 # ==========================================================================================
 # ==== Simulation

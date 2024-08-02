@@ -52,6 +52,7 @@ end
 function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                       sample_boundary=false, boundary_thickness=6particle_spacing,
+                      create_signed_distance_field=false,
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=false,
                                                                         winding_number_factor=sqrt(eps())),
@@ -77,9 +78,14 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
     initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
                                          particle_spacing)
 
-    signed_distance_field = SignedDistanceField(geometry, particle_spacing; point_grid=grid,
-                                                max_signed_distance=boundary_thickness,
-                                                use_for_boundary_packing=sample_boundary)
+    if create_signed_distance_field
+        signed_distance_field = SignedDistanceField(geometry, particle_spacing;
+                                                    point_grid=grid,
+                                                    max_signed_distance=boundary_thickness,
+                                                    use_for_boundary_packing=sample_boundary)
+    else
+        signed_distance_field = nothing
+    end
 
     if sample_boundary
         # Use the particles outside the object as boundary particles.

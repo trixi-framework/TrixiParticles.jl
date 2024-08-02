@@ -34,31 +34,30 @@ For more information about the methods, see desription below.
 - `smoothing_length`: Smoothing length to be used for this system.
                       See [Smoothing Kernels](@ref smoothing_kernel).
 """
-struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
-                             C, N} <: FluidSystem{NDIMS, IC}
-    initial_condition              :: IC
-    boundary                       :: B
-    smoothing_kernel               :: K
-    smoothing_length               :: ELTYPE
-    background_pressure            :: ELTYPE
-    tlsph                          :: Bool
-    signed_distance_field          :: S
-    is_boundary                    :: Bool
-    shift_condition                :: ELTYPE
-    constrain_particles_on_surface :: C
-    neighborhood_search            :: N
-    signed_distances               :: Vector{ELTYPE} # Only for visualization
-    buffer                         :: Nothing
-    update_callback_used           :: Ref{Bool}
+struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K,
+                             S, N} <: FluidSystem{NDIMS, IC}
+    initial_condition     :: IC
+    boundary              :: B
+    smoothing_kernel      :: K
+    smoothing_length      :: ELTYPE
+    background_pressure   :: ELTYPE
+    tlsph                 :: Bool
+    signed_distance_field :: S
+    is_boundary           :: Bool
+    shift_condition       :: ELTYPE
+    neighborhood_search   :: N
+    signed_distances      :: Vector{ELTYPE} # Only for visualization
+    buffer                :: Nothing
+    update_callback_used  :: Ref{Bool}
 
-    function ParticlePackingSystem(shape;
+    function ParticlePackingSystem(shape::Union{InitialCondition, ComplexShape};
                                    smoothing_kernel=SchoenbergCubicSplineKernel{ndims(shape)}(),
-                                   smoothing_length=1.2complex_shape.particle_spacing,
-                                   signed_distance_field=shape.signed_distance_field,
-                                   is_boundary=false, boundary=shape.shape,
-                                   neighborhood_search=true,
-                                   background_pressure, tlsph=false)
-        (; particle_spacing) = shape
+                                   smoothing_length=1.2shape.particle_spacing,
+                                   signed_distance_field::SignedDistanceField=shape.signed_distance_field,
+                                   is_boundary=false,
+                                   boundary::Union{Polygon, TriangleMesh}=shape.geometry,
+                                   neighborhood_search=GridNeighborhoodSearch{ndims(shape)}(),
+                                   background_pressure, tlsph=true)
         NDIMS = ndims(shape)
         ELTYPE = eltype(shape)
 
@@ -66,51 +65,31 @@ struct ParticlePackingSystem{NDIMS, ELTYPE <: Real, IC, B, K, S,
             throw(ArgumentError("smoothing kernel dimensionality must be $NDIMS for a $(NDIMS)D problem"))
         end
 
-        search_radius = compact_support(smoothing_kernel, smoothing_length)
-
         # Create neighborhood search
-        if neighborhood_search && isnothing(signed_distance_field)
-            # Calculate signed distance on the fly using a face nhs
+        nhs_ = isnothing(neighborhood_search) ? TrivialNeighborhoodSearch{NDIMS}() :
+               neighborhood_search
+        nhs = copy_neighborhood_search(nhs_,
+                                       compact_support(smoothing_kernel, smoothing_length),
+                                       length(signed_distance_field.positions))
 
-            nhs = FaceNeighborhoodSearch{NDIMS}(search_radius)
-            initialize!(nhs, boundary)
-
-        elseif signed_distance_field isa SignedDistanceField
-            # Use precalculated signed distance field and interpolate the distances to the particles
-            # using a grid nhs
-            (; distances, positions) = signed_distance_field
-
-            nhs = GridNeighborhoodSearch{NDIMS}(search_radius, length(distances))
-
-            # Initialize neighborhood search with signed distances
-            PointNeighbors.initialize_grid!(nhs, stack(positions))
-        else
-            nhs = TrivialNeighborhoodSearch{NDIMS}(search_radius, eachface(boundary))
-        end
+        # Initialize neighborhood search with signed distances
+        PointNeighbors.initialize_grid!(nhs, stack(signed_distance_field.positions))
 
         shift_condition = if is_boundary
             -signed_distance_field.max_signed_distance
         else
-            tlsph ? zero(ELTYPE) : 0.5particle_spacing
+            tlsph ? zero(ELTYPE) : 0.5shape.particle_spacing
         end
 
-        constrain_particles_on_surface = if isnothing(signed_distance_field)
-            direct_particle_face_distance!
-        else
-            interpolate_particle_face_distance!
-        end
+        initial_condition_ = InitialCondition(shape; is_boundary)
 
-        initial_condition = InitialCondition(shape; is_boundary)
-
-        return new{NDIMS, ELTYPE, typeof(initial_condition), typeof(boundary),
+        return new{NDIMS, ELTYPE, typeof(initial_condition_), typeof(boundary),
                    typeof(smoothing_kernel), typeof(signed_distance_field),
-                   typeof(constrain_particles_on_surface),
-                   typeof(nhs)}(initial_condition, boundary, smoothing_kernel,
+                   typeof(nhs)}(initial_condition_, boundary, smoothing_kernel,
                                 smoothing_length, background_pressure, tlsph,
                                 signed_distance_field, is_boundary, shift_condition,
-                                constrain_particles_on_surface, nhs,
-                                fill(zero(ELTYPE), nparticles(initial_condition)), nothing,
-                                false)
+                                nhs, fill(zero(ELTYPE), nparticles(initial_condition_)),
+                                nothing, false)
     end
 end
 
@@ -187,10 +166,8 @@ function update_particle_packing(system::ParticlePackingSystem, v_ode, u_ode,
 end
 
 function update_position!(u, system::ParticlePackingSystem)
-    (; constrain_particles_on_surface) = system
-
-    func_name = "$(constrain_particles_on_surface)"
-    @trixi_timeit timer() func_name constrain_particles_on_surface(u, system)
+    func_name = "constrain outside particles onto surface"
+    @trixi_timeit timer() func_name constrain_particles_onto_surface!(u, system)
 
     return u
 end
@@ -204,40 +181,7 @@ function update_final!(system::ParticlePackingSystem, v, u, v_ode, u_ode, semi, 
     return system
 end
 
-function direct_particle_face_distance!(u, system::ParticlePackingSystem)
-    (; boundary, neighborhood_search) = system
-
-    @threaded system for particle in eachparticle(system)
-        particle_position = current_coords(u, system, particle)
-
-        distance2 = Inf
-        distance_sign = true
-        normal_vector = fill(zero(eltype(system)), SVector{ndims(system), eltype(system)})
-
-        # Calculate minimum unsigned distance to boundary
-        for face in PointNeighbors.eachneighbor(particle_position, neighborhood_search)
-            new_distance_sign, new_distance2, n = signed_point_face_distance(particle_position,
-                                                                             boundary, face)
-
-            if new_distance2 < distance2
-                distance2 = new_distance2
-                distance_sign = new_distance_sign
-                normal_vector = n
-            end
-        end
-
-        distance = distance_sign ? -sqrt(distance2) : sqrt(distance2)
-
-        # Store signed distance for visualization
-        system.signed_distances[particle] = distance
-
-        constrain_particles!(u, system, particle, distance, normal_vector)
-    end
-
-    return u
-end
-
-function interpolate_particle_face_distance!(u, system::ParticlePackingSystem)
+function constrain_particles_onto_surface!(u, system::ParticlePackingSystem)
     (; neighborhood_search, signed_distance_field) = system
     (; positions, distances, normals) = signed_distance_field
 

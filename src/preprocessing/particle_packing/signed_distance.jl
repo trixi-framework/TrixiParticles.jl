@@ -29,35 +29,39 @@ struct SignedDistanceField{NDIMS, ELTYPE}
     max_signed_distance :: ELTYPE
     boundary_packing    :: Bool
 
-    function SignedDistanceField(boundary, particle_spacing;
+    function SignedDistanceField(geometry, particle_spacing;
                                  point_grid=nothing,
                                  max_signed_distance=4particle_spacing,
-                                 use_for_boundary_packing=false,
-                                 neighborhood_search=true)
-        NDIMS = ndims(boundary)
+                                 use_for_boundary_packing=false)
+        NDIMS = ndims(geometry)
         ELTYPE = eltype(max_signed_distance)
 
         sdf_factor = use_for_boundary_packing ? 2 : 1
 
-        if neighborhood_search
-            nhs = FaceNeighborhoodSearch{NDIMS}(sdf_factor * max_signed_distance)
-            initialize!(nhs, boundary)
-        else
-            nhs = TrivialNeighborhoodSearch{NDIMS}(max_signed_distance, eachface(boundary))
-        end
+        nhs = FaceNeighborhoodSearch{NDIMS}(sdf_factor * max_signed_distance)
+
+        initialize!(nhs, geometry)
 
         if isnothing(point_grid)
-            min_corner = boundary.min_corner .- sdf_factor .* max_signed_distance
-            max_corner = boundary.max_corner .+ sdf_factor .* max_signed_distance
-            point_grid = meshgrid(min_corner, max_corner; increment=particle_spacing)
+            min_corner = geometry.min_corner .- sdf_factor * max_signed_distance
+            max_corner = geometry.max_corner .+ sdf_factor * max_signed_distance
+
+            n_particles_per_dimension = Tuple(ceil.(Int,
+                                                    (max_corner .- min_corner) ./
+                                                    particle_spacing))
+
+            grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+                                            min_corner; tlsph=true)
+
+            point_grid = reinterpret(reshape, SVector{NDIMS, ELTYPE}, grid)
         end
 
-        positions = vec([SVector(position) for position in point_grid])
+        positions = [SVector(position) for position in point_grid]
         normals = fill(SVector(ntuple(dim -> Inf, NDIMS)), length(point_grid))
         distances = fill(Inf, length(point_grid))
 
         calculate_signed_distances!(positions, distances, normals,
-                                    boundary, sdf_factor, max_signed_distance, nhs)
+                                    geometry, sdf_factor, max_signed_distance, nhs)
 
         return new{NDIMS, ELTYPE}(positions, normals, distances, max_signed_distance,
                                   use_for_boundary_packing)
@@ -95,10 +99,13 @@ end
 
 function calculate_signed_distances!(positions, distances, normals,
                                      boundary, sdf_factor, max_signed_distance, nhs)
+    (; face_vertices) = boundary
+    NDIMS = ndims(boundary)
+
     @threaded positions for point in eachindex(positions)
         point_coords = positions[point]
 
-        for face in PointNeighbors.eachneighbor(point_coords, nhs)
+        for face in eachneighbor(point_coords, nhs)
             # `sdf = (sign, distance, normal)`
             sdf = signed_point_face_distance(point_coords, boundary, face)
 
@@ -111,7 +118,7 @@ function calculate_signed_distances!(positions, distances, normals,
             # inside (negative sign): `1 * max_signed_distance`
             cond_2 = sdf[1] && sdf[2] <= max_signed_distance^2
 
-            if sdf[2] < distances[point]^2 && (cond_1 || cond_2)
+            if (cond_1 || cond_2) && sdf[2] < distances[point]^2
                 distances[point] = sdf[1] ? -sqrt(sdf[2]) : sqrt(sdf[2])
                 normals[point] = sdf[3]
             end
