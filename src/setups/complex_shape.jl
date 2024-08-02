@@ -56,8 +56,7 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
 
     return sample(geometry; particle_spacing, density, pressure, mass, velocity,
                   point_in_geometry_algorithm, store_winding_number, grid_offset,
-                  max_nparticles,
-                  padding=pad_initial_particle_grid)
+                  max_nparticles, padding=pad_initial_particle_grid)
 end
 
 function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
