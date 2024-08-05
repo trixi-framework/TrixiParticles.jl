@@ -74,11 +74,9 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
 
 # ==========================================================================================
 # ==== Simulation
-
+periodic_box = PeriodicBox(min_corner=[0.0, 0.0], max_corner=[box_length, box_length])
 semi = Semidiscretization(fluid_system,
-                          neighborhood_search=GridNeighborhoodSearch,
-                          periodic_box_min_corner=[0.0, 0.0],
-                          periodic_box_max_corner=[box_length, box_length])
+                          neighborhood_search=GridNeighborhoodSearch{2}(; periodic_box))
 
 ode = semidiscretize(semi, tspan)
 

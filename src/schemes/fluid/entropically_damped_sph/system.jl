@@ -33,7 +33,7 @@ See [Entropically Damped Artificial Compressibility for SPH](@ref edac) for more
 - `buffer_size`:    Number of buffer particles.
                     This is needed when simulating with [`OpenBoundarySPHSystem`](@ref).
 - `source_terms`:   Additional source terms for this system. Has to be either `nothing`
-                    (by default), or a function of `(coords, velocity, density, pressure)`
+                    (by default), or a function of `(coords, velocity, density, pressure, t)`
                     (which are the quantities of a single particle), returning a `Tuple`
                     or `SVector` that is to be added to the acceleration of that particle.
                     See, for example, [`SourceTermDamping`](@ref).
@@ -236,8 +236,9 @@ function update_average_pressure!(system, ::TransportVelocityAdami, v_ode, u_ode
         neighborhood_search = get_neighborhood_search(system, neighbor_system, semi)
 
         # Loop over all pairs of particles and neighbors within the kernel cutoff.
-        for_particle_neighbor(system, neighbor_system, system_coords, neighbor_coords,
-                              neighborhood_search) do particle, neighbor, pos_diff, distance
+        foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
+                               neighborhood_search) do particle, neighbor,
+                                                       pos_diff, distance
             pressure_average[particle] += particle_pressure(v_neighbor_system,
                                                             neighbor_system,
                                                             neighbor)

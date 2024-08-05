@@ -2,7 +2,7 @@
     BoundaryModelMonaghanKajtar(K, beta, boundary_particle_spacing, mass;
                                 viscosity=nothing)
 
-`boundary_model` for `BoundarySPHSystem`.
+Boundary model for `BoundarySPHSystem`.
 
 # Arguments
 - `K`: Scaling factor for repulsive force.
