@@ -2,8 +2,8 @@
     ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
                  pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
                  point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                hierarchical_winding=false,
-                                                                winding_number_factor=sqrt(eps())),
+                                                                   hierarchical_winding=false,
+                                                                   winding_number_factor=sqrt(eps())),
                  grid_offset::Real=0.0, max_nparticles=10^7,
                  pad_initial_particle_grid=2particle_spacing)
 
@@ -29,8 +29,8 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                         This is only used by the [`EntropicallyDampedSPHSystem`](@ref) and
                         will be overwritten when using an initial pressure function in the system.
 - `point_in_geometry_algorithm`: Algorithm for sampling the complex geometry with particles.
-                              It basically checks whether a particle is inside an object or not.
-                              For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
+                                 It basically checks whether a particle is inside an object or not.
+                                 For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
 - `grid_offset`: Offset of the initial particle grid of the bounding box of the `geometry`.
 - `max_nparticles`: Maximum number of particles in the initial particle grid.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
