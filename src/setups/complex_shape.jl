@@ -33,6 +33,8 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                                  For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
 - `grid_offset`: Offset of the initial particle grid of the bounding box of the `geometry`.
 - `max_nparticles`: Maximum number of particles in the initial particle grid.
+                    This is only used to avoid accidentally choosing a `particle_spacing`
+                    that is too small for the scale of the geometry.
 - `pad_initial_particle_grid`: Padding of the initial particle grid.
 
 
