@@ -98,9 +98,12 @@ fluid_system_edac = EntropicallyDampedSPHSystem(tank_edac.fluid, smoothing_kerne
                                                 pressure_acceleration=nothing,
                                                 acceleration=(0.0, -gravity))
 
+# Disable loop flipping to produce consistent results over different thread numbers
+boundary_density_calculator = AdamiPressureExtrapolation(allow_loop_flipping=false)
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+              boundary_density_calculator=boundary_density_calculator,
               boundary_layers=4, state_equation=nothing,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
@@ -137,6 +140,7 @@ postprocessing_cb = PostprocessCallback(; dt=0.02, output_directory="out",
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               fluid_particle_spacing=particle_spacing,
               smoothing_length=smoothing_length, smoothing_kernel=smoothing_kernel,
+              boundary_density_calculator = boundary_density_calculator,
               boundary_layers=4,
               solution_prefix="validation_" * method * "_" * formatted_string,
               extra_callback=postprocessing_cb, tspan=tspan,
