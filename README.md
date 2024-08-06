@@ -21,6 +21,7 @@ Its features include:
 - Solid-body mechanics
   - Methods:  Total Lagrangian SPH (TLSPH), Discrete Element Method (DEM)
 - Fluid-Structure Interaction
+- Particle sampling of complex geometries from `.stl` and `.asc` files.
 - Output formats:
   - VTK
 

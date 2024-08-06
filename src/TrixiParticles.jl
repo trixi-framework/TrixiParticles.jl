@@ -6,10 +6,12 @@ using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
+using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
+using FileIO: FileIO
 using ForwardDiff: ForwardDiff
-using GPUArrays: AbstractGPUArray
+using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
 using KernelAbstractions: KernelAbstractions, @kernel, @index
 using LinearAlgebra: norm, dot, I, tr, inv, pinv, det
@@ -25,14 +27,18 @@ using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!
 using TrixiBase: trixi_include, @trixi_timeit, timer, timeit_debug_enabled,
                  disable_debug_timings, enable_debug_timings
-@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch
-using PointNeighbors: PointNeighbors, for_particle_neighbor
+@reexport using PointNeighbors: TrivialNeighborhoodSearch, GridNeighborhoodSearch,
+                                PrecomputedNeighborhoodSearch, PeriodicBox,
+                                ParallelUpdate, SemiParallelUpdate, SerialUpdate
+using PointNeighbors: PointNeighbors, foreach_point_neighbor, copy_neighborhood_search,
+                      @threaded
 using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 
 # `util.jl` depends on the `GPUSystem` type defined in `system.jl`
 include("general/system.jl")
 # `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
+include("preprocessing/preprocessing.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
@@ -58,16 +64,17 @@ export SchoenbergCubicSplineKernel, SchoenbergQuarticSplineKernel,
        SchoenbergQuinticSplineKernel, GaussianKernel, WendlandC2Kernel, WendlandC4Kernel,
        WendlandC6Kernel, SpikyKernel, Poly6Kernel
 export StateEquationCole
-export ArtificialViscosityMonaghan, ViscosityAdami
+export ArtificialViscosityMonaghan, ViscosityAdami, ViscosityMorris
 export DensityDiffusion, DensityDiffusionMolteniColagrossi, DensityDiffusionFerrari,
        DensityDiffusionAntuono
 export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureExtrapolation,
-       PressureMirroring, PressureZeroing
+       PressureMirroring, PressureZeroing, BoundaryModelLastiwka
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export WindingNumberHorman, WindingNumberJacobson
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection

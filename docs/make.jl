@@ -1,6 +1,7 @@
 using Documenter
 using TrixiParticles
 using TrixiBase
+using PointNeighbors
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -103,6 +104,9 @@ makedocs(sitename="TrixiParticles.jl",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
+             "preprocessing" => [
+                 "Sample Geometries" => joinpath("preprocessing", "preprocessing.md"),
+             ],
              "Components" => [
                  "Overview" => "overview.md",
                  "General" => [
@@ -129,6 +133,7 @@ makedocs(sitename="TrixiParticles.jl",
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
                  "TrixiBase.jl API Reference" => "reference-trixibase.md",
+                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",

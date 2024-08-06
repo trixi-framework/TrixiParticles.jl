@@ -20,4 +20,9 @@ run
 *.vtu
 *.pvd
 *.mp4
-*.csv
+
+# ParaView states
+*.pvsm
+
+# FreeCAD models
+*.FCStd
