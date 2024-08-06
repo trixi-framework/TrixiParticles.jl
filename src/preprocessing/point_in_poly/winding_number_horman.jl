@@ -17,7 +17,7 @@ struct WindingNumberHorman end
 function (point_in_poly::WindingNumberHorman)(geometry, points; store_winding_number=false)
     (; edge_vertices) = geometry
 
-    inpoly = falses(size(points, 2))
+    inpoly = falses(length(points))
 
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
@@ -29,9 +29,9 @@ function (point_in_poly::WindingNumberHorman)(geometry, points; store_winding_nu
         (v[1] >= p[1] && v[2] < p[2]) && return 3
     end
 
-    @threaded points for query_point in axes(points, 2)
+    @threaded points for query_point in eachindex(points)
+        v_query = points[query_point]
         winding_number = 0
-        v_query = point_position(points, geometry, query_point)
 
         for edge in eachface(geometry)
             v1 = edge_vertices[edge][1]

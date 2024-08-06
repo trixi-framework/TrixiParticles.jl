@@ -140,6 +140,8 @@ end
 
 @inline Base.eltype(::TriangleMesh{NDIMS, ELTYPE}) where {NDIMS, ELTYPE} = ELTYPE
 
+@inline face_normal(triangle, geometry::TriangleMesh) = geometry.face_normals[triangle]
+
 @inline function Base.deleteat!(mesh::TriangleMesh, indices)
     (; face_vertices, face_vertices_ids, face_edges_ids, face_normals) = mesh
 

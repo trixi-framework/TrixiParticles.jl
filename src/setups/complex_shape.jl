@@ -41,13 +41,25 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
+struct ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}
+    geometry                   :: S
+    initial_condition          :: IC
+    initial_condition_boundary :: ICB
+    signed_distance_field      :: SDF
+    initial_grid               :: IG
+    winding_number             :: WN
+    particle_spacing           :: ELTYPE
+end
+
 function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, density,
                       pressure=0.0, mass=nothing, velocity=zeros(ndims(geometry)),
+                      sample_boundary=false, boundary_thickness=6particle_spacing,
+                      create_signed_distance_field=false,
                       point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
                                                                         hierarchical_winding=false,
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
-                      max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
+                      max_nparticles=10^7)
     if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHorman
         throw(ArgumentError("`WindingNumberHorman` only supports 2D geometries"))
     end
@@ -56,34 +68,65 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
         throw(ArgumentError("only a positive `grid_offset` is supported"))
     end
 
-    return sample(geometry; particle_spacing, density, pressure, mass, velocity,
-                  point_in_geometry_algorithm, store_winding_number, grid_offset,
-                  max_nparticles, padding=pad_initial_particle_grid)
-end
+    padding = sample_boundary ? 2boundary_thickness : 4particle_spacing
 
-function sample(geometry; particle_spacing, density, pressure=0.0, mass=nothing,
-                velocity=zeros(ndims(geometry)),
-                point_in_geometry_algorithm=WindingNumberJacobson(; geometry,
-                                                                  hierarchical_winding=false,
-                                                                  winding_number_factor=sqrt(eps())),
-                store_winding_number=false, grid_offset::Real=0.0, max_nparticles=10^7,
-                padding=2particle_spacing)
     grid = particle_grid(geometry, particle_spacing; padding, grid_offset, max_nparticles)
 
     inpoly, winding_numbers = point_in_geometry_algorithm(geometry, grid;
                                                           store_winding_number)
-    coordinates = grid[:, inpoly]
 
-    ic = InitialCondition(; coordinates, density, mass, velocity, pressure,
-                          particle_spacing)
+    coordinates = stack(grid[inpoly])
+
+    initial_condition = InitialCondition(; coordinates, density, mass, velocity, pressure,
+                                         particle_spacing)
+
+    if create_signed_distance_field
+        signed_distance_field = SignedDistanceField(geometry, particle_spacing;
+                                                    point_grid=grid,
+                                                    max_signed_distance=boundary_thickness,
+                                                    use_for_boundary_packing=sample_boundary)
+    else
+        signed_distance_field = nothing
+    end
+
+    if sample_boundary
+        # Use the particles outside the object as boundary particles.
+        (; positions, distances, max_signed_distance) = signed_distance_field
+
+        # Delete unnecessary large signed distance field
+        keep_indices = (particle_spacing .< distances .<= max_signed_distance)
+
+        boundary_coordinates = stack(positions[keep_indices])
+        initial_condition_boundary = InitialCondition(; coordinates=boundary_coordinates,
+                                                      density, particle_spacing)
+    else
+        initial_condition_boundary = nothing
+    end
 
     # This is most likely only useful for debugging. Note that this is not public API.
     if store_winding_number
-        return (initial_condition=ic, winding_numbers=winding_numbers, grid=grid)
+        initial_grid = stack(grid)
+    else
+        initial_grid = nothing
     end
 
-    return ic
+    IC = typeof(initial_condition)
+    ICB = typeof(initial_condition_boundary)
+    IG = typeof(initial_grid)
+    WN = typeof(winding_numbers)
+    SDF = typeof(signed_distance_field)
+    S = typeof(geometry)
+    ELTYPE = eltype(initial_condition)
+
+    return ComplexShape{S, IC, ICB, SDF, IG, WN, ELTYPE}(geometry, initial_condition,
+                                                         initial_condition_boundary,
+                                                         signed_distance_field,
+                                                         initial_grid, winding_numbers,
+                                                         particle_spacing)
 end
+
+Base.ndims(cs::ComplexShape) = ndims(cs.initial_condition)
+Base.eltype(cs::ComplexShape) = eltype(cs.initial_condition)
 
 function particle_grid(geometry, particle_spacing;
                        padding=2particle_spacing, grid_offset=0.0, max_nparticles=10^7)
@@ -102,6 +145,7 @@ function particle_grid(geometry, particle_spacing;
                             "`max_nparticles` = $max_nparticles"))
     end
 
-    return rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
+    grid = rectangular_shape_coords(particle_spacing, n_particles_per_dimension,
                                     min_corner; tlsph=true)
+    return reinterpret(reshape, SVector{ndims(geometry), eltype(geometry)}, grid)
 end
