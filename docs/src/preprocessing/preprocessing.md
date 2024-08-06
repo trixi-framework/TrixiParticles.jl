@@ -107,7 +107,6 @@ $w_{\text{left}} = -\text{\texttt{naive\_winding}} (\mathbf{p}, T.\bar{\mathcal{
 
 $w_{\text{right}} = \text{\texttt{naive\_winding}} (\mathbf{p}, T.\mathcal{S})$
 
-
 The reconstructed surface will then look as in the following image.
 
 ```@raw html
