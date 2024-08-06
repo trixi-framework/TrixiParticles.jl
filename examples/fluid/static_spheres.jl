@@ -5,19 +5,19 @@ using OrdinaryDiffEq
 
 # ==========================================================================================
 # ==== Resolution
-fluid_particle_spacing = 0.001
+fluid_particle_spacing = 0.005
 
 boundary_layers = 3
 spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
-gravity = 9.81
-tspan = (0.0, 1.0)
+gravity = 0.0
+tspan = (0.0, 0.3)
 
 # Boundary geometry and initial fluid particle positions
 initial_fluid_size = (0.0, 0.0)
-tank_size = (2.0, 0.5)
+tank_size = (2.5, 0.5)
 
 fluid_density = 1000.0
 sound_speed = 100
@@ -31,12 +31,12 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 sphere_radius = 0.05
 
-sphere1_center = (0.5, 0.2)
-sphere2_center = (1.5, 0.2)
+sphere1_center = (0.5, 0.5)
+sphere2_center = (1.5, 0.5)
 sphere1 = SphereShape(fluid_particle_spacing, sphere_radius, sphere1_center,
-                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
+                      fluid_density, sphere_type=RoundSphere(), velocity=(0.0, 0.0))
 sphere2 = SphereShape(fluid_particle_spacing, sphere_radius, sphere2_center,
-                      fluid_density, sphere_type=VoxelSphere(), velocity=(0.0, -1.0))
+                      fluid_density, sphere_type=RoundSphere(), velocity=(0.0, 0.0))
 
 # ==========================================================================================
 # ==== Fluid
@@ -54,16 +54,16 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      fluid_smoothing_length,
                                                      sound_speed, viscosity=viscosity,
                                                      density_calculator=ContinuityDensity(),
+                                                     reference_particle_spacing=fluid_particle_spacing,
                                                      acceleration=(0.0, -gravity),
-                                                     reference_particle_spacing = fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient= 0.0728))
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
                                      sound_speed, viscosity=viscosity,
                                      density_calculator=ContinuityDensity(),
+                                     reference_particle_spacing=fluid_particle_spacing,
                                      acceleration=(0.0, -gravity),
-                                     reference_particle_spacing = fluid_particle_spacing,
                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
                                                                                    fluid_smoothing_length))
 
@@ -86,7 +86,7 @@ ode = semidiscretize(semi, tspan)
 
 info_callback = InfoCallback(interval=50)
 saving_callback = SolutionSavingCallback(dt=0.01, output_directory="out",
-                                         prefix="", write_meta_data=true)
+                                         prefix="static", write_meta_data=true)
 
 callbacks = CallbackSet(info_callback, saving_callback)
 

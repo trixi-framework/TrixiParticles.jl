@@ -59,6 +59,7 @@ density_diffusion = DensityDiffusionAntuono(tank.fluid, delta=0.1)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
+                                           reference_particle_spacing = fluid_particle_spacing,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
                                            surface_tension=nothing)

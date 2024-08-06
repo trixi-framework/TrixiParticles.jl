@@ -148,14 +148,24 @@ end
 
 # see Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function remove_invalid_normals!(system::FluidSystem, surface_tension::SurfaceTensionMorris)
-    (; cache, smoothing_length, smoothing_kernel) = system
+    (; cache, smoothing_length, smoothing_kernel, number_density) = system
 
     # println("compact_support ", compact_support(smoothing_kernel, smoothing_length))
 
+    # TODO: make settable
     # We remove invalid normals i.e. they have a small norm (eq. 20)
     normal_condition2 = (0.01 / compact_support(smoothing_kernel, smoothing_length))^2
 
     for particle in each_moving_particle(system)
+
+        # TODO: make selectable
+        # TODO: make settable
+        # heuristic condition if there is no gas phase to find the free surface
+        if 0.75 * number_density < cache.neighbor_count[particle]
+            cache.surface_normal[1:ndims(system), particle] .= 0
+            continue
+        end
+
         particle_surface_normal = cache.surface_normal[1:ndims(system), particle]
         norm2 = dot(particle_surface_normal, particle_surface_normal)
 
@@ -188,6 +198,8 @@ function compute_surface_normal!(system::FluidSystem,
     set_zero!(cache.surface_normal)
     set_zero!(cache.neighbor_count)
 
+    # TODO: if color values are set only different systems need to be called
+    # TODO: what to do if there is no gas phase? -> config values
     @trixi_timeit timer() "compute surface normal" foreach_system(semi) do neighbor_system
         u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
@@ -201,8 +213,7 @@ function compute_surface_normal!(system::FluidSystem,
 end
 
 function calc_curvature!(system, neighbor_system, u_system, v,
-    v_neighbor_system, u_neighbor_system, semi, surfn)
-
+                         v_neighbor_system, u_neighbor_system, semi, surfn)
 end
 
 # Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
@@ -241,12 +252,13 @@ function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_sy
         # eq. 22
         if dot(n_a, n_a) > eps() && dot(n_b, n_b) > eps()
             # for i in 1:ndims(system)
-                curvature[particle] += v_b * dot((n_b .- n_a), grad_kernel)
+            curvature[particle] += v_b * dot((n_b .- n_a), grad_kernel)
             # end
             # eq. 24
-            correction_factor[particle] += v_b * kernel(smoothing_kernel, distance, smoothing_length)
+            correction_factor[particle] += v_b * kernel(smoothing_kernel, distance,
+                                                  smoothing_length)
             # prevent NaNs from systems that are entirely skipped
-            no_valid_neighbors +=1
+            no_valid_neighbors += 1
         end
     end
 
@@ -269,8 +281,9 @@ function compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t
     return system
 end
 
-function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTensionMorris, v, u,
-    v_ode, u_ode, semi, t)
+function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTensionMorris, v,
+                            u,
+                            v_ode, u_ode, semi, t)
     (; cache, surface_tension, surface_normal_method) = system
 
     # Reset surface curvature

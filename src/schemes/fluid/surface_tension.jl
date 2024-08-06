@@ -155,11 +155,11 @@ end
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(particle_system, particle)
     n_b = surface_normal(neighbor_system, neighbor)
-    support_radius = compact_support(smoothing_kernel, smoothing_length)
+    # support_radius = compact_support(smoothing_kernel, smoothing_length)
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                  pos_diff, distance) .-
-           (surface_tension_coefficient * (n_a - n_b) * support_radius)
+           (surface_tension_coefficient * (n_a - n_b) * smoothing_length)
 end
 
 @inline function surface_tension_force(surface_tension_a::SurfaceTensionMorris,
@@ -175,7 +175,7 @@ end
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
 
-    return surface_tension_coefficient / rho_a * curvature_a * n_a
+    return - surface_tension_coefficient / rho_a * curvature_a * n_a
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,

@@ -5,11 +5,13 @@ using TrixiParticles
 fluid_density = 1000.0
 
 H = 0.6
-fluid_particle_spacing = H / 60
+fluid_particle_spacing = H / 120
 
 # Set the surface tension to a value that is accurate in your case.
 # Note: This usually requires calibration to be physically accurate!
-surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.025)
+# surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.025)
+# surface_tension = SurfaceTensionMorris(surface_tension_coefficient= 0.0728)
+surface_tension = nothing
 
 # `density_diffusion` is deactivated since the interaction with the surface tension model can
 # cause stability problems.
@@ -24,8 +26,9 @@ surface_tension = SurfaceTensionAkinci(surface_tension_coefficient=0.025)
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               surface_tension=surface_tension,
               fluid_particle_spacing=fluid_particle_spacing,
-              smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-              smoothing_length=1.0 * fluid_particle_spacing,
-              correction=AkinciFreeSurfaceCorrection(fluid_density),
-              density_diffusion=nothing, adhesion_coefficient=0.05,
-              sound_speed=100.0, tspan=(0.0, 2.0))
+             # smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+             # smoothing_length=1.0 * fluid_particle_spacing,
+            #   correction=AkinciFreeSurfaceCorrection(fluid_density),
+            #  density_diffusion=nothing, adhesion_coefficient=0.05,
+              sound_speed=100.0, tspan=(0.0, 2.0),
+              prefix="nsurft")
