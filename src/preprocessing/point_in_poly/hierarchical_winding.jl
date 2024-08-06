@@ -11,15 +11,13 @@ struct BoundingBoxTree{MC, NDIMS}
     child_right   :: BoundingBoxTree
 
     function BoundingBoxTree(geometry, face_ids, directed_edges, min_corner, max_corner)
-        faces = Vector{NTuple{ndims(geometry), Int}}()
         closing_faces = Vector{NTuple{ndims(geometry), Int}}()
-
-        add_faces_in_box!(faces, face_ids, geometry)
 
         max_faces_in_box = ndims(geometry) == 3 ? 100 : 20
         if length(face_ids) < max_faces_in_box
             return new{typeof(min_corner),
-                       ndims(geometry)}(faces, closing_faces, min_corner, max_corner, true)
+                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
+                                        min_corner, max_corner, true)
         end
 
         determine_closure!(closing_faces, min_corner, max_corner, geometry, face_ids,
@@ -27,7 +25,8 @@ struct BoundingBoxTree{MC, NDIMS}
 
         if length(closing_faces) >= length(face_ids)
             return new{typeof(min_corner),
-                       ndims(geometry)}(faces, closing_faces, min_corner, max_corner, true)
+                       ndims(geometry)}(faces(face_ids, geometry), closing_faces,
+                                        min_corner, max_corner, true)
         end
 
         # Bisect the box splitting its longest side
@@ -49,36 +48,21 @@ struct BoundingBoxTree{MC, NDIMS}
                                       min_corner_right, max_corner)
 
         return new{typeof(min_corner),
-                   ndims(geometry)}(faces, closing_faces, min_corner, max_corner, false,
-                                    child_left, child_right)
+                   ndims(geometry)}(faces(face_ids, geometry), closing_faces,
+                                    min_corner, max_corner, false, child_left, child_right)
     end
 end
 
-function add_faces_in_box!(edges, edge_ids, geometry::Polygon)
+function faces(edge_ids, geometry::Polygon)
     (; edge_vertices_ids) = geometry
 
-    for edge in edge_ids
-        v1 = edge_vertices_ids[edge][1]
-        v2 = edge_vertices_ids[edge][2]
-
-        push!(edges, (v1, v2))
-    end
-
-    return edges
+    return map(i -> edge_vertices_ids[i], edge_ids)
 end
 
-function add_faces_in_box!(faces, face_ids, geometry::TriangleMesh)
+function faces(face_ids, geometry::TriangleMesh)
     (; face_vertices_ids) = geometry
 
-    for face in face_ids
-        v1 = face_vertices_ids[face][1]
-        v2 = face_vertices_ids[face][2]
-        v3 = face_vertices_ids[face][3]
-
-        push!(faces, (v1, v2, v3))
-    end
-
-    return faces
+    return map(i -> face_vertices_ids[i], face_ids)
 end
 
 struct HierarchicalWinding{BB}

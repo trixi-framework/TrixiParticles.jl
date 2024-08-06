@@ -5,7 +5,7 @@
                           smoothing_length=1.2initial_condition.particle_spacing,
                           neighborhood_search=true, background_pressure)
 System to generate body fitted particles for complex shapes.
-For more information about the methods, see desription below.
+For more information about the methods, see description below.
 
 # Arguments
 - `initial_condition`: [`InitialCondition`](@ref) or [`ComplexShape`](@ref) to be packed.

@@ -32,7 +32,7 @@ trixi_include(joinpath(examples_dir(), "preprocessing", "complex_shape_3d.jl"),
 
 # Large `background_pressure` can cause high accelerations. That is, the adaptive
 # time-stepsize will be adjusted properly. We found that the following order of
-# `background_pressure` result in apropiate time-stepsizes.
+# `background_pressure` result in appropiate time-stepsizes.
 background_pressure = 1e8 * particle_spacing^3
 
 if pack_boundary
