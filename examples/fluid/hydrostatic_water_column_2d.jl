@@ -28,10 +28,11 @@ tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fl
 
 # ==========================================================================================
 # ==== Fluid
-smoothing_length = 1.2 * fluid_particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+smoothing_length = 3.0 * fluid_particle_spacing
+smoothing_kernel = WendlandC2Kernel{2}()
 
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+alpha = 0.02
+viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
