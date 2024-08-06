@@ -1,8 +1,9 @@
-@testset verbose=true "Complex Shapes" begin
+@testset verbose=true "ComplexShape" begin
     data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
+    validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
-    @testset verbose=true "Complex Shapes 2D" begin
-        @testset verbose=true "Rectangular Shifted" begin
+    @testset verbose=true "2D" begin
+        @testset verbose=true "Shifted Rectangle" begin
             algorithms = [WindingNumberHorman(), WindingNumberJacobson()]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
@@ -15,17 +16,17 @@
                                     shift in shifts,
                                     particle_spacing in particle_spacings
 
-                points_rectangular = stack([[0.0, 0.0], [1.0, 0.0],
-                                               [1.0, 0.5], [0.0, 0.5], [0.0, 0.0]]) .+ shift
+                points_rectangle = stack([[0.0, 0.0], [1.0, 0.0],
+                                             [1.0, 0.5], [0.0, 0.5], [0.0, 0.0]]) .+ shift
 
-                geometry = TrixiParticles.Polygon(points_rectangular)
+                geometry = TrixiParticles.Polygon(points_rectangle)
 
                 grid_offset = 0.5particle_spacing
                 shape_sampled = ComplexShape(geometry; particle_spacing, density=1.0,
                                              point_in_geometry_algorithm, grid_offset)
 
-                min_corner = points_rectangular[:, 1] .+ 0.5particle_spacing
-                max_corner = points_rectangular[:, 3]
+                min_corner = points_rectangle[:, 1] .+ 0.5particle_spacing
+                max_corner = points_rectangle[:, 3]
 
                 ranges_x = min_corner[1]:particle_spacing:max_corner[1]
                 ranges_y = min_corner[2]:particle_spacing:max_corner[2]
@@ -51,13 +52,15 @@
                                                                             winding_number_factor=0.4)
                     end
 
-                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
-                                                            "preprocessing",
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir,
                                                             "coordinates_" *
                                                             algorithm_names[i] * "_" *
                                                             files[j] * ".csv"),
                                                    TrixiParticles.DataFrame)
 
+                    # Access the field called `Points:0` of `data`. Since `data.Points:0` is not a valid
+                    # identifier name, we need to use `var"name"`.
+                    # See https://docs.julialang.org/en/v1/base/base/#var%22name%22
                     coords = vcat((data.var"Points:0")', (data.var"Points:1")')
 
                     geometry = load_geometry(joinpath(data_dir, files[j] * ".asc"))
@@ -71,15 +74,14 @@
         end
     end
 
-    @testset verbose=true "Complex Shapes 3D" begin
+    @testset verbose=true "3D" begin
         @testset verbose=true "Real World Data" begin
             files = ["sphere", "bar"]
             particle_spacings = [0.1, 0.18]
 
             @testset verbose=true "Naive Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
-                                                            "preprocessing",
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir,
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)
@@ -98,8 +100,7 @@
             end
             @testset verbose=true "Hierarchical Winding" begin
                 @testset verbose=true "Test File `$(files[i])`" for i in eachindex(files)
-                    data = TrixiParticles.CSV.read(joinpath(validation_dir(),
-                                                            "preprocessing",
+                    data = TrixiParticles.CSV.read(joinpath(validation_dir,
                                                             "coordinates_" * files[i] *
                                                             ".csv"),
                                                    TrixiParticles.DataFrame)
