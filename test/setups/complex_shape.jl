@@ -1,9 +1,9 @@
-@testset verbose=true "ComplexShapes" begin
+@testset verbose=true "ComplexShape" begin
     data_dir = pkgdir(TrixiParticles, "examples", "preprocessing", "data")
     validation_dir = pkgdir(TrixiParticles, "test", "preprocessing", "data")
 
     @testset verbose=true "2D" begin
-        @testset verbose=true "Shifted Rectangular" begin
+        @testset verbose=true "Shifted Rectangle" begin
             algorithms = [WindingNumberHorman(), WindingNumberJacobson()]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
