@@ -14,11 +14,15 @@ We aim at 3 to 4 month between major release versions and about 2 weeks between 
 
 ### Deprecated
 
+## Version 0.2.1
+
+### Highlights
+Particle sampling of complex geometries from `.stl` and `.asc` files.
+
 ## Version 0.2.0
 
 ### Removed
 - Use of the internal neighborhood search has been removed and replaced with PointNeighbors.jl.
-
 
 ## Development Cycle 0.1
 
