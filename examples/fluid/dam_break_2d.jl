@@ -71,6 +71,8 @@ boundary_model = BoundaryModelDummyParticles(tank.boundary.density, tank.boundar
                                              boundary_density_calculator,
                                              smoothing_kernel, smoothing_length,
                                              correction=nothing)
+# boundary_model = BoundaryModelMonaghanKajtar(gravity, spacing_ratio, boundary_particle_spacing,
+#                                              tank.boundary.mass)
 
 boundary_system = BoundarySPHSystem(tank.boundary, boundary_model, adhesion_coefficient=0.0)
 

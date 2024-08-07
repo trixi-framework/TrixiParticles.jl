@@ -4,8 +4,7 @@
 using TrixiParticles
 using OrdinaryDiffEq
 
-# # ==========================================================================================
-# # ==== Resolution
+# Resolution
 fluid_particle_spacing = 0.05
 
 # Function for moving boundaries
