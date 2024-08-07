@@ -1,7 +1,7 @@
 name = "TrixiParticles"
 uuid = "66699cd8-9c01-4e9d-a059-b96c86d16b3a"
 authors = ["erik.faulhaber <44124897+efaulhaber@users.noreply.github.com>"]
-version = "0.2.1"
+version = "0.2.3-dev"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -34,6 +34,7 @@ WriteVTK = "64499a7a-5c06-52f2-abe2-ccb03c286192"
 Adapt = "3, 4"
 CSV = "0.10"
 DataFrames = "1.6"
+DelimitedFiles = "1"
 DiffEqCallbacks = "2.25, 3"
 FastPow = "0.1"
 FileIO = "1"
