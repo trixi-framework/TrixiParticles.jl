@@ -275,6 +275,22 @@ function calculate_spanning_vectors(plane, zone_width)
     return spanning_vectors(Tuple(plane), zone_width), SVector(plane[1]...)
 end
 
+function calculate_spanning_vectors(plane::TriangleMesh, zone_width)
+    plane_normal = normalize(sum(plane.face_normals) / nfaces(plane))
+
+    plane_points = oriented_bounding_box(stack(plane.vertices))
+
+    # Vectors spanning the plane
+    edge1 = plane_points[:, 2] - plane_points[:, 1]
+    edge2 = plane_points[:, 3] - plane_points[:, 1]
+
+    if !isapprox(abs.(normalize(cross(edge2, edge1))), abs.(plane_normal), atol=1e-2)
+        throw(ArgumentError("`plane` might be not planar"))
+    end
+
+    return hcat(plane_normal * zone_width, edge1, edge2), SVector(plane_points[:, 1]...)
+end
+
 function spanning_vectors(plane_points::NTuple{2}, zone_width)
     plane_size = plane_points[2] - plane_points[1]
 
@@ -337,4 +353,28 @@ function remove_outside_particles(initial_condition, spanning_set, zone_origin)
 
     return InitialCondition(; coordinates=coordinates[:, in_zone], density=first(density),
                             particle_spacing)
+end
+
+# According to:
+# https://logicatcore.github.io/scratchpad/lidar/sensor-fusion/jupyter/2021/04/20/3D-Oriented-Bounding-Box.html
+function oriented_bounding_box(point_cloud)
+    covariance_matrix = Statistics.cov(point_cloud; dims=2)
+    eigen_vectors = Statistics.eigvecs(covariance_matrix)
+    means = Statistics.mean(point_cloud, dims=2)
+
+    centered_data = point_cloud .- means
+
+    aligned_coords = eigen_vectors' * centered_data
+
+    min_corner = SVector(minimum(aligned_coords[1, :]),
+                         minimum(aligned_coords[2, :]),
+                         minimum(aligned_coords[3, :]))
+    max_corner = SVector(maximum(aligned_coords[1, :]),
+                         maximum(aligned_coords[2, :]),
+                         maximum(aligned_coords[3, :]))
+
+    plane_points = hcat(min_corner, max_corner,
+                        [min_corner[1], max_corner[2], min_corner[3]])
+
+    return eigen_vectors * plane_points .+ means
 end
