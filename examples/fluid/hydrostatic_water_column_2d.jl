@@ -23,8 +23,8 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       n_layers=boundary_layers, acceleration=(0.0, -gravity),
+                       state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
