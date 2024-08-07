@@ -2,8 +2,8 @@
 
 Generating the initial configuration of a simulation requires filling volumes (3D) or surfaces (2D) of complex geometries with particles.
 The algorithm to sample a complex geometry should be robust and fast,
-since for large problems (high number of particles) or complex geometries (many geometry-faces),
-generating the initial configuration is not trivial and can be very expensive in terms of computational costs.
+since for large problems (high numbers of particles) or complex geometries (many geometry faces),
+generating the initial configuration is not trivial and can be very expensive in terms of computational cost.
 We therefore use a [winding number](https://en.wikipedia.org/wiki/Winding_number) approach for an inside-outside segmentation of an object.
 The winding number $w(\mathbf{p})$ is a signed integer-valued property of a point $\mathbf{p}$ and is defined as
 
@@ -15,7 +15,7 @@ In 3D, we refer to the solid angle of an *oriented* triangle with respect to $\m
 We provide the following methods to calculate $w(\mathbf{p})$:
 - Horman et al. (2001) evaluated the winding number combined with an even-odd rule and is only for 2D polygons (see [WindingNumberHorman](@ref)).
 - Naive winding: Jacobson et al. (2013) generalized the winding number so that the algorithm can be applied for 2D and also for 3D geometries (see [WindingNumberJacobson](@ref)).
-- Hierarchical winding: Jacobson et al. (2013) also introduced a fast hierarchical evaluation of the winding number. For further information see description below.
+- Hierarchical winding: Jacobson et al. (2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
 
 ## [Hierarchical Winding](@id hierarchical_winding)
 According to Jacobson et al. (2013) the winding number is the sum of harmonic functions defined for each edge (2D) or face (3D).
@@ -74,7 +74,7 @@ regardless of how $\bar{\mathcal{S}}$ is constructed.
 ### Bounding volume hierarchy
 
 If we construct a bounding volume hierarchy $T$ and evaluate $w$ hierarchical,
-we can perform asymptotically better than the naive winding computing $w$ for the whole geometry as is shown by Jacobson et al. (2013).
+we can perform asymptotically better than the naive computation of $w$ for the whole geometry as is shown by Jacobson et al. (2013).
 
 The algorithm behind (Jacobson et al., Algorithm 2, p. 5) calls itself recursively, where the recursion stops with the following criteria.
 
