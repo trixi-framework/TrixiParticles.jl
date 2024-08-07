@@ -92,7 +92,7 @@ DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recu
 
 bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
 
-makedocs(sitename="TrixiParticles.jl", doctest=false,
+makedocs(sitename="TrixiParticles.jl",
          plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
