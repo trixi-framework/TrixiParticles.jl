@@ -98,11 +98,10 @@
             # Mock the neighborhood search
             nhs = Val{:nhs}()
             TrixiParticles.PointNeighbors.eachneighbor(_, ::Val{:nhs}) = eachneighbor
+            TrixiParticles.PointNeighbors.search_radius(::Val{:nhs}) = 100.0
 
             function Base.getproperty(::Val{:nhs}, f::Symbol)
-                if f === :search_radius
-                    return 100.0
-                elseif f === :periodic_box_size
+                if f === :periodic_box
                     return nothing
                 end
 

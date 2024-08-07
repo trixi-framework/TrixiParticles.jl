@@ -1,9 +1,11 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 OrdinaryDiffEq = "1dea7af3-3e70-54e6-95c3-0bf5283fa5ed"
+PointNeighbors = "1c4d5385-0a27-49de-8e2c-43b175c8985c"
 TrixiBase = "9a0f1c46-06d5-4909-a5a3-ce25d3fa3284"
 
 [compat]
 Documenter = "1"
 OrdinaryDiffEq = "6"
+PointNeighbors = "0.4"
 TrixiBase = "0.1"

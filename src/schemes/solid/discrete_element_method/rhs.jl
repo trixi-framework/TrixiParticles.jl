@@ -16,8 +16,8 @@ function interact!(dv, v_particle_system, u_particle_system, v_neighbor_system,
     system_coords = current_coordinates(u_particle_system, particle_system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
-    for_particle_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         m_a = particle_system.mass[particle]
 
         r_a = particle_system.radius[particle]

@@ -51,7 +51,8 @@ struct DensityDiffusionMolteniColagrossi{ELTYPE} <: DensityDiffusion
 end
 
 @inline function density_diffusion_psi(::DensityDiffusionMolteniColagrossi, rho_a, rho_b,
-                                       pos_diff, distance, system, particle, neighbor)
+                                       pos_diff, distance, system, neighbor_system,
+                                       particle, neighbor)
     return 2 * (rho_a - rho_b) * pos_diff / distance^2
 end
 
@@ -86,7 +87,8 @@ struct DensityDiffusionFerrari <: DensityDiffusion
 end
 
 @inline function density_diffusion_psi(::DensityDiffusionFerrari, rho_a, rho_b,
-                                       pos_diff, distance, system, particle, neighbor)
+                                       pos_diff, distance, system, neighbor_system,
+                                       particle, neighbor)
     (; smoothing_length) = system
 
     return ((rho_a - rho_b) / 2smoothing_length) * pos_diff / distance
@@ -170,12 +172,13 @@ function Base.show(io::IO, density_diffusion::DensityDiffusionAntuono)
 end
 
 @inline function density_diffusion_psi(density_diffusion::DensityDiffusionAntuono,
-                                       rho_a, rho_b,
-                                       pos_diff, distance, system, particle, neighbor)
+                                       rho_a, rho_b, pos_diff, distance, system,
+                                       neighbor_system, particle, neighbor)
     (; normalized_density_gradient) = density_diffusion
 
     normalized_gradient_a = extract_svector(normalized_density_gradient, system, particle)
-    normalized_gradient_b = extract_svector(normalized_density_gradient, system, neighbor)
+    normalized_gradient_b = extract_svector(normalized_density_gradient, neighbor_system,
+                                            neighbor)
 
     # Fist term by Molteni & Colagrossi
     result = 2 * (rho_a - rho_b)
@@ -201,8 +204,8 @@ function update!(density_diffusion::DensityDiffusionAntuono, neighborhood_search
     # Compute normalized density gradient
     set_zero!(normalized_density_gradient)
 
-    for_particle_neighbor(system, system, system_coords, system_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(system, system, system_coords, system_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0
         distance < sqrt(eps()) && return
 
@@ -242,7 +245,7 @@ end
     volume_b = m_b / rho_b
 
     psi = density_diffusion_psi(density_diffusion, rho_a, rho_b, pos_diff, distance,
-                                particle_system, particle, neighbor)
+                                particle_system, neighbor_system, particle, neighbor)
     density_diffusion_term = dot(psi, grad_kernel) * volume_b
 
     dv[end, particle] += delta * smoothing_length * sound_speed * density_diffusion_term

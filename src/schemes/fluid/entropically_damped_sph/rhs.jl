@@ -9,9 +9,9 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(particle_system, neighbor_system,
+                           system_coords, neighbor_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
