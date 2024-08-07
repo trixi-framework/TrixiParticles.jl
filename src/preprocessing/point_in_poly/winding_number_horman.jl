@@ -15,7 +15,8 @@ struct WindingNumberHorman end
 function (point_in_poly::WindingNumberHorman)(geometry, points; store_winding_number=false)
     (; edge_vertices) = geometry
 
-    inpoly = falses(size(points, 2))
+    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
+    inpoly = fill(false, size(points, 2))
 
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))

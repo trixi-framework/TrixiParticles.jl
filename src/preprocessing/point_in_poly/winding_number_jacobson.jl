@@ -85,7 +85,8 @@ function (point_in_poly::WindingNumberJacobson)(geometry, points;
                                                 store_winding_number=false)
     (; winding_number_factor, winding) = point_in_poly
 
-    inpoly = falses(size(points, 2))
+    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
+    inpoly = fill(false, size(points, 2))
 
     winding_numbers = Float64[]
     store_winding_number && (winding_numbers = resize!(winding_numbers, length(inpoly)))
