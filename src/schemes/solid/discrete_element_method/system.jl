@@ -25,6 +25,9 @@ specified material properties and contact mechanics.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
+
+## References
+[Bicanic2004](@cite), [Cundall1979](@cite), [DiRenzo2004](@cite)
 """
 struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}
     initial_condition   :: IC
