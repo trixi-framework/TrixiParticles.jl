@@ -132,7 +132,7 @@
                     @test_nowarn_mod trixi_include(@__MODULE__,
                                                    joinpath(examples_dir(), "fluid",
                                                             "dam_break_2d.jl");
-                                                   kwargs...) [
+                                                   tspan=(0, 0.1), kwargs...) [
                         r"┌ Info: The desired tank length in y-direction .*\n",
                         r"└ New tank length in y-direction.*\n",
                     ]
