@@ -1,4 +1,4 @@
-using Documenter
+using Documenter, DocumenterCitations
 using TrixiParticles
 using TrixiBase
 using PointNeighbors
@@ -90,7 +90,10 @@ copy_file("NEWS.md")
 # Define module-wide setups such that the respective modules are available in doctests
 DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recursive=true)
 
-makedocs(sitename="TrixiParticles.jl",
+bib = CitationBibliography(joinpath(@__DIR__, "src", "refs.bib"))
+
+makedocs(sitename="TrixiParticles.jl", doctest=false,
+         plugins=[bib],
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
          format=Documenter.HTML(),
@@ -133,12 +136,12 @@ makedocs(sitename="TrixiParticles.jl",
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
                  "TrixiBase.jl API Reference" => "reference-trixibase.md",
-                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
              "Code of Conduct" => "code_of_conduct.md",
              "License" => "license.md",
+             "References" => "references.md",
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",

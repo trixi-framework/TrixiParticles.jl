@@ -23,7 +23,7 @@ specified material properties and contact mechanics.
     captured by standard DEM interactions, such as electromagnetic forces or user-defined perturbations.
  - `damping_coefficient=0.0001`: Set a damping coefficient for the collision interactions.
 
- !!! warning "Experimental Implementation"
+!!! warning "Experimental Implementation"
     This is an experimental feature and may change in a future releases.
 """
 struct DEMSystem{NDIMS, ELTYPE <: Real, IC, ARRAY1D, ST} <: SolidSystem{NDIMS, IC}

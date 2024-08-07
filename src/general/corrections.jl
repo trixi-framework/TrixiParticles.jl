@@ -2,7 +2,7 @@
 @doc raw"""
     AkinciFreeSurfaceCorrection(rho0)
 
-Free surface correction according to Akinci et al. (2013).
+Free surface correction according to [Akinci et al. (2013)](@cite Akinci2013).
 At a free surface, the mean density is typically lower than the reference density,
 resulting in reduced surface tension and viscosity forces.
 The free surface correction adjusts the viscosity, pressure, and surface tension forces
@@ -22,12 +22,6 @@ the pressure and viscosity accordingly.
 
 # Arguments
 - `rho0`: Rest density.
-
-## References
-- Akinci, N., Akinci, G., & Teschner, M. (2013).
-  "Versatile Surface Tension and Adhesion for SPH Fluids".
-  ACM Transactions on Graphics (TOG), 32(6), 182.
-  [doi: 10.1145/2508363.2508405](https://doi.org/10.1145/2508363.2508395)
 """
 struct AkinciFreeSurfaceCorrection{ELTYPE}
     rho0::ELTYPE
@@ -57,7 +51,7 @@ end
     ShepardKernelCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by Li et al.
+was first proposed by [Li et al. 1996](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -71,21 +65,6 @@ to an improvement, especially at free surfaces.
 !!! note
     - It is also referred to as "0th order correction".
     - In 2D, we can expect an increase of about 5--6% in computation time.
-
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
--  Shaofan Li, Wing Kam Liu.
-  "Moving least-square reproducing kernel method Part II: Fourier analysis".
-  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159--193.
-  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct ShepardKernelCorrection end
 
@@ -94,7 +73,7 @@ struct ShepardKernelCorrection end
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
-as shown by Basa et al.
+as shown by [Basa et al. 2008](@cite Basa2008).
 
 The kernel correction coefficient is determined by
 ```math
@@ -113,21 +92,6 @@ This correction can be applied with [`SummationDensity`](@ref) and
     - This only works when the boundary model uses [`SummationDensity`](@ref) (yet).
     - It is also referred to as "0th order correction".
     - In 2D, we can expect an increase of about 10--15% in computation time.
-
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97-115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
-- Shaofan Li, Wing Kam Liu.
-  "Moving least-square reproducing kernel method Part II: Fourier analysis".
-  In: Computer Methods in Applied Mechanics and Engineering 139 (1996), pages 159-193.
-  [doi:10.1016/S0045-7825(96)01082-1](https://doi.org/10.1016/S0045-7825(96)01082-1)
 """
 struct KernelCorrection end
 
@@ -135,21 +99,11 @@ struct KernelCorrection end
     MixedKernelGradientCorrection()
 
 Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
-which results in a 1st-order-accurate SPH method.
+which results in a 1st-order-accurate SPH method. TODO: cite?
 
 # Notes:
 - Stability issues, especially when particles separate into small clusters.
 - Doubles the computational effort.
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
 """
 struct MixedKernelGradientCorrection end
 
@@ -315,18 +269,8 @@ the correction matrix $\bm{L}_a$ is evaluated explicitly as
 !!! note
     - Stability issues arise, especially when particles separate into small clusters.
     - Doubles the computational effort.
-- Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
-- Set `dt_max =< 1e-3` for stability.
-
-## References
-- J. Bonet, T.-S.L. Lok.
-  "Variational and momentum preservation aspects of Smooth Particle Hydrodynamic formulations".
-  In: Computer Methods in Applied Mechanics and Engineering 180 (1999), pages 97--115.
-  [doi: 10.1016/S0045-7825(99)00051-1](https://doi.org/10.1016/S0045-7825(99)00051-1)
-- Mihai Basa, Nathan Quinlan, Martin Lastiwka.
-  "Robustness and accuracy of SPH formulations for viscous flow".
-  In: International Journal for Numerical Methods in Fluids 60 (2009), pages 1127--1148.
-  [doi: 10.1002/fld.1927](https://doi.org/10.1002/fld.1927)
+    - Better stability with smoother smoothing Kernels with larger support, e.g. [`SchoenbergQuinticSplineKernel`](@ref) or [`WendlandC6Kernel`](@ref).
+    - Set `dt_max =< 1e-3` for stability.
 """
 struct GradientCorrection end
 

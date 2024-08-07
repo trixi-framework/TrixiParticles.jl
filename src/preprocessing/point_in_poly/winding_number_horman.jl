@@ -1,7 +1,7 @@
 """
     WindingNumberHorman()
 
-Algorithm for inside-outside segmentation of a complex geometry proposed by [Horman et al. (2001)](@ref references_complex_shape).
+Algorithm for inside-outside segmentation of a complex geometry proposed by [Hormann2001](@cite).
 It is only supported for 2D geometries.
 [`WindingNumberHorman`](@ref) might handle edge cases a bit better, since the winding number is an integer value.
 Also, it is faster than [`WindingNumberJacobson`](@ref) for 2D geometries with more than about 100 edges.

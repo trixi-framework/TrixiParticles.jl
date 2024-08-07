@@ -1,6 +1,6 @@
 # [Weakly Compressible SPH](@id wcsph)
 
-Weakly compressible SPH as introduced by Monaghan (1994). This formulation relies on a stiff
+Weakly compressible SPH as introduced by [Monaghan (1994)](@cite Monaghan1994). This formulation relies on a stiff
 [equation of state](@ref equation_of_state) that generates large pressure changes
 for small density variations.
 
@@ -9,23 +9,18 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
 ```
 
-### References
-- Joseph J. Monaghan. "Simulating Free Surface Flows in SPH".
-  In: Journal of Computational Physics 110 (1994), pages 399--406.
-  [doi: 10.1006/jcph.1994.1034](https://doi.org/10.1006/jcph.1994.1034)
-
 ## [Equation of State](@id equation_of_state)
 
 The equation of state is used to relate fluid density to pressure and thus allow
 an explicit simulation of the [WCSPH system](@ref WeaklyCompressibleSPHSystem).
-The equation in the following formulation was introduced by Cole (Cole 1948, pp. 39 and 43).
+The equation in the following formulation was introduced by [Cole 1948](@cite Cole2009) (pp. 39 and 43).
 The pressure ``p`` is calculated as
 ```math
     p = B \left(\left(\frac{\rho}{\rho_0}\right)^\gamma - 1\right) + p_{\text{background}},
 ```
 where ``\rho`` denotes the density, ``\rho_0`` the reference density,
 and ``p_{\text{background}}`` the background pressure, which is set to zero when applied to
-free-surface flows (Adami et al., 2012).
+free-surface flows ([Adami et al., 2012](@cite Adami2012)).
 
 The bulk modulus, ``B =  \frac{\rho_0 c^2}{\gamma}``, is calculated from the artificial
 speed of sound ``c`` and the isentropic exponent ``\gamma``.
@@ -49,16 +44,7 @@ Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
 ```
 
-## References
-- Robert H. Cole. "Underwater Explosions". Princeton University Press, 1948.
-- J. P. Morris, P. J. Fox, Y. Zhu
-  "Modeling Low Reynolds Number Incompressible Flows Using SPH ".
-  In: Journal of Computational Physics , Vol. 136, No. 1, pages 214--226.
-  [doi: 10.1006/jcph.1997.5776](https://doi.org/10.1006/jcph.1997.5776)
-- S. Adami, X. Y. Hu, N. A. Adams.
-  "A generalized wall boundary condition for smoothed particle hydrodynamics".
-  In: Journal of Computational Physics 231, 21 (2012), pages 7057–7075.
-  [doi: 10.1016/J.JCP.2012.05.005](https://doi.org/10.1016/J.JCP.2012.05.005)
+TODO cite Morris
 
 ## [Viscosity](@id viscosity_wcsph)
 
@@ -115,7 +101,7 @@ For the cheap [`DensityDiffusionMolteniColagrossi`](@ref), this results in reduc
 The simpler terms [`DensityDiffusionMolteniColagrossi`](@ref) and
 [`DensityDiffusionFerrari`](@ref) do not solve the hydrostatic problem and lead to incorrect
 solutions in long-running steady-state hydrostatic simulations with free surfaces
-(Antuono et al., 2012). This can be seen when running the simple rectangular tank example
+[(Antuono et al., 2012)](@cite Antuono2012). This can be seen when running the simple rectangular tank example
 until ``t = 40`` (again using ``δ = 0.1``):
 
 ```@raw html
@@ -127,12 +113,6 @@ until ``t = 40`` (again using ``δ = 0.1``):
 
 [`DensityDiffusionAntuono`](@ref) adds a correction term to solve this problem, but this
 term is very expensive and adds about 40--50% of computational cost.
-
-### References
-- M. Antuono, A. Colagrossi, S. Marrone.
-  "Numerical Diffusive Terms in Weakly-Compressible SPH Schemes."
-  In: Computer Physics Communications 183.12 (2012), pages 2570--2580.
-  [doi: 10.1016/j.cpc.2012.07.006](https://doi.org/10.1016/j.cpc.2012.07.006)
 
 ### API
 
@@ -174,7 +154,7 @@ where:
 - ``\sigma`` represents the surface tension coefficient, adjusting the overall strength of the cohesion effect.
 - ``C`` is a scalar function of the distance between particles.
 
-The cohesion kernel ``C`` is defined as 
+The cohesion kernel ``C`` is defined as
 ```math
 C(r)=\frac{32}{\pi h_c^9}
 \begin{cases}
@@ -192,7 +172,7 @@ F_{\text{curvature}} = -\sigma (n_a - n_b)
 
 #### Wall adhesion force
 The wall adhesion model proposed by Akinci et al. is based on a kernel function which is 0 from 0.0 to 0.5 support radiia with a maximum at 0.75.
-With the force calculated with an adhesion coefficient ``\beta`` as 
+With the force calculated with an adhesion coefficient ``\beta`` as
 ```math
 F_{\text{adhesion}} = -\beta m_b A(r) \frac{r}{\Vert r \Vert},
 ```
