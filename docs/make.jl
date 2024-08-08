@@ -105,7 +105,7 @@ makedocs(sitename="TrixiParticles.jl",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
              "Preprocessing" => [
-                 "Sample Geometries" => joinpath("preprocessing", "preprocessing.md"),
+                 "Sampling of Geometries" => joinpath("preprocessing", "preprocessing.md"),
              ],
              "Components" => [
                  "Overview" => "overview.md",
