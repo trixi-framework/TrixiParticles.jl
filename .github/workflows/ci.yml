@@ -43,6 +43,7 @@ jobs:
       matrix:
         version:
           - '1.9'
+          - '1.10'
           - '1'
         os:
           - ubuntu-latest
@@ -50,10 +51,11 @@ jobs:
           - x64
         include:
           # Also run tests on Windows and macOS-ARM, but only with the latest Julia version
-          - version: '1'
+          # TODO: change back to '1' after JuliaLang/julia#55009 has been backported
+          - version: '1.10'
             os: windows-latest
             arch: x64
-          - version: '1'
+          - version: '1.10'
             os: macos-14
             arch: arm64
 
