@@ -66,9 +66,15 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_adhesion = adhesion_force(surface_tension, particle_system, neighbor_system,
                                      particle, neighbor, pos_diff, distance)
 
+        # Add convection term when using `TransportVelocityAdami`
+        dv_convection = momentum_convection(particle_system, neighbor_system,
+                                            v_particle_system, v_neighbor_system,
+                                            rho_a, rho_b, m_a, m_b,
+                                            particle, neighbor, grad_kernel)
+
         @inbounds for i in 1:ndims(particle_system)
             dv[i, particle] += dv_pressure[i] + dv_viscosity_[i] + dv_surface_tension[i] +
-                               dv_adhesion[i]
+                               dv_adhesion[i] + dv_convection[i]
             # Debug example
             # debug_array[i, particle] += dv_pressure[i]
         end
@@ -77,6 +83,9 @@ function interact!(dv, v_particle_system, u_particle_system,
         continuity_equation!(dv, density_calculator, v_particle_system, v_neighbor_system,
                              particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
                              particle_system, neighbor_system, grad_kernel)
+
+        transport_velocity!(dv, particle_system, rho_a, rho_b, m_a, m_b,
+                            grad_kernel, particle)
     end
     # Debug example
     # periodic_box = neighborhood_search.periodic_box

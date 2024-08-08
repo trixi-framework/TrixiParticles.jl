@@ -3,6 +3,7 @@
                                 density_calculator, state_equation,
                                 smoothing_kernel, smoothing_length;
                                 viscosity=nothing, density_diffusion=nothing,
+                                transport_velocity=nothing,
                                 acceleration=ntuple(_ -> 0.0, NDIMS),
                                 buffer_size=nothing,
                                 correction=nothing, source_terms=nothing)
@@ -44,8 +45,8 @@ See [Weakly Compressible SPH](@ref wcsph) for more details on the method.
 
 
 """
-struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
-                                   V, DD, COR, PF, ST, B, SRFT, C} <: FluidSystem{NDIMS, IC}
+struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K, V, DD, COR,
+                                   PF, TV, ST, B, SRFT, C} <: FluidSystem{NDIMS, IC}
     initial_condition                 :: IC
     mass                              :: MA     # Array{ELTYPE, 1}
     pressure                          :: P      # Array{ELTYPE, 1}
@@ -58,6 +59,7 @@ struct WeaklyCompressibleSPHSystem{NDIMS, ELTYPE <: Real, IC, MA, P, DC, SE, K,
     density_diffusion                 :: DD
     correction                        :: COR
     pressure_acceleration_formulation :: PF
+    transport_velocity                :: TV
     source_terms                      :: ST
     surface_tension                   :: SRFT
     buffer                            :: B
@@ -70,6 +72,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                      density_calculator, state_equation,
                                      smoothing_kernel, smoothing_length;
                                      pressure_acceleration=nothing,
+                                     transport_velocity=nothing,
                                      buffer_size=nothing,
                                      viscosity=nothing, density_diffusion=nothing,
                                      acceleration=ntuple(_ -> 0.0,
@@ -121,7 +124,7 @@ function WeaklyCompressibleSPHSystem(initial_condition,
                                        smoothing_kernel, smoothing_length,
                                        acceleration_, viscosity,
                                        density_diffusion, correction,
-                                       pressure_acceleration,
+                                       pressure_acceleration, nothing,
                                        source_terms, surface_tension, buffer, cache)
 end
 
@@ -203,11 +206,11 @@ end
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, density_calculator)
-    return ndims(system)
+    return ndims(system) * factor_tvf(system)
 end
 
 @inline function v_nvariables(system::WeaklyCompressibleSPHSystem, ::ContinuityDensity)
-    return ndims(system) + 1
+    return ndims(system) * factor_tvf(system) + 1
 end
 
 @inline function particle_pressure(v, system::WeaklyCompressibleSPHSystem, particle)
