@@ -6,8 +6,10 @@ using Adapt: Adapt
 using CSV: CSV
 using Dates
 using DataFrames: DataFrame
+using DelimitedFiles: DelimitedFiles
 using DiffEqCallbacks: PeriodicCallback, PeriodicCallbackAffect, PresetTimeCallback
 using FastPow: @fastpow
+using FileIO: FileIO
 using ForwardDiff: ForwardDiff
 using GPUArraysCore: AbstractGPUArray
 using JSON: JSON
@@ -36,6 +38,7 @@ using WriteVTK: vtk_grid, MeshCell, VTKCellTypes, paraview_collection, vtk_save
 include("general/system.jl")
 # `util.jl` needs to be next because of the macros `@trixi_timeit` and `@threaded`
 include("util.jl")
+include("preprocessing/preprocessing.jl")
 include("callbacks/callbacks.jl")
 include("general/general.jl")
 include("setups/setups.jl")
@@ -69,8 +72,9 @@ export BoundaryModelMonaghanKajtar, BoundaryModelDummyParticles, AdamiPressureEx
 export BoundaryMovement
 export examples_dir, validation_dir, trixi_include
 export trixi2vtk
-export RectangularTank, RectangularShape, SphereShape
-export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry
+export RectangularTank, RectangularShape, SphereShape, ComplexShape
+export WindingNumberHorman, WindingNumberJacobson
+export VoxelSphere, RoundSphere, reset_wall!, extrude_geometry, load_geometry
 export SourceTermDamping
 export ShepardKernelCorrection, KernelCorrection, AkinciFreeSurfaceCorrection,
        GradientCorrection, BlendedGradientCorrection, MixedKernelGradientCorrection
