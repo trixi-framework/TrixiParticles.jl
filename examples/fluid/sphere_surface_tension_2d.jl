@@ -21,7 +21,7 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
 # nu = 0.01
 
 smoothing_length = 1.0 * particle_spacing
-smoothing_kernel = SchoenbergCubicSplineKernel{2}()
+fluid_smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 nu = 0.025
 
 fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_spacing),
@@ -30,7 +30,7 @@ fluid = RectangularShape(particle_spacing, round.(Int, fluid_size ./ particle_sp
 alpha = 8 * nu / (smoothing_length * sound_speed)
 source_terms = SourceTermDamping(; damping_coefficient=0.5)
 fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
-                                           state_equation, smoothing_kernel,
+                                           state_equation, fluid_smoothing_kernel,
                                            smoothing_length,
                                            viscosity=ArtificialViscosityMonaghan(alpha=alpha,
                                                                                  beta=0.0),
