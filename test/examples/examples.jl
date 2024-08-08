@@ -49,7 +49,7 @@
                                                                                                viscosity=viscosity,
                                                                                                density_calculator=ContinuityDensity(),
                                                                                                acceleration=(0.0,
-                                                                                                             -gravity))),
+                                                                                                             -gravity)),),
                 "(EDAC) with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
                                                                                             smoothing_kernel,
                                                                                             smoothing_length,
@@ -58,28 +58,22 @@
                                                                                             density_calculator=SummationDensity(),
                                                                                             acceleration=(0.0,
                                                                                                           -gravity)),),
-                "(EDAC) with ViscosityAdami" => (
-                                                 # from 0.02*10.0*1.2*0.05/8
-                                                 viscosity=ViscosityAdami(nu=0.0015),
-                                                 fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                "(EDAC) with ViscosityAdami" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
                                                                                           smoothing_kernel,
                                                                                           smoothing_length,
                                                                                           sound_speed,
-                                                                                          viscosity=viscosity,
-                                                                                          density_calculator=SummationDensity(),
+                                                                                          viscosity=ViscosityAdami(nu=0.0015),
+                                                                                          density_calculator=ContinuityDensity(),
                                                                                           acceleration=(0.0,
-                                                                                                        -gravity))),
-                "(EDAC) with ViscosityMorris" => (
-                                                  # from 0.02*10.0*1.2*0.05/8
-                                                  viscosity=ViscosityMorris(nu=0.0015),
-                                                  fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                                        -gravity)),),
+                "(EDAC) with ViscosityMorris" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
                                                                                            smoothing_kernel,
                                                                                            smoothing_length,
                                                                                            sound_speed,
-                                                                                           viscosity=viscosity,
-                                                                                           density_calculator=SummationDensity(),
+                                                                                           viscosity=ViscosityMorris(nu=0.0015),
+                                                                                           density_calculator=ContinuityDensity(),
                                                                                            acceleration=(0.0,
-                                                                                                         -gravity))),
+                                                                                                         -gravity)),),
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
