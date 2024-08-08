@@ -26,9 +26,9 @@ surface_tension = nothing
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               surface_tension=surface_tension,
               fluid_particle_spacing=fluid_particle_spacing,
-             # smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-             # smoothing_length=1.0 * fluid_particle_spacing,
-            #   correction=AkinciFreeSurfaceCorrection(fluid_density),
-            #  density_diffusion=nothing, adhesion_coefficient=0.05,
+              # smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
+              # smoothing_length=1.0 * fluid_particle_spacing,
+              #   correction=AkinciFreeSurfaceCorrection(fluid_density),
+              #  density_diffusion=nothing, adhesion_coefficient=0.05,
               sound_speed=100.0, tspan=(0.0, 2.0),
               prefix="nsurft")

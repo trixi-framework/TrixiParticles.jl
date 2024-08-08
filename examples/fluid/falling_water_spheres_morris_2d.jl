@@ -55,15 +55,15 @@ sphere_surface_tension = EntropicallyDampedSPHSystem(sphere1, fluid_smoothing_ke
                                                      sound_speed, viscosity=viscosity,
                                                      density_calculator=ContinuityDensity(),
                                                      acceleration=(0.0, -gravity),
-                                                     reference_particle_spacing = fluid_particle_spacing,
-                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient= 0.0728))
+                                                     reference_particle_spacing=fluid_particle_spacing,
+                                                     surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.0728))
 
 sphere = EntropicallyDampedSPHSystem(sphere2, fluid_smoothing_kernel,
                                      fluid_smoothing_length,
                                      sound_speed, viscosity=viscosity,
                                      density_calculator=ContinuityDensity(),
                                      acceleration=(0.0, -gravity),
-                                     reference_particle_spacing = fluid_particle_spacing,
+                                     reference_particle_spacing=fluid_particle_spacing,
                                      surface_normal_method=ColorfieldSurfaceNormal(fluid_smoothing_kernel,
                                                                                    fluid_smoothing_length))
 

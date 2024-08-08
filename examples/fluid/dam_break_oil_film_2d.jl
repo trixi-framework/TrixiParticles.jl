@@ -23,7 +23,7 @@ oil_viscosity = ViscosityMorris(nu=10 * nu)
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
               viscosity=ViscosityMorris(nu=nu), smoothing_length=smoothing_length,
-              gravity=gravity,
+              gravity=gravity, tspan=tspan,
               density_diffusion=DensityDiffusionMolteniColagrossi(delta=0.1),
               sound_speed=sound_speed)
 
@@ -43,7 +43,10 @@ for i in axes(oil.coordinates, 2)
 end
 
 oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
-                                         state_equation, smoothing_kernel,
+                                         StateEquationCole(; sound_speed,
+                                         reference_density=oil_density,
+                                         exponent=1,
+                                         clip_negative_pressure=false), smoothing_kernel,
                                          smoothing_length, viscosity=oil_viscosity,
                                          density_diffusion=density_diffusion,
                                          acceleration=(0.0, -gravity),

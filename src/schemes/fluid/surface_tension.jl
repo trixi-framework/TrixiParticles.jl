@@ -175,7 +175,7 @@ end
     n_a = surface_normal(particle_system, particle)
     curvature_a = curvature(particle_system, particle)
 
-    return - surface_tension_coefficient / rho_a * curvature_a * n_a
+    return -surface_tension_coefficient / rho_a * curvature_a * n_a
 end
 
 @inline function adhesion_force(surface_tension::AkinciTypeSurfaceTension,

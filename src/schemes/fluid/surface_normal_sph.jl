@@ -23,7 +23,7 @@ end
 end
 
 function calc_normal!(system, neighbor_system, u_system, v, v_neighbor_system,
-                      u_neighbor_system, semi, surfn)
+                      u_neighbor_system, semi, surfn, nsurfn)
     # Normal not needed
     return system
 end
@@ -31,7 +31,8 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function calc_normal!(system::FluidSystem, neighbor_system::FluidSystem, u_system, v,
-                      v_neighbor_system, u_neighbor_system, semi, surfn)
+                      v_neighbor_system, u_neighbor_system, semi, surfn,
+                      ::ColorfieldSurfaceNormal)
     (; cache) = system
     (; smoothing_kernel, smoothing_length) = surfn
 
@@ -69,7 +70,7 @@ end
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # and Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function calc_normal!(system::FluidSystem, neighbor_system::BoundarySystem, u_system, v,
-                      v_neighbor_system, u_neighbor_system, semi, surfn)
+                      v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
     (; cache) = system
     (; colorfield, colorfield_bnd) = neighbor_system.boundary_model.cache
     (; smoothing_kernel, smoothing_length) = surfn
@@ -190,7 +191,7 @@ function compute_surface_normal!(system, surface_normal_method, v, u, v_ode, u_o
 end
 
 function compute_surface_normal!(system::FluidSystem,
-                                 surface_normal_method::ColorfieldSurfaceNormal,
+                                 surface_normal_method_::ColorfieldSurfaceNormal,
                                  v, u, v_ode, u_ode, semi, t)
     (; cache, surface_tension) = system
 
@@ -205,7 +206,8 @@ function compute_surface_normal!(system::FluidSystem,
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         calc_normal!(system, neighbor_system, u, v, v_neighbor_system,
-                     u_neighbor_system, semi, surface_normal_method)
+                     u_neighbor_system, semi, surface_normal_method_,
+                     surface_normal_method(neighbor_system))
     end
     remove_invalid_normals!(system, surface_tension)
 
@@ -213,12 +215,13 @@ function compute_surface_normal!(system::FluidSystem,
 end
 
 function calc_curvature!(system, neighbor_system, u_system, v,
-                         v_neighbor_system, u_neighbor_system, semi, surfn)
+                         v_neighbor_system, u_neighbor_system, semi, surfn, nsurfn)
 end
 
 # Section 5 in Morris 2000 "Simulating surface tension with smoothed particle hydrodynamics"
 function calc_curvature!(system::FluidSystem, neighbor_system::FluidSystem, u_system, v,
-                         v_neighbor_system, u_neighbor_system, semi, surfn)
+                         v_neighbor_system, u_neighbor_system, semi,
+                         surfn::ColorfieldSurfaceNormal, nsurfn::ColorfieldSurfaceNormal)
     (; cache) = system
     (; smoothing_kernel, smoothing_length) = surfn
     (; curvature) = cache
@@ -282,9 +285,8 @@ function compute_curvature!(system, surface_tension, v, u, v_ode, u_ode, semi, t
 end
 
 function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTensionMorris, v,
-                            u,
-                            v_ode, u_ode, semi, t)
-    (; cache, surface_tension, surface_normal_method) = system
+                            u, v_ode, u_ode, semi, t)
+    (; cache, surface_tension) = system
 
     # Reset surface curvature
     set_zero!(cache.curvature)
@@ -294,7 +296,8 @@ function compute_curvature!(system::FluidSystem, surface_tension::SurfaceTension
         v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
 
         calc_curvature!(system, neighbor_system, u, v, v_neighbor_system,
-                        u_neighbor_system, semi, surface_normal_method)
+                        u_neighbor_system, semi, surface_normal_method(system),
+                        surface_normal_method(neighbor_system))
     end
     return system
 end

@@ -259,14 +259,16 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         foreach_point_neighbor(system, system,
                                system_coords, system_coords,
                                nhs) do particle, neighbor, pos_diff,
-                                                       distance
+                                       distance
             rho_a = particle_density(v, system, particle)
             rho_b = particle_density(v, system, neighbor)
 
-            surft[1:ndims(system), particle] .+=  surface_tension_force(surface_tension_a, surface_tension_b,
-                                                     system, system,
-                                                     particle, neighbor, pos_diff, distance,
-                                                     rho_a, rho_b)
+            surft[1:ndims(system), particle] .+= surface_tension_force(surface_tension_a,
+                                                                       surface_tension_b,
+                                                                       system, system,
+                                                                       particle, neighbor,
+                                                                       pos_diff, distance,
+                                                                       rho_a, rho_b)
         end
         vtk["curvature"] = system.cache.curvature
         vtk["surface_tension"] = surft
@@ -281,17 +283,24 @@ function write2vtk!(vtk, v, u, t, system::FluidSystem; write_meta_data=true)
         vtk["density_calculator"] = type2string(system.density_calculator)
 
         if system isa WeaklyCompressibleSPHSystem
+            vtk["solver"] = "WCSPH"
+
             vtk["correction_method"] = type2string(system.correction)
             if system.correction isa AkinciFreeSurfaceCorrection
                 vtk["correction_rho0"] = system.correction.rho0
             end
             vtk["state_equation"] = type2string(system.state_equation)
-            vtk["state_equation_rho0"] = system.state_equation.reference_density
-            vtk["state_equation_pa"] = system.state_equation.background_pressure
-            vtk["state_equation_c"] = system.state_equation.sound_speed
-            vtk["state_equation_exponent"] = system.state_equation.exponent
+            if system isa StateEquationCole
+                vtk["state_equation_rho0"] = system.state_equation.reference_density
+                vtk["state_equation_pa"] = system.state_equation.background_pressure
+                vtk["state_equation_c"] = system.state_equation.sound_speed
+                vtk["state_equation_exponent"] = system.state_equation.exponent
+            end
 
-            vtk["solver"] = "WCSPH"
+            if system isa StateEquationIdealGas
+                vtk["state_equation_temperature"] = system.state_equation.temperature
+                vtk["state_equation_gas_constant"] = system.state_equation.gas_constant
+            end
         else
             vtk["solver"] = "EDAC"
             vtk["sound_speed"] = system.sound_speed

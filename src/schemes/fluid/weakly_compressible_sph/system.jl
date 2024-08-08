@@ -236,7 +236,7 @@ end
     return system.pressure[particle]
 end
 
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = system.state_equation.sound_speed
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
@@ -377,14 +377,6 @@ end
 
 @inline function correction_matrix(system::WeaklyCompressibleSPHSystem, particle)
     extract_smatrix(system.cache.correction_matrix, system, particle)
-end
-
-@inline function surface_tension_model(system::FluidSystem)
-    return system.surface_tension
-end
-
-@inline function surface_tension_model(system)
-    return nothing
 end
 
 @inline function curvature(particle_system::FluidSystem, particle)
