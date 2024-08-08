@@ -74,11 +74,9 @@ fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_le
 
 # ==========================================================================================
 # ==== Simulation
-
+periodic_box = PeriodicBox(min_corner=[0.0, 0.0], max_corner=[box_length, box_length])
 semi = Semidiscretization(fluid_system,
-                          neighborhood_search=GridNeighborhoodSearch,
-                          periodic_box_min_corner=[0.0, 0.0],
-                          periodic_box_max_corner=[box_length, box_length])
+                          neighborhood_search=GridNeighborhoodSearch{2}(; periodic_box))
 
 ode = semidiscretize(semi, tspan)
 
@@ -139,8 +137,7 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02,
                                          L1v=compute_L1v_error,
                                          L1p=compute_L1p_error,
-                                         diff_p_loc_p_avg=diff_p_loc_p_avg,
-                                         t=time_vector)
+                                         diff_p_loc_p_avg=diff_p_loc_p_avg)
 
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 

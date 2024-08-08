@@ -8,10 +8,12 @@ on:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   pull_request:
     paths-ignore:
       - '.github/workflows/ci.yml'
       - '.github/workflows/CompatHelper.yml'
+      - '.github/workflows/TagBot.yml'
   workflow_dispatch:
 
 concurrency:
@@ -28,11 +30,11 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
       - name: Set up Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: '1'
           show-versioninfo: true
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Install dependencies

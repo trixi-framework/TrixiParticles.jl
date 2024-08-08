@@ -135,3 +135,66 @@ end
 
     return dv
 end
+
+function reset_callback_flag!(system::FluidSystem)
+    reset_callback_flag!(system, system.transport_velocity)
+end
+
+reset_callback_flag!(system, ::Nothing) = system
+
+function reset_callback_flag!(system::FluidSystem, ::TransportVelocityAdami)
+    system.cache.update_callback_used[] = false
+
+    return system
+end
+
+function update_callback_used!(system::FluidSystem)
+    update_callback_used!(system, system.transport_velocity)
+end
+
+update_callback_used!(system, ::Nothing) = system
+
+function update_callback_used!(system, transport_velocity)
+    system.cache.update_callback_used[] = true
+end
+
+function update_final!(system::FluidSystem, v, u, v_ode, u_ode, semi, t;
+                       update_from_callback=false)
+    update_final!(system, system.transport_velocity,
+                  v, u, v_ode, u_ode, semi, t; update_from_callback)
+end
+
+function update_final!(system::FluidSystem, ::Nothing,
+                       v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+    return system
+end
+
+function update_final!(system::FluidSystem, ::TransportVelocityAdami,
+                       v, u, v_ode, u_ode, semi, t; update_from_callback=false)
+    if !update_from_callback && !(system.cache.update_callback_used[])
+        throw(ArgumentError("`UpdateCallback` is required when using `TransportVelocityAdami`"))
+    end
+
+    return system
+end
+
+# WARNING!
+# These functions are intended to be used internally to set the transport velocity
+# of newly activated particles in a callback.
+# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
+# outside of callbacks.
+function set_transport_velocity!(system::FluidSystem, particle, particle_old, v, v_old)
+    set_transport_velocity!(system, particle, particle_old, v, v_old,
+                            system.transport_velocity)
+end
+
+set_transport_velocity!(system, particle, particle_old, v, v_old) = system
+
+set_transport_velocity!(system, particle, particle_old, v, v_old, ::Nothing) = system
+
+function set_transport_velocity!(system, particle, particle_old, v, v_old,
+                                 ::TransportVelocityAdami)
+    for i in 1:ndims(system)
+        v[ndims(system) + i, particle] = v_old[i, particle_old]
+    end
+end

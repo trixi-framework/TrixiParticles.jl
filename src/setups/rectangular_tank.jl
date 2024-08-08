@@ -149,26 +149,34 @@ struct RectangularTank{NDIMS, NDIMSt2, ELTYPE <: Real}
                                                               particle_spacing,
                                                               n_particles_per_dim)
 
-        if state_equation !== nothing
-            # Use hydrostatic pressure gradient and calculate density from inverse state
-            # equation, so don't pass fluid density.
-            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
-                                     velocity, pressure, acceleration, state_equation,
-                                     mass=fluid_mass)
-        else
-            fluid = RectangularShape(particle_spacing, n_particles_per_dim, zeros(NDIMS);
-                                     density=fluid_density, velocity, pressure,
-                                     acceleration, state_equation, mass=fluid_mass)
-        end
-
         boundary = InitialCondition(coordinates=boundary_coordinates,
                                     velocity=boundary_velocities,
                                     mass=boundary_masses, density=boundary_densities,
                                     particle_spacing=boundary_spacing)
 
         # Move the tank corner in the negative coordinate directions to the desired position
-        fluid.coordinates .+= min_coordinates
         boundary.coordinates .+= min_coordinates
+
+        if norm(fluid_size) > eps()
+            if state_equation !== nothing
+                # Use hydrostatic pressure gradient and calculate density from inverse state
+                # equation, so don't pass fluid density.
+                fluid = RectangularShape(particle_spacing, n_particles_per_dim,
+                                         zeros(NDIMS);
+                                         velocity, pressure, acceleration, state_equation,
+                                         mass=fluid_mass)
+            else
+                fluid = RectangularShape(particle_spacing, n_particles_per_dim,
+                                         zeros(NDIMS);
+                                         density=fluid_density, velocity, pressure,
+                                         acceleration, state_equation, mass=fluid_mass)
+            end
+            # Move the tank corner in the negative coordinate directions to the desired position
+            fluid.coordinates .+= min_coordinates
+        else
+            # Fluid is empty
+            fluid = InitialCondition(coordinates=zeros(ELTYPE, NDIMS, 0), density=1.0)
+        end
 
         return new{NDIMS, 2 * NDIMS, ELTYPE}(fluid, boundary, fluid_size_, tank_size_,
                                              faces, face_indices,
@@ -302,7 +310,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{2},
     face_indices_4 = Array{Int, 2}(undef, n_layers, n_particles_x)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 2, 0)
+    boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 2, 0)
 
     # Counts the global index of the particles
     index = 0
@@ -433,7 +441,7 @@ function initialize_boundaries(particle_spacing, tank_size::NTuple{3},
     face_indices_6 = Array{Int, 2}(undef, n_layers, n_particles_x * n_particles_y)
 
     # Create empty array to extend later depending on faces and corners to build
-    boundary_coordinates = Array{Float64, 2}(undef, 3, 0)
+    boundary_coordinates = Array{typeof(particle_spacing), 2}(undef, 3, 0)
 
     # Counts the global index of the particles
     index = 0

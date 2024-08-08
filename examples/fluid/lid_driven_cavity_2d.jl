@@ -14,9 +14,8 @@ wcsph = true
 # ==== Resolution
 particle_spacing = 0.02
 
-# Change spacing ratio to 3 and boundary layers to 1 when using Monaghan-Kajtar boundary model
+# Make sure that the kernel support of fluid particles at a boundary is always fully sampled
 boundary_layers = 3
-spacing_ratio = 1
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -27,15 +26,15 @@ cavity_size = (1.0, 1.0)
 
 fluid_density = 1.0
 
-const velocity_lid = 1.0
-sound_speed = 10 * velocity_lid
+const VELOCITY_LID = 1.0
+sound_speed = 10 * VELOCITY_LID
 
-viscosity = ViscosityAdami(; nu= velocity_lid / reynolds_number)
+viscosity = ViscosityAdami(; nu=VELOCITY_LID / reynolds_number)
 
 pressure = sound_speed^2 * fluid_density
 
 cavity = RectangularTank(particle_spacing, cavity_size, cavity_size, fluid_density,
-                         n_layers=boundary_layers, spacing_ratio=spacing_ratio,
+                         n_layers=boundary_layers,
                          faces=(true, true, true, false), pressure=pressure)
 
 lid_position = 0.0 - particle_spacing * boundary_layers
@@ -67,7 +66,7 @@ end
 # ==========================================================================================
 # ==== Boundary
 
-movement_function(t) = SVector(velocity_lid * t, 0.0)
+movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
@@ -93,11 +92,11 @@ boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=moveme
 # ==========================================================================================
 # ==== Simulation
 bnd_thickness = boundary_layers * particle_spacing
+periodic_box = PeriodicBox(min_corner=[-bnd_thickness, -bnd_thickness],
+                           max_corner=cavity_size .+ [bnd_thickness, bnd_thickness])
+
 semi = Semidiscretization(fluid_system, boundary_system_cavity, boundary_system_lid,
-                          neighborhood_search=GridNeighborhoodSearch,
-                          periodic_box_min_corner=[-bnd_thickness, -bnd_thickness],
-                          periodic_box_max_corner=cavity_size .+
-                                                  [bnd_thickness, bnd_thickness])
+                          neighborhood_search=GridNeighborhoodSearch{2}(; periodic_box))
 
 ode = semidiscretize(semi, tspan)
 
@@ -106,14 +105,7 @@ info_callback = InfoCallback(interval=100)
 saving_callback = SolutionSavingCallback(dt=0.02)
 callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
 
-# Use a Runge-Kutta method with automatic (error based) time step size control.
-# Enable threading of the RK method for better performance on multiple threads.
-# Limiting of the maximum stepsize is necessary to prevent crashing.
-# When particles are approaching a wall in a uniform way, they can be advanced
-# with large time steps. Close to the wall, the stepsize has to be reduced drastically.
-# Sometimes, the method fails to do so with Monaghan-Kajtar BC because forces
-# become extremely large when fluid particles are very close to boundary particles,
-# and the time integration method interprets this as an instability.
+# Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)

@@ -1,6 +1,7 @@
 using Documenter
 using TrixiParticles
 using TrixiBase
+using PointNeighbors
 
 # Get TrixiParticles.jl root directory
 trixiparticles_root_dir = dirname(@__DIR__)
@@ -92,16 +93,22 @@ DocMeta.setdocmeta!(TrixiParticles, :DocTestSetup, :(using TrixiParticles); recu
 makedocs(sitename="TrixiParticles.jl",
          # Run doctests and check docs for the following modules
          modules=[TrixiParticles],
+         format=Documenter.HTML(),
          # Explicitly specify documentation structure
          pages=[
              "Home" => "index.md",
              "News" => "news.md",
              "Installation" => "install.md",
              "Getting started" => "getting_started.md",
+             "Development" => "development.md",
              "Tutorial" => "tutorial.md",
              "Examples" => "examples.md",
              "Visualization" => "visualization.md",
+             "preprocessing" => [
+                 "Sample Geometries" => joinpath("preprocessing", "preprocessing.md"),
+             ],
              "Components" => [
+                 "Overview" => "overview.md",
                  "General" => [
                      "Semidiscretization" => joinpath("general", "semidiscretization.md"),
                      "Initial Condition and Setups" => joinpath("general",
@@ -113,6 +120,8 @@ makedocs(sitename="TrixiParticles.jl",
                      "Util" => joinpath("general", "util.md"),
                  ],
                  "Systems" => [
+                     "Discrete Element Method (Solid)" => joinpath("systems",
+                                                                   "dem.md"),
                      "Weakly Compressible SPH (Fluid)" => joinpath("systems",
                                                                    "weakly_compressible_sph.md"),
                      "Entropically Damped Artificial Compressibility for SPH (Fluid)" => joinpath("systems",
@@ -124,6 +133,7 @@ makedocs(sitename="TrixiParticles.jl",
                  "Time Integration" => "time_integration.md",
                  "Callbacks" => "callbacks.md",
                  "TrixiBase.jl API Reference" => "reference-trixibase.md",
+                 "PointNeighbors.jl API Reference" => "reference-pointneighbors.md",
              ],
              "Authors" => "authors.md",
              "Contributing" => "contributing.md",
@@ -132,5 +142,4 @@ makedocs(sitename="TrixiParticles.jl",
          ])
 
 deploydocs(repo="github.com/trixi-framework/TrixiParticles.jl",
-           devbranch="main",
-           push_preview=true)
+           devbranch="main", push_preview=true)

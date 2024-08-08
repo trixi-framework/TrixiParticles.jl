@@ -170,15 +170,15 @@
                                              state_equation,
                                              smoothing_kernel, smoothing_length)
 
-                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                  TrixiParticles.eachparticle(fluid_system))
+                nhs = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                                  eachpoint=TrixiParticles.eachparticle(fluid_system))
 
                 @testset "$key" for key in keys(systems)
                     neighbor_system = systems[key]
                     v_neighbor, u_neighbor = vu[key]
 
-                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(search_radius,
-                                                                       TrixiParticles.eachparticle(neighbor_system))
+                    nhs2 = TrixiParticles.TrivialNeighborhoodSearch{2}(; search_radius,
+                                                                       eachpoint=TrixiParticles.eachparticle(neighbor_system))
 
                     # Compute interactions
                     dv = zero(v)

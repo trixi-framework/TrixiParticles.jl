@@ -96,3 +96,25 @@ plot_3d = Plots.plot(scatter_3d, xlabel="X", ylabel="Y", zlabel="Z",
 
 combined_plot = Plots.plot(plot1, plot2, plot3, plot_3d, layout=(2, 2),
                            size=(1000, 1500), margin=3mm)
+
+# If we want to save planes at regular intervals, we can use the postprocessing callback.
+function save_interpolated_plane(v, u, t, system)
+    # Size of the patch to be interpolated
+    interpolation_start = [0.0, 0.0]
+    interpolation_end = [tank_size[1], tank_size[2]]
+
+    # The resolution the plane is interpolated to. In this case twice the original resolution.
+    resolution = 0.5 * fluid_particle_spacing
+
+    file_id = ceil(Int, t * 10000)
+    interpolate_plane_2d_vtk(interpolation_start, interpolation_end, resolution,
+                             semi, system, v, u, filename="plane_$file_id.vti")
+    return nothing
+end
+
+save_interpolation_cb = PostprocessCallback(; dt=0.1, write_file_interval=0,
+                                            save_interpolated_plane)
+
+trixi_include(@__MODULE__,
+              joinpath(examples_dir(), "fluid", "dam_break_2d.jl"), tspan=(0.0, 0.2),
+              extra_callback=save_interpolation_cb, fluid_particle_spacing=0.01)

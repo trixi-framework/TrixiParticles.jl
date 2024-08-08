@@ -22,10 +22,9 @@ end
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
     # For solid-solid interaction, this has to happen in the initial coordinates.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, initial_pos_diff,
-                                                  initial_distance
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search) do particle, neighbor, initial_pos_diff,
+                                                   initial_distance
         # Only consider particles with a distance > 0.
         initial_distance < sqrt(eps()) && return
 
@@ -68,14 +67,13 @@ function interact!(dv, v_particle_system, u_particle_system,
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
 
     # Loop over all pairs of particles and neighbors within the kernel cutoff.
-    for_particle_neighbor(particle_system, neighbor_system,
-                          system_coords, neighbor_coords,
-                          neighborhood_search) do particle, neighbor, pos_diff, distance
+    foreach_point_neighbor(particle_system, neighbor_system, system_coords, neighbor_coords,
+                           neighborhood_search) do particle, neighbor, pos_diff, distance
         # Only consider particles with a distance > 0.
         distance < sqrt(eps()) && return
 
         # Apply the same force to the solid particle
-        # that the fluid particle experiences due to the soild particle.
+        # that the fluid particle experiences due to the solid particle.
         # Note that the same arguments are passed here as in fluid-solid interact!,
         # except that pos_diff has a flipped sign.
         #
@@ -109,7 +107,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         dv_viscosity_ = dv_viscosity(neighbor_system, particle_system,
                                      v_neighbor_system, v_particle_system,
                                      neighbor, particle, pos_diff, distance,
-                                     sound_speed, m_b, m_a, rho_mean)
+                                     sound_speed, m_b, m_a, rho_a, rho_b, grad_kernel)
 
         dv_particle = dv_boundary + dv_viscosity_
 
