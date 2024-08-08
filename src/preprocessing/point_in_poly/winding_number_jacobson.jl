@@ -52,7 +52,7 @@ end
 """
     WindingNumberJacobson(; geometry=nothing, winding_number_factor=sqrt(eps()),
                           hierarchical_winding=false)
-Algorithm for inside-outside segmentation of a complex geometry proposed by Jacobson et al. (2013).
+Algorithm for inside-outside segmentation of a complex geometry proposed by [Jacobson2013](@cite).
 
 # Keywords
 - `geometry`: Complex geometry returned by [`load_geometry`](@ref) and is only required when using
