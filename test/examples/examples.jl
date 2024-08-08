@@ -2,39 +2,84 @@
 # but without checking the correctness of the solution.
 @testset verbose=true "Examples" begin
     @testset verbose=true "Fluid" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl (WCSPH) " begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl" begin
+            # import variables into scope
+            trixi_include(@__MODULE__,
+                          joinpath(examples_dir(), "fluid",
+                                   "hydrostatic_water_column_2d.jl"),
+                          fluid_system=nothing, sol=nothing, semi=nothing, ode=nothing)
+
             hydrostatic_water_column_tests = Dict(
-                "default" => (),
-                "with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
-                "with SummationDensity" => (fluid_density_calculator=SummationDensity(),
-                                            clip_negative_pressure=true),
-                "with ViscosityAdami" => (
-                                          # from 0.02*10.0*1.2*0.05/8
-                                          viscosity=ViscosityAdami(nu=0.0015),),
-                "with ViscosityMorris" => (
-                                           # from 0.02*10.0*1.2*0.05/8
-                                           viscosity=ViscosityMorris(nu=0.0015),),
-                "with ViscosityAdami and SummationDensity" => (
-                                                               # from 0.02*10.0*1.2*0.05/8
-                                                               viscosity=ViscosityAdami(nu=0.0015),
-                                                               fluid_density_calculator=SummationDensity(),
-                                                               clip_negative_pressure=true),
-                "with ViscosityMorris and SummationDensity" => (
-                                                                # from 0.02*10.0*1.2*0.05/8
-                                                                viscosity=ViscosityMorris(nu=0.0015),
-                                                                fluid_density_calculator=SummationDensity(),
-                                                                clip_negative_pressure=true),
-                "with smoothing_length=1.3" => (smoothing_length=1.3,),
-                "with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                                                         smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
-                "with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
-                                                         smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
-                "with WendlandC2Kernel" => (smoothing_length=3.0,
-                                            smoothing_kernel=WendlandC2Kernel{2}()),
-                "with WendlandC4Kernel" => (smoothing_length=3.5,
-                                            smoothing_kernel=WendlandC4Kernel{2}()),
-                "with WendlandC6Kernel" => (smoothing_length=4.0,
-                                            smoothing_kernel=WendlandC6Kernel{2}()),
+                "(WCSPH) default" => (),
+                "(WCSPH) with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
+                "(WCSPH) with SummationDensity" => (fluid_density_calculator=SummationDensity(),
+                                                    clip_negative_pressure=true),
+                "(WCSPH) with ViscosityAdami" => (
+                                                  # from 0.02*10.0*1.2*0.05/8
+                                                  viscosity=ViscosityAdami(nu=0.0015),),
+                "(WCSPH) with ViscosityMorris" => (
+                                                   # from 0.02*10.0*1.2*0.05/8
+                                                   viscosity=ViscosityMorris(nu=0.0015),),
+                "(WCSPH) with ViscosityAdami and SummationDensity" => (
+                                                                       # from 0.02*10.0*1.2*0.05/8
+                                                                       viscosity=ViscosityAdami(nu=0.0015),
+                                                                       fluid_density_calculator=SummationDensity(),
+                                                                       clip_negative_pressure=true),
+                "(WCSPH) with ViscosityMorris and SummationDensity" => (
+                                                                        # from 0.02*10.0*1.2*0.05/8
+                                                                        viscosity=ViscosityMorris(nu=0.0015),
+                                                                        fluid_density_calculator=SummationDensity(),
+                                                                        clip_negative_pressure=true),
+                "(WCSPH) with smoothing_length=1.3" => (smoothing_length=1.3,),
+                "(WCSPH) with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                                                                 smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                "(WCSPH) with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
+                                                                 smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
+                "(WCSPH) with WendlandC2Kernel" => (smoothing_length=3.0,
+                                                    smoothing_kernel=WendlandC2Kernel{2}()),
+                "(WCSPH) with WendlandC4Kernel" => (smoothing_length=3.5,
+                                                    smoothing_kernel=WendlandC4Kernel{2}()),
+                "(WCSPH) with WendlandC6Kernel" => (smoothing_length=4.0,
+                                                    smoothing_kernel=WendlandC6Kernel{2}()),
+                "(EDAC) with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),
+                                                      fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                               smoothing_kernel,
+                                                                                               smoothing_length,
+                                                                                               sound_speed,
+                                                                                               viscosity=viscosity,
+                                                                                               density_calculator=ContinuityDensity(),
+                                                                                               acceleration=(0.0,
+                                                                                                             -gravity))),
+                "(EDAC) with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                            smoothing_kernel,
+                                                                                            smoothing_length,
+                                                                                            sound_speed,
+                                                                                            viscosity=viscosity,
+                                                                                            density_calculator=SummationDensity(),
+                                                                                            acceleration=(0.0,
+                                                                                                          -gravity)),),
+                "(EDAC) with ViscosityAdami" => (
+                                                 # from 0.02*10.0*1.2*0.05/8
+                                                 viscosity=ViscosityAdami(nu=0.0015),
+                                                 fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                          smoothing_kernel,
+                                                                                          smoothing_length,
+                                                                                          sound_speed,
+                                                                                          viscosity=viscosity,
+                                                                                          density_calculator=SummationDensity(),
+                                                                                          acceleration=(0.0,
+                                                                                                        -gravity))),
+                "(EDAC) with ViscosityMorris" => (
+                                                  # from 0.02*10.0*1.2*0.05/8
+                                                  viscosity=ViscosityMorris(nu=0.0015),
+                                                  fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
+                                                                                           smoothing_kernel,
+                                                                                           smoothing_length,
+                                                                                           sound_speed,
+                                                                                           viscosity=viscosity,
+                                                                                           density_calculator=SummationDensity(),
+                                                                                           acceleration=(0.0,
+                                                                                                         -gravity))),
             )
 
             for (test_description, kwargs) in hydrostatic_water_column_tests
@@ -46,70 +91,6 @@
                                                    joinpath(examples_dir(), "fluid",
                                                             "hydrostatic_water_column_2d.jl");
                                                    kwargs...)
-
-                    @test sol.retcode == ReturnCode.Success
-                    @test count_rhs_allocations(sol, semi) == 0
-                end
-            end
-        end
-
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl (EDAC) " begin
-            # import variables into scope
-            trixi_include(@__MODULE__,
-                          joinpath(examples_dir(), "fluid",
-                                   "hydrostatic_water_column_2d.jl"),
-                          fluid_system=nothing, sol=nothing, semi=nothing, ode=nothing)
-
-            viscosity = ViscosityAdami(nu=alpha * smoothing_length * sound_speed / 8)
-            fluid_system = EntropicallyDampedSPHSystem(tank.fluid, smoothing_kernel,
-                                                       smoothing_length, sound_speed,
-                                                       viscosity=viscosity,
-                                                       density_calculator=ContinuityDensity(),
-                                                       acceleration=(0.0, -gravity))
-
-            hydrostatic_water_column_tests = Dict(
-                "default" => (),
-                "with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
-                "with SummationDensity" => (fluid_density_calculator=SummationDensity(),
-                                            clip_negative_pressure=true),
-                "with ViscosityAdami" => (
-                                          # from 0.02*10.0*1.2*0.05/8
-                                          viscosity=ViscosityAdami(nu=0.0015),),
-                "with ViscosityMorris" => (
-                                           # from 0.02*10.0*1.2*0.05/8
-                                           viscosity=ViscosityMorris(nu=0.0015),),
-                "with ViscosityAdami and SummationDensity" => (
-                                                               # from 0.02*10.0*1.2*0.05/8
-                                                               viscosity=ViscosityAdami(nu=0.0015),
-                                                               fluid_density_calculator=SummationDensity(),
-                                                               clip_negative_pressure=true),
-                "with ViscosityMorris and SummationDensity" => (
-                                                                # from 0.02*10.0*1.2*0.05/8
-                                                                viscosity=ViscosityMorris(nu=0.0015),
-                                                                fluid_density_calculator=SummationDensity(),
-                                                                clip_negative_pressure=true),
-                "with smoothing_length=1.3" => (smoothing_length=1.3,),
-                "with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
-                                                         smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
-                "with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
-                                                         smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
-                "with WendlandC2Kernel" => (smoothing_length=3.0,
-                                            smoothing_kernel=WendlandC2Kernel{2}()),
-                "with WendlandC4Kernel" => (smoothing_length=3.5,
-                                            smoothing_kernel=WendlandC4Kernel{2}()),
-                "with WendlandC6Kernel" => (smoothing_length=4.0,
-                                            smoothing_kernel=WendlandC6Kernel{2}()),
-            )
-
-            for (test_description, kwargs) in hydrostatic_water_column_tests
-                @testset "$test_description" begin
-                    println("═"^100)
-                    println("$test_description")
-
-                    @test_nowarn_mod trixi_include(@__MODULE__,
-                                                   joinpath(examples_dir(), "fluid",
-                                                            "hydrostatic_water_column_2d.jl");
-                                                   fluid_system=fluid_system, kwargs...)
 
                     @test sol.retcode == ReturnCode.Success
                     @test count_rhs_allocations(sol, semi) == 0
