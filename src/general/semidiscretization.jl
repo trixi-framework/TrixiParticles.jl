@@ -715,7 +715,7 @@ function update_nhs!(neighborhood_search,
             points_moving=(true, neighbor.ismoving[]))
 end
 
-# If declared as a union with the TotalLagrangianSPHSystem version will be ambiguous with another dispatch
+# If declared as a union with the `TotalLagrangianSPHSystem` version will be ambiguous with another dispatch
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                      neighbor::FluidSystem, u_system, u_neighbor)
@@ -732,7 +732,7 @@ function update_nhs!(neighborhood_search,
             points_moving=(system.ismoving[], true))
 end
 
-# If declared as a union with the FluidSystem version will be ambiguous with another dispatch
+# If declared as a union with the `FluidSystem` version will be ambiguous with another dispatch
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
                      neighbor::TotalLagrangianSPHSystem, u_system, u_neighbor)

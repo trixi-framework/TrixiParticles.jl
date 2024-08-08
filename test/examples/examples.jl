@@ -2,7 +2,7 @@
 # but without checking the correctness of the solution.
 @testset verbose=true "Examples" begin
     @testset verbose=true "Fluid" begin
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl (WCSPH) " begin
             hydrostatic_water_column_tests = Dict(
                 "default" => (),
                 "with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
@@ -53,7 +53,7 @@
             end
         end
 
-        @trixi_testset "fluid/hydrostatic_water_column_2d.jl with EDAC" begin
+        @trixi_testset "fluid/hydrostatic_water_column_2d.jl (EDAC) " begin
             # import variables into scope
             trixi_include(@__MODULE__,
                           joinpath(examples_dir(), "fluid",
@@ -67,13 +67,54 @@
                                                        density_calculator=ContinuityDensity(),
                                                        acceleration=(0.0, -gravity))
 
-            @test_nowarn_mod trixi_include(@__MODULE__,
-                                           joinpath(examples_dir(), "fluid",
-                                                    "hydrostatic_water_column_2d.jl");
-                                           fluid_system=fluid_system)
+            hydrostatic_water_column_tests = Dict(
+                "default" => (),
+                "with source term damping" => (source_terms=SourceTermDamping(damping_coefficient=1e-4),),
+                "with SummationDensity" => (fluid_density_calculator=SummationDensity(),
+                                            clip_negative_pressure=true),
+                "with ViscosityAdami" => (
+                                          # from 0.02*10.0*1.2*0.05/8
+                                          viscosity=ViscosityAdami(nu=0.0015),),
+                "with ViscosityMorris" => (
+                                           # from 0.02*10.0*1.2*0.05/8
+                                           viscosity=ViscosityMorris(nu=0.0015),),
+                "with ViscosityAdami and SummationDensity" => (
+                                                               # from 0.02*10.0*1.2*0.05/8
+                                                               viscosity=ViscosityAdami(nu=0.0015),
+                                                               fluid_density_calculator=SummationDensity(),
+                                                               clip_negative_pressure=true),
+                "with ViscosityMorris and SummationDensity" => (
+                                                                # from 0.02*10.0*1.2*0.05/8
+                                                                viscosity=ViscosityMorris(nu=0.0015),
+                                                                fluid_density_calculator=SummationDensity(),
+                                                                clip_negative_pressure=true),
+                "with smoothing_length=1.3" => (smoothing_length=1.3,),
+                "with SchoenbergQuarticSplineKernel" => (smoothing_length=1.1,
+                                                         smoothing_kernel=SchoenbergQuarticSplineKernel{2}()),
+                "with SchoenbergQuinticSplineKernel" => (smoothing_length=1.1,
+                                                         smoothing_kernel=SchoenbergQuinticSplineKernel{2}()),
+                "with WendlandC2Kernel" => (smoothing_length=3.0,
+                                            smoothing_kernel=WendlandC2Kernel{2}()),
+                "with WendlandC4Kernel" => (smoothing_length=3.5,
+                                            smoothing_kernel=WendlandC4Kernel{2}()),
+                "with WendlandC6Kernel" => (smoothing_length=4.0,
+                                            smoothing_kernel=WendlandC6Kernel{2}()),
+            )
 
-            @test sol.retcode == ReturnCode.Success
-            @test count_rhs_allocations(sol, semi) == 0
+            for (test_description, kwargs) in hydrostatic_water_column_tests
+                @testset "$test_description" begin
+                    println("═"^100)
+                    println("$test_description")
+
+                    @test_nowarn_mod trixi_include(@__MODULE__,
+                                                   joinpath(examples_dir(), "fluid",
+                                                            "hydrostatic_water_column_2d.jl");
+                                                   fluid_system=fluid_system, kwargs...)
+
+                    @test sol.retcode == ReturnCode.Success
+                    @test count_rhs_allocations(sol, semi) == 0
+                end
+            end
         end
 
         @trixi_testset "fluid/oscillating_drop_2d.jl" begin
