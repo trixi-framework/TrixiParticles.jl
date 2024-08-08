@@ -49,7 +49,7 @@
                                                                                                viscosity=viscosity,
                                                                                                density_calculator=ContinuityDensity(),
                                                                                                acceleration=(0.0,
-                                                                                                             -gravity)),),
+                                                                                                             -gravity))),
                 "(EDAC) with SummationDensity" => (fluid_system=EntropicallyDampedSPHSystem(tank.fluid,
                                                                                             smoothing_kernel,
                                                                                             smoothing_length,
