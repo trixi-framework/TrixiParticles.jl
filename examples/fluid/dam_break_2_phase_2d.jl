@@ -8,17 +8,18 @@ H = 0.6
 W = 2 * H
 
 gravity = 9.81
-tspan = (0.0, 0.2)
+tspan = (0.0, 2.0)
 
 # Resolution
-fluid_particle_spacing = H / 60
+fluid_particle_spacing = H / 40
 
 # Numerical settings
 smoothing_length = 3.5 * fluid_particle_spacing
 sound_speed = 100
 
-nu = 0.02 * smoothing_length * sound_speed / 8
-oil_viscosity = ViscosityMorris(nu=0.1 * nu)
+# nu = 0.02 * smoothing_length * sound_speed / 8
+nu = 1E-6
+oil_viscosity = ViscosityMorris(nu=2E-5)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
@@ -26,7 +27,8 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               gravity=gravity, tspan=tspan,
               density_diffusion=nothing,
               sound_speed=sound_speed,
-              surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.02))
+              surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.08),
+              cfl=0.8, tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing, 2.55*H))
 
 # TODO: broken (fixed?)
 # trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
@@ -41,9 +43,9 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
 # ==========================================================================================
 # ==== Setup oil layer
 
-oil_size = (tank_size[1], 1.0 * H)
+oil_size = (tank_size[1], 1.5 * H)
 oil_size2 = (tank_size[1]-W, H)
-oil_density = 200.0
+oil_density = 1.0
 
 oil = RectangularShape(fluid_particle_spacing,
                        round.(Int, oil_size ./ fluid_particle_spacing),
@@ -83,6 +85,11 @@ semi = Semidiscretization(fluid_system, oil_system, boundary_system,
                           neighborhood_search=GridNeighborhoodSearch{2}(update_strategy=nothing))
 ode = semidiscretize(semi, tspan, data_type=nothing)
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
-            dt=1.0, # This is overwritten by the stepsize callback
+# sol = solve(ode, CarpenterKennedy2N54(williamson_condition=false),
+#             dt=1.0, # This is overwritten by the stepsize callback
+#             save_everystep=false, callback=callbacks);
+sol = solve(ode, RDPK3SpFSAL35(),
+            abstol=1e-5, # Default abstol is 1e-6 (may need to be tuned to prevent boundary penetration)
+            reltol=1e-4, # Default reltol is 1e-3 (may need to be tuned to prevent boundary penetration)
+            dtmax=1e-2, # Limit stepsize to prevent crashing
             save_everystep=false, callback=callbacks);
