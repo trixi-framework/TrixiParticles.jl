@@ -58,7 +58,7 @@ Algorithm for inside-outside segmentation of a complex geometry proposed by Jaco
 - `geometry`: Complex geometry returned by [`load_geometry`](@ref) and is only required when using
               `hierarchical_winding=true`.
 - `hierarchical_winding`: If set to `true`, an optimized hierarchical approach will be used,
-                          which gives a significant speedup.
+                          which gives a significant speedup. For further information see [Hierarchical Winding](@ref hierarchical_winding).
 - `winding_number_factor`: For leaky geometries, a factor of `0.4` will give a better inside-outside segmentation.
 
 !!! warning "Experimental Implementation"
