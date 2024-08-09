@@ -179,53 +179,6 @@
             end
         end
 
-        # @trixi_testset "fluid/dam_break_2d.jl with BoundaryModelMonaghanKajtar" begin
-        #     # import variables into scope
-        #     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-        #                   boundary_layers=1, spacing_ratio=3, sol=nothing, semi=nothing,
-        #                   ode=nothing)
-
-        #     boundary_model = BoundaryModelMonaghanKajtar(gravity, spacing_ratio,
-        #                                                  boundary_particle_spacing,
-        #                                                  tank.boundary.mass)
-
-        #     @test_nowarn_mod trixi_include(@__MODULE__,
-        #                                    joinpath(examples_dir(), "fluid",
-        #                                             "dam_break_2d.jl"),
-        #                                    tspan=(0.0, 0.1), boundary_model=boundary_model,
-        #                                    boundary_layers=1, spacing_ratio=3) [
-        #         r"┌ Info: The desired tank length in y-direction .*\n",
-        #         r"└ New tank length in y-direction.*\n",
-        #     ]
-        #     @test sol.retcode == ReturnCode.Success
-        #     @test count_rhs_allocations(sol, semi) == 0
-        # end
-
-        # @trixi_testset "fluid/dam_break_2d.jl with SurfaceTensionAkinci" begin
-        #     # import variables into scope
-        #     trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
-        #                   sol=nothing, semi=nothing, ode=nothing)
-
-        #     @test_nowarn_mod trixi_include(@__MODULE__,
-        #                                    joinpath(examples_dir(), "fluid",
-        #                                             "dam_break_2d.jl"),
-        #                                    tspan=(0.0, 0.05),
-        #                                    surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.025),
-        #                                    fluid_particle_spacing=0.5 *
-        #                                                           fluid_particle_spacing,
-        #                                    smoothing_kernel=SchoenbergCubicSplineKernel{2}(),
-        #                                    smoothing_length=0.5 * fluid_particle_spacing,
-        #                                    correction=AkinciFreeSurfaceCorrection(fluid_density),
-        #                                    density_diffusion=nothing,
-        #                                    adhesion_coefficient=0.05,
-        #                                    sound_speed=100.0) [
-        #         r"┌ Info: The desired tank length in y-direction .*\n",
-        #         r"└ New tank length in y-direction.*\n",
-        #     ]
-        #     @test sol.retcode == ReturnCode.Success
-        #     @test count_rhs_allocations(sol, semi) == 0
-        # end
-
         @trixi_testset "fluid/dam_break_oil_film_2d.jl" begin
             @test_nowarn_mod trixi_include(@__MODULE__,
                                            joinpath(examples_dir(), "fluid",
