@@ -2,17 +2,19 @@
 
 Generating the initial configuration of a simulation requires filling volumes (3D) or surfaces (2D) of complex geometries with particles.
 The algorithm to sample a complex geometry should be robust and fast,
-since for large problems (high numbers of particles) or complex geometries (many geometry faces),
+since for large problems (large numbers of particles) or complex geometries (many geometry faces),
 generating the initial configuration is not trivial and can be very expensive in terms of computational cost.
 We therefore use a [winding number](https://en.wikipedia.org/wiki/Winding_number) approach for an inside-outside segmentation of an object.
-The winding number $w(\mathbf{p})$ is a signed integer-valued function of a point $\mathbf{p}$ and is defined as
+The winding number ``w(\mathbf{p})`` is a signed integer-valued function of a point ``\mathbf{p}`` and is defined as
 
-$w(\mathbf{p}) = \frac{1}{2 \pi} \sum^n_{i=1} \Theta_i,$
+```math
+w(\mathbf{p}) = \frac{1}{2 \pi} \sum^n_{i=1} \Theta_i,
+```
 
-where  $\Theta_i$ is the **signed** angle between vectors from two consecutive vertices $\mathbf{c}_i$ and $\mathbf{c}_{i+1}$ on a curve to $\mathbf{p}$.
-In 3D, we refer to the solid angle of an *oriented* triangle with respect to $\mathbf{p}$.
+where  ``\Theta_i`` is the **signed** angle between the directions of ``\mathbf{p}`` to two consecutive vertices ``\mathbf{c}_i`` and ``\mathbf{c}_{i+1}`` on a curve.
+In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
-We provide the following methods to calculate $w(\mathbf{p})$:
+We provide the following methods to calculate ``w(\mathbf{p})``:
 - Horman et al. (2001) evaluate the winding number combined with an even-odd rule, but only for 2D polygons (see [WindingNumberHorman](@ref)).
 - Naive winding: Jacobson et al. (2013) generalized the winding number so that the algorithm can be applied for both 2D and 3D geometries (see [WindingNumberJacobson](@ref)).
 - Hierarchical winding: Jacobson et al. (2013) also introduced a fast hierarchical evaluation of the winding number. For further information see the description below.
@@ -61,22 +63,29 @@ heatmap(1:500, 1:500, reshape(w, 500, 500)', color=:coolwarm, showaxis=false,
 ```
 
 This summation property has some interesting consequences that we can utilize for an efficient computation of the winding number.
-Let $\mathcal{S}$ be an open surface and $\overline{\mathcal{S}}$ an arbitrary closing surface, such that
+Let ``\mathcal{S}`` be an open surface and ``\bar{\mathcal{S}}`` an arbitrary closing surface, such that
 
-$\partial \overline{\mathcal{S}} = \partial \mathcal{S}$
+```math
+\partial \bar{\mathcal{S}} = \partial \mathcal{S}
+```
 
-and $\mathcal{B} = \overline{\mathcal{S}} \cup \mathcal{S}$ is some closed oriented surface.
-For any query point $\mathbf{p}$ outside of $\mathcal{B}$, we know that
+and ``\mathcal{B} = \bar{\mathcal{S}} \cup \mathcal{S}`` is some closed oriented surface.
+For any query point ``\mathbf{p}`` outside of ``\mathcal{B}``, we know that
 
-$w_{\mathcal{S}}(\mathbf{p}) + w_{\overline{\mathcal{S}}}(\mathbf{p}) = w_{\mathcal{B}}(\mathbf{p}) = 0.$
+```math
+w_{\mathcal{S}}(\mathbf{p}) + w_{\bar{\mathcal{S}}}(\mathbf{p}) = w_{\mathcal{B}}(\mathbf{p}) = 0.
+```
 
 This means
 
-$w_{\mathcal{S}}(\mathbf{p}) = - w_{\overline{\mathcal{S}}}(\mathbf{p}),$
+```math
+w_{\mathcal{S}}(\mathbf{p}) = - w_{\bar{\mathcal{S}}}(\mathbf{p}),
+```
 
-regardless of how $\overline{\mathcal{S}}$ is constructed (as long as $\mathbf{p}$ is outside of $\mathcal{B}$).
+regardless of how ``\bar{\mathcal{S}}`` is constructed (as long as ``\mathbf{p}`` is outside of ``\mathcal{B}``).
+
 We can use this property in the discrete case to efficiently compute the winding number of a query point
-by partitioning the polygon or mesh in a small part (as in consisting of a small number of edges/faces) and a large part.
+by partitioning the polygon or mesh in a "small" part (as in consisting of a small number of edges/faces) and a "large" part.
 For the small part we just compute the winding number, and for the large part we construct a small closing and compute its winding number.
 The partitioning is based on a hierarchical construction of bounding boxes.
 
@@ -88,10 +97,10 @@ The resulting hierarchy is a binary tree.
 The algorithm by Jacobsen et al. (Algorithm 2, p. 5) traverses this binary tree recursively until we find the leaf in which the query point is located.
 The recursion stops with the following criteria:
 
-- if the bounding box $T$ is a leaf then $T.\mathcal{S} = \mathcal{S} \cup T$, the part of $\mathcal{S}$
-  that lies inside $T$, is the "small part" mentioned above, so evaluate the winding number naively as $w(\mathbf{p}, T.\mathcal{S})$.
-- else if $\mathbf{p}$ is outside $T$ then $T.\mathcal{S}$ is the "large part", so evaluate the winding number naively
-  as $-w(\mathbf{p}, T.\overline{\mathcal{S}})$, where $T.\overline{\mathcal{S}}$ is the closing surface of $T.\mathcal{S}$.
+- if the bounding box ``T`` is a leaf then ``T.\mathcal{S} = \mathcal{S} \cap T``, the part of ``\mathcal{S}``
+  that lies inside ``T``, is the "small part" mentioned above, so evaluate the winding number naively as ``w(\mathbf{p}, T.\mathcal{S})``.
+- else if ``\mathbf{p}`` is outside ``T`` then ``T.\mathcal{S}`` is the "large part", so evaluate the winding number naively
+  as ``-w(\mathbf{p}, T.\bar{\mathcal{S}})``, where ``T.\bar{\mathcal{S}}`` is the closing surface of ``T.\mathcal{S}``.
 
 #### Continuous example
 
@@ -105,19 +114,23 @@ We compute the winding number of the point ``\mathbf{p}`` with respect to ``\mat
 ```
 
 (1):
-- Recurse left: $w_{\text{left}} = \text{\texttt{hierarchical\_winding}} (\mathbf{p}, T.\text{left})$
-- Recurse right: $w_{\text{right}} = \text{\texttt{hierarchical\_winding}} (\mathbf{p},T.\text{right})$
+- Recurse left: ``w_{\text{left}} = \text{\texttt{hierarchical\_winding}} (\mathbf{p}, T.\text{left})``
+- Recurse right: ``w_{\text{right}} = \text{\texttt{hierarchical\_winding}} (\mathbf{p},T.\text{right})``
 
 (2):
-- Query point $\mathbf{p}$ is outside bounding box $T$, so don't recurse deeper.
-- Compute $w_{\mathcal{S}}(\mathbf{p}) = - w_{\overline{\mathcal{S}}}(\mathbf{p})$ with the closure $T.\overline{\mathcal{S}}$, which is generally much smaller (fewer edges in the discrete version) than $T.\mathcal{S}$:
+- Query point ``\mathbf{p}`` is outside bounding box ``T``, so don't recurse deeper.
+- Compute ``w_{\mathcal{S}}(\mathbf{p}) = - w_{\bar{\mathcal{S}}}(\mathbf{p})`` with the closure ``T.\bar{\mathcal{S}}``, which is generally much smaller (fewer edges in the discrete version) than ``T.\mathcal{S}``:
 
-$w_{\text{left}} = -\text{\texttt{naive\_winding}} (\mathbf{p}, T.\overline{\mathcal{S}})$
+```math
+w_{\text{left}} = -\text{\texttt{naive\_winding}} (\mathbf{p}, T.\bar{\mathcal{S}})
+```
 
 (3):
-- Bounding box $T$ is a leaf. Use open surface $T.\mathcal{S}$:
+- Bounding box ``T`` is a leaf. Use open surface ``T.\mathcal{S}``:
 
-$w_{\text{right}} = \text{\texttt{naive\_winding}} (\mathbf{p}, T.\mathcal{S})$.
+```math
+w_{\text{right}} = \text{\texttt{naive\_winding}} (\mathbf{p}, T.\mathcal{S})
+```
 
 The reconstructed surface will then look as in the following image.
 
@@ -129,7 +142,9 @@ The reconstructed surface will then look as in the following image.
 
 We finally sum up the winding numbers
 
-$w = w_{\text{left}} + w_{\text{right} } = -w_{T_{\text{left}}.\overline{\mathcal{S}}} + w_{T_{\text{right}}.\mathcal{S}}$
+```math
+w = w_{\text{left}} + w_{\text{right} } = -w_{T_{\text{left}}.\bar{\mathcal{S}}} + w_{T_{\text{right}}.\mathcal{S}}
+```
 
 #### Discrete example
 
@@ -146,7 +161,7 @@ To construct the hierarchy for the discrete piecewise-linear example in (1), we 
 (2):
 Each edge is distributed to the child whose box contains the edge's barycenter (red dots in (2)).
 Splitting stops when the number of a box's edges slips below a
-threshold (usually $\approx 100$ faces in 3D, here: 6 edges).
+threshold (usually ``\approx 100`` faces in 3D, here: 6 edges).
 
 (3):
 For the closure, Jacobson et al. (2013) define *exterior vertices* (*exterior edges* in 3D)
@@ -170,14 +185,14 @@ exterior vertex using appropriately oriented line segments:
 edge = vertex_count[v] > 0 ? (closing_vertex, v) : (v, closing_vertex)
 ```
 
-The resulting closed surface ``T.S \cup T.\overline{S}`` then has the same number of edges going into and out of each vertex.
+The resulting closed surface ``T.S \cup T.\bar{S}`` then has the same number of edges going into and out of each vertex.
 
 #### Incorrect evaluation
 
 If we follow the algorithm, we know that recursion stops if
 
-- the bounding box $T$ is a leaf or
-- the query point $\mathbf{p}$ is outside the box.
+- the bounding box ``T`` is a leaf or
+- the query point ``\mathbf{p}`` is outside the box.
 
 ```@raw html
 <figure>
@@ -185,17 +200,19 @@ If we follow the algorithm, we know that recursion stops if
 </figure>
 ```
 
-(1): The query point $\mathbf{p}$ is outside the box, so we calculate the winding number with the (red) closure of the box.
+(1): The query point ``\mathbf{p}`` is outside the box, so we calculate the winding number with the (red) closure of the box.
 
-(2): The query point $\mathbf{p}$ is inside the box, so we use the (blue) edges distributed to the box.
+(2): The query point ``\mathbf{p}`` is inside the box, so we use the (blue) edges distributed to the box.
 
 (3): In this case, it leads to an incorrect evaluation of the winding number.
 The query point is clearly inside the box, but not inside the reconstructed surface.
-This is because the property $w_{\mathcal{S}}(\mathbf{p}) = - w_{\overline{\mathcal{S}}}(\mathbf{p})$
-only holds when $\mathbf{p}$ is outside of $\mathcal{B}$, which is not the case here.
+This is because the property ``w_{\mathcal{S}}(\mathbf{p}) = - w_{\bar{\mathcal{S}}}(\mathbf{p})``
+only holds when ``\mathbf{p}`` is outside of ``\mathcal{B}``, which is not the case here.
 
 #### Correct evaluation
-Jacobson et al. (2013) therefore resize the bounding box to fully include the closing surface
+Jacobson et al. (2013) don't mention this problem or provide a solution to it.
+We contacted the authors and found that they know about this problem and solve it
+by resizing the bounding box to fully include the closing surface
 of the neighboring box, since it doesn't matter if the boxes overlap.
 
 ```@raw html
