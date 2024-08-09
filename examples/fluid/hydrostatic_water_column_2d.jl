@@ -35,10 +35,13 @@ alpha = 0.02
 viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
+
+# This is to set acceleration with `trixi_include`
+system_acceleration = (0.0, -gravity)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity),
+                                           acceleration=system_acceleration,
                                            source_terms=nothing)
 
 # ==========================================================================================
