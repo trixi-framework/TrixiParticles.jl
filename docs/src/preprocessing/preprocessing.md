@@ -144,7 +144,7 @@ We will now go through the discrete version of the example above.
 To construct the hierarchy for the discrete piecewise-linear example in (1), we have to do the following.
 
 (2):
-Each edge is distributed to the child whose box contains the edge's overlineycenter (red dots in (2)).
+Each edge is distributed to the child whose box contains the edge's barycenter (red dots in (2)).
 Splitting stops when the number of a box's edges slips below a
 threshold (usually $\approx 100$ faces in 3D, here: 6 edges).
 
