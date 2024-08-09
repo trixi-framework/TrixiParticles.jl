@@ -49,3 +49,44 @@ function inverse_state_equation(state_equation::StateEquationCole, pressure)
 
     return reference_density * tmp^(1 / exponent)
 end
+
+@inline sound_speed(eos::StateEquationCole) = eos.sound_speed
+
+
+@doc raw"""
+    StateEquationIdealGas(; gas_constant, temperature)
+
+Equation of state to describe the relationship between pressure and density
+of a gas using the Ideal Gas Law.
+
+# Keywords
+- `gas_constant`: Specific gas constant (R) for the gas, typically in J/(kg*K).
+- `temperature` : Absolute temperature of the gas in Kelvin.
+- `gamma`       :
+
+This struct calculates the pressure of a gas from its density using the formula:
+\[ P = \rho \cdot R \cdot T \]
+where \( P \) is pressure, \( \rho \) is density, \( R \) is the gas constant, and \( T \) is temperature.
+"""
+struct StateEquationIdealGas{ELTYPE}
+    gas_constant      :: ELTYPE
+    temperature       :: ELTYPE
+    gamma             :: ELTYPE
+
+    function StateEquationIdealGas(; gas_constant, temperature, gamma)
+        new{typeof(gas_constant)}(gas_constant, temperature, gamma)
+    end
+end
+
+function (state_equation::StateEquationIdealGas)(density)
+    (; gas_constant, temperature) = state_equation
+    pressure = density * gas_constant * temperature
+    return pressure
+end
+
+function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
+    (; gas_constant, temperature) = state_equation
+    return pressure / (gas_constant * temperature)
+end
+
+@inline sound_speed(eos::StateEquationIdealGas) = sqrt(eos.gamma * eos.gas_constant * eos.temperature)
