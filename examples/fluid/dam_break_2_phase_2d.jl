@@ -11,24 +11,33 @@ gravity = 9.81
 tspan = (0.0, 2.0)
 
 # Resolution
-fluid_particle_spacing = H / 40
+fluid_particle_spacing = H / 60
 
 # Numerical settings
 smoothing_length = 3.5 * fluid_particle_spacing
 sound_speed = 100
 
-# nu = 0.02 * smoothing_length * sound_speed / 8
-nu = 1E-6
-oil_viscosity = ViscosityMorris(nu=2E-5)
+# physical values
+nu_water = 8.9E-7
+nu_air = 1.544E-5
+nu_ratio = nu_water / nu_air
+
+nu_sim_air = 0.02 * smoothing_length * sound_speed
+nu_sim_water = nu_ratio * nu_sim_air
+
+air_viscosity = ViscosityMorris(nu=nu_sim_air)
+water_viscosity = ViscosityMorris(nu=nu_sim_water)
 
 trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               sol=nothing, fluid_particle_spacing=fluid_particle_spacing,
-              viscosity=ViscosityMorris(nu=nu), smoothing_length=smoothing_length,
+              viscosity=water_viscosity, smoothing_length=smoothing_length,
               gravity=gravity, tspan=tspan,
               density_diffusion=nothing,
               sound_speed=sound_speed,
               surface_tension=SurfaceTensionMorris(surface_tension_coefficient=0.08),
-              cfl=0.8, tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing, 2.55*H))
+              cfl=0.8,
+              tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
+                         2.6 * H))
 
 # TODO: broken (fixed?)
 # trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
@@ -44,7 +53,7 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
 # ==== Setup oil layer
 
 oil_size = (tank_size[1], 1.5 * H)
-oil_size2 = (tank_size[1]-W, H)
+oil_size2 = (tank_size[1] - W, H)
 oil_density = 1.0
 
 oil = RectangularShape(fluid_particle_spacing,
@@ -52,8 +61,8 @@ oil = RectangularShape(fluid_particle_spacing,
                        zeros(length(oil_size)), density=oil_density)
 
 oil2 = RectangularShape(fluid_particle_spacing,
-                       round.(Int, oil_size2 ./ fluid_particle_spacing),
-                       (W, 0.0), density=oil_density)
+                        round.(Int, oil_size2 ./ fluid_particle_spacing),
+                        (W, 0.0), density=oil_density)
 
 # move on top of the water
 for i in axes(oil.coordinates, 2)
@@ -68,14 +77,14 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
                                                            exponent=1,
                                                            clip_negative_pressure=false),
                                          smoothing_kernel,
-                                         smoothing_length, viscosity=oil_viscosity,
+                                         smoothing_length, viscosity=air_viscosity,
                                          #density_diffusion=density_diffusion,
                                          acceleration=(0.0, -gravity))
 
 # oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
 #                                          StateEquationIdealGas(; gas_constant=287.0, temperature=293.0, gamma=1.4),
 #                                          smoothing_kernel,
-#                                          smoothing_length, viscosity=oil_viscosity,
+#                                          smoothing_length, viscosity=air_viscosity,
 #                                          density_diffusion=density_diffusion,
 #                                          acceleration=(0.0, -gravity))
 

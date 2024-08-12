@@ -155,7 +155,7 @@ end
     m_b = hydrodynamic_mass(neighbor_system, neighbor)
     n_a = surface_normal(particle_system, particle)
     n_b = surface_normal(neighbor_system, neighbor)
-    # support_radius = compact_support(smoothing_kernel, smoothing_length)
+    support_radius = compact_support(smoothing_kernel, smoothing_length)
 
     return cohesion_force_akinci(surface_tension_a, support_radius, m_b,
                                  pos_diff, distance) .-

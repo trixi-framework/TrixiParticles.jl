@@ -52,7 +52,6 @@ end
 
 @inline sound_speed(eos::StateEquationCole) = eos.sound_speed
 
-
 @doc raw"""
     StateEquationIdealGas(; gas_constant, temperature)
 
@@ -69,9 +68,9 @@ This struct calculates the pressure of a gas from its density using the formula:
 where \( P \) is pressure, \( \rho \) is density, \( R \) is the gas constant, and \( T \) is temperature.
 """
 struct StateEquationIdealGas{ELTYPE}
-    gas_constant      :: ELTYPE
-    temperature       :: ELTYPE
-    gamma             :: ELTYPE
+    gas_constant :: ELTYPE
+    temperature  :: ELTYPE
+    gamma        :: ELTYPE
 
     function StateEquationIdealGas(; gas_constant, temperature, gamma)
         new{typeof(gas_constant)}(gas_constant, temperature, gamma)
@@ -89,4 +88,5 @@ function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
     return pressure / (gas_constant * temperature)
 end
 
-@inline sound_speed(eos::StateEquationIdealGas) = sqrt(eos.gamma * eos.gas_constant * eos.temperature)
+@inline sound_speed(eos::StateEquationIdealGas) = sqrt(eos.gamma * eos.gas_constant *
+                                                       eos.temperature)
