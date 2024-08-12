@@ -11,7 +11,7 @@ The winding number ``w(\mathbf{p})`` is a signed integer-valued function of a po
 w(\mathbf{p}) = \frac{1}{2 \pi} \sum^n_{i=1} \Theta_i,
 ```
 
-where  ``\Theta_i`` is the **signed** angle between the directions of ``\mathbf{p}`` to two consecutive vertices ``\mathbf{c}_i`` and ``\mathbf{c}_{i+1}`` on a curve.
+here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` and ``\mathbf{c}_{i+1} - \mathbf{p}`` where ``\mathbf{c}_i`` and ``\mathbf{c}_{i+1}`` are two consecutive vertices on a curve.
 In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
 We provide the following methods to calculate ``w(\mathbf{p})``:
