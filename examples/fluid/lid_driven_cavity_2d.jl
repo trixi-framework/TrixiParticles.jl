@@ -13,7 +13,7 @@ using OrdinaryDiffEq
 particle_spacing = 0.02
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 3
+boundary_layers = 4
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -90,7 +90,10 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+
+pp_callback = nothing
+
+callbacks = CallbackSet(info_callback, saving_callback, pp_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(),

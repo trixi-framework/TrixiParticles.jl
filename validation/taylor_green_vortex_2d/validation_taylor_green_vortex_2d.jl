@@ -9,8 +9,6 @@ particle_spacings = [0.02, 0.015, 0.01, 0.005]
 tspan = (0.0, 5.0)
 reynolds_number = 100.0
 
-box_length = 1.0
-
 function compute_L1v_error(v, u, t, system)
     v_analytical_avg = 0.0
     L1v = 0.0
@@ -63,14 +61,13 @@ function diff_p_loc_p_avg(v, u, t, system)
 end
 
 for particle_spacing in particle_spacings
-    n_particles_xy = round(Int, box_length / particle_spacing)
+    n_particles_xy = round(Int, 1.0 / particle_spacing)
 
     output_directory = joinpath("out_tgv",
                                 "validation_run_taylor_green_vortex_2d_nparticles_$(n_particles_xy)x$(n_particles_xy)")
     saving_callback = SolutionSavingCallback(dt=0.02,
                                              output_directory=output_directory,
                                              p_avg=diff_p_loc_p_avg)
-
 
     pp_callback = PostprocessCallback(; dt=0.02,
                                       L1v=compute_L1v_error,
@@ -83,6 +80,5 @@ for particle_spacing in particle_spacings
     trixi_include(@__MODULE__,
                   joinpath(examples_dir(), "fluid", "taylor_green_vortex_2d.jl"),
                   particle_spacing=particle_spacing, reynolds_number=reynolds_number,
-                  box_length=box_length,
-                  saving_callback=saving_callback, pp_callback=pp_callback)
+                  tspan=tspan, saving_callback=saving_callback, pp_callback=pp_callback)
 end
