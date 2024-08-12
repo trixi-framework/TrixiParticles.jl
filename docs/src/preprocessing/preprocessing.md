@@ -8,10 +8,10 @@ We therefore use a [winding number](https://en.wikipedia.org/wiki/Winding_number
 The winding number ``w(\mathbf{p})`` is a signed integer-valued function of a point ``\mathbf{p}`` and is defined as
 
 ```math
-w(\mathbf{p}) = \frac{1}{2 \pi} \sum^n_{i=1} \Theta_i,
+w(\mathbf{p}) = \frac{1}{2 \pi} \sum^n_{i=1} \Theta_i.
 ```
 
-here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` and ``\mathbf{c}_{i+1} - \mathbf{p}`` where ``\mathbf{c}_i`` and ``\mathbf{c}_{i+1}`` are two consecutive vertices on a curve.
+Here, ``\Theta_i`` is the *signed* angle between ``\mathbf{c}_i - \mathbf{p}`` and ``\mathbf{c}_{i+1} - \mathbf{p}`` where ``\mathbf{c}_i`` and ``\mathbf{c}_{i+1}`` are two consecutive vertices on a curve.
 In 3D, we refer to the solid angle of an *oriented* triangle with respect to ``\mathbf{p}``.
 
 We provide the following methods to calculate ``w(\mathbf{p})``:
