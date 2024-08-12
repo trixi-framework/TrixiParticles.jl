@@ -22,8 +22,6 @@ using RecipesBase: RecipesBase, @series
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
-@reexport using Random: seed!
-@reexport using LinearAlgebra: norm
 using StaticArrays: @SMatrix, SMatrix, setindex
 using StrideArrays: PtrArray, StaticInt
 using TimerOutputs: TimerOutput, TimerOutputs, print_timer, reset_timer!

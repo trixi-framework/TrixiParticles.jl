@@ -25,7 +25,7 @@ sound_speed = 10U
 
 b = -8pi^2 / reynolds_number
 
-# Pressure function
+# Taylor Green Vortex Pressure Function
 function pressure_function(pos, t)
     x = pos[1]
     y = pos[2]
@@ -35,7 +35,7 @@ end
 
 initial_pressure_function(pos) = pressure_function(pos, 0.0)
 
-# Velocity function
+# Taylor Green Vortex Velocity Function
 function velocity_function(pos, t)
     x = pos[1]
     y = pos[2]
@@ -89,8 +89,8 @@ function compute_L1v_error(v, u, t, system)
     for particle in TrixiParticles.eachparticle(system)
         position = TrixiParticles.current_coords(u, system, particle)
 
-        v_mag = norm(TrixiParticles.current_velocity(v, system, particle))
-        v_analytical = norm(velocity_function(position, t))
+        v_mag = TrixiParticles.norm(TrixiParticles.current_velocity(v, system, particle))
+        v_analytical = TrixiParticles.norm(velocity_function(position, t))
 
         v_analytical_avg += abs(v_analytical)
         L1v += abs(v_mag - v_analytical)
