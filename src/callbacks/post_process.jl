@@ -73,6 +73,7 @@ struct PostprocessCallback{I, F}
     append_timestamp    :: Bool
     write_csv           :: Bool
     write_json          :: Bool
+    git_hash            :: Ref{String}
 end
 
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
@@ -94,14 +95,15 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
     post_callback = PostprocessCallback(interval, write_file_interval,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
-                                        append_timestamp, write_csv, write_json)
+                                        append_timestamp, write_csv, write_json,
+                                        Ref("UnknownVersion"))
     if dt > 0
-        # Add a `tstop` every `dt`, and save the final solution.
+        # Add a `tstop` every `dt`, and save the final solution
         return PeriodicCallback(post_callback, dt,
                                 initialize=initialize_postprocess_callback!,
                                 save_positions=(false, false), final_affect=true)
     else
-        # The first one is the condition, the second the affect!
+        # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(post_callback, post_callback,
                                 save_positions=(false, false),
                                 initialize=initialize_postprocess_callback!)
@@ -209,12 +211,15 @@ function initialize_postprocess_callback!(cb, u, t, integrator)
 end
 
 function initialize_postprocess_callback!(cb::PostprocessCallback, u, t, integrator)
+    cb.git_hash[] = compute_git_hash()
+
     # Apply the callback
     cb(integrator)
-    return nothing
+
+    return cb
 end
 
-# condition with interval
+# `condition` with interval
 function (pp::PostprocessCallback)(u, t, integrator)
     (; interval) = pp
 
@@ -231,7 +236,7 @@ function (pp::PostprocessCallback)(integrator)
     new_data = false
 
     # Update systems to compute quantities like density and pressure
-    update_systems_and_nhs(v_ode, u_ode, semi, t)
+    update_systems_and_nhs(v_ode, u_ode, semi, t; update_from_callback=true)
 
     foreach_system(semi) do system
         if system isa BoundarySystem && pp.exclude_boundary
@@ -260,7 +265,7 @@ function (pp::PostprocessCallback)(integrator)
         write_postprocess_callback(pp)
     end
 
-    # Tell OrdinaryDiffEq that u has not been modified
+    # Tell OrdinaryDiffEq that `u` has not been modified
     u_modified!(integrator, false)
 end
 
@@ -276,12 +281,12 @@ end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
 function write_postprocess_callback(pp::PostprocessCallback)
-    if isempty(pp.data)
-        return
-    end
+    isempty(pp.data) && return
+
+    mkpath(pp.output_directory)
 
     data = Dict{String, Any}()
-    write_meta_data!(data)
+    write_meta_data!(data, pp.git_hash[])
     prepare_series_data!(data, pp)
 
     time_stamp = ""
@@ -331,9 +336,9 @@ function create_series_dict(values, times, system_name="")
                 "time" => times)
 end
 
-function write_meta_data!(data)
+function write_meta_data!(data, git_hash)
     meta_data = Dict("solver_name" => "TrixiParticles.jl",
-                     "solver_version" => get_git_hash(),
+                     "solver_version" => git_hash,
                      "julia_version" => string(VERSION))
 
     data["meta"] = meta_data

@@ -1,26 +1,35 @@
-# Installation
+# [Installation](@id installation)
 
 ## Setting up Julia
 If you have not yet installed Julia, please [follow the instructions for your
 operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
 with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
-## Installation for users
+## For users
+TrixiParticles.jl is a registered Julia package.
+You can install TrixiParticles.jl,
+[OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) (used for time integration)
+and [Plots.jl](https://github.com/JuliaPlots/Plots.jl) by executing the following commands
+in the Julia REPL:
+```julia
+julia> using Pkg
 
+julia> Pkg.add(["TrixiParticles", "OrdinaryDiffEq", "Plots"])
+```
 
-## [Installation for developers](@id for-developers)
-If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl to a local folder and use the
-code from the cloned directory:
+## [For developers](@id for-developers)
+If you plan on editing TrixiParticles.jl itself, you can download TrixiParticles.jl
+to a local folder and use the code from the cloned directory:
 ```bash
 git clone git@github.com:trixi-framework/TrixiParticles.jl.git
 cd TrixiParticles.jl
 mkdir run
-julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Install locally
-julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq")' # Add TrixiParticles.jl to `run` project
+julia --project=run -e 'using Pkg; Pkg.develop(PackageSpec(path="."))' # Add TrixiParticles.jl to `run` project
+julia --project=run -e 'using Pkg; Pkg.add("OrdinaryDiffEq", "Plots")' # Add additional packages
 ```
 
-If you installed TrixiParticles.jl this way, you always have to start Julia with the `--project`
-flag set to your `run` directory, e.g.,
+If you installed TrixiParticles.jl this way, you always have to start Julia with the
+`--project` flag set to your `run` directory, e.g.,
 ```bash
 julia --project=run
 ```
@@ -36,7 +45,7 @@ and always have a reproducible environment at hand to share with others.
 - [PythonPlot.jl](https://github.com/JuliaPy/PythonPlot.jl) -- Plotting library that can be used instead of Plots.jl
 - [ParaView](https://www.paraview.org/) -- Software that can be used for visualization of results
 
-## Common issues
+## [Common issues](@id installation-issues)
 
 If you followed the [installation instructions for developers](@ref for-developers) and you
 run into any problems with packages when pulling the latest version of TrixiParticles.jl,

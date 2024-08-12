@@ -49,7 +49,7 @@ callbacks = CallbackSet(info_callback, saving_callback)
 filename = tempname()
 open(filename, "w") do f
     redirect_stderr(f) do
-        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+        TrixiParticles.disable_debug_timings()
     end
 end
 
@@ -63,6 +63,6 @@ sol = solve(ode, SymplecticEuler(),
 # Enable timers again
 open(filename, "w") do f
     redirect_stderr(f) do
-        TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+        TrixiParticles.enable_debug_timings()
     end
 end

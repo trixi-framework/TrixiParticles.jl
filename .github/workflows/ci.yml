@@ -61,10 +61,10 @@ jobs:
       - name: Check out project
         uses: actions/checkout@v4
       - name: Set up Julia
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - name: Build package
         uses: julia-actions/julia-buildpkg@v1
       - name: Run unit tests

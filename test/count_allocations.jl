@@ -1,4 +1,4 @@
-# Wrapper for any neighborhood search that forwards `for_particle_neighbor` to the wrapped
+# Wrapper for any neighborhood search that forwards `foreach_point_neighbor` to the wrapped
 # neighborhood search, but doesn't do anything in the update step.
 # This is used in the example tests to test for zero allocations in the `kick!` function.
 struct NoUpdateNeighborhoodSearch{NHS}
@@ -16,18 +16,22 @@ function copy_semi_with_no_update_nhs(semi)
                               neighborhood_searches)
 end
 
-# Forward `for_particle_neighbor` to wrapped neighborhood search
-@inline function TrixiParticles.for_particle_neighbor(f, system_coords, neighbor_coords,
-                                                      neighborhood_search::NoUpdateNeighborhoodSearch;
-                                                      particles=axes(system_coords, 2),
-                                                      parallel=true)
-    TrixiParticles.for_particle_neighbor(f, system_coords, neighbor_coords,
-                                         neighborhood_search.nhs,
-                                         particles=particles, parallel=parallel)
+# Forward `foreach_neighbor` to wrapped neighborhood search
+@inline function PointNeighbors.foreach_neighbor(f, system_coords,
+                                                 neighbor_coords,
+                                                 neighborhood_search::NoUpdateNeighborhoodSearch,
+                                                 particle;
+                                                 search_radius=PointNeighbors.search_radius(neighborhood_search.nhs))
+    PointNeighbors.foreach_neighbor(f, system_coords, neighbor_coords,
+                                    neighborhood_search.nhs, particle,
+                                    search_radius=search_radius)
 end
 
 # No update
-@inline TrixiParticles.update!(search::NoUpdateNeighborhoodSearch, coords_fun) = search
+@inline function PointNeighbors.update!(search::NoUpdateNeighborhoodSearch, x, y;
+                                        points_moving=(true, true))
+    return search
+end
 
 # Count allocations of one call to the right-hand side (`kick!` + `drift!`)
 function count_rhs_allocations(sol, semi)
@@ -41,7 +45,7 @@ function count_rhs_allocations(sol, semi)
 
     try
         # Disable timers, which cause extra allocations
-        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+        TrixiParticles.disable_debug_timings()
 
         # Disable multithreading, which causes extra allocations
         return disable_polyester_threads() do
@@ -53,7 +57,7 @@ function count_rhs_allocations(sol, semi)
         end
     finally
         # Enable timers again
-        @invokelatest TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+        @invokelatest TrixiParticles.enable_debug_timings()
     end
 end
 

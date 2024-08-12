@@ -9,8 +9,9 @@ using Polyester
 
 include("n_body_system.jl")
 
-# Redefine interact in a more optimized way.
-function TrixiParticles.interact!(du, u_particle_system, u_neighbor_system,
+# Redefine interact in a more optimized way
+function TrixiParticles.interact!(dv, v_particle_system, u_particle_system,
+                                  v_neighbor_system, u_neighbor_system,
                                   neighborhood_search,
                                   particle_system::NBodySystem,
                                   neighbor_system::NBodySystem)
@@ -34,16 +35,15 @@ function TrixiParticles.interact!(du, u_particle_system, u_neighbor_system,
             tmp1 = mass[neighbor] * tmp
             tmp2 = mass[particle] * tmp
 
-            for i in 1:ndims(particle_system)
-                j = i + ndims(particle_system)
-                # This is slightly faster than du[...] += tmp1 * pos_diff[i]
-                du[j, particle] = muladd(tmp1, pos_diff[i], du[j, particle])
-                du[j, neighbor] = muladd(tmp2, -pos_diff[i], du[j, neighbor])
+            @inbounds for i in 1:ndims(particle_system)
+                # This is slightly faster than dv[...] += tmp1 * pos_diff[i]
+                dv[i, particle] = muladd(tmp1, pos_diff[i], dv[i, particle])
+                dv[i, neighbor] = muladd(tmp2, -pos_diff[i], dv[i, neighbor])
             end
         end
     end
 
-    return du
+    return dv
 end
 
 # ==========================================================================================
@@ -98,6 +98,8 @@ function symplectic_euler!(velocity, coordinates, semi)
             u[i] += 0.01 * du[i]
         end
     end
+
+    return v, u
 end
 
 # One RHS evaluation is so fast that timers make it multiple times slower.
@@ -106,7 +108,7 @@ end
 filename = tempname()
 open(filename, "w") do f
     redirect_stderr(f) do
-        TrixiParticles.TimerOutputs.disable_debug_timings(TrixiParticles)
+        TrixiParticles.disable_debug_timings()
     end
 end
 
@@ -122,6 +124,6 @@ end
 # Enable timers again
 open(filename, "w") do f
     redirect_stderr(f) do
-        TrixiParticles.TimerOutputs.enable_debug_timings(TrixiParticles)
+        TrixiParticles.enable_debug_timings()
     end
 end
