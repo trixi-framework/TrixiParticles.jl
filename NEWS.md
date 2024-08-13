@@ -2,23 +2,21 @@
 
 TrixiParticles.jl follows the interpretation of [semantic versioning (semver)](https://julialang.github.io/Pkg.jl/dev/compatibility/#Version-specifier-format-1)
 used in the Julia ecosystem. Notable changes will be documented in this file for human readability.
-We aim at 3 to 4 month between major release versions and about 2 weeks between minor versions.
 
-## Version 0.3.x
+## Version 0.2.2
 
 ### Highlights
+Hotfix for threaded sampling of complex geometries.
 
-### Added
+## Version 0.2.1
 
-### Removed
-
-### Deprecated
+### Highlights
+Particle sampling of complex geometries from `.stl` and `.asc` files.
 
 ## Version 0.2.0
 
 ### Removed
-- Use of the internal neighborhood search has been removed and replaced with PointNeighbors.jl.
-
+Use of the internal neighborhood search has been removed and replaced with PointNeighbors.jl.
 
 ## Development Cycle 0.1
 
