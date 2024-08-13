@@ -4,38 +4,54 @@
 Terminates the integration when the residual falls below the threshold
 specified by `abstol, reltol`.
 """
-mutable struct SteadyStateCallback{RealT <: Real, F}
-    abstol           :: RealT
-    reltol           :: RealT
-    previous_ekin    :: Vector{Float64}
-    interval_size    :: Int
-    exclude_boundary :: Bool
-    data             :: Dict{String, Vector{Any}}
-    filename         :: String
-    output_directory :: String
-    func             :: F
+mutable struct SteadyStateCallback{I, RealT <: Real}
+    interval      :: I
+    abstol        :: RealT
+    reltol        :: RealT
+    previous_ekin :: Vector{Float64}
+    interval_size :: Int
 end
 
-function SteadyStateCallback(; abstol=1.0e-8, reltol=1.0e-6, interval_size::Integer=10,
-                             exclude_boundary=true, output_directory="out",
-                             filename="values", funcs...)
+function SteadyStateCallback(; interval::Integer=0, dt=0.0, abstol=1.0e-8, reltol=1.0e-6,
+                             interval_size::Integer=10)
     abstol, reltol = promote(abstol, reltol)
 
-    steady_state_callback = SteadyStateCallback(abstol, reltol, [Inf64], interval_size,
-                                                exclude_boundary,
-                                                Dict{String, Vector{Any}}(),
-                                                filename, output_directory, funcs)
+    if dt > 0 && interval > 0
+        throw(ArgumentError("setting both `interval` and `dt` is not supported"))
+    end
 
-    DiscreteCallback(steady_state_callback, steady_state_callback,
-                     save_positions=(false, false))
+    if dt > 0
+        interval = Float64(dt)
+    end
+
+    steady_state_callback = SteadyStateCallback(interval, abstol, reltol, [Inf64],
+                                                interval_size)
+
+    if dt > 0
+        return PeriodicCallback(steady_state_callback, dt, save_positions=(false, false),
+                                final_affect=true)
+    else
+        return DiscreteCallback(steady_state_callback, steady_state_callback,
+                                save_positions=(false, false))
+    end
 end
 
 function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:SteadyStateCallback})
     @nospecialize cb # reduce precompilation time
 
-    steady_state_callback = cb.affect!
-    print(io, "SteadyStateCallback(abstol=", steady_state_callback.abstol, ", ",
-          "reltol=", steady_state_callback.reltol, ")")
+    cb_ = cb.affect!
+
+    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", ", "reltol=", cb_.reltol, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    cb_ = cb.affect!.affect!
+
+    print(io, "SteadyStateCallback(abstol=", cb_.abstol, ", reltol=", cb_.reltol, ")")
 end
 
 function Base.show(io::IO, ::MIME"text/plain",
@@ -45,10 +61,30 @@ function Base.show(io::IO, ::MIME"text/plain",
     if get(io, :compact, false)
         show(io, cb)
     else
-        steady_state_callback = cb.affect!
+        cb_ = cb.affect!
 
-        setup = ["absolute tolerance" => steady_state_callback.abstol,
-            "relative tolerance" => steady_state_callback.reltol]
+        setup = ["absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol,
+            "interval" => cb_.interval,
+            "interval size" => cb_.interval_size]
+        summary_box(io, "SteadyStateCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:SteadyStateCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        cb_ = cb.affect!.affect!
+
+        setup = ["absolute tolerance" => cb_.abstol,
+            "relative tolerance" => cb_.reltol,
+            "interval" => cb_.interval,
+            "interval_size" => cb_.interval_size]
         summary_box(io, "SteadyStateCallback", setup)
     end
 end
@@ -63,34 +99,15 @@ function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
 
-    filenames = system_names(semi.systems)
-
-    # Calculate kinetic energy and store custom data
+    # Calculate kinetic energy
     ekin = 0.0
     foreach_system(semi) do system
-        if system isa BoundarySystem && steady_state_callback.exclude_boundary
-
-            # Exclude boundary systems
-            return
-        end
-
         v = wrap_v(v_ode, system, semi)
-        u = wrap_u(u_ode, system, semi)
 
         # Calculate kintetic energy
         for particle in each_moving_particle(system)
             velocity = current_velocity(v, system, particle)
             ekin += 0.5 * system.mass[particle] * dot(velocity, velocity)
-        end
-
-        system_index = system_indices(system, semi)
-        # Store custom data
-        for (key, f) in steady_state_callback.func
-            result = f(v, u, t, system)
-            if result !== nothing
-                add_entry!(steady_state_callback, string(key), t, result,
-                           filenames[system_index])
-            end
         end
     end
 
@@ -98,12 +115,8 @@ function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
 
     terminate = false
 
-    if integrator.stats.naccept > interval_size
+    if interval_size_condition(steady_state_callback, integrator)
         popfirst!(previous_ekin)
-
-        for key in keys(steady_state_callback.data)
-            popfirst!(steady_state_callback.data[key])
-        end
 
         # Calculate MSE only over the `interval_size`
         mse = 0.0
@@ -118,21 +131,17 @@ function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
         terminate = mse <= threshold
     end
 
-    # Write data
-    if terminate || isfinished(integrator)
-        abs_file_path = joinpath(abspath(output_directory), filename)
-
-        for (key, values) in steady_state_callback.data
-            values_ = stack(values)
-
-            df = DataFrame(values_, [Symbol(key * "_$i") for i in 1:interval_size])
-
-            df[!, Symbol(key * "_avg")] = [sum(values_, dims=2)...] ./ interval_size
-
-            # Write the DataFrame to a CSV file
-            CSV.write(abs_file_path * "_" * key * ".csv", df)
-        end
-    end
-
     return terminate
+end
+
+# `DiscreteCallback`
+function interval_size_condition(cb::SteadyStateCallback{Int}, integrator)
+    return integrator.stats.naccept > 0 &&
+           round(integrator.stats.naccept / cb.interval) > cb.interval_size == 0
+end
+
+# `PeriodicCallback`
+function interval_size_condition(cb::SteadyStateCallback, integrator)
+    return integrator.stats.naccept > 0 &&
+           round(Int, integrator.t / cb.interval) > cb.interval_size == 0
 end
