@@ -135,13 +135,13 @@ function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
 end
 
 # `DiscreteCallback`
-function interval_size_condition(cb::SteadyStateCallback{Int}, integrator)
+@inline function interval_size_condition(cb::SteadyStateCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) > cb.interval_size == 0
+           round(integrator.stats.naccept / cb.interval) > cb.interval_size
 end
 
 # `PeriodicCallback`
-function interval_size_condition(cb::SteadyStateCallback, integrator)
+@inline function interval_size_condition(cb::SteadyStateCallback, integrator)
     return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) > cb.interval_size == 0
+           round(Int, integrator.t / cb.interval) > cb.interval_size
 end

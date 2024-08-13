@@ -64,6 +64,7 @@ postprocess_callback = PostprocessCallback(dt=0.1, example_quantity=kinetic_ener
 struct PostprocessCallback{I, F}
     interval            :: I
     write_file_interval :: Int
+    save_size           :: Int
     data                :: Dict{String, Vector{Any}}
     times               :: Array{Float64, 1}
     exclude_boundary    :: Bool
@@ -79,6 +80,7 @@ end
 function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=true,
                              output_directory="out", filename="values",
                              append_timestamp=false, write_csv=true, write_json=true,
+                             save_size::Integer=-1,
                              write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
@@ -92,7 +94,7 @@ function PostprocessCallback(; interval::Integer=0, dt=0.0, exclude_boundary=tru
         interval = Float64(dt)
     end
 
-    post_callback = PostprocessCallback(interval, write_file_interval,
+    post_callback = PostprocessCallback(interval, write_file_interval, save_size,
                                         Dict{String, Vector{Any}}(), Float64[],
                                         exclude_boundary, funcs, filename, output_directory,
                                         append_timestamp, write_csv, write_json,
@@ -156,12 +158,17 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
             push!(setup, "function$i" => string(key))
         end
+
+        if callback.save_size > 0
+            push!(setup, "save size" => callback.save_size)
+        end
+
         summary_box(io, "PostprocessCallback", setup)
     end
 end
@@ -193,12 +200,17 @@ function Base.show(io::IO, ::MIME"text/plain",
             "output directory" => callback.output_directory,
             "append timestamp" => callback.append_timestamp ? "yes" : "no",
             "write json file" => callback.write_csv ? "yes" : "no",
-            "write csv file" => callback.write_json ? "yes" : "no",
+            "write csv file" => callback.write_json ? "yes" : "no"
         ]
 
         for (i, key) in enumerate(keys(callback.func))
             push!(setup, "function$i" => string(key))
         end
+
+        if callback.save_size > 0
+            push!(setup, "save size" => callback.save_size)
+        end
+
         summary_box(io, "PostprocessCallback", setup)
     end
 end
@@ -260,6 +272,14 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
+    if discard_old_data(pp, integrator)
+        popfirst!(pp.times)
+
+        for key in keys(pp.data)
+            popfirst!(pp.data[key])
+        end
+    end
+
     if isfinished(integrator) ||
        (pp.write_file_interval > 0 && backup_condition(pp, integrator))
         write_postprocess_callback(pp)
@@ -269,14 +289,32 @@ function (pp::PostprocessCallback)(integrator)
     u_modified!(integrator, false)
 end
 
+# `DiscreteCallback`
 @inline function backup_condition(cb::PostprocessCallback{Int}, integrator)
     return integrator.stats.naccept > 0 &&
            round(integrator.stats.naccept / cb.interval) % cb.write_file_interval == 0
 end
 
+# `PeriodicCallback`
 @inline function backup_condition(cb::PostprocessCallback, integrator)
     return integrator.stats.naccept > 0 &&
            round(Int, integrator.t / cb.interval) % cb.write_file_interval == 0
+end
+
+# `DiscreteCallback`
+@inline function discard_old_data(pp::PostprocessCallback{Int}, integrator)
+    pp.save_size < 0 && return false
+
+    return integrator.stats.naccept > 0 &&
+           round(integrator.stats.naccept / pp.interval) > pp.save_size
+end
+
+# `PeriodicCallback`
+@inline function discard_old_data(pp::PostprocessCallback{Int}, integrator)
+    pp.save_size < 0 && return false
+
+    return integrator.stats.naccept > 0 &&
+           round(integrator.t / pp.interval) > pp.save_size
 end
 
 # After the simulation has finished, this function is called to write the data to a JSON file
