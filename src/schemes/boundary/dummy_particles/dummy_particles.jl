@@ -467,8 +467,7 @@ end
     end
 end
 
-@inline function boundary_pressure_inner!(boundary_model,
-                                          boundary_density_calculator,
+@inline function boundary_pressure_inner!(boundary_model, boundary_density_calculator,
                                           system, neighbor_system::FluidSystem, v,
                                           v_neighbor_system, particle, neighbor, pos_diff,
                                           distance, viscosity, cache, pressure,
@@ -499,14 +498,14 @@ end
 end
 
 @inline function dynamic_pressure(boundary_density_calculator, density_neighbor, v,
-                                  v_neighbor_system, particle,
-                                  neighbor, system, neighbor_system)
+                                  v_neighbor_system, particle, neighbor, system,
+                                  neighbor_system)
     return zero(density_neighbor)
 end
 
 @inline function dynamic_pressure(::BernoulliPressureExtrapolation, density_neighbor, v,
-                                  v_neighbor_system, particle,
-                                  neighbor, system::BoundarySystem, neighbor_system)
+                                  v_neighbor_system, particle, neighbor,
+                                  system::BoundarySystem, neighbor_system)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
@@ -516,8 +515,8 @@ end
 end
 
 @inline function dynamic_pressure(::BernoulliPressureExtrapolation, density_neighbor, v,
-                                  v_neighbor_system, particle,
-                                  neighbor, system::SolidSystem, neighbor_system)
+                                  v_neighbor_system, particle, neighbor,
+                                  system::SolidSystem, neighbor_system)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     return density_neighbor * dot(relative_velocity, relative_velocity) / 2
@@ -528,9 +527,8 @@ function compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbo
     return cache
 end
 
-function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami,
-                                    neighbor_system, v_neighbor_system, kernel_weight,
-                                    particle, neighbor)
+function compute_smoothed_velocity!(cache, viscosity::ViscosityAdami, neighbor_system,
+                                    v_neighbor_system, kernel_weight, particle, neighbor)
     v_b = current_velocity(v_neighbor_system, neighbor_system, neighbor)
 
     for dim in 1:ndims(neighbor_system)
