@@ -715,19 +715,27 @@ function update_nhs!(neighborhood_search,
             points_moving=(true, neighbor.ismoving[]))
 end
 
-function update_nhs!(neighborhood_search,
-                     system::BoundarySPHSystem,
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem,
-                                     BoundarySPHSystem},
-                     u_system, u_neighbor)
-    # Don't update. This NHS is never used.
-    return neighborhood_search
-end
-
+# This function is the same as the one below to avoid ambiguous dispatch when using `Union`
 function update_nhs!(neighborhood_search,
                      system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
-                     neighbor::Union{FluidSystem, TotalLagrangianSPHSystem},
-                     u_system, u_neighbor)
+                     neighbor::FluidSystem, u_system, u_neighbor)
+    # Depending on the density calculator of the boundary model, this NHS is used for
+    # - kernel summation (`SummationDensity`)
+    # - continuity equation (`ContinuityDensity`)
+    # - pressure extrapolation (`AdamiPressureExtrapolation`)
+    #
+    # Boundary coordinates only change over time when `neighbor.ismoving[]`.
+    # The current coordinates of fluids and solids change over time.
+    update!(neighborhood_search, system,
+            current_coordinates(u_system, system),
+            current_coordinates(u_neighbor, neighbor),
+            points_moving=(system.ismoving[], true))
+end
+
+# This function is the same as the one above to avoid ambiguous dispatch when using `Union`
+function update_nhs!(neighborhood_search,
+                     system::BoundarySPHSystem{<:BoundaryModelDummyParticles},
+                     neighbor::TotalLagrangianSPHSystem, u_system, u_neighbor)
     # Depending on the density calculator of the boundary model, this NHS is used for
     # - kernel summation (`SummationDensity`)
     # - continuity equation (`ContinuityDensity`)
@@ -771,6 +779,14 @@ function update_nhs!(neighborhood_search,
             current_coordinates(u_system, system),
             current_coordinates(u_neighbor, neighbor),
             points_moving=(true, false))
+end
+
+function update_nhs!(neighborhood_search,
+                     system::BoundarySPHSystem,
+                     neighbor::FluidSystem,
+                     u_system, u_neighbor)
+    # Don't update. This NHS is never used.
+    return neighborhood_search
 end
 
 function update_nhs!(neighborhood_search,
