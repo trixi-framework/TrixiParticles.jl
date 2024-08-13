@@ -272,7 +272,7 @@ function (pp::PostprocessCallback)(integrator)
         push!(pp.times, t)
     end
 
-    if discard_old_data(pp, integrator)
+    if new_data && discard_old_data(pp, integrator)
         popfirst!(pp.times)
 
         for key in keys(pp.data)
