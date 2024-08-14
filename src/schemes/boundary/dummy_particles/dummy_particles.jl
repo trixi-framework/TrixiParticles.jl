@@ -44,7 +44,7 @@ struct BoundaryModelDummyParticles{DC, ELTYPE <: Real, VECTOR, SE, K, V, COR, C}
     density_calculator :: DC
     smoothing_kernel   :: K
     smoothing_length   :: ELTYPE
-    neighbor_number    :: Int64
+    number_density    :: Int64
     viscosity          :: V
     correction         :: COR
     cache              :: C
@@ -70,9 +70,9 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
               colorfield=zeros(ELTYPE, n_particles),
               neighbor_count=zeros(ELTYPE, n_particles))...)
 
-    neighbor_number = 0
+        number_density_ = 0
     if reference_particle_spacing > 0.0
-        neighbor_number = neighbor_number(Val(ndims(boundary_model)),
+        number_density_ = number_density(Val(ndims(boundary_model)),
                                           reference_particle_spacing,
                                           compact_support(smoothing_kernel,
                                                           smoothing_length))
@@ -80,7 +80,7 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, neighbor_number, viscosity,
+                                       smoothing_length, number_density_, viscosity,
                                        correction, cache)
 end
 
