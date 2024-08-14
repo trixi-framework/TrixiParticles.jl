@@ -48,6 +48,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
     density_calculator                :: DC
     smoothing_kernel                  :: K
     smoothing_length                  :: ELTYPE
+    number_density                    :: Int64
+    color                             :: Int64
     sound_speed                       :: ELTYPE
     viscosity                         :: V
     nu_edac                           :: ELTYPE
@@ -68,7 +70,8 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                          acceleration=ntuple(_ -> 0.0,
                                                              ndims(smoothing_kernel)),
                                          source_terms=nothing, surface_tension=nothing,
-                                         surface_normal_method=nothing, buffer_size=nothing)
+                                         surface_normal_method=nothing, buffer_size=nothing,
+                                         reference_particle_spacing=0.0, color_value=0)
         buffer = isnothing(buffer_size) ? nothing :
                  SystemBuffer(nparticles(initial_condition), buffer_size)
 
@@ -94,6 +97,17 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
                                                             smoothing_length)
         end
 
+        if surface_normal_method !== nothing && reference_particle_spacing < eps()
+            throw(ArgumentError("`reference_particle_spacing` must be set to a positive value when using `ColorfieldSurfaceNormal` or a surface tension model"))
+        end
+
+        number_density_ = 0
+        if reference_particle_spacing > 0.0
+            number_density_ = number_density(Val(NDIMS), reference_particle_spacing,
+                                             compact_support(smoothing_kernel,
+                                                             smoothing_length))
+        end
+
         pressure_acceleration = choose_pressure_acceleration_formulation(pressure_acceleration,
                                                                          density_calculator,
                                                                          NDIMS, ELTYPE,
@@ -103,8 +117,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
-                 create_cache_edac(surface_tension, ELTYPE, NDIMS, n_particles)...,
-                 cache...)
+        create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                    n_particles)...,
+        create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                     n_particles)...,
+        cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel),
@@ -112,21 +129,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-                           smoothing_length, sound_speed, viscosity, nu_edac,
-                           acceleration_, nothing, pressure_acceleration, source_terms,
-                           surface_tension, surface_normal_method,
-                           buffer, cache)
+            smoothing_length, sound_speed, viscosity, nu_edac, smoothing_length,
+            number_density_, color_value, sound_speed, viscosity, nu_edac, acceleration_,
+            nothing, pressure_acceleration, source_terms, surface_tension,
+            surface_normal_method, buffer, cache)
     end
-end
-
-function create_cache_edac(surface_tension_model, ELTYPE, NDIMS, nparticles)
-    return (;)
-end
-
-function create_cache_edac(::SurfaceTensionAkinci, ELTYPE, NDIMS, nparticles)
-    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
-    neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
-    return (; surface_normal, neighbor_count)
 end
 
 function Base.show(io::IO, system::EntropicallyDampedSPHSystem)

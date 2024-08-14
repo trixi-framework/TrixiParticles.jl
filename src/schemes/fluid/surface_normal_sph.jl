@@ -7,6 +7,16 @@ function ColorfieldSurfaceNormal(; smoothing_kernel, smoothing_length)
     return ColorfieldSurfaceNormal(smoothing_kernel, smoothing_length)
 end
 
+function create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS, nparticles)
+    return (;)
+end
+
+function create_cache_surface_normal(::ColorfieldSurfaceNormal, ELTYPE, NDIMS, nparticles)
+    surface_normal = Array{ELTYPE, 2}(undef, NDIMS, nparticles)
+    neighbor_count = Array{ELTYPE, 1}(undef, nparticles)
+    return (; surface_normal, neighbor_count)
+end
+
 # Section 2.2 in Akinci et al. 2013 "Versatile Surface Tension and Adhesion for SPH Fluids"
 # Note: This is the simplest form of normal approximation commonly used in SPH and comes
 # with serious deficits in accuracy especially at corners, small neighborhoods and boundaries
