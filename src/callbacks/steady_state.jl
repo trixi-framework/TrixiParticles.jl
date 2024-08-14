@@ -139,37 +139,24 @@ end
         end
     end
 
-    push!(previous_ekin, ekin)
-
-    terminate = false
-
-    if interval_size_condition(cb, integrator)
-        popfirst!(previous_ekin)
+    if length(previous_ekin) == interval_size
 
         # Calculate MSE only over the `interval_size`
         mse = 0.0
         for index in 1:interval_size
-            mse += (previous_ekin[index] - ekin)^2
+            mse += (previous_ekin[index] - ekin)^2 / interval_size
         end
 
-        mse /= interval_size
+        if mse <= abstol + reltol * ekin
+            return true
+        end
 
-        threshold = abstol + reltol * ekin
-
-        terminate = mse <= threshold
+        # Pop old kinetic energy
+        popfirst!(previous_ekin)
     end
 
-    return terminate
-end
+    # Add current kinetic energy
+    push!(previous_ekin, ekin)
 
-# `DiscreteCallback`
-@inline function interval_size_condition(cb::SteadyStateCallback{Int}, integrator)
-    return integrator.stats.naccept > 0 &&
-           round(integrator.stats.naccept / cb.interval) > cb.interval_size
-end
-
-# `PeriodicCallback`
-@inline function interval_size_condition(cb::SteadyStateCallback, integrator)
-    return integrator.stats.naccept > 0 &&
-           round(Int, integrator.t / cb.interval) > cb.interval_size
+    return false
 end
