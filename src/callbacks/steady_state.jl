@@ -1,8 +1,18 @@
 """
-    SteadyStateCallback(; abstol=1.0e-8, reltol=1.0e-6)
+    SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
+                        abstol=1.0e-8, reltol=1.0e-6)
 
-Terminates the integration when the residual falls below the threshold
-specified by `abstol, reltol`.
+Terminates the integration when the residual of the change in kinetic energy
+falls below the threshold specified by `abstol, reltol`.
+
+# Keywords
+- `interval=0`:     Check steady state condition every `interval` time steps.
+- `dt=0.0`:         Check steady state condition  in regular intervals of `dt` in terms
+                    of integration time by adding additional `tstops`.
+- `interval_size`:  The interval in which the change of the kinetic energy is considered.
+                    `interval_size` is a (integer) multiple of `interval` or `dt`.
+- `abstol`:         Absolute tolerance.
+- `reltol`:         Relative tolerance.
 """
 mutable struct SteadyStateCallback{I, RealT <: Real}
     interval      :: I
@@ -12,8 +22,8 @@ mutable struct SteadyStateCallback{I, RealT <: Real}
     interval_size :: Int
 end
 
-function SteadyStateCallback(; interval::Integer=0, dt=0.0, abstol=1.0e-8, reltol=1.0e-6,
-                             interval_size::Integer=10)
+function SteadyStateCallback(; interval::Integer=0, dt=0.0, interval_size::Integer=10,
+                             abstol=1.0e-8, reltol=1.0e-6)
     abstol, reltol = promote(abstol, reltol)
 
     if dt > 0 && interval > 0
@@ -89,13 +99,31 @@ function Base.show(io::IO, ::MIME"text/plain",
     end
 end
 
-# `affect!`
-(::SteadyStateCallback)(integrator) = terminate!(integrator)
+# `affect!` (`PeriodicCallback`)
+function (cb::SteadyStateCallback)(integrator)
+    steady_state_condition(cb, integrator) || return nothing
 
-# `condition`
+    print_summary(integrator)
+
+    terminate!(integrator)
+end
+
+# `affect!` (`DiscreteCallback`)
+function (cb::SteadyStateCallback{Int})(integrator)
+    print_summary(integrator)
+
+    terminate!(integrator)
+end
+
+# `condition` (`DiscreteCallback`)
 function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
-    (; abstol, reltol, previous_ekin, interval_size,
-    output_directory, filename) = steady_state_callback
+    return steady_state_condition(steady_state_callback, integrator)
+end
+
+@inline function steady_state_condition(cb, integrator)
+    (; abstol, reltol, previous_ekin, interval_size) = cb
+
+    vu_ode = integrator.u
     v_ode, u_ode = vu_ode.x
     semi = integrator.p
 
@@ -115,7 +143,7 @@ function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
 
     terminate = false
 
-    if interval_size_condition(steady_state_callback, integrator)
+    if interval_size_condition(cb, integrator)
         popfirst!(previous_ekin)
 
         # Calculate MSE only over the `interval_size`
