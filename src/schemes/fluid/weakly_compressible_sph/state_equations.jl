@@ -50,7 +50,7 @@ function inverse_state_equation(state_equation::StateEquationCole, pressure)
     return reference_density * tmp^(1 / exponent)
 end
 
-@inline sound_speed(eos::StateEquationCole) = eos.sound_speed
+@inline sound_speed(eos) = eos.sound_speed
 
 @doc raw"""
     StateEquationIdealGas(; gas_constant, temperature)

@@ -70,17 +70,17 @@ function BoundaryModelDummyParticles(initial_density, hydrodynamic_mass,
               colorfield=zeros(ELTYPE, n_particles),
               neighbor_count=zeros(ELTYPE, n_particles))...)
 
-    number_density = 0
+    number_density_ = 0
     if reference_particle_spacing > 0.0
-        number_density = number_density(Val(ndims(boundary_model)),
-                                        reference_particle_spacing,
-                                        compact_support(smoothing_kernel,
-                                                        smoothing_length))
+        number_density_ = number_density(Val(ndims(boundary_model)),
+                                         reference_particle_spacing,
+                                         compact_support(smoothing_kernel,
+                                                         smoothing_length))
     end
 
     return BoundaryModelDummyParticles(pressure, hydrodynamic_mass, state_equation,
                                        density_calculator, smoothing_kernel,
-                                       smoothing_length, number_density, viscosity,
+                                       smoothing_length, number_density_, viscosity,
                                        correction, cache)
 end
 
