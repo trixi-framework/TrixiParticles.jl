@@ -12,7 +12,7 @@ end
 
 function TableDataSavingCallback(; interval::Integer=0, dt=0.0, save_interval::Integer=-1,
                                  output_directory="out", start_at=0.0,
-                                 axis_ticks=Dict{<:Function, Vector{Float64}}(),
+                                 axis_ticks=Dict{Function, Vector{Float64}}(),
                                  write_file_interval::Integer=1, funcs...)
     if isempty(funcs)
         throw(ArgumentError("`funcs` cannot be empty"))
@@ -38,6 +38,104 @@ function TableDataSavingCallback(; interval::Integer=0, dt=0.0, save_interval::I
         # The first one is the `condition`, the second the `affect!`
         return DiscreteCallback(table_data_cb, table_data_cb,
                                 save_positions=(false, false))
+    end
+end
+
+function Base.show(io::IO, cb::DiscreteCallback{<:Any, <:TableDataSavingCallback})
+    @nospecialize cb # reduce precompilation time
+
+    cb_ = cb.affect!
+
+    print(io, "TableDataSavingCallback(interval=", cb_.interval, ", ",
+          "start_at=", cb_.start_at, ")")
+end
+
+function Base.show(io::IO,
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:TableDataSavingCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    cb_ = cb.affect!.affect!
+
+    print(io, "TableDataSavingCallback(interval=", cb_.interval, ", ",
+          "start_at=", cb_.start_at, ")")
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any, <:TableDataSavingCallback})
+    @nospecialize cb # reduce precompilation time
+
+    function write_file_interval(interval)
+        if interval > 1
+            return "every $(interval) * interval"
+        elseif interval == 1
+            return "always"
+        elseif interval == 0
+            return "no"
+        end
+    end
+
+    function save_interval_size(interval)
+        if interval > 1
+            return "$(interval) * interval"
+        elseif interval == -1
+            return "entire simulation"
+        elseif interval == 0
+            return "never"
+        end
+    end
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        cb_ = cb.affect!
+
+        setup = [
+            "interval" => string(cb_.interval),
+            "write file" => write_file_interval(cb_.write_file_interval),
+            "output directory" => abspath(cb_.output_directory),
+            "start at" => "t = " * string(cb_.start_at),
+            "save interval size" => save_interval_size(cb_.save_interval)]
+        summary_box(io, "TableDataSavingCallback", setup)
+    end
+end
+
+function Base.show(io::IO, ::MIME"text/plain",
+                   cb::DiscreteCallback{<:Any,
+                                        <:PeriodicCallbackAffect{<:TableDataSavingCallback}})
+    @nospecialize cb # reduce precompilation time
+
+    function write_file_interval(interval)
+        if interval > 1
+            return "every $(interval) * interval"
+        elseif interval == 1
+            return "always"
+        elseif interval == 0
+            return "no"
+        end
+    end
+
+    function save_interval_size(interval)
+        if interval > 1
+            return "$(interval) * dt"
+        elseif interval == -1
+            return "entire simulation"
+        elseif interval == 0
+            return "never"
+        end
+    end
+
+    if get(io, :compact, false)
+        show(io, cb)
+    else
+        cb_ = cb.affect!.affect!
+
+        setup = [
+            "dt" => string(cb_.interval),
+            "write file" => write_file_interval(cb_.write_file_interval),
+            "output directory" => abspath(cb_.output_directory),
+            "start at" => "t = " * string(cb_.start_at),
+            "save interval size" => save_interval_size(cb_.save_interval)]
+        summary_box(io, "TableDataSavingCallback", setup)
     end
 end
 
