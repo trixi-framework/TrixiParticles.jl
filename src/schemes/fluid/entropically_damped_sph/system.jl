@@ -117,11 +117,11 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
 
         cache = create_cache_density(initial_condition, density_calculator)
         cache = (;
-        create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
-                                    n_particles)...,
-        create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
-                                     n_particles)...,
-        cache...)
+                 create_cache_surface_normal(surface_normal_method, ELTYPE, NDIMS,
+                                             n_particles)...,
+                 create_cache_surface_tension(surface_tension, ELTYPE, NDIMS,
+                                              n_particles)...,
+                 cache...)
 
         new{NDIMS, ELTYPE, typeof(initial_condition), typeof(mass),
             typeof(density_calculator), typeof(smoothing_kernel),
@@ -129,10 +129,12 @@ struct EntropicallyDampedSPHSystem{NDIMS, ELTYPE <: Real, IC, M, DC, K, V,
             typeof(surface_tension), typeof(surface_normal_method),
             typeof(buffer),
             typeof(cache)}(initial_condition, mass, density_calculator, smoothing_kernel,
-            smoothing_length, sound_speed, viscosity, nu_edac, smoothing_length,
-            number_density_, color_value, sound_speed, viscosity, nu_edac, acceleration_,
-            nothing, pressure_acceleration, source_terms, surface_tension,
-            surface_normal_method, buffer, cache)
+                           smoothing_length, sound_speed, viscosity, nu_edac,
+                           smoothing_length,
+                           number_density_, color_value, sound_speed, viscosity, nu_edac,
+                           acceleration_,
+                           nothing, pressure_acceleration, source_terms, surface_tension,
+                           surface_normal_method, buffer, cache)
     end
 end
 

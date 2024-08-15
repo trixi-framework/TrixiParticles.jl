@@ -55,7 +55,6 @@ function create_cache_surface_tension(surface_tension, ELTYPE, NDIMS, nparticles
     return (;)
 end
 
-
 # Note that `floating_point_number^integer_literal` is lowered to `Base.literal_pow`.
 # Currently, specializations reducing this to simple multiplications exist only up
 # to a power of three, see
