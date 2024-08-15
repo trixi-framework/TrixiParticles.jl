@@ -37,7 +37,7 @@ fluid_system = WeaklyCompressibleSPHSystem(fluid, SummationDensity(),
                                            surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
                                            correction=AkinciFreeSurfaceCorrection(fluid_density),
                                            source_terms=source_terms,
-                                           reference_particle_spacing=fluid_particle_spacing)
+                                           reference_particle_spacing=particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation

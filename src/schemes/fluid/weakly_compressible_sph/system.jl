@@ -383,11 +383,3 @@ end
     (; cache) = particle_system
     return extract_svector(cache.surface_normal, particle_system, particle)
 end
-
-@inline function surface_tension_model(system::FluidSystem)
-    return system.surface_tension
-end
-
-@inline function surface_tension_model(system)
-    return nothing
-end
