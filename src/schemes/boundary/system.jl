@@ -199,7 +199,7 @@ end
     initial_coordinates(system::BoundarySPHSystem, system.movement)
 end
 
-@inline initial_coordinates(system::BoundarySPHSystem, nothing) = sytem.coordinates
+@inline initial_coordinates(system::BoundarySPHSystem, nothing) = system.coordinates
 
 @inline function initial_coordinates(system::BoundarySPHSystem, movement)
 
