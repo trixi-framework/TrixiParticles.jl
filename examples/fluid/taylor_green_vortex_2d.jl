@@ -59,13 +59,9 @@ smoothing_length = 1.0 * particle_spacing
 smoothing_kernel = SchoenbergQuinticSplineKernel{2}()
 
 fluid = RectangularShape(particle_spacing, (n_particles_xy, n_particles_xy), (0.0, 0.0),
+                         coordinates_perturbation=0.2, # To avoid stagnant streamlines
                          density=fluid_density, pressure=initial_pressure_function,
                          velocity=initial_velocity_function)
-
-# Add small random displacement to the particles to avoid stagnant streamlines.
-#seed!(42);
-#fluid.coordinates .+= rand((-particle_spacing / 5):1e-5:(particle_spacing / 5),
-#                           size(fluid.coordinates))
 
 fluid_system = EntropicallyDampedSPHSystem(fluid, smoothing_kernel, smoothing_length,
                                            sound_speed,

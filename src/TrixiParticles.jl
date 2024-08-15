@@ -19,6 +19,7 @@ using MuladdMacro: @muladd
 using Polyester: Polyester, @batch
 using Printf: @printf, @sprintf
 using RecipesBase: RecipesBase, @series
+using Random: seed!
 using SciMLBase: CallbackSet, DiscreteCallback, DynamicalODEProblem, u_modified!,
                  get_tmp_cache, set_proposed_dt!, ODESolution, ODEProblem
 @reexport using StaticArrays: SVector
