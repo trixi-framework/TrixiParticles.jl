@@ -61,7 +61,7 @@ fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            smoothing_length, viscosity=viscosity,
                                            density_diffusion=density_diffusion,
                                            acceleration=(0.0, -gravity), correction=nothing,
-                                           surface_tension=nothing)
+                                           surface_tension=nothing, reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Boundary

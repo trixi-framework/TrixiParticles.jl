@@ -48,7 +48,8 @@ oil_system = WeaklyCompressibleSPHSystem(oil, fluid_density_calculator,
                                          density_diffusion=density_diffusion,
                                          acceleration=(0.0, -gravity),
                                          surface_tension=SurfaceTensionAkinci(surface_tension_coefficient=0.02),
-                                         correction=AkinciFreeSurfaceCorrection(oil_density))
+                                         correction=AkinciFreeSurfaceCorrection(oil_density),
+                                         reference_particle_spacing=fluid_particle_spacing)
 
 # ==========================================================================================
 # ==== Simulation
