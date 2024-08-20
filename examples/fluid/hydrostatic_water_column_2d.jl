@@ -23,21 +23,25 @@ state_equation = StateEquationCole(; sound_speed, reference_density=fluid_densit
                                    exponent=7, clip_negative_pressure=false)
 
 tank = RectangularTank(fluid_particle_spacing, initial_fluid_size, tank_size, fluid_density,
-                       n_layers=boundary_layers,
-                       acceleration=(0.0, -gravity), state_equation=state_equation)
+                       n_layers=boundary_layers, acceleration=(0.0, -gravity),
+                       state_equation=state_equation)
 
 # ==========================================================================================
 # ==== Fluid
 smoothing_length = 1.2 * fluid_particle_spacing
 smoothing_kernel = SchoenbergCubicSplineKernel{2}()
 
-viscosity = ArtificialViscosityMonaghan(alpha=0.02, beta=0.0)
+alpha = 0.02
+viscosity = ArtificialViscosityMonaghan(alpha=alpha, beta=0.0)
 
 fluid_density_calculator = ContinuityDensity()
+
+# This is to set acceleration with `trixi_include`
+system_acceleration = (0.0, -gravity)
 fluid_system = WeaklyCompressibleSPHSystem(tank.fluid, fluid_density_calculator,
                                            state_equation, smoothing_kernel,
                                            smoothing_length, viscosity=viscosity,
-                                           acceleration=(0.0, -gravity),
+                                           acceleration=system_acceleration,
                                            source_terms=nothing)
 
 # ==========================================================================================
