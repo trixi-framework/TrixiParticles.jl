@@ -53,13 +53,13 @@ end
 @inline sound_speed(eos) = eos.sound_speed
 
 @doc raw"""
-    StateEquationIdealGas(; gas_constant, temperature)
+    StateEquationIdealGas(; gas_constant, temperature, gamma)
 Equation of state to describe the relationship between pressure and density
 of a gas using the Ideal Gas Law.
 # Keywords
 - `gas_constant`: Specific gas constant (R) for the gas, typically in J/(kg*K).
 - `temperature` : Absolute temperature of the gas in Kelvin.
-- `gamma`       :
+- `gamma`       : Heat-capacity ratio
 This struct calculates the pressure of a gas from its density using the formula:
 \[ P = \rho \cdot R \cdot T \]
 where \( P \) is pressure, \( \rho \) is density, \( R \) is the gas constant, and \( T \) is temperature.
