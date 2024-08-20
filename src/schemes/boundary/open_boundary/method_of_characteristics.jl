@@ -47,6 +47,8 @@ function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi
     @trixi_timeit timer() "evaluate characteristics" begin
         evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
+
+    return system
 end
 
 # ==== Characteristics
@@ -96,9 +98,16 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
                 end
             end
 
-            characteristics[1, particle] = avg_J1 / counter
-            characteristics[2, particle] = avg_J2 / counter
-            characteristics[3, particle] = avg_J3 / counter
+            # To prevent NANs here if the boundary has not been in contact before.
+            if avg_J1 + avg_J2 + avg_J3 > eps()
+                characteristics[1, particle] = avg_J1 / counter
+                characteristics[2, particle] = avg_J2 / counter
+                characteristics[3, particle] = avg_J3 / counter
+            else
+                characteristics[1, particle] = 0.0
+                characteristics[2, particle] = 0.0
+                characteristics[3, particle] = 0.0
+            end
         else
             characteristics[1, particle] /= volume[particle]
             characteristics[2, particle] /= volume[particle]
@@ -112,9 +121,10 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, sound_speed, cache, flow_direction, density, pressure,
+    (; volume, fluid_system, cache, flow_direction, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
     (; characteristics) = cache
+    (; sound_speed) = fluid_system
 
     v_neighbor_system = wrap_v(v_ode, neighbor_system, semi)
     u_neighbor_system = wrap_u(u_ode, neighbor_system, semi)
@@ -161,7 +171,7 @@ end
 
 @inline function prescribe_conditions!(characteristics, particle, ::OutFlow)
     # J3 is prescribed (i.e. determined from the exterior of the domain).
-    # J1 and J2 is transimtted from the domain interior.
+    # J1 and J2 is transmitted from the domain interior.
     characteristics[3, particle] = zero(eltype(characteristics))
 
     return characteristics
@@ -173,4 +183,28 @@ end
     characteristics[2, particle] = zero(eltype(characteristics))
 
     return characteristics
+end
+
+@doc raw"""
+    BasicOutlet()
+
+Boundary model for `OpenBoundarySPHSystem`.
+This model deactivates any particles that leaves the system.
+"""
+struct BasicOutlet end
+
+function update_final!(system, ::BasicOutlet, v, u, v_ode, u_ode, semi, t)
+    return system
+end
+
+@inline function update_quantities!(system, ::BasicOutlet,
+                                    v, u, v_ode, u_ode, semi, t)
+
+    v_=[0.0, -1.0, 0.0]
+    @threaded system for particle in each_moving_particle(system)
+        for dim in 1:ndims(system)
+            v[dim, particle] = v_[dim]
+        end
+    end
+    return system
 end

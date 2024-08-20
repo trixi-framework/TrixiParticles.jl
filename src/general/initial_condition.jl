@@ -74,12 +74,13 @@ InitialCondition{Float64}(-1.0, [0.0 1.0 1.0; 0.0 0.0 1.0], [0.0 2.0 2.0; 0.0 0.
 ```
 """
 struct InitialCondition{ELTYPE}
-    particle_spacing :: ELTYPE
-    coordinates      :: Array{ELTYPE, 2}
-    velocity         :: Array{ELTYPE, 2}
-    mass             :: Array{ELTYPE, 1}
-    density          :: Array{ELTYPE, 1}
-    pressure         :: Array{ELTYPE, 1}
+    particle_spacing  :: ELTYPE
+    coordinates       :: Array{ELTYPE, 2}
+    velocity          :: Array{ELTYPE, 2}
+    mass              :: Array{ELTYPE, 1}
+    density           :: Array{ELTYPE, 1}
+    pressure          :: Array{ELTYPE, 1}
+    reference_density :: ELTYPE
 
     function InitialCondition(; coordinates, density, velocity=zeros(size(coordinates, 1)),
                               mass=nothing, pressure=0.0, particle_spacing=-1.0)
@@ -129,9 +130,11 @@ struct InitialCondition{ELTYPE}
                                     "length(density) = $(length(density))"))
             end
             densities = density
+            reference_density = sum(densities) / length(densities)
         else
             density_fun = wrap_function(density, Val(NDIMS))
             densities = density_fun.(coordinates_svector)
+            reference_density = density
         end
 
         if any(densities .< eps())
@@ -169,7 +172,7 @@ struct InitialCondition{ELTYPE}
         end
 
         return new{ELTYPE}(particle_spacing, coordinates, velocities, masses,
-                           densities, pressures)
+                           densities, pressures, reference_density)
     end
 end
 

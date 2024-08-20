@@ -77,6 +77,7 @@ struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
     zone_origin       :: ZO
     zone_width        :: ZW
     flow_direction    :: FD
+    nparticles        :: Int64
 
     function InFlow(; plane, flow_direction, density, particle_spacing,
                     initial_condition=nothing, extrude_geometry=nothing,
@@ -127,10 +128,12 @@ struct InFlow{NDIMS, IC, S, ZO, ZW, FD}
         # This check is only necessary when `initial_condition` or `extrude_geometry` are passed.
         ic = remove_outside_particles(initial_condition, spanning_set_, zone_origin)
 
+        nparticles = length(initial_condition.mass)
+
         return new{NDIMS, typeof(ic), typeof(spanning_set_), typeof(zone_origin),
                    typeof(zone_width),
                    typeof(flow_direction_)}(ic, spanning_set_, zone_origin, zone_width,
-                                            flow_direction_)
+                                            flow_direction_, nparticles)
     end
 end
 
@@ -213,37 +216,41 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
     zone_origin       :: ZO
     zone_width        :: ZW
     flow_direction    :: FD
+    nparticles        :: Int64
 
     function OutFlow(; plane, flow_direction, density, particle_spacing,
                      initial_condition=nothing, extrude_geometry=nothing,
                      open_boundary_layers::Integer)
-        if open_boundary_layers <= 0
-            throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
-        end
+        # if open_boundary_layers <= 0
+        #     throw(ArgumentError("`open_boundary_layers` must be positive and greater than zero"))
+        # end
+        NDIMS = length(flow_direction)
+        ELTYPE = eltype(flow_direction)
 
         # Unit vector pointing in downstream direction
         flow_direction_ = normalize(SVector(flow_direction...))
 
         # Sample particles in boundary zone
-        if isnothing(initial_condition) && isnothing(extrude_geometry)
+        if isnothing(initial_condition) && isnothing(extrude_geometry) && open_boundary_layers > 0
             initial_condition = TrixiParticles.extrude_geometry(plane; particle_spacing,
                                                                 density,
                                                                 direction=flow_direction_,
                                                                 n_extrude=open_boundary_layers)
-        elseif !isnothing(extrude_geometry)
+        elseif !isnothing(extrude_geometry) && open_boundary_layers > 0
             initial_condition = TrixiParticles.extrude_geometry(extrude_geometry;
                                                                 particle_spacing, density,
                                                                 direction=-flow_direction_,
                                                                 n_extrude=open_boundary_layers)
+        else
+            initial_condition = InitialCondition(; coordinates=zeros(ELTYPE, NDIMS, 0), density=zero(ELTYPE), particle_spacing=zero(ELTYPE))
         end
 
-        NDIMS = ndims(initial_condition)
-        ELTYPE = eltype(initial_condition)
-
-        zone_width = open_boundary_layers * initial_condition.particle_spacing
+        zone_width = max(open_boundary_layers * particle_spacing, particle_spacing)
 
         # Vectors spanning the boundary zone/box
         spanning_set, zone_origin = calculate_spanning_vectors(plane, zone_width)
+        println(spanning_set, typeof(spanning_set))
+        println(zone_origin, typeof(zone_origin))
 
         # First vector of `spanning_vectors` is normal to the outflow plane.
         # The normal vector must point in downstream direction for an outflow boundary.
@@ -256,16 +263,28 @@ struct OutFlow{NDIMS, IC, S, ZO, ZW, FD}
             spanning_set[:, 1] .*= sign(dot_)
         end
 
-        spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+        # spanning_set_ = reinterpret(reshape, SVector{NDIMS, ELTYPE}, spanning_set)
+        spanning_set_ = [SVector{NDIMS, ELTYPE}(spanning_set[:, i]...) for i in 1:size(spanning_set, 2)]
 
         # Remove particles outside the boundary zone.
         # This check is only necessary when `initial_condition` or `extrude_geometry` are passed.
-        ic = remove_outside_particles(initial_condition, spanning_set_, zone_origin)
+        if open_boundary_layers > 0
+            ic = remove_outside_particles(initial_condition, spanning_set_, zone_origin)
+        else
+            ic = nothing
+        end
+
+        if open_boundary_layers > 0
+            nparticles = length(initial_condition.mass)
+        else
+            nparticles = 0
+        end
+
 
         return new{NDIMS, typeof(ic), typeof(spanning_set_), typeof(zone_origin),
                    typeof(zone_width),
                    typeof(flow_direction_)}(ic, spanning_set_, zone_origin, zone_width,
-                                            flow_direction_)
+                                            flow_direction_, nparticles)
     end
 end
 
@@ -289,8 +308,9 @@ function spanning_vectors(plane_points::NTuple{3}, zone_width)
     edge1 = plane_points[2] - plane_points[1]
     edge2 = plane_points[3] - plane_points[1]
 
-    if !isapprox(dot(edge1, edge2), 0.0, atol=1e-7)
-        throw(ArgumentError("the vectors `AB` and `AC` for the provided points `A`, `B`, `C` must be orthogonal"))
+    # Check if the edges are linearly dependent (to avoid degenerate planes)
+    if isapprox(dot(normalize(edge1), normalize(edge2)), 1.0; atol=1e-7)
+        throw(ArgumentError("The vectors `AB` and `AC` must not be collinear"))
     end
 
     # Calculate normal vector of plane

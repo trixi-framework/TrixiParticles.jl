@@ -81,6 +81,10 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
                    custom_quantities...)
     mkpath(output_directory)
 
+    if nparticles(system_) == 0
+        return
+    end
+
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v, u, system = transfer2cpu(v_, u_, system_)
 
@@ -98,8 +102,11 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
     # Reset the collection when the iteration is 0
     pvd = paraview_collection(collection_file; append=iter > 0)
 
-    points = PointNeighbors.periodic_coords(active_coordinates(u, system),
-                                            periodic_box)
+    println(system.buffer.active_particle)
+    println(length(system.buffer.active_particle))
+    println(u, length(u))
+
+    points = PointNeighbors.periodic_coords(active_coordinates(u, system), periodic_box)
     cells = [MeshCell(VTKCellTypes.VTK_VERTEX, (i,)) for i in axes(points, 2)]
 
     if abs(maximum(points)) > max_coordinates || abs(minimum(points)) > max_coordinates
@@ -364,7 +371,6 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
-        vtk["sound_speed"] = system.sound_speed
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
         vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
