@@ -96,15 +96,18 @@ function inverse_state_equation(state_equation::StateEquationIdealGas, pressure)
 end
 
 # This version is for simulations that include a temperature.
-function inverse_state_equation(state_equation::StateEquationIdealGas, pressure, internal_energy)
+function inverse_state_equation(state_equation::StateEquationIdealGas, pressure,
+                                internal_energy)
     gamma = state_equation.gamma
 
     density = pressure / ((gamma - 1.0) * internal_energy)
     return density
 end
 
-
 @inline sound_speed(eos::StateEquationIdealGas) = sqrt(eos.gamma * eos.gas_constant *
                                                        eos.temperature)
 # This version is for simulations that include a temperature.
-@inline sound_speed(eos::StateEquationIdealGas, pressure, density) = sqrt(eos.gamma * pressure/(density * eos.gas_constant))
+@inline sound_speed(eos::StateEquationIdealGas, pressure, density) = sqrt(eos.gamma *
+                                                                          pressure /
+                                                                          (density *
+                                                                           eos.gas_constant))

@@ -215,7 +215,9 @@ end
 end
 
 @inline system_sound_speed(system::WeaklyCompressibleSPHSystem) = sound_speed(system.state_equation)
-@inline system_sound_speed(system::WeaklyCompressibleSPHSystem, pressure, density) = sound_speed(system.state_equation, pressure, density)
+@inline system_sound_speed(system::WeaklyCompressibleSPHSystem, pressure, density) = sound_speed(system.state_equation,
+                                                                                                 pressure,
+                                                                                                 density)
 
 function update_quantities!(system::WeaklyCompressibleSPHSystem, v, u,
                             v_ode, u_ode, semi, t)
