@@ -39,7 +39,6 @@ trixi_include(@__MODULE__, joinpath(examples_dir(), "fluid", "dam_break_2d.jl"),
               tank_size=(floor(5.366 * H / fluid_particle_spacing) * fluid_particle_spacing,
                          2.6 * H))
 
-
 # ==========================================================================================
 # ==== Setup air_system layer
 
@@ -49,13 +48,13 @@ air_density = 1.0
 
 # Air above the initial water
 air_system = RectangularShape(fluid_particle_spacing,
-                       round.(Int, air_size ./ fluid_particle_spacing),
-                       zeros(length(air_size)), density=air_density)
+                              round.(Int, air_size ./ fluid_particle_spacing),
+                              zeros(length(air_size)), density=air_density)
 
 # Air for the rest of the empty volume
 air_system2 = RectangularShape(fluid_particle_spacing,
-                        round.(Int, air_size2 ./ fluid_particle_spacing),
-                        (W, 0.0), density=air_density)
+                               round.(Int, air_size2 ./ fluid_particle_spacing),
+                               (W, 0.0), density=air_density)
 
 # move on top of the water
 for i in axes(air_system.coordinates, 2)
@@ -66,14 +65,14 @@ air_system = union(air_system, air_system2)
 
 # We use background_pressure here to prevent negative pressure regions in the gas phase.
 air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
-                                         StateEquationCole(; sound_speed,
-                                                           reference_density=air_density,
-                                                           exponent=1,
-                                                           clip_negative_pressure=false,
-                                                           background_pressure=1000),
-                                         smoothing_kernel, smoothing_length,
-                                         viscosity=air_viscosity,
-                                         acceleration=(0.0, -gravity))
+                                                StateEquationCole(; sound_speed,
+                                                                  reference_density=air_density,
+                                                                  exponent=1,
+                                                                  clip_negative_pressure=false,
+                                                                  background_pressure=1000),
+                                                smoothing_kernel, smoothing_length,
+                                                viscosity=air_viscosity,
+                                                acceleration=(0.0, -gravity))
 
 # air_system_system = WeaklyCompressibleSPHSystem(air_system, fluid_density_calculator,
 #                                          StateEquationIdealGas(; gamma=1.4,
