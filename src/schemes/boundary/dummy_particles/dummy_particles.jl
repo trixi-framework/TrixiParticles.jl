@@ -88,20 +88,23 @@ struct AdamiPressureExtrapolation{ELTYPE}
 end
 
 @doc raw"""
-    BernoulliPressureExtrapolation(; pressure_offset=0.0)
+    BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=1.0)
 
 `density_calculator` for `BoundaryModelDummyParticles`.
 
 # Keywords
 - `pressure_offset=0.0`: Sometimes it is necessary to artificially increase the boundary pressure
                          to prevent penetration, which is possible by increasing this value.
+- `factor=1.0`         : Setting `factor` allows to just increase the strength of the dynamic
+                         pressure part.
 
 """
 struct BernoulliPressureExtrapolation{ELTYPE}
-    pressure_offset::ELTYPE
+    pressure_offset :: ELTYPE
+    factor          :: ELTYPE
 
-    function BernoulliPressureExtrapolation(; pressure_offset=0.0)
-        return new{eltype(pressure_offset)}(pressure_offset)
+    function BernoulliPressureExtrapolation(; pressure_offset=0.0, factor=0.0)
+        return new{eltype(pressure_offset)}(pressure_offset, factor)
     end
 end
 
@@ -485,8 +488,8 @@ end
                                              neighbor)
                            +
                            dynamic_pressure(boundary_density_calculator, density_neighbor,
-                                            v, v_neighbor_system, particle, neighbor,
-                                            system, neighbor_system)
+                                            v, v_neighbor_system, pos_diff, distance,
+                                            particle, neighbor, system, neighbor_system)
                            +
                            dot(resulting_acceleration,
                                density_neighbor * pos_diff)) * kernel_weight
@@ -498,28 +501,35 @@ end
 end
 
 @inline function dynamic_pressure(boundary_density_calculator, density_neighbor, v,
-                                  v_neighbor_system, particle, neighbor, system,
+                                  v_neighbor_system, pos_diff, distance, particle, neighbor,
+                                  system,
                                   neighbor_system)
     return zero(density_neighbor)
 end
 
-@inline function dynamic_pressure(::BernoulliPressureExtrapolation, density_neighbor, v,
-                                  v_neighbor_system, particle, neighbor,
-                                  system::BoundarySystem, neighbor_system)
+@inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
+                                  density_neighbor, v, v_neighbor_system, pos_diff,
+                                  distance, particle, neighbor, system::BoundarySystem,
+                                  neighbor_system)
     if system.ismoving[]
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
-        return density_neighbor * dot(relative_velocity, relative_velocity) / 2
+        normal_velocity = dot(relative_velocity, pos_diff) / distance
+        return boundary_density_calculator.factor * density_neighbor *
+               dot(normal_velocity, normal_velocity) / 2
     end
     return zero(density_neighbor)
 end
 
-@inline function dynamic_pressure(::BernoulliPressureExtrapolation, density_neighbor, v,
-                                  v_neighbor_system, particle, neighbor,
-                                  system::SolidSystem, neighbor_system)
+@inline function dynamic_pressure(boundary_density_calculator::BernoulliPressureExtrapolation,
+                                  density_neighbor, v, v_neighbor_system, pos_diff,
+                                  distance, particle, neighbor, system::SolidSystem,
+                                  neighbor_system)
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
-    return density_neighbor * dot(relative_velocity, relative_velocity) / 2
+    normal_velocity = dot(relative_velocity, pos_diff) / distance
+    return boundary_density_calculator.factor * density_neighbor *
+           dot(normal_velocity, normal_velocity) / 2
 end
 
 function compute_smoothed_velocity!(cache, viscosity, neighbor_system, v_neighbor_system,
