@@ -240,7 +240,7 @@ end
 
     (; delta) = density_diffusion
     (; smoothing_length, state_equation) = particle_system
-    (; sound_speed) = state_equation
+    sound_speed = sound_speed(state_equation)
 
     volume_b = m_b / rho_b
 
