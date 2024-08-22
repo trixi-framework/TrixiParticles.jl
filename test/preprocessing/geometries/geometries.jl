@@ -1,4 +1,3 @@
-include("../../test_util.jl")
 @testset verbose=true "Geometries" begin
     @testset verbose=true "Rectangular Analytical" begin
         rot(vec, alpha) = SVector{2}([cos(alpha) -sin(alpha); sin(alpha) cos(alpha)] * vec)
