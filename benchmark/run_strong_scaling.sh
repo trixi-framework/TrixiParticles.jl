@@ -41,7 +41,7 @@ MIN_THREADS=${OVERRIDE_MIN_THREADS:-$DEFAULT_MIN_THREADS}
 # Initialize the output file with headers and units
 OUTPUT_FILE="benchmark_results.csv"
 echo "Threads,Time" > $OUTPUT_FILE
-echo ",s" >> $OUTPUT_FILE 
+echo "[1],[s]" >> $OUTPUT_FILE 
 
 CURRENT_THREADS=$MIN_THREADS
 
@@ -58,3 +58,7 @@ while [ $CURRENT_THREADS -le $MAX_THREADS ]; do
 done
 
 echo "Benchmarking complete. Results saved to $OUTPUT_FILE."
+
+julia plot_benchmark.jl
+
+echo "Plotting complete. Plot saved as benchmark_speedup.svg."
