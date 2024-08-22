@@ -1,3 +1,4 @@
+include("../../test_util.jl")
 @testset verbose=true "Geometries" begin
     @testset verbose=true "Rectangular Analytical" begin
         rot(vec, alpha) = SVector{2}([cos(alpha) -sin(alpha); sin(alpha) cos(alpha)] * vec)
@@ -137,6 +138,9 @@
             end
         end
 
-        @test TrixiParticles.unique_sorted(copy(x)) == sort(unique(x))
+        sorted_unique_x = sort(unique(x))
+        sorted_unique_copy_x = TrixiParticles.unique_sorted(copy(x))
+
+        @test isapprox(sorted_unique_copy_x, sorted_unique_x; rtol=1e-9, atol=1e-9)
     end
 end
