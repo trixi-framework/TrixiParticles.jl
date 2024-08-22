@@ -1,5 +1,5 @@
 @doc raw"""
-    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow}; sound_speed,
+    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow};
                           fluid_system::FluidSystem, buffer_size::Integer,
                           boundary_model,
                           reference_velocity=nothing,
@@ -12,7 +12,6 @@ Open boundary system for in- and outflow particles.
 - `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
 
 # Keywords
-- `sound_speed`: Speed of sound.
 - `fluid_system`: The corresponding fluid system
 - `boundary_model`: Boundary model (see [Open Boundary Models](@ref open_boundary_models))
 - `buffer_size`: Number of buffer particles.
@@ -39,7 +38,6 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     density              :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     volume               :: ARRAY1D # Array{ELTYPE, 1}: [particle]
     pressure             :: ARRAY1D # Array{ELTYPE, 1}: [particle]
-    sound_speed          :: ELTYPE
     boundary_zone        :: BZ
     flow_direction       :: SVector{NDIMS, ELTYPE}
     reference_velocity   :: RV
@@ -50,7 +48,7 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
     cache                :: C
 
     function OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow};
-                                   sound_speed, fluid_system::FluidSystem,
+                                   fluid_system::FluidSystem,
                                    buffer_size::Integer, boundary_model,
                                    reference_velocity=nothing,
                                    reference_pressure=nothing,
@@ -109,7 +107,7 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                    typeof(reference_velocity_), typeof(reference_pressure_),
                    typeof(reference_density_), typeof(buffer),
                    typeof(cache)}(initial_condition, fluid_system, boundary_model, mass,
-                                  density, volume, pressure, sound_speed, boundary_zone,
+                                  density, volume, pressure, boundary_zone,
                                   flow_direction_, reference_velocity_, reference_pressure_,
                                   reference_density_, buffer, false, cache)
     end
@@ -367,3 +365,4 @@ end
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
+@inline system_sound_speed(system::OpenBoundarySPHSystem) = system_sound_speed(system.fluid_system)
