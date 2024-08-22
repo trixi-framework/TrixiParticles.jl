@@ -4,7 +4,7 @@ struct SystemBuffer{V}
     buffer_size     :: Int
 
     function SystemBuffer(active_size, buffer_size::Integer)
-        active_particle = vcat(trues(active_size), falses(buffer_size))
+        active_particle = vcat(trues(active_size), fill(false, buffer_size))
         eachparticle = collect(1:active_size)
 
         return new{typeof(eachparticle)}(active_particle, eachparticle, buffer_size)
