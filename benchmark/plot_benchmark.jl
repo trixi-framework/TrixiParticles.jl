@@ -2,18 +2,21 @@ using CSV
 using DataFrames
 using CairoMakie
 
-# Read the benchmark results from the CSV file
-df = CSV.read("benchmark_results.csv", DataFrame)
+df = CSV.read("benchmark_results.csv", DataFrame, header=1, skipto=3)
 
-# Convert time to seconds for better readability
-df.Time_sec = df.Time_ns ./ 1e9
+longest_time = maximum(df.Time)
+df.Speedup = longest_time ./ df.Time
 
-# Create the plot
-fig = Figure(resolution = (800, 600))
-ax = Axis(fig[1, 1], title = "Strong Scaling Performance", xlabel = "Number of Threads", ylabel = "Time (s)", xscale = :log10, yscale = :log10)
+x_ticks = df.Threads
 
-# Plot the data
-lines!(ax, df.Threads, df.Time_sec, marker = :circle)
+fig = Figure(size = (800, 600))
+ax = Axis(fig[1, 1],
+          title = "Strong Scaling Speedup",
+          xlabel = "Number of Threads",
+          ylabel = "Speedup",
+          xticks = (x_ticks, string.(x_ticks)))  # Set ticks as powers of 2
 
-# Display the plot
+lines!(ax, df.Threads, df.Speedup, color=:blue)
+scatter!(ax, df.Threads, df.Speedup, color=:red, markersize=10)
+
 fig
