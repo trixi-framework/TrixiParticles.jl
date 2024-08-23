@@ -77,6 +77,10 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "an array where the ``i``-th column holds the velocity of particle ``i`` " *
                                 "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
         else
+            test_result = reference_velocity(zeros(NDIMS), 0.0)
+            if length(test_result) != NDIMS
+                  throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
+            end
             reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
         end
 
@@ -86,6 +90,10 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "each particle's coordinates and time to its pressure, " *
                                 "a vector holding the pressure of each particle, or a scalar"))
         else
+            test_result = reference_pressure(zeros(NDIMS), 0.0)
+            if length(test_result) != 1
+                  throw(ArgumentError("`reference_pressure` function must be a scalar function"))
+            end
             reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
         end
 
@@ -95,6 +103,10 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "each particle's coordinates and time to its density, " *
                                 "a vector holding the density of each particle, or a scalar"))
         else
+            test_result = reference_density(zeros(NDIMS), 0.0)
+            if length(test_result) != 1
+                  throw(ArgumentError("`reference_density` function must be a scalar function"))
+            end
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
 
