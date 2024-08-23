@@ -77,9 +77,11 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "an array where the ``i``-th column holds the velocity of particle ``i`` " *
                                 "or, for a constant fluid velocity, a vector of length $NDIMS for a $(NDIMS)D problem holding this velocity"))
         else
-            test_result = reference_velocity(zeros(NDIMS), 0.0)
-            if length(test_result) != NDIMS
-                  throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
+            if reference_velocity isa Function
+                test_result = reference_velocity(zeros(NDIMS), 0.0)
+                if length(test_result) != NDIMS
+                    throw(ArgumentError("`reference_velocity` function must be of dimension $NDIMS"))
+                end
             end
             reference_velocity_ = wrap_reference_function(reference_velocity, Val(NDIMS))
         end
@@ -90,9 +92,11 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "each particle's coordinates and time to its pressure, " *
                                 "a vector holding the pressure of each particle, or a scalar"))
         else
-            test_result = reference_pressure(zeros(NDIMS), 0.0)
-            if length(test_result) != 1
-                  throw(ArgumentError("`reference_pressure` function must be a scalar function"))
+            if reference_pressure isa Function
+                test_result = reference_pressure(zeros(NDIMS), 0.0)
+                if length(test_result) != 1
+                    throw(ArgumentError("`reference_pressure` function must be a scalar function"))
+                end
             end
             reference_pressure_ = wrap_reference_function(reference_pressure, Val(NDIMS))
         end
@@ -103,9 +107,11 @@ struct OpenBoundarySPHSystem{BM, BZ, NDIMS, ELTYPE <: Real, IC, FS, ARRAY1D, RV,
                                 "each particle's coordinates and time to its density, " *
                                 "a vector holding the density of each particle, or a scalar"))
         else
-            test_result = reference_density(zeros(NDIMS), 0.0)
-            if length(test_result) != 1
-                  throw(ArgumentError("`reference_density` function must be a scalar function"))
+            if reference_density isa Function
+                test_result = reference_density(zeros(NDIMS), 0.0)
+                if length(test_result) != 1
+                    throw(ArgumentError("`reference_density` function must be a scalar function"))
+                end
             end
             reference_density_ = wrap_reference_function(reference_density, Val(NDIMS))
         end
@@ -132,7 +138,7 @@ function create_cache_open_boundary(boundary_model, initial_condition)
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics)
+            previous_characteristics=previous_characteristics, previous_characteristics_inited=[false])
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -202,7 +208,7 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
 
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
-    @trixi_timeit timer() "update quantities" update_quantities!(system,
+    @trixi_timeit timer() "update quantities" update_boundary_quantities!(system,
                                                                  system.boundary_model,
                                                                  v, u, v_ode, u_ode,
                                                                  semi, t)
