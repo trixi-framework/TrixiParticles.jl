@@ -17,16 +17,17 @@ df.Speedup = longest_time ./ df.Time
 
 x_ticks = df.Threads
 
-fig = Figure(size = (800, 600))
+fig = Figure(size=(800, 600))
 ax = Axis(fig[1, 1],
-          title = "Strong Scaling Speedup",
-          xlabel = "Number of Threads",
-          ylabel = "Speedup",
-          xticks = (x_ticks, string.(x_ticks)))
+          title="Strong Scaling Speedup",
+          xlabel="Number of Threads",
+          ylabel="Speedup",
+          xticks=(x_ticks, string.(x_ticks)))
 
 line_plot = lines!(ax, df.Threads, df.Speedup, color=:blue, label="Speedup Curve")
-scatter_plot = scatter!(ax, df.Threads, df.Speedup, color=:red, markersize=10, label="Data Points")
+scatter_plot = scatter!(ax, df.Threads, df.Speedup, color=:red, markersize=10,
+                        label="Data Points")
 
-axislegend(ax, position = :rb)
+axislegend(ax, position=:rb)
 
 save("benchmark_speedup.svg", fig)
