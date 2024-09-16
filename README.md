@@ -12,7 +12,8 @@
 
 **TrixiParticles.jl** is a numerical simulation framework designed for particle-based numerical methods, with an emphasis on multiphysics applications, written in [Julia](https://julialang.org).
 A primary goal of the framework is to be user-friendly for engineering, science, and educational purposes. In addition to its extensible design and optimized implementation, we prioritize the user experience, including installation, pre- and postprocessing.
-Its features include:
+
+[![YouTube](https://github.com/user-attachments/assets/df915179-2f5a-4923-bb85-6b5cc6c9a93e)](https://www.youtube.com/watch?v=V7FWl4YumcA)
 
 ## Features
 - Incompressible Navier-Stokes
