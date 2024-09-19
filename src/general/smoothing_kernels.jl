@@ -103,7 +103,7 @@ end
 @doc raw"""
     SchoenbergCubicSplineKernel{NDIMS}()
 
-Cubic spline kernel by [Schoenberg1946](@cite), given by
+Cubic spline kernel by [Schoenberg (1946)](@cite Schoenberg1946), given by
 ```math
     W(r, h) = \frac{1}{h^d} w(r/h)
 ```
@@ -121,8 +121,8 @@ $\sigma =[\frac{2}{3}, \frac{10}{7 \pi}, \frac{1}{\pi}]$ in $[1, 2, 3]$ dimensio
 This kernel function has a compact support of ``[0, 2h]``.
 
 For an overview of Schoenberg cubic, quartic and quintic spline kernels including
-normalization factors, see [Price2012](@cite).
-For an analytic formula for higher order Schoenberg kernels, see [Monaghan1985](@cite).
+normalization factors, see [Price (2012)](@cite Price2012).
+For an analytic formula for higher order Schoenberg kernels, see [Monaghan (1985)](@cite Monaghan1985).
 The largest disadvantage of Schoenberg Spline Kernel is the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
 
@@ -170,7 +170,7 @@ end
 @doc raw"""
     SchoenbergQuarticSplineKernel{NDIMS}()
 
-Quartic spline kernel by [Schoenberg1946](@cite), given by
+Quartic spline kernel by [Schoenberg (1946)](@cite Schoenberg1946), given by
 ```math
     W(r, h) = \frac{1}{h^d} w(r/h)
 ```
@@ -191,8 +191,8 @@ $\sigma =[\frac{1}{24}, \frac{96}{1199 \pi}, \frac{1}{20\pi}]$ in $[1, 2, 3]$ di
 This kernel function has a compact support of ``[0, 2.5h]``.
 
 For an overview of Schoenberg cubic, quartic and quintic spline kernels including
-normalization factors, see [Price2012](@cite).
-For an analytic formula for higher order Schoenberg kernels, see [Monaghan1985](@cite).
+normalization factors, see [Price (2012)](@cite Price2012).
+For an analytic formula for higher order Schoenberg kernels, see [Monaghan (1985)](@cite Monaghan1985).
 
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
@@ -257,7 +257,7 @@ end
 @doc raw"""
     SchoenbergQuinticSplineKernel{NDIMS}()
 
-Quintic spline kernel by [Schoenberg1946](@cite), given by
+Quintic spline kernel by [Schoenberg (1946)](@cite Schoenberg1946), given by
 ```math
     W(r, h) = \frac{1}{h^d} w(r/h)
 ```
@@ -276,8 +276,8 @@ $\sigma =[\frac{1}{120}, \frac{7}{478 \pi}, \frac{1}{120\pi}]$ in $[1, 2, 3]$ di
 This kernel function has a compact support of ``[0, 3h]``.
 
 For an overview of Schoenberg cubic, quartic and quintic spline kernels including
-normalization factors, see [Price2012](@cite).
-For an analytic formula for higher order Schoenberg kernels, see [Monaghan1985](@cite).
+normalization factors, see [Price (2012)](@cite Price2012).
+For an analytic formula for higher order Schoenberg kernels, see [Monaghan (1985)](@cite Monaghan1985).
 
 The largest disadvantage of Schoenberg Spline Kernel are the rather non-smooth first derivative,
 which can lead to increased noise compared to other kernel variants.
@@ -340,7 +340,7 @@ abstract type WendlandKernel{NDIMS} <: SmoothingKernel{NDIMS} end
 @doc raw"""
     WendlandC2Kernel{NDIMS}()
 
-Wendland C2 kernel [Wendland1995](@cite), 1995), a piecewise polynomial function designed
+Wendland C2 kernel [Wendland1995](@cite), a piecewise polynomial function designed
 to have compact support and to be twice continuously differentiable everywhere. Given by
 
 ```math
@@ -405,7 +405,7 @@ end
 @doc raw"""
     WendlandC4Kernel{NDIMS}()
 
-Wendland C4 kernel, a piecewise polynomial function designed to have compact support and to
+Wendland C4 kernel [Wendland1995](@cite), a piecewise polynomial function designed to have compact support and to
 be four times continuously differentiable everywhere. Given by
 
 ```math
@@ -466,7 +466,7 @@ end
 @doc raw"""
     WendlandC6Kernel{NDIMS}()
 
-Wendland C6 kernel, a piecewise polynomial function designed to have compact support and
+Wendland C6 kernel [Wendland1995](@cite), a piecewise polynomial function designed to have compact support and
 to be six times continuously differentiable everywhere. Given by:
 
 ```math

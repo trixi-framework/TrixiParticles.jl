@@ -163,7 +163,7 @@ with
 where ``m_a`` and ``m_b`` are the masses of fluid particle ``a`` and boundary particle ``b``
 respectively, ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles
 ``a`` and ``b``, ``d`` denotes the boundary particle spacing and ``n`` denotes the number of
-dimensions (see [Monaghan, Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh, Monaghan, 2015](@cite Valizadeh2015)).
+dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) and [Valizadeh & Monaghan, 2015](@cite Valizadeh2015)).
 Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
 the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``

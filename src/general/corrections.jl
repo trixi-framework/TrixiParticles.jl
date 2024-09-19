@@ -51,7 +51,7 @@ end
     ShepardKernelCorrection()
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by [Li et al. 1996](@cite Li1996).
+was first proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -73,7 +73,7 @@ struct ShepardKernelCorrection end
 
 Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
 was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
-as shown by [Basa et al. 2008](@cite Basa2008).
+as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
 ```math

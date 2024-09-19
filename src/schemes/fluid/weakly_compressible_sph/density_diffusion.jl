@@ -23,7 +23,7 @@ end
 @doc raw"""
     DensityDiffusionMolteniColagrossi(; delta)
 
-The commonly used density diffusion term by [Molteni2009](@cite).
+The commonly used density diffusion term by [Molteni (2009)](@cite Molteni2009).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
@@ -53,7 +53,7 @@ end
 @doc raw"""
     DensityDiffusionFerrari()
 
-A density diffusion term by [Ferrari2009](@cite).
+A density diffusion term by [Ferrari (2009)](@cite Ferrari2009).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by
@@ -85,9 +85,9 @@ end
 @doc raw"""
     DensityDiffusionAntuono(initial_condition; delta)
 
-The commonly used density diffusion terms by [Antuono2010](@cite), also referred to as
-δ-SPH. The density diffusion term by [Molteni2009](@cite) is extended by a second
-term, which is nicely written down by [Antuono2012](@cite).
+The commonly used density diffusion terms by [Antuono (2010)](@cite Antuono2010), also referred to as
+δ-SPH. The density diffusion term by [Molteni (2009)](@cite Molteni2009) is extended by a second
+term, which is nicely written down by [Antuono (2012)](@cite Antuono2012).
 
 The term ``\psi_{ab}`` in the continuity equation in [`DensityDiffusion`](@ref) is defined
 by

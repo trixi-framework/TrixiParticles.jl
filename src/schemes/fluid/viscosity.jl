@@ -50,7 +50,7 @@ where ``\alpha, \beta, \epsilon`` are parameters, ``c`` is the speed of sound, `
 and ``\bar{\rho}_{ab}`` is the arithmetic mean of their densities.
 
 Note that ``\alpha`` needs to adjusted for different resolutions to maintain a specific Reynolds Number.
-To do so, [Monaghan2005](@cite) defined an equivalent effective physical kinematic viscosity ``\nu`` by
+To do so, [Monaghan (2005)](@cite Monaghan2005) defined an equivalent effective physical kinematic viscosity ``\nu`` by
 ```math
     \nu = \frac{\alpha h c }{2d + 4},
 ```
@@ -78,7 +78,7 @@ end
 @doc raw"""
     ViscosityMorris(; nu, epsilon=0.01)
 
-Viscosity by [Morris1997](@cite).
+Viscosity by [Morris (1997)](@cite Morris1997) also used by [Fourtakas (2019)](@cite Fourtakas2019).
 
 To the force ``f_{ab}`` between two particles ``a`` and ``b`` due to pressure gradients,
 an additional force term ``\tilde{f}_{ab}`` is added with
@@ -177,7 +177,7 @@ end
 @doc raw"""
     ViscosityAdami(; nu, epsilon=0.01)
 
-Viscosity by [Adami2012](@cite).
+Viscosity by [Adami (2012)](@cite Adami2012).
 The viscous interaction is calculated with the shear force for incompressible flows given by
 ```math
 f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{ab}||^2+\epsilon h_{ab}^2}  \nabla W_{ab} \cdot r_{ab},

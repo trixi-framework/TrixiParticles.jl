@@ -13,7 +13,7 @@ Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "system.jl")]
 
 The equation of state is used to relate fluid density to pressure and thus allow
 an explicit simulation of the [WCSPH system](@ref WeaklyCompressibleSPHSystem).
-The equation in the following formulation was introduced by [Cole 1948](@cite Cole2009) (pp. 39 and 43).
+The equation in the following formulation was introduced by [Cole (1948)](@cite Cole1948) (pp. 39 and 43).
 The pressure ``p`` is calculated as
 ```math
     p = B \left(\left(\frac{\rho}{\rho_0}\right)^\gamma - 1\right) + p_{\text{background}},

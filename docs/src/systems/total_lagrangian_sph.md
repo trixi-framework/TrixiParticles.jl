@@ -2,7 +2,7 @@
 
 A Total Lagrangian framework is used wherein the governing equations are formulated such that
 all relevant quantities and operators are measured with respect to the
-initial configuration ([O’Connor & Rogers 2021](@cite O’Connor2021), [Belytschko et al. 2000](@cite Belytschko2000)).
+initial configuration ([O’Connor & Rogers, 2021](@cite O’Connor2021), [Belytschko et al., 2000](@cite Belytschko2000)).
 
 The governing equations with respect to the initial configuration are given by:
 ```math
