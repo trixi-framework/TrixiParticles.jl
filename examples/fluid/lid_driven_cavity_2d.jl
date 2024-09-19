@@ -55,11 +55,11 @@ fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoot
 # ==========================================================================================
 # ==== Boundary
 
-movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
+lid_movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
-movement = BoundaryMovement(movement_function, is_moving)
+lid_movement = BoundaryMovement(lid_movement_function, is_moving)
 
 boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,
@@ -74,7 +74,7 @@ boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
 
 boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
 
-boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=movement)
+boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=lid_movement)
 
 # ==========================================================================================
 # ==== Simulation

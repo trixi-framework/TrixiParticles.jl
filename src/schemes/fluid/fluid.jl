@@ -92,7 +92,7 @@ end
 @inline function momentum_convection(system, neighbor_system,
                                      v_particle_system, v_neighbor_system, rho_a, rho_b,
                                      m_a, m_b, particle, neighbor, grad_kernel)
-    return SVector(ntuple(_ -> 0.0, Val(ndims(system))))
+    return zero(grad_kernel)
 end
 
 @inline function momentum_convection(system,

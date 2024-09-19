@@ -82,10 +82,10 @@ The discretized form of the last term is
 ```
 
 where ``V_a``, ``V_b`` denote the volume of particles ``a`` and ``b`` respectively.
-Note that although ``\nabla p_{\text{background}} = 0``, the discretization is not 0th-order consistent for **non**-uniform particle distribution,
+Note that although in the continuous case ``\nabla p_{\text{background}} = 0``, the discretization is not 0th-order consistent for **non**-uniform particle distribution,
 which means that there is a non-vanishing contribution only when particles are disordered.
 That also means that ``p_{\text{background}}`` occurs as prefactor to correct the trajectory of a particle resulting in uniform pressure distributions.
-Suggested is a background pressure which is on the order of the reference pressure but can be chosen arbitrarily large when time-step criterion is adjusted.
+Suggested is a background pressure which is in the order of the reference pressure but can be chosen arbitrarily large when the time-step criterion is adjusted.
 
 The inviscid momentum equation with an additional convection term for a particle moving with ``\tilde{v}`` is
 
