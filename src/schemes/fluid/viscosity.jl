@@ -184,7 +184,7 @@ f_{ab} = \sum_w \bar{\eta}_{ab} \left( V_a^2 + V_b^2 \right) \frac{v_{ab}}{||r_{
 ```
 where ``r_{ab} = r_a - r_b`` is the difference of the coordinates of particles ``a`` and ``b``,
 ``v_{ab} = v_a - v_b`` is the difference of their velocities, ``h`` is the smoothing length and ``V`` is the particle volume.
-The parameter ``\epsilon`` prevents singularities (see [Ramachandran2019](@cite)).
+The parameter ``\epsilon`` prevents singularities (see [Ramachandran (2019)](@cite Ramachandran2019)).
 The inter-particle-averaged shear stress  is
 ```math
     \bar{\eta}_{ab} =\frac{2 \eta_a \eta_b}{\eta_a + \eta_b},

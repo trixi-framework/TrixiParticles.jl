@@ -50,8 +50,8 @@ end
 @doc raw"""
     ShepardKernelCorrection()
 
-Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by [Li et al. (1996)](@cite Li1996).
+Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
+to obtain a 0-th order accurate result, which was first proposed by [Li et al. (1996)](@cite Li1996).
 
 The kernel correction coefficient is determined by
 ```math
@@ -71,9 +71,9 @@ struct ShepardKernelCorrection end
 @doc raw"""
     KernelCorrection()
 
-Kernel correction uses Shepard interpolation to obtain a 0-th order accurate result, which
-was first proposed by Li et al. This can be further extended to obtain a kernel corrected gradient
-as shown by [Basa et al. (2008)](@cite Basa2008).
+Kernel correction, as explained by [Bonet (1999)](@cite Bonet1999), uses Shepard interpolation
+to obtain a 0-th order accurate result, which was first proposed by Li et al.
+This can be further extended to obtain a kernel corrected gradient as shown by [Basa et al. (2008)](@cite Basa2008).
 
 The kernel correction coefficient is determined by
 ```math
@@ -99,7 +99,7 @@ struct KernelCorrection end
     MixedKernelGradientCorrection()
 
 Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
-which results in a 1st-order-accurate SPH method. TODO: cite?
+which results in a 1st-order-accurate SPH method (see [Bonet (1999)](@cite Bonet1999)).
 
 # Notes:
 - Stability issues, especially when particles separate into small clusters.
@@ -236,7 +236,8 @@ end
 @doc raw"""
     GradientCorrection()
 
-Compute the corrected gradient of particle interactions based on their relative positions.
+Compute the corrected gradient of particle interactions based on their relative positions
+(see [Bonet (1999)](@cite Bonet1999)).
 
 # Mathematical Details
 
@@ -277,7 +278,8 @@ struct GradientCorrection end
 @doc raw"""
     BlendedGradientCorrection()
 
-Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref).
+Calculate a blended gradient to reduce the stability issues of the [`GradientCorrection`](@ref)
+as explained by [Bonet (1999)](@cite Bonet1999).
 
 This calculates the following,
 ```math
