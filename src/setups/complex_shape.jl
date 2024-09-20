@@ -10,7 +10,7 @@
 Sample a complex geometry with particles. Returns an [`InitialCondition`](@ref).
 Note that an initial particle grid is generated inside the bounding box of the geometry.
 A `point_in_geometry_algorithm` checks if particles are inside the geometry or not.
-For more information about the method see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref).
+For more information about the method see [`WindingNumberJacobson`](@ref) or [`WindingNumberHormann`](@ref).
 
 # Arguments
 - `geometry`: Geometry returned by [`load_geometry`](@ref).
@@ -30,7 +30,7 @@ For more information about the method see [`WindingNumberJacobson`](@ref) or [`W
                         will be overwritten when using an initial pressure function in the system.
 - `point_in_geometry_algorithm`: Algorithm for sampling the complex geometry with particles.
                                  It basically checks whether a particle is inside an object or not.
-                                 For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHorman`](@ref)
+                                 For more information see [`WindingNumberJacobson`](@ref) or [`WindingNumberHormann`](@ref)
 - `grid_offset`: Offset of the initial particle grid of the bounding box of the `geometry`.
 - `max_nparticles`: Maximum number of particles in the initial particle grid.
                     This is only used to avoid accidentally choosing a `particle_spacing`
@@ -48,8 +48,8 @@ function ComplexShape(geometry::Union{TriangleMesh, Polygon}; particle_spacing, 
                                                                         winding_number_factor=sqrt(eps())),
                       store_winding_number=false, grid_offset::Real=0.0,
                       max_nparticles=10^7, pad_initial_particle_grid=2particle_spacing)
-    if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHorman
-        throw(ArgumentError("`WindingNumberHorman` only supports 2D geometries"))
+    if ndims(geometry) == 3 && point_in_geometry_algorithm isa WindingNumberHormann
+        throw(ArgumentError("`WindingNumberHormann` only supports 2D geometries"))
     end
 
     if grid_offset < 0.0
