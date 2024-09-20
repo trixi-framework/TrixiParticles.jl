@@ -99,7 +99,7 @@ struct KernelCorrection end
     MixedKernelGradientCorrection()
 
 Combines [`GradientCorrection`](@ref) and [`KernelCorrection`](@ref),
-which results in a 1st-order-accurate SPH method (see [Bonet (1999)](@cite Bonet1999)).
+which results in a 1st-order-accurate SPH method (see [Bonet, 1999](@cite Bonet1999)).
 
 # Notes:
 - Stability issues, especially when particles separate into small clusters.
@@ -237,7 +237,7 @@ end
     GradientCorrection()
 
 Compute the corrected gradient of particle interactions based on their relative positions
-(see [Bonet (1999)](@cite Bonet1999)).
+(see [Bonet, 1999](@cite Bonet1999)).
 
 # Mathematical Details
 

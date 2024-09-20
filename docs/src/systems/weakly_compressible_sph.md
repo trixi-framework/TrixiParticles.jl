@@ -33,7 +33,7 @@ be obtained by choosing `exponent=1`, i.e.
 
 For higher Reynolds numbers, `exponent=7` is recommended, whereas at lower Reynolds
 numbers `exponent=1` yields more accurate pressure estimates since pressure and
-density are proportional.
+density are proportional (see [Morris, 1997](@cite Morris1997)).
 
 When using [`SummationDensity`](@ref) (or [`DensityReinitializationCallback`](@ref))
 and free surfaces, initializing particles with equal spacing will cause underestimated
@@ -43,8 +43,6 @@ Setting `clip_negative_pressure=true` can avoid this.
 Modules = [TrixiParticles]
 Pages = [joinpath("schemes", "fluid", "weakly_compressible_sph", "state_equations.jl")]
 ```
-
-TODO cite Morris
 
 ## [Viscosity](@id viscosity_wcsph)
 

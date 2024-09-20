@@ -167,7 +167,7 @@ dimensions (see [Monaghan & Kajtar, 2009](@cite Monaghan2009), Equation (3.1) an
 Note that the repulsive acceleration $\tilde{f}_{ab}$ does not depend on the masses of
 the boundary particles.
 Here, ``\Phi`` denotes the 1D Wendland C4 kernel, normalized to ``1.77`` for ``q=0``
-([Monaghan, Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and
+([Monaghan & Kajtar, 2009](@cite Monaghan2009), Section 4), with ``\Phi(r, h) = w(r/h)`` and
 ```math
 w(q) =
 \begin{cases}
@@ -180,11 +180,11 @@ The boundary particles are assumed to have uniform spacing by the factor ``\beta
 than the expected fluid particle spacing.
 For example, if the fluid particles have an expected spacing of ``0.3`` and the boundary particles
 have a uniform spacing of ``0.1``, then this parameter should be set to ``\beta = 3``.
-According to [Monaghan, Kajtar, 2009](@cite Monaghan2009), a value of ``\beta = 3`` for the Wendland C4 that
+According to [Monaghan & Kajtar (2009)](@cite Monaghan2009), a value of ``\beta = 3`` for the Wendland C4 that
 we use here is reasonable for most computing purposes.
 
 The parameter ``K`` is used to scale the force exerted by the boundary particles.
-In [Monaghan, Kajtar, 2009](@cite Monaghan2009), a value of ``gD`` is used for static tank simulations,
+In [Monaghan & Kajtar (2009)](@cite Monaghan2009), a value of ``gD`` is used for static tank simulations,
 where ``g`` is the gravitational acceleration and ``D`` is the depth of the fluid.
 
 The viscosity ``\Pi_{ab}`` is calculated according to the viscosity used in the
