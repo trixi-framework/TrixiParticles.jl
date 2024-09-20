@@ -111,9 +111,14 @@ end
 
     dv[end, particle] += rho_a / rho_b * m_b * dot(vdiff, grad_kernel)
 
-    density_diffusion!(dv, density_diffusion, v_particle_system, v_neighbor_system,
-                       particle, neighbor, pos_diff, distance, m_b, rho_a, rho_b,
-                       particle_system, neighbor_system, grad_kernel)
+    # Artificial density diffusion should only be applied to system(s) representing a fluid
+    # with the same physical properties i.e. density and viscosity.
+    # TODO: shouldn't be applied to particles on the interface (depends on PR #539)
+    if particle_system === neighbor_system
+        density_diffusion!(dv, density_diffusion, v_particle_system, particle, neighbor,
+                           pos_diff, distance, m_b, rho_a, rho_b, particle_system,
+                           grad_kernel)
+    end
 end
 
 @inline function particle_neighbor_pressure(v_particle_system, v_neighbor_system,

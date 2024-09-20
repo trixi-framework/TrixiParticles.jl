@@ -1,18 +1,18 @@
 """
-    WindingNumberHorman()
+    WindingNumberHormann()
 
 Algorithm for inside-outside segmentation of a complex geometry proposed by [Hormann (2001)](@cite Hormann2001).
 It is only supported for 2D geometries.
-`WindingNumberHorman` might handle edge cases a bit better, since the winding number is an integer value.
+`WindingNumberHormann` might handle edge cases a bit better, since the winding number is an integer value.
 
 !!! warning "Experimental Implementation"
     This is an experimental feature and may change in any future releases.
 """
-struct WindingNumberHorman end
+struct WindingNumberHormann end
 
 # Algorithm 2 from Hormann et al. (2001) "The point in polygon problem for arbitrary polygons"
 # https://doi.org/10.1016/S0925-7721(01)00012-8
-function (point_in_poly::WindingNumberHorman)(geometry, points; store_winding_number=false)
+function (point_in_poly::WindingNumberHormann)(geometry, points; store_winding_number=false)
     (; edge_vertices) = geometry
 
     # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe

@@ -4,7 +4,7 @@
 
     @testset verbose=true "2D" begin
         @testset verbose=true "Shifted Rectangle" begin
-            algorithms = [WindingNumberHorman(), WindingNumberJacobson()]
+            algorithms = [WindingNumberHormann(), WindingNumberJacobson()]
             shifts = [-0.5, 0.0, 0.5]
             particle_spacings = [0.03, 0.05]
 
@@ -39,8 +39,8 @@
 
         @testset verbose=true "Real World Data" begin
             files = ["hexagon", "circle", "inverted_open_curve"]
-            algorithms = [WindingNumberHorman(), WindingNumberJacobson()]
-            algorithm_names = ["horman", "jacobson"]
+            algorithms = [WindingNumberHormann(), WindingNumberJacobson()]
+            algorithm_names = ["hormann", "jacobson"]
 
             @testset verbose=true "Algorithm: $(TrixiParticles.type2string(algorithms[i]))" for i in 1:2
                 @testset verbose=true "Test File `$(files[j])`" for j in eachindex(files)
