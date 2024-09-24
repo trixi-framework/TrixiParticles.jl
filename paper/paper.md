@@ -51,9 +51,9 @@ For example, they involve complex geometries, free surfaces,
 deformable boundaries, and moving material interfaces, as well as the coupling of multiple systems with different mathematical models.
 
 One way to address these challenges is to use particle-based methods, in which the particles either represent physical particles or mathematical interpolation points.
-The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by [@Cundall:1979],
+The former case refers to methods that model separate, discrete particles with rotational degrees of freedom such as the Discrete Element Method (DEM) proposed by @Cundall:1979,
 whereas the latter case refers to methods such as Smoothed Particle Hydrodynamics (SPH), which is a numerical discretization method for solving problems in continuum mechanics.
-SPH was originally developed by [@Monaghan:1977] to simulate astrophysical applications and is now widely used to simulate CFD, structural mechanics, and even heat conduction problems.
+SPH was originally developed by @Monaghan:1977 to simulate astrophysical applications and is now widely used to simulate CFD, structural mechanics, and even heat conduction problems.
 
 The Lagrangian formalism in particle-based methods allows particles to move along a velocity field without any connection to neighboring particles,
 thus eliminating the need for a mesh to discretize the simulation domain.
@@ -86,7 +86,7 @@ $$ f_a = \sum_{b \in \mathcal{S}_1} f_{ab}^{\mathcal{S}_1} + \sum_{b \in \mathca
 where the interaction force $f_{ab}^{\mathcal{S}_i}$ that particle $a$ experiences due to particle $b$ depends on the system type of particle $a$, the system type $\mathcal{S}_i$ of particle $b$, and the relative particle distance.
 For computational efficiency, only particles with a distance within a system-dependent search radius interact with each other.
 
-For example, the SPH method determines the force between two SPH particles according to [@Monaghan:2005] as
+For example, the SPH method determines the force between two SPH particles according to @Monaghan:2005 as
 $$ f_{ab} = -m_a m_b \left( \frac{p_a}{\rho_a^2} + \frac{p_b}{\rho_b^2} \right) \nabla_a W_{ab} + \Pi_{ab},$$
 where $m_a$, $m_b$, $\rho_a$, $\rho_b$, $p_a$, $p_b$ are the mass, density, and pressure of particles $a$ and $b$, respectively. The last term $\Pi_{ab}$ includes dissipative terms such as artificial viscosity [@Monaghan:2005] and is scheme-specific. The weighting function $W_{ab}$, also called kernel-function, depends on the relative distance between particles $a$ and $b$.
 
@@ -104,12 +104,12 @@ The resulting ordinary differential equation (ODE) problem is then fed into the 
 At the time of writing, the following feature highlights are available in TrixiParticles.jl:
 
 * *Fluid Systems*
-    + Weakly compressible SPH (WCSPH): Standard SPH method originally developed by [@Monaghan:1977] to simulate astrophysics applications.
-    + Entropically damped artificial compressibility (EDAC) for SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by [@Clausen:2013] and adapted to SPH by [@Ramachandran:2019].
+    + Weakly compressible SPH (WCSPH): Standard SPH method originally developed by @Monaghan:1977 to simulate astrophysics applications.
+    + Entropically damped artificial compressibility (EDAC) for SPH: As opposed to the WCSPH scheme, which uses an equation of state, this scheme uses a pressure evolution equation to calculate the pressure, which is derived by @Clausen:2013 and adapted to SPH by @Ramachandran:2019.
 
 * *Structure Systems*
     + Total lagrangian SPH (TLSPH): Method to simulate elastic structures where all quantities are calculated with respect to the initial configuration [@O_Connor:2021].
-    + DEM: Discretization of granular matter or bulk material into a finite set of distinct, interacting mass elements [@Bicanic:2004], [@Cundall:1979].
+    + DEM: Discretization of granular matter or bulk material into a finite set of distinct, interacting mass elements [@Bicanic:2004; @Cundall:1979].
 
 * *Boundary Systems*
     + Boundary system with several boundary models, where each model follows a different interaction rule.
@@ -128,11 +128,11 @@ At the time of writing, the following feature highlights are available in TrixiP
 TrixiParticles.jl is open source and available under the MIT license at [GitHub](https://github.com/trixi-framework/TrixiParticles.jl),  along with detailed [documentation](https://trixi-framework.github.io/TrixiParticles.jl/stable/) on how to use it. Additionally, we provide tutorials explaining how to set up a simulation of fluid flows, structure mechanics, or FSI.
 A collection of simulation setups to get started with can be found in the examples directory.
 
-As one of the validation examples, \autoref{fig:beam_y_deflection} compares SPH results of TrixiParticles.jl and [@O_Connor:2021] against benchmark data from the finite element simulation of [@Turek:2007].
+As one of the validation examples, \autoref{fig:beam_y_deflection} compares SPH results of TrixiParticles.jl and @O_Connor:2021 against benchmark data from the finite element simulation of @Turek:2007.
 The plots show the y-deflection of the tip of a beam oscillating under its own weight.
-The results obtained with TrixiParticles.jl match those of [@O_Connor:2021] well.
+The results obtained with TrixiParticles.jl match those of @O_Connor:2021 well.
 
-![Comparison of TrixiParticles.jl and  [@O_Connor:2021] against [@Turek:2007]: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=60%}
+![Comparison of TrixiParticles.jl and @O_Connor:2021 against @Turek:2007: Tip y-deflection of an oscillating beam with different resolutions, where $t_s$ is the thickness of the beam and $dp$ is the particle spacing. \label{fig:beam_y_deflection}](oscillating_beam.png){width=60%}
 
 \autoref{fig:falling_sphere} illustrates an exemplary simulation result, where an elastic sphere, modeled with TLSPH, falls into a tank filled with water, modeled by WCSPH.
 
