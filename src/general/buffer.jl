@@ -1,5 +1,5 @@
 struct SystemBuffer{V}
-    active_particle :: BitVector
+    active_particle :: Vector{Bool}
     eachparticle    :: V # Vector{Int}
     buffer_size     :: Int
 

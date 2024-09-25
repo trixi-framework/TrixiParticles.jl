@@ -137,9 +137,6 @@
             end
         end
 
-        sorted_unique_x = sort(unique(x))
-        sorted_unique_copy_x = TrixiParticles.unique_sorted(copy(x))
-
-        @test isapprox(sorted_unique_copy_x, sorted_unique_x; atol=eps())
+        @test TrixiParticles.unique_sorted(copy(x)) == sort(unique(x))
     end
 end
