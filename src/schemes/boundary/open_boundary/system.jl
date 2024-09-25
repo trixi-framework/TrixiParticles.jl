@@ -365,4 +365,3 @@ end
 @inline viscosity_model(system::OpenBoundarySPHSystem, neighbor_system::BoundarySystem) = neighbor_system.boundary_model.viscosity
 # When the neighbor is an open boundary system, just use the viscosity of the fluid `system` instead
 @inline viscosity_model(system, neighbor_system::OpenBoundarySPHSystem) = system.viscosity
-@inline system_sound_speed(system::OpenBoundarySPHSystem) = system_sound_speed(system.fluid_system)

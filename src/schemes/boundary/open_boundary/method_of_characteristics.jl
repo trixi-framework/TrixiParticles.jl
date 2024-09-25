@@ -13,7 +13,7 @@ struct BoundaryModelLastiwka end
     (; density, pressure, cache, flow_direction,
     reference_velocity, reference_pressure, reference_density) = system
 
-    sound_speed = system_sound_speed(system)
+    sound_speed = system_sound_speed(system.fluid_system)
 
     # Update quantities based on the characteristic variables
     @threaded system for particle in each_moving_particle(system)
@@ -125,7 +125,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
-    sound_speed = system_sound_speed(system)
+    sound_speed = system_sound_speed(system.fluid_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
