@@ -1,8 +1,8 @@
 # [Installation](@id installation)
 
 ## Setting up Julia
-If you have not yet installed Julia, please [follow the instructions for your
-operating system](https://julialang.org/downloads/platform/). TrixiParticles.jl works
+If you have not yet installed Julia, please [follow the instructions on the
+official website](https://julialang.org/downloads/). TrixiParticles.jl works
 with Julia v1.9 and newer. We recommend using the latest stable release of Julia.
 
 ## For users

@@ -81,6 +81,11 @@ function trixi2vtk(v_, u_, t, system_, periodic_box; output_directory="out", pre
                    custom_quantities...)
     mkpath(output_directory)
 
+    # Skip empty systems
+    if nparticles(system_) == 0
+        return
+    end
+
     # Transfer to CPU if data is on the GPU. Do nothing if already on CPU.
     v, u, system = transfer2cpu(v_, u_, system_)
 
@@ -325,7 +330,6 @@ function write2vtk!(vtk, v, u, t, system::OpenBoundarySPHSystem; write_meta_data
 
     if write_meta_data
         vtk["boundary_zone"] = type2string(system.boundary_zone)
-        vtk["sound_speed"] = system.sound_speed
         vtk["width"] = round(system.boundary_zone.zone_width, digits=3)
         vtk["flow_direction"] = system.flow_direction
         vtk["velocity_function"] = type2string(system.reference_velocity)
