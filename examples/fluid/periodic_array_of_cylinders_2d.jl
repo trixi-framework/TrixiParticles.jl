@@ -23,7 +23,7 @@ const acceleration_x = 2.5e-4
 
 # Boundary geometry and initial fluid particle positions
 cylinder_radius = 0.02
-tank_size = (6cylinder_radius, 4cylinder_radius)
+tank_size = (6 * cylinder_radius, 4 * cylinder_radius)
 fluid_size = tank_size
 initial_velocity = (1.2e-4, 0.0)
 

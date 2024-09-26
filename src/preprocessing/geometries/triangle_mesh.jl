@@ -196,7 +196,8 @@ function unique_sorted(vertices)
     # Sort by the first entry of the vectors
     compare_first_element = (x, y) -> x[1] < y[1]
     vertices_sorted = sort!(vertices, lt=compare_first_element)
-    keep = trues(length(vertices_sorted))
+    # We cannot use a `BitVector` here, as writing to a `BitVector` is not thread-safe
+    keep = fill(true, length(vertices_sorted))
 
     PointNeighbors.@threaded vertices_sorted for i in eachindex(vertices_sorted)
         # We only sorted by the first entry, so we have to check all previous vertices

@@ -24,6 +24,7 @@ function interact!(dv, v_particle_system, u_particle_system,
         # This technique is for a more robust `pressure_acceleration` but only with TVF.
         # It results only in significant improvement for EDAC and not for WCSPH.
         # See Ramachandran (2019) p. 582
+        # Note that the return value is zero when not using EDAC with TVF.
         p_avg = average_pressure(particle_system, particle)
 
         m_a = hydrodynamic_mass(particle_system, particle)

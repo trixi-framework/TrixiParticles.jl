@@ -2,7 +2,7 @@
     TransportVelocityAdami(background_pressure::Real)
 
 Transport Velocity Formulation (TVF) to suppress pairing and tensile instability.
-See [TVF](@ref transport_velocity_formulation) for more details on the method.
+See [TVF](@ref transport_velocity_formulation) for more details of the method.
 
 # Arguments
 - `background_pressure`: Background pressure. Suggested is a background pressure which is
@@ -50,7 +50,6 @@ function write_v0!(v0, system::FluidSystem, ::TransportVelocityAdami)
     for particle in eachparticle(system)
         # Write particle velocities
         for dim in 1:ndims(system)
-            v0[dim, particle] = initial_condition.velocity[dim, particle]
             v0[ndims(system) + dim, particle] = initial_condition.velocity[dim, particle]
         end
     end
@@ -176,25 +175,4 @@ function update_final!(system::FluidSystem, ::TransportVelocityAdami,
     end
 
     return system
-end
-
-# WARNING!
-# These functions are intended to be used internally to set the transport velocity
-# of newly activated particles in a callback.
-# DO NOT use outside a callback. OrdinaryDiffEq does not allow changing `v` and `u`
-# outside of callbacks.
-function set_transport_velocity!(system::FluidSystem, particle, particle_old, v, v_old)
-    set_transport_velocity!(system, particle, particle_old, v, v_old,
-                            system.transport_velocity)
-end
-
-set_transport_velocity!(system, particle, particle_old, v, v_old) = system
-
-set_transport_velocity!(system, particle, particle_old, v, v_old, ::Nothing) = system
-
-function set_transport_velocity!(system, particle, particle_old, v, v_old,
-                                 ::TransportVelocityAdami)
-    for i in 1:ndims(system)
-        v[ndims(system) + i, particle] = v_old[i, particle_old]
-    end
 end

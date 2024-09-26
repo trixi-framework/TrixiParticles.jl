@@ -13,7 +13,7 @@ using OrdinaryDiffEq
 particle_spacing = 0.02
 
 # Make sure that the kernel support of fluid particles at a boundary is always fully sampled
-boundary_layers = 3
+boundary_layers = 4
 
 # ==========================================================================================
 # ==== Experiment Setup
@@ -55,11 +55,11 @@ fluid_system = EntropicallyDampedSPHSystem(cavity.fluid, smoothing_kernel, smoot
 # ==========================================================================================
 # ==== Boundary
 
-movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
+lid_movement_function(t) = SVector(VELOCITY_LID * t, 0.0)
 
 is_moving(t) = true
 
-movement = BoundaryMovement(movement_function, is_moving)
+lid_movement = BoundaryMovement(lid_movement_function, is_moving)
 
 boundary_model_cavity = BoundaryModelDummyParticles(cavity.boundary.density,
                                                     cavity.boundary.mass,
@@ -74,7 +74,7 @@ boundary_model_lid = BoundaryModelDummyParticles(lid.density, lid.mass,
 
 boundary_system_cavity = BoundarySPHSystem(cavity.boundary, boundary_model_cavity)
 
-boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=movement)
+boundary_system_lid = BoundarySPHSystem(lid, boundary_model_lid, movement=lid_movement)
 
 # ==========================================================================================
 # ==== Simulation
@@ -90,11 +90,15 @@ ode = semidiscretize(semi, tspan)
 info_callback = InfoCallback(interval=100)
 
 saving_callback = SolutionSavingCallback(dt=0.02)
-callbacks = CallbackSet(info_callback, saving_callback, UpdateCallback())
+
+pp_callback = nothing
+
+callbacks = CallbackSet(info_callback, saving_callback, pp_callback, UpdateCallback())
 
 # Use a Runge-Kutta method with automatic (error based) time step size control
 sol = solve(ode, RDPK3SpFSAL49(),
             abstol=1e-6, # Default abstol is 1e-6 (may needs to be tuned to prevent boundary penetration)
             reltol=1e-4, # Default reltol is 1e-3 (may needs to be tuned to prevent boundary penetration)
             dtmax=1e-2, # Limit stepsize to prevent crashing
+            maxiters=Int(1e7),
             save_everystep=false, callback=callbacks);
