@@ -88,7 +88,7 @@ end
 inflow = InFlow(; plane=([0.0, 0.0], [0.0, domain_size[2]]), flow_direction,
                 open_boundary_layers, density=fluid_density, particle_spacing)
 
-open_boundary_in = OpenBoundarySPHSystem(inflow; sound_speed, fluid_system,
+open_boundary_in = OpenBoundarySPHSystem(inflow; fluid_system,
                                          boundary_model=BoundaryModelTafuni(),
                                          buffer_size=n_buffer_particles,
                                          reference_velocity=velocity_function)
@@ -97,7 +97,7 @@ outflow = OutFlow(; plane=([domain_size[1], 0.0], [domain_size[1], domain_size[2
                   flow_direction, open_boundary_layers, density=fluid_density,
                   particle_spacing)
 
-open_boundary_out = OpenBoundarySPHSystem(outflow; sound_speed, fluid_system,
+open_boundary_out = OpenBoundarySPHSystem(outflow; fluid_system,
                                           boundary_model=BoundaryModelTafuni(),
                                           buffer_size=n_buffer_particles,
                                           # reference_velocity=velocity_function,

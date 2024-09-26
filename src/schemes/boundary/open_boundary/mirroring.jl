@@ -94,7 +94,7 @@ function extrapolate_values!(system, v_ode, u_ode, semi, t; prescribed_density=f
         #
         #           f_0 = f_k - (r_0 - r_k) ⋅ ∇f_k
         #
-        # in order to get zero gradient at the oultet interface.
+        # in order to get zero gradient at the outlet interface.
         if prescribed_pressure
             pressure[particle] = reference_value(reference_pressure, pressure[particle],
                                                  particle_coords, t)

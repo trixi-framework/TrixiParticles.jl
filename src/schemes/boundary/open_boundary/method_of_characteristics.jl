@@ -15,8 +15,10 @@ end
 
 @inline function update_quantities!(system, boundary_model::BoundaryModelLastiwka,
                                     v, u, v_ode, u_ode, semi, t)
-    (; density, pressure, cache, flow_direction, sound_speed,
+    (; density, pressure, cache, flow_direction,
     reference_velocity, reference_pressure, reference_density) = system
+
+    sound_speed = system_sound_speed(system.fluid_system)
 
     if boundary_model.extrapolate_reference_values
         (; prescribed_pressure, prescribed_velocity, prescribed_density) = cache
@@ -126,7 +128,7 @@ end
 
 function evaluate_characteristics!(system, neighbor_system::FluidSystem,
                                    v, u, v_ode, u_ode, semi, t)
-    (; volume, sound_speed, cache, flow_direction, density, pressure,
+    (; volume, cache, flow_direction, density, pressure,
     reference_velocity, reference_pressure, reference_density) = system
     (; characteristics) = cache
 
@@ -137,6 +139,7 @@ function evaluate_characteristics!(system, neighbor_system::FluidSystem,
 
     system_coords = current_coordinates(u, system)
     neighbor_coords = current_coordinates(u_neighbor_system, neighbor_system)
+    sound_speed = system_sound_speed(system.fluid_system)
 
     # Loop over all fluid neighbors within the kernel cutoff
     foreach_point_neighbor(system, neighbor_system, system_coords, neighbor_coords,
