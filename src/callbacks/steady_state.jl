@@ -3,22 +3,24 @@
                         abstol=1.0e-8, reltol=1.0e-6)
 
 Terminates the integration when the residual of the change in kinetic energy
-falls below the threshold specified by `abstol, reltol`.
+falls below the threshold specified by `abstol + reltol * ekin`,
+where `ekin` is the total kinetic energy of the simulation.
 
 # Keywords
 - `interval=0`:     Check steady state condition every `interval` time steps.
-- `dt=0.0`:         Check steady state condition  in regular intervals of `dt` in terms
-                    of integration time by adding additional `tstops`.
+- `dt=0.0`:         Check steady state condition in regular intervals of `dt` in terms
+                    of integration time by adding additional `tstops`
+                    (note that this may change the solution).
 - `interval_size`:  The interval in which the change of the kinetic energy is considered.
                     `interval_size` is a (integer) multiple of `interval` or `dt`.
 - `abstol`:         Absolute tolerance.
 - `reltol`:         Relative tolerance.
 """
-mutable struct SteadyStateCallback{I, RealT <: Real}
+mutable struct SteadyStateCallback{I, ELTYPE <: Real}
     interval      :: I
-    abstol        :: RealT
-    reltol        :: RealT
-    previous_ekin :: Vector{Float64}
+    abstol        :: ELTYPE
+    reltol        :: ELTYPE
+    previous_ekin :: Vector{ELTYPE}
     interval_size :: Int
 end
 
@@ -101,7 +103,7 @@ end
 
 # `affect!` (`PeriodicCallback`)
 function (cb::SteadyStateCallback)(integrator)
-    steady_state_condition(cb, integrator) || return nothing
+    steady_state_condition!(cb, integrator) || return nothing
 
     print_summary(integrator)
 
@@ -117,10 +119,10 @@ end
 
 # `condition` (`DiscreteCallback`)
 function (steady_state_callback::SteadyStateCallback)(vu_ode, t, integrator)
-    return steady_state_condition(steady_state_callback, integrator)
+    return steady_state_condition!(steady_state_callback, integrator)
 end
 
-@inline function steady_state_condition(cb, integrator)
+@inline function steady_state_condition!(cb, integrator)
     (; abstol, reltol, previous_ekin, interval_size) = cb
 
     vu_ode = integrator.u
@@ -131,12 +133,9 @@ end
     ekin = 0.0
     foreach_system(semi) do system
         v = wrap_v(v_ode, system, semi)
+        unused_arg = nothing
 
-        # Calculate kintetic energy
-        for particle in each_moving_particle(system)
-            velocity = current_velocity(v, system, particle)
-            ekin += 0.5 * system.mass[particle] * dot(velocity, velocity)
-        end
+        ekin += kinetic_energy(v, unused_arg, unused_arg, system)
     end
 
     if length(previous_ekin) == interval_size
