@@ -107,14 +107,16 @@ function (cb::SteadyStateCallback)(integrator)
 
     print_summary(integrator)
 
-    terminate!(integrator)
+    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
+    integrator.opts.maxiters = integrator.iter
 end
 
 # `affect!` (`DiscreteCallback`)
 function (cb::SteadyStateCallback{Int})(integrator)
     print_summary(integrator)
 
-    terminate!(integrator)
+    # `terminate!(integrator)` terminates the simulation immediately and might cause an error message.
+    integrator.opts.maxiters = integrator.iter
 end
 
 # `condition` (`DiscreteCallback`)
