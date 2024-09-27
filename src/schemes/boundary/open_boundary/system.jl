@@ -1,5 +1,5 @@
 @doc raw"""
-    OpenBoundarySPHSystem(boundary_zone::Union{InFlow, OutFlow};
+    OpenBoundarySPHSystem(boundary_zone::BoundaryZone;
                           fluid_system::FluidSystem, buffer_size::Integer,
                           boundary_model,
                           reference_velocity=nothing,
@@ -9,7 +9,7 @@
 Open boundary system for in- and outflow particles.
 
 # Arguments
-- `boundary_zone`: Use [`InFlow`](@ref) for an inflow and [`OutFlow`](@ref) for an outflow boundary.
+- `boundary_zone`: See [`BoundaryZone`](@ref).
 
 # Keywords
 - `fluid_system`: The corresponding fluid system
@@ -125,12 +125,13 @@ end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
 vtkname(system::OpenBoundarySPHSystem) = "open_boundary"
+boundary_type_name(::BoundaryZone{ZT}) where {ZT} = string(nameof(ZT))
 
 function Base.show(io::IO, system::OpenBoundarySPHSystem)
     @nospecialize system # reduce precompilation time
 
     print(io, "OpenBoundarySPHSystem{", ndims(system), "}(")
-    print(io, type2string(system.boundary_zone))
+    print(io, boundary_type_name(system.boundary_zone))
     print(io, ") with ", nparticles(system), " particles")
 end
 
@@ -145,7 +146,7 @@ function Base.show(io::IO, ::MIME"text/plain", system::OpenBoundarySPHSystem)
         summary_line(io, "#buffer_particles", system.buffer.buffer_size)
         summary_line(io, "fluid system", type2string(system.fluid_system))
         summary_line(io, "boundary model", type2string(system.boundary_model))
-        summary_line(io, "boundary", type2string(system.boundary_zone))
+        summary_line(io, "boundary type", boundary_type_name(system.boundary_zone))
         summary_line(io, "flow direction", system.flow_direction)
         summary_line(io, "prescribed velocity", type2string(system.reference_velocity))
         summary_line(io, "prescribed pressure", type2string(system.reference_pressure))
