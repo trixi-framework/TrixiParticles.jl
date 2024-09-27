@@ -10,7 +10,7 @@ struct BoundaryModelLastiwka end
 
 # Called from update callback
 @inline function update_boundary_quantities!(system, boundary_model::BoundaryModelLastiwka,
-                                    v, u, v_ode, u_ode, semi, t)
+                                             v, u, v_ode, u_ode, semi, t)
     (; density, pressure, cache, flow_direction,
     reference_velocity, reference_pressure, reference_density) = system
 
@@ -53,14 +53,12 @@ function update_final!(system, ::BoundaryModelLastiwka, v, u, v_ode, u_ode, semi
     end
 end
 
-
 function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     (; cache) = system
     (; previous_characteristics_inited) = cache
 
     # Propagate characteristics through the open boundary
     if !previous_characteristics_inited[1]
-
         for iteration in 1:4
             calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
         end
@@ -69,7 +67,6 @@ function evaluate_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     else
         calc_characteristics!(system, v, u, v_ode, u_ode, semi, t)
     end
-
 end
 
 # ==== Characteristics

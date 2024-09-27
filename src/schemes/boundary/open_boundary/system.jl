@@ -138,7 +138,8 @@ function create_cache_open_boundary(boundary_model, initial_condition)
     previous_characteristics = zeros(ELTYPE, 3, nparticles(initial_condition))
 
     return (; characteristics=characteristics,
-            previous_characteristics=previous_characteristics, previous_characteristics_inited=[false])
+            previous_characteristics=previous_characteristics,
+            previous_characteristics_inited=[false])
 end
 
 timer_name(::OpenBoundarySPHSystem) = "open_boundary"
@@ -209,9 +210,10 @@ function update_open_boundary_eachstep!(system::OpenBoundarySPHSystem, v_ode, u_
     # Update density, pressure and velocity based on the characteristic variables.
     # See eq. 13-15 in Lastiwka (2009) https://doi.org/10.1002/fld.1971
     @trixi_timeit timer() "update quantities" update_boundary_quantities!(system,
-                                                                 system.boundary_model,
-                                                                 v, u, v_ode, u_ode,
-                                                                 semi, t)
+                                                                          system.boundary_model,
+                                                                          v, u, v_ode,
+                                                                          u_ode,
+                                                                          semi, t)
 
     @trixi_timeit timer() "check domain" check_domain!(system, v, u, v_ode, u_ode, semi)
 
