@@ -439,9 +439,9 @@ end
         # Since neighbor and particle are switched
         pos_diff = -pos_diff
         boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v,
-                                 v_neighbor_system, particle, neighbor, pos_diff,
-                                 distance, viscosity, cache, pressure, pressure_offset)
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, cache, pressure,
+                                 pressure_offset)
     end
 end
 
@@ -464,9 +464,9 @@ end
                            points=eachparticle(system)) do particle, neighbor,
                                                            pos_diff, distance
         boundary_pressure_inner!(boundary_model, density_calculator, system,
-                                 neighbor_system, v,
-                                 v_neighbor_system, particle, neighbor, pos_diff,
-                                 distance, viscosity, cache, pressure, pressure_offset)
+                                 neighbor_system, v, v_neighbor_system, particle, neighbor,
+                                 pos_diff, distance, viscosity, cache, pressure,
+                                 pressure_offset)
     end
 end
 
@@ -491,8 +491,8 @@ end
                                             v, v_neighbor_system, pos_diff, distance,
                                             particle, neighbor, system, neighbor_system)
                            +
-                           dot(resulting_acceleration,
-                               density_neighbor * pos_diff)) * kernel_weight
+                           dot(resulting_acceleration, density_neighbor * pos_diff)) *
+                          kernel_weight
 
     cache.volume[particle] += kernel_weight
 
@@ -502,8 +502,7 @@ end
 
 @inline function dynamic_pressure(boundary_density_calculator, density_neighbor, v,
                                   v_neighbor_system, pos_diff, distance, particle, neighbor,
-                                  system,
-                                  neighbor_system)
+                                  system, neighbor_system)
     return zero(density_neighbor)
 end
 
@@ -515,6 +514,7 @@ end
         relative_velocity = current_velocity(v, system, particle) .-
                             current_velocity(v_neighbor_system, neighbor_system, neighbor)
         normal_velocity = dot(relative_velocity, pos_diff) / distance
+
         return boundary_density_calculator.factor * density_neighbor *
                dot(normal_velocity, normal_velocity) / 2
     end
@@ -528,6 +528,7 @@ end
     relative_velocity = current_velocity(v, system, particle) .-
                         current_velocity(v_neighbor_system, neighbor_system, neighbor)
     normal_velocity = dot(relative_velocity, pos_diff) / distance
+
     return boundary_density_calculator.factor * density_neighbor *
            dot(normal_velocity, normal_velocity) / 2
 end
